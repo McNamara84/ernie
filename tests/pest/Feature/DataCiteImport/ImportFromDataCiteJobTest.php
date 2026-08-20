@@ -17,6 +17,7 @@ use App\Services\DataCiteSyncResult;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\DoiSuggestionService;
+use App\Services\GfzDataServicesPortalService;
 use App\Services\LegacyMetaworksDatacenterLookupService;
 use App\Services\LegacyResourceLookupService;
 use App\Services\MetaworksDownloadUrlService;
@@ -27,6 +28,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -121,6 +123,14 @@ beforeEach(function () {
         ->andReturnNull()
         ->byDefault();
     $this->app->instance(LegacyMetaworksDatacenterLookupService::class, $this->datacenterLookupService);
+
+    $this->portalService = Mockery::mock(GfzDataServicesPortalService::class);
+    $this->portalService
+        ->shouldReceive('datacenterNamesForDoi')
+        ->zeroOrMoreTimes()
+        ->andReturn([])
+        ->byDefault();
+    $this->app->instance(GfzDataServicesPortalService::class, $this->portalService);
 });
 
 afterEach(function () {
@@ -818,6 +828,182 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['imported'])->toBe(1)
             ->and($status['skipped'])->toBe(0)
             ->and($status['failed'])->toBe(0);
+    });
+
+    it('prefers a specialized portal datacenter during a single DOI import', function () {
+        $doi = '10.5880/icdp.5069.001';
+        $doiRecord = [
+            'id' => $doi,
+            'attributes' => [
+                'doi' => $doi,
+                'titles' => [['title' => 'SDDB portal assignment']],
+                'publicationYear' => 2026,
+                'types' => ['resourceTypeGeneral' => 'Dataset'],
+            ],
+        ];
+
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with($doi)
+            ->andReturn($doiRecord);
+        $this->portalService
+            ->shouldReceive('datacenterNamesForDoi')
+            ->once()
+            ->with($doi)
+            ->andReturn([
+                LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER,
+                LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER,
+            ]);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->with($doiRecord, $this->user->id)
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, $doi))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $resource = Resource::query()->where('doi', $doi)->firstOrFail();
+
+        expect(Cache::get("datacite_import:{$importId}"))
+            ->toMatchArray([
+                'status' => 'completed',
+                'imported' => 1,
+                'failed' => 0,
+            ])
+            ->and($resource->fresh()->datacenter?->name)
+            ->toBe(LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER);
+    });
+
+    it('uses the legacy datacenter fallback when the portal has no DOI assignment', function () {
+        $doi = '10.5880/icdp.5068.002';
+        $doiRecord = [
+            'id' => $doi,
+            'attributes' => [
+                'doi' => $doi,
+                'titles' => [['title' => 'SDDB fallback assignment']],
+                'publicationYear' => 2026,
+                'types' => ['resourceTypeGeneral' => 'Dataset'],
+            ],
+        ];
+
+        $this->importService->shouldReceive('fetchSingleDoi')->once()->with($doi)->andReturn($doiRecord);
+        $this->portalService->shouldReceive('datacenterNamesForDoi')->once()->with($doi)->andReturn([]);
+        $this->datacenterLookupService
+            ->shouldReceive('syncDatacenters')
+            ->once()
+            ->withArgs(fn (Resource $resource, string $resolvedDoi): bool => $resource->doi === $doi && $resolvedDoi === $doi)
+            ->andReturnUsing(function (Resource $resource): void {
+                $datacenter = Datacenter::query()->firstOrCreate([
+                    'name' => LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER,
+                ]);
+                $resource->update(['datacenter_id' => $datacenter->id]);
+            });
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, $doi))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        expect(Resource::query()->where('doi', $doi)->firstOrFail()->datacenter?->name)
+            ->toBe(LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER)
+            ->and(Cache::get("datacite_import:{$importId}")['status'])
+            ->toBe('completed');
+    });
+
+    it('logs a portal failure and completes a single import through the legacy fallback', function () {
+        Log::spy();
+
+        $doi = '10.5880/icdp.5065.001';
+        $doiRecord = [
+            'id' => $doi,
+            'attributes' => [
+                'doi' => $doi,
+                'titles' => [['title' => 'SDDB unavailable portal fallback']],
+                'publicationYear' => 2026,
+                'types' => ['resourceTypeGeneral' => 'Dataset'],
+            ],
+        ];
+
+        $this->importService->shouldReceive('fetchSingleDoi')->once()->with($doi)->andReturn($doiRecord);
+        $this->portalService
+            ->shouldReceive('datacenterNamesForDoi')
+            ->once()
+            ->with($doi)
+            ->andThrow(new RuntimeException('Portal unavailable'));
+        $this->datacenterLookupService
+            ->shouldReceive('syncDatacenters')
+            ->once()
+            ->andReturnNull();
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, $doi))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        expect(Cache::get("datacite_import:{$importId}"))
+            ->toMatchArray([
+                'status' => 'completed',
+                'imported' => 1,
+                'failed' => 0,
+            ]);
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with(
+                'GFZ Data Services portal lookup failed during single DOI import; using legacy datacenter fallback.',
+                [
+                    'import_id' => $importId,
+                    'doi' => $doi,
+                    'error' => 'Portal unavailable',
+                ],
+            );
+    });
+
+    it('keeps an existing resource datacenter unchanged during a repeated single DOI import', function () {
+        $doi = '10.5880/icdp.5069.001';
+        $existingDatacenter = Datacenter::query()->create(['name' => 'Existing manual assignment']);
+        $existingResource = Resource::factory()->create([
+            'doi' => $doi,
+            'datacenter_id' => $existingDatacenter->id,
+        ]);
+        $doiRecord = [
+            'id' => $doi,
+            'attributes' => [
+                'doi' => $doi,
+                'titles' => [['title' => 'Existing SDDB resource']],
+            ],
+        ];
+
+        $this->importService->shouldReceive('fetchSingleDoi')->once()->with($doi)->andReturn($doiRecord);
+        $this->portalService
+            ->shouldReceive('datacenterNamesForDoi')
+            ->once()
+            ->with($doi)
+            ->andReturn([LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER]);
+        $this->transformer->shouldReceive('transform')->never();
+        $this->datacenterLookupService->shouldReceive('syncDatacenters')->never();
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, $doi))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        expect(Cache::get("datacite_import:{$importId}"))
+            ->toMatchArray([
+                'status' => 'completed',
+                'imported' => 0,
+                'skipped' => 1,
+            ])
+            ->and($existingResource->fresh()->datacenter_id)
+            ->toBe($existingDatacenter->id);
     });
 
     it('assigns canonical GEOFON datacenters during single DataCite imports', function (string $doi, string $expectedDatacenter): void {

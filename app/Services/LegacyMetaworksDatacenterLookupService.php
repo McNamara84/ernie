@@ -145,6 +145,10 @@ class LegacyMetaworksDatacenterLookupService
             'datacenters' => [self::RIESGOS_DATACENTER],
         ],
         [
+            'pattern' => '/^icdp(?:[.\/_-]|$)/',
+            'datacenters' => [self::SDDB_DATACENTER],
+        ],
+        [
             'pattern' => '/(?:^|[.\/_-])sddb(?:[.\/_-]|$)/',
             'datacenters' => [self::SDDB_DATACENTER],
         ],

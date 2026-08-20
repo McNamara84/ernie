@@ -185,6 +185,22 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
             '10.1594/GFZ.SDDB.1003',
             [LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER],
         ],
+        'SDDB ICDP 5069 DOI' => [
+            '10.5880/icdp.5069.001',
+            [LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER],
+        ],
+        'SDDB ICDP 5068 DOI' => [
+            '10.5880/icdp.5068.002',
+            [LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER],
+        ],
+        'SDDB ICDP 5065 DOI' => [
+            '10.5880/icdp.5065.001',
+            [LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER],
+        ],
+        'non-SDDB DOI with a similar ICDPX prefix' => [
+            '10.5880/ICDPX.5069.001',
+            [LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER],
+        ],
         'SFB806 DOI' => [
             '10.5880/SFB806.2024.001',
             [LegacyMetaworksDatacenterLookupService::SFB806_DATACENTER],
@@ -248,6 +264,10 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
         'GEOFON event doi scheme' => [
             'doi:10.1594/GFZ.GEOFON.GFZ2009GIBB',
             LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+        ],
+        'mixed-case SDDB ICDP DOI URL' => [
+            'https://doi.org/10.5880/ICDP.5069.001',
+            LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER,
         ],
     ]);
 

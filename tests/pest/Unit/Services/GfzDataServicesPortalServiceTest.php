@@ -131,6 +131,108 @@ it('paginates resources and keeps all portal datacenter assignments', function (
     });
 });
 
+it('resolves all canonical portal datacenters for one normalized DOI', function (): void {
+    Http::fake([
+        'portal.example.test/*' => Http::response([
+            'response' => [
+                'numFound' => 3,
+                'docs' => [
+                    [
+                        'doi' => '10.5880/ICDP.5069.001',
+                        'datacentre_facet' => [
+                            'DOIDB.SDDB - SDDB Scientific Drilling Database',
+                            'DOIDB.GFZ - GFZ German Research Centre for Geosciences',
+                            'DOIDB.SDDB - SDDB Scientific Drilling Database',
+                        ],
+                    ],
+                    [
+                        'doi' => 'https://doi.org/10.5880/ICDP.5069.001',
+                        'datacentre_facet' => 'DOIDB.SDDB - SDDB Scientific Drilling Database',
+                    ],
+                    [
+                        'doi' => '10.5880/ICDP.5068.002',
+                        'datacentre_facet' => 'DOIDB.OTHER - Other Datacenter',
+                    ],
+                ],
+            ],
+        ]),
+    ]);
+
+    expect(app(GfzDataServicesPortalService::class)
+        ->datacenterNamesForDoi('https://doi.org/10.5880/ICDP.5069.001'))
+        ->toBe([
+            'SDDB Scientific Drilling Database',
+            'GFZ German Research Centre for Geosciences',
+        ]);
+
+    Http::assertSent(function (Request $request): bool {
+        parse_str((string) $request->data()['query'], $query);
+
+        return $query['q'] === 'doi:10.5880\\/icdp.5069.001'
+            && $query['rows'] === '10'
+            && $query['fl'] === 'doi,datacentre_facet'
+            && $query['fq'] === '-type:text';
+    });
+});
+
+it('returns no datacenters for invalid absent or facet-free DOI records', function (string $doi, array $response): void {
+    Http::fake([
+        'portal.example.test/*' => Http::response($response),
+    ]);
+
+    expect(app(GfzDataServicesPortalService::class)->datacenterNamesForDoi($doi))->toBe([]);
+
+    if ($doi === 'not-a-doi') {
+        Http::assertNothingSent();
+    } else {
+        Http::assertSentCount(1);
+    }
+})->with([
+    'invalid DOI without a request' => [
+        'not-a-doi',
+        [],
+    ],
+    'absent DOI' => [
+        '10.5880/missing',
+        [
+            'response' => [
+                'numFound' => 0,
+                'docs' => [],
+            ],
+        ],
+    ],
+    'matching DOI without a datacenter facet' => [
+        '10.5880/facet-free',
+        [
+            'response' => [
+                'numFound' => 1,
+                'docs' => [
+                    ['doi' => '10.5880/FACET-FREE'],
+                ],
+            ],
+        ],
+    ],
+]);
+
+it('rejects malformed DOI lookup responses', function (array $response, string $message): void {
+    Http::fake([
+        'portal.example.test/*' => Http::response($response),
+    ]);
+
+    expect(fn () => app(GfzDataServicesPortalService::class)
+        ->datacenterNamesForDoi('10.5880/icdp.5069.001'))
+        ->toThrow(RuntimeException::class, $message);
+})->with([
+    'missing response object' => [
+        ['unexpected' => []],
+        'invalid DOI response',
+    ],
+    'incomplete response object' => [
+        ['response' => ['numFound' => 1]],
+        'DOI response is incomplete',
+    ],
+]);
+
 it('rejects a datacenter id that is not in the portal list', function (): void {
     Http::fake([
         'portal.example.test/*' => Http::response(portalFacetResponse([

@@ -57,6 +57,57 @@ class GfzDataServicesPortalService
     }
 
     /**
+     * @return list<string>
+     */
+    public function datacenterNamesForDoi(string $doi): array
+    {
+        $normalizedDoi = $this->doiSuggestionService->normalizeDoi($doi);
+
+        if ($normalizedDoi === '' || ! $this->doiSuggestionService->isValidDoiFormat($normalizedDoi)) {
+            return [];
+        }
+
+        $response = $this->postQuery([
+            'q' => 'doi:'.$this->escapeSolrTerm($normalizedDoi),
+            'rows' => 10,
+            'fl' => 'doi,datacentre_facet',
+            'json.nl' => 'map',
+            'fq' => '-type:text',
+        ]);
+        $payload = $this->jsonPayload($response);
+        $responseData = $payload['response'] ?? null;
+
+        if (! is_array($responseData)) {
+            throw new RuntimeException('The GFZ Data Services portal returned an invalid DOI response.');
+        }
+
+        $total = $responseData['numFound'] ?? null;
+        $documents = $responseData['docs'] ?? null;
+
+        if (! is_numeric($total) || ! is_array($documents)) {
+            throw new RuntimeException('The GFZ Data Services portal DOI response is incomplete.');
+        }
+
+        $names = [];
+
+        foreach ($documents as $document) {
+            if (! is_array($document) || ! is_string($document['doi'] ?? null)) {
+                continue;
+            }
+
+            $documentDoi = $this->doiSuggestionService->normalizeDoi($document['doi']);
+
+            if (! hash_equals($normalizedDoi, $documentDoi)) {
+                continue;
+            }
+
+            array_push($names, ...$this->datacenterNamesFromDocument($document));
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    /**
      * @return array{
      *     datacenter: array{id: string, name: string, resource_count: int},
      *     resources: array<string, list<string>>
@@ -307,6 +358,15 @@ class GfzDataServicesPortalService
             ['\\\\', '\\"'],
             $value,
         );
+    }
+
+    private function escapeSolrTerm(string $value): string
+    {
+        return preg_replace(
+            '/(&&|\|\||[+\-!(){}\[\]^"~*?:\\\\\/])/',
+            '\\\\$1',
+            $value,
+        ) ?? $value;
     }
 
     /**
