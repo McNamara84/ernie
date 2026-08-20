@@ -38,6 +38,22 @@ const formatContributorName = (contributor: LandingPageContributor): string | nu
 
 const dedup = <T,>(values: T[]): T[] => Array.from(new Set(values));
 
+const mergeUniqueText = (values: Array<string | null | undefined>): string[] => {
+    const unique = new Map<string, string>();
+
+    values.forEach((value) => {
+        const trimmed = value?.trim();
+        if (trimmed) {
+            const key = trimmed.toLowerCase();
+            if (!unique.has(key)) {
+                unique.set(key, trimmed);
+            }
+        }
+    });
+
+    return Array.from(unique.values());
+};
+
 /**
  * "Acquisition" module for IGSN landing pages — collection-context metadata.
  *
@@ -65,8 +81,11 @@ export function AcquisitionSection({
             .map((name) => name.trim()),
     ).join(', ');
 
-    const otherDescription = descriptions.find((description) => description.description_type?.toLowerCase() === 'other');
-    const commentsText = igsn?.comments?.join('; ') || otherDescription?.value?.trim() || null;
+    const commentsText =
+        mergeUniqueText([
+            ...(igsn?.comments ?? []),
+            ...descriptions.filter((description) => description.description_type?.toLowerCase() === 'other').map((description) => description.value),
+        ]).join('; ') || null;
     const comments = commentsText ? <span className="whitespace-pre-line">{commentsText}</span> : null;
 
     const geologicalUnits = dedup((igsn?.geological_units ?? []).map((unit) => unit.value.trim()).filter(Boolean)).join(', ');
@@ -90,7 +109,7 @@ export function AcquisitionSection({
 
     const collectionDate = findDateByType(dates, 'Collected');
     const startDate = collectionDate?.start_date ?? collectionDate?.date_value ?? null;
-    const endDate = collectionDate?.end_date ?? null;
+    const endDate = collectionDate?.end_date ?? collectionDate?.date_value ?? null;
 
     const collectionMethod = igsn?.collection_method?.trim() || null;
     const collectionMethodDescription = igsn?.collection_method_description?.trim() || null;

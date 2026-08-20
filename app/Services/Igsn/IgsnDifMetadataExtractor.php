@@ -94,8 +94,8 @@ class IgsnDifMetadataExtractor
             'geological_ages' => $this->splitValues($this->directValues($sample, 'geological_age')),
             'geological_units' => $this->splitValues($this->directValues($sample, 'geological_unit')),
             'sizes' => $this->sizes(
-                $this->splitValues($this->directValues($sample, 'size')),
-                $this->splitValues($this->directValues($sample, 'size_unit')),
+                $this->splitValues($this->directRawValues($sample, 'size'), false),
+                $this->splitValues($this->directRawValues($sample, 'size_unit'), false),
             ),
         ];
     }
@@ -241,6 +241,7 @@ class IgsnDifMetadataExtractor
     private function sizes(array $values, array $units): array
     {
         $sizes = [];
+        $seen = [];
         foreach ($values as $index => $value) {
             if (! is_numeric($value)) {
                 continue;
@@ -254,11 +255,20 @@ class IgsnDifMetadataExtractor
                 $unit = trim($matches[2]);
             }
 
-            $sizes[] = [
+            $size = [
                 'numeric_value' => $value,
                 'unit' => $unit,
                 'type' => $type !== '' ? $type : null,
             ];
+            $key = implode('|', [
+                mb_strtolower($size['numeric_value']),
+                mb_strtolower($size['unit'] ?? ''),
+                mb_strtolower($size['type'] ?? ''),
+            ]);
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $sizes[] = $size;
+            }
         }
 
         return $sizes;

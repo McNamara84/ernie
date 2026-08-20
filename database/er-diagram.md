@@ -349,6 +349,12 @@ erDiagram
         bigint resource_id FK
         varchar geo_type "10, point/box/polygon"
         text place
+        varchar location_type "100, nullable"
+        text location_description
+        varchar country "255, nullable"
+        varchar province "255, nullable"
+        varchar county "255, nullable"
+        varchar city "255, nullable"
         decimal point_longitude "11,8"
         decimal point_latitude "10,8"
         decimal elevation "10,2"
@@ -832,6 +838,8 @@ erDiagram
         varchar platform_description
         varchar current_archive
         varchar current_archive_contact
+        varchar original_archive
+        varchar original_archive_contact
         varchar sample_access
         varchar operator
         varchar coordinate_system

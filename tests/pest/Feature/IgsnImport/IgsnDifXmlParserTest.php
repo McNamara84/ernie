@@ -267,6 +267,36 @@ describe('IgsnDifXmlParser', function () {
         expect((float) $geo->point_latitude)->toBe(0.0);
     });
 
+    it('adds normalized DIF geometry to an existing place-only DataCite location', function () {
+        GeoLocation::create([
+            'resource_id' => $this->resource->id,
+            'place' => 'DataCite place',
+            'position' => 0,
+        ]);
+
+        $xml = <<<'XML'
+        <DIF><sample>
+            <latitude>49.6288</latitude>
+            <longitude>8.68799</longitude>
+            <latitude_end>49.6344</latitude_end>
+            <longitude_end>8.69644</longitude_end>
+            <country>Germany</country>
+        </sample></DIF>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+
+        $geo = GeoLocation::whereBelongsTo($this->resource)->sole();
+        expect($geo->place)->toBe('DataCite place')
+            ->and($geo->country)->toBe('Germany')
+            ->and($geo->geo_type)->toBe('box')
+            ->and((float) $geo->south_bound_latitude)->toBe(49.6288)
+            ->and((float) $geo->west_bound_longitude)->toBe(8.68799)
+            ->and((float) $geo->north_bound_latitude)->toBe(49.6344)
+            ->and((float) $geo->east_bound_longitude)->toBe(8.69644)
+            ->and(GeoLocation::whereBelongsTo($this->resource)->count())->toBe(1);
+    });
+
     it('creates geo with place name only when no coordinates', function () {
         $xml = <<<'XML'
         <?xml version="1.0" encoding="UTF-8"?>
@@ -323,6 +353,53 @@ describe('IgsnDifXmlParser', function () {
 
         // Both dates should exist
         expect(ResourceDate::where('resource_id', $this->resource->id)->count())->toBe(2);
+    });
+
+    it('does not duplicate a DataCite single date with an equivalent DIF interval', function () {
+        $collectedTypeId = DateType::where('name', 'Collected')->value('id');
+        ResourceDate::create([
+            'resource_id' => $this->resource->id,
+            'date_type_id' => $collectedTypeId,
+            'date_value' => '2021',
+        ]);
+
+        $xml = <<<'XML'
+        <DIF><sample>
+            <collection_start_date>2021</collection_start_date>
+            <collection_end_date>2021</collection_end_date>
+        </sample></DIF>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+
+        $dates = ResourceDate::whereBelongsTo($this->resource)
+            ->where('date_type_id', $collectedTypeId)
+            ->get();
+        expect($dates)->toHaveCount(1)
+            ->and($dates->sole()->date_value)->toBe('2021')
+            ->and($dates->sole()->start_date)->toBeNull()
+            ->and($dates->sole()->end_date)->toBeNull();
+    });
+
+    it('appends only genuinely distinct collection periods', function () {
+        $collectedTypeId = DateType::where('name', 'Collected')->value('id');
+        ResourceDate::create([
+            'resource_id' => $this->resource->id,
+            'date_type_id' => $collectedTypeId,
+            'date_value' => '2020',
+        ]);
+
+        $xml = <<<'XML'
+        <DIF><sample>
+            <collection_start_date>2021-01-01</collection_start_date>
+            <collection_end_date>2021-01-02</collection_end_date>
+        </sample></DIF>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+
+        expect(ResourceDate::whereBelongsTo($this->resource)->where('date_type_id', $collectedTypeId)->count())->toBe(2)
+            ->and(ResourceDate::whereBelongsTo($this->resource)->where('start_date', '2021-01-01')->sole()->end_date)->toBe('2021-01-02');
     });
 
     it('adds DataCollector even when other contributors already exist', function () {
@@ -564,6 +641,35 @@ describe('IgsnDifXmlParser', function () {
 
         expect(IgsnGeologicalUnit::where('resource_id', $this->resource->id)->pluck('value')->all())
             ->toBe(['Existing Formation', 'Eifel Formation']);
+    });
+
+    it('assigns deterministic positions to newly appended ordered IGSN values', function () {
+        IgsnClassification::create(['resource_id' => $this->resource->id, 'value' => 'Existing class', 'position' => 4]);
+        IgsnGeologicalAge::create(['resource_id' => $this->resource->id, 'value' => 'Existing age', 'position' => 7]);
+        IgsnGeologicalUnit::create(['resource_id' => $this->resource->id, 'value' => 'Existing unit', 'position' => 2]);
+
+        $xml = <<<'XML'
+        <DIF><sample>
+            <classification>First class;Second class</classification>
+            <geological_age>First age;Second age</geological_age>
+            <geological_unit>First unit;Second unit</geological_unit>
+        </sample></DIF>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue()
+            ->and(IgsnClassification::whereBelongsTo($this->resource)->orderBy('position')->pluck('position', 'value')->all())->toBe([
+                'Existing class' => 4,
+                'First class' => 5,
+                'Second class' => 6,
+            ])->and(IgsnGeologicalAge::whereBelongsTo($this->resource)->orderBy('position')->pluck('position', 'value')->all())->toBe([
+                'Existing age' => 7,
+                'First age' => 8,
+                'Second age' => 9,
+            ])->and(IgsnGeologicalUnit::whereBelongsTo($this->resource)->orderBy('position')->pluck('position', 'value')->all())->toBe([
+                'Existing unit' => 2,
+                'First unit' => 3,
+                'Second unit' => 4,
+            ]);
     });
 
     it('skips geo location when country and city are N/A', function () {

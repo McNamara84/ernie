@@ -172,6 +172,9 @@ class IgsnDifXmlParser
                     $existing->{$field} = $value;
                 }
             }
+            if ($geometry !== null && ! $this->hasGeometry($existing)) {
+                $this->replaceGeometry($existing, $geometry);
+            }
             if ($existing->isDirty()) {
                 $existing->save();
             }
@@ -186,6 +189,35 @@ class IgsnDifXmlParser
         if ($attributes !== []) {
             GeoLocation::create(['resource_id' => $resource->id, ...$attributes]);
         }
+    }
+
+    private function hasGeometry(GeoLocation $location): bool
+    {
+        return $location->hasPoint()
+            || $location->hasBox()
+            || $location->hasPolygon()
+            || $location->hasLine();
+    }
+
+    /** @param array<string, mixed> $geometry */
+    private function replaceGeometry(GeoLocation $location, array $geometry): void
+    {
+        foreach ([
+            'geo_type',
+            'point_latitude',
+            'point_longitude',
+            'south_bound_latitude',
+            'north_bound_latitude',
+            'west_bound_longitude',
+            'east_bound_longitude',
+            'polygon_points',
+            'in_polygon_point_latitude',
+            'in_polygon_point_longitude',
+        ] as $field) {
+            $location->{$field} = null;
+        }
+
+        $location->fill($geometry);
     }
 
     /** @param array<string, mixed> $location */
@@ -212,14 +244,63 @@ class IgsnDifXmlParser
             return;
         }
 
-        $hasRange = $collection['start'] !== null && $collection['end'] !== null;
-        ResourceDate::firstOrCreate([
+        $incoming = $this->canonicalCollectionPeriod($collection['start'], $collection['end']);
+        if ($incoming === null) {
+            return;
+        }
+
+        $exists = $resource->dates()
+            ->where('date_type_id', $this->collectedDateTypeId)
+            ->get()
+            ->contains(fn (ResourceDate $date): bool => $this->canonicalStoredPeriod($date) === $incoming);
+        if ($exists) {
+            return;
+        }
+
+        ResourceDate::create([
             'resource_id' => $resource->id,
             'date_type_id' => $this->collectedDateTypeId,
-            'date_value' => $hasRange ? null : ($collection['start'] ?? $collection['end']),
-            'start_date' => $hasRange ? $collection['start'] : null,
-            'end_date' => $hasRange ? $collection['end'] : null,
+            'date_value' => $incoming['date_value'],
+            'start_date' => $incoming['start_date'],
+            'end_date' => $incoming['end_date'],
         ]);
+    }
+
+    /**
+     * @return array{date_value: string|null, start_date: string|null, end_date: string|null}|null
+     */
+    private function canonicalCollectionPeriod(mixed $start, mixed $end): ?array
+    {
+        $start = is_string($start) && trim($start) !== '' ? trim($start) : null;
+        $end = is_string($end) && trim($end) !== '' ? trim($end) : null;
+
+        if ($start === null && $end === null) {
+            return null;
+        }
+
+        if ($start === null || $end === null || $start === $end) {
+            return [
+                'date_value' => $start ?? $end,
+                'start_date' => null,
+                'end_date' => null,
+            ];
+        }
+
+        return [
+            'date_value' => null,
+            'start_date' => $start,
+            'end_date' => $end,
+        ];
+    }
+
+    /** @return array{date_value: string|null, start_date: string|null, end_date: string|null}|null */
+    private function canonicalStoredPeriod(ResourceDate $date): ?array
+    {
+        if ($date->date_value !== null) {
+            return $this->canonicalCollectionPeriod($date->date_value, null);
+        }
+
+        return $this->canonicalCollectionPeriod($date->start_date, $date->end_date);
     }
 
     /** @param array<string, mixed> $collection */
@@ -290,14 +371,28 @@ class IgsnDifXmlParser
     /** @param array<string, mixed> $metadata */
     private function persistValueRelations(array $metadata, Resource $resource): void
     {
-        foreach ($metadata['classifications'] as $value) {
-            IgsnClassification::firstOrCreate(['resource_id' => $resource->id, 'value' => $value]);
-        }
-        foreach ($metadata['geological_ages'] as $value) {
-            IgsnGeologicalAge::firstOrCreate(['resource_id' => $resource->id, 'value' => $value]);
-        }
-        foreach ($metadata['geological_units'] as $value) {
-            IgsnGeologicalUnit::firstOrCreate(['resource_id' => $resource->id, 'value' => $value]);
+        $this->persistPositionedValues(IgsnClassification::class, $metadata['classifications'], $resource);
+        $this->persistPositionedValues(IgsnGeologicalAge::class, $metadata['geological_ages'], $resource);
+        $this->persistPositionedValues(IgsnGeologicalUnit::class, $metadata['geological_units'], $resource);
+    }
+
+    /**
+     * @param  class-string<IgsnClassification|IgsnGeologicalAge|IgsnGeologicalUnit>  $modelClass
+     * @param  list<string>  $values
+     */
+    private function persistPositionedValues(string $modelClass, array $values, Resource $resource): void
+    {
+        $maximum = $modelClass::query()->where('resource_id', $resource->id)->max('position');
+        $nextPosition = $maximum === null ? 0 : ((int) $maximum) + 1;
+
+        foreach ($values as $value) {
+            $model = $modelClass::firstOrCreate(
+                ['resource_id' => $resource->id, 'value' => $value],
+                ['position' => $nextPosition],
+            );
+            if ($model->wasRecentlyCreated) {
+                $nextPosition++;
+            }
         }
     }
 

@@ -1849,10 +1849,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     card above or below that metadata card.
                                 </p>
                                 <p>
-                                    For IGSN landing pages, the left column also includes <strong>General</strong> (Project, Campaign, Type, IGSN,
-                                    Parent IGSN, Purpose, Release Date) and <strong>Acquisition</strong> (Material, Rock Classification, Collection
-                                    Method, Funding Agency, Comments, Chief Scientist, Start/End Date) modules. Empty fields and empty modules are
-                                    hidden automatically on the rendered page.
+                                    For IGSN landing pages, the left column also includes <strong>General</strong> (Project, Campaign, Type, Name,
+                                    IGSN, Parent IGSN, Purpose, Release Date), <strong>Acquisition</strong> (Material, Rock Classification, Geological
+                                    Unit, Comments, Minimum/Maximum Depth, Depth Scale, Sizes, Collection Method, Funding Agency, Chief Scientist,
+                                    Start/End Date), and <strong>Repositories</strong> (current and original repository, their contacts, and sample
+                                    access). Empty fields and empty modules are hidden automatically on the rendered page.
+                                </p>
+                                <p>
+                                    The right-column <strong>Location / Map</strong> module becomes <strong>Sampling Location</strong> for IGSNs. It
+                                    can display latitude and longitude, bounding coordinates, coordinate system, elevation, location type and name,
+                                    location description, country, province, county, and city. One coordinate pair is rendered as a point, two pairs
+                                    as a box, and three or more pairs as a polygon.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Upload Custom Logo (Optional)">

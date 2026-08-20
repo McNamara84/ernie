@@ -389,6 +389,12 @@ entity "geo_locations" as geo_locations {
     * resource_id : BIGINT <<FK>>
     geo_type : VARCHAR(10) //point/box/polygon//
     place : TEXT
+    location_type : VARCHAR(100)
+    location_description : TEXT
+    country : VARCHAR(255)
+    province : VARCHAR(255)
+    county : VARCHAR(255)
+    city : VARCHAR(255)
     point_longitude : DECIMAL(11,8)
     point_latitude : DECIMAL(10,8)
     elevation : DECIMAL(10,2)
@@ -908,6 +914,8 @@ entity "igsn_metadata" as igsn_metadata {
     platform_description : VARCHAR(255)
     current_archive : VARCHAR(255)
     current_archive_contact : VARCHAR(255)
+    original_archive : VARCHAR(255)
+    original_archive_contact : VARCHAR(255)
     sample_access : VARCHAR(50)
     operator : VARCHAR(255)
     coordinate_system : VARCHAR(50)

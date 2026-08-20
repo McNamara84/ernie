@@ -83,6 +83,7 @@ services:
       - DB_IGSN_USER=${DB_IGSN_USER:-root}
       - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
       - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
+      - IGSN_LEGACY_DB_ENABLED=${IGSN_LEGACY_DB_ENABLED:-false}
       # Mail configuration
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}
@@ -250,6 +251,7 @@ services:
       - DB_IGSN_USER=${DB_IGSN_USER:-root}
       - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
       - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
+      - IGSN_LEGACY_DB_ENABLED=${IGSN_LEGACY_DB_ENABLED:-false}
       # Mail configuration (needed for queued mail jobs)
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}

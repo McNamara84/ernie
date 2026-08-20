@@ -5,8 +5,14 @@ use App\Models\Resource;
 use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnLegacyDbEnrichmentService;
 use App\Services\IgsnSolrEnrichmentService;
+use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
+    config()->set('datacite.solr.host', 'solr.internal');
+    config()->set('datacite.solr.user', 'configured');
+    config()->set('datacite.solr.password', 'secret');
+    config()->set('database.connections.igsn_legacy.configured', true);
+
     $this->solrService = Mockery::mock(IgsnSolrEnrichmentService::class);
     $this->dbService = Mockery::mock(IgsnLegacyDbEnrichmentService::class);
 
@@ -99,6 +105,34 @@ describe('IgsnEnrichmentService', function () {
         $result = $this->enrichmentService->enrich($resource, $igsnMetadata);
         expect($result)->toBeFalse()
             ->and($this->enrichmentService->lastResult())->toBe(['status' => 'sources_unavailable', 'source' => null]);
+    });
+
+    it('does not attempt runtime-available services when their sources are not configured', function () {
+        config()->set('datacite.solr.host', null);
+        config()->set('datacite.solr.user', null);
+        config()->set('datacite.solr.password', null);
+        config()->set('database.connections.igsn_legacy.configured', false);
+        Log::spy();
+
+        $resource = Resource::factory()->create(['doi' => '10.60510/GFUNCONFIGURED']);
+        $igsnMetadata = IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+        ]);
+
+        $this->solrService->shouldReceive('isAvailable')->never();
+        $this->solrService->shouldReceive('enrich')->never();
+        $this->dbService->shouldReceive('isAvailable')->never();
+        $this->dbService->shouldReceive('enrich')->never();
+
+        expect($this->enrichmentService->enrich($resource, $igsnMetadata))->toBeFalse()
+            ->and($this->enrichmentService->lastResult())->toBe(['status' => 'sources_unavailable', 'source' => null]);
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'IGSN enrichment sources are unavailable; imports will contain DataCite metadata only'
+                && $context['status'] === 'sources_unavailable'
+                && $context['configuration'] === ['solr' => false, 'legacy_db' => false]);
     });
 
     it('returns false when resource has no DOI', function () {

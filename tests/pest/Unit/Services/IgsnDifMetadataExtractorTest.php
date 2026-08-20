@@ -67,3 +67,17 @@ it('preserves repeated coordinate components so ordered polygon pairs stay align
         ['latitude' => '4', 'longitude' => '5'],
     ]);
 });
+
+it('preserves repeated size values until they are paired with their labels', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(<<<'XML'
+    <resource><sample>
+      <size>50;50;50</size>
+      <size_unit>diameter [mm];length [mm];length [mm]</size_unit>
+    </sample></resource>
+    XML);
+
+    expect($metadata['sizes'])->toBe([
+        ['numeric_value' => '50', 'unit' => 'mm', 'type' => 'diameter'],
+        ['numeric_value' => '50', 'unit' => 'mm', 'type' => 'length'],
+    ]);
+});

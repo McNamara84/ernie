@@ -84,6 +84,7 @@ services:
       - DB_IGSN_USER=${DB_IGSN_USER:-root}
       - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
       - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
+      - IGSN_LEGACY_DB_ENABLED=${IGSN_LEGACY_DB_ENABLED:-false}
       - SOLR_HOST=${SOLR_HOST:-}
       - SOLR_PORT=${SOLR_PORT:-443}
       - SOLR_USER=${SOLR_USER:-}
@@ -251,6 +252,7 @@ services:
       - DB_IGSN_USER=${DB_IGSN_USER:-root}
       - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
       - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
+      - IGSN_LEGACY_DB_ENABLED=${IGSN_LEGACY_DB_ENABLED:-false}
       - SOLR_HOST=${SOLR_HOST:-}
       - SOLR_PORT=${SOLR_PORT:-443}
       - SOLR_USER=${SOLR_USER:-}

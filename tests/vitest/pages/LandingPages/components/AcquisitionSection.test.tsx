@@ -207,6 +207,28 @@ describe('AcquisitionSection', () => {
         expect(screen.queryByText('Abstract here')).not.toBeInTheDocument();
     });
 
+    it('merges and deduplicates legacy comments with all DataCite Other descriptions', () => {
+        const descriptions: LandingPageDescription[] = [
+            { id: 1, value: 'DataCite note', description_type: 'Other' },
+            { id: 2, value: ' legacy note ', description_type: 'other' },
+            { id: 3, value: 'Unrelated abstract', description_type: 'Abstract' },
+        ];
+
+        render(
+            <AcquisitionSection
+                igsn={baseIgsn({ comments: ['Legacy note', 'Legacy note'] })}
+                classifications={[]}
+                descriptions={descriptions}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={[]}
+            />,
+        );
+
+        expect(screen.getByText('Legacy note; DataCite note')).toBeInTheDocument();
+        expect(screen.queryByText('Unrelated abstract')).not.toBeInTheDocument();
+    });
+
     it('matches Chief Scientist by Data Collector and DataCollector (case-insensitive)', () => {
         const contributors: LandingPageContributor[] = [
             makeContributor(personEntity('Jane', 'Doe'), ['Data Collector'], 1),
@@ -257,7 +279,8 @@ describe('AcquisitionSection', () => {
         );
 
         expect(screen.getByText('Start Date')).toBeInTheDocument();
-        expect(screen.getByText('2023-06-15')).toBeInTheDocument();
+        expect(screen.getByText('End Date')).toBeInTheDocument();
+        expect(screen.getAllByText('2023-06-15')).toHaveLength(2);
     });
 
     it('skips contributors with empty composed names', () => {

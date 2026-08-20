@@ -55,9 +55,10 @@ class IgsnEnrichmentService
         }
 
         $attempted = false;
+        $configuration = $this->configurationStatus();
 
         // Try Solr first (primary source, ~92% coverage)
-        if ($this->solrService->isAvailable()) {
+        if ($configuration['solr'] && $this->solrService->isAvailable()) {
             $attempted = true;
             $result = $this->solrService->enrich($resource, $igsnMetadata, $igsnHandle);
             if ($result) {
@@ -69,7 +70,7 @@ class IgsnEnrichmentService
         }
 
         // Fallback to legacy DB (adds ~2.3% more coverage)
-        if ($this->dbService->isAvailable()) {
+        if ($configuration['legacy_db'] && $this->dbService->isAvailable()) {
             $attempted = true;
             $result = $this->dbService->enrich($resource, $igsnMetadata, $igsnHandle);
             if ($result) {
@@ -85,7 +86,7 @@ class IgsnEnrichmentService
             'doi' => $doi,
             'igsn_handle' => $igsnHandle,
             'status' => $this->lastResult['status'],
-            'configuration' => $this->configurationStatus(),
+            'configuration' => $configuration,
         ];
         if (! $attempted && ! $this->reportedUnavailableSources) {
             Log::warning('IGSN enrichment sources are unavailable; imports will contain DataCite metadata only', $context);
