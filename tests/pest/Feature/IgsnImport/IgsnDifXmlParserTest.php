@@ -1,5 +1,8 @@
 <?php
 
+use App\Enums\AccessLevel;
+use App\Models\Affiliation;
+use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\GeoLocation;
@@ -10,8 +13,11 @@ use App\Models\IgsnMetadata;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\Size;
 use App\Services\IgsnDifXmlParser;
+use App\Services\LandingPageResourceTransformer;
 
 beforeEach(function () {
     $this->artisan('db:seed', ['--class' => 'DateTypeSeeder']);
@@ -398,7 +404,7 @@ describe('IgsnDifXmlParser', function () {
         expect(IgsnClassification::where('resource_id', $this->resource->id)->count())->toBe(0);
     });
 
-    it('skips classification if one already exists', function () {
+    it('adds a missing classification without replacing an existing value', function () {
         IgsnClassification::create([
             'resource_id' => $this->resource->id,
             'value' => 'Existing',
@@ -420,8 +426,8 @@ describe('IgsnDifXmlParser', function () {
 
         $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
 
-        expect(IgsnClassification::where('resource_id', $this->resource->id)->count())->toBe(1);
-        expect(IgsnClassification::where('resource_id', $this->resource->id)->first()->value)->toBe('Existing');
+        expect(IgsnClassification::where('resource_id', $this->resource->id)->pluck('value')->all())
+            ->toBe(['Existing', 'Igneous']);
     });
 
     it('maps geological age from DIF XML', function () {
@@ -466,7 +472,7 @@ describe('IgsnDifXmlParser', function () {
         expect(IgsnGeologicalAge::where('resource_id', $this->resource->id)->count())->toBe(0);
     });
 
-    it('skips geological age if one already exists', function () {
+    it('adds a missing geological age without replacing an existing value', function () {
         IgsnGeologicalAge::create([
             'resource_id' => $this->resource->id,
             'value' => 'Cretaceous',
@@ -488,8 +494,8 @@ describe('IgsnDifXmlParser', function () {
 
         $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
 
-        expect(IgsnGeologicalAge::where('resource_id', $this->resource->id)->count())->toBe(1);
-        expect(IgsnGeologicalAge::where('resource_id', $this->resource->id)->first()->value)->toBe('Cretaceous');
+        expect(IgsnGeologicalAge::where('resource_id', $this->resource->id)->pluck('value')->all())
+            ->toBe(['Cretaceous', 'Jurassic']);
     });
 
     it('maps geological unit from DIF XML', function () {
@@ -534,7 +540,7 @@ describe('IgsnDifXmlParser', function () {
         expect(IgsnGeologicalUnit::where('resource_id', $this->resource->id)->count())->toBe(0);
     });
 
-    it('skips geological unit if one already exists', function () {
+    it('adds a missing geological unit without replacing an existing value', function () {
         IgsnGeologicalUnit::create([
             'resource_id' => $this->resource->id,
             'value' => 'Existing Formation',
@@ -556,8 +562,8 @@ describe('IgsnDifXmlParser', function () {
 
         $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
 
-        expect(IgsnGeologicalUnit::where('resource_id', $this->resource->id)->count())->toBe(1);
-        expect(IgsnGeologicalUnit::where('resource_id', $this->resource->id)->first()->value)->toBe('Existing Formation');
+        expect(IgsnGeologicalUnit::where('resource_id', $this->resource->id)->pluck('value')->all())
+            ->toBe(['Existing Formation', 'Eifel Formation']);
     });
 
     it('skips geo location when country and city are N/A', function () {
@@ -629,5 +635,107 @@ describe('IgsnDifXmlParser', function () {
         $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
 
         expect(ResourceDate::where('resource_id', $this->resource->id)->count())->toBe(0);
+    });
+
+    it('persists the approved GFLMU0020 record once in canonical shared storage', function () {
+        $this->resource->update([
+            'doi' => '10.60510/gflmu0020',
+            'access_level' => null,
+        ]);
+
+        AlternateIdentifier::create([
+            'resource_id' => $this->resource->id,
+            'value' => 'ODG_1B_1',
+            'type' => 'Local',
+            'position' => 0,
+        ]);
+        AlternateIdentifier::create([
+            'resource_id' => $this->resource->id,
+            'value' => '10273/GFLMU0020',
+            'type' => 'IGSN',
+            'position' => 1,
+        ]);
+
+        $person = Person::create(['given_name' => 'Guido', 'family_name' => 'Blöcher']);
+        ResourceCreator::create([
+            'resource_id' => $this->resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 0,
+        ]);
+
+        $xml = file_get_contents(base_path('tests/fixtures/igsn/gflmu0020.xml'));
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue()
+            ->and($this->parser->enrichFromDifXml($xml, $this->resource->fresh(), $this->igsnMetadata->fresh()))->toBeTrue();
+
+        $meta = $this->igsnMetadata->fresh();
+        expect($meta->user_code)->toBe('Resalt')
+            ->and($meta->sample_type)->toBe('Core')
+            ->and($meta->sample_purpose)->toBe('Triaxial Compressive Strength test')
+            ->and($meta->material)->toBe('Rock')
+            ->and($meta->collection_date_precision)->toBe('year')
+            ->and($meta->current_archive_contact)->toBe('Lena Muhl')
+            ->and($meta->original_archive_contact)->toBe('Guido Blöcher')
+            ->and($meta->sample_access)->toBe('Private')
+            ->and($meta->description_json['parent_igsn_handle'])->toBe('GFLMU0002')
+            ->and($meta->description_json['comments'])->toBe(['Granodiorite'])
+            ->and($this->resource->fresh()->access_level)->toBe(AccessLevel::RESTRICTED);
+
+        $geo = GeoLocation::whereBelongsTo($this->resource)->sole();
+        expect($geo->geo_type)->toBe('box')
+            ->and((float) $geo->south_bound_latitude)->toBe(49.6288)
+            ->and((float) $geo->west_bound_longitude)->toBe(8.68799)
+            ->and((float) $geo->north_bound_latitude)->toBe(49.6344)
+            ->and((float) $geo->east_bound_longitude)->toBe(8.69644)
+            ->and($geo->point_latitude)->toBeNull()
+            ->and($geo->place)->toBe('Heppenheim/Bergstraße, Germany')
+            ->and($geo->country)->toBe('Germany')
+            ->and($geo->city)->toBe('Heppenheim');
+
+        expect(AlternateIdentifier::whereBelongsTo($this->resource)->orderBy('position')->get()->map->only(['value', 'type'])->all())
+            ->toBe([
+                ['value' => 'ODG_1B_1', 'type' => 'Local accession number'],
+                ['value' => '10273/GFLMU0020', 'type' => 'IGSN'],
+            ])
+            ->and(Size::whereBelongsTo($this->resource)->orderBy('id')->get()->map->only(['numeric_value', 'unit', 'type'])->all())
+            ->toBe([
+                ['numeric_value' => '50.0000', 'unit' => 'mm', 'type' => 'diameter'],
+                ['numeric_value' => '100.0000', 'unit' => 'mm', 'type' => 'length'],
+            ]);
+
+        $collector = ResourceContributor::whereBelongsTo($this->resource)->sole();
+        expect($collector->contributorable_type)->toBe(Person::class)
+            ->and($collector->contributorable_id)->toBe($person->id)
+            ->and(Affiliation::where('affiliatable_type', ResourceContributor::class)
+                ->where('affiliatable_id', $collector->id)->sole()->name)
+            ->toBe('GFZ German Research Centre for Geosciences, Potsdam, Germany')
+            ->and(ResourceDate::whereBelongsTo($this->resource)->count())->toBe(1)
+            ->and(IgsnClassification::whereBelongsTo($this->resource)->count())->toBe(1)
+            ->and(IgsnGeologicalUnit::whereBelongsTo($this->resource)->count())->toBe(1);
+
+        $landingTransformer = new LandingPageResourceTransformer;
+        $landingResource = Resource::with($landingTransformer->requiredRelations())->findOrFail($this->resource->id);
+        $landingData = $landingTransformer->transform($landingResource);
+
+        expect($landingData['igsn_metadata'])->toMatchArray([
+            'igsn' => 'GFLMU0020',
+            'name' => 'ODG_1B_1',
+            'user_code' => 'Resalt',
+            'sample_type' => 'Core',
+            'material' => 'Rock',
+            'sample_access' => 'Private',
+            'comments' => ['Granodiorite'],
+            'original_archive_contact' => 'Guido Blöcher',
+        ])->and($landingData['igsn_metadata']['parent'])->toMatchArray([
+            'igsn' => 'GFLMU0002',
+            'doi' => '10.60510/gflmu0002',
+        ])->and($landingData['igsn_metadata']['geological_units'][0]['value'])->toBe('Weschnitz Pluton')
+            ->and($landingData['geo_locations'][0])->toMatchArray([
+                'geo_type' => 'box',
+                'place' => 'Heppenheim/Bergstraße, Germany',
+                'country' => 'Germany',
+                'city' => 'Heppenheim',
+            ]);
     });
 });

@@ -157,6 +157,36 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(screen.getByText('Rock Sample Core XYZ')).toBeInTheDocument();
         });
 
+        it('uses the local sample name as a presentation-only fallback for a :tba title', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        titles: [{ id: 1, title: ' :TBA ', title_type: 'MainTitle' }],
+                        igsn_metadata: {
+                            igsn: 'GFLMU0020',
+                            name: 'ODG_1B_1',
+                            user_code: null,
+                            sample_type: null,
+                            material: null,
+                            cruise_field_program: null,
+                            sample_purpose: null,
+                            collection_method: null,
+                            collection_method_description: null,
+                            parent: null,
+                        },
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getByRole('heading', { level: 1, name: 'ODG_1B_1' })).toBeInTheDocument();
+            expect(screen.queryByRole('heading', { level: 1, name: /tba/i })).not.toBeInTheDocument();
+        });
+
         it('renders the subtitle when present', () => {
             mockUsePage.mockReturnValue({
                 props: {
@@ -316,9 +346,12 @@ describe('DefaultGfzIgsnTemplate', () => {
                 props: {
                     resource: {
                         ...mockResource,
-                        doi: '10.58050/IGSN-XYZ123',
+                        doi: '10.60510/igsn-xyz123',
                         igsn_metadata: {
                             id: 1,
+                            igsn: 'IGSN-XYZ123',
+                            name: 'Local sample XYZ',
+                            user_code: 'Project Alpha',
                             sample_type: 'Rock',
                             material: 'Granite',
                             collection_method: 'Drilling',
@@ -355,7 +388,9 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(screen.getByText('Project Alpha')).toBeInTheDocument();
             expect(screen.getByText('Alpine 2023')).toBeInTheDocument();
             expect(screen.getByText('Rock')).toBeInTheDocument();
-            expect(screen.getByText('10.58050/IGSN-XYZ123')).toBeInTheDocument();
+            expect(screen.getByText('IGSN-XYZ123')).toBeInTheDocument();
+            expect(screen.getByText('Local sample XYZ')).toBeInTheDocument();
+            expect(screen.queryByText(/10\.60510\/igsn-xyz123/i)).not.toBeInTheDocument();
             expect(screen.getByText('Tectonic study')).toBeInTheDocument();
             expect(screen.getAllByText('2024-01-15').length).toBeGreaterThan(0);
         });
@@ -424,8 +459,10 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(acquisition.getByText('NSF')).toBeInTheDocument();
             expect(acquisition.getByText('Field comments here')).toBeInTheDocument();
             expect(acquisition.getByText('Jane Smith')).toBeInTheDocument();
-            expect(acquisition.getByText('Collection Date')).toBeInTheDocument();
-            expect(acquisition.getByText('2023-06-01 - 2023-06-30')).toBeInTheDocument();
+            expect(acquisition.getByText('Start Date')).toBeInTheDocument();
+            expect(acquisition.getByText('2023-06-01')).toBeInTheDocument();
+            expect(acquisition.getByText('End Date')).toBeInTheDocument();
+            expect(acquisition.getByText('2023-06-30')).toBeInTheDocument();
         });
 
         it('hides General and Acquisition modules when no IGSN data is provided', () => {
@@ -448,9 +485,10 @@ describe('DefaultGfzIgsnTemplate', () => {
                 props: {
                     resource: {
                         ...mockResource,
-                        doi: '10.58050/IGSN-CHILD',
+                        doi: '10.60510/igsn-child',
                         igsn_metadata: {
                             id: 1,
+                            igsn: 'IGSN-CHILD',
                             sample_type: null,
                             material: null,
                             collection_method: null,
@@ -458,7 +496,8 @@ describe('DefaultGfzIgsnTemplate', () => {
                             sample_purpose: null,
                             cruise_field_program: null,
                             parent: {
-                                doi: '10.58050/IGSN-PARENT',
+                                igsn: 'IGSN-PARENT',
+                                doi: '10.60510/igsn-parent',
                                 landing_page: {
                                     public_url: 'https://example.test/landing/parent-slug',
                                 },
@@ -472,7 +511,7 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             render(<DefaultGfzIgsnTemplate />);
 
-            const parentLink = screen.getByRole('link', { name: '10.58050/IGSN-PARENT' });
+            const parentLink = screen.getByRole('link', { name: 'IGSN-PARENT' });
             expect(parentLink).toBeInTheDocument();
             expect(parentLink).toHaveAttribute('href', 'https://example.test/landing/parent-slug');
         });
@@ -645,9 +684,10 @@ describe('DefaultGfzIgsnTemplate', () => {
     describe('citation section order', () => {
         const fullyVisibleResource = {
             ...mockResource,
-            doi: '10.58050/IGSN-ORDER',
+            doi: '10.60510/igsn-order',
             igsn_metadata: {
                 id: 1,
+                igsn: 'IGSN-ORDER',
                 sample_type: 'Rock',
                 material: 'Granite',
                 collection_method: 'Drilling',

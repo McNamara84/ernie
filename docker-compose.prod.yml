@@ -83,6 +83,11 @@ services:
       - DB_IGSN_NAME=${DB_IGSN_NAME:-igsn-metadata}
       - DB_IGSN_USER=${DB_IGSN_USER:-root}
       - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
+      - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
+      - SOLR_HOST=${SOLR_HOST:-}
+      - SOLR_PORT=${SOLR_PORT:-443}
+      - SOLR_USER=${SOLR_USER:-}
+      - SOLR_PASSWORD=${SOLR_PASSWORD:-}
       # Mail configuration
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}
@@ -245,6 +250,11 @@ services:
       - DB_IGSN_NAME=${DB_IGSN_NAME:-igsn-metadata}
       - DB_IGSN_USER=${DB_IGSN_USER:-root}
       - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
+      - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
+      - SOLR_HOST=${SOLR_HOST:-}
+      - SOLR_PORT=${SOLR_PORT:-443}
+      - SOLR_USER=${SOLR_USER:-}
+      - SOLR_PASSWORD=${SOLR_PASSWORD:-}
       # Mail configuration (needed for queued mail jobs)
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}

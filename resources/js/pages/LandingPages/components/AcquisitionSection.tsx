@@ -9,7 +9,7 @@ import type {
     LandingPageResourceDate,
 } from '@/types/landing-page';
 
-import { findDateByType, formatLandingPageDate } from '../lib/dateHelpers';
+import { findDateByType } from '../lib/dateHelpers';
 import { LandingPageCard } from './LandingPageCard';
 import { hasVisibleMetadataRows, MetadataList, type MetadataRow } from './MetadataList';
 
@@ -66,8 +66,18 @@ export function AcquisitionSection({
     ).join(', ');
 
     const otherDescription = descriptions.find((description) => description.description_type?.toLowerCase() === 'other');
-    const trimmedComment = otherDescription?.value?.trim();
-    const comments = trimmedComment ? <span className="whitespace-pre-line">{trimmedComment}</span> : null;
+    const commentsText = igsn?.comments?.join('; ') || otherDescription?.value?.trim() || null;
+    const comments = commentsText ? <span className="whitespace-pre-line">{commentsText}</span> : null;
+
+    const geologicalUnits = dedup((igsn?.geological_units ?? []).map((unit) => unit.value.trim()).filter(Boolean)).join(', ');
+
+    const sizes = (igsn?.sizes ?? [])
+        .map((size) => {
+            const type = size.type ? size.type.charAt(0).toUpperCase() + size.type.slice(1) : 'Size';
+            const numericValue = size.numeric_value?.includes('.') ? size.numeric_value.replace(/0+$/, '').replace(/\.$/, '') : size.numeric_value;
+            return `${type}: ${numericValue ?? ''}${size.unit ? ` ${size.unit}` : ''}`.trim();
+        })
+        .join('; ');
 
     const chiefScientists = dedup(
         contributors
@@ -78,7 +88,9 @@ export function AcquisitionSection({
             .filter((name): name is string => name !== null),
     ).join(', ');
 
-    const collectionDate = formatLandingPageDate(findDateByType(dates, 'Collected'));
+    const collectionDate = findDateByType(dates, 'Collected');
+    const startDate = collectionDate?.start_date ?? collectionDate?.date_value ?? null;
+    const endDate = collectionDate?.end_date ?? null;
 
     const collectionMethod = igsn?.collection_method?.trim() || null;
     const collectionMethodDescription = igsn?.collection_method_description?.trim() || null;
@@ -95,11 +107,17 @@ export function AcquisitionSection({
     const rows: MetadataRow[] = [
         { label: 'Material', value: igsn?.material ?? null },
         { label: 'Rock Classification', value: rockClassification || null },
+        { label: 'Geological Unit', value: geologicalUnits || null },
+        { label: 'Comments', value: comments },
+        { label: 'Minimum Depth', value: igsn?.depth_min ?? null },
+        { label: 'Maximum Depth', value: igsn?.depth_max ?? null },
+        { label: 'Depth Scale', value: igsn?.depth_scale ?? null },
+        { label: 'Sizes', value: sizes || null },
         { label: 'Collection Method', value: collectionMethodNode },
         { label: 'Funding Agency', value: fundingAgency || null },
-        { label: 'Comments', value: comments },
         { label: 'Chief Scientist', value: chiefScientists || null },
-        { label: 'Collection Date', value: collectionDate },
+        { label: 'Start Date', value: startDate },
+        { label: 'End Date', value: endDate },
     ];
 
     const hasContent = hasVisibleMetadataRows(rows);

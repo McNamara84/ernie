@@ -949,7 +949,7 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
     $transformer = new LandingPageResourceTransformer;
 
     $resource = new Resource;
-    $resource->forceFill(['id' => 1, 'doi' => '10.58050/IGSN-CHILD']);
+    $resource->forceFill(['id' => 1, 'doi' => '10.60510/igsn-child']);
 
     // dates
     $dateType = new DateType;
@@ -974,7 +974,7 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
     ]);
 
     $parent = new Resource;
-    $parent->forceFill(['id' => 99, 'doi' => '10.58050/IGSN-PARENT']);
+    $parent->forceFill(['id' => 99, 'doi' => '10.60510/igsn-parent']);
     $parent->setRelation('landingPage', $parentLandingPage);
 
     $igsn = new IgsnMetadata;
@@ -1026,7 +1026,8 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
             'collection_method' => 'Drilling',
         ])
         ->and($data['igsn_metadata']['parent'])->toMatchArray([
-            'doi' => '10.58050/IGSN-PARENT',
+            'doi' => '10.60510/igsn-parent',
+            'igsn' => 'IGSN-PARENT',
         ])
         ->and($data['igsn_metadata']['parent']['landing_page'])->toBeArray()
         ->and($data['igsn_metadata']['parent']['landing_page'])->toHaveKey('public_url');
@@ -1048,7 +1049,7 @@ test('omits parent landing_page when parent is unpublished', function () {
     $parentLandingPage->forceFill(['id' => 7, 'slug' => 'parent-slug', 'is_published' => false]);
 
     $parent = new Resource;
-    $parent->forceFill(['id' => 99, 'doi' => '10.58050/IGSN-PARENT']);
+    $parent->forceFill(['id' => 99, 'doi' => '10.60510/igsn-parent']);
     $parent->setRelation('landingPage', $parentLandingPage);
 
     $igsn = new IgsnMetadata;
@@ -1070,6 +1071,6 @@ test('omits parent landing_page when parent is unpublished', function () {
 
     $data = $transformer->transform($resource);
 
-    expect($data['igsn_metadata']['parent']['doi'])->toBe('10.58050/IGSN-PARENT');
+    expect($data['igsn_metadata']['parent']['doi'])->toBe('10.60510/igsn-parent');
     expect($data['igsn_metadata']['parent']['landing_page'])->toBeNull();
 });

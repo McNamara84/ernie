@@ -11,8 +11,10 @@ import { CircleMarker, MapContainer, Marker, Polygon, Polyline, Rectangle, TileL
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GLOBAL_COVERAGE_MESSAGE, isGlobalCoverageBounds } from '@/lib/geo-coverage';
+import type { LandingPageIgsnMetadata } from '@/types/landing-page';
 
 import { LandingPageCard } from './LandingPageCard';
+import { hasVisibleMetadataRows, MetadataList, type MetadataRow } from './MetadataList';
 
 // Fix Leaflet default marker icons (they don't load correctly with bundlers)
 // Using unknown as intermediate step for safer type assertion
@@ -38,12 +40,23 @@ interface GeoLocation {
     north_bound_latitude: number | null;
     polygon_points: Array<{ longitude: number; latitude: number }> | null;
     geo_type: string | null;
+    elevation?: number | null;
+    elevation_unit?: string | null;
+    location_type?: string | null;
+    location_description?: string | null;
+    country?: string | null;
+    province?: string | null;
+    county?: string | null;
+    city?: string | null;
 }
 
 interface LocationSectionProps {
     geoLocations: GeoLocation[];
     /** Whether system dark mode is active. Passed down from the page root. */
     isDark?: boolean;
+    /** Enables the physical-sample metadata rows and heading. */
+    samplingLocation?: boolean;
+    igsn?: LandingPageIgsnMetadata | null;
 }
 
 // GFZ Corporate Blue
@@ -408,7 +421,7 @@ function GlobalCoverageNotice() {
  * Auto-zooms to fit all locations with padding.
  * Hidden when no valid geo locations are available.
  */
-export function LocationSection({ geoLocations, isDark = false }: LocationSectionProps) {
+export function LocationSection({ geoLocations, isDark = false, samplingLocation = false, igsn = null }: LocationSectionProps) {
     const [isMounted, setIsMounted] = useState(false);
 
     // Client-side only rendering (Leaflet needs window/document)
@@ -429,9 +442,39 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
     const bounds = useMemo(() => calculateBounds(mappableLocations), [mappableLocations]);
     const hasGlobalCoverage = globalLocations.length > 0;
     const hasMappableLocations = mappableLocations.length > 0;
+    const primary = geoLocations[0];
+    const rows: MetadataRow[] =
+        samplingLocation && primary
+            ? [
+                  { label: 'Latitude', value: hasPoint(primary) ? formatCoordinate(primary.point_latitude!) : null },
+                  { label: 'Longitude', value: hasPoint(primary) ? formatCoordinate(primary.point_longitude!) : null },
+                  { label: 'South Bound Latitude', value: hasBox(primary) ? formatCoordinate(primary.south_bound_latitude!) : null },
+                  { label: 'West Bound Longitude', value: hasBox(primary) ? formatCoordinate(primary.west_bound_longitude!) : null },
+                  { label: 'North Bound Latitude', value: hasBox(primary) ? formatCoordinate(primary.north_bound_latitude!) : null },
+                  { label: 'East Bound Longitude', value: hasBox(primary) ? formatCoordinate(primary.east_bound_longitude!) : null },
+                  { label: 'Polygon', value: hasPolygon(primary) ? `${primary.polygon_points!.length} coordinate pairs` : null },
+                  { label: 'Coordinate System', value: igsn?.coordinate_system ?? null },
+                  {
+                      label: 'Elevation',
+                      value:
+                          primary.elevation !== null && primary.elevation !== undefined
+                              ? `${primary.elevation}${primary.elevation_unit ? ` ${primary.elevation_unit}` : ''}`
+                              : null,
+                  },
+                  { label: 'Location Type', value: primary.location_type ?? null },
+                  { label: 'Location Name', value: primary.place ?? null },
+                  { label: 'Location Description', value: primary.location_description ?? null },
+                  { label: 'Country', value: primary.country ?? null },
+                  { label: 'Province', value: primary.province ?? null },
+                  { label: 'County', value: primary.county ?? null },
+                  { label: 'City', value: primary.city ?? null },
+              ]
+            : [];
+    const hasDetails = hasVisibleMetadataRows(rows);
+    const heading = samplingLocation ? 'Sampling Location' : 'Location';
 
-    // Don't render if no valid locations
-    if (validLocations.length === 0) {
+    // Don't render if neither coordinates nor sample location details exist.
+    if (validLocations.length === 0 && !hasDetails) {
         return null;
     }
 
@@ -447,8 +490,13 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
         return (
             <LandingPageCard disableFadeIn aria-labelledby="heading-location">
                 <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    Location
+                    {heading}
                 </h2>
+                {hasDetails && (
+                    <div className="mb-4">
+                        <MetadataList rows={rows} />
+                    </div>
+                )}
                 {hasGlobalCoverage && <GlobalCoverageNotice />}
                 <Skeleton className="aspect-square w-full rounded-lg" />
             </LandingPageCard>
@@ -458,8 +506,13 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
     return (
         <LandingPageCard aria-labelledby="heading-location" data-testid="geolocation-section">
             <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Location
+                {heading}
             </h2>
+            {hasDetails && (
+                <div className="mb-4">
+                    <MetadataList rows={rows} />
+                </div>
+            )}
             {hasGlobalCoverage && <GlobalCoverageNotice />}
             {hasMappableLocations && (
                 <div

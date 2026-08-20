@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://pmd.gfz-potsdam.de/igsn/schemas/description/1.3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" type="Sample">
+  <identifier type="IGSN">GFLMU0020</identifier>
+  <name>ODG_1B_1</name>
+  <description>Granodiorite</description>
+  <collector>
+    <identifier type="ORCID">https://orcid.org/0000-0002-8589-9742</identifier>
+    <name>Blöcher, Guido</name>
+    <affiliation>
+      <identifier type="URL">https://ror.org/04z8jg394</identifier>
+      <name>GFZ German Research Centre for Geosciences, Potsdam, Germany</name>
+    </affiliation>
+  </collector>
+  <sampleAccess>Private</sampleAccess>
+  <supplementalMetadata>
+    <record>
+      <sample xmlns="http://pmd.gfz-potsdam.de/igsn/schemas/description-ext/1.3">
+        <user_code>Resalt</user_code>
+        <sample_type>Core</sample_type>
+        <name>ODG_1B_1</name>
+        <igsn>GFLMU0020</igsn>
+        <parent_igsn>GFLMU0002</parent_igsn>
+        <sample_purpose>Triaxial Compressive Strength test</sample_purpose>
+        <latitude>49.6288</latitude>
+        <longitude>8.68799</longitude>
+        <latitude_end>49.6344</latitude_end>
+        <longitude_end>8.69644</longitude_end>
+        <primary_location_name>Heppenheim/Bergstraße, Germany</primary_location_name>
+        <country>Germany</country>
+        <city>Heppenheim</city>
+        <material>Rock</material>
+        <classification>Igneous&gt;Plutonic</classification>
+        <size>50;100</size>
+        <size_unit>diameter [mm];length [mm]</size_unit>
+        <geological_unit>Weschnitz Pluton</geological_unit>
+        <descriptions>
+          <description>Granodiorite</description>
+        </descriptions>
+        <collection_method>Coring</collection_method>
+        <collector>Blöcher, Guido</collector>
+        <collector_detail>GFZ German Research Centre for Geosciences, Potsdam, Germany</collector_detail>
+        <collection_start_date>2021</collection_start_date>
+        <collection_end_date>2021</collection_end_date>
+        <collection_date_precision>year</collection_date_precision>
+        <current_archive>GFZ German Research Centre for Geosciences, Potsdam, Germany</current_archive>
+        <current_archive_contact>Lena Muhl</current_archive_contact>
+        <original_archive>GFZ German Research Centre for Geosciences, Potsdam, Germany</original_archive>
+        <original_archive_contact>Guido Blöcher</original_archive_contact>
+      </sample>
+    </record>
+  </supplementalMetadata>
+</resource>

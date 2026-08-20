@@ -848,6 +848,7 @@ describe('API List', function (): void {
                 'related_work',
                 'general',
                 'acquisition',
+                'repositories',
                 'dates',
                 'citation',
             ])
@@ -899,6 +900,7 @@ describe('Model', function (): void {
             'contact',
             'general',
             'acquisition',
+            'repositories',
             'dates',
             'model_description',
             'related_work',
@@ -925,6 +927,7 @@ describe('Model', function (): void {
             'contact',
             'general',
             'acquisition',
+            'repositories',
             'dates',
             'model_description',
             'related_work',

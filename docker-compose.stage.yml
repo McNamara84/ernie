@@ -73,6 +73,16 @@ services:
       - DB_SUMARIOPMD_NAME=${DB_SUMARIOPMD_NAME:-sumario-pmd}
       - DB_SUMARIOPMD_USER=${DB_SUMARIOPMD_USER:-root}
       - DB_SUMARIOPMD_PASSWORD=${DB_SUMARIOPMD_PASSWORD:-}
+      - SOLR_HOST=${SOLR_HOST:-}
+      - SOLR_PORT=${SOLR_PORT:-443}
+      - SOLR_USER=${SOLR_USER:-}
+      - SOLR_PASSWORD=${SOLR_PASSWORD:-}
+      - DB_IGSN_HOST=${DB_IGSN_HOST:-127.0.0.1}
+      - DB_IGSN_PORT=${DB_IGSN_PORT:-3306}
+      - DB_IGSN_NAME=${DB_IGSN_NAME:-igsn-metadata}
+      - DB_IGSN_USER=${DB_IGSN_USER:-root}
+      - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
+      - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
       # Mail configuration
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}
@@ -230,6 +240,16 @@ services:
       - DB_METAWORKS_NAME=${DB_METAWORKS_NAME:-metaworks}
       - DB_METAWORKS_USER=${DB_METAWORKS_USER:-root}
       - DB_METAWORKS_PASSWORD=${DB_METAWORKS_PASSWORD:-}
+      - SOLR_HOST=${SOLR_HOST:-}
+      - SOLR_PORT=${SOLR_PORT:-443}
+      - SOLR_USER=${SOLR_USER:-}
+      - SOLR_PASSWORD=${SOLR_PASSWORD:-}
+      - DB_IGSN_HOST=${DB_IGSN_HOST:-127.0.0.1}
+      - DB_IGSN_PORT=${DB_IGSN_PORT:-3306}
+      - DB_IGSN_NAME=${DB_IGSN_NAME:-igsn-metadata}
+      - DB_IGSN_USER=${DB_IGSN_USER:-root}
+      - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
+      - DB_IGSN_SSL_CA=${DB_IGSN_SSL_CA:-/etc/ssl/certs/ca-certificates.crt}
       # Mail configuration (needed for queued mail jobs)
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}

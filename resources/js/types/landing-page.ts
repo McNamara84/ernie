@@ -19,7 +19,8 @@ export type RightColumnSection =
 /**
  * Left column section identifiers for landing page templates.
  */
-export type LeftColumnSection = 'files' | 'general' | 'acquisition' | 'citation' | 'dates' | 'contact' | 'model_description' | 'related_work';
+export type LeftColumnSection =
+    'files' | 'general' | 'acquisition' | 'repositories' | 'citation' | 'dates' | 'contact' | 'model_description' | 'related_work';
 
 /**
  * Section order configuration for landing page templates.
@@ -447,6 +448,8 @@ export interface LandingPageRelatedIdentifier {
     related_identifier_type?: string;
     /** Related resource title (if available) */
     related_title?: string | null;
+    /** Canonical IGSN handle when this DOI belongs to the configured IGSN namespace. */
+    igsn?: string | null;
 }
 
 /**
@@ -519,6 +522,8 @@ export interface LandingPageRelatedItem {
     titles: LandingPageRelatedItemTitle[];
     creators: LandingPageRelatedItemCreator[];
     contributors: LandingPageRelatedItemContributor[];
+    /** Canonical IGSN handle when this DOI belongs to the configured IGSN namespace. */
+    igsn?: string | null;
 }
 
 /**
@@ -595,6 +600,14 @@ export interface LandingPageGeoLocation {
     polygon_points: Array<{ longitude: number; latitude: number }> | null;
     /** Explicit geo-location type: point, box, polygon, line */
     geo_type: string | null;
+    elevation: number | null;
+    elevation_unit: string | null;
+    location_type: string | null;
+    location_description: string | null;
+    country: string | null;
+    province: string | null;
+    county: string | null;
+    city: string | null;
 }
 
 /**
@@ -661,6 +674,10 @@ export interface LandingPageResourceDate {
  * IGSN-specific metadata for PhysicalObject resources on landing pages.
  */
 export interface LandingPageIgsnMetadata {
+    igsn: string | null;
+    name: string | null;
+    /** Legacy DIF project code. */
+    user_code: string | null;
     sample_type: string | null;
     material: string | null;
     /** Cruise / field program (rendered as "Campaign") */
@@ -669,8 +686,28 @@ export interface LandingPageIgsnMetadata {
     sample_purpose: string | null;
     collection_method: string | null;
     collection_method_description: string | null;
+    collection_date_precision: string | null;
+    depth_min: string | null;
+    depth_max: string | null;
+    depth_scale: string | null;
+    coordinate_system: string | null;
+    sample_access: string | null;
+    comments: string[];
+    current_archive: string | null;
+    current_archive_contact: string | null;
+    original_archive: string | null;
+    original_archive_contact: string | null;
+    sizes: Array<{
+        id: number;
+        numeric_value: string | null;
+        unit: string | null;
+        type: string | null;
+        label: string;
+    }>;
+    geological_units: LandingPageIgsnClassification[];
     /** Parent IGSN reference (null when standalone) */
     parent: {
+        igsn: string;
         doi: string | null;
         /** Parent's published landing page URL (null when not published) */
         landing_page: { public_url: string } | null;

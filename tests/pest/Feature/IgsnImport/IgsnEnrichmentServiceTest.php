@@ -39,7 +39,8 @@ describe('IgsnEnrichmentService', function () {
         $this->dbService->shouldReceive('enrich')->never();
 
         $result = $this->enrichmentService->enrich($resource, $igsnMetadata);
-        expect($result)->toBeTrue();
+        expect($result)->toBeTrue()
+            ->and($this->enrichmentService->lastResult())->toBe(['status' => 'enriched', 'source' => 'solr']);
     });
 
     it('falls back to DB when Solr fails', function () {
@@ -62,7 +63,8 @@ describe('IgsnEnrichmentService', function () {
             ->andReturn(true);
 
         $result = $this->enrichmentService->enrich($resource, $igsnMetadata);
-        expect($result)->toBeTrue();
+        expect($result)->toBeTrue()
+            ->and($this->enrichmentService->lastResult())->toBe(['status' => 'enriched', 'source' => 'legacy_db']);
     });
 
     it('skips Solr when unavailable and uses DB directly', function () {
@@ -95,7 +97,8 @@ describe('IgsnEnrichmentService', function () {
         $this->dbService->shouldReceive('isAvailable')->once()->andReturn(false);
 
         $result = $this->enrichmentService->enrich($resource, $igsnMetadata);
-        expect($result)->toBeFalse();
+        expect($result)->toBeFalse()
+            ->and($this->enrichmentService->lastResult())->toBe(['status' => 'sources_unavailable', 'source' => null]);
     });
 
     it('returns false when resource has no DOI', function () {
@@ -142,6 +145,19 @@ describe('IgsnEnrichmentService', function () {
         $this->dbService->shouldReceive('enrich')->once()->andReturn(false);
 
         $result = $this->enrichmentService->enrich($resource, $igsnMetadata);
-        expect($result)->toBeFalse();
+        expect($result)->toBeFalse()
+            ->and($this->enrichmentService->lastResult())->toBe(['status' => 'no_dif_found', 'source' => null]);
+    });
+
+    it('reports source configuration without exposing credentials', function () {
+        config()->set('datacite.solr.host', 'solr.internal');
+        config()->set('datacite.solr.user', 'configured');
+        config()->set('datacite.solr.password', 'secret');
+        config()->set('database.connections.igsn_legacy.configured', false);
+
+        expect($this->enrichmentService->configurationStatus())->toBe([
+            'solr' => true,
+            'legacy_db' => false,
+        ]);
     });
 });

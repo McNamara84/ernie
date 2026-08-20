@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AccessLevel;
+use App\Models\Affiliation;
+use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\GeoLocation;
@@ -11,19 +14,20 @@ use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
+use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceDate;
+use App\Models\Size;
+use App\Services\Igsn\IgsnDifMetadataExtractor;
+use App\Services\Igsn\IgsnGeometryNormalizer;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Parses DIF XML from Solr/DB and maps it to IgsnMetadata + related models.
- *
- * The DIF XML format (from the legacy IGSN infrastructure) contains
- * IGSN-specific metadata under <supplementalMetadata><record><sample>.
- *
- * @see docs/implementation-plans/import-igsns-from-datacite.md Section 3.5
+ * Persists normalized legacy DIF metadata without duplicating DataCite fields.
  */
 class IgsnDifXmlParser
 {
@@ -31,419 +35,308 @@ class IgsnDifXmlParser
 
     private ?ContributorType $dataCollectorType = null;
 
-    /**
-     * Parse DIF XML and enrich an existing Resource + IgsnMetadata.
-     *
-     * @param  string  $difXml  Raw DIF XML string (not base64-encoded)
-     * @param  Resource  $resource  The Resource to enrich
-     * @param  IgsnMetadata  $igsnMetadata  The IgsnMetadata to populate
-     * @return bool True if enrichment was successful
-     */
+    public function __construct(
+        private readonly IgsnDifMetadataExtractor $extractor = new IgsnDifMetadataExtractor,
+        private readonly IgsnGeometryNormalizer $geometryNormalizer = new IgsnGeometryNormalizer,
+    ) {}
+
     public function enrichFromDifXml(string $difXml, Resource $resource, IgsnMetadata $igsnMetadata): bool
     {
+        $metadata = $this->extractor->extract($difXml);
+        if ($metadata === null) {
+            Log::warning('Failed to extract DIF XML metadata', ['resource_id' => $resource->id]);
+
+            return false;
+        }
+
         try {
-            $xml = @simplexml_load_string($difXml, \SimpleXMLElement::class, LIBXML_NONET);
-            if ($xml === false) {
-                Log::warning('Failed to parse DIF XML', ['resource_id' => $resource->id]);
+            DB::transaction(function () use ($metadata, $resource, $igsnMetadata): void {
+                $this->persistScalars($metadata, $resource, $igsnMetadata);
+                $this->persistAlternateIdentifiers($metadata, $resource);
+                $this->persistGeoLocation($metadata['location'], $resource);
+                $this->persistCollectionDate($metadata['collection'], $resource);
+                $this->persistCollector($metadata['collection'], $resource);
+                $this->persistValueRelations($metadata, $resource);
+                $this->persistSizes($metadata['sizes'], $resource);
 
-                return false;
-            }
-
-            // Navigate to <sample> element — try multiple known paths
-            $sample = $this->findSampleElement($xml);
-            if ($sample === null) {
-                Log::debug('No <sample> element found in DIF XML', ['resource_id' => $resource->id]);
-
-                return false;
-            }
-
-            // Map scalar fields to IgsnMetadata
-            $this->mapScalarFields($sample, $igsnMetadata);
-
-            // Map related models (geo, dates, contributors, classifications)
-            $this->mapGeoLocation($sample, $resource);
-            $this->mapCollectionDates($sample, $resource);
-            $this->mapCollector($sample, $resource);
-            $this->mapClassifications($sample, $resource);
-            $this->mapGeologicalAges($sample, $resource);
-            $this->mapGeologicalUnits($sample, $resource);
-
-            $igsnMetadata->save();
+                $igsnMetadata->save();
+                $resource->save();
+            });
 
             return true;
-        } catch (\Throwable $e) {
+        } catch (\Throwable $exception) {
             Log::warning('DIF XML enrichment failed', [
                 'resource_id' => $resource->id,
-                'error' => $e->getMessage(),
+                'error' => $exception->getMessage(),
             ]);
 
             return false;
         }
     }
 
-    /**
-     * Find the <sample> element in the DIF XML, trying multiple path patterns.
-     */
-    private function findSampleElement(\SimpleXMLElement $xml): ?\SimpleXMLElement
+    /** @param array<string, mixed> $metadata */
+    private function persistScalars(array $metadata, Resource $resource, IgsnMetadata $igsnMetadata): void
     {
-        // Path 1: <supplementalMetadata><record><sample xmlns="...">
-        // Register all namespaces and search
-        $namespaces = $xml->getNamespaces(true);
-
-        foreach ($namespaces as $prefix => $uri) {
-            if (str_contains($uri, 'igsn') || str_contains($uri, 'pmd.gfz')) {
-                $xml->registerXPathNamespace('igsn', $uri);
-                $results = $xml->xpath('//igsn:sample');
-                if (is_array($results) && count($results) > 0) {
-                    return $results[0];
-                }
+        foreach ($metadata['scalars'] as $field => $value) {
+            if ($value !== null) {
+                $igsnMetadata->{$field} = $value;
             }
         }
 
-        // Path 2: Direct <sample> without namespace
-        $results = $xml->xpath('//sample');
-        if (is_array($results) && count($results) > 0) {
-            return $results[0];
+        $description = $igsnMetadata->description_json ?? [];
+        if ($metadata['parent_igsn'] !== null) {
+            $description['parent_igsn_handle'] = strtoupper($metadata['parent_igsn']);
         }
-
-        // Path 3: nested under supplementalMetadata/record
-        if (isset($xml->supplementalMetadata->record->sample)) {
-            return $xml->supplementalMetadata->record->sample;
+        if ($metadata['comments'] !== []) {
+            $description['comments'] = $this->mergeUnique($description['comments'] ?? [], $metadata['comments']);
         }
+        $igsnMetadata->description_json = $description !== [] ? $description : null;
 
-        // Path 4: Children with default namespace
-        foreach ($xml->children() as $child) {
-            if ($child->getName() === 'supplementalMetadata') {
-                foreach ($child->children() as $record) {
-                    foreach ($record->children() as $possibleSample) {
-                        if ($possibleSample->getName() === 'sample') {
-                            return $possibleSample;
-                        }
-                    }
-                    // Also check with namespace
-                    foreach ($namespaces as $uri) {
-                        foreach ($record->children($uri) as $possibleSample) {
-                            if ($possibleSample->getName() === 'sample') {
-                                return $possibleSample;
-                            }
-                        }
-                    }
-                }
+        if ($metadata['sample_access'] !== null) {
+            $igsnMetadata->sample_access = $metadata['sample_access'];
+            if ($resource->access_level === null) {
+                $resource->access_level = AccessLevel::fromSampleAccess($metadata['sample_access']);
             }
-        }
-
-        return null;
-    }
-
-    /**
-     * Map scalar DIF XML fields to IgsnMetadata columns.
-     */
-    private function mapScalarFields(\SimpleXMLElement $sample, IgsnMetadata $igsnMetadata): void
-    {
-        $mappings = [
-            'sample_type' => 'sample_type',
-            'material' => 'material',
-            'user_code' => 'user_code',
-            'cruise_field_program' => 'cruise_field_program',
-            'depth_min' => 'depth_min',
-            'depth_max' => 'depth_max',
-            'depth_scale' => 'depth_scale',
-            'sample_purpose' => 'sample_purpose',
-            'collection_method' => 'collection_method',
-            'collection_method_descr' => 'collection_method_description',
-            'platform_type' => 'platform_type',
-            'platform_name' => 'platform_name',
-            'platform_description' => 'platform_description',
-            'current_archive' => 'current_archive',
-            'current_archive_contact' => 'current_archive_contact',
-            'sample_access' => 'sample_access',
-            'operator' => 'operator',
-            'coordinate_system' => 'coordinate_system',
-        ];
-
-        // Try both with and without namespace
-        $ns = $this->detectSampleNamespace($sample);
-
-        foreach ($mappings as $xmlField => $dbField) {
-            $value = $this->getElementText($sample, $xmlField, $ns);
-            if ($value !== null && $value !== '' && strtolower($value) !== 'n/a') {
-                $igsnMetadata->$dbField = $value;
-            }
-        }
-
-        // Store parent_igsn in description_json for later resolution
-        $parentIgsn = $this->getElementText($sample, 'parent_igsn', $ns);
-        if ($parentIgsn !== null && $parentIgsn !== '' && strtolower($parentIgsn) !== 'n/a') {
-            $existing = $igsnMetadata->description_json ?? [];
-            $existing['parent_igsn_handle'] = $parentIgsn;
-            $igsnMetadata->description_json = $existing;
-        }
-
-        // Store original and current repository info in description_json
-        $originalArchive = $this->getElementText($sample, 'original_archive', $ns);
-        $originalArchiveContact = $this->getElementText($sample, 'original_archive_contact', $ns);
-        if ($originalArchive !== null && $originalArchive !== '' && strtolower($originalArchive) !== 'n/a') {
-            $existing = $igsnMetadata->description_json ?? [];
-            $existing['original_archive'] = $originalArchive;
-            if ($originalArchiveContact !== null && $originalArchiveContact !== '') {
-                $existing['original_archive_contact'] = $originalArchiveContact;
-            }
-            $igsnMetadata->description_json = $existing;
         }
     }
 
-    /**
-     * Detect the namespace used by the <sample> element.
-     */
-    private function detectSampleNamespace(\SimpleXMLElement $sample): ?string
+    /** @param array<string, mixed> $metadata */
+    private function persistAlternateIdentifiers(array $metadata, Resource $resource): void
     {
-        $namespaces = $sample->getNamespaces(true);
-        foreach ($namespaces as $uri) {
-            if (str_contains($uri, 'igsn') || str_contains($uri, 'pmd.gfz')) {
-                return $uri;
+        if ($metadata['name'] !== null) {
+            $existing = $this->matchingAlternateIdentifier($resource, $metadata['name']);
+            if ($existing !== null && strcasecmp($existing->type, 'Local') === 0) {
+                $existing->type = 'Local accession number';
+                $existing->save();
+            } elseif ($existing === null || strcasecmp($existing->type, 'Local accession number') !== 0) {
+                $this->createAlternateIdentifier($resource, $metadata['name'], 'Local accession number');
             }
         }
 
-        // Check default namespace
-        $defaultNs = $sample->getNamespaces(false);
-        foreach ($defaultNs as $uri) {
-            if ($uri !== '') {
-                return $uri;
+        foreach ($metadata['other_names'] as $name) {
+            if (! $this->hasAlternateIdentifier($resource, $name, 'Local sample name')) {
+                $this->createAlternateIdentifier($resource, $name, 'Local sample name');
             }
         }
-
-        return null;
     }
 
-    /**
-     * Get text content of an XML element, handling namespaces.
-     */
-    private function getElementText(\SimpleXMLElement $parent, string $name, ?string $ns): ?string
+    private function matchingAlternateIdentifier(Resource $resource, string $value): ?AlternateIdentifier
     {
-        // Try with namespace first
-        if ($ns !== null) {
-            $children = $parent->children($ns);
-            if (isset($children->$name)) {
-                $text = trim((string) $children->$name);
+        $normalized = $this->normalizeText($value);
 
-                return $text !== '' ? $text : null;
-            }
-        }
-
-        // Try without namespace
-        if (isset($parent->$name)) {
-            $text = trim((string) $parent->$name);
-
-            return $text !== '' ? $text : null;
-        }
-
-        return null;
+        return $resource->alternateIdentifiers()->get()
+            ->first(fn (AlternateIdentifier $identifier): bool => $this->normalizeText($identifier->value) === $normalized);
     }
 
-    /**
-     * Map geo coordinates from DIF XML to GeoLocation.
-     */
-    private function mapGeoLocation(\SimpleXMLElement $sample, Resource $resource): void
+    private function hasAlternateIdentifier(Resource $resource, string $value, string $type): bool
     {
-        $ns = $this->detectSampleNamespace($sample);
+        $normalizedValue = $this->normalizeText($value);
 
-        $lat = $this->getElementText($sample, 'latitude', $ns);
-        $lon = $this->getElementText($sample, 'longitude', $ns);
-        $elevation = $this->getElementText($sample, 'elevation', $ns);
-        $country = $this->getElementText($sample, 'country', $ns);
-        $city = $this->getElementText($sample, 'city', $ns);
+        return $resource->alternateIdentifiers()->get()->contains(
+            fn (AlternateIdentifier $identifier): bool => $this->normalizeText($identifier->value) === $normalizedValue
+                && strcasecmp($identifier->type, $type) === 0,
+        );
+    }
 
-        // Normalize N/A placeholders to null
-        if ($country !== null && strtolower($country) === 'n/a') {
-            $country = null;
-        }
-        if ($city !== null && strtolower($city) === 'n/a') {
-            $city = null;
-        }
-
-        // Only create if we have at least coordinates or location name
-        if ($lat === null && $lon === null && $country === null && $city === null) {
-            return;
-        }
-
-        // Skip if geo already exists for this resource
-        if ($resource->geoLocations()->exists()) {
-            return;
-        }
-
-        $place = collect([$city, $country])->filter()->implode(', ');
-
-        $geoData = [
+    private function createAlternateIdentifier(Resource $resource, string $value, string $type): void
+    {
+        $maximum = $resource->alternateIdentifiers()->max('position');
+        AlternateIdentifier::create([
             'resource_id' => $resource->id,
-            'place' => $place !== '' ? $place : null,
-        ];
-
-        if ($lat !== null && $lon !== null && is_numeric($lat) && is_numeric($lon)) {
-            $geoData['point_latitude'] = (float) $lat;
-            $geoData['point_longitude'] = (float) $lon;
-        }
-
-        if ($elevation !== null && is_numeric($elevation)) {
-            $geoData['elevation'] = (float) $elevation;
-            $geoData['elevation_unit'] = 'm';
-        }
-
-        GeoLocation::create($geoData);
+            'value' => $value,
+            'type' => $type,
+            'position' => $maximum === null ? 0 : ((int) $maximum) + 1,
+        ]);
     }
 
-    /**
-     * Map collection dates from DIF XML to ResourceDate.
-     */
-    private function mapCollectionDates(\SimpleXMLElement $sample, Resource $resource): void
+    /** @param array<string, mixed> $location */
+    private function persistGeoLocation(array $location, Resource $resource): void
     {
-        $ns = $this->detectSampleNamespace($sample);
+        $text = [
+            'place' => $location['place'] ?? $this->fallbackPlace($location),
+            'location_type' => $location['location_type'],
+            'location_description' => $location['location_description'],
+            'country' => $location['country'],
+            'province' => $location['province'],
+            'county' => $location['county'],
+            'city' => $location['city'],
+            'elevation' => is_numeric($location['elevation']) ? (float) $location['elevation'] : null,
+            'elevation_unit' => $location['elevation_unit'],
+        ];
+        $geometry = $this->geometryNormalizer->normalize($location['pairs']);
+        $existing = $resource->geoLocations()->first();
 
-        $startDate = $this->getElementText($sample, 'collection_start_date', $ns);
-        $endDate = $this->getElementText($sample, 'collection_end_date', $ns);
+        if ($existing !== null) {
+            foreach ($text as $field => $value) {
+                if ($existing->{$field} === null && $value !== null) {
+                    $existing->{$field} = $value;
+                }
+            }
+            if ($existing->isDirty()) {
+                $existing->save();
+            }
 
-        // Normalize N/A placeholders to null
-        if ($startDate !== null && strtolower($startDate) === 'n/a') {
-            $startDate = null;
-        }
-        if ($endDate !== null && strtolower($endDate) === 'n/a') {
-            $endDate = null;
-        }
-
-        if ($startDate === null && $endDate === null) {
             return;
         }
 
+        $attributes = array_filter(
+            array_merge($text, $geometry ?? []),
+            static fn (mixed $value): bool => $value !== null,
+        );
+        if ($attributes !== []) {
+            GeoLocation::create(['resource_id' => $resource->id, ...$attributes]);
+        }
+    }
+
+    /** @param array<string, mixed> $location */
+    private function fallbackPlace(array $location): ?string
+    {
+        $parts = array_values(array_filter([
+            $location['city'],
+            $location['province'],
+            $location['country'],
+        ], static fn (mixed $value): bool => is_string($value) && $value !== ''));
+
+        return $parts !== [] ? implode(', ', array_unique($parts)) : null;
+    }
+
+    /** @param array<string, mixed> $collection */
+    private function persistCollectionDate(array $collection, Resource $resource): void
+    {
+        if ($collection['start'] === null && $collection['end'] === null) {
+            return;
+        }
+
+        $this->collectedDateTypeId ??= DateType::query()->where('name', 'Collected')->value('id');
         if ($this->collectedDateTypeId === null) {
-            $this->collectedDateTypeId = DateType::where('name', 'Collected')->value('id');
-        }
-        if ($this->collectedDateTypeId === null) {
             return;
         }
 
-        // Skip only if a 'Collected' date already exists for this resource
-        if ($resource->dates()->where('date_type_id', $this->collectedDateTypeId)->exists()) {
-            return;
-        }
-
-        // Use start_date/end_date for ranges (consistent with DataCiteToResourceTransformer
-        // and IgsnStorageService); date_value only for single-date cases.
-        $hasRange = $startDate !== null && $endDate !== null;
-
-        ResourceDate::create([
+        $hasRange = $collection['start'] !== null && $collection['end'] !== null;
+        ResourceDate::firstOrCreate([
             'resource_id' => $resource->id,
             'date_type_id' => $this->collectedDateTypeId,
-            'date_value' => $hasRange ? null : ($startDate ?? $endDate),
-            'start_date' => $hasRange ? $startDate : null,
-            'end_date' => $hasRange ? $endDate : null,
+            'date_value' => $hasRange ? null : ($collection['start'] ?? $collection['end']),
+            'start_date' => $hasRange ? $collection['start'] : null,
+            'end_date' => $hasRange ? $collection['end'] : null,
         ]);
     }
 
-    /**
-     * Map collector (chief scientist) from DIF XML to ResourceContributor.
-     */
-    private function mapCollector(\SimpleXMLElement $sample, Resource $resource): void
+    /** @param array<string, mixed> $collection */
+    private function persistCollector(array $collection, Resource $resource): void
     {
-        $ns = $this->detectSampleNamespace($sample);
-
-        $collector = $this->getElementText($sample, 'collector', $ns);
-        if ($collector === null || strtolower($collector) === 'n/a') {
+        $collector = $collection['collector'];
+        if (! is_string($collector) || $collector === '') {
             return;
         }
 
-        if ($this->dataCollectorType === null) {
-            $this->dataCollectorType = ContributorType::where('slug', 'DataCollector')->first();
-        }
+        $this->dataCollectorType ??= ContributorType::query()->where('slug', 'DataCollector')->first();
         if ($this->dataCollectorType === null) {
             return;
         }
 
-        // Skip only if a DataCollector contributor already exists
-        if ($resource->contributors()
-            ->whereHas('contributorTypes', fn ($q) => $q->where('contributor_types.id', $this->dataCollectorType->id))
-            ->exists()) {
-            return;
-        }
-
-        // Parse name (format: "Lastname, Firstname" or just "Name")
-        $parts = explode(',', $collector, 2);
-        $familyName = trim($parts[0]);
-        $givenName = isset($parts[1]) ? trim($parts[1]) : null;
-
-        $person = Person::firstOrCreate(
-            ['family_name' => $familyName, 'given_name' => $givenName],
+        $entity = $this->matchingCreatorEntity($resource, $collector) ?? $this->createCollectorEntity($collector);
+        $relation = $resource->contributors()->with('contributorTypes')->get()->first(
+            fn (ResourceContributor $contributor): bool => $contributor->contributorable_type === $entity::class
+                && $contributor->contributorable_id === $entity->getKey()
+                && $contributor->contributorTypes->contains('id', $this->dataCollectorType->id),
         );
 
-        ResourceContributor::create([
-            'resource_id' => $resource->id,
-            'contributorable_type' => Person::class,
-            'contributorable_id' => $person->id,
-            'position' => 0,
-        ])->contributorTypes()->sync([$this->dataCollectorType->id]);
+        if ($relation === null) {
+            $maximum = $resource->contributors()->max('position');
+            $relation = ResourceContributor::create([
+                'resource_id' => $resource->id,
+                'contributorable_type' => $entity::class,
+                'contributorable_id' => $entity->getKey(),
+                'position' => $maximum === null ? 0 : ((int) $maximum) + 1,
+            ]);
+            $relation->contributorTypes()->syncWithoutDetaching([$this->dataCollectorType->id]);
+        }
+
+        if (is_string($collection['collector_detail']) && $collection['collector_detail'] !== '') {
+            Affiliation::firstOrCreate([
+                'affiliatable_type' => ResourceContributor::class,
+                'affiliatable_id' => $relation->id,
+                'name' => $collection['collector_detail'],
+            ]);
+        }
+    }
+
+    private function matchingCreatorEntity(Resource $resource, string $collector): ?Model
+    {
+        $target = $this->normalizePersonName($collector);
+        foreach ($resource->creators()->with('creatorable')->get() as $creator) {
+            $entity = $creator->creatorable;
+            $name = $entity instanceof Person ? $entity->full_name : ($entity->name ?? '');
+            if ($this->normalizePersonName($name) === $target) {
+                return $entity;
+            }
+        }
+
+        return null;
+    }
+
+    private function createCollectorEntity(string $collector): Model
+    {
+        if (str_contains($collector, ',')) {
+            [$familyName, $givenName] = array_pad(array_map('trim', explode(',', $collector, 2)), 2, null);
+
+            return Person::firstOrCreate(['family_name' => $familyName, 'given_name' => $givenName]);
+        }
+
+        return Institution::firstOrCreate(['name' => $collector]);
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function persistValueRelations(array $metadata, Resource $resource): void
+    {
+        foreach ($metadata['classifications'] as $value) {
+            IgsnClassification::firstOrCreate(['resource_id' => $resource->id, 'value' => $value]);
+        }
+        foreach ($metadata['geological_ages'] as $value) {
+            IgsnGeologicalAge::firstOrCreate(['resource_id' => $resource->id, 'value' => $value]);
+        }
+        foreach ($metadata['geological_units'] as $value) {
+            IgsnGeologicalUnit::firstOrCreate(['resource_id' => $resource->id, 'value' => $value]);
+        }
+    }
+
+    /** @param list<array{numeric_value: string, unit: string|null, type: string|null}> $sizes */
+    private function persistSizes(array $sizes, Resource $resource): void
+    {
+        foreach ($sizes as $size) {
+            Size::firstOrCreate(['resource_id' => $resource->id, ...$size]);
+        }
     }
 
     /**
-     * Map rock classifications from DIF XML.
+     * @param  array<int, mixed>  $existing
+     * @param  list<string>  $incoming
+     * @return list<string>
      */
-    private function mapClassifications(\SimpleXMLElement $sample, Resource $resource): void
+    private function mergeUnique(array $existing, array $incoming): array
     {
-        $ns = $this->detectSampleNamespace($sample);
-
-        $classification = $this->getElementText($sample, 'classification', $ns);
-        if ($classification === null || strtolower($classification) === 'n/a') {
-            return;
+        $result = [];
+        foreach (array_merge($existing, $incoming) as $value) {
+            if (! is_string($value) || trim($value) === '') {
+                continue;
+            }
+            $result[$this->normalizeText($value)] = trim($value);
         }
 
-        if ($resource->igsnClassifications()->exists()) {
-            return;
-        }
-
-        IgsnClassification::create([
-            'resource_id' => $resource->id,
-            'value' => $classification,
-        ]);
+        return array_values($result);
     }
 
-    /**
-     * Map geological ages from DIF XML.
-     */
-    private function mapGeologicalAges(\SimpleXMLElement $sample, Resource $resource): void
+    private function normalizeText(string $value): string
     {
-        $ns = $this->detectSampleNamespace($sample);
-
-        $age = $this->getElementText($sample, 'geological_age', $ns);
-        if ($age === null || strtolower($age) === 'n/a') {
-            return;
-        }
-
-        if ($resource->igsnGeologicalAges()->exists()) {
-            return;
-        }
-
-        IgsnGeologicalAge::create([
-            'resource_id' => $resource->id,
-            'value' => $age,
-        ]);
+        return mb_strtolower(trim(preg_replace('/\s+/', ' ', $value) ?? $value));
     }
 
-    /**
-     * Map geological units from DIF XML.
-     */
-    private function mapGeologicalUnits(\SimpleXMLElement $sample, Resource $resource): void
+    private function normalizePersonName(string $value): string
     {
-        $ns = $this->detectSampleNamespace($sample);
+        $parts = preg_split('/[\s,]+/u', $this->normalizeText($value), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        sort($parts);
 
-        $unit = $this->getElementText($sample, 'geological_unit', $ns);
-        if ($unit === null || strtolower($unit) === 'n/a') {
-            return;
-        }
-
-        if ($resource->igsnGeologicalUnits()->exists()) {
-            return;
-        }
-
-        IgsnGeologicalUnit::create([
-            'resource_id' => $resource->id,
-            'value' => $unit,
-        ]);
+        return implode('|', $parts);
     }
 }

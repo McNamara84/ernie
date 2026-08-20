@@ -134,6 +134,7 @@ class LandingPageTemplate extends Model
     public const IGSN_LEFT_COLUMN_SECTIONS = [
         'general',
         'acquisition',
+        'repositories',
         'citation',
         'dates',
         'contact',
@@ -150,6 +151,7 @@ class LandingPageTemplate extends Model
         'files',
         'general',
         'acquisition',
+        'repositories',
         'citation',
         'dates',
         'contact',

@@ -29,6 +29,7 @@ use App\Models\Right;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Services\Rights\CustomRightCatalogService;
+use App\Support\IgsnIdentifier;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Database\Eloquent\Collection;
@@ -64,6 +65,9 @@ final class LandingPageResourceTransformer
             'publisher',
             'igsnMetadata.parentResource.landingPage.externalDomain',
             'igsnClassifications',
+            'igsnGeologicalUnits',
+            'alternateIdentifiers',
+            'sizes',
         ];
     }
 
@@ -105,6 +109,9 @@ final class LandingPageResourceTransformer
                     'source' => $relatedId->source,
                     'is_repository_curation' => $relatedId->isRepositoryCuration(),
                     'position' => $relatedId->position,
+                    'igsn' => $identifierType?->slug === 'DOI'
+                        ? IgsnIdentifier::handleFromDoi($relatedId->identifier)
+                        : null,
                 ];
             })
             ->all();
@@ -140,6 +147,9 @@ final class LandingPageResourceTransformer
                     'scheme_uri' => $item->scheme_uri,
                     'scheme_type' => $item->scheme_type,
                     'position' => $item->position,
+                    'igsn' => $item->identifier_type === 'DOI' && $item->identifier !== null
+                        ? IgsnIdentifier::handleFromDoi($item->identifier)
+                        : null,
                     'titles' => $item->titles
                         ->map(static fn (RelatedItemTitle $title): array => [
                             'id' => $title->id,
@@ -317,6 +327,14 @@ final class LandingPageResourceTransformer
                 'south_bound_latitude' => $geo->south_bound_latitude !== null ? (float) $geo->south_bound_latitude : null,
                 'north_bound_latitude' => $geo->north_bound_latitude !== null ? (float) $geo->north_bound_latitude : null,
                 'polygon_points' => $geo->polygon_points,
+                'elevation' => $geo->elevation !== null ? (float) $geo->elevation : null,
+                'elevation_unit' => $geo->elevation_unit,
+                'location_type' => $geo->location_type,
+                'location_description' => $geo->location_description,
+                'country' => $geo->country,
+                'province' => $geo->province,
+                'county' => $geo->county,
+                'city' => $geo->city,
             ])
             ->all();
 
@@ -471,16 +489,78 @@ final class LandingPageResourceTransformer
             $meta = $resource->igsnMetadata;
             $parent = $meta->parentResource;
             $parentLandingPage = $parent?->landingPage;
+            $descriptionJson = $meta->description_json ?? [];
+            $igsn = $resource->doi !== null ? IgsnIdentifier::handleFromDoi($resource->doi) : null;
+            $parentDoi = $parent?->doi;
+            $parentIgsn = $parentDoi !== null ? IgsnIdentifier::handleFromDoi($parentDoi) : null;
+
+            if ($parentIgsn === null && is_string($descriptionJson['parent_igsn_handle'] ?? null)) {
+                $normalizedParent = IgsnIdentifier::normalizeInputToDoi($descriptionJson['parent_igsn_handle']);
+                $parentDoi ??= $normalizedParent;
+                $parentIgsn = $normalizedParent !== null ? IgsnIdentifier::handleFromDoi($normalizedParent) : null;
+            }
+
+            if ($parentIgsn === null) {
+                $partOf = $resource->relatedIdentifiers->first(
+                    static fn (RelatedIdentifier $identifier): bool => $identifier->relationType->slug === 'IsPartOf'
+                        && IgsnIdentifier::normalizeInputToDoi($identifier->identifier) !== null,
+                );
+                if ($partOf !== null) {
+                    $parentDoi = IgsnIdentifier::normalizeInputToDoi($partOf->identifier);
+                    $parentIgsn = $parentDoi !== null ? IgsnIdentifier::handleFromDoi($parentDoi) : null;
+                }
+            }
+
+            $alternateIdentifiers = $resource->relationLoaded('alternateIdentifiers')
+                ? $resource->alternateIdentifiers
+                : new Collection;
+            $sizes = $resource->relationLoaded('sizes') ? $resource->sizes : new Collection;
+            $geologicalUnits = $resource->relationLoaded('igsnGeologicalUnits')
+                ? $resource->igsnGeologicalUnits
+                : new Collection;
+            $name = $alternateIdentifiers
+                ->sortBy('position')
+                ->first(static fn ($identifier): bool => strcasecmp($identifier->type, 'Local accession number') === 0)
+                ?->value;
 
             $resourceData['igsn_metadata'] = [
+                'igsn' => $igsn,
+                'name' => $name,
+                'user_code' => $meta->user_code,
                 'sample_type' => $meta->sample_type,
                 'material' => $meta->material,
                 'cruise_field_program' => $meta->cruise_field_program,
                 'sample_purpose' => $meta->sample_purpose,
+                'depth_min' => $meta->depth_min,
+                'depth_max' => $meta->depth_max,
+                'depth_scale' => $meta->depth_scale,
                 'collection_method' => $meta->collection_method,
                 'collection_method_description' => $meta->collection_method_description,
-                'parent' => $parent === null ? null : [
-                    'doi' => $parent->doi,
+                'collection_date_precision' => $meta->collection_date_precision,
+                'coordinate_system' => $meta->coordinate_system,
+                'sample_access' => $meta->sample_access,
+                'comments' => array_values(array_filter(
+                    is_array($descriptionJson['comments'] ?? null) ? $descriptionJson['comments'] : [],
+                    static fn (mixed $comment): bool => is_string($comment) && trim($comment) !== '',
+                )),
+                'current_archive' => $meta->current_archive,
+                'current_archive_contact' => $meta->current_archive_contact,
+                'original_archive' => $meta->original_archive ?? ($descriptionJson['original_archive'] ?? null),
+                'original_archive_contact' => $meta->original_archive_contact ?? ($descriptionJson['original_archive_contact'] ?? null),
+                'sizes' => $sizes->map(static fn ($size): array => [
+                    'id' => $size->id,
+                    'numeric_value' => $size->numeric_value,
+                    'unit' => $size->unit,
+                    'type' => $size->type,
+                    'label' => $size->export_string,
+                ])->all(),
+                'geological_units' => $geologicalUnits->sortBy('position')->values()->map(static fn ($unit): array => [
+                    'id' => $unit->id,
+                    'value' => $unit->value,
+                ])->all(),
+                'parent' => $parentIgsn === null ? null : [
+                    'igsn' => $parentIgsn,
+                    'doi' => $parentDoi,
                     'landing_page' => ($parentLandingPage !== null && $parentLandingPage->status === 'published')
                         ? ['public_url' => $parentLandingPage->public_url]
                         : null,

@@ -85,7 +85,7 @@ enum AccessLevel: string
 
         return match ($normalized) {
             'open', 'public', 'free', 'unrestricted', 'open access' => self::OPEN,
-            'restricted', 'limited', 'restricted access' => self::RESTRICTED,
+            'restricted', 'limited', 'private', 'restricted access' => self::RESTRICTED,
             'embargo', 'embargoed', 'embargoed access' => self::EMBARGOED,
             'metadata only', 'metadata only access' => self::METADATA_ONLY,
             default => null,
