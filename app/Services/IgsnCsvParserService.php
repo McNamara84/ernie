@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Services\Igsn\IgsnVocabularyNormalizer;
+use App\Services\Igsn\IgsnVocabularyNormalizerService;
 use App\Support\FunderIdentifierTypeDetector;
 use Illuminate\Support\Str;
 
@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
 class IgsnCsvParserService
 {
     public function __construct(
-        private readonly IgsnVocabularyNormalizer $vocabularyNormalizer = new IgsnVocabularyNormalizer,
+        private readonly IgsnVocabularyNormalizerService $vocabularyNormalizer = new IgsnVocabularyNormalizerService,
     ) {}
 
     /**

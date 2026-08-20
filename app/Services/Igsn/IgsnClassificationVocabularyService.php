@@ -8,7 +8,7 @@ use App\Enums\Igsn\IgsnClassificationType;
 use JsonException;
 use RuntimeException;
 
-class IgsnClassificationVocabulary
+class IgsnClassificationVocabularyService
 {
     /** @var array<string, array<string, string>> */
     private array $lookups = [];

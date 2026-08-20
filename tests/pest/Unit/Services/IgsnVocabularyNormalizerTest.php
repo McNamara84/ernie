@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use App\Enums\Igsn\IgsnClassificationType;
 use App\Enums\Igsn\IgsnMaterial;
-use App\Services\Igsn\IgsnClassificationVocabulary;
-use App\Services\Igsn\IgsnVocabularyNormalizer;
+use App\Services\Igsn\IgsnClassificationVocabularyService;
+use App\Services\Igsn\IgsnVocabularyNormalizerService;
 
-covers(IgsnMaterial::class, IgsnClassificationVocabulary::class, IgsnVocabularyNormalizer::class);
+covers(IgsnMaterial::class, IgsnClassificationVocabularyService::class, IgsnVocabularyNormalizerService::class);
 
 it('defines every material value approved in issue 1111', function (): void {
     expect(array_column(IgsnMaterial::cases(), 'value'))->toBe([
@@ -32,7 +32,7 @@ it('defines every material value approved in issue 1111', function (): void {
 });
 
 it('canonicalizes material aliases and display labels', function (string $raw, ?string $canonical): void {
-    $normalizer = new IgsnVocabularyNormalizer;
+    $normalizer = new IgsnVocabularyNormalizerService;
 
     expect($normalizer->normalizeMaterial($raw))->toBe($canonical);
 })->with([
@@ -50,11 +50,11 @@ it('uses a human-readable label for the compact not-applicable token', function 
 });
 
 it('rejects unsupported material values', function (): void {
-    (new IgsnVocabularyNormalizer)->normalizeMaterial('Granite');
+    (new IgsnVocabularyNormalizerService)->normalizeMaterial('Granite');
 })->throws(InvalidArgumentException::class, 'Unsupported IGSN material: Granite');
 
 it('loads all versioned material-specific classification values', function (): void {
-    $vocabulary = new IgsnClassificationVocabulary;
+    $vocabulary = new IgsnClassificationVocabularyService;
 
     expect($vocabulary->values(IgsnClassificationType::ROCK))->toHaveCount(76)
         ->and($vocabulary->values(IgsnClassificationType::MINERAL))->toHaveCount(4176)
@@ -93,7 +93,7 @@ it('keeps the versioned classification catalogs structurally valid', function ()
 });
 
 it('canonicalizes and deduplicates classifications for controlled materials', function (): void {
-    $normalizer = new IgsnVocabularyNormalizer;
+    $normalizer = new IgsnVocabularyNormalizerService;
 
     expect($normalizer->normalizeClassifications('Rock', [
         ' igneous ',
@@ -104,11 +104,11 @@ it('canonicalizes and deduplicates classifications for controlled materials', fu
 });
 
 it('rejects a classification outside the material-specific vocabulary', function (): void {
-    (new IgsnVocabularyNormalizer)->normalizeClassifications('Rock', ['Quartz']);
+    (new IgsnVocabularyNormalizerService)->normalizeClassifications('Rock', ['Quartz']);
 })->throws(InvalidArgumentException::class, 'Unsupported IGSN rock classification: Quartz');
 
 it('partitions legacy classifications into valid and rejected values', function (): void {
-    expect((new IgsnVocabularyNormalizer)->partitionClassifications('Rock', [
+    expect((new IgsnVocabularyNormalizerService)->partitionClassifications('Rock', [
         'igneous',
         'legacy rock term',
         'IGNEOUS',
@@ -119,14 +119,14 @@ it('partitions legacy classifications into valid and rejected values', function 
 });
 
 it('preserves normalized free classifications for materials without a classification catalog', function (): void {
-    expect((new IgsnVocabularyNormalizer)->normalizeClassifications('Sediment', [
+    expect((new IgsnVocabularyNormalizerService)->normalizeClassifications('Sediment', [
         ' Custom   class ',
         'custom class',
     ]))->toBe(['Custom class']);
 });
 
 it('derives the persisted classification type from material', function (): void {
-    $normalizer = new IgsnVocabularyNormalizer;
+    $normalizer = new IgsnVocabularyNormalizerService;
 
     expect($normalizer->classificationType('Rock'))->toBe(IgsnClassificationType::ROCK)
         ->and($normalizer->classificationType('Mineral'))->toBe(IgsnClassificationType::MINERAL)

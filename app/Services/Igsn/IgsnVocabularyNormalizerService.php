@@ -7,10 +7,10 @@ namespace App\Services\Igsn;
 use App\Enums\Igsn\IgsnClassificationType;
 use App\Enums\Igsn\IgsnMaterial;
 
-class IgsnVocabularyNormalizer
+class IgsnVocabularyNormalizerService
 {
     public function __construct(
-        private readonly IgsnClassificationVocabulary $classifications = new IgsnClassificationVocabulary,
+        private readonly IgsnClassificationVocabularyService $classifications = new IgsnClassificationVocabularyService,
     ) {}
 
     public function normalizeMaterial(?string $value): ?string

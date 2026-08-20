@@ -10,7 +10,7 @@ namespace App\Services\Igsn;
 class IgsnDifMetadataExtractor
 {
     public function __construct(
-        private readonly IgsnVocabularyNormalizer $vocabularyNormalizer = new IgsnVocabularyNormalizer,
+        private readonly IgsnVocabularyNormalizerService $vocabularyNormalizer = new IgsnVocabularyNormalizerService,
     ) {}
 
     /**

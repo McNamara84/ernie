@@ -22,7 +22,7 @@ use App\Models\ResourceDate;
 use App\Models\Size;
 use App\Services\Igsn\IgsnDifMetadataExtractor;
 use App\Services\Igsn\IgsnGeometryNormalizer;
-use App\Services\Igsn\IgsnVocabularyNormalizer;
+use App\Services\Igsn\IgsnVocabularyNormalizerService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -39,7 +39,7 @@ class IgsnDifXmlParser
     public function __construct(
         private readonly IgsnDifMetadataExtractor $extractor = new IgsnDifMetadataExtractor,
         private readonly IgsnGeometryNormalizer $geometryNormalizer = new IgsnGeometryNormalizer,
-        private readonly IgsnVocabularyNormalizer $vocabularyNormalizer = new IgsnVocabularyNormalizer,
+        private readonly IgsnVocabularyNormalizerService $vocabularyNormalizer = new IgsnVocabularyNormalizerService,
     ) {}
 
     public function enrichFromDifXml(string $difXml, Resource $resource, IgsnMetadata $igsnMetadata): bool

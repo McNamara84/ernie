@@ -30,7 +30,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\PersonService;
-use App\Services\Igsn\IgsnVocabularyNormalizer;
+use App\Services\Igsn\IgsnVocabularyNormalizerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -54,7 +54,7 @@ class IgsnStorageService
         protected IgsnCsvParserService $parser,
         protected PersonService $personService,
         protected AffiliationService $affiliationService,
-        protected IgsnVocabularyNormalizer $vocabularyNormalizer,
+        protected IgsnVocabularyNormalizerService $vocabularyNormalizer,
     ) {}
 
     /**
