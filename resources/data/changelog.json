@@ -4,6 +4,10 @@
         "date": "2026-08-20",
         "features": [
             {
+                "title": "Resources List Datacenter Filter",
+                "description": "The Resources list now includes a Datacenter dropdown for showing resources assigned to one selected datacenter. Its options include only datacenters used by regular resources, while the new \"Without Datacenter\" choice finds resources that still need an assignment. The filter remains active while sorting or loading more results and can be removed from the active filter badges."
+            },
+            {
                 "title": "Bulk Resource Review Invitations",
                 "description": "Admins, Group Leaders, and Curators can now send tokenized landing-page review links directly from the Resources bulk Actions menu. The action accepts up to 100 selected resources when every item is in Review and has a preview link. Each ContactPerson contributor with a valid email address receives a separate invitation per resource, with the GFZ Data Services contact address in Cc and Reply-To. Invalid recipients or resources without a valid ContactPerson are reported as partial failures while other eligible invitations continue to be queued."
             },
