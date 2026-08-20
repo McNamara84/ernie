@@ -14,7 +14,6 @@ use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
 use App\Models\Person;
-use App\Models\Publisher;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
@@ -25,9 +24,7 @@ use App\Models\ResourceType;
 use App\Models\Size;
 use App\Models\Title;
 use App\Models\TitleType;
-use App\Services\Entities\AffiliationService;
-use App\Services\Entities\PersonService;
-use App\Services\IgsnCsvParserService;
+use App\Models\User;
 use App\Services\IgsnStorageService;
 
 covers(IgsnStorageService::class);
@@ -163,7 +160,7 @@ describe('IgsnStorageService::storeFromCsv()', function (): void {
     });
 
     it('associates user ID with created resource', function (): void {
-        $user = \App\Models\User::factory()->create();
+        $user = User::factory()->create();
         $service = app(IgsnStorageService::class);
 
         $row = buildMinimalIgsnRow('IEDE00099');

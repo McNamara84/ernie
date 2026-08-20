@@ -41,9 +41,12 @@ class IgsnVocabularyNormalizer
         $normalized = $this->partitionClassifications($material, $values);
         if ($normalized['rejected'] !== []) {
             $type = $this->classificationType($material);
+            if ($type === null) {
+                throw new \LogicException('Rejected IGSN classification without a controlled material type.');
+            }
 
             throw new \InvalidArgumentException(
-                sprintf('Unsupported IGSN %s classification: %s', $type?->value ?? 'material', $normalized['rejected'][0]),
+                sprintf('Unsupported IGSN %s classification: %s', $type->value, $normalized['rejected'][0]),
             );
         }
 
@@ -95,7 +98,10 @@ class IgsnVocabularyNormalizer
         return ['values' => $result, 'rejected' => $rejected];
     }
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
     public function normalizeImportData(array $data): array
     {
         $material = $this->normalizeMaterial(is_string($data['material'] ?? null) ? $data['material'] : null);

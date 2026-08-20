@@ -112,24 +112,21 @@ describe('AcquisitionSection', () => {
         expect(screen.getByText('Igneous, Plutonic')).toBeInTheDocument();
     });
 
-    it.each(['Rock', 'Mineral', 'Biology', 'Sediment'])(
-        'derives the classification and description labels for %s',
-        (material) => {
-            render(
-                <AcquisitionSection
-                    igsn={baseIgsn({ material })}
-                    classifications={[]}
-                    descriptions={[]}
-                    contributors={[]}
-                    fundingReferences={[]}
-                    dates={[]}
-                />,
-            );
+    it.each(['Rock', 'Mineral', 'Biology', 'Sediment'])('derives the classification and description labels for %s', (material) => {
+        render(
+            <AcquisitionSection
+                igsn={baseIgsn({ material })}
+                classifications={[]}
+                descriptions={[]}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={[]}
+            />,
+        );
 
-            expect(screen.getByText(`${material} Classification`)).toBeInTheDocument();
-            expect(screen.getByText(`${material} Description`)).toBeInTheDocument();
-        },
-    );
+        expect(screen.getByText(`${material} Classification`)).toBeInTheDocument();
+        expect(screen.getByText(`${material} Description`)).toBeInTheDocument();
+    });
 
     it('renders Collection Method without description as plain text', () => {
         const igsn = baseIgsn({ collection_method: 'Drilling', collection_method_description: null });
@@ -256,16 +253,7 @@ describe('AcquisitionSection', () => {
     });
 
     it('renders every empty IGSN acquisition field as N/A', () => {
-        render(
-            <AcquisitionSection
-                igsn={baseIgsn()}
-                classifications={[]}
-                descriptions={[]}
-                contributors={[]}
-                fundingReferences={[]}
-                dates={[]}
-            />,
-        );
+        render(<AcquisitionSection igsn={baseIgsn()} classifications={[]} descriptions={[]} contributors={[]} fundingReferences={[]} dates={[]} />);
 
         [
             'Material',

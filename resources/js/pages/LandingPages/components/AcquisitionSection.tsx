@@ -59,13 +59,7 @@ const mergeUniqueText = (values: Array<string | null | undefined>): string[] => 
  *
  * Returns `null` when no field has data so the wrapping card is omitted.
  */
-export function AcquisitionSection({
-    igsn,
-    classifications,
-    contributors,
-    fundingReferences,
-    dates,
-}: AcquisitionSectionProps): ReactNode {
+export function AcquisitionSection({ igsn, classifications, contributors, fundingReferences, dates }: AcquisitionSectionProps): ReactNode {
     const classification = dedup(
         classifications
             .map((classification) => classification.value)

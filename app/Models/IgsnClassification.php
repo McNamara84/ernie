@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * IGSN Classification Model
@@ -21,15 +22,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $value
  * @property IgsnClassificationType|null $classification_type
  * @property int $position
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  */
 #[Fillable(['resource_id', 'value', 'classification_type', 'position'])]
 #[Table('igsn_classifications')]
 class IgsnClassification extends Model
 {
-
     /**
      * The attributes that should be cast.
      *

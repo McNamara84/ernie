@@ -160,7 +160,7 @@ class IgsnCsvParserService
 
             // Merge duplicate column headers with semicolon separator (Issue #487)
             if (isset($data[$header]) && $value !== '') {
-                $data[$header] .= '; ' . $value;
+                $data[$header] .= '; '.$value;
             } else {
                 $data[$header] = $data[$header] ?? $value;
             }
@@ -741,7 +741,7 @@ class IgsnCsvParserService
         if (str_contains($normalized, 'T') && ! $this->hasTimezoneOffset($normalized)) {
             $offset = $this->parseTimezoneToOffset($timezone);
             if ($offset !== null) {
-                return $normalized . $offset;
+                return $normalized.$offset;
             }
         }
 
@@ -799,7 +799,7 @@ class IgsnCsvParserService
                 return null;
             }
 
-            return "{$sign}" . str_pad((string) $hours, 2, '0', STR_PAD_LEFT) . ':00';
+            return "{$sign}".str_pad((string) $hours, 2, '0', STR_PAD_LEFT).':00';
         }
 
         // Parse UTC±H:MM (e.g., "UTC+5:30", "UTC+5:45")
@@ -817,7 +817,7 @@ class IgsnCsvParserService
                 return null;
             }
 
-            return "{$sign}" . str_pad((string) $hours, 2, '0', STR_PAD_LEFT) . ':' . $matches[3];
+            return "{$sign}".str_pad((string) $hours, 2, '0', STR_PAD_LEFT).':'.$matches[3];
         }
 
         return null;

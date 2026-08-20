@@ -181,7 +181,7 @@ describe('IgsnDifXmlParser', function () {
 
         Log::shouldHaveReceived('warning')
             ->once()
-            ->with('Skipped unsupported DIF classification', \Mockery::on(
+            ->with('Skipped unsupported DIF classification', Mockery::on(
                 fn (array $context): bool => $context['resource_id'] === $this->resource->id
                     && $context['material'] === 'Rock'
                     && $context['classification'] === 'legacy rock term',
