@@ -243,6 +243,26 @@ describe('RelatedWorkSection', () => {
         expect(global.fetch).not.toHaveBeenCalled();
     });
 
+    it('renders typed related IGSNs as handles on an IGSN landing page', () => {
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                useIgsnHandles
+                relatedIdentifiers={[
+                    makeRelatedIdentifier({
+                        identifier: '10.60510/gflmu0002',
+                        citation_label: '10.60510/gflmu0002',
+                        igsn: 'GFLMU0002',
+                    }),
+                ]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: /IGSN: GFLMU0002/ });
+        expect(link).toHaveAttribute('href', 'https://doi.org/10.60510/gflmu0002');
+        expect(screen.getByTestId('related-works-list')).not.toHaveTextContent('10.60510');
+    });
+
     it('renders URL and Handle identifiers as direct links without runtime fetches', () => {
         render(
             <RelatedWorkSection

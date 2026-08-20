@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\AccessLevel;
 use App\Enums\CitationLabelResolutionMode;
 use App\Models\Affiliation;
+use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\Description;
@@ -103,6 +104,7 @@ class DataCiteToResourceTransformer
 
             // Transform all relations
             $this->transformTitles($attributes['titles'] ?? [], $resource);
+            $this->transformAlternateIdentifiers($attributes['alternateIdentifiers'] ?? [], $resource);
             $this->transformCreators($attributes['creators'] ?? [], $resource);
             $this->transformContributors($attributes['contributors'] ?? [], $resource);
             $this->transformDescriptions($attributes['descriptions'] ?? [], $resource);
@@ -490,6 +492,34 @@ class DataCiteToResourceTransformer
                 'title_type_id' => $titleTypeId,
                 'language' => $titleData['lang'] ?? null,
             ]);
+        }
+    }
+
+    /**
+     * Transform DataCite alternateIdentifiers without reinterpreting their
+     * source types. IGSN-specific semantic normalization is applied later by
+     * the DIF enrichment step, which has the local sample-name context.
+     *
+     * @param  array<int, array<string, mixed>>  $alternateIdentifiers
+     */
+    private function transformAlternateIdentifiers(array $alternateIdentifiers, Resource $resource): void
+    {
+        foreach ($alternateIdentifiers as $position => $alternateIdentifier) {
+            $value = trim((string) ($alternateIdentifier['alternateIdentifier'] ?? ''));
+            $type = trim((string) ($alternateIdentifier['alternateIdentifierType'] ?? ''));
+
+            if ($value === '' || $type === '') {
+                continue;
+            }
+
+            AlternateIdentifier::firstOrCreate(
+                [
+                    'resource_id' => $resource->id,
+                    'value' => $value,
+                    'type' => $type,
+                ],
+                ['position' => $position],
+            );
         }
     }
 

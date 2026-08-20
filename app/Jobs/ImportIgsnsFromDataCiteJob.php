@@ -82,6 +82,12 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             'user_id' => $this->userId,
             'single_doi' => $this->singleDoi,
             'legacy_datacenter_id' => $this->legacyDatacenterId,
+            'enrichment_configuration' => [
+                'solr' => filled(config('datacite.solr.host'))
+                    && filled(config('datacite.solr.user'))
+                    && filled(config('datacite.solr.password')),
+                'legacy_db' => (bool) config('database.connections.igsn_legacy.configured', false),
+            ],
         ]);
 
         $startTime = now();

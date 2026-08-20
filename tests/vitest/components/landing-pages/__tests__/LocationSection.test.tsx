@@ -18,18 +18,10 @@ vi.mock('react-leaflet', () => ({
         </div>
     )),
     TileLayer: vi.fn(({ noWrap, url }) => <div data-testid="tile-layer" data-no-wrap={String(noWrap)} data-url={url} />),
-    Marker: vi.fn(({ position }) => (
-        <div data-testid="marker" data-position={JSON.stringify(position)} />
-    )),
-    Rectangle: vi.fn(({ bounds }) => (
-        <div data-testid="rectangle" data-bounds={JSON.stringify(bounds)} />
-    )),
-    Polygon: vi.fn(({ positions }) => (
-        <div data-testid="polygon" data-positions={JSON.stringify(positions)} />
-    )),
-    Polyline: vi.fn(({ positions }) => (
-        <div data-testid="polyline" data-positions={JSON.stringify(positions)} />
-    )),
+    Marker: vi.fn(({ position }) => <div data-testid="marker" data-position={JSON.stringify(position)} />),
+    Rectangle: vi.fn(({ bounds }) => <div data-testid="rectangle" data-bounds={JSON.stringify(bounds)} />),
+    Polygon: vi.fn(({ positions }) => <div data-testid="polygon" data-positions={JSON.stringify(positions)} />),
+    Polyline: vi.fn(({ positions }) => <div data-testid="polyline" data-positions={JSON.stringify(positions)} />),
     CircleMarker: vi.fn(({ center, children }) => (
         <div data-testid="circle-marker" data-center={JSON.stringify(center)}>
             {children}
@@ -281,6 +273,40 @@ describe('LocationSection', () => {
                 [47.27, 5.87],
                 [55.06, 15.04],
             ]);
+        });
+
+        it('renders the approved GFLMU0020 sampling-location rows and rectangle, never a line', () => {
+            render(
+                <LocationSection
+                    samplingLocation
+                    igsn={{ coordinate_system: null } as never}
+                    geoLocations={[
+                        {
+                            id: 20,
+                            place: 'Heppenheim/Bergstraße, Germany',
+                            point_longitude: null,
+                            point_latitude: null,
+                            west_bound_longitude: 8.68799,
+                            east_bound_longitude: 8.69644,
+                            south_bound_latitude: 49.6288,
+                            north_bound_latitude: 49.6344,
+                            polygon_points: null,
+                            geo_type: 'box',
+                            country: 'Germany',
+                            city: 'Heppenheim',
+                        },
+                    ]}
+                />,
+            );
+
+            expect(screen.getByRole('heading', { name: 'Sampling Location' })).toBeInTheDocument();
+            expect(screen.getByText('49.628800')).toBeInTheDocument();
+            expect(screen.getByText('8.687990')).toBeInTheDocument();
+            expect(screen.getByText('49.634400')).toBeInTheDocument();
+            expect(screen.getByText('8.696440')).toBeInTheDocument();
+            expect(screen.getByText('Heppenheim/Bergstraße, Germany')).toBeInTheDocument();
+            expect(screen.getByTestId('rectangle')).toBeInTheDocument();
+            expect(screen.queryByTestId('polyline')).not.toBeInTheDocument();
         });
     });
 
@@ -609,7 +635,7 @@ describe('LocationSection', () => {
                                 south_bound_latitude: null,
                                 north_bound_latitude: null,
                                 polygon_points: null,
-                            geo_type: null,
+                                geo_type: null,
                             },
                         ]}
                     />,

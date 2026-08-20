@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-08-19",
+        "date": "2026-08-20",
         "features": [
             {
                 "title": "Bulk Resource Review Invitations",
@@ -193,6 +193,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Enriched Legacy Metadata on IGSN Landing Pages",
+                "description": "New IGSN imports now retain additional legacy physical-sample metadata while continuing to store DataCite-compatible fields only once in the shared resource model. The Default GFZ IGSN landing page presents canonical IGSN handles, sample names and parent relationships, acquisition details, repository and repository-contact information, and richer Sampling Location metadata. Coordinate pairs are rendered consistently as a point, box, or polygon, and existing DataCite metadata is preserved and supplemented without duplicate values."
+            },
             {
                 "title": "Refreshed Interface Components",
                 "description": "Shared interface components now provide more consistent empty states, password fields, cards, tables, charts, checkboxes, sliders, toasts, and loading indicators. The refresh improves accessibility, dark-mode styling, and rendering consistency without changing established workflows."

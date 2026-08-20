@@ -814,7 +814,16 @@ describe('LandingPageTemplatesPage', () => {
                 expect(mockedAxiosPut).toHaveBeenCalledWith(
                     '/landing-pages/5',
                     expect.objectContaining({
-                        left_column_order: ['contact', 'model_description', 'related_work', 'general', 'acquisition', 'dates', 'citation'],
+                        left_column_order: [
+                            'contact',
+                            'model_description',
+                            'related_work',
+                            'general',
+                            'acquisition',
+                            'repositories',
+                            'dates',
+                            'citation',
+                        ],
                     }),
                 );
             });

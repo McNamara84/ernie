@@ -125,6 +125,7 @@ return [
 
         'igsn_legacy' => [
             'driver' => 'mysql',
+            'configured' => (bool) env('IGSN_LEGACY_DB_ENABLED', false),
             'host' => env('DB_IGSN_HOST', '127.0.0.1'),
             'port' => env('DB_IGSN_PORT', '3306'),
             'database' => env('DB_IGSN_NAME', 'igsn-metadata'),

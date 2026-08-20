@@ -62,7 +62,16 @@ describe('section-catalog helpers', () => {
             'location',
         ]);
         expect(RESOURCE_LEFT_COLUMN_SECTIONS).toEqual(['files', 'citation', 'dates', 'contact', 'model_description', 'related_work']);
-        expect(IGSN_LEFT_COLUMN_SECTIONS).toEqual(['general', 'acquisition', 'citation', 'dates', 'contact', 'model_description', 'related_work']);
+        expect(IGSN_LEFT_COLUMN_SECTIONS).toEqual([
+            'general',
+            'acquisition',
+            'repositories',
+            'citation',
+            'dates',
+            'contact',
+            'model_description',
+            'related_work',
+        ]);
     });
 
     it('normalizes right column order and expands the legacy descriptions section', () => {
@@ -107,6 +116,7 @@ describe('section-catalog helpers', () => {
             'contact',
             'general',
             'acquisition',
+            'repositories',
             'dates',
             'model_description',
             'related_work',
@@ -128,6 +138,7 @@ describe('section-catalog helpers', () => {
             'contact',
             'general',
             'acquisition',
+            'repositories',
             'dates',
             'model_description',
             'related_work',
@@ -147,6 +158,7 @@ describe('section-catalog helpers', () => {
             'contact',
             'general',
             'acquisition',
+            'repositories',
             'dates',
             'model_description',
             'related_work',

@@ -20,6 +20,12 @@ use Illuminate\Support\Carbon;
  * @property int $resource_id
  * @property string|null $geo_type
  * @property string|null $place
+ * @property string|null $location_type
+ * @property string|null $location_description
+ * @property string|null $country
+ * @property string|null $province
+ * @property string|null $county
+ * @property string|null $city
  * @property float|null $point_longitude
  * @property float|null $point_latitude
  * @property float|null $west_bound_longitude
@@ -37,7 +43,7 @@ use Illuminate\Support\Carbon;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/geolocation/
  */
-#[Fillable(['resource_id', 'geo_type', 'place', 'point_longitude', 'point_latitude', 'elevation', 'elevation_unit', 'west_bound_longitude', 'east_bound_longitude', 'south_bound_latitude', 'north_bound_latitude', 'polygon_points', 'in_polygon_point_longitude', 'in_polygon_point_latitude'])]
+#[Fillable(['resource_id', 'geo_type', 'place', 'location_type', 'location_description', 'country', 'province', 'county', 'city', 'point_longitude', 'point_latitude', 'elevation', 'elevation_unit', 'west_bound_longitude', 'east_bound_longitude', 'south_bound_latitude', 'north_bound_latitude', 'polygon_points', 'in_polygon_point_longitude', 'in_polygon_point_latitude'])]
 class GeoLocation extends Model
 {
     /** @use HasFactory<Factory<static>> */

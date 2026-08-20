@@ -1,10 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type {
-    LandingPageFundingReference,
-    LandingPageIgsnMetadata,
-    LandingPageResourceDate,
-} from '@/types/landing-page';
+import type { LandingPageIgsnMetadata, LandingPageResourceDate } from '@/types/landing-page';
 
 import { findDateByType, pickDateString } from '../lib/dateHelpers';
 import { LandingPageCard } from './LandingPageCard';
@@ -12,9 +8,6 @@ import { hasVisibleMetadataRows, MetadataList, type MetadataRow } from './Metada
 
 interface GeneralSectionProps {
     igsn: LandingPageIgsnMetadata | null | undefined;
-    /** The IGSN value (resource DOI for PhysicalObjects). */
-    doi: string | null | undefined;
-    fundingReferences: LandingPageFundingReference[];
     dates: LandingPageResourceDate[];
 }
 
@@ -24,40 +17,29 @@ interface GeneralSectionProps {
  * Renders nothing when no field has data so the surrounding layout collapses
  * gracefully on incomplete records.
  */
-export function GeneralSection({ igsn, doi, fundingReferences, dates }: GeneralSectionProps): ReactNode {
-    const project = fundingReferences
-        .map((funding) => funding.award_title)
-        .filter((title): title is string => typeof title === 'string' && title.trim() !== '')
-        .map((title) => title.trim())
-        .filter((title, index, all) => all.indexOf(title) === index)
-        .join(', ');
-
+export function GeneralSection({ igsn, dates }: GeneralSectionProps): ReactNode {
     const releaseDate = pickDateString(findDateByType(dates, 'Available'));
 
     let parentNode: ReactNode = null;
-    if (igsn?.parent?.doi) {
+    if (igsn?.parent?.igsn) {
         parentNode = igsn.parent.landing_page ? (
-            <a
-                href={igsn.parent.landing_page.public_url}
-                className="text-gfz-primary underline hover:no-underline dark:text-blue-400"
-            >
-                {igsn.parent.doi}
+            <a href={igsn.parent.landing_page.public_url} className="text-gfz-primary underline hover:no-underline dark:text-blue-400">
+                {igsn.parent.igsn}
             </a>
         ) : (
-            igsn.parent.doi
+            igsn.parent.igsn
         );
     }
 
     const trimmedPurpose = igsn?.sample_purpose?.trim();
-    const purpose = trimmedPurpose
-        ? <span className="whitespace-pre-line">{trimmedPurpose}</span>
-        : null;
+    const purpose = trimmedPurpose ? <span className="whitespace-pre-line">{trimmedPurpose}</span> : null;
 
     const rows: MetadataRow[] = [
-        { label: 'Project', value: project || null },
+        { label: 'Project', value: igsn?.user_code ?? null },
         { label: 'Campaign', value: igsn?.cruise_field_program ?? null },
         { label: 'Type', value: igsn?.sample_type ?? null },
-        { label: 'IGSN', value: doi ?? null },
+        { label: 'Name', value: igsn?.name ?? null },
+        { label: 'IGSN', value: igsn?.igsn ?? null },
         { label: 'Parent IGSN', value: parentNode },
         { label: 'Purpose', value: purpose },
         { label: 'Release Date', value: releaseDate },

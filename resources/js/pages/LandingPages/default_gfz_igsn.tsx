@@ -21,8 +21,10 @@ import { LandingPageShell } from './components/LandingPageShell';
 import { LocationSection } from './components/LocationSection';
 import { ModelDescriptionSection } from './components/ModelDescriptionSection';
 import { RelatedWorkSection } from './components/RelatedWorkSection';
+import { RepositoriesSection } from './components/RepositoriesSection';
 import { ResourceHero } from './components/ResourceHero';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
+import { replaceIgsnIdentifierText } from './lib/igsn-display';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
 import { type MetadataSectionKey } from './lib/metadata-sections';
 import { IGSN_LEFT_COLUMN_SECTIONS, normalizeLeftColumnOrder, RIGHT_COLUMN_SECTIONS } from './lib/section-catalog';
@@ -64,12 +66,11 @@ export default function DefaultGfzIgsnTemplate() {
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
 
-    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(
-        resource,
-        landingPage,
-        isPreview,
-        peopleDisplayLimits.citationAuthors,
-    );
+    const templateData = getLandingPageTemplateData(resource, landingPage, isPreview, peopleDisplayLimits.citationAuthors);
+    const localName = resource.igsn_metadata?.name?.trim();
+    const mainTitle = templateData.mainTitle.trim().toLowerCase() === ':tba' && localName ? localName : templateData.mainTitle;
+    const citation = replaceIgsnIdentifierText(templateData.citation, resource.doi, resource.igsn_metadata?.igsn);
+    const { status, subtitle } = templateData;
 
     const rightOrder = sectionOrder?.rightColumn ?? RIGHT_COLUMN_SECTIONS;
     const leftOrder = sectionOrder?.leftColumn ? normalizeLeftColumnOrder(sectionOrder.leftColumn, 'igsn') : IGSN_LEFT_COLUMN_SECTIONS;
@@ -96,7 +97,15 @@ export default function DefaultGfzIgsnTemplate() {
                     displayLimits={peopleDisplayLimits}
                 />
             ),
-            location: <LocationSection key="location" geoLocations={resource.geo_locations || []} isDark={isDark} />,
+            location: (
+                <LocationSection
+                    key="location"
+                    geoLocations={resource.geo_locations || []}
+                    isDark={isDark}
+                    samplingLocation
+                    igsn={resource.igsn_metadata}
+                />
+            ),
         };
     }, [resource, landingPage, isDark, metadataOrder, peopleDisplayLimits, metadataLinks]);
 
@@ -105,15 +114,7 @@ export default function DefaultGfzIgsnTemplate() {
             // The IGSN template never renders the Files module — the data flow is
             // physical-sample-centric and there are no downloadable artefacts.
             files: null,
-            general: (
-                <GeneralSection
-                    key="general"
-                    igsn={resource.igsn_metadata}
-                    doi={resource.doi}
-                    fundingReferences={resource.funding_references || []}
-                    dates={resource.dates || []}
-                />
-            ),
+            general: <GeneralSection key="general" igsn={resource.igsn_metadata} dates={resource.dates || []} />,
             acquisition: (
                 <AcquisitionSection
                     key="acquisition"
@@ -125,12 +126,14 @@ export default function DefaultGfzIgsnTemplate() {
                     dates={resource.dates || []}
                 />
             ),
+            repositories: <RepositoriesSection key="repositories" igsn={resource.igsn_metadata} />,
             citation: (
                 <CiteThisResourceSection
                     key="citation"
                     resource={resource}
                     citationStyles={citationStyles}
                     citationAuthorLimit={peopleDisplayLimits.citationAuthors}
+                    displayIdentifier={resource.igsn_metadata?.igsn}
                 />
             ),
             dates: <DatesSection key="dates" dates={resource.dates || []} />,
@@ -142,6 +145,7 @@ export default function DefaultGfzIgsnTemplate() {
                     relatedIdentifiers={resource.related_identifiers || []}
                     relatedItems={resource.related_items || []}
                     resource={resource}
+                    useIgsnHandles
                 />
             ),
         };

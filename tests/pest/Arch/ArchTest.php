@@ -55,6 +55,8 @@ describe('Services', function () {
             'App\Services\DataCiteToResourceTransformer',
             'App\Services\DataCiteToIgsnTransformer',
             'App\Services\IgsnDifXmlParser',
+            'App\Services\Igsn\IgsnDifMetadataExtractor',
+            'App\Services\Igsn\IgsnGeometryNormalizer',
             'App\Services\Editor\EditorDataTransformer',
             'App\Services\LandingPageResourceTransformer',
             'App\Services\MslKeywordTransformer',

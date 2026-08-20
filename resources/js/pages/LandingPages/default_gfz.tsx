@@ -133,6 +133,7 @@ export default function DefaultGfzTemplate() {
             // IGSN-only sections — not rendered in the default resource template
             general: null,
             acquisition: null,
+            repositories: null,
         };
     }, [resource, landingPage, mainTitle, downloadsUnavailable, citationStyles, peopleDisplayLimits.citationAuthors]);
 

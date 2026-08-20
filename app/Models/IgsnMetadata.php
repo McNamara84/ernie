@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * IGSN Metadata Model
@@ -41,6 +42,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $platform_description
  * @property string|null $current_archive
  * @property string|null $current_archive_contact
+ * @property string|null $original_archive
+ * @property string|null $original_archive_contact
  * @property string|null $sample_access
  * @property string|null $operator
  * @property string|null $coordinate_system
@@ -50,8 +53,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $upload_error_message
  * @property string|null $csv_filename
  * @property int|null $csv_row_number
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  * @property-read Resource|null $parentResource
  * @property-read Collection<int, IgsnMetadata> $children
@@ -61,14 +64,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'depth_min', 'depth_max', 'depth_scale', 'sample_purpose',
     'collection_method', 'collection_method_description', 'collection_date_precision',
     'cruise_field_program', 'platform_type', 'platform_name', 'platform_description',
-    'current_archive', 'current_archive_contact', 'sample_access', 'operator',
+    'current_archive', 'current_archive_contact', 'original_archive', 'original_archive_contact', 'sample_access', 'operator',
     'coordinate_system', 'user_code', 'description_json',
     'upload_status', 'upload_error_message', 'csv_filename', 'csv_row_number',
 ])]
 #[Table('igsn_metadata')]
 class IgsnMetadata extends Model
 {
-
     /**
      * The attributes that should be cast.
      *
@@ -216,7 +218,7 @@ class IgsnMetadata extends Model
     {
         if (! in_array($status, self::getValidStatuses(), true)) {
             throw new \InvalidArgumentException(
-                "Invalid status '{$status}'. Valid statuses are: " . implode(', ', self::getValidStatuses())
+                "Invalid status '{$status}'. Valid statuses are: ".implode(', ', self::getValidStatuses())
             );
         }
 

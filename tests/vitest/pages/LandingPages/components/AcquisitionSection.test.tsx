@@ -13,12 +13,28 @@ import type {
 } from '@/types/landing-page';
 
 const baseIgsn = (overrides: Partial<LandingPageIgsnMetadata> = {}): LandingPageIgsnMetadata => ({
+    igsn: null,
+    name: null,
+    user_code: null,
     sample_type: null,
     material: null,
     cruise_field_program: null,
     sample_purpose: null,
     collection_method: null,
     collection_method_description: null,
+    collection_date_precision: null,
+    depth_min: null,
+    depth_max: null,
+    depth_scale: null,
+    coordinate_system: null,
+    sample_access: null,
+    comments: [],
+    current_archive: null,
+    current_archive_contact: null,
+    original_archive: null,
+    original_archive_contact: null,
+    sizes: [],
+    geological_units: [],
     parent: null,
     ...overrides,
 });
@@ -191,6 +207,28 @@ describe('AcquisitionSection', () => {
         expect(screen.queryByText('Abstract here')).not.toBeInTheDocument();
     });
 
+    it('merges and deduplicates legacy comments with all DataCite Other descriptions', () => {
+        const descriptions: LandingPageDescription[] = [
+            { id: 1, value: 'DataCite note', description_type: 'Other' },
+            { id: 2, value: ' legacy note ', description_type: 'other' },
+            { id: 3, value: 'Unrelated abstract', description_type: 'Abstract' },
+        ];
+
+        render(
+            <AcquisitionSection
+                igsn={baseIgsn({ comments: ['Legacy note', 'Legacy note'] })}
+                classifications={[]}
+                descriptions={descriptions}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={[]}
+            />,
+        );
+
+        expect(screen.getByText('Legacy note; DataCite note')).toBeInTheDocument();
+        expect(screen.queryByText('Unrelated abstract')).not.toBeInTheDocument();
+    });
+
     it('matches Chief Scientist by Data Collector and DataCollector (case-insensitive)', () => {
         const contributors: LandingPageContributor[] = [
             makeContributor(personEntity('Jane', 'Doe'), ['Data Collector'], 1),
@@ -207,7 +245,7 @@ describe('AcquisitionSection', () => {
         expect(screen.queryByText(/Other Person/)).not.toBeInTheDocument();
     });
 
-    it('collapses equal collection start and end dates', () => {
+    it('renders equal collection start and end dates in their explicit rows', () => {
         const dates: LandingPageResourceDate[] = [makeDate({ start_date: '2023-06-01', end_date: '2023-06-01' })];
 
         render(
@@ -221,9 +259,9 @@ describe('AcquisitionSection', () => {
             />,
         );
 
-        expect(screen.getByText('Collection Date')).toBeInTheDocument();
-        expect(screen.getByText('2023-06-01')).toBeInTheDocument();
-        expect(screen.queryByText('End Date')).not.toBeInTheDocument();
+        expect(screen.getByText('Start Date')).toBeInTheDocument();
+        expect(screen.getByText('End Date')).toBeInTheDocument();
+        expect(screen.getAllByText('2023-06-01')).toHaveLength(2);
     });
 
     it('falls back to date_value when start_date is missing', () => {
@@ -240,8 +278,9 @@ describe('AcquisitionSection', () => {
             />,
         );
 
-        expect(screen.getByText('Collection Date')).toBeInTheDocument();
-        expect(screen.getByText('2023-06-15')).toBeInTheDocument();
+        expect(screen.getByText('Start Date')).toBeInTheDocument();
+        expect(screen.getByText('End Date')).toBeInTheDocument();
+        expect(screen.getAllByText('2023-06-15')).toHaveLength(2);
     });
 
     it('skips contributors with empty composed names', () => {
@@ -256,5 +295,34 @@ describe('AcquisitionSection', () => {
         );
 
         expect(screen.getByText('Real Person')).toBeInTheDocument();
+    });
+
+    it('renders the approved GFLMU acquisition details', () => {
+        const igsn = baseIgsn({
+            material: 'Rock',
+            comments: ['Granodiorite'],
+            collection_method: 'Coring',
+            geological_units: [{ id: 1, value: 'Weschnitz Pluton' }],
+            sizes: [
+                { id: 1, numeric_value: '50.0000', unit: 'mm', type: 'diameter', label: '50 Diameter [mm]' },
+                { id: 2, numeric_value: '100.0000', unit: 'mm', type: 'length', label: '100 Length [mm]' },
+            ],
+        });
+
+        render(
+            <AcquisitionSection
+                igsn={igsn}
+                classifications={[{ id: 1, value: 'Igneous>Plutonic' }]}
+                descriptions={[]}
+                contributors={[makeContributor(personEntity('Guido', 'Blöcher'), ['DataCollector'])]}
+                fundingReferences={[]}
+                dates={[makeDate({ start_date: '2021', end_date: '2021' })]}
+            />,
+        );
+
+        expect(screen.getByText('Weschnitz Pluton')).toBeInTheDocument();
+        expect(screen.getByText('Granodiorite')).toBeInTheDocument();
+        expect(screen.getByText('Diameter: 50 mm; Length: 100 mm')).toBeInTheDocument();
+        expect(screen.getByText('Guido Blöcher')).toBeInTheDocument();
     });
 });

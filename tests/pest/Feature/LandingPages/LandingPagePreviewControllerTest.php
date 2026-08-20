@@ -384,6 +384,7 @@ describe('Session Preview Display', function () {
                     'acquisition',
                     'model_description',
                     'related_work',
+                    'repositories',
                     'dates',
                     'citation',
                 ])
@@ -440,6 +441,7 @@ describe('Session Preview Display', function () {
                     'acquisition',
                     'model_description',
                     'related_work',
+                    'repositories',
                     'dates',
                     'citation',
                 ])

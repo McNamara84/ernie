@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { LandingPageCitationStyle, LandingPageCitationStyleId, LandingPageResource } from '@/types/landing-page';
 
 import { buildCitation } from '../lib/buildCitation';
+import { replaceIgsnIdentifierInHtml, replaceIgsnIdentifierText } from '../lib/igsn-display';
 import { LandingPageCard } from './LandingPageCard';
 
 type CitationStyleSelection = LandingPageCitationStyleId | 'gfz';
@@ -15,6 +16,8 @@ interface CiteThisResourceSectionProps {
     resource: LandingPageResource;
     citationStyles?: LandingPageCitationStyle[] | null;
     citationAuthorLimit?: number;
+    /** Canonical handle used instead of a DOI-form IGSN in visible citation text. */
+    displayIdentifier?: string | null;
 }
 
 interface CitationOption {
@@ -66,7 +69,7 @@ function SanitizedCitationHtml({ html }: { html: string }) {
     );
 }
 
-export function CiteThisResourceSection({ resource, citationStyles = [], citationAuthorLimit }: CiteThisResourceSectionProps) {
+export function CiteThisResourceSection({ resource, citationStyles = [], citationAuthorLimit, displayIdentifier }: CiteThisResourceSectionProps) {
     const headingId = useId();
     const selectId = useId();
     const [requestedStyleId, setRequestedStyleId] = useState<CitationStyleSelection>('apa-7');
@@ -74,10 +77,14 @@ export function CiteThisResourceSection({ resource, citationStyles = [], citatio
     const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const hasDoi = typeof resource.doi === 'string' && resource.doi.trim() !== '';
-    const gfzCitation = buildCitation(hasDoi ? resource : { ...resource, doi: null }, {
-        creatorLimit: citationAuthorLimit,
-        omitDoiWhenMissing: true,
-    });
+    const gfzCitation = replaceIgsnIdentifierText(
+        buildCitation(hasDoi ? resource : { ...resource, doi: null }, {
+            creatorLimit: citationAuthorLimit,
+            omitDoiWhenMissing: true,
+        }),
+        resource.doi,
+        displayIdentifier,
+    );
 
     const officialStylesById = new Map((citationStyles ?? []).map((style) => [style.id, style]));
     const options: CitationOption[] = OFFICIAL_STYLE_DEFINITIONS.map(({ id, fallbackLabel }) => {
@@ -88,8 +95,8 @@ export function CiteThisResourceSection({ resource, citationStyles = [], citatio
             id,
             label: style?.label.trim() || fallbackLabel,
             available,
-            html: available ? style.html : null,
-            text: available ? style.text : '',
+            html: available ? replaceIgsnIdentifierInHtml(style.html, resource.doi, displayIdentifier) : null,
+            text: available ? replaceIgsnIdentifierText(style.text, resource.doi, displayIdentifier) : '',
         };
     });
 

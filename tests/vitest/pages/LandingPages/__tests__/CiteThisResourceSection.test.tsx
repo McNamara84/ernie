@@ -355,4 +355,23 @@ describe('CiteThisResourceSection', () => {
         expect(copyButton).toHaveAttribute('data-print', 'hide');
         expect(copyButton).toHaveClass('min-h-11', 'min-w-11');
     });
+
+    it('shows an IGSN handle in citation text while retaining the DOI resolver href', () => {
+        const igsnResource = { ...resource, doi: '10.60510/gflmu0020' };
+        const igsnStyles: LandingPageCitationStyle[] = [
+            {
+                id: 'apa-7',
+                label: 'APA 7',
+                available: true,
+                html: '<div class="csl-entry"><a href="https://doi.org/10.60510/gflmu0020">https://doi.org/10.60510/gflmu0020</a></div>',
+                text: 'https://doi.org/10.60510/gflmu0020',
+            },
+        ];
+
+        render(<CiteThisResourceSection resource={igsnResource} citationStyles={igsnStyles} displayIdentifier="GFLMU0020" />);
+
+        const link = screen.getByRole('link', { name: 'GFLMU0020' });
+        expect(link).toHaveAttribute('href', 'https://doi.org/10.60510/gflmu0020');
+        expect(screen.getByTestId('citation-content')).not.toHaveTextContent('10.60510');
+    });
 });

@@ -17,6 +17,8 @@ interface RelatedWorkSectionProps {
     /** Inline relatedItem metadata (DataCite 4.7 Related Item Manager). Optional for backward-compatibility. */
     relatedItems?: LandingPageRelatedItem[];
     resource: LandingPageResource;
+    /** Render configured IGSN DOI values as canonical handles. */
+    useIgsnHandles?: boolean;
 }
 
 /**
@@ -27,7 +29,10 @@ function formatRelationType(type: string): string {
     return type.replace(/([A-Z])/g, ' $1').trim();
 }
 
-function getRelatedIdentifierLabel(relatedIdentifier: LandingPageRelatedIdentifier): string {
+function getRelatedIdentifierLabel(relatedIdentifier: LandingPageRelatedIdentifier, useIgsnHandles: boolean): string {
+    if (useIgsnHandles && relatedIdentifier.igsn) {
+        return `IGSN: ${relatedIdentifier.igsn}`;
+    }
     const citationLabel = relatedIdentifier.citation_label?.trim();
 
     if (citationLabel) {
@@ -81,7 +86,7 @@ function getRelatedIdentifierLinkClassName(rel: LandingPageRelatedIdentifier): s
  * Displays all Related Identifiers grouped by RelationType.
  * The first IsSupplementTo relation is excluded (shown in Model Description).
  */
-export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], resource }: RelatedWorkSectionProps) {
+export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], resource, useIgsnHandles = false }: RelatedWorkSectionProps) {
     const [browserOpen, setBrowserOpen] = useState(false);
     const [expanded, setExpanded] = useState(false);
 
@@ -227,7 +232,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                                                     className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"
                                                     aria-hidden="true"
                                                 />
-                                                <span className="flex-1">{getRelatedIdentifierLabel(rel)}</span>
+                                                <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
                                             </a>
                                         </li>
                                     );
@@ -278,7 +283,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                                                                 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500 transition-colors group-hover:text-cyan-700 dark:text-cyan-300 dark:group-hover:text-cyan-100"
                                                                 aria-hidden="true"
                                                             />
-                                                            <span className="flex-1">{getRelatedIdentifierLabel(rel)}</span>
+                                                            <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
                                                         </a>
                                                     </li>
                                                 );
