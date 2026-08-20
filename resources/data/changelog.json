@@ -412,6 +412,10 @@
                 "description": "New legacy imports now assign GEOFON seismic-network and seismic-event DOIs to their canonical GEOFON datacenters instead of the general GFZ fallback. Existing datacenter records with different letter casing are reused and normalized, preventing duplicate assignments. Existing imported resources remain unchanged."
             },
             {
+                "title": "Correct SDDB Datacenters for ICDP Legacy Imports",
+                "description": "New single-resource imports now use the authoritative GFZ Data Services portal datacenter assignment when available, so ICDP legacy DOIs are assigned to SDDB Scientific Drilling Database instead of the general GFZ fallback. A dedicated ICDP DOI rule keeps the assignment correct when the portal is unavailable. Existing imported resources remain unchanged."
+            },
+            {
                 "title": "Clearer Optional Version Field",
                 "description": "The Data Editor now displays 'None' only as a placeholder when a resource has no version. The underlying field remains empty, missing or cleared versions continue to be stored as null and omitted from DataCite exports, and genuine version values remain unchanged."
             },

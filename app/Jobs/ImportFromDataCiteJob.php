@@ -753,6 +753,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         }
 
         ['doi' => $doi, 'doiRecord' => $doiRecord] = $this->normalizeDoiRecord($doi, $doiRecord);
+        $portalDatacenterNames = $this->portalDatacenterNamesForSingleImport($doi);
 
         try {
             $result = $this->processDoiRecord(
@@ -760,6 +761,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 doiRecord: $doiRecord,
                 transformer: $transformer,
                 metaworksService: $metaworksService,
+                portalDatacenterNames: $portalDatacenterNames,
                 citationLabelResolutionMode: CitationLabelResolutionMode::REQUIRED,
             );
         } catch (\Exception $exception) {
@@ -791,6 +793,26 @@ class ImportFromDataCiteJob implements ShouldQueue
             'completed_at' => now()->toIso8601String(),
             'current_prefix' => null,
         ]);
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    private function portalDatacenterNamesForSingleImport(string $doi): ?array
+    {
+        try {
+            $names = app(GfzDataServicesPortalService::class)->datacenterNamesForDoi($doi);
+
+            return $names !== [] ? $names : null;
+        } catch (\Throwable $exception) {
+            Log::warning('GFZ Data Services portal lookup failed during single DOI import; using legacy datacenter fallback.', [
+                'import_id' => $this->importId,
+                'doi' => $doi,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     private function markSingleImportAsFailed(string $doi, string $error, string $startedAt): void
