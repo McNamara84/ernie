@@ -4,7 +4,7 @@ export const EDITOR_RESOURCE_TYPES_PROGRESS = 78;
 export const EDITOR_CLIENT_READY_PROGRESS = 100;
 
 export const EDITOR_LOADING_MESSAGES = [
-    'Preparing the Data Editor for the Data Curators work',
+    "Preparing the Data Editor for the Data Curators' work",
     'Load user-specific settings for Data Editor',
     'Ask ELMO if Cookie Monster still has any cookies',
     'Load unicorns into the DataCite cache',

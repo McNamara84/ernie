@@ -14,7 +14,7 @@ describe('useEditorLoadTimeline', () => {
 
         const { result } = renderHook(() => useEditorLoadTimeline('11111111-1111-4111-8111-111111111111'));
 
-        expect(result.current.message).toBe('Preparing the Data Editor for the Data Curators work');
+        expect(result.current.message).toBe("Preparing the Data Editor for the Data Curators' work");
 
         const expectedMessages = [
             'Load user-specific settings for Data Editor',

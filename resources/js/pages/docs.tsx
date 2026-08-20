@@ -2045,6 +2045,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             shows a warning so you can allow pop-ups and try again.
                         </p>
 
+                        <h4>Opening an Existing Resource</h4>
+                        <p>
+                            Before an existing resource becomes editable, its editor tab displays a non-dismissible{' '}
+                            <strong>Loading Data Editor</strong> dialog. The percentage reflects completed server preparation and client vocabulary
+                            requests rather than an estimated waiting time. Short status messages change every two seconds while the work continues,
+                            and the dialog closes automatically as soon as the complete form is ready.
+                        </p>
+                        <p>
+                            If loading fails, use <strong>Try again</strong> to start a fresh attempt or <strong>Go back</strong> to return to the
+                            previous page. Loads that remain active for at least 12 seconds are recorded in the application log for diagnosis.
+                        </p>
+
                         <h4>Quick Resource Actions</h4>
                         <p>
                             <strong>Edit</strong> and <strong>Set up landing page</strong> appear as quick actions directly in the selection toolbar.

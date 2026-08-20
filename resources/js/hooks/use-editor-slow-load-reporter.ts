@@ -4,6 +4,9 @@ import { useEffect, useRef } from 'react';
 import { editorLoadSlowUrl, getEditorLoadElapsedMs, hasReportedSlowEditorLoad, markSlowEditorLoadReported } from '@/lib/editor-load';
 import type { EditorClientLoadStage, EditorLoadContext } from '@/types/editor-load';
 
+const MAX_REPORT_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1_000;
+
 export function useEditorSlowLoadReporter(
     context: EditorLoadContext | undefined,
     active: boolean,
@@ -23,23 +26,38 @@ export function useEditorSlowLoadReporter(
             return;
         }
 
-        const remainingMs = Math.max(0, context.slowThresholdMs - getEditorLoadElapsedMs(context.token));
-        const timeout = window.setTimeout(() => {
-            if (hasReportedSlowEditorLoad(context.token)) {
+        let cancelled = false;
+        let retryTimeout: number | undefined;
+
+        const reportSlowLoad = (attempt: number): void => {
+            if (cancelled || hasReportedSlowEditorLoad(context.token)) {
                 return;
             }
 
-            markSlowEditorLoadReported(context.token);
             void axios
                 .post(editorLoadSlowUrl(context.token), {
                     stage: stageRef.current,
                     progress: Math.max(0, Math.min(100, Math.round(progressRef.current))),
                 })
+                .then(() => markSlowEditorLoadReported(context.token))
                 .catch(() => {
-                    // Logging must never block or fail the editor navigation.
+                    if (!cancelled && attempt < MAX_REPORT_ATTEMPTS) {
+                        retryTimeout = window.setTimeout(() => reportSlowLoad(attempt + 1), RETRY_DELAY_MS);
+                    }
                 });
+        };
+
+        const remainingMs = Math.max(0, context.slowThresholdMs - getEditorLoadElapsedMs(context.token));
+        const timeout = window.setTimeout(() => {
+            reportSlowLoad(1);
         }, remainingMs);
 
-        return () => window.clearTimeout(timeout);
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timeout);
+            if (retryTimeout !== undefined) {
+                window.clearTimeout(retryTimeout);
+            }
+        };
     }, [active, context]);
 }

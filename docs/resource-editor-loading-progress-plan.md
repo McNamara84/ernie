@@ -1,276 +1,376 @@
-# Implementierungsplan: echter Ladefortschritt für bestehende Resources im Data Editor
+# Implementation Plan: Real Loading Progress for Existing Resources in the Data Editor
 
-## Ziel und festgelegter Umfang
+## Goal and Agreed Scope
 
-Beim Öffnen einer bereits gespeicherten Resource wird im Ziel-Tab sofort eine nicht schließbare Ladeansicht mit einem shadcn-`Dialog` und einem shadcn-`Progress` angezeigt. Das gilt unabhängig davon, ob die Resource über `/resources`, das Dashboard, Assistance oder einen direkten Link `/editor?resourceId=...` geöffnet wird.
+Opening an existing resource immediately displays a non-dismissible loading
+view in the destination tab. The view uses the shadcn `Dialog` and `Progress`
+components. This applies whether the resource is opened from `/resources`, the
+Dashboard, Assistance, or a direct `/editor?resourceId=...` link.
 
-Der Fortschritt basiert ausschließlich auf tatsächlich abgeschlossenen server- und clientseitigen Arbeitsschritten. Die Nachrichten wechseln unabhängig davon alle zwei Sekunden. Sobald das Editor-Formular vollständig benutzbar ist, wird es ohne künstliche Mindestwartezeit angezeigt.
+Progress is based exclusively on completed server-side and client-side work.
+The messages advance independently every two seconds. The editor form appears
+as soon as it is fully usable, without an artificial minimum delay.
 
-Nicht Teil der Änderung sind:
+The following are out of scope:
 
-- der leere Editor ohne `resourceId`,
-- XML-/JSON-Upload-Sessions,
-- der Legacy-Editorpfad mit `oldDatasetId`,
-- ein Wechsel vom bestehenden Mehrfach-Tab-Verhalten unter `/resources` zu einer anderen Navigation,
-- eine Verlagerung des Ladens in die Queue.
+- the empty editor without `resourceId`;
+- XML or JSON upload sessions;
+- the legacy editor path using `oldDatasetId`;
+- replacing the existing multi-tab behaviour on `/resources` with a different
+  navigation model;
+- moving the loading work to a queue.
 
-## Akzeptanzkriterien
+## Acceptance Criteria
 
-- Jeder Einstieg zu einer bestehenden Resource zeigt die Ladeansicht im Editor-Tab beziehungsweise im aktuellen Ziel-Tab.
-- Bei Mehrfachauswahl unter `/resources` besitzt jeder geöffnete Tab einen eigenen, benutzer- und resourcegebundenen Ladevorgang.
-- Der Balken steigt nur, wenn eine definierte Ladephase wirklich abgeschlossen wurde; die Nachrichten steuern den Prozentwert nicht.
-- Die folgenden Texte erscheinen in exakt dieser Reihenfolge:
+- Every entry point for an existing resource displays the loading view in the
+  editor tab or current destination tab.
+- For a multi-selection on `/resources`, every opened tab has an independent
+  load bound to its user and resource.
+- The progress bar advances only when a defined loading phase has completed;
+  message timing never controls its value.
+- The following messages appear in this exact order:
 
-  1. `Preparing the Data Editor for the Data Curators work`
-  2. `Load user-specific settings for Data Editor`
-  3. `Ask ELMO if Cookie Monster still has any cookies`
-  4. `Load unicorns into the DataCite cache`
-  5. `Groan under the weight of the huge dataset`
-  6. `Who on earth works with such massive datasets?`
+    1. `Preparing the Data Editor for the Data Curators' work`
+    2. `Load user-specific settings for Data Editor`
+    3. `Ask ELMO if Cookie Monster still has any cookies`
+    4. `Load unicorns into the DataCite cache`
+    5. `Groan under the weight of the huge dataset`
+    6. `Who on earth works with such massive datasets?`
 
-- Nachricht 1 gilt für 0–2 Sekunden, Nachricht 2 für 2–4 Sekunden und so weiter. Ab Sekunde 10 bleibt Nachricht 6 stehen, auch über Sekunde 12 hinaus.
-- Wird der Editor innerhalb eines Nachrichtenintervalls fertig, wird er sofort angezeigt; die aktuelle Nachricht wird nicht künstlich auf zwei Sekunden verlängert.
-- Die Ladeansicht bleibt bis zur serverseitigen Resource-Aufbereitung **und** bis zum Abschluss der bereits vorhandenen clientseitigen Editor-Vokabularabfragen sichtbar.
-- Ab einer Gesamtladezeit von 12 Sekunden wird pro Ladeversuch genau ein `warning`-Eintrag erzeugt.
-- Die bestehende kanonische URL `/editor?resourceId=...` bleibt erhalten; die Fortschrittskennung erscheint nicht in der URL.
-- Fehler bieten einen neuen Versuch sowie eine Rücknavigation an und hinterlassen keinen leeren Tab.
-- Direkte neue Editoren, Upload-Sessions und Legacy-Datensätze behalten ihr heutiges Verhalten.
+- Message 1 is shown from 0–2 seconds, message 2 from 2–4 seconds, and so on.
+  Message 6 remains visible from second 10 onwards, including after second 12.
+- If the editor becomes ready during a message interval, it appears
+  immediately; the current message is not artificially kept visible for the
+  full two seconds.
+- The loading view remains visible until both the server-side resource
+  preparation and the existing client-side editor vocabulary requests finish.
+- A total load time of at least 12 seconds creates exactly one `warning` log
+  entry per load attempt.
+- The canonical `/editor?resourceId=...` URL remains unchanged and the progress
+  token never appears in the URL.
+- Errors offer retry and back navigation and never leave an empty tab.
+- New editors, upload sessions, and legacy datasets retain their existing
+  behaviour.
 
-## Zielarchitektur
+## Target Architecture
 
 ```mermaid
 sequenceDiagram
-    participant B as Browser / Editor-Tab
+    participant B as Browser / Editor tab
     participant E as EditorController
-    participant P as Progress-Tracker + Cache
-    participant S as Status-Endpunkt
+    participant P as Progress tracker + cache
+    participant S as Status endpoint
 
     B->>E: GET /editor?resourceId=42
-    E->>P: Ladeversuch für User + Resource anlegen
-    E-->>B: Inertia-Seite editor-loading + zufälliges Token
-    B->>E: Inertia-Reload derselben URL mit Token-Header
-    par echter Resource-Load
-        E->>P: Phase nach jedem abgeschlossenen Arbeitsschritt aktualisieren
-        E->>E: Relations laden und Editor-Daten transformieren
-    and Statusanzeige
-        B->>S: Status regelmäßig mit Token abfragen
-        S->>P: gebundenen Status lesen
-        S-->>B: Phase + Prozentwert
+    E->>P: Create load attempt for user + resource
+    E-->>B: Inertia page editor-loading + random token
+    B->>E: Reload same URL with token header
+    par Actual resource load
+        E->>P: Advance after each completed work unit
+        E->>E: Load relations and transform editor data
+    and Status display
+        B->>S: Poll status using token
+        S->>P: Read bound state
+        S-->>B: Phase + percentage
     end
-    E-->>B: Inertia-Seite editor + Resource-Daten + Ladekontext
-    B->>B: Editor-Vokabulare laden; Fortschritt pro fertigem Request erhöhen
-    B->>B: Modal schließen und DataCiteForm sofort anzeigen
+    E-->>B: Inertia page editor + resource data + load context
+    B->>B: Load editor vocabularies and advance per completed request
+    B->>B: Close modal and show DataCiteForm immediately
 ```
 
-Der zweite Request bleibt synchron. Dadurch entstehen weder Queue-Wartezeit noch ein temporär serialisiertes vollständiges Editor-Payload im Cache. Im Cache liegen nur kleine Fortschrittsdaten.
+The second request remains synchronous. This avoids queue latency and avoids
+temporarily serialising the complete editor payload into the cache. The cache
+contains only small progress records.
 
-## Umsetzungsschritte
+## Implementation Steps
 
-### 1. Benutzergebundenes Fortschrittsmodell einführen
+### 1. Add a User-Bound Progress Model
 
-Unter `app/Services/Editor` wird ein eigener Progress-Tracker ergänzt. Er verwaltet je Ladeversuch eine zufällige UUID mit kurzer TTL, beispielsweise 15 Minuten.
+Add a dedicated tracker under `app/Services/Editor`. It manages one random UUID
+with a short time-to-live, such as 15 minutes, for each load attempt.
 
-Der Cache-Eintrag enthält nur technische Daten:
+The cache record contains only technical data:
 
-- Token beziehungsweise tokenbasierter Cache-Key,
-- `user_id` und `resource_id`,
-- Status wie `pending`, `loading`, `server_ready`, `failed` oder `complete`,
-- zuletzt abgeschlossene Phase und Prozentwert,
-- Start- und Aktualisierungszeitpunkt,
-- optional die Dauer der abgeschlossenen Serverphasen,
-- Kennzeichnung, ob der Slow-Load-Warnhinweis bereits geschrieben wurde.
+- token or token-based cache key;
+- `user_id` and `resource_id`;
+- a status such as `pending`, `loading`, `server_ready`, `failed`, or `complete`;
+- the last completed phase and percentage;
+- start and update timestamps;
+- optionally, durations of completed server phases;
+- whether the slow-load warning has already been written.
 
-Der Tracker stellt typisierte Operationen zum Starten, Prüfen, Fortschreiben, Fehlschlagen und Abschließen bereit. Tokenzugriffe werden immer gegen den angemeldeten Benutzer und die erwartete Resource geprüft. Ungültige UUIDs, abgelaufene Tokens und fremde Benutzer-/Resource-Kombinationen liefern keine Statusinformationen.
+The tracker provides typed operations for starting, validating, advancing,
+failing, and completing a load. Token access is always checked against the
+authenticated user and expected resource. Invalid UUIDs, expired tokens, and
+foreign user/resource combinations reveal no status information.
 
-Die 12-Sekunden-Grenze und die Cache-TTL werden an einer zentralen Backend-Stelle definiert. Die Zeitgrenze wird der Lade-Seite als Prop übergeben, damit Frontend und Backend nicht auseinanderlaufen.
+Define the 12-second threshold and cache TTL centrally in the backend. Pass the
+threshold to the loading page as a prop so frontend and backend cannot diverge.
 
-### 2. Den bestehenden Resource-Load in echte Phasen teilen
+### 2. Divide Existing Resource Loading into Real Phases
 
-`EditorController::show()` behält die bestehende Priorität für XML, JSON, Legacy-Datensätze und neue Editoren. Nur der Zweig für ein vorhandenes `resourceId` wird zweistufig:
+`EditorController::show()` retains the existing priority for XML, JSON, legacy
+datasets, and new editors. Only the branch for an existing `resourceId` becomes
+a two-step process:
 
-1. Ein Request ohne Progress-Header validiert die Resource leichtgewichtig, legt den Ladeversuch an und rendert `editor-loading`.
-2. Die Lade-Seite führt einen Inertia-Reload derselben URL mit einem Header wie `X-Editor-Load-Token` aus. Erst dieser Request lädt die vollständige Resource.
+1. A request without the progress header validates the resource using a small
+   query, creates a load attempt, and renders `editor-loading`.
+2. The loading page performs an Inertia reload of the same URL with a header
+   such as `X-Editor-Load-Token`. Only this request loads the complete resource.
 
-Die heutige große `with([...])`-Abfrage wird in fachlich zusammenhängende `load()`-Phasen aufgeteilt. Nach jeder vollständig abgeschlossenen Phase wird der Cache fortgeschrieben. Vorgesehene Gruppen sind:
+Split the current large `with([...])` query into cohesive `load()` phases. The
+cache advances only after an entire phase succeeds. Planned groups include:
 
-- Resource-Grunddatensatz und gemeinsame Editor-Einstellungen,
-- Typ, Sprache, Titel, Rechte, Beschreibungen und Datumsangaben,
-- Creators, Contributors, polymorphe Personen/Institutionen, Rollen und Affiliations,
-- Subjects und räumliche Abdeckung,
-- Related Identifiers, Funding References, Instruments, Datacenter und Landing Page,
-- Transformation der geladenen Modelle in das Editor-Prop-Format.
+- resource base record and common editor settings;
+- type, language, titles, rights, descriptions, and dates;
+- creators, contributors, polymorphic people or organisations, roles, and
+  affiliations;
+- subjects and spatial coverage;
+- related identifiers, funding references, instruments, datacenter, and
+  landing page;
+- transformation of loaded models into editor props.
 
-Verschachtelte Relations, die der Transformer verwendet, werden explizit eager geladen, insbesondere `descriptions.descriptionType` und `dates.dateType`. So darf die Phasenaufteilung keine N+1-Abfragen hinzufügen und kann bestehende implizite Abfragen reduzieren.
+Explicitly eager-load nested relations used by the transformer, especially
+`descriptions.descriptionType` and `dates.dateType`. The phase split must not
+introduce N+1 queries and may reduce existing implicit queries.
 
-Für sehr große Collections erhält `EditorDataTransformer::transformResource()` optional einen neutralen Fortschritts-Callback oder Reporter. Dieser meldet abgeschlossene Transformationsgruppen, ohne Cache- oder HTTP-Logik in den Transformer einzubauen. Bestehende Aufrufer ohne Reporter behalten unverändert dasselbe Ergebnis.
+For very large collections, let
+`EditorDataTransformer::transformResource()` accept an optional neutral
+progress callback or reporter. It reports completed transformation groups
+without coupling the transformer to cache or HTTP logic. Existing callers that
+omit the reporter retain exactly the same result.
 
-Die Serverphasen belegen nur den ersten Teil des Balkens, beispielsweise 0–75 %. Die konkreten Gewichte werden zentral und monoton definiert. Sie stellen abgeschlossene Arbeitsblöcke dar und sind ausdrücklich keine zeitbasierte Restzeitprognose.
+Server phases occupy only the first part of the bar, for example 0–75%. Define
+their weights centrally and monotonically. They represent completed units of
+work and are explicitly not a time-remaining estimate.
 
-### 3. Status- und Slow-Load-Endpunkte ergänzen
+### 3. Add Status and Slow-Load Endpoints
 
-Im bestehenden authentifizierten Routenblock werden zwei kleine Endpunkte ergänzt:
+Add two small endpoints to the existing authenticated route group:
 
-- `GET` für Status, Phase und Prozentwert eines Tokens,
-- `POST` zum Melden, dass die Ladeansicht nach 12 Sekunden noch sichtbar ist.
+- `GET` returns the status, phase, and percentage for a token;
+- `POST` reports that the loading view is still visible after 12 seconds.
 
-Ein schlanker `EditorLoadProgressController` validiert UUID, Benutzerbindung und Resourcebindung über den Tracker. Statusantworten erhalten `Cache-Control: no-store`. Falls ein Rate Limit ergänzt wird, muss es pro Benutzer **und Token** gelten, damit die vorhandene Mehrfachauswahl nicht mehrere Tabs gegenseitig drosselt.
+A small `EditorLoadProgressController` validates the UUID and user/resource
+binding through the tracker. Status responses use `Cache-Control: no-store`. If
+a rate limit is added, it must be scoped by both user and token so multiple
+selected resources do not throttle each other's tabs.
 
-Die neuen Laravel-Routen werden über `php artisan ernie:wayfinder-generate --with-form` in die bestehenden Wayfinder-Helfer übernommen; generierte Dateien werden nicht manuell editiert.
+Generate the new Laravel routes through
+`php artisan ernie:wayfinder-generate --with-form`; do not edit generated files
+manually.
 
-### 4. Slow-Load-Logging genau einmal absichern
+### 4. Guarantee Exactly-One Slow-Load Logging
 
-Der Tracker prüft die Zeitgrenze sowohl bei serverseitigen Phasenwechseln/Abschluss als auch beim expliziten Frontend-Signal nach 12 Sekunden. Ein atomarer Cache-Marker, etwa über `Cache::add`, verhindert doppelte Logzeilen bei konkurrierenden Requests.
+The tracker checks the threshold during server-side phase changes and
+completion, as well as when the frontend explicitly reports after 12 seconds.
+An atomic cache marker, for example `Cache::add`, prevents duplicate log lines
+from concurrent requests.
 
-Der Warnhinweis verwendet das normale Laravel-Log und enthält:
+The warning uses the standard Laravel log and includes:
 
-- eine feste Meldung wie `Slow Data Editor resource load`,
-- `user_id`,
-- `resource_id`,
-- `duration_ms`,
-- zuletzt bekannte Phase und Prozentwert,
-- Kennzeichnung, ob der Hinweis während Serververarbeitung oder Clientinitialisierung ausgelöst wurde.
+- a stable message such as `Slow Data Editor resource load`;
+- `user_id`;
+- `resource_id`;
+- `duration_ms`;
+- latest known phase and percentage;
+- whether server processing or client initialisation triggered it.
 
-Resource-Metadaten, Titel, DOI oder vollständige Payloads werden nicht protokolliert. Normale Ladezeiten erzeugen keinen zusätzlichen Logeintrag. Technische Ladefehler werden weiterhin separat als Fehler gemeldet.
+Do not log resource metadata, titles, DOI values, or complete payloads. Normal
+loads create no extra entry. Technical loading failures continue to be
+reported separately as errors.
 
-### 5. Wiederverwendbares shadcn-Lademodal bauen
+### 5. Build a Reusable shadcn Loading Modal
 
-Eine neue Komponente unter `resources/js/components/editor` verwendet die vorhandenen shadcn-Komponenten:
+Create a component under `resources/js/components/editor` using existing
+shadcn components:
 
-- `Dialog`/`DialogContent` ohne Close-Button,
-- `DialogTitle` und `DialogDescription`,
-- `Progress`,
-- `Button` für den Fehlerzustand.
+- `Dialog` and `DialogContent` without a close button;
+- `DialogTitle` and `DialogDescription`;
+- `Progress`;
+- `Button` for the error state.
 
-Der Dialog kann während eines aktiven Loads weder per Escape noch durch Klick auf den Overlay geschlossen werden. Ein Browser-Tab kann weiterhin normal geschlossen werden. Vorgesehener Titel ist `Loading Data Editor`.
+The active dialog cannot be dismissed with Escape or an overlay click. The
+browser tab itself can still be closed normally. Use `Loading Data Editor` as
+the title.
 
-Die Nachrichtenlogik wird in einen kleinen Hook ausgelagert:
+Move message timing into a small hook:
 
-- Start beim ersten Anzeigen des Modals,
-- Wechsel anhand der verstrichenen Zeit in 2.000-ms-Schritten,
-- Index bei der sechsten Nachricht begrenzen,
-- zeitliche Kontinuität beim Inertia-Wechsel von `editor-loading` zu `editor` über das Token im Tab erhalten,
-- Timer beim Erfolg, Fehler oder Unmount vollständig aufräumen.
+- start when the modal first appears;
+- advance based on elapsed time in 2,000-millisecond intervals;
+- clamp the index at the sixth message;
+- preserve timing across the Inertia transition from `editor-loading` to
+  `editor` using the per-tab token;
+- clean up timers completely on success, failure, or unmount.
 
-Der Nachrichtentimer verändert niemals den Progress-Wert. Der Statusbereich verwendet `aria-live="polite"`; der Progress erhält einen zugänglichen Namen und aktuelle Wertattribute. Progress-Transitions respektieren `prefers-reduced-motion`, gegebenenfalls durch eine kleine, allgemeingültige Ergänzung in der vorhandenen shadcn-`Progress`-Komponente.
+The message timer never changes progress. Use `aria-live="polite"` for status
+text and give the progress bar an accessible label and current value. Respect
+`prefers-reduced-motion` for progress transitions, if necessary through a small
+general-purpose change to the existing shadcn `Progress` component.
 
-### 6. Leichtgewichtige Inertia-Lade-Seite ergänzen
+### 6. Add a Lightweight Inertia Loading Page
 
-`resources/js/pages/editor-loading.tsx` rendert den normalen App-Rahmen und öffnet das Lademodal unmittelbar. Beim Mounten:
+`resources/js/pages/editor-loading.tsx` renders the regular application frame
+and opens the loading modal immediately. On mount it:
 
-- startet sie die zweisekündige Nachrichtenfolge,
-- pollt sie den geschützten Status-Endpunkt in einem kurzen, aber moderaten Intervall,
-- startet sie genau einmal den Inertia-Reload derselben kanonischen Editor-URL mit dem Token-Header,
-- unterdrückt sie den globalen NProgress-Indikator für diesen internen Reload, damit nicht zwei konkurrierende Balken erscheinen,
-- ersetzt sie den Loader-History-Eintrag beim Übergang, damit „Zurück“ zum tatsächlichen Ursprung führt.
+- starts the two-second message sequence;
+- polls the protected status endpoint at a short but moderate interval;
+- starts exactly one Inertia reload of the same canonical editor URL with the
+  token header;
+- suppresses the global NProgress indicator for this internal reload so the UI
+  does not show competing progress bars;
+- replaces the loader history entry during the transition so Back returns to
+  the actual origin.
 
-Kurzzeitige Fehler des Status-Pollings stoppen den eigentlichen Editor-Request nicht. Ein tatsächlicher Backend-Ladefehler wechselt dagegen in einen verständlichen Modal-Fehlerzustand.
+Temporary polling errors do not stop the editor request. A real backend loading
+failure switches the modal to a clear error state.
 
-„Try again“ startet über einen vollständigen Reload der kanonischen URL einen frischen, unabhängigen Versuch. „Go back“ verwendet die Browser-History und fällt ohne sinnvollen Ursprung auf `/resources` zurück.
+`Try again` uses a full reload of the canonical URL to create a fresh,
+independent attempt. `Go back` uses browser history and falls back to
+`/resources` when there is no meaningful origin.
 
-### 7. Clientseitige Editor-Initialisierung in den echten Fortschritt aufnehmen
+### 7. Include Client-Side Editor Initialisation in Real Progress
 
-`resources/js/pages/editor.tsx` lädt nach dem Inertia-Wechsel heute noch Resource Types, Title Types, Date Types, Description Types, Licenses, Languages sowie drei Rollensätze. Für bestehende Resources bleibt das gemeinsame Lademodal deshalb geöffnet, bis diese Daten wirklich vorliegen.
+After the Inertia transition, `resources/js/pages/editor.tsx` still loads
+resource types, title types, date types, description types, licences,
+languages, and three role sets. For an existing resource, keep the shared
+loading modal open until these values are actually available.
 
-Die vorhandene Initialisierung wird so refaktoriert, dass sie nach jedem vollständig empfangenen und geparsten Datensatz einen echten Client-Arbeitsschritt meldet:
+Refactor initialisation so each completely received and parsed dataset reports
+a real client-side step:
 
-- Abschluss von Session-Warmup/Resource Types,
-- Abschluss jedes der acht parallel geladenen Vokabular-/Rollen-Endpunkte,
-- abschließende React-Bereitschaft des `DataCiteForm`.
+- session warm-up/resource types completed;
+- each of the eight parallel vocabulary or role endpoints completed;
+- final React readiness of `DataCiteForm`.
 
-Diese Arbeitsschritte füllen den reservierten letzten Bereich des Balkens, beispielsweise 75–100 %. Parallele Antworten erhöhen einen threadsicher über React-State beziehungsweise einen lokalen Zähler verwalteten Completed-Count. Der Balken bleibt innerhalb eines Versuchs monoton.
+These steps fill the reserved final section of the bar, for example 75–100%.
+Parallel responses increment a completed counter managed safely through React
+state or a local counter. Progress remains monotonic within an attempt.
 
-Sobald `isEditorReady` wahr ist, wird das Modal sofort entfernt und `DataCiteForm` angezeigt. Es gibt keinen zusätzlichen Timeout und kein Warten auf das Ende der aktuellen Nachricht. Für Editoraufrufe ohne Resource-Progress-Kontext bleibt der heutige Skeleton-/Fehlerablauf bestehen.
+Remove the modal and show `DataCiteForm` immediately when `isEditorReady`
+becomes true. Do not add another timeout or wait for the current message to
+finish. Editor requests without a resource progress context keep the existing
+skeleton and error flow.
 
-Scheitert eine notwendige Clientabfrage bei einer bestehenden Resource, zeigt das Modal den gemeinsamen Fehlerzustand. Ein Retry beginnt einen neuen Ladeversuch, sodass Fortschritt, Zeitmessung und Slow-Log eindeutig bleiben.
+If a required client request fails for an existing resource, display the shared
+modal error state. A retry starts a new load attempt so progress, timing, and
+slow-load logging remain unambiguous.
 
-### 8. Alle Einstiegspunkte ohne URL-Duplikation abdecken
+### 8. Cover Every Entry Point Without Duplicating URLs
 
-Dashboard, Assistance, `/resources`, Popup-Fallbacks und direkte Links verwenden bereits `/editor?resourceId=...`. Da die Verzweigung im `EditorController` erfolgt, müssen diese Komponenten nicht auf spezielle Loader-URLs umgestellt werden.
+Dashboard, Assistance, `/resources`, popup fallbacks, and direct links already
+use `/editor?resourceId=...`. Because branching happens in `EditorController`,
+these components do not need special loader URLs.
 
-Besonders zu prüfen sind:
+Verify especially:
 
-- Zeilenklick und Tastaturaktivierung unter `/resources`,
-- Edit-Button für eine einzelne Auswahl,
-- Edit-Button für mehrere Resources mit einem Token pro Tab,
-- bestehender Dialog für durch den Browser blockierte Tabs,
-- Dashboard-Links zu zuletzt bearbeiteten Resources,
-- Resource-Links in Assistance,
-- direkt eingegebene oder neu geladene Editor-URLs.
+- row clicks and keyboard activation on `/resources`;
+- Edit for a single selection;
+- Edit for multiple resources, with one token per tab;
+- the existing dialog for browser-blocked tabs;
+- dashboard links to recently edited resources;
+- resource links in Assistance;
+- directly entered or reloaded editor URLs.
 
-Die bestehende `openDetachedTab()`-Logik und ihre Popup-Erkennung bleiben erhalten. Damit erscheint das Modal im neu geöffneten Tab und nicht im zurückbleibenden `/resources`-Tab.
+Keep the existing `openDetachedTab()` behaviour and popup detection. The modal
+therefore appears in the newly opened tab rather than the remaining
+`/resources` tab.
 
-## Geplante Tests
+## Planned Tests
 
 ### Backend/Pest
 
-- Gastzugriff bleibt geschützt.
-- `/editor` ohne `resourceId` rendert weiterhin direkt den leeren Editor.
-- XML-, JSON- und `oldDatasetId`-Pfade umgehen den neuen Resource-Loader.
-- Der erste Request mit `resourceId` rendert `editor-loading` und erzeugt einen gültigen, kurzlebigen Ladeversuch.
-- Ein gültiger Token-Header desselben Benutzers und derselben Resource rendert anschließend `editor` mit unverändertem Prop-Payload.
-- Fehlende, ungültige, abgelaufene und fremde Tokens werden abgewiesen.
-- Ein Token kann nicht für eine andere Resource oder einen anderen Benutzer verwendet werden.
-- Statuswerte steigen entsprechend real abgeschlossener Phasen monoton.
-- Transformationsresultate und bestehende Landing-Page-, Titeltyp- und MSL-Laboratory-Roundtrips bleiben identisch.
-- Verschachtelte Relations sind eager geladen; ein Query-Count-Regressionstest schützt vor neuem N+1-Verhalten.
-- Bei 11,999 Sekunden wird kein Warnhinweis geschrieben; ab 12 Sekunden genau einer, auch wenn Server und Frontend fast gleichzeitig melden.
-- Der Slow-Log enthält die technischen Kontextfelder, aber keine Resource-Payload.
-- Fehler markieren den Ladeversuch und liefern den Loader-Fehlerzustand.
+- Guest access remains protected.
+- `/editor` without `resourceId` still renders the empty editor directly.
+- XML, JSON, and `oldDatasetId` paths bypass the new resource loader.
+- The first request with `resourceId` renders `editor-loading` and creates a
+  valid short-lived load attempt.
+- A valid token header for the same user and resource then renders `editor`
+  with an unchanged prop payload.
+- Missing, malformed, expired, and foreign tokens are rejected.
+- A token cannot be used for a different resource or user.
+- Status values advance monotonically with completed phases.
+- Transformation results and existing landing-page, title-type, and MSL
+  Laboratory round trips remain unchanged.
+- Nested relations are eager loaded and a query-count regression test protects
+  against new N+1 behaviour.
+- No warning is written at 11,999 milliseconds; exactly one is written from
+  12 seconds, even when server and frontend report almost simultaneously.
+- The slow log contains technical context fields but no resource payload.
+- Failures mark the load attempt and return the loader error state.
 
-Bestehende Featuretests, die bei einem einzigen `GET /editor?resourceId=...` unmittelbar `component('editor')` erwarten, werden auf einen wiederverwendbaren Zwei-Schritt-Testhelper umgestellt. Das betrifft insbesondere `EditorTest`, `EditorTitleTypeMappingTest` und `MslLaboratoryRoundtripTest`.
+Existing feature tests that expect `component('editor')` immediately after one
+`GET /editor?resourceId=...` use a reusable two-step helper instead. This
+especially affects `EditorTest`, `EditorTitleTypeMappingTest`, and
+`MslLaboratoryRoundtripTest`.
 
 ### Frontend/Vitest
 
-- Das Modal ist geöffnet, nicht dismissbar und verwendet Dialog/Progress mit zugänglichen Beschriftungen.
-- Fake-Timer prüfen alle sechs Texte an den Grenzen 0, 2, 4, 6, 8, 10 und über 12 Sekunden.
-- Ein früher erfolgreicher Load blendet das Modal sofort aus.
-- Poll-Antworten verändern den Balken; bloßer Zeitablauf verändert ihn nicht.
-- Serverseitiger und clientseitiger Fortschritt gehen ohne Rücksprung ineinander über.
-- Parallel abgeschlossene Vokabularrequests erhöhen den Completed-Count korrekt und zeigen das Formular erst bei vollständiger Bereitschaft.
-- Timer und Polling werden beim Unmount abgeräumt.
-- Nach 12 Sekunden wird das Slow-Load-Signal einmalig gesendet.
-- Backend- und Clientfehler zeigen Retry/Back; Retry verwendet einen frischen Versuch.
-- Reduced Motion deaktiviert unnötige Balkenübergänge.
-- Die vorhandenen Tests für Resource-Zeilen, Mehrfachauswahl, blockierte Tabs, Dashboard- und Assistance-Links bestätigen weiterhin die kanonischen Editor-URLs.
+- The modal is open, non-dismissible, and uses accessible Dialog and Progress
+  labels.
+- Fake timers verify all six messages at 0, 2, 4, 6, 8, 10, and more than
+  12 seconds.
+- An early successful load hides the modal immediately.
+- Poll responses change the bar; elapsed time alone does not.
+- Server and client progress connect without moving backwards.
+- Parallel vocabulary requests increment the completed count correctly and the
+  form appears only when all are ready.
+- Timers and polling are removed on unmount.
+- The slow-load signal is sent once after 12 seconds.
+- Backend and client errors show Retry and Back; Retry creates a fresh attempt.
+- Reduced Motion disables unnecessary progress transitions.
+- Existing tests for resource rows, multiple selection, blocked tabs, and
+  Dashboard and Assistance links continue to confirm canonical editor URLs.
 
-### Optionaler Browser-Smoke-Test
+### Optional Browser Smoke Test
 
-Mit einer Test-Resource wird geprüft, dass ein echter Klick aus `/resources` einen neuen Tab öffnet, dort zunächst das Modal zeigt und anschließend das ausgefüllte Editorformular rendert. Der Test darf keine produktive künstliche Verzögerung einführen.
+Using a test resource, verify that a real click from `/resources` opens a new
+tab, initially displays the modal, and then renders the populated editor form.
+Do not introduce an artificial production delay for this test.
 
-## Voraussichtlich betroffene Dateien
+## Expected Files
 
 - `app/Http/Controllers/EditorController.php`
-- neuer `app/Http/Controllers/EditorLoadProgressController.php`
-- neuer Tracker und gegebenenfalls ein Stage-Enum unter `app/Services/Editor` beziehungsweise `app/Enums`
+- new `app/Http/Controllers/EditorLoadProgressController.php`
+- new tracker and possibly a stage enum under `app/Services/Editor` or
+  `app/Enums`
 - `app/Services/Editor/EditorDataTransformer.php`
 - `routes/web.php`
-- neue `resources/js/pages/editor-loading.tsx`
+- new `resources/js/pages/editor-loading.tsx`
 - `resources/js/pages/editor.tsx`
-- neue Komponenten/Hooks unter `resources/js/components/editor` und `resources/js/hooks`
-- gegebenenfalls `resources/js/components/ui/progress.tsx` ausschließlich für Reduced Motion
-- automatisch generierte Wayfinder-Routen
-- neue fokussierte Pest- und Vitest-Tests sowie Anpassungen der bestehenden Editor-Featuretests
+- new components and hooks under `resources/js/components/editor` and
+  `resources/js/hooks`
+- optionally `resources/js/components/ui/progress.tsx` only for Reduced Motion
+- generated Wayfinder routes
+- new focused Pest and Vitest tests plus updates to existing editor feature
+  tests
 
-## Empfohlene Implementierungsreihenfolge
+## Recommended Implementation Order
 
-1. Tracker, Sicherheitsbindung, Phasenmodell und Backendtests implementieren.
-2. `EditorController` zweistufig machen und den Resource-Load ohne Payloadänderung in Phasen teilen.
-3. Status-/Slow-Endpunkte und Wayfinder-Helfer ergänzen.
-4. Gemeinsames Modal, Nachrichten-Hook und `editor-loading`-Seite implementieren.
-5. Den vorhandenen clientseitigen Editor-Warmup in die restlichen echten Fortschrittsschritte integrieren.
-6. Fehler- und Retrypfade vervollständigen.
-7. Bestehende Editor-, Resource-, Dashboard- und Assistance-Tests anpassen beziehungsweise erweitern.
-8. Typprüfung, Linting, Backendanalyse, fokussierte Tests und abschließend die vollständigen relevanten Test-Suites ausführen.
+1. Implement the tracker, security binding, phase model, and backend tests.
+2. Make `EditorController` two-stage and split resource loading into phases
+   without changing the payload.
+3. Add status and slow-load endpoints and Wayfinder helpers.
+4. Implement the shared modal, message hook, and `editor-loading` page.
+5. Integrate the existing client-side editor warm-up into the remaining real
+   progress steps.
+6. Complete error and retry paths.
+7. Update or extend existing editor, resource, Dashboard, and Assistance tests.
+8. Run type checks, linting, backend analysis, focused tests, and finally the
+   complete relevant test suites.
 
-## Verifikation vor Abschluss
+## Verification Before Completion
 
 - `npm run types`
 - `npm run lint:check`
-- fokussierte Vitest-Suite für Loader, Editor und bestehende Resource-Einstiege
-- fokussierte Pest-Suite für Editor-Loading, Transformer und Roundtrips
+- focused Vitest suites for the loader, editor, and existing-resource entry
+  points
+- focused Pest suites for editor loading, the transformer, and round trips
 - `npm run phpstan:check`
 - `npm run test:run`
 - `npm run test:php`
-- optional `npm run test:e2e` beziehungsweise der passende Devstack-Smoke-Test
+- optionally `npm run test:e2e` or the appropriate development-stack smoke test
 
-Vor dem Merge wird zusätzlich mit einer kleinen und einer außergewöhnlich großen Resource manuell geprüft, dass die Prozentwerte nur an echten Phasengrenzen steigen, die letzte Nachricht nach 12 Sekunden stehen bleibt und der Warnlog genau einmal geschrieben wird.
+Before merging, manually test one small and one unusually large resource.
+Confirm that percentages advance only at real phase boundaries, the final
+message remains after 12 seconds, and exactly one warning is logged.

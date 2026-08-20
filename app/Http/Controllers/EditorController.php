@@ -254,11 +254,14 @@ class EditorController extends Controller
      */
     private function loadExistingResource(Request $request, mixed $resourceId): Response
     {
-        if (! is_numeric($resourceId) || (int) $resourceId <= 0) {
+        $normalizedResourceId = filter_var($resourceId, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+
+        if ($normalizedResourceId === false) {
             abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid resource ID');
         }
 
-        $normalizedResourceId = (int) $resourceId;
         /** @var User $user */
         $user = $request->user();
         $token = $request->header(self::RESOURCE_LOAD_TOKEN_HEADER);

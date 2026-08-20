@@ -42,6 +42,24 @@ it('renders a lightweight loader before loading an existing resource', function 
     expect($response->inertiaProps('editorLoad.token'))->toBeString()->not->toBeEmpty();
 });
 
+it('rejects resource IDs that are not positive integers without normalizing them', function (): void {
+    $user = User::factory()->create();
+    $resource = Resource::factory()->create();
+
+    $this->actingAs($user);
+
+    foreach ([
+        "{$resource->id}.9",
+        "{$resource->id}e0",
+        '0',
+        '-1',
+        'not-an-id',
+    ] as $malformedResourceId) {
+        $this->get(route('editor').'?resourceId='.rawurlencode($malformedResourceId))
+            ->assertBadRequest();
+    }
+});
+
 it('loads the resource on the authenticated token request and reaches server ready', function (): void {
     $user = User::factory()->create();
     $resource = Resource::factory()->create(['doi' => '10.5880/editor.progress']);
