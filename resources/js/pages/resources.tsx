@@ -633,6 +633,21 @@ const formatValue = (key: string, value: unknown): string => {
     return '-';
 };
 
+const appendResourceFilters = (params: URLSearchParams, filters: ResourceFilterState): void => {
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') {
+            return;
+        }
+
+        if (Array.isArray(value)) {
+            value.forEach((item) => params.append(`${key}[]`, String(item)));
+            return;
+        }
+
+        params.append(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value));
+    });
+};
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Resources',
@@ -720,16 +735,7 @@ function ResourcesPage({
                 sort_direction: sortState.direction,
             });
 
-            // Add filters
-            Object.entries(filters).forEach(([key, value]) => {
-                if (value !== undefined && value !== null && value !== '') {
-                    if (Array.isArray(value)) {
-                        value.forEach((v) => params.append(`${key}[]`, String(v)));
-                    } else {
-                        params.append(key, String(value));
-                    }
-                }
-            });
+            appendResourceFilters(params, filters);
 
             const response = await axios.get('/resources/load-more', { params });
 
@@ -804,16 +810,7 @@ function ResourcesPage({
                 sort_direction: newState.direction,
             });
 
-            // Add current filters
-            Object.entries(filters).forEach(([filterKey, value]) => {
-                if (value !== undefined && value !== null && value !== '') {
-                    if (Array.isArray(value)) {
-                        value.forEach((v) => params.append(`${filterKey}[]`, String(v)));
-                    } else {
-                        params.append(filterKey, String(value));
-                    }
-                }
-            });
+            appendResourceFilters(params, filters);
 
             // Navigate to same page with new query params
             router.visit(`/resources?${params.toString()}`, {
@@ -834,16 +831,7 @@ function ResourcesPage({
                 sort_direction: sortState.direction,
             });
 
-            // Add filters to params
-            Object.entries(newFilters).forEach(([key, value]) => {
-                if (value !== undefined && value !== null && value !== '') {
-                    if (Array.isArray(value)) {
-                        value.forEach((v) => params.append(`${key}[]`, String(v)));
-                    } else {
-                        params.append(key, String(value));
-                    }
-                }
-            });
+            appendResourceFilters(params, newFilters);
 
             // Navigate to same page with new query params
             router.visit(`/resources?${params.toString()}`, {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Requests\Resource\IndexResourcesRequest;
 use App\Http\Requests\Resource\LoadMoreResourcesRequest;
+use App\Models\Datacenter;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -128,6 +129,40 @@ it('accepts a single status string and normalises it to an array filter', functi
         ->getJson('/_test/index-resources?status=draft')
         ->assertOk()
         ->assertJsonPath('filters.status', ['draft']);
+});
+
+it('extracts a datacenter id filter', function (): void {
+    $user = User::factory()->create();
+    $datacenter = Datacenter::factory()->create();
+
+    $this->actingAs($user)
+        ->getJson('/_test/index-resources?datacenter_id='.$datacenter->id)
+        ->assertOk()
+        ->assertJsonPath('filters.datacenter_id', $datacenter->id);
+});
+
+it('extracts the without datacenter filter', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->getJson('/_test/index-resources?without_datacenter=1')
+        ->assertOk()
+        ->assertJsonPath('filters.without_datacenter', true);
+});
+
+it('rejects unknown datacenters and mutually exclusive datacenter filters', function (): void {
+    $user = User::factory()->create();
+    $datacenter = Datacenter::factory()->create();
+
+    $this->actingAs($user)
+        ->getJson('/_test/index-resources?datacenter_id=999999')
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['datacenter_id']);
+
+    $this->actingAs($user)
+        ->getJson('/_test/index-resources?datacenter_id='.$datacenter->id.'&without_datacenter=1')
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['datacenter_id']);
 });
 
 it('extracts year_from / year_to as integers and trims search', function (): void {

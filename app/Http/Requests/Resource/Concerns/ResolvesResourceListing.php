@@ -89,6 +89,9 @@ trait ResolvesResourceListing
             'status' => ['nullable', 'array'],
             'status.*' => ['nullable', 'string', Rule::in(self::ALLOWED_STATUSES)],
 
+            'datacenter_id' => ['nullable', 'integer', 'exists:datacenters,id', 'prohibited_if:without_datacenter,1'],
+            'without_datacenter' => ['nullable', 'boolean'],
+
             'year_from' => ['nullable', 'integer', 'between:1000,9999'],
             'year_to' => ['nullable', 'integer', 'between:1000,9999'],
 
@@ -148,6 +151,15 @@ trait ResolvesResourceListing
         $filters = $this->collectMultiValueFilter($filters, 'resource_type');
         $filters = $this->collectMultiValueFilter($filters, 'curator');
         $filters = $this->collectMultiValueFilter($filters, 'status');
+
+        if ($this->boolean('without_datacenter')) {
+            $filters['without_datacenter'] = true;
+        } else {
+            $datacenterId = $this->input('datacenter_id');
+            if ($datacenterId !== null && $datacenterId !== '' && is_numeric($datacenterId)) {
+                $filters['datacenter_id'] = (int) $datacenterId;
+            }
+        }
 
         $yearFrom = $this->input('year_from');
         if ($yearFrom !== null && $yearFrom !== '' && is_numeric($yearFrom)) {

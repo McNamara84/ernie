@@ -151,6 +151,9 @@ export function createMockResourceFilterOptions(overrides?: Partial<ResourceFilt
             { name: 'Software', slug: 'software' },
             { name: 'Text', slug: 'text' },
         ],
+        datacenters: [
+            { id: 1, name: 'GFZ German Research Centre for Geosciences' },
+        ],
         curators: ['Admin User', 'Test Curator'],
         year_range: { min: 2020, max: 2026 },
         statuses: ['draft', 'registered', 'findable'],

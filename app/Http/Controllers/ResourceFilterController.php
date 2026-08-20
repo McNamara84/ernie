@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Resource\LoadMoreResourcesRequest;
 use App\Http\Resources\FilterOptionsResource;
 use App\Http\Resources\ResourceListItemResource;
+use App\Models\Datacenter;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
@@ -63,6 +64,7 @@ class ResourceFilterController extends Controller
     {
         return (new FilterOptionsResource([
             'resource_types' => $this->loadResourceTypes(),
+            'datacenters' => $this->loadDatacenters(),
             'curators' => $this->loadCurators(),
             'year_range' => $this->loadYearRange(),
             // Single source of truth: the same allow-list that
@@ -72,6 +74,37 @@ class ResourceFilterController extends Controller
             // trait (PHPStan rejects `Trait::CONST` access).
             'statuses' => LoadMoreResourcesRequest::ALLOWED_STATUSES,
         ]))->response();
+    }
+
+    /**
+     * Return datacenters assigned to at least one non-IGSN resource.
+     *
+     * @return array<int, array{id:int, name:string}>
+     */
+    private function loadDatacenters(): array
+    {
+        try {
+            return Datacenter::query()
+                ->whereHas('resources', function ($resourceQuery): void {
+                    $resourceQuery->whereDoesntHave('resourceType', function ($typeQuery): void {
+                        $typeQuery->where('slug', 'physical-object');
+                    });
+                })
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (Datacenter $datacenter): array => [
+                    'id' => $datacenter->id,
+                    'name' => $datacenter->name,
+                ])
+                ->all();
+        } catch (Throwable $e) {
+            Log::warning('Failed to load datacenter filter options', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
     }
 
     /**

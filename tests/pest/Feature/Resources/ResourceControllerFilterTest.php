@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AccessLevel;
+use App\Models\Datacenter;
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\LandingPage;
@@ -310,6 +311,97 @@ describe('Status Filter', function (): void {
                 ->component('resources')
                 ->has('resources', 2)
             );
+    });
+});
+
+describe('Datacenter Filter', function (): void {
+    it('filters resources by one datacenter', function (): void {
+        $resourceType = ResourceType::factory()->create(['slug' => 'dataset']);
+        $language = Language::factory()->create();
+        $selectedDatacenter = Datacenter::factory()->create(['name' => 'Selected Datacenter']);
+        $otherDatacenter = Datacenter::factory()->create(['name' => 'Other Datacenter']);
+
+        $selectedResource = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'datacenter_id' => $selectedDatacenter->id,
+        ]);
+        Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'datacenter_id' => $otherDatacenter->id,
+        ]);
+        Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'datacenter_id' => null,
+        ]);
+
+        get(route('resources', ['datacenter_id' => $selectedDatacenter->id]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->has('resources', 1)
+                ->where('resources.0.id', $selectedResource->id)
+            );
+    });
+
+    it('filters resources without a datacenter', function (): void {
+        $resourceType = ResourceType::factory()->create(['slug' => 'dataset']);
+        $language = Language::factory()->create();
+        $datacenter = Datacenter::factory()->create();
+
+        Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'datacenter_id' => $datacenter->id,
+        ]);
+        $resourceWithoutDatacenter = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'datacenter_id' => null,
+        ]);
+
+        get(route('resources', ['without_datacenter' => 1]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->has('resources', 1)
+                ->where('resources.0.id', $resourceWithoutDatacenter->id)
+            );
+    });
+
+    it('only exposes datacenters used by non-IGSN resources in filter options', function (): void {
+        $datasetType = ResourceType::factory()->create(['slug' => 'dataset']);
+        $physicalObjectType = ResourceType::factory()->create(['slug' => 'physical-object']);
+        $language = Language::factory()->create();
+        $alphaDatacenter = Datacenter::factory()->create(['name' => 'Alpha Datacenter']);
+        $betaDatacenter = Datacenter::factory()->create(['name' => 'Beta Datacenter']);
+        $igsnOnlyDatacenter = Datacenter::factory()->create(['name' => 'IGSN Only Datacenter']);
+        Datacenter::factory()->create(['name' => 'Unused Datacenter']);
+
+        Resource::factory()->create([
+            'resource_type_id' => $datasetType->id,
+            'language_id' => $language->id,
+            'datacenter_id' => $betaDatacenter->id,
+        ]);
+        Resource::factory()->create([
+            'resource_type_id' => $datasetType->id,
+            'language_id' => $language->id,
+            'datacenter_id' => $alphaDatacenter->id,
+        ]);
+        Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'language_id' => $language->id,
+            'datacenter_id' => $igsnOnlyDatacenter->id,
+        ]);
+
+        get(route('resources.filter-options'))
+            ->assertOk()
+            ->assertJsonPath('datacenters', [
+                ['id' => $alphaDatacenter->id, 'name' => 'Alpha Datacenter'],
+                ['id' => $betaDatacenter->id, 'name' => 'Beta Datacenter'],
+            ]);
     });
 });
 

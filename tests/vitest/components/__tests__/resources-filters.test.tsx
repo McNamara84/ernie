@@ -10,6 +10,10 @@ const defaultFilterOptions: ResourceFilterOptions = {
         { slug: 'dataset', name: 'Dataset' },
         { slug: 'text', name: 'Text' },
     ],
+    datacenters: [
+        { id: 7, name: 'Alpha Datacenter' },
+        { id: 9, name: 'Beta Datacenter' },
+    ],
     statuses: ['draft', 'registered', 'findable'],
     curators: ['Alice', 'Bob'],
     year_range: { min: 2020, max: 2025 },
@@ -42,8 +46,65 @@ describe('ResourcesFilters', () => {
         );
 
         expect(screen.getByLabelText('Filter by resource type')).toBeInTheDocument();
+        expect(screen.getByLabelText('Filter by datacenter')).toBeInTheDocument();
         expect(screen.getByLabelText('Filter by publication status')).toBeInTheDocument();
         expect(screen.getByLabelText('Filter by curator')).toBeInTheDocument();
+    });
+
+    it('filters by a single datacenter', async () => {
+        const user = userEvent.setup();
+        const onFilterChange = vi.fn();
+
+        render(
+            <ResourcesFilters
+                filters={{}}
+                onFilterChange={onFilterChange}
+                filterOptions={defaultFilterOptions}
+                resultCount={10}
+                totalCount={10}
+            />,
+        );
+
+        await user.click(screen.getByLabelText('Filter by datacenter'));
+        await user.click(screen.getByText('Alpha Datacenter'));
+
+        expect(onFilterChange).toHaveBeenCalledWith({ datacenter_id: 7 });
+    });
+
+    it('offers and labels resources without a datacenter', async () => {
+        const user = userEvent.setup();
+        const onFilterChange = vi.fn();
+
+        render(
+            <ResourcesFilters
+                filters={{ without_datacenter: true }}
+                onFilterChange={onFilterChange}
+                filterOptions={defaultFilterOptions}
+                resultCount={2}
+                totalCount={10}
+            />,
+        );
+
+        expect(screen.getByText('Datacenter: Without Datacenter')).toBeInTheDocument();
+
+        await user.click(screen.getByLabelText('Filter by datacenter'));
+        await user.click(screen.getByText('All Datacenters'));
+
+        expect(onFilterChange).toHaveBeenCalledWith({});
+    });
+
+    it('shows the selected datacenter name in the active filter badge', () => {
+        render(
+            <ResourcesFilters
+                filters={{ datacenter_id: 9 }}
+                onFilterChange={vi.fn()}
+                filterOptions={defaultFilterOptions}
+                resultCount={4}
+                totalCount={10}
+            />,
+        );
+
+        expect(screen.getByText('Datacenter: Beta Datacenter')).toBeInTheDocument();
     });
 
     it('shows total count when not filtered', () => {

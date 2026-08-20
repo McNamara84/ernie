@@ -150,7 +150,20 @@ function parseFiltersFromUrl<T extends ResourceFilterState | FilterState>(search
  * ```
  */
 export function parseResourceFiltersFromUrl(search: string): ResourceFilterState {
-    return parseFiltersFromUrl<ResourceFilterState>(search);
+    const filters = parseFiltersFromUrl<ResourceFilterState>(search);
+    const params = new URLSearchParams(search);
+    const datacenterId = parsePositiveInt(params, 'datacenter_id');
+
+    if (datacenterId !== undefined) {
+        filters.datacenter_id = datacenterId;
+    }
+
+    if (params.get('without_datacenter') === '1') {
+        filters.without_datacenter = true;
+        delete filters.datacenter_id;
+    }
+
+    return filters;
 }
 
 /**

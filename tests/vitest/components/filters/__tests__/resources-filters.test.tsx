@@ -43,6 +43,10 @@ describe('ResourcesFilters Component', () => {
                 { slug: 'dataset', name: 'Dataset' },
                 { slug: 'collection', name: 'Collection' },
             ],
+            datacenters: [
+                { id: 1, name: 'Alpha Datacenter' },
+                { id: 2, name: 'Beta Datacenter' },
+            ],
             statuses: ['curation', 'review', 'published'],
             curators: ['Alice', 'Bob'],
             year_range: { min: 2000, max: 2025 },

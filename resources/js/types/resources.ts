@@ -23,6 +23,8 @@ export interface ResourceFilterState {
     year_to?: number;
     curator?: string[];
     status?: string[];
+    datacenter_id?: number;
+    without_datacenter?: boolean;
     created_from?: string;
     created_to?: string;
     updated_from?: string;
@@ -34,6 +36,7 @@ export interface ResourceFilterState {
  */
 export interface ResourceFilterOptions {
     resource_types: Array<{ name: string; slug: string }>;
+    datacenters: Array<{ id: number; name: string }>;
     curators: string[];
     year_range: {
         min: number;
