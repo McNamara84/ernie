@@ -42,8 +42,9 @@ test('editor exposes draft landing page preview summary for existing resource', 
 
     withoutVite();
 
-    $this->actingAs($user)
-        ->get(route('editor', ['resourceId' => $resource->id]))
+    $this->actingAs($user);
+
+    loadExistingResourceInEditor($this, $resource->id)
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('editor')
@@ -72,8 +73,9 @@ test('editor exposes published external landing page public url for existing res
 
     withoutVite();
 
-    $this->actingAs($user)
-        ->get(route('editor', ['resourceId' => $resource->id]))
+    $this->actingAs($user);
+
+    loadExistingResourceInEditor($this, $resource->id)
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('editor')

@@ -1,9 +1,42 @@
 <?php
 
+use App\Http\Controllers\EditorController;
 use Illuminate\Testing\TestResponse;
+use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Assert;
+use Tests\TestCase;
 
 require_once __DIR__.'/Helpers/ZipFixture.php';
+
+/**
+ * Complete the two-step Inertia handshake used for an existing resource.
+ */
+function loadExistingResourceInEditor(TestCase $testCase, int $resourceId): TestResponse
+{
+    $loaderResponse = $testCase
+        ->get(route('editor', ['resourceId' => $resourceId]))
+        ->assertOk();
+
+    $loaderResponse->assertInertia(fn (AssertableInertia $page) => $page
+        ->component('editor-loading')
+        ->where('editorLoad.resourceId', $resourceId)
+        ->where('editorLoad.serverProgress', 0)
+        ->where('editorLoad.slowThresholdMs', 12_000)
+        ->where('loadError', null));
+
+    $token = $loaderResponse->inertiaProps('editorLoad.token');
+    if (! is_string($token) || $token === '') {
+        throw new RuntimeException('The editor loader did not return a progress token.');
+    }
+
+    $response = $testCase
+        ->withHeader(EditorController::RESOURCE_LOAD_TOKEN_HEADER, $token)
+        ->get(route('editor', ['resourceId' => $resourceId]));
+
+    $testCase->withoutHeader(EditorController::RESOURCE_LOAD_TOKEN_HEADER);
+
+    return $response;
+}
 
 /**
  * Helper function to extract XML upload data from session-based response.

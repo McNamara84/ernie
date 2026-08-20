@@ -49,8 +49,9 @@ test('editor maps main titles to main-title and normalizes other title type slug
 
     withoutVite();
 
-    $this->actingAs($user)
-        ->get(route('editor', ['resourceId' => $resource->id]))
+    $this->actingAs($user);
+
+    loadExistingResourceInEditor($this, $resource->id)
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('editor')

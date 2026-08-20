@@ -52,12 +52,42 @@ class EditorDataTransformer
     /**
      * Transform a Resource model into editor-compatible data.
      *
+     * @param  null|callable(string): void  $onPhaseCompleted
      * @return array<string, mixed>
      */
-    public function transformResource(Resource $resource): array
+    public function transformResource(Resource $resource, ?callable $onPhaseCompleted = null): array
     {
-        // Cache creators transform to avoid duplicate computation
+        // Cache creators transform to avoid duplicate computation.
         $creators = $this->transformCreators($resource);
+        $mslLaboratories = $this->transformMslLaboratories($resource);
+        if ($onPhaseCompleted !== null) {
+            $onPhaseCompleted('people');
+        }
+
+        $titles = $this->transformTitles($resource);
+        $initialLicenses = $this->transformLicenses($resource);
+        $initialRawRights = $this->transformRawRights($resource);
+        if ($onPhaseCompleted !== null) {
+            $onPhaseCompleted('identification');
+        }
+
+        $descriptions = $this->transformDescriptions($resource);
+        $dates = $this->transformDates($resource);
+        $gcmdKeywords = $this->transformGcmdKeywords($resource);
+        $freeKeywords = $this->transformFreeKeywords($resource);
+        $gemetKeywords = $this->transformGemetKeywords($resource);
+        $coverages = $this->transformCoverages($resource);
+        if ($onPhaseCompleted !== null) {
+            $onPhaseCompleted('content');
+        }
+
+        $relatedWorks = $this->transformRelatedIdentifiers($resource);
+        $fundingReferences = $this->transformFundingReferences($resource);
+        $instruments = $this->transformInstruments($resource);
+        if ($onPhaseCompleted !== null) {
+            $onPhaseCompleted('related');
+        }
+
         $accessLevel = $resource->getAttribute('access_level');
 
         return [
@@ -68,21 +98,21 @@ class EditorDataTransformer
             'resourceType' => (string) $resource->resource_type_id,
             'initialAccessLevel' => $accessLevel instanceof AccessLevel ? $accessLevel->value : '',
             'resourceId' => (string) $resource->id,
-            'titles' => $this->transformTitles($resource),
-            'initialLicenses' => $this->transformLicenses($resource),
-            'initialRawRights' => $this->transformRawRights($resource),
+            'titles' => $titles,
+            'initialLicenses' => $initialLicenses,
+            'initialRawRights' => $initialRawRights,
             'authors' => $creators['authors'],
             'contributors' => $creators['contributors'],
-            'descriptions' => $this->transformDescriptions($resource),
-            'dates' => $this->transformDates($resource),
-            'gcmdKeywords' => $this->transformGcmdKeywords($resource),
-            'freeKeywords' => $this->transformFreeKeywords($resource),
-            'gemetKeywords' => $this->transformGemetKeywords($resource),
-            'coverages' => $this->transformCoverages($resource),
-            'relatedWorks' => $this->transformRelatedIdentifiers($resource),
-            'fundingReferences' => $this->transformFundingReferences($resource),
-            'mslLaboratories' => $this->transformMslLaboratories($resource),
-            'instruments' => $this->transformInstruments($resource),
+            'descriptions' => $descriptions,
+            'dates' => $dates,
+            'gcmdKeywords' => $gcmdKeywords,
+            'freeKeywords' => $freeKeywords,
+            'gemetKeywords' => $gemetKeywords,
+            'coverages' => $coverages,
+            'relatedWorks' => $relatedWorks,
+            'fundingReferences' => $fundingReferences,
+            'mslLaboratories' => $mslLaboratories,
+            'instruments' => $instruments,
             'initialDatacenterId' => $resource->datacenter_id,
             'landingPage' => $resource->landingPage ? [
                 'id' => $resource->landingPage->id,

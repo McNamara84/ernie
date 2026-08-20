@@ -48,6 +48,29 @@ beforeEach(function (): void {
 // =========================================================================
 
 describe('transformResource', function (): void {
+    it('reports completed transformation groups in order without changing the payload', function (): void {
+        $this->resource->load([
+            'resourceType', 'language', 'titles.titleType', 'rights', 'resourceRights.right',
+            'creators.creatorable', 'creators.affiliations',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
+            'descriptions.descriptionType', 'dates.dateType', 'subjects', 'geoLocations',
+            'relatedIdentifiers.identifierType', 'relatedIdentifiers.relationType',
+            'fundingReferences.funderIdentifierType', 'instruments', 'datacenter', 'landingPage.externalDomain',
+        ]);
+
+        $phases = [];
+        $withProgress = $this->transformer->transformResource(
+            $this->resource,
+            function (string $phase) use (&$phases): void {
+                $phases[] = $phase;
+            },
+        );
+        $withoutProgress = $this->transformer->transformResource($this->resource);
+
+        expect($phases)->toBe(['people', 'identification', 'content', 'related'])
+            ->and($withProgress)->toBe($withoutProgress);
+    });
+
     it('returns all expected top-level keys', function (): void {
         $this->resource->load([
             'titles.titleType', 'rights', 'creators.creatorable', 'creators.affiliations',
