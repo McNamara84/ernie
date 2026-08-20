@@ -163,6 +163,14 @@ npm run docker:dev:parity
 - The npm Docker wrappers always pass `--env-file .env.docker` so Compose and Laravel use the same source of truth.
 - Docker-managed `node_modules` live in the named Docker volume, not in your host checkout.
 
+### DataCite import mode
+
+Keep `DATACITE_TEST_MODE=true` for local development and Stage. Eligible imported resources and every newly imported IGSN receive their local landing page, but the import never writes metadata to either DataCite API in this mode.
+
+With `DATACITE_TEST_MODE=false` on Production, the same local landing pages are created and the newly imported, published records enter a separate DataCite synchronization phase. That phase exports the complete ERNIE metadata and changes the DOI target URL to the new landing page. Failed updates do not roll back the import or landing page and can be retried from the completed import dialog.
+
+There is no separate post-import sync flag: `DATACITE_TEST_MODE` is the only switch. The queue worker must consume the `imports` queue so the bounded synchronization jobs can complete.
+
 ## Troubleshooting
 
 ### `419 Page Expired`

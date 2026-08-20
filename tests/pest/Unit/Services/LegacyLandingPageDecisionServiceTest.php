@@ -4,6 +4,37 @@ declare(strict_types=1);
 
 use App\Services\LegacyLandingPageDecisionService;
 
+it('derives internal landing page publication solely from legacy and DataCite status', function (
+    ?string $publicStatus,
+    ?string $dataCiteState,
+    array $expected,
+): void {
+    $service = new LegacyLandingPageDecisionService;
+
+    expect($service->internalLandingPageDecision($publicStatus, $dataCiteState))->toBe($expected);
+})->with([
+    'published and findable' => [
+        'published',
+        'findable',
+        ['should_create' => true, 'should_publish' => true, 'should_sync' => true],
+    ],
+    'published but registered' => [
+        'published',
+        'registered',
+        ['should_create' => true, 'should_publish' => false, 'should_sync' => false],
+    ],
+    'pending remains draft' => [
+        'pending',
+        'findable',
+        ['should_create' => true, 'should_publish' => false, 'should_sync' => false],
+    ],
+    'unknown status creates nothing' => [
+        null,
+        'findable',
+        ['should_create' => false, 'should_publish' => false, 'should_sync' => false],
+    ],
+]);
+
 it('skips legacy dois marked as test or delete', function (string $doi): void {
     $service = new LegacyLandingPageDecisionService;
 

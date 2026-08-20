@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Download, XCircle } 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { dataCiteSyncProgressLabel, type ImportDataCiteSyncProgress, ImportDataCiteSyncStatus } from '@/components/imports/ImportDataCiteSyncStatus';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -16,7 +17,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { normalizeIgsnInput } from '@/lib/igsn-validation';
 
-interface ImportProgress {
+interface ImportProgress extends ImportDataCiteSyncProgress {
     status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     total: number;
     processed: number;
@@ -253,7 +254,10 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
         onClose();
     }, [modalState, onClose]);
 
-    const progressPercent = progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
+    const isSyncing = progress?.phase === 'syncing';
+    const progressCurrent = isSyncing ? (progress.sync_processed ?? 0) : (progress?.processed ?? 0);
+    const progressTotal = isSyncing ? (progress?.sync_total ?? 0) : (progress?.total ?? 0);
+    const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
     const relatedIgsnCount = progress?.discovered_children?.length ?? 0;
     const isAlreadyImported = progress?.imported === 0 && progress?.skipped === progress?.total && progress?.failed === 0;
 
@@ -267,7 +271,7 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                     </DialogTitle>
                     <DialogDescription>
                         {modalState === 'confirm' && 'Enter one IGSN to import it from DataCite into ERNIE.'}
-                        {modalState === 'running' && `Importing ${submittedIgsn ?? 'IGSN'}...`}
+                        {modalState === 'running' && (dataCiteSyncProgressLabel(progress ?? {}) ?? `Importing ${submittedIgsn ?? 'IGSN'}...`)}
                         {modalState === 'completed' && (isAlreadyImported ? 'This IGSN already exists in ERNIE.' : 'Import completed successfully.')}
                         {modalState === 'cancelled' && 'Import was cancelled.'}
                         {modalState === 'failed' && 'Single IGSN import failed.'}
@@ -311,10 +315,10 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-2">
                                         <Spinner size="sm" />
-                                        Processing...
+                                        {isSyncing ? 'Updating DataCite metadata...' : 'Processing...'}
                                     </span>
                                     <span className="text-muted-foreground">
-                                        {progress.processed} / {progress.total || '?'} IGSNs
+                                        {progressCurrent} / {progressTotal || '?'} {isSyncing ? 'updates' : 'IGSNs'}
                                     </span>
                                 </div>
                                 <Progress value={progressPercent} className="h-2" />
@@ -360,6 +364,14 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                                           : `${submittedIgsn ?? progress.requested_igsn ?? 'The IGSN'} import finished with ${progress.imported} imported and ${progress.enriched} enriched.`}
                                 </AlertDescription>
                             </Alert>
+
+                            {modalState === 'completed' && (
+                                <ImportDataCiteSyncStatus
+                                    progress={progress}
+                                    retryUrl={`/igsns/import/${importId}/retry-sync`}
+                                    onRetryStarted={() => setModalState('running')}
+                                />
+                            )}
 
                             {(progress.warnings ?? []).map((warning) => (
                                 <Alert key={warning} className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">

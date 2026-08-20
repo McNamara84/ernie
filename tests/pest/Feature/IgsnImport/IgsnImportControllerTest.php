@@ -3,9 +3,13 @@
 use App\Enums\UserRole;
 use App\Jobs\ImportIgsnsFromDataCiteJob;
 use App\Models\User;
+use App\Services\ImportedResourceDataCiteSyncDispatcherService;
+use App\Services\ImportProgressService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
     $this->adminUser = User::factory()->create(['role' => UserRole::ADMIN]);
@@ -22,6 +26,27 @@ beforeEach(function () {
         'igsn_prefix' => '10.60510',
         'igsn_client_id' => 'gfz.igsn',
     ]);
+});
+
+it('retries failed IGSN DataCite synchronizations in production', function (): void {
+    Config::set('datacite.test_mode', false);
+    $importId = Str::uuid()->toString();
+    Cache::put("igsn_import:{$importId}", [
+        'status' => 'completed',
+        'sync_failed' => 1,
+        'sync_retry_available' => true,
+    ]);
+
+    $dispatcher = Mockery::mock(ImportedResourceDataCiteSyncDispatcherService::class);
+    $dispatcher->shouldReceive('retryFailures')
+        ->once()
+        ->with(ImportProgressService::TYPE_IGSN, $importId)
+        ->andReturnTrue();
+    $this->app->instance(ImportedResourceDataCiteSyncDispatcherService::class, $dispatcher);
+
+    $this->actingAs($this->adminUser)
+        ->postJson("/igsns/import/{$importId}/retry-sync")
+        ->assertAccepted();
 });
 
 describe('IgsnImportController', function () {

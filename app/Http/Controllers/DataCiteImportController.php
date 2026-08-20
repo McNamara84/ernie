@@ -11,6 +11,8 @@ use App\Models\Resource;
 use App\Models\User;
 use App\Services\DoiImportEligibilityService;
 use App\Services\GfzDataServicesPortalService;
+use App\Services\ImportedResourceDataCiteSyncDispatcherService;
+use App\Services\ImportProgressService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -241,6 +243,37 @@ class DataCiteImportController extends Controller
         ]);
     }
 
+    public function retrySync(
+        Request $request,
+        string $importId,
+        ImportedResourceDataCiteSyncDispatcherService $dispatcher,
+    ): JsonResponse {
+        $this->authorize('importFromDataCite', Resource::class);
+
+        if (! Str::isUuid($importId)) {
+            return response()->json(['error' => 'Invalid import ID format'], 400);
+        }
+
+        $progress = Cache::get("datacite_import:{$importId}");
+        if (! is_array($progress)) {
+            return response()->json(['error' => 'Import not found'], 404);
+        }
+
+        if (config('datacite.test_mode') !== false) {
+            return response()->json(['error' => 'DataCite synchronization is disabled in test mode.'], 400);
+        }
+
+        if (($progress['status'] ?? null) === 'running') {
+            return response()->json(['error' => 'A synchronization is already running.'], 409);
+        }
+
+        if (! $dispatcher->retryFailures(ImportProgressService::TYPE_RESOURCE, $importId)) {
+            return response()->json(['error' => 'There are no failed synchronizations to retry.'], 400);
+        }
+
+        return response()->json(['message' => 'DataCite synchronization retry started.'], 202);
+    }
+
     private function initializeProgress(string $importId, int $total): void
     {
         Cache::put("datacite_import:{$importId}", [
@@ -252,6 +285,14 @@ class DataCiteImportController extends Controller
             'failed' => 0,
             'skipped_dois' => [],
             'failed_dois' => [],
+            'phase' => 'importing',
+            'sync_total' => 0,
+            'sync_processed' => 0,
+            'sync_succeeded' => 0,
+            'sync_failed' => 0,
+            'sync_errors' => [],
+            'sync_skipped_test_mode' => false,
+            'sync_retry_available' => false,
             'started_at' => now()->toIso8601String(),
             'completed_at' => null,
         ], now()->addHours(24));

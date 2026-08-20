@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
+import { dataCiteSyncProgressLabel, type ImportDataCiteSyncProgress, ImportDataCiteSyncStatus } from '@/components/imports/ImportDataCiteSyncStatus';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,7 +17,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { normalizeDOI, validateDOIFormat } from '@/lib/doi-validation';
 
-interface ImportProgress {
+interface ImportProgress extends ImportDataCiteSyncProgress {
     status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     total: number;
     processed: number;
@@ -215,7 +216,10 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
         onClose();
     }, [onClose]);
 
-    const progressPercent = progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
+    const isSyncing = progress?.phase === 'syncing';
+    const progressCurrent = isSyncing ? (progress.sync_processed ?? 0) : (progress?.processed ?? 0);
+    const progressTotal = isSyncing ? (progress?.sync_total ?? 0) : (progress?.total ?? 0);
+    const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
     const wasEnriched = (progress?.enriched ?? 0) > 0;
     const isAlreadyImported = progress?.skipped === 1 && !wasEnriched;
 
@@ -229,7 +233,7 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
                     </DialogTitle>
                     <DialogDescription>
                         {modalState === 'confirm' && 'Enter a GFZ DataCite or SUMARIO legacy DOI to import it into ERNIE.'}
-                        {modalState === 'running' && `Importing ${submittedDoi ?? 'resource'}...`}
+                        {modalState === 'running' && (dataCiteSyncProgressLabel(progress ?? {}) ?? `Importing ${submittedDoi ?? 'resource'}...`)}
                         {modalState === 'completed' &&
                             (wasEnriched
                                 ? 'Missing legacy download links were added.'
@@ -289,10 +293,10 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-2">
                                         <Spinner size="sm" />
-                                        Processing {submittedDoi ?? 'resource'}...
+                                        {isSyncing ? 'Updating DataCite metadata...' : `Processing ${submittedDoi ?? 'resource'}...`}
                                     </span>
                                     <span className="text-muted-foreground">
-                                        {progress.processed} / {progress.total} resource
+                                        {progressCurrent} / {progressTotal} {isSyncing ? 'update' : 'resource'}
                                     </span>
                                 </div>
                                 <Progress value={progressPercent} className="h-2" />
@@ -301,21 +305,30 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
                     )}
 
                     {modalState === 'completed' && progress && (
-                        <Alert className={isAlreadyImported ? undefined : 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'}>
-                            {isAlreadyImported ? (
-                                <AlertCircle className="size-4" />
-                            ) : (
-                                <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
-                            )}
-                            <AlertTitle>{wasEnriched ? 'Legacy links added' : isAlreadyImported ? 'Already imported' : 'Import complete'}</AlertTitle>
-                            <AlertDescription>
-                                {wasEnriched
-                                    ? `${submittedDoi ?? 'This DOI'} already existed in ERNIE. Missing legacy download links were added.`
-                                    : isAlreadyImported
-                                      ? `${submittedDoi ?? 'This DOI'} already exists in ERNIE and was not imported again.`
-                                      : `${submittedDoi ?? 'The DOI'} was imported successfully.`}
-                            </AlertDescription>
-                        </Alert>
+                        <div className="space-y-4">
+                            <Alert className={isAlreadyImported ? undefined : 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'}>
+                                {isAlreadyImported ? (
+                                    <AlertCircle className="size-4" />
+                                ) : (
+                                    <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
+                                )}
+                                <AlertTitle>
+                                    {wasEnriched ? 'Legacy links added' : isAlreadyImported ? 'Already imported' : 'Import complete'}
+                                </AlertTitle>
+                                <AlertDescription>
+                                    {wasEnriched
+                                        ? `${submittedDoi ?? 'This DOI'} already existed in ERNIE. Missing legacy download links were added.`
+                                        : isAlreadyImported
+                                          ? `${submittedDoi ?? 'This DOI'} already exists in ERNIE and was not imported again.`
+                                          : `${submittedDoi ?? 'The DOI'} was imported successfully.`}
+                                </AlertDescription>
+                            </Alert>
+                            <ImportDataCiteSyncStatus
+                                progress={progress}
+                                retryUrl={`/datacite/import/${importId}/retry-sync`}
+                                onRetryStarted={() => setModalState('running')}
+                            />
+                        </div>
                     )}
 
                     {modalState === 'failed' && (
@@ -357,4 +370,3 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
         </Dialog>
     );
 }
-

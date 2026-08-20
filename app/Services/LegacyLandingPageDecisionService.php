@@ -7,6 +7,29 @@ namespace App\Services;
 class LegacyLandingPageDecisionService
 {
     /**
+     * Decide whether a newly imported legacy resource receives an internal
+     * landing page and whether that page may be published/synchronised.
+     *
+     * File visibility is intentionally not part of this decision. The legacy
+     * resource publication status and the DataCite DOI state are authoritative.
+     *
+     * @return array{should_create: bool, should_publish: bool, should_sync: bool}
+     */
+    public function internalLandingPageDecision(?string $legacyPublicStatus, ?string $dataCiteState): array
+    {
+        $legacyPublicStatus = strtolower(trim((string) $legacyPublicStatus));
+        $dataCiteState = strtolower(trim((string) $dataCiteState));
+        $shouldCreate = in_array($legacyPublicStatus, ['published', 'pending'], true);
+        $shouldPublish = $legacyPublicStatus === 'published' && $dataCiteState === 'findable';
+
+        return [
+            'should_create' => $shouldCreate,
+            'should_publish' => $shouldPublish,
+            'should_sync' => $shouldPublish,
+        ];
+    }
+
+    /**
      * Legacy test/delete DOIs should never create ERNIE resources.
      */
     public function shouldSkipLegacyDoi(string $doi): bool

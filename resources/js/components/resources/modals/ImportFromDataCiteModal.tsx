@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
+import { dataCiteSyncProgressLabel, type ImportDataCiteSyncProgress, ImportDataCiteSyncStatus } from '@/components/imports/ImportDataCiteSyncStatus';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -15,7 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 
-interface ImportProgress {
+interface ImportProgress extends ImportDataCiteSyncProgress {
     status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     total: number;
     processed: number;
@@ -239,7 +240,10 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess, mo
         onClose();
     }, [onClose]);
 
-    const progressPercent = progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
+    const isSyncing = progress?.phase === 'syncing';
+    const progressCurrent = isSyncing ? (progress.sync_processed ?? 0) : (progress?.processed ?? 0);
+    const progressTotal = isSyncing ? (progress?.sync_total ?? 0) : (progress?.total ?? 0);
+    const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
     const enrichedCount = progress?.enriched ?? 0;
 
     const formatDuration = (startedAt?: string, completedAt?: string): string => {
@@ -348,7 +352,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess, mo
                             (isDatacenterMode
                                 ? 'Import legacy resources for one GFZ Data Services datacenter into ERNIE.'
                                 : 'Import all registered GFZ legacy resources from the DataCite production API into ERNIE.')}
-                        {modalState === 'running' && 'Import is in progress...'}
+                        {modalState === 'running' && (dataCiteSyncProgressLabel(progress ?? {}) ?? 'Import is in progress...')}
                         {modalState === 'completed' && 'Import completed successfully.'}
                         {modalState === 'failed' && 'Import failed.'}
                     </DialogDescription>
@@ -448,10 +452,10 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess, mo
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-2">
                                         <Spinner size="sm" />
-                                        Processing...
+                                        {isSyncing ? 'Updating DataCite metadata...' : 'Processing...'}
                                     </span>
                                     <span className="text-muted-foreground">
-                                        {progress.processed} / {progress.total || '?'} DOIs
+                                        {progressCurrent} / {progressTotal || '?'} {isSyncing ? 'updates' : 'DOIs'}
                                     </span>
                                 </div>
                                 <Progress value={progressPercent} className="h-2" />
@@ -474,6 +478,11 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess, mo
 
                     {modalState === 'completed' && progress && (
                         <div className="space-y-4">
+                            <ImportDataCiteSyncStatus
+                                progress={progress}
+                                retryUrl={`/datacite/import/${importId}/retry-sync`}
+                                onRetryStarted={() => setModalState('running')}
+                            />
                             <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
                                 <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
                                 <AlertTitle className="text-green-800 dark:text-green-200">Import Complete</AlertTitle>

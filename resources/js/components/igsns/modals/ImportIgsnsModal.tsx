@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, Download, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
+import { dataCiteSyncProgressLabel, type ImportDataCiteSyncProgress, ImportDataCiteSyncStatus } from '@/components/imports/ImportDataCiteSyncStatus';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -14,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 
-interface ImportProgress {
+interface ImportProgress extends ImportDataCiteSyncProgress {
     status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     total: number;
     processed: number;
@@ -246,7 +247,10 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'a
         }
     }, [importId, isCancelling]);
 
-    const progressPercent = progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
+    const isSyncing = progress?.phase === 'syncing';
+    const progressCurrent = isSyncing ? (progress.sync_processed ?? 0) : (progress?.processed ?? 0);
+    const progressTotal = isSyncing ? (progress?.sync_total ?? 0) : (progress?.total ?? 0);
+    const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
 
     const formatDuration = (startedAt?: string, completedAt?: string): string => {
         if (!startedAt) return '';
@@ -298,7 +302,7 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'a
                             (isDatacenterMode
                                 ? 'Import all IGSNs assigned to one datacenter in the legacy GFZ catalogue.'
                                 : 'Import all registered IGSNs from the DataCite production API and enrich them with legacy metadata.')}
-                        {modalState === 'running' && 'Import is in progress...'}
+                        {modalState === 'running' && (dataCiteSyncProgressLabel(progress ?? {}) ?? 'Import is in progress...')}
                         {modalState === 'completed' && 'Import completed successfully.'}
                         {modalState === 'cancelled' && 'Import was cancelled.'}
                         {modalState === 'failed' && 'Import failed.'}
@@ -382,10 +386,10 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'a
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-2">
                                         <Spinner size="sm" />
-                                        Processing...
+                                        {isSyncing ? 'Updating DataCite metadata...' : 'Processing...'}
                                     </span>
                                     <span className="text-muted-foreground">
-                                        {progress.processed} / {progress.total || '?'} IGSNs
+                                        {progressCurrent} / {progressTotal || '?'} {isSyncing ? 'updates' : 'IGSNs'}
                                     </span>
                                 </div>
                                 <Progress value={progressPercent} className="h-2" />
@@ -434,6 +438,12 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'a
                                     {formatDuration(progress.started_at, progress.completed_at)}.
                                 </AlertDescription>
                             </Alert>
+
+                            <ImportDataCiteSyncStatus
+                                progress={progress}
+                                retryUrl={`/igsns/import/${importId}/retry-sync`}
+                                onRetryStarted={() => setModalState('running')}
+                            />
 
                             {(progress.warnings ?? []).map((warning) => (
                                 <Alert key={warning} className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
