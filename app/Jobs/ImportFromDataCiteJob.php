@@ -8,6 +8,7 @@ use App\Enums\CitationLabelResolutionMode;
 use App\Models\Datacenter;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Services\Crc806LegacyRightsService;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteLandingPageImportService;
 use App\Services\DataCiteSubjectMergeService;
@@ -63,6 +64,8 @@ class ImportFromDataCiteJob implements ShouldQueue
 
     /** @var list<int> */
     private array $resourceIdsForDataCiteSync = [];
+
+    private ?Crc806LegacyRightsService $crc806LegacyRightsService = null;
 
     /**
      * Create a new job instance.
@@ -1005,10 +1008,17 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $legacyMetadata['subjects'],
             );
 
+            $legacyLandingPageUrl = $this->doiRecordLandingPageUrl($doiRecord);
+
             $preparedDoiRecord = $transformer->prepareDoiData(
                 $doiRecord,
                 $legacyMetadata['relatedIdentifiers'],
                 $citationLabelResolutionMode,
+            );
+            $preparedDoiRecord = $this->withCrc806LegacyRightsFallback(
+                $preparedDoiRecord,
+                $doi,
+                $legacyLandingPageUrl,
             );
 
             // Use database transaction to ensure atomicity of the check-then-insert operation.
@@ -1097,6 +1107,79 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             throw $exception;
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $doiRecord
+     */
+    private function doiRecordLandingPageUrl(array $doiRecord): mixed
+    {
+        $attributes = is_array($doiRecord['attributes'] ?? null)
+            ? $doiRecord['attributes']
+            : $doiRecord;
+
+        return $attributes['url'] ?? null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $preparedDoiRecord
+     * @return array<string, mixed>
+     */
+    private function withCrc806LegacyRightsFallback(
+        array $preparedDoiRecord,
+        string $doi,
+        mixed $landingPageUrl,
+    ): array {
+        $hasAttributesWrapper = is_array($preparedDoiRecord['attributes'] ?? null);
+        $attributes = $hasAttributesWrapper
+            ? $preparedDoiRecord['attributes']
+            : $preparedDoiRecord;
+
+        if ($this->hasUsableRights($attributes['rightsList'] ?? null)) {
+            return $preparedDoiRecord;
+        }
+
+        $rights = ($this->crc806LegacyRightsService ??= app(Crc806LegacyRightsService::class))
+            ->findRights($doi, $landingPageUrl);
+
+        if ($rights === null) {
+            return $preparedDoiRecord;
+        }
+
+        $attributes['rightsList'] = [$rights];
+
+        if ($hasAttributesWrapper) {
+            $preparedDoiRecord['attributes'] = $attributes;
+
+            return $preparedDoiRecord;
+        }
+
+        return $attributes;
+    }
+
+    private function hasUsableRights(mixed $rightsList): bool
+    {
+        if (! is_array($rightsList)) {
+            return false;
+        }
+
+        foreach ($rightsList as $statement) {
+            if (is_string($statement) && trim($statement) !== '') {
+                return true;
+            }
+
+            if (! is_array($statement)) {
+                continue;
+            }
+
+            foreach (['rights', 'rights_text', 'rightsUri', 'rightsURI', 'rights_uri', 'rightsIdentifier', 'rights_identifier'] as $key) {
+                if (is_string($statement[$key] ?? null) && trim($statement[$key]) !== '') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -41,6 +41,45 @@ beforeEach(function (): void {
 });
 
 describe('DataCiteToResourceTransformer - rights import', function (): void {
+    it('links trusted CRC806 SPDX rights while preserving the legacy statement', function (): void {
+        $right = Right::query()->create([
+            'identifier' => 'CC-BY-NC-ND-4.0',
+            'name' => 'Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International',
+            'uri' => 'https://creativecommons.org/licenses/by-nc-nd/4.0',
+            'scheme_uri' => 'https://spdx.org/licenses/',
+            'is_active' => true,
+        ]);
+        $user = User::factory()->create();
+
+        $resource = (new DataCiteToResourceTransformer)->transform([
+            'attributes' => [
+                'doi' => '10.5880/sfb806.80',
+                'publicationYear' => 2014,
+                'titles' => [['title' => 'CRC806 rights persistence']],
+                'creators' => [['name' => 'Tester, Ada', 'nameType' => 'Personal']],
+                'rightsList' => [[
+                    'rights' => 'CC BY-NC-ND',
+                    'rightsUri' => 'https://creativecommons.org/licenses/by-nc-nd/4.0',
+                    'rightsIdentifier' => 'CC-BY-NC-ND-4.0',
+                    'rightsIdentifierScheme' => 'SPDX',
+                    'schemeUri' => 'https://spdx.org/licenses/',
+                    'source' => 'legacy-crc806',
+                ]],
+            ],
+        ], $user->id);
+
+        $resourceRight = ResourceRight::where('resource_id', $resource->id)->sole();
+
+        expect($resourceRight->rights_id)->toBe($right->id)
+            ->and($resourceRight->rights_text)->toBe('CC BY-NC-ND')
+            ->and($resourceRight->rights_uri)->toBe('https://creativecommons.org/licenses/by-nc-nd/4.0')
+            ->and($resourceRight->rights_identifier)->toBe('CC-BY-NC-ND-4.0')
+            ->and($resourceRight->rights_identifier_scheme)->toBe('SPDX')
+            ->and($resourceRight->scheme_uri)->toBe('https://spdx.org/licenses/')
+            ->and($resourceRight->source)->toBe('legacy-crc806')
+            ->and($resource->rights()->pluck('rights.identifier')->all())->toBe(['CC-BY-NC-ND-4.0']);
+    });
+
     it('stores raw rights statements without immediately linking alias-only SPDX data', function (): void {
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;

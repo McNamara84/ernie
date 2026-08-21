@@ -242,6 +242,30 @@ describe('transformTitles', function (): void {
 // =========================================================================
 
 describe('transformLicenses', function (): void {
+    it('returns a linked CRC806 fallback as the selected SPDX license', function (): void {
+        $right = Right::query()->create([
+            'identifier' => 'CC-BY-NC-ND-4.0',
+            'name' => 'Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International',
+            'uri' => 'https://creativecommons.org/licenses/by-nc-nd/4.0',
+            'scheme_uri' => 'https://spdx.org/licenses/',
+            'is_active' => true,
+        ]);
+        ResourceRight::query()->create([
+            'resource_id' => $this->resource->id,
+            'rights_id' => $right->id,
+            'rights_text' => 'CC BY-NC-ND',
+            'rights_uri' => 'https://creativecommons.org/licenses/by-nc-nd/4.0',
+            'rights_identifier' => 'CC-BY-NC-ND-4.0',
+            'rights_identifier_scheme' => 'SPDX',
+            'scheme_uri' => 'https://spdx.org/licenses/',
+            'source' => 'legacy-crc806',
+        ]);
+        $this->resource->load('rights');
+
+        expect($this->transformer->transformLicenses($this->resource))
+            ->toBe(['CC-BY-NC-ND-4.0']);
+    });
+
     it('returns license identifiers', function (): void {
         $right = Right::factory()->ccBy4()->create();
         $this->resource->rights()->attach($right->id);

@@ -10,6 +10,7 @@ use App\Models\LandingPageDomain;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
+use App\Models\Right;
 use App\Models\User;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteSyncService;
@@ -27,6 +28,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -135,6 +137,21 @@ beforeEach(function () {
 afterEach(function () {
     Mockery::close();
 });
+
+function crc806ImportJobPage(string $doi = '10.5880/sfb806.80'): string
+{
+    return '<script>window.__routeInfo = '.json_encode([
+        'allProps' => [
+            'dataset' => [
+                'extras' => ['bibtex:doi' => $doi],
+                'license' => [
+                    'name' => 'CC BY-NC-ND',
+                    'url' => 'https://creativecommons.org/licenses/by-nc-nd/4.0',
+                ],
+            ],
+        ],
+    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES).';</script>';
+}
 
 describe('ImportFromDataCiteJob', function () {
     it('updates cache with progress during import', function () {
@@ -386,6 +403,193 @@ describe('ImportFromDataCiteJob', function () {
             ->handle($this->importService, $this->transformer, $this->metaworksService);
 
         expect(Cache::get("datacite_import:{$importId}")['imported'])->toBe(1);
+    });
+
+    it('adds CRC806 rights after preparation when DataCite and XML rights are empty', function (): void {
+        Right::query()->create([
+            'identifier' => 'CC-BY-NC-ND-4.0',
+            'name' => 'Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International',
+            'uri' => 'https://creativecommons.org/licenses/by-nc-nd/4.0',
+            'scheme_uri' => 'https://spdx.org/licenses/',
+            'is_active' => true,
+            'is_elmo_active' => true,
+        ]);
+
+        $doiRecord = [
+            'id' => '10.5880/sfb806.80',
+            'attributes' => [
+                'doi' => '10.5880/sfb806.80',
+                'url' => 'http://crc806db.uni-koeln.de/dataset/show/example/',
+                'titles' => [['title' => 'CRC806 rights import']],
+            ],
+        ];
+        $preparedRecord = $doiRecord;
+        unset($preparedRecord['attributes']['url']);
+
+        $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(1);
+        $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () use ($doiRecord) {
+            yield $doiRecord;
+        })());
+        $this->transformer
+            ->shouldReceive('prepareDoiData')
+            ->once()
+            ->with($doiRecord, [], CitationLabelResolutionMode::BEST_EFFORT)
+            ->andReturn($preparedRecord);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->withArgs(function (array $record, int $userId): bool {
+                return $userId === $this->user->id
+                    && ($record['attributes']['rightsList'] ?? null) === [[
+                        'rights' => 'CC BY-NC-ND',
+                        'rightsUri' => 'https://creativecommons.org/licenses/by-nc-nd/4.0',
+                        'rightsIdentifier' => 'CC-BY-NC-ND-4.0',
+                        'rightsIdentifierScheme' => 'SPDX',
+                        'schemeUri' => 'https://spdx.org/licenses/',
+                        'source' => 'legacy-crc806',
+                    ]];
+            })
+            ->andReturn(Resource::factory()->make(['doi' => '10.5880/sfb806.80']));
+
+        Http::fake([
+            'https://crc806db.uni-koeln.de/*' => Http::response(crc806ImportJobPage()),
+        ]);
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        expect(Cache::get("datacite_import:{$importId}")['imported'])->toBe(1);
+        Http::assertSentCount(1);
+    });
+
+    it('does not request CRC806 when prepared DataCite or XML rights are present', function (): void {
+        $doiRecord = [
+            'id' => '10.5880/sfb806.existing-rights',
+            'attributes' => [
+                'doi' => '10.5880/sfb806.existing-rights',
+                'url' => 'https://crc806db.uni-koeln.de/dataset/show/example/',
+            ],
+        ];
+        $preparedRecord = [
+            'id' => $doiRecord['id'],
+            'attributes' => [
+                'doi' => $doiRecord['attributes']['doi'],
+                'rightsList' => [[
+                    'rights' => 'Original XML rights',
+                    'rightsUri' => 'https://example.test/original-rights',
+                    'source' => 'datacite-import',
+                ]],
+            ],
+        ];
+
+        $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(1);
+        $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () use ($doiRecord) {
+            yield $doiRecord;
+        })());
+        $this->transformer
+            ->shouldReceive('prepareDoiData')
+            ->once()
+            ->andReturn($preparedRecord);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->with($preparedRecord, $this->user->id)
+            ->andReturn(Resource::factory()->make(['doi' => $doiRecord['id']]));
+
+        Http::fake();
+        Http::preventStrayRequests();
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        expect(Cache::get("datacite_import:{$importId}")['imported'])->toBe(1);
+        Http::assertNothingSent();
+    });
+
+    it('continues a CRC806 import without rights when the legacy page is malformed', function (): void {
+        $doiRecord = [
+            'id' => '10.5880/sfb806.malformed',
+            'attributes' => [
+                'doi' => '10.5880/sfb806.malformed',
+                'url' => 'https://crc806db.uni-koeln.de/dataset/show/malformed/',
+            ],
+        ];
+        $preparedRecord = $doiRecord;
+        unset($preparedRecord['attributes']['url']);
+
+        $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(1);
+        $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () use ($doiRecord) {
+            yield $doiRecord;
+        })());
+        $this->transformer->shouldReceive('prepareDoiData')->once()->andReturn($preparedRecord);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->with($preparedRecord, $this->user->id)
+            ->andReturn(Resource::factory()->make(['doi' => $doiRecord['id']]));
+
+        Http::fake([
+            'https://crc806db.uni-koeln.de/*' => Http::response('<html>legacy page without route data</html>'),
+        ]);
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['imported'])->toBe(1)
+            ->and($status['failed'])->toBe(0);
+    });
+
+    it('shares the CRC806 circuit breaker across records in one bulk job', function (): void {
+        $records = [
+            [
+                'id' => '10.5880/sfb806.unavailable.1',
+                'attributes' => [
+                    'doi' => '10.5880/sfb806.unavailable.1',
+                    'url' => 'https://crc806db.uni-koeln.de/dataset/show/one/',
+                ],
+            ],
+            [
+                'id' => '10.5880/sfb806.unavailable.2',
+                'attributes' => [
+                    'doi' => '10.5880/sfb806.unavailable.2',
+                    'url' => 'https://crc806db.uni-koeln.de/dataset/show/two/',
+                ],
+            ],
+        ];
+
+        $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(2);
+        $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () use ($records) {
+            yield from $records;
+        })());
+        $this->transformer
+            ->shouldReceive('prepareDoiData')
+            ->twice()
+            ->andReturnUsing(function (array $record): array {
+                unset($record['attributes']['url']);
+
+                return $record;
+            });
+        $this->transformer
+            ->shouldReceive('transform')
+            ->twice()
+            ->andReturnUsing(fn (array $record): Resource => Resource::factory()->make([
+                'doi' => $record['attributes']['doi'],
+            ]));
+
+        Http::fake([
+            'https://crc806db.uni-koeln.de/*' => Http::response('Unavailable', 503),
+        ]);
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        expect(Cache::get("datacite_import:{$importId}")['imported'])->toBe(2);
+        Http::assertSentCount(2);
     });
 
     it('continues without legacy metadata and opens the metaworks circuit breaker after lookup failure', function () {

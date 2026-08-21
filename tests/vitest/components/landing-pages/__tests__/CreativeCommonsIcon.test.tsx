@@ -4,7 +4,12 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { CreativeCommonsIcon, getCreativeCommonsBadgePath, isCreativeCommonsLicense } from '@/pages/LandingPages/components/CreativeCommonsIcon';
+import {
+    CreativeCommonsIcon,
+    getCreativeCommonsBadgePath,
+    getCreativeCommonsShortName,
+    isCreativeCommonsLicense,
+} from '@/pages/LandingPages/components/CreativeCommonsIcon';
 
 describe('CreativeCommonsIcon', () => {
     it.each([
@@ -32,10 +37,7 @@ describe('CreativeCommonsIcon', () => {
     it('handles lowercase SPDX identifiers', () => {
         render(<CreativeCommonsIcon spdxId="cc-by-4.0" />);
 
-        expect(screen.getByRole('img', { name: 'Creative Commons cc-by-4.0' })).toHaveAttribute(
-            'src',
-            '/images/creative-commons/88x31/by.svg',
-        );
+        expect(screen.getByRole('img', { name: 'Creative Commons cc-by-4.0' })).toHaveAttribute('src', '/images/creative-commons/88x31/by.svg');
     });
 
     it('applies a custom className to the badge image', () => {
@@ -50,6 +52,28 @@ describe('CreativeCommonsIcon', () => {
 
         expect(container).toBeEmptyDOMElement();
         expect(getCreativeCommonsBadgePath('MIT')).toBeNull();
+    });
+});
+
+describe('getCreativeCommonsShortName', () => {
+    it.each([
+        ['CC-BY-4.0', 'CC BY 4.0'],
+        ['CC-BY-SA-4.0', 'CC BY-SA 4.0'],
+        ['CC-BY-ND-4.0', 'CC BY-ND 4.0'],
+        ['CC-BY-NC-4.0', 'CC BY-NC 4.0'],
+        ['CC-BY-NC-SA-4.0', 'CC BY-NC-SA 4.0'],
+        ['CC-BY-NC-ND-4.0', 'CC BY-NC-ND 4.0'],
+        ['CC0-1.0', 'CC0 1.0'],
+    ])('formats %s as %s', (spdxId, shortName) => {
+        expect(getCreativeCommonsShortName(spdxId)).toBe(shortName);
+    });
+
+    it('handles whitespace and lowercase identifiers', () => {
+        expect(getCreativeCommonsShortName('  cc-by-nc-nd-4.0 ')).toBe('CC BY-NC-ND 4.0');
+    });
+
+    it.each(['MIT', 'CC-PDM-1.0', 'CC-BY-NC-ND', 'CC-BY-NC-ND-latest', ''])('returns null for unsupported identifier %s', (spdxId) => {
+        expect(getCreativeCommonsShortName(spdxId)).toBeNull();
     });
 });
 

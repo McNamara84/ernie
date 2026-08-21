@@ -63,12 +63,7 @@ const mockContactPersonNoContact = {
 describe('FilesSection', () => {
     describe('when downloadUrl is provided', () => {
         it('renders download button with correct URL', () => {
-            render(
-                <FilesSection
-                    downloadUrl="https://datapub.gfz-potsdam.de/download/test.zip"
-                    licenses={[]}
-                />,
-            );
+            render(<FilesSection downloadUrl="https://datapub.gfz-potsdam.de/download/test.zip" licenses={[]} />);
 
             const downloadLink = screen.getByRole('link', { name: /download data and description/i });
             expect(downloadLink).toBeInTheDocument();
@@ -77,26 +72,14 @@ describe('FilesSection', () => {
         });
 
         it('shows download button even when contact person with email exists', () => {
-            render(
-                <FilesSection
-                    downloadUrl="https://example.com/data.zip"
-                    licenses={[]}
-                    contactPersons={[mockContactPersonWithEmail]}
-                />,
-            );
+            render(<FilesSection downloadUrl="https://example.com/data.zip" licenses={[]} contactPersons={[mockContactPersonWithEmail]} />);
 
             expect(screen.getByRole('link', { name: /download data and description/i })).toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /request data via contact form/i })).not.toBeInTheDocument();
         });
 
         it('does not show contact button when download URL is available', () => {
-            render(
-                <FilesSection
-                    downloadUrl="https://example.com/data.zip"
-                    licenses={[]}
-                    contactPersons={[mockContactPersonWithEmail]}
-                />,
-            );
+            render(<FilesSection downloadUrl="https://example.com/data.zip" licenses={[]} contactPersons={[mockContactPersonWithEmail]} />);
 
             expect(screen.queryByRole('button', { name: /request data via contact form/i })).not.toBeInTheDocument();
         });
@@ -136,13 +119,7 @@ describe('FilesSection', () => {
 
     describe('contact form fallback (when no download URL)', () => {
         it('shows contact form button when contact person with email exists', () => {
-            render(
-                <FilesSection
-                    licenses={[]}
-                    contactPersons={[mockContactPersonWithEmail]}
-                    datasetTitle="Test Dataset"
-                />,
-            );
+            render(<FilesSection licenses={[]} contactPersons={[mockContactPersonWithEmail]} datasetTitle="Test Dataset" />);
 
             const contactButton = screen.getByRole('button', { name: /request data via contact form/i });
             expect(contactButton).toBeInTheDocument();
@@ -165,13 +142,7 @@ describe('FilesSection', () => {
 
     describe('website fallback (when no download URL and no email)', () => {
         it('shows website link when contact person has website but no email', () => {
-            render(
-                <FilesSection
-                    licenses={[]}
-                    contactPersons={[mockContactPersonWithWebsite]}
-                    datasetTitle="Test Dataset"
-                />,
-            );
+            render(<FilesSection licenses={[]} contactPersons={[mockContactPersonWithWebsite]} datasetTitle="Test Dataset" />);
 
             const websiteLink = screen.getByRole('link', { name: /visit contact person website/i });
             expect(websiteLink).toBeInTheDocument();
@@ -180,12 +151,7 @@ describe('FilesSection', () => {
         });
 
         it('does not show website link when contact person has no website', () => {
-            render(
-                <FilesSection
-                    licenses={[]}
-                    contactPersons={[mockContactPersonNoContact]}
-                />,
-            );
+            render(<FilesSection licenses={[]} contactPersons={[mockContactPersonNoContact]} />);
 
             expect(screen.queryByRole('link', { name: /visit contact person website/i })).not.toBeInTheDocument();
         });
@@ -206,12 +172,7 @@ describe('FilesSection', () => {
         });
 
         it('shows fallback message when contact persons have neither email nor website', () => {
-            render(
-                <FilesSection
-                    licenses={[]}
-                    contactPersons={[mockContactPersonNoContact]}
-                />,
-            );
+            render(<FilesSection licenses={[]} contactPersons={[mockContactPersonNoContact]} />);
 
             expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
         });
@@ -245,26 +206,72 @@ describe('FilesSection', () => {
             render(<FilesSection licenses={fullNameLicenses} />);
 
             // CC licenses include icon aria-label in accessible name
-            expect(
-                screen.getByRole('link', { name: /Creative Commons Attribution 4\.0 International/ }),
-            ).toBeInTheDocument();
-            expect(
-                screen.getByRole('link', { name: /Creative Commons Attribution Share Alike 4\.0 International/ }),
-            ).toBeInTheDocument();
+            expect(screen.getByRole('link', { name: /Creative Commons Attribution 4\.0 International/ })).toBeInTheDocument();
+            expect(screen.getByRole('link', { name: /Creative Commons Attribution Share Alike 4\.0 International/ })).toBeInTheDocument();
+            expect(screen.getByText(/\(CC BY 4\.0\)/)).toBeInTheDocument();
+            expect(screen.getByText(/\(CC BY-SA 4\.0\)/)).toBeInTheDocument();
+        });
+
+        it('adds the conventional compound CC short name to the full license name', () => {
+            render(
+                <FilesSection
+                    licenses={[
+                        {
+                            id: 7,
+                            name: 'Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International',
+                            spdx_id: 'CC-BY-NC-ND-4.0',
+                            reference: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
+                        },
+                    ]}
+                />,
+            );
+
+            const link = screen.getByRole('link', {
+                name: /Creative Commons Attribution-NonCommercial-NoDerivatives 4\.0 International \(CC BY-NC-ND 4\.0\)/,
+            });
+            expect(link).toHaveAttribute('href', 'https://creativecommons.org/licenses/by-nc-nd/4.0/');
+            expect(link).toHaveAttribute('title', 'CC-BY-NC-ND-4.0');
+        });
+
+        it('adds the CC short name to a non-link badge', () => {
+            render(
+                <FilesSection
+                    licenses={[
+                        {
+                            id: 8,
+                            name: 'Creative Commons Attribution 4.0 International',
+                            spdx_id: 'CC-BY-4.0',
+                            reference: null,
+                        },
+                    ]}
+                />,
+            );
+
+            const badge = screen.getByTestId('license-badge');
+            expect(badge).toHaveTextContent('Creative Commons Attribution 4.0 International (CC BY 4.0)');
+            expect(badge.closest('a')).toBeNull();
+        });
+
+        it('does not duplicate a license name that already is the CC short name', () => {
+            render(<FilesSection licenses={[mockLicenses[0]]} />);
+
+            expect(screen.getByTestId('license-badge')).toHaveTextContent('CC BY 4.0');
+            expect(screen.queryByText(/\(CC BY 4\.0\)/)).not.toBeInTheDocument();
+        });
+
+        it('does not add a generated short name to non-CC licenses', () => {
+            render(<FilesSection licenses={[mockLicenses[1]]} />);
+
+            expect(screen.getByTestId('license-badge')).toHaveTextContent('MIT');
+            expect(screen.getByTestId('license-badge')).not.toHaveTextContent(/\(MIT\)/);
         });
 
         it('license links have correct href', () => {
             render(<FilesSection licenses={mockLicenses} />);
 
             // CC licenses include icon aria-label in accessible name
-            expect(screen.getByRole('link', { name: /CC BY 4\.0/ })).toHaveAttribute(
-                'href',
-                'https://creativecommons.org/licenses/by/4.0/',
-            );
-            expect(screen.getByRole('link', { name: 'MIT' })).toHaveAttribute(
-                'href',
-                'https://opensource.org/licenses/MIT',
-            );
+            expect(screen.getByRole('link', { name: /CC BY 4\.0/ })).toHaveAttribute('href', 'https://creativecommons.org/licenses/by/4.0/');
+            expect(screen.getByRole('link', { name: 'MIT' })).toHaveAttribute('href', 'https://opensource.org/licenses/MIT');
         });
 
         it('renders a license without reference as a non-link badge', () => {
@@ -316,36 +323,21 @@ describe('FilesSection', () => {
 
     describe('GFZ branding', () => {
         it('applies GFZ action button styling to download button', () => {
-            render(
-                <FilesSection
-                    downloadUrl="https://example.com/data.zip"
-                    licenses={[]}
-                />,
-            );
+            render(<FilesSection downloadUrl="https://example.com/data.zip" licenses={[]} />);
 
             const downloadLink = screen.getByRole('link', { name: /download data and description/i });
             expect(downloadLink).toHaveClass('gfz-action-button');
         });
 
         it('applies GFZ action button styling to contact button', () => {
-            render(
-                <FilesSection
-                    licenses={[]}
-                    contactPersons={[mockContactPersonWithEmail]}
-                />,
-            );
+            render(<FilesSection licenses={[]} contactPersons={[mockContactPersonWithEmail]} />);
 
             const contactButton = screen.getByRole('button', { name: /request data via contact form/i });
             expect(contactButton).toHaveClass('gfz-action-button');
         });
 
         it('applies GFZ action button styling to website link', () => {
-            render(
-                <FilesSection
-                    licenses={[]}
-                    contactPersons={[mockContactPersonWithWebsite]}
-                />,
-            );
+            render(<FilesSection licenses={[]} contactPersons={[mockContactPersonWithWebsite]} />);
 
             const websiteLink = screen.getByRole('link', { name: /visit contact person website/i });
             expect(websiteLink).toHaveClass('gfz-action-button');
