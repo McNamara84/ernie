@@ -4,6 +4,10 @@
         "date": "2026-08-20",
         "features": [
             {
+                "title": "Clear Creative Commons License Labels on Landing Pages",
+                "description": "Landing page license badges now show the full license name together with the conventional Creative Commons short notation, for example 'Creative Commons Attribution 4.0 International (CC BY 4.0)'. Existing license links, SPDX tooltips, and Creative Commons symbols remain available."
+            },
+            {
                 "title": "Resources List Datacenter Filter",
                 "description": "The Resources list now includes a Datacenter dropdown for showing resources assigned to one selected datacenter. Its options include only datacenters used by regular resources, while the new \"Without Datacenter\" choice finds resources that still need an assignment. The filter remains active while sorting or loading more results and can be removed from the active filter badges."
             },

@@ -508,6 +508,75 @@ describe('ImportFromDataCiteJob', function () {
         Http::assertNothingSent();
     });
 
+    it('adds CRC806 rights beside a COAR access-right statement', function (): void {
+        Right::query()->create([
+            'identifier' => 'CC-BY-NC-ND-4.0',
+            'name' => 'Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International',
+            'uri' => 'https://creativecommons.org/licenses/by-nc-nd/4.0',
+            'scheme_uri' => 'https://spdx.org/licenses/',
+            'is_active' => true,
+            'is_elmo_active' => true,
+        ]);
+
+        $doiRecord = [
+            'id' => '10.5880/sfb806.coar-only',
+            'attributes' => [
+                'doi' => '10.5880/sfb806.coar-only',
+                'url' => 'https://crc806db.uni-koeln.de/dataset/show/coar-only/',
+            ],
+        ];
+        $coarRights = [
+            'rights' => 'Open access',
+            'rightsUri' => 'https://purl.org/coar/access_right/c_abf2',
+            'rightsIdentifier' => 'c_abf2',
+            'rightsIdentifierScheme' => 'COAR Access Rights',
+            'schemeUri' => 'http://purl.org/coar/access_right/',
+        ];
+        $preparedRecord = $doiRecord;
+        unset($preparedRecord['attributes']['url']);
+        $preparedRecord['attributes']['rightsList'] = [$coarRights];
+
+        $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(1);
+        $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () use ($doiRecord) {
+            yield $doiRecord;
+        })());
+        $this->transformer
+            ->shouldReceive('prepareDoiData')
+            ->once()
+            ->andReturn($preparedRecord);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->withArgs(function (array $record, int $userId) use ($coarRights): bool {
+                return $userId === $this->user->id
+                    && ($record['attributes']['rightsList'] ?? null) === [
+                        $coarRights,
+                        [
+                            'rights' => 'CC BY-NC-ND',
+                            'rightsUri' => 'https://creativecommons.org/licenses/by-nc-nd/4.0',
+                            'rightsIdentifier' => 'CC-BY-NC-ND-4.0',
+                            'rightsIdentifierScheme' => 'SPDX',
+                            'schemeUri' => 'https://spdx.org/licenses/',
+                            'source' => 'legacy-crc806',
+                        ],
+                    ];
+            })
+            ->andReturn(Resource::factory()->make(['doi' => $doiRecord['id']]));
+
+        Http::fake([
+            'https://crc806db.uni-koeln.de/*' => Http::response(crc806ImportJobPage(
+                doi: '10.5880/sfb806.coar-only',
+            )),
+        ]);
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        expect(Cache::get("datacite_import:{$importId}")['imported'])->toBe(1);
+        Http::assertSentCount(1);
+    });
+
     it('continues a CRC806 import without rights when the legacy page is malformed', function (): void {
         $doiRecord = [
             'id' => '10.5880/sfb806.malformed',

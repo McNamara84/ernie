@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\AccessLevel;
 use App\Enums\CitationLabelResolutionMode;
 use App\Models\Datacenter;
 use App\Models\LandingPage;
@@ -1146,7 +1147,10 @@ class ImportFromDataCiteJob implements ShouldQueue
             return $preparedDoiRecord;
         }
 
-        $attributes['rightsList'] = [$rights];
+        $attributes['rightsList'] = [
+            ...$this->coarAccessRightStatements($attributes['rightsList'] ?? null),
+            $rights,
+        ];
 
         if ($hasAttributesWrapper) {
             $preparedDoiRecord['attributes'] = $attributes;
@@ -1172,10 +1176,44 @@ class ImportFromDataCiteJob implements ShouldQueue
                 continue;
             }
 
+            if ($this->isCoarAccessRightStatement($statement)) {
+                continue;
+            }
+
             foreach (['rights', 'rights_text', 'rightsUri', 'rightsURI', 'rights_uri', 'rightsIdentifier', 'rights_identifier'] as $key) {
                 if (is_string($statement[$key] ?? null) && trim($statement[$key]) !== '') {
                     return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function coarAccessRightStatements(mixed $rightsList): array
+    {
+        if (! is_array($rightsList)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $rightsList,
+            fn (mixed $statement): bool => is_array($statement)
+                && $this->isCoarAccessRightStatement($statement),
+        ));
+    }
+
+    /** @param array<string, mixed> $statement */
+    private function isCoarAccessRightStatement(array $statement): bool
+    {
+        foreach (['rightsUri', 'rightsURI', 'rights_uri'] as $key) {
+            $uri = $statement[$key] ?? null;
+
+            if (is_string($uri) && AccessLevel::fromCoarUri($uri) !== null) {
+                return true;
             }
         }
 

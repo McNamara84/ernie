@@ -14,10 +14,11 @@ function createCrc806CatalogRight(
     string $identifier = 'CC-BY-NC-ND-4.0',
     string $uri = 'https://creativecommons.org/licenses/by-nc-nd/4.0',
     bool $active = true,
+    ?string $name = null,
 ): Right {
     return Right::query()->create([
         'identifier' => $identifier,
-        'name' => 'Catalog '.$identifier,
+        'name' => $name ?? 'Catalog '.$identifier,
         'uri' => $uri,
         'scheme_uri' => SpdxLicenseLookup::SCHEME_URI,
         'is_active' => $active,
@@ -110,6 +111,55 @@ it('maps every supported Creative Commons family', function (string $name, strin
     'public domain dedication' => ['CC0', 'https://creativecommons.org/publicdomain/zero/1.0/', 'CC0-1.0'],
 ]);
 
+it('accepts a full Creative Commons name only when it matches the catalog license', function (): void {
+    $name = 'Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International';
+    createCrc806CatalogRight(name: $name);
+    Http::fake([
+        'https://crc806db.uni-koeln.de/*' => Http::response(crc806LicensePage(name: $name)),
+    ]);
+
+    expect((new Crc806LegacyRightsService)->findRights(
+        '10.5880/sfb806.80',
+        'https://crc806db.uni-koeln.de/dataset/show/example/',
+    )['rightsIdentifier'] ?? null)->toBe('CC-BY-NC-ND-4.0');
+});
+
+it('accepts a reviewed full-name alias when it resolves to the URI license', function (): void {
+    createCrc806CatalogRight(
+        identifier: 'CC-BY-4.0',
+        uri: 'https://creativecommons.org/licenses/by/4.0',
+    );
+    Http::fake([
+        'https://crc806db.uni-koeln.de/*' => Http::response(crc806LicensePage(
+            name: 'Creative Commons Attribution 4.0 International',
+            licenseUrl: 'https://creativecommons.org/licenses/by/4.0',
+        )),
+    ]);
+
+    expect((new Crc806LegacyRightsService)->findRights(
+        '10.5880/sfb806.80',
+        'https://crc806db.uni-koeln.de/dataset/show/example/',
+    )['rightsIdentifier'] ?? null)->toBe('CC-BY-4.0');
+});
+
+it('rejects a reviewed full-name alias when it resolves to a different active license', function (): void {
+    createCrc806CatalogRight();
+    createCrc806CatalogRight(
+        identifier: 'CC-BY-4.0',
+        uri: 'https://creativecommons.org/licenses/by/4.0',
+    );
+    Http::fake([
+        'https://crc806db.uni-koeln.de/*' => Http::response(crc806LicensePage(
+            name: 'Creative Commons Attribution 4.0 International',
+        )),
+    ]);
+
+    expect((new Crc806LegacyRightsService)->findRights(
+        '10.5880/sfb806.80',
+        'https://crc806db.uni-koeln.de/dataset/show/example/',
+    ))->toBeNull();
+});
+
 it('does not request an unsafe landing page URL', function (string $url): void {
     Http::fake();
     Http::preventStrayRequests();
@@ -181,6 +231,7 @@ it('does not guess an unsupported or conflicting license', function (string $nam
     'URI with query' => ['CC BY', 'https://creativecommons.org/licenses/by/4.0/?lang=en'],
     'foreign URI host' => ['CC BY', 'https://creativecommons.org.example/licenses/by/4.0/'],
     'conflicting short name' => ['CC BY 4.0', 'https://creativecommons.org/licenses/by-nc-nd/4.0/'],
+    'conflicting full name' => ['Creative Commons Attribution 4.0 International', 'https://creativecommons.org/licenses/by-nc-nd/4.0/'],
     'conflicting version in short name' => ['CC BY-NC-ND 3.0', 'https://creativecommons.org/licenses/by-nc-nd/4.0/'],
     'unrecognized CC-like short name' => ['CC BY NC ND', 'https://creativecommons.org/licenses/by-nc-nd/4.0/'],
 ]);
@@ -240,6 +291,22 @@ it('retries server errors and opens the in-memory circuit breaker', function ():
         ->and($service->findRights('10.5880/sfb806.80', $url))->toBeNull();
 
     Http::assertSentCount(2);
+});
+
+it('opens the in-memory circuit breaker when the provider rate limits requests', function (): void {
+    Http::fake([
+        'https://crc806db.uni-koeln.de/*' => Http::sequence()
+            ->push('Too many requests', 429, ['Retry-After' => '120'])
+            ->push(crc806LicensePage(), 200),
+    ]);
+
+    $service = new Crc806LegacyRightsService;
+    $url = 'https://crc806db.uni-koeln.de/dataset/show/example/';
+
+    expect($service->findRights('10.5880/sfb806.80', $url))->toBeNull()
+        ->and($service->findRights('10.5880/sfb806.80', $url))->toBeNull();
+
+    Http::assertSentCount(1);
 });
 
 it('retries connection failures and opens the in-memory circuit breaker', function (): void {

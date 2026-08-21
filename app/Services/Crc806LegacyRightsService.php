@@ -94,6 +94,15 @@ final class Crc806LegacyRightsService
             return null;
         }
 
+        if ($response->status() === 429) {
+            $this->providerUnavailable = true;
+            $this->logFailure($normalizedDoi, 'provider-rate-limited', [
+                'status' => $response->status(),
+            ]);
+
+            return null;
+        }
+
         if ($response->serverError()) {
             $this->providerUnavailable = true;
             $this->logFailure($normalizedDoi, 'provider-server-error', [
@@ -161,19 +170,25 @@ final class Crc806LegacyRightsService
 
         $identifier = $this->spdxIdentifierFromCreativeCommonsUri($uri);
 
-        if ($identifier === null || ! $this->licenseNameMatchesIdentifier($name, $identifier)) {
+        if ($identifier === null) {
             $this->logFailure($normalizedDoi, 'unsupported-or-conflicting-license');
 
             return null;
         }
 
-        $catalogLicense = ($this->licenseLookup ??= SpdxLicenseLookup::fromRightsCatalog())
-            ->findByIdentifier($identifier);
+        $licenseLookup = $this->licenseLookup ??= SpdxLicenseLookup::fromRightsCatalog();
+        $catalogLicense = $licenseLookup->findByIdentifier($identifier);
 
         if ($catalogLicense === null || $catalogLicense->schemeUri !== SpdxLicenseLookup::SCHEME_URI) {
             $this->logFailure($normalizedDoi, 'license-not-in-active-spdx-catalog', [
                 'rights_identifier' => $identifier,
             ]);
+
+            return null;
+        }
+
+        if (! $this->licenseNameMatchesIdentifier($name, $identifier, $licenseLookup)) {
+            $this->logFailure($normalizedDoi, 'unsupported-or-conflicting-license');
 
             return null;
         }
@@ -443,8 +458,11 @@ final class Crc806LegacyRightsService
         return null;
     }
 
-    private function licenseNameMatchesIdentifier(string $name, string $identifier): bool
-    {
+    private function licenseNameMatchesIdentifier(
+        string $name,
+        string $identifier,
+        SpdxLicenseLookup $licenseLookup,
+    ): bool {
         $normalizedName = strtoupper(trim($name));
         $normalizedName = preg_replace('/^CC-/', 'CC ', $normalizedName) ?? $normalizedName;
         $normalizedName = preg_replace('/\s+/', ' ', $normalizedName) ?? $normalizedName;
@@ -461,8 +479,10 @@ final class Crc806LegacyRightsService
                 && (! isset($match[2]) || $identifier === $identifierFamily.'-'.$match[2]);
         }
 
-        return ! str_starts_with($normalizedName, 'CC ')
-            && ! str_starts_with($normalizedName, 'CC0');
+        $namedLicense = $licenseLookup->findByName($name)
+            ?? $licenseLookup->findByAlias($name);
+
+        return $namedLicense?->identifier === $identifier;
     }
 
     /** @param array<string, int|string> $context */

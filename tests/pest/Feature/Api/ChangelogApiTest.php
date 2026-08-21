@@ -18,6 +18,9 @@ it('returns changelog data grouped by release', function () {
         ])
         ->assertJsonFragment([
             'title' => 'Assistance: Description Segmentation Suggestions',
+        ])
+        ->assertJsonFragment([
+            'title' => 'Clear Creative Commons License Labels on Landing Pages',
         ]);
 });
 
