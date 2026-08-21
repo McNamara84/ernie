@@ -15,7 +15,8 @@ it('extracts the approved GFLMU0020 legacy metadata without persistence', functi
         ->and($metadata['name'])->toBe('ODG_1B_1')
         ->and($metadata['parent_igsn'])->toBe('GFLMU0002')
         ->and($metadata['sample_access'])->toBe('Private')
-        ->and($metadata['comments'])->toBe(['Granodiorite'])
+        ->and($metadata['material_descriptions'])->toBe(['Granodiorite'])
+        ->and($metadata['comments'])->toBe([])
         ->and($metadata['location']['pairs'])->toBe([
             ['latitude' => '49.6288', 'longitude' => '8.68799'],
             ['latitude' => '49.6344', 'longitude' => '8.69644'],
@@ -50,6 +51,44 @@ it('returns null for malformed XML or XML without a sample', function (): void {
 
     expect($extractor->extract('not xml'))->toBeNull()
         ->and($extractor->extract('<resource />'))->toBeNull();
+});
+
+it('separates deduplicated material descriptions from explicit sample comments', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(<<<'XML'
+    <resource>
+      <description>Smell: None, sediment type: sandy</description>
+      <sample>
+        <material>Sediment</material>
+        <descriptions>
+          <description>Smell: None, sediment type: sandy</description>
+        </descriptions>
+        <sample_comment>Stored frozen after collection</sample_comment>
+      </sample>
+    </resource>
+    XML);
+
+    expect($metadata['material_descriptions'])->toBe(['Smell: None, sediment type: sandy'])
+        ->and($metadata['comments'])->toBe(['Stored frozen after collection']);
+});
+
+it('canonicalizes the legacy not-applicable material spelling', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(
+        '<resource><sample><material>Not applicable</material></sample></resource>',
+    );
+
+    expect($metadata['scalars']['material'])->toBe('NotApplicable');
+});
+
+it('keeps valid legacy classifications and reports unsupported ones separately', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(<<<'XML'
+    <resource><sample>
+      <material>Rock</material>
+      <classification>igneous; legacy rock term; Igneous&gt;Volcanic</classification>
+    </sample></resource>
+    XML);
+
+    expect($metadata['classifications'])->toBe(['Igneous', 'Igneous>Volcanic'])
+        ->and($metadata['rejected_classifications'])->toBe(['legacy rock term']);
 });
 
 it('preserves repeated coordinate components so ordered polygon pairs stay aligned', function (): void {

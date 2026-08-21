@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Igsn\IgsnClassificationType;
 use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
@@ -13,7 +14,6 @@ use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
 use App\Models\Person;
-use App\Models\Publisher;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
@@ -24,9 +24,7 @@ use App\Models\ResourceType;
 use App\Models\Size;
 use App\Models\Title;
 use App\Models\TitleType;
-use App\Services\Entities\AffiliationService;
-use App\Services\Entities\PersonService;
-use App\Services\IgsnCsvParserService;
+use App\Models\User;
 use App\Services\IgsnStorageService;
 
 covers(IgsnStorageService::class);
@@ -62,7 +60,7 @@ function buildMinimalIgsnRow(string $igsn = 'IEDE00001', string $title = 'Test S
         'title' => $title,
         'name' => '',
         'sample_type' => 'Rock',
-        'material' => 'Granite',
+        'material' => 'Rock',
         'is_private' => '0',
         'depth_min' => null,
         'depth_max' => null,
@@ -162,7 +160,7 @@ describe('IgsnStorageService::storeFromCsv()', function (): void {
     });
 
     it('associates user ID with created resource', function (): void {
-        $user = \App\Models\User::factory()->create();
+        $user = User::factory()->create();
         $service = app(IgsnStorageService::class);
 
         $row = buildMinimalIgsnRow('IEDE00099');
@@ -183,7 +181,7 @@ describe('IGSN metadata creation', function (): void {
 
         $row = buildMinimalIgsnRow('IEDE00010');
         $row['sample_type'] = 'Rock';
-        $row['material'] = 'Granite';
+        $row['material'] = 'Rock';
         $row['is_private'] = '1';
         $row['depth_min'] = '10.5';
         $row['depth_max'] = '25.3';
@@ -209,7 +207,7 @@ describe('IGSN metadata creation', function (): void {
 
         expect($metadata)->not->toBeNull();
         expect($metadata->sample_type)->toBe('Rock');
-        expect($metadata->material)->toBe('Granite');
+        expect($metadata->material)->toBe('Rock');
         expect($metadata->is_private)->toBeTrue();
         expect((float) $metadata->depth_min)->toBe(10.5);
         expect((float) $metadata->depth_max)->toBe(25.3);
@@ -449,7 +447,7 @@ describe('IGSN relations (classifications, geological data)', function (): void 
         $service = app(IgsnStorageService::class);
 
         $row = buildMinimalIgsnRow('IEDE00070');
-        $row['classification'] = ['Igneous', 'Volcanic'];
+        $row['classification'] = ['Igneous', 'Igneous>Volcanic'];
 
         $service->storeFromCsv([$row], 'test.csv');
 
@@ -457,7 +455,11 @@ describe('IGSN relations (classifications, geological data)', function (): void 
         $classifications = IgsnClassification::where('resource_id', $resource->id)->get();
 
         expect($classifications)->toHaveCount(2);
-        expect($classifications->pluck('value')->toArray())->toBe(['Igneous', 'Volcanic']);
+        expect($classifications->pluck('value')->toArray())->toBe(['Igneous', 'Igneous>Volcanic']);
+        expect($classifications->pluck('classification_type')->all())->toBe([
+            IgsnClassificationType::ROCK,
+            IgsnClassificationType::ROCK,
+        ]);
     });
 
     it('creates geological ages', function (): void {
@@ -492,7 +494,7 @@ describe('IGSN relations (classifications, geological data)', function (): void 
         $service = app(IgsnStorageService::class);
 
         $row = buildMinimalIgsnRow('IEDE00073');
-        $row['classification'] = ['Igneous', '', 'Volcanic'];
+        $row['classification'] = ['Igneous', '', 'Igneous>Volcanic'];
 
         $service->storeFromCsv([$row], 'test.csv');
 
@@ -500,6 +502,20 @@ describe('IGSN relations (classifications, geological data)', function (): void 
         $classifications = IgsnClassification::where('resource_id', $resource->id)->get();
 
         expect($classifications)->toHaveCount(2);
+    });
+
+    it('rejects unsupported controlled values before creating a partial resource', function (): void {
+        $service = app(IgsnStorageService::class);
+
+        $row = buildMinimalIgsnRow('IEDE00074');
+        $row['material'] = 'Granite';
+
+        $result = $service->storeFromCsv([$row], 'test.csv');
+
+        expect($result['created'])->toBe(0)
+            ->and($result['errors'])->toHaveCount(1)
+            ->and($result['errors'][0]['message'])->toBe('Unsupported IGSN material: Granite')
+            ->and(Resource::where('doi', 'IEDE00074')->exists())->toBeFalse();
     });
 });
 

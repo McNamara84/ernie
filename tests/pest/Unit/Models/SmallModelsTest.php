@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ContributorCategory;
 use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
@@ -13,6 +14,9 @@ use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
 use App\Models\RelationType;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 covers(
     AlternateIdentifier::class,
@@ -53,7 +57,7 @@ describe('AlternateIdentifier', function () {
     it('defines resource relationship', function () {
         $model = new AlternateIdentifier;
 
-        expect($model->resource())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->resource())->toBeInstanceOf(BelongsTo::class);
     });
 });
 
@@ -83,41 +87,41 @@ describe('ContributorType', function () {
     it('casts category to ContributorCategory enum', function () {
         $model = new ContributorType(['category' => 'person']);
 
-        expect($model->category)->toBe(\App\Enums\ContributorCategory::PERSON);
+        expect($model->category)->toBe(ContributorCategory::PERSON);
     });
 
     it('defines contributors relationship', function () {
         $model = new ContributorType;
 
-        expect($model->contributors())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+        expect($model->contributors())->toBeInstanceOf(HasMany::class);
     });
 
     it('has active scope', function () {
         $model = new ContributorType;
         $builder = $model->newQuery();
 
-        expect($model->scopeActive($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+        expect($model->scopeActive($builder))->toBeInstanceOf(Builder::class);
     });
 
     it('has elmoActive scope', function () {
         $model = new ContributorType;
         $builder = $model->newQuery();
 
-        expect($model->scopeElmoActive($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+        expect($model->scopeElmoActive($builder))->toBeInstanceOf(Builder::class);
     });
 
     it('has forPersons scope', function () {
         $model = new ContributorType;
         $builder = $model->newQuery();
 
-        expect($model->scopeForPersons($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+        expect($model->scopeForPersons($builder))->toBeInstanceOf(Builder::class);
     });
 
     it('has forInstitutions scope', function () {
         $model = new ContributorType;
         $builder = $model->newQuery();
 
-        expect($model->scopeForInstitutions($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+        expect($model->scopeForInstitutions($builder))->toBeInstanceOf(Builder::class);
     });
 });
 
@@ -148,20 +152,20 @@ describe('DescriptionType', function () {
         $model = new DescriptionType;
         $builder = $model->newQuery();
 
-        expect($model->scopeElmoActive($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+        expect($model->scopeElmoActive($builder))->toBeInstanceOf(Builder::class);
     });
 
     it('defines descriptions relationship', function () {
         $model = new DescriptionType;
 
-        expect($model->descriptions())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+        expect($model->descriptions())->toBeInstanceOf(HasMany::class);
     });
 
     it('has active scope', function () {
         $model = new DescriptionType;
         $builder = $model->newQuery();
 
-        expect($model->scopeActive($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+        expect($model->scopeActive($builder))->toBeInstanceOf(Builder::class);
     });
 });
 
@@ -179,7 +183,7 @@ describe('Format', function () {
     it('defines resource relationship', function () {
         $model = new Format;
 
-        expect($model->resource())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->resource())->toBeInstanceOf(BelongsTo::class);
     });
 });
 
@@ -203,14 +207,14 @@ describe('FunderIdentifierType', function () {
     it('defines fundingReferences relationship', function () {
         $model = new FunderIdentifierType;
 
-        expect($model->fundingReferences())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+        expect($model->fundingReferences())->toBeInstanceOf(HasMany::class);
     });
 
     it('has active scope', function () {
         $model = new FunderIdentifierType;
         $builder = $model->newQuery();
 
-        expect($model->scopeActive($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+        expect($model->scopeActive($builder))->toBeInstanceOf(Builder::class);
     });
 });
 
@@ -234,14 +238,14 @@ describe('IdentifierType', function () {
     it('defines relatedIdentifiers relationship', function () {
         $model = new IdentifierType;
 
-        expect($model->relatedIdentifiers())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+        expect($model->relatedIdentifiers())->toBeInstanceOf(HasMany::class);
     });
 
     it('has active scope', function () {
         $model = new IdentifierType;
         $builder = $model->newQuery();
 
-        expect($model->scopeActive($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+        expect($model->scopeActive($builder))->toBeInstanceOf(Builder::class);
     });
 });
 
@@ -265,14 +269,14 @@ describe('RelationType', function () {
     it('defines relatedIdentifiers relationship', function () {
         $model = new RelationType;
 
-        expect($model->relatedIdentifiers())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+        expect($model->relatedIdentifiers())->toBeInstanceOf(HasMany::class);
     });
 
     it('has active scope', function () {
         $model = new RelationType;
         $builder = $model->newQuery();
 
-        expect($model->scopeActive($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+        expect($model->scopeActive($builder))->toBeInstanceOf(Builder::class);
     });
 });
 
@@ -296,21 +300,21 @@ describe('DateType', function () {
     it('defines dates relationship', function () {
         $model = new DateType;
 
-        expect($model->dates())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+        expect($model->dates())->toBeInstanceOf(HasMany::class);
     });
 
     it('has active scope', function () {
         $model = new DateType;
         $builder = $model->newQuery();
 
-        expect($model->scopeActive($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+        expect($model->scopeActive($builder))->toBeInstanceOf(Builder::class);
     });
 
     it('has orderByName scope', function () {
         $model = new DateType;
         $builder = $model->newQuery();
 
-        expect($model->scopeOrderByName($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+        expect($model->scopeOrderByName($builder))->toBeInstanceOf(Builder::class);
     });
 });
 
@@ -322,7 +326,7 @@ describe('IgsnClassification', function () {
     it('has correct fillable fields', function () {
         $model = new IgsnClassification;
 
-        expect($model->getFillable())->toBe(['resource_id', 'value', 'position']);
+        expect($model->getFillable())->toBe(['resource_id', 'value', 'classification_type', 'position']);
     });
 
     it('uses igsn_classifications table', function () {
@@ -338,7 +342,7 @@ describe('IgsnClassification', function () {
     it('defines resource relationship', function () {
         $model = new IgsnClassification;
 
-        expect($model->resource())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->resource())->toBeInstanceOf(BelongsTo::class);
     });
 });
 
@@ -362,7 +366,7 @@ describe('IgsnGeologicalAge', function () {
     it('defines resource relationship', function () {
         $model = new IgsnGeologicalAge;
 
-        expect($model->resource())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->resource())->toBeInstanceOf(BelongsTo::class);
     });
 });
 
@@ -386,6 +390,6 @@ describe('IgsnGeologicalUnit', function () {
     it('defines resource relationship', function () {
         $model = new IgsnGeologicalUnit;
 
-        expect($model->resource())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->resource())->toBeInstanceOf(BelongsTo::class);
     });
 });

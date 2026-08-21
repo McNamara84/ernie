@@ -90,6 +90,61 @@ CSV;
     });
 });
 
+describe('IGSN Controlled Vocabularies', function () {
+    it('canonicalizes material aliases and material-specific classifications', function () {
+        $csv = <<<'CSV'
+igsn|title|name|material|classification
+10.58052/IGSN.1234|Test Title|Sample Name| rock |igneous; Igneous>Volcanic; IGNEOUS
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty()
+            ->and($result['rows'])->toHaveCount(1)
+            ->and($result['rows'][0]['material'])->toBe('Rock')
+            ->and($result['rows'][0]['classification'])->toBe(['Igneous', 'Igneous>Volcanic']);
+    });
+
+    it('canonicalizes the legacy not-applicable material label', function () {
+        $csv = <<<'CSV'
+igsn|title|name|material
+10.58052/IGSN.1234|Test Title|Sample Name|Not applicable
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty()
+            ->and($result['rows'][0]['material'])->toBe('NotApplicable');
+    });
+
+    it('rejects unsupported materials without returning a partially parsed row', function () {
+        $csv = <<<'CSV'
+igsn|title|name|material
+10.58052/IGSN.1234|Test Title|Sample Name|Granite
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'])->toBeEmpty()
+            ->and($result['errors'])->toHaveCount(1)
+            ->and($result['errors'][0]['row'])->toBe(2)
+            ->and($result['errors'][0]['message'])->toBe('Unsupported IGSN material: Granite');
+    });
+
+    it('rejects classifications that do not belong to the selected material', function () {
+        $csv = <<<'CSV'
+igsn|title|name|material|classification
+10.58052/IGSN.1234|Test Title|Sample Name|Rock|Quartz
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'])->toBeEmpty()
+            ->and($result['errors'])->toHaveCount(1)
+            ->and($result['errors'][0]['message'])->toBe('Unsupported IGSN rock classification: Quartz');
+    });
+});
+
 describe('Multi-Value Field Parsing', function () {
     it('parses semicolon-separated sample_other_names', function () {
         $csv = <<<'CSV'

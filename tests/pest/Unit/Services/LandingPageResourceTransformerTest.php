@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Igsn\IgsnClassificationType;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\Description;
@@ -986,13 +987,27 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
         'sample_purpose' => 'Tectonic study',
         'collection_method' => 'Drilling',
         'collection_method_description' => null,
+        'description_json' => [
+            'material_descriptions' => ['Fine-grained basalt'],
+            'comments' => ['Stored frozen'],
+        ],
     ]);
     $igsn->setRelation('parentResource', $parent);
 
     $classificationA = new IgsnClassification;
-    $classificationA->forceFill(['id' => 1, 'value' => 'Igneous', 'position' => 1]);
+    $classificationA->forceFill([
+        'id' => 1,
+        'value' => 'Igneous',
+        'classification_type' => IgsnClassificationType::ROCK,
+        'position' => 1,
+    ]);
     $classificationB = new IgsnClassification;
-    $classificationB->forceFill(['id' => 2, 'value' => 'Plutonic', 'position' => 2]);
+    $classificationB->forceFill([
+        'id' => 2,
+        'value' => 'Plutonic',
+        'classification_type' => IgsnClassificationType::ROCK,
+        'position' => 2,
+    ]);
 
     $resource->setRelation('titles', new EloquentCollection);
     $resource->setRelation('creators', new EloquentCollection);
@@ -1024,6 +1039,8 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
             'cruise_field_program' => 'Alpine 2023',
             'sample_purpose' => 'Tectonic study',
             'collection_method' => 'Drilling',
+            'material_descriptions' => ['Fine-grained basalt'],
+            'comments' => ['Stored frozen'],
         ])
         ->and($data['igsn_metadata']['parent'])->toMatchArray([
             'doi' => '10.60510/igsn-parent',
@@ -1036,6 +1053,7 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
     expect($data)->toHaveKey('igsn_classifications')
         ->and($data['igsn_classifications'])->toHaveCount(2)
         ->and($data['igsn_classifications'][0]['value'])->toBe('Igneous')
+        ->and($data['igsn_classifications'][0]['classification_type'])->toBe('rock')
         ->and($data['igsn_classifications'][1]['value'])->toBe('Plutonic');
 });
 

@@ -59,15 +59,8 @@ const mergeUniqueText = (values: Array<string | null | undefined>): string[] => 
  *
  * Returns `null` when no field has data so the wrapping card is omitted.
  */
-export function AcquisitionSection({
-    igsn,
-    classifications,
-    descriptions,
-    contributors,
-    fundingReferences,
-    dates,
-}: AcquisitionSectionProps): ReactNode {
-    const rockClassification = dedup(
+export function AcquisitionSection({ igsn, classifications, contributors, fundingReferences, dates }: AcquisitionSectionProps): ReactNode {
+    const classification = dedup(
         classifications
             .map((classification) => classification.value)
             .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
@@ -81,12 +74,10 @@ export function AcquisitionSection({
             .map((name) => name.trim()),
     ).join(', ');
 
-    const commentsText =
-        mergeUniqueText([
-            ...(igsn?.comments ?? []),
-            ...descriptions.filter((description) => description.description_type?.toLowerCase() === 'other').map((description) => description.value),
-        ]).join('; ') || null;
+    const commentsText = mergeUniqueText(igsn?.comments ?? []).join('; ') || null;
     const comments = commentsText ? <span className="whitespace-pre-line">{commentsText}</span> : null;
+    const materialDescriptionsText = mergeUniqueText(igsn?.material_descriptions ?? []).join('; ') || null;
+    const materialDescriptions = materialDescriptionsText ? <span className="whitespace-pre-line">{materialDescriptionsText}</span> : null;
 
     const geologicalUnits = dedup((igsn?.geological_units ?? []).map((unit) => unit.value.trim()).filter(Boolean)).join(', ');
 
@@ -113,30 +104,27 @@ export function AcquisitionSection({
 
     const collectionMethod = igsn?.collection_method?.trim() || null;
     const collectionMethodDescription = igsn?.collection_method_description?.trim() || null;
-    let collectionMethodNode: ReactNode = collectionMethod;
-    if (collectionMethod && collectionMethodDescription) {
-        collectionMethodNode = (
-            <span>
-                {collectionMethod}
-                <span className="mt-1 block text-xs text-gray-600 dark:text-gray-400">{collectionMethodDescription}</span>
-            </span>
-        );
-    }
+    const material = igsn?.material === 'NotApplicable' ? 'Not applicable' : igsn?.material?.trim() || null;
+    const materialLabel = material ?? 'Material';
+    const missingValue = igsn ? 'N/A' : null;
+    const valueOrMissing = (value: ReactNode): ReactNode => value ?? missingValue;
 
     const rows: MetadataRow[] = [
-        { label: 'Material', value: igsn?.material ?? null },
-        { label: 'Rock Classification', value: rockClassification || null },
-        { label: 'Geological Unit', value: geologicalUnits || null },
-        { label: 'Comments', value: comments },
-        { label: 'Minimum Depth', value: igsn?.depth_min ?? null },
-        { label: 'Maximum Depth', value: igsn?.depth_max ?? null },
-        { label: 'Depth Scale', value: igsn?.depth_scale ?? null },
-        { label: 'Sizes', value: sizes || null },
-        { label: 'Collection Method', value: collectionMethodNode },
-        { label: 'Funding Agency', value: fundingAgency || null },
-        { label: 'Chief Scientist', value: chiefScientists || null },
-        { label: 'Start Date', value: startDate },
-        { label: 'End Date', value: endDate },
+        { label: 'Material', value: valueOrMissing(material) },
+        { label: `${materialLabel} Classification`, value: valueOrMissing(classification || null) },
+        { label: `${materialLabel} Description`, value: valueOrMissing(materialDescriptions) },
+        { label: 'Geological Unit', value: valueOrMissing(geologicalUnits || null) },
+        { label: 'Comments', value: valueOrMissing(comments) },
+        { label: 'Minimum Depth', value: valueOrMissing(igsn?.depth_min ?? null) },
+        { label: 'Maximum Depth', value: valueOrMissing(igsn?.depth_max ?? null) },
+        { label: 'Depth Scale', value: valueOrMissing(igsn?.depth_scale ?? null) },
+        { label: 'Sizes', value: valueOrMissing(sizes || null) },
+        { label: 'Collection Method', value: valueOrMissing(collectionMethod) },
+        { label: 'Collection Method Description', value: valueOrMissing(collectionMethodDescription) },
+        { label: 'Funding Agency', value: valueOrMissing(fundingAgency || null) },
+        { label: 'Chief Scientist', value: valueOrMissing(chiefScientists || null) },
+        { label: 'Start Date', value: valueOrMissing(startDate) },
+        { label: 'End Date', value: valueOrMissing(endDate) },
     ];
 
     const hasContent = hasVisibleMetadataRows(rows);

@@ -404,6 +404,8 @@ describe('DefaultGfzIgsnTemplate', () => {
                             id: 1,
                             sample_type: null,
                             material: 'Basalt',
+                            material_descriptions: ['Fine-grained volcanic rock'],
+                            comments: ['Field comments here'],
                             collection_method: 'Hand sampling',
                             collection_method_description: 'Surface outcrop',
                             sample_purpose: null,
@@ -415,7 +417,7 @@ describe('DefaultGfzIgsnTemplate', () => {
                             { id: 2, value: 'Volcanic' },
                         ],
                         funding_references: [{ id: 1, funder_name: 'NSF', award_title: 'X', award_number: 'Y' }],
-                        descriptions: [{ id: 1, value: 'Field comments here', description_type: 'Other' }],
+                        descriptions: [{ id: 1, value: 'DataCite Other description', description_type: 'Other' }],
                         contributors: [
                             {
                                 id: 1,
@@ -453,11 +455,16 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             expect(acquisitionHeading).toBeInTheDocument();
             expect(acquisition.getByText('Basalt')).toBeInTheDocument();
+            expect(acquisition.getByText('Basalt Classification')).toBeInTheDocument();
             expect(acquisition.getByText('Igneous, Volcanic')).toBeInTheDocument();
+            expect(acquisition.getByText('Basalt Description')).toBeInTheDocument();
+            expect(acquisition.getByText('Fine-grained volcanic rock')).toBeInTheDocument();
             expect(acquisition.getByText('Hand sampling')).toBeInTheDocument();
+            expect(acquisition.getByText('Collection Method Description')).toBeInTheDocument();
             expect(acquisition.getByText('Surface outcrop')).toBeInTheDocument();
             expect(acquisition.getByText('NSF')).toBeInTheDocument();
             expect(acquisition.getByText('Field comments here')).toBeInTheDocument();
+            expect(acquisition.queryByText('DataCite Other description')).not.toBeInTheDocument();
             expect(acquisition.getByText('Jane Smith')).toBeInTheDocument();
             expect(acquisition.getByText('Start Date')).toBeInTheDocument();
             expect(acquisition.getByText('2023-06-01')).toBeInTheDocument();
