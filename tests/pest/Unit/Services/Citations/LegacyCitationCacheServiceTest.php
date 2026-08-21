@@ -69,6 +69,22 @@ it('prefers the canonical legacy URL when multiple valid variants exist', functi
         ->toBe('Canonical HTTP citation');
 });
 
+it('loads a mixed-case canonical variant even after an exact lower-priority hit', function (): void {
+    DB::connection('legacy_metaworks')->table('citationcache')->insert([
+        [
+            'url' => 'https://doi.org/10.1234/example',
+            'citation' => 'Exact lower-priority citation',
+        ],
+        [
+            'url' => 'http://doi.org/10.1234/EXAMPLE',
+            'citation' => 'Mixed-case canonical citation',
+        ],
+    ]);
+
+    expect(legacyCitationCacheService()->find('10.1234/example'))
+        ->toBe('Mixed-case canonical citation');
+});
+
 it('skips error sentinels and uses the next valid URL variant', function (string $sentinel): void {
     DB::connection('legacy_metaworks')->table('citationcache')->insert([
         [
@@ -148,7 +164,7 @@ it('uses one indexed query when every DOI has a canonical cache hit', function (
     expect($citationQueries)->toHaveCount(1);
 });
 
-it('treats a legacy database failure as a cache miss', function (): void {
+it('opens a circuit breaker after a legacy database failure', function (): void {
     Schema::connection('legacy_metaworks')->drop('citationcache');
     Log::shouldReceive('warning')
         ->once()
@@ -157,5 +173,9 @@ it('treats a legacy database failure as a cache miss', function (): void {
             Mockery::on(fn (array $context): bool => $context['doi_count'] === 1 && $context['error'] !== ''),
         );
 
-    expect(legacyCitationCacheService()->find('10.1234/example'))->toBeNull();
+    $service = legacyCitationCacheService();
+
+    expect($service->find('10.1234/example'))->toBeNull()
+        ->and($service->find('10.1234/another'))->toBeNull()
+        ->and($service->findMany(['10.1234/third']))->toBe([]);
 });

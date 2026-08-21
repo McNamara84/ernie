@@ -24,6 +24,8 @@ class LegacyCitationCacheService
         'doi:',
     ];
 
+    private bool $legacyDatabaseUnavailable = false;
+
     public function __construct(
         private readonly DataCiteApiService $dataCite,
     ) {}
@@ -45,6 +47,10 @@ class LegacyCitationCacheService
      */
     public function findMany(array $dois): array
     {
+        if ($this->legacyDatabaseUnavailable) {
+            return [];
+        }
+
         /** @var array<string, true> $normalizedDois */
         $normalizedDois = [];
 
@@ -65,15 +71,20 @@ class LegacyCitationCacheService
         try {
             $rows = $this->queryRows($candidateUrls, false);
             $citations = $this->selectCitations($rows);
-            $missingDois = array_values(array_diff(array_keys($normalizedDois), array_keys($citations)));
+            $rankZeroDois = $this->rankZeroDois($rows);
+            $fallbackDois = array_values(array_filter(
+                array_keys($normalizedDois),
+                static fn (string $doi): bool => ! isset($citations[$doi]) || ! isset($rankZeroDois[$doi]),
+            ));
 
             // The production column uses a case-insensitive collation, so the
             // indexed lookup above normally covers mixed-case DOI suffixes. The
-            // fallback also keeps tests and differently configured replicas safe.
-            if ($missingDois !== []) {
+            // fallback also keeps differently configured replicas safe. Even a
+            // lower-ranked exact hit must not hide a mixed-case canonical row.
+            if ($fallbackDois !== []) {
                 $rows = [
                     ...$rows,
-                    ...$this->queryRows($this->candidateUrls($missingDois), true),
+                    ...$this->queryRows($this->candidateUrls($fallbackDois), true),
                 ];
                 $citations = $this->selectCitations($rows);
             }
@@ -88,6 +99,8 @@ class LegacyCitationCacheService
 
             return $orderedCitations;
         } catch (\Throwable $exception) {
+            $this->legacyDatabaseUnavailable = true;
+
             Log::warning('Legacy citation cache lookup failed; falling back to DOI metadata.', [
                 'doi_count' => count($normalizedDois),
                 'error' => $exception->getMessage(),
@@ -161,6 +174,25 @@ class LegacyCitationCacheService
         }
 
         return $rows;
+    }
+
+    /**
+     * @param  list<array{url: string, citation: string}>  $rows
+     * @return array<string, true>
+     */
+    private function rankZeroDois(array $rows): array
+    {
+        $dois = [];
+
+        foreach ($rows as $row) {
+            $doi = $this->normalizeDoi($row['url']);
+
+            if ($doi !== null && $this->urlRank($row['url']) === 0) {
+                $dois[$doi] = true;
+            }
+        }
+
+        return $dois;
     }
 
     /**
