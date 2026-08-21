@@ -198,6 +198,10 @@
         ],
         "improvements": [
             {
+                "title": "Resilient Legacy Related-DOI Citation Import",
+                "description": "Legacy resource imports now preserve supplied Related Work citation labels, reuse historical landing-page citations from the legacy database next, and contact the DOI metadata provider only for remaining labels. Invalid DOI placeholders are discarded, while a valid unresolved related DOI is retained without a label instead of blocking a single-resource import. Legacy database outages are handled once per import process to avoid repeated delays and warning logs."
+            },
+            {
                 "title": "Enriched Legacy Metadata on IGSN Landing Pages",
                 "description": "New IGSN imports now retain additional legacy physical-sample metadata while continuing to store DataCite-compatible fields only once in the shared resource model. The Default GFZ IGSN landing page presents canonical IGSN handles, sample names and parent relationships, acquisition details, repository and repository-contact information, and richer Sampling Location metadata. Coordinate pairs are rendered consistently as a point, box, or polygon, and existing DataCite metadata is preserved and supplemented without duplicate values."
             },

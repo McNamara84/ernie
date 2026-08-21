@@ -3,8 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\CitationLabelResolutionMode;
-use App\Exceptions\IncompleteCitationLabelResolutionException;
-use App\Models\Resource;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteToResourceTransformer;
@@ -32,9 +30,10 @@ beforeEach(function (): void {
 
 it('imports all related works from issue 1077 when JSON omits their identifiers', function (): void {
     $citationService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $citationService->shouldReceive('resolveBestEffort')
-        ->times(3)
-        ->andReturnNull();
+    $citationService->shouldReceive('resolveBestEffortBatch')
+        ->once()
+        ->with(Mockery::type('array'), Mockery::type('float'))
+        ->andReturnUsing(fn (array $relations): array => $relations);
     $this->app->instance(RelatedIdentifierCitationLabelService::class, $citationService);
 
     $originalXml = <<<'XML'
@@ -86,7 +85,9 @@ XML;
 
 it('supplements JSON with XML and legacy relations while preserving JSON values', function (): void {
     $citationService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $citationService->shouldReceive('resolveBestEffort')->zeroOrMoreTimes()->andReturnNull();
+    $citationService->shouldReceive('resolveBestEffortBatch')
+        ->once()
+        ->andReturnUsing(fn (array $relations): array => $relations);
     $this->app->instance(RelatedIdentifierCitationLabelService::class, $citationService);
 
     $xml = <<<'XML'
@@ -135,7 +136,7 @@ XML;
         ]);
 });
 
-it('persists all 17 citation labels from issue 1086 in stable order in required mode', function (): void {
+it('persists all 17 citation labels from issue 1086 in stable order in exhaustive mode', function (): void {
     $dois = [
         '10.1186/s40645-023-00560-4',
         '10.1093/petrology/egac086',
@@ -156,7 +157,7 @@ it('persists all 17 citation labels from issue 1086 in stable order in required 
         '10.1093/petrology/egab034',
     ];
     $citationService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $citationService->shouldReceive('resolveRequired')
+    $citationService->shouldReceive('resolveExhaustive')
         ->once()
         ->with(Mockery::on(fn (array $relations): bool => array_column($relations, 'relatedIdentifier') === $dois))
         ->andReturnUsing(function (array $relations): array {
@@ -166,7 +167,7 @@ it('persists all 17 citation labels from issue 1086 in stable order in required 
 
             return $relations;
         });
-    $citationService->shouldNotReceive('resolveBestEffort');
+    $citationService->shouldNotReceive('resolveBestEffortBatch');
     $this->app->instance(RelatedIdentifierCitationLabelService::class, $citationService);
 
     $doiData = [
@@ -190,10 +191,10 @@ it('persists all 17 citation labels from issue 1086 in stable order in required 
     $transformer = new DataCiteToResourceTransformer;
     $prepared = $transformer->prepareDoiData(
         $doiData,
-        citationLabelResolutionMode: CitationLabelResolutionMode::REQUIRED,
+        citationLabelResolutionMode: CitationLabelResolutionMode::EXHAUSTIVE,
     );
 
-    expect($prepared['__citation_labels_prepared'])->toBe('required')
+    expect($prepared['__citation_labels_prepared'])->toBe('exhaustive')
         ->and(array_column($prepared['attributes']['relatedIdentifiers'], 'citationLabel'))
         ->each->toBeString()->not->toBeEmpty();
 
@@ -209,10 +210,12 @@ it('persists all 17 citation labels from issue 1086 in stable order in required 
         ));
 });
 
-it('upgrades best-effort prepared data before satisfying required mode', function (): void {
+it('upgrades best-effort prepared data before satisfying exhaustive mode', function (): void {
     $citationService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $citationService->shouldReceive('resolveBestEffort')->once()->andReturnNull();
-    $citationService->shouldReceive('resolveRequired')
+    $citationService->shouldReceive('resolveBestEffortBatch')
+        ->once()
+        ->andReturnUsing(fn (array $relations): array => $relations);
+    $citationService->shouldReceive('resolveExhaustive')
         ->once()
         ->andReturnUsing(function (array $relations): array {
             $relations[0]['citationLabel'] = 'Strict citation';
@@ -232,44 +235,99 @@ it('upgrades best-effort prepared data before satisfying required mode', functio
             ]],
         ],
     ]);
-    $required = $transformer->prepareDoiData(
+    $exhaustive = $transformer->prepareDoiData(
         $bestEffort,
-        citationLabelResolutionMode: CitationLabelResolutionMode::REQUIRED,
+        citationLabelResolutionMode: CitationLabelResolutionMode::EXHAUSTIVE,
     );
-    $alreadyRequired = $transformer->prepareDoiData(
-        $required,
-        citationLabelResolutionMode: CitationLabelResolutionMode::REQUIRED,
+    $alreadyExhaustive = $transformer->prepareDoiData(
+        $exhaustive,
+        citationLabelResolutionMode: CitationLabelResolutionMode::EXHAUSTIVE,
     );
 
     expect($bestEffort['__citation_labels_prepared'])->toBe('best-effort')
         ->and($bestEffort['attributes']['relatedIdentifiers'][0])->not->toHaveKey('citationLabel')
-        ->and($required['__citation_labels_prepared'])->toBe('required')
-        ->and($required['attributes']['relatedIdentifiers'][0]['citationLabel'])->toBe('Strict citation')
-        ->and($alreadyRequired)->toBe($required);
+        ->and($exhaustive['__citation_labels_prepared'])->toBe('exhaustive')
+        ->and($exhaustive['attributes']['relatedIdentifiers'][0]['citationLabel'])->toBe('Strict citation')
+        ->and($alreadyExhaustive)->toBe($exhaustive);
 });
 
-it('does not persist a resource when required citation preparation fails', function (): void {
+it('retains a valid unresolved DOI without a citation in exhaustive mode', function (): void {
     $citationService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $citationService->shouldReceive('resolveRequired')
+    $citationService->shouldReceive('resolveExhaustive')
         ->once()
-        ->andThrow(new IncompleteCitationLabelResolutionException([
-            '10.1234/unavailable' => 'Connection timeout.',
-        ]));
+        ->andReturnUsing(fn (array $relations): array => $relations);
     $this->app->instance(RelatedIdentifierCitationLabelService::class, $citationService);
 
     $transformer = new DataCiteToResourceTransformer;
-
-    expect(fn () => $transformer->prepareDoiData([
+    $prepared = $transformer->prepareDoiData([
         'attributes' => [
-            'doi' => '10.5880/strict-failure',
+            'doi' => '10.5880/tolerant-import',
+            'publicationYear' => 2026,
+            'titles' => [['title' => 'Tolerant citation import']],
+            'creators' => [[
+                'familyName' => 'Example',
+                'givenName' => 'Erin',
+                'nameType' => 'Personal',
+            ]],
             'relatedIdentifiers' => [[
                 'relatedIdentifier' => '10.1234/unavailable',
                 'relatedIdentifierType' => 'DOI',
                 'relationType' => 'Cites',
             ]],
         ],
-    ], citationLabelResolutionMode: CitationLabelResolutionMode::REQUIRED))
-        ->toThrow(IncompleteCitationLabelResolutionException::class);
+    ], citationLabelResolutionMode: CitationLabelResolutionMode::EXHAUSTIVE);
 
-    expect(Resource::where('doi', '10.5880/strict-failure')->exists())->toBeFalse();
+    expect($prepared['attributes']['relatedIdentifiers'])->toBe([[
+        'relatedIdentifier' => '10.1234/unavailable',
+        'relatedIdentifierType' => 'DOI',
+        'relationType' => 'Cites',
+    ]]);
+
+    $resource = $transformer->transform($prepared, User::factory()->create()->id);
+
+    expect($resource->relatedIdentifiers()->sole())
+        ->identifier->toBe('10.1234/unavailable')
+        ->citation_label->toBeNull();
+});
+
+it('discards legacy DOI placeholders while retaining valid unresolved DOIs', function (): void {
+    $citationService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+    $citationService->shouldReceive('resolveExhaustive')
+        ->once()
+        ->with([[
+            'relatedIdentifier' => '10.60510/ICDP5073EHG0001',
+            'relatedIdentifierType' => 'DOI',
+            'relationType' => 'HasPart',
+        ]])
+        ->andReturnUsing(fn (array $relations): array => $relations);
+    $this->app->instance(RelatedIdentifierCitationLabelService::class, $citationService);
+
+    $prepared = (new DataCiteToResourceTransformer)->prepareDoiData([
+        'attributes' => [
+            'doi' => '10.5880/ICDP.5073.001',
+            'relatedIdentifiers' => [
+                [
+                    'relatedIdentifier' => 'DOI of paper when available',
+                    'relatedIdentifierType' => 'DOI',
+                    'relationType' => 'IsReferencedBy',
+                ],
+                [
+                    'relatedIdentifier' => 'DOI of SD Article when available',
+                    'relatedIdentifierType' => 'DOI',
+                    'relationType' => 'IsReferencedBy',
+                ],
+                [
+                    'relatedIdentifier' => '10.60510/ICDP5073EHG0001',
+                    'relatedIdentifierType' => 'DOI',
+                    'relationType' => 'HasPart',
+                ],
+            ],
+        ],
+    ], citationLabelResolutionMode: CitationLabelResolutionMode::EXHAUSTIVE);
+
+    expect($prepared['attributes']['relatedIdentifiers'])->toBe([[
+        'relatedIdentifier' => '10.60510/ICDP5073EHG0001',
+        'relatedIdentifierType' => 'DOI',
+        'relationType' => 'HasPart',
+    ]]);
 });

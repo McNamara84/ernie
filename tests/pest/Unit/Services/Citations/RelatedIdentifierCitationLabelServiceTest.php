@@ -2,11 +2,25 @@
 
 declare(strict_types=1);
 
-use App\Exceptions\IncompleteCitationLabelResolutionException;
+use App\Services\Citations\LegacyCitationCacheService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteApiService;
+use Illuminate\Support\Facades\Log;
 
-covers(RelatedIdentifierCitationLabelService::class, IncompleteCitationLabelResolutionException::class);
+covers(RelatedIdentifierCitationLabelService::class);
+
+function relatedIdentifierCitationLabelService(
+    DataCiteApiService $dataCite,
+    ?LegacyCitationCacheService $legacy = null,
+): RelatedIdentifierCitationLabelService {
+    if ($legacy === null) {
+        $legacy = Mockery::mock(LegacyCitationCacheService::class);
+        $legacy->shouldReceive('find')->zeroOrMoreTimes()->andReturnNull();
+        $legacy->shouldReceive('findMany')->zeroOrMoreTimes()->andReturn([]);
+    }
+
+    return new RelatedIdentifierCitationLabelService($dataCite, $legacy);
+}
 
 it('resolves a citation label for DOI identifiers', function () {
     $dataCite = Mockery::mock(DataCiteApiService::class);
@@ -14,9 +28,37 @@ it('resolves a citation label for DOI identifiers', function () {
     $dataCite->shouldReceive('getMetadata')->once()->with('10.1234/example')->andReturn(['title' => 'Example']);
     $dataCite->shouldReceive('buildCitationFromMetadata')->once()->with(['title' => 'Example'])->andReturn('Doe, J. (2026): Example. Publisher.');
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    $service = relatedIdentifierCitationLabelService($dataCite);
 
     expect($service->resolve('10.1234/example', 'DOI'))->toBe('Doe, J. (2026): Example. Publisher.');
+});
+
+it('uses a legacy citation before requesting DOI metadata', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldReceive('normalizeDoi')->once()->with('10.1007/example')->andReturn('10.1007/example');
+    $dataCite->shouldNotReceive('getMetadata');
+    $dataCite->shouldNotReceive('buildCitationFromMetadata');
+
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('find')->once()->with('10.1007/example')->andReturn('Legacy citation');
+
+    $service = relatedIdentifierCitationLabelService($dataCite, $legacy);
+
+    expect($service->resolve('10.1007/example', 'DOI'))->toBe('Legacy citation');
+});
+
+it('falls back to DOI metadata after a legacy cache miss', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldReceive('normalizeDoi')->once()->with('10.1007/example')->andReturn('10.1007/example');
+    $dataCite->shouldReceive('getMetadata')->once()->with('10.1007/example')->andReturn(['title' => 'Example']);
+    $dataCite->shouldReceive('buildCitationFromMetadata')->once()->andReturn('Generated citation');
+
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('find')->once()->with('10.1007/example')->andReturnNull();
+
+    $service = relatedIdentifierCitationLabelService($dataCite, $legacy);
+
+    expect($service->resolve('10.1007/example', 'DOI'))->toBe('Generated citation');
 });
 
 it('resolves a citation label for DOI resolver URLs stored as URL', function () {
@@ -25,7 +67,7 @@ it('resolves a citation label for DOI resolver URLs stored as URL', function () 
     $dataCite->shouldReceive('getMetadata')->once()->with('10.1234/example')->andReturn(['title' => 'Example']);
     $dataCite->shouldReceive('buildCitationFromMetadata')->once()->with(['title' => 'Example'])->andReturn('Doe, J. (2026): Example. Publisher.');
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    $service = relatedIdentifierCitationLabelService($dataCite);
 
     expect($service->resolve('https://doi.org/10.1234/example', 'URL'))->toBe('Doe, J. (2026): Example. Publisher.');
 });
@@ -36,7 +78,7 @@ it('returns null for non DOI-like URL identifiers', function () {
     $dataCite->shouldNotReceive('getMetadata');
     $dataCite->shouldNotReceive('buildCitationFromMetadata');
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    $service = relatedIdentifierCitationLabelService($dataCite);
 
     expect($service->resolve('https://example.org/page', 'URL'))->toBeNull();
 });
@@ -47,9 +89,21 @@ it('returns null for unsupported identifier types', function () {
     $dataCite->shouldNotReceive('getMetadata');
     $dataCite->shouldNotReceive('buildCitationFromMetadata');
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    $service = relatedIdentifierCitationLabelService($dataCite);
 
     expect($service->resolve('1234/5678', 'Handle'))->toBeNull();
+});
+
+it('rejects DOI values containing whitespace', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldReceive('normalizeDoi')
+        ->once()
+        ->with('10.1234/not valid')
+        ->andReturn('10.1234/not valid');
+    $dataCite->shouldNotReceive('getMetadata');
+
+    expect(relatedIdentifierCitationLabelService($dataCite)->resolve('10.1234/not valid', 'DOI'))
+        ->toBeNull();
 });
 
 it('returns null when metadata lookup fails', function () {
@@ -58,7 +112,7 @@ it('returns null when metadata lookup fails', function () {
     $dataCite->shouldReceive('getMetadata')->once()->with('10.1234/missing')->andReturnNull();
     $dataCite->shouldNotReceive('buildCitationFromMetadata');
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    $service = relatedIdentifierCitationLabelService($dataCite);
 
     expect($service->resolve('10.1234/missing', 'DOI'))->toBeNull();
 });
@@ -69,7 +123,7 @@ it('uses the provided timeout for best-effort resolution without caching transie
     $dataCite->shouldReceive('getMetadata')->once()->with('10.1234/example', 0.5, false)->andReturn(['title' => 'Example']);
     $dataCite->shouldReceive('buildCitationFromMetadata')->once()->with(['title' => 'Example'])->andReturn('Doe, J. (2026): Example. Publisher.');
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    $service = relatedIdentifierCitationLabelService($dataCite);
 
     expect($service->resolve('10.1234/example', 'DOI', 0.5))->toBe('Doe, J. (2026): Example. Publisher.');
 });
@@ -80,7 +134,7 @@ it('skips best-effort resolution when the aggregate budget is exhausted', functi
     $dataCite->shouldNotReceive('getMetadata');
     $dataCite->shouldNotReceive('buildCitationFromMetadata');
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    $service = relatedIdentifierCitationLabelService($dataCite);
 
     expect($service->resolveBestEffort('10.1234/example', 'DOI', microtime(true) - 1))->toBeNull();
 });
@@ -98,7 +152,7 @@ it('resolves within the remaining best-effort budget', function () {
         ->andReturn(['title' => 'Budget']);
     $dataCite->shouldReceive('buildCitationFromMetadata')->once()->andReturn('Budget citation');
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    $service = relatedIdentifierCitationLabelService($dataCite);
 
     expect($service->resolveBestEffort('10.1234/budget', 'DOI', microtime(true) + 1))->toBe('Budget citation');
 });
@@ -108,9 +162,50 @@ it('skips best-effort resolution when too little aggregate budget remains', func
     $dataCite->shouldNotReceive('normalizeDoi');
     $dataCite->shouldNotReceive('getMetadata');
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    $service = relatedIdentifierCitationLabelService($dataCite);
 
     expect($service->resolveBestEffort('10.1234/example', 'DOI', microtime(true) + 0.05))->toBeNull();
+});
+
+it('batch-resolves legacy citations before spending the shared best-effort HTTP budget', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class)->makePartial();
+    $dataCite->shouldReceive('getMetadata')
+        ->once()
+        ->with(
+            '10.1234/metadata',
+            Mockery::on(fn (float $timeout): bool => $timeout >= 0.1 && $timeout <= 0.75),
+            false,
+        )
+        ->andReturn(['title' => 'Metadata']);
+    $dataCite->shouldReceive('buildCitationFromMetadata')->once()->andReturn('Metadata citation');
+
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('findMany')
+        ->once()
+        ->with(['10.1234/legacy', '10.1234/metadata'])
+        ->andReturn(['10.1234/legacy' => 'Legacy citation']);
+
+    $resolved = relatedIdentifierCitationLabelService($dataCite, $legacy)->resolveBestEffortBatch([
+        [
+            'relatedIdentifier' => ' 10.1234/LEGACY ',
+            'relatedIdentifierType' => 'DOI',
+        ],
+        [
+            'relatedIdentifier' => '10.1234/metadata',
+            'relatedIdentifierType' => 'DOI',
+        ],
+        [
+            'relatedIdentifier' => '10.1234/manual',
+            'relatedIdentifierType' => 'DOI',
+            'citationLabel' => ' Manual citation ',
+        ],
+    ], microtime(true) + 1);
+
+    expect($resolved[0])->toMatchArray([
+        'relatedIdentifier' => '10.1234/LEGACY',
+        'citationLabel' => 'Legacy citation',
+    ])->and($resolved[1]['citationLabel'])->toBe('Metadata citation')
+        ->and($resolved[2]['citationLabel'])->toBe('Manual citation');
 });
 
 it('resolves all 17 citation labels from issue 1086 with the existing ERNIE formatter', function () {
@@ -160,8 +255,8 @@ it('resolves all 17 citation labels from issue 1086 with the existing ERNIE form
         'relationType' => 'Cites',
     ], $dois);
 
-    $resolved = (new RelatedIdentifierCitationLabelService($dataCite))
-        ->resolveRequired($relatedIdentifiers);
+    $resolved = relatedIdentifierCitationLabelService($dataCite)
+        ->resolveExhaustive($relatedIdentifiers);
 
     expect($resolved)->toHaveCount(17)
         ->and(array_filter(
@@ -189,7 +284,7 @@ it('preserves manual labels, deduplicates DOI forms, and ignores unsupported rel
         ->with(['title' => 'Shared'])
         ->andReturn('Generated shared citation');
 
-    $resolved = (new RelatedIdentifierCitationLabelService($dataCite))->resolveRequired([
+    $resolved = relatedIdentifierCitationLabelService($dataCite)->resolveExhaustive([
         [
             'relatedIdentifier' => ' 10.1234/SHARED ',
             'relatedIdentifierType' => 'DOI',
@@ -222,51 +317,81 @@ it('preserves manual labels, deduplicates DOI forms, and ignores unsupported rel
         ->and($resolved[4])->not->toHaveKey('citationLabel');
 });
 
-it('fails required resolution for a malformed explicit DOI without making a batch request', function () {
+it('queries DOI metadata only for exhaustive legacy cache misses', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class)->makePartial();
+    $dataCite->shouldReceive('getMetadataBatch')
+        ->once()
+        ->with(['10.1234/metadata'])
+        ->andReturn([
+            '10.1234/metadata' => [
+                'status' => 'resolved',
+                'metadata' => ['title' => 'Metadata result'],
+            ],
+        ]);
+    $dataCite->shouldReceive('buildCitationFromMetadata')
+        ->once()
+        ->with(['title' => 'Metadata result'])
+        ->andReturn('Metadata citation');
+
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('findMany')
+        ->once()
+        ->with(['10.1234/legacy', '10.1234/metadata'])
+        ->andReturn(['10.1234/legacy' => 'Legacy citation']);
+
+    $resolved = relatedIdentifierCitationLabelService($dataCite, $legacy)->resolveExhaustive([
+        [
+            'relatedIdentifier' => '10.1234/legacy',
+            'relatedIdentifierType' => 'DOI',
+        ],
+        [
+            'relatedIdentifier' => '10.1234/metadata',
+            'relatedIdentifierType' => 'DOI',
+        ],
+    ]);
+
+    expect($resolved[0]['citationLabel'])->toBe('Legacy citation')
+        ->and($resolved[1]['citationLabel'])->toBe('Metadata citation');
+});
+
+it('tolerates a malformed explicit DOI without making a batch request', function () {
     $dataCite = Mockery::mock(DataCiteApiService::class)->makePartial();
     $dataCite->shouldNotReceive('getMetadataBatch');
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    $service = relatedIdentifierCitationLabelService($dataCite);
 
-    try {
-        $service->resolveRequired([[
-            'relatedIdentifier' => 'not-a-doi',
-            'relatedIdentifierType' => 'DOI',
-        ]]);
-
-        test()->fail('Expected incomplete citation-label resolution exception.');
-    } catch (IncompleteCitationLabelResolutionException $exception) {
-        expect($exception->failures)->toBe([
-            'not-a-doi' => 'The identifier is not a valid resolvable DOI.',
-        ])->and($exception->getMessage())->toContain('The resource was not imported.');
-    }
+    expect($service->resolveExhaustive([[
+        'relatedIdentifier' => 'not-a-doi',
+        'relatedIdentifierType' => 'DOI',
+    ]]))->toBe([[
+        'relatedIdentifier' => 'not-a-doi',
+        'relatedIdentifierType' => 'DOI',
+    ]]);
 });
 
-it('fails required resolution for an empty explicit DOI and tolerates empty unrelated entries', function () {
+it('tolerates empty identifiers without making a batch request', function () {
     $dataCite = Mockery::mock(DataCiteApiService::class);
     $dataCite->shouldNotReceive('normalizeDoi');
     $dataCite->shouldNotReceive('getMetadataBatch');
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    $service = relatedIdentifierCitationLabelService($dataCite);
 
-    try {
-        $service->resolveRequired([
-            [],
-            [
-                'relatedIdentifier' => '   ',
-                'relatedIdentifierType' => 'DOI',
-            ],
-        ]);
-
-        test()->fail('Expected incomplete citation-label resolution exception.');
-    } catch (IncompleteCitationLabelResolutionException $exception) {
-        expect($exception->failures)->toBe([
-            '[empty DOI at position 2]' => 'The identifier is not a valid resolvable DOI.',
-        ]);
-    }
+    expect($service->resolveExhaustive([
+        [],
+        [
+            'relatedIdentifier' => '   ',
+            'relatedIdentifierType' => 'DOI',
+        ],
+    ]))->toBe([
+        [],
+        [
+            'relatedIdentifier' => '   ',
+            'relatedIdentifierType' => 'DOI',
+        ],
+    ]);
 });
 
-it('reports remote failures and missing citation text as incomplete', function (mixed $outcome, string $reason) {
+it('retains valid DOIs without labels after an exhaustive miss', function (mixed $outcome, string $reason) {
     $dataCite = Mockery::mock(DataCiteApiService::class)->makePartial();
     $dataCite->shouldReceive('getMetadataBatch')
         ->once()
@@ -277,18 +402,25 @@ it('reports remote failures and missing citation text as incomplete', function (
         $dataCite->shouldReceive('buildCitationFromMetadata')->once()->andReturn('   ');
     }
 
-    $service = new RelatedIdentifierCitationLabelService($dataCite);
+    Log::spy();
+    $service = relatedIdentifierCitationLabelService($dataCite);
+    $resolved = $service->resolveExhaustive([[
+        'relatedIdentifier' => '10.1234/unresolved',
+        'relatedIdentifierType' => 'DOI',
+    ]]);
 
-    try {
-        $service->resolveRequired([[
-            'relatedIdentifier' => '10.1234/unresolved',
-            'relatedIdentifierType' => 'DOI',
-        ]]);
-
-        test()->fail('Expected incomplete citation-label resolution exception.');
-    } catch (IncompleteCitationLabelResolutionException $exception) {
-        expect($exception->failures)->toBe(['10.1234/unresolved' => $reason]);
-    }
+    expect($resolved)->toBe([[
+        'relatedIdentifier' => '10.1234/unresolved',
+        'relatedIdentifierType' => 'DOI',
+    ]]);
+    Log::shouldHaveReceived('info')
+        ->once()
+        ->with(
+            'Exhaustive citation label resolution completed.',
+            Mockery::on(fn (array $context): bool => $context['unresolved'] === [
+                '10.1234/unresolved' => $reason,
+            ]),
+        );
 })->with([
     'exhausted metadata lookup' => [
         ['status' => 'failed', 'reason' => 'Connection timeout after three attempts.'],
@@ -303,18 +435,3 @@ it('reports remote failures and missing citation text as incomplete', function (
         'The DOI metadata service returned no result.',
     ],
 ]);
-
-it('abbreviates long unresolved DOI lists in the domain exception message', function () {
-    $failures = [];
-
-    foreach (range(1, 6) as $index) {
-        $failures["10.1234/failure.{$index}"] = 'Unavailable';
-    }
-
-    $exception = new IncompleteCitationLabelResolutionException($failures);
-
-    expect($exception->getMessage())
-        ->toContain('6 related identifier(s)')
-        ->toContain('10.1234/failure.5, …')
-        ->not->toContain('10.1234/failure.6');
-});

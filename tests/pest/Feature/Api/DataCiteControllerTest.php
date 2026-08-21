@@ -3,9 +3,17 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\DataCiteController;
+use App\Services\Citations\LegacyCitationCacheService;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteApiService;
 
 covers(DataCiteController::class);
+
+beforeEach(function (): void {
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('find')->zeroOrMoreTimes()->andReturnNull();
+    $this->app->instance(LegacyCitationCacheService::class, $legacy);
+});
 
 describe('GET /api/datacite/citation', function (): void {
     test('returns citation for valid DOI', function (): void {
@@ -32,6 +40,29 @@ describe('GET /api/datacite/citation', function (): void {
         $response->assertOk()
             ->assertJsonPath('doi', '10.5880/test.2024.001')
             ->assertJsonPath('citation', 'Doe, J. (2024): Test Dataset.');
+    });
+
+    test('returns a legacy citation without requesting DOI metadata', function (): void {
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
+        $mockService->shouldNotReceive('getMetadata');
+        $mockService->shouldNotReceive('buildCitationFromMetadata');
+        $this->app->instance(DataCiteApiService::class, $mockService);
+
+        $citationLabels = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $citationLabels->shouldReceive('resolve')
+            ->once()
+            ->with('10.1007/978-94-015-7879-0', 'DOI')
+            ->andReturn('Cook, E., Kairiukstis, Leonardas, 1990. Methods of dendrochronology.');
+        $this->app->instance(RelatedIdentifierCitationLabelService::class, $citationLabels);
+
+        $response = $this->getJson('/api/datacite/citation?doi=10.1007/978-94-015-7879-0');
+
+        $response->assertOk()
+            ->assertJsonPath('doi', '10.1007/978-94-015-7879-0')
+            ->assertJsonPath(
+                'citation',
+                'Cook, E., Kairiukstis, Leonardas, 1990. Methods of dendrochronology.',
+            );
     });
 
     test('returns 404 when DOI not found', function (): void {

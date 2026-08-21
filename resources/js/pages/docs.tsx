@@ -2205,6 +2205,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the GFZ legacy database before the
                             import starts. Resources that already exist in ERNIE are detected and skipped without overwriting the current record.
                         </p>
+                        <p>
+                            ERNIE preserves existing Related Work citation labels, then imports missing DOI labels from the legacy citation cache
+                            before contacting the DOI metadata provider. Invalid DOI placeholders are discarded. If neither lookup resolves a label,
+                            the valid related DOI is still imported without one instead of failing the complete resource import; its label can be
+                            curated later in the Data Editor.
+                        </p>
                     </>
                 ),
             },

@@ -3,7 +3,6 @@
 use App\Enums\CacheKey;
 use App\Enums\CitationLabelResolutionMode;
 use App\Enums\UserRole;
-use App\Exceptions\IncompleteCitationLabelResolutionException;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Datacenter;
 use App\Models\LandingPage;
@@ -808,7 +807,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('prepareDoiData')
             ->once()
-            ->with($doiRecord, [], CitationLabelResolutionMode::REQUIRED)
+            ->with($doiRecord, [], CitationLabelResolutionMode::EXHAUSTIVE)
             ->andReturn($doiRecord);
 
         $this->transformer
@@ -864,7 +863,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('prepareDoiData')
             ->once()
-            ->with($expectedRecord, [], CitationLabelResolutionMode::REQUIRED)
+            ->with($expectedRecord, [], CitationLabelResolutionMode::EXHAUSTIVE)
             ->andReturn($expectedRecord);
         $this->transformer
             ->shouldReceive('transform')
@@ -1125,7 +1124,7 @@ describe('ImportFromDataCiteJob', function () {
         ],
     ]);
 
-    it('fails a single import atomically when a required citation label cannot be resolved', function () {
+    it('completes a single import when an exhaustive citation label lookup remains unresolved', function () {
         $doiRecord = [
             'id' => '10.5880/incomplete-citations',
             'attributes' => [
@@ -1137,10 +1136,6 @@ describe('ImportFromDataCiteJob', function () {
                 ]],
             ],
         ];
-        $exception = new IncompleteCitationLabelResolutionException([
-            '10.1234/unavailable' => 'Connection timeout after three attempts.',
-        ]);
-
         $this->importService
             ->shouldReceive('fetchSingleDoi')
             ->once()
@@ -1149,9 +1144,13 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('prepareDoiData')
             ->once()
-            ->with($doiRecord, [], CitationLabelResolutionMode::REQUIRED)
-            ->andThrow($exception);
-        $this->transformer->shouldReceive('transform')->never();
+            ->with($doiRecord, [], CitationLabelResolutionMode::EXHAUSTIVE)
+            ->andReturn($doiRecord);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->with($doiRecord, $this->user->id)
+            ->andReturn(Resource::factory()->make(['doi' => '10.5880/incomplete-citations']));
 
         $importId = Str::uuid()->toString();
         (new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/incomplete-citations'))
@@ -1160,18 +1159,14 @@ describe('ImportFromDataCiteJob', function () {
         $status = Cache::get("datacite_import:{$importId}");
 
         expect($status)->toMatchArray([
-            'status' => 'failed',
+            'status' => 'completed',
             'total' => 1,
             'processed' => 1,
-            'imported' => 0,
+            'imported' => 1,
             'skipped' => 0,
-            'failed' => 1,
-            'failed_dois' => [[
-                'doi' => '10.5880/incomplete-citations',
-                'error' => $exception->getMessage(),
-            ]],
-            'error' => $exception->getMessage(),
-        ])->and(Resource::where('doi', '10.5880/incomplete-citations')->exists())->toBeFalse();
+            'failed' => 0,
+            'failed_dois' => [],
+        ]);
     });
 
     it('marks single import as failed when DOI is missing from DataCite', function () {
