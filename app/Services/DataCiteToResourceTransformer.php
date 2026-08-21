@@ -43,6 +43,7 @@ use App\Services\Rights\ResourceRightsStorageService;
 use App\Services\Xml\OriginalDataCiteRelatedIdentifierExtractionService;
 use App\Services\Xml\Sections\RightsSectionParser;
 use App\Support\DataCiteDateNormalizer;
+use App\Support\GemetVocabularyParser;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Support\Facades\DB;
@@ -59,6 +60,11 @@ use Saloon\XmlWrangler\XmlReader;
 class DataCiteToResourceTransformer
 {
     private const PREPARED_MARKER = '__citation_labels_prepared';
+
+    /** @var array<string, string> */
+    private const IMPORTED_SUBJECT_SCHEME_ALIASES = [
+        'GEMET - INSPIRE themes, version 1.0' => GemetVocabularyParser::SCHEME_TITLE,
+    ];
 
     public function __construct(
         private ?RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService = null,
@@ -1275,6 +1281,9 @@ class DataCiteToResourceTransformer
             $rawSubjectValue = is_string($value) ? $value : null;
             $subjectValue = $rawSubjectValue !== null ? (SubjectBreadcrumbPath::normalize($rawSubjectValue) ?? $value) : $value;
             $subjectScheme = $subjectData['subjectScheme'] ?? null;
+            if (is_string($subjectScheme)) {
+                $subjectScheme = self::IMPORTED_SUBJECT_SCHEME_ALIASES[$subjectScheme] ?? $subjectScheme;
+            }
             $schemeUri = $this->filledString($subjectData['schemeUri'] ?? null);
             $valueUri = $this->filledString($subjectData['valueUri'] ?? null);
             $classificationCode = $subjectData['classificationCode'] ?? null;

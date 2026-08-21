@@ -61,6 +61,35 @@ describe('transform', function () {
             ->and($result['scheme'])->toBe('Instruments');
     });
 
+    it('transforms and canonicalizes a legacy GEMET keyword', function () {
+        $old = (object) [
+            'keyword' => 'geodesy',
+            'thesaurus' => 'GEMET - INSPIRE themes, version 1.0',
+            'uri' => 'https://eionet.europa.eu/gemet/concept/3638/',
+            'description' => 'Science of the shape and size of the earth.',
+        ];
+
+        $result = OldDatasetKeywordTransformer::transform($old);
+
+        expect($result)->not->toBeNull()
+            ->and($result['scheme'])->toBe('GEMET - GEneral Multilingual Environmental Thesaurus')
+            ->and($result['text'])->toBe('geodesy')
+            ->and($result['id'])->toBe('http://www.eionet.europa.eu/gemet/concept/3638')
+            ->and($result['schemeURI'])->toBe('http://www.eionet.europa.eu/gemet/concept/')
+            ->and($result['uuid'])->toBeNull();
+    });
+
+    it('rejects a non GEMET URI for a legacy GEMET keyword', function () {
+        $old = (object) [
+            'keyword' => 'geodesy',
+            'thesaurus' => 'GEMET - INSPIRE themes, version 1.0',
+            'uri' => 'https://example.org/concept/3638',
+            'description' => null,
+        ];
+
+        expect(OldDatasetKeywordTransformer::transform($old))->toBeNull();
+    });
+
     it('returns null when URI has no valid UUID', function () {
         $old = (object) [
             'keyword' => 'Something',
@@ -146,6 +175,7 @@ describe('mapScheme', function () {
         ['GCMD Platforms', 'Platforms'],
         ['NASA/GCMD Instruments', 'Instruments'],
         ['GCMD Instruments', 'Instruments'],
+        ['GEMET - INSPIRE themes, version 1.0', 'GEMET - GEneral Multilingual Environmental Thesaurus'],
     ]);
 
     it('returns null for unknown thesaurus', function () {
@@ -197,12 +227,13 @@ describe('transformMany', function () {
 // =========================================================================
 
 describe('getSupportedThesauri', function () {
-    it('returns all 6 supported thesaurus names', function () {
+    it('returns all 7 supported thesaurus names', function () {
         $thesauri = OldDatasetKeywordTransformer::getSupportedThesauri();
 
-        expect($thesauri)->toHaveCount(6)
+        expect($thesauri)->toHaveCount(7)
             ->and($thesauri)->toContain('NASA/GCMD Earth Science Keywords')
-            ->and($thesauri)->toContain('GCMD Instruments');
+            ->and($thesauri)->toContain('GCMD Instruments')
+            ->and($thesauri)->toContain('GEMET - INSPIRE themes, version 1.0');
     });
 });
 

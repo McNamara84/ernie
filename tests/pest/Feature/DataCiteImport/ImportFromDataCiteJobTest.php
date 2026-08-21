@@ -830,6 +830,57 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['failed'])->toBe(0);
     });
 
+    it('uses the nine original XML subjects instead of the extra Issue 1123 REST subject', function () {
+        $doi = '10.5880/trr228db.398';
+        $xmlSubjects = array_map(
+            static fn (int $number): array => ['subject' => "Original keyword {$number}"],
+            range(1, 9),
+        );
+        $xml = '<resource xmlns="http://datacite.org/schema/kernel-4"><subjects>'
+            .implode('', array_map(
+                static fn (array $subject): string => '<subject>'.htmlspecialchars($subject['subject'], ENT_XML1).'</subject>',
+                $xmlSubjects,
+            ))
+            .'</subjects></resource>';
+        $doiRecord = [
+            'id' => $doi,
+            'attributes' => [
+                'doi' => $doi,
+                'xml' => base64_encode($xml),
+                'subjects' => [
+                    ...$xmlSubjects,
+                    ['subject' => 'FOS: Biological sciences'],
+                ],
+            ],
+        ];
+        $expectedRecord = $doiRecord;
+        $expectedRecord['attributes']['subjects'] = $xmlSubjects;
+
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with($doi)
+            ->andReturn($doiRecord);
+        $this->transformer
+            ->shouldReceive('prepareDoiData')
+            ->once()
+            ->with($expectedRecord, [], CitationLabelResolutionMode::REQUIRED)
+            ->andReturn($expectedRecord);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->with($expectedRecord, $this->user->id)
+            ->andReturn(Resource::factory()->make(['doi' => $doi]));
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, $doi))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['failed_dois'])->toBe([])
+            ->and($status['imported'])->toBe(1);
+    });
+
     it('prefers a specialized portal datacenter during a single DOI import', function () {
         $doi = '10.5880/icdp.5069.001';
         $doiRecord = [

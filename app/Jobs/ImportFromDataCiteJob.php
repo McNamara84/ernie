@@ -23,6 +23,7 @@ use App\Services\LegacyResourceLookupService;
 use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
+use App\Services\Xml\OriginalDataCiteSubjectExtractionService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\QueryException;
@@ -975,6 +976,9 @@ class ImportFromDataCiteJob implements ShouldQueue
                     'enriched' => $dataCiteLandingPageSync['changed'],
                 ];
             }
+
+            $doiRecord = app(OriginalDataCiteSubjectExtractionService::class)
+                ->preferOriginalSubjects($doiRecord, $doi);
 
             $legacyMetadata = [
                 'relatedIdentifiers' => [],

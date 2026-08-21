@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteSubjectMergeService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\Editor\EditorDataTransformer;
 use App\Services\LegacyKeywordService;
 use App\Services\LegacyResourceLookupService;
+use App\Services\Xml\OriginalDataCiteSubjectExtractionService;
 use Database\Seeders\ContributorTypeSeeder;
 use Database\Seeders\DescriptionTypeSeeder;
 use Database\Seeders\IdentifierTypeSeeder;
@@ -20,6 +22,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
     test()->seed(ResourceTypeSeeder::class);
@@ -180,4 +183,204 @@ it('persists the Issue 1091 keyword pattern and exposes it in the editor shape',
             'GNSS',
             'Crustal deformation',
         ]);
+});
+
+it('enriches and persists all Issue 1115 GEMET subjects with editor-selectable IDs', function (): void {
+    Storage::fake('local');
+
+    $doi = '10.5880/igets.bu.l1.001';
+    $legacyThesaurus = 'GEMET - INSPIRE themes, version 1.0';
+    $canonicalScheme = 'GEMET - GEneral Multilingual Environmental Thesaurus';
+    $concepts = [
+        'geodesy' => '3638',
+        'geophysics' => '3655',
+        'hydrology' => '4118',
+    ];
+    Storage::disk('local')->put('gemet-thesaurus.json', json_encode([
+        'data' => [[
+            'id' => 'http://www.eionet.europa.eu/gemet/supergroup/1',
+            'text' => 'Earth sciences',
+            'scheme' => $canonicalScheme,
+            'schemeURI' => 'http://www.eionet.europa.eu/gemet/concept/',
+            'children' => array_map(
+                static fn (string $label, string $conceptId): array => [
+                    'id' => "http://www.eionet.europa.eu/gemet/concept/{$conceptId}",
+                    'text' => $label,
+                    'scheme' => 'GEMET - GEneral Multilingual Environmental Thesaurus',
+                    'schemeURI' => 'http://www.eionet.europa.eu/gemet/concept/',
+                    'children' => [],
+                ],
+                array_keys($concepts),
+                array_values($concepts),
+            ),
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    $legacyResourceId = DB::connection('metaworks')->table('resource')->insertGetId([
+        'identifier' => $doi,
+        'keywords' => null,
+    ]);
+    foreach ($concepts as $keyword => $conceptId) {
+        DB::connection('metaworks')->table('thesauruskeyword')->insert([
+            'resource_id' => $legacyResourceId,
+            'keyword' => $keyword,
+            'thesaurus' => $legacyThesaurus,
+        ]);
+        DB::connection('metaworks')->table('thesaurusvalue')->insert([
+            'keyword' => $keyword,
+            'thesaurus' => $legacyThesaurus,
+            'uri' => "http://www.eionet.europa.eu/gemet/concept/{$conceptId}",
+            'description' => null,
+        ]);
+    }
+
+    $xmlSubjects = implode('', array_map(
+        static fn (string $keyword): string => '<subject subjectScheme="GEMET - INSPIRE themes, version 1.0">'.$keyword.'</subject>',
+        array_keys($concepts),
+    ));
+    $doiRecord = [
+        'id' => $doi,
+        'attributes' => [
+            'doi' => $doi,
+            'publicationYear' => 2025,
+            'titles' => [['title' => 'Issue 1115 regression dataset']],
+            'creators' => [[
+                'familyName' => 'Importer',
+                'givenName' => 'Test',
+                'nameType' => 'Personal',
+            ]],
+            'xml' => base64_encode(
+                '<resource xmlns="http://datacite.org/schema/kernel-4"><subjects>'.$xmlSubjects.'</subjects></resource>',
+            ),
+            'subjects' => array_map(
+                static fn (string $keyword): array => [
+                    'subject' => $keyword,
+                    'subjectScheme' => 'GEMET - INSPIRE themes, version 1.0',
+                ],
+                array_keys($concepts),
+            ),
+        ],
+    ];
+
+    $sourceRecord = app(OriginalDataCiteSubjectExtractionService::class)
+        ->preferOriginalSubjects($doiRecord, $doi);
+    $legacyMetadata = (new LegacyResourceLookupService(new LegacyKeywordService))
+        ->importMetadataByDoi($doi);
+    $mergedRecord = (new DataCiteSubjectMergeService)->mergeIntoDoiRecord(
+        $sourceRecord,
+        $legacyMetadata['subjects'],
+    );
+    $resource = (new DataCiteToResourceTransformer)->transform(
+        $mergedRecord,
+        User::factory()->create()->id,
+    );
+
+    $subjects = $resource->subjects()->orderBy('value')->get();
+    expect($subjects)->toHaveCount(3)
+        ->and($subjects->pluck('subject_scheme')->unique()->values()->all())->toBe([$canonicalScheme])
+        ->and($subjects->pluck('value_uri')->all())->toBe([
+            'http://www.eionet.europa.eu/gemet/concept/3638',
+            'http://www.eionet.europa.eu/gemet/concept/3655',
+            'http://www.eionet.europa.eu/gemet/concept/4118',
+        ])
+        ->and($subjects->pluck('breadcrumb_path')->all())->toBe([
+            'Earth sciences > geodesy',
+            'Earth sciences > geophysics',
+            'Earth sciences > hydrology',
+        ]);
+
+    $resource->load('subjects');
+    $editorKeywords = (new EditorDataTransformer)->transformGemetKeywords($resource);
+
+    expect(array_column($editorKeywords, 'id'))->toBe([
+        'http://www.eionet.europa.eu/gemet/concept/3638',
+        'http://www.eionet.europa.eu/gemet/concept/3655',
+        'http://www.eionet.europa.eu/gemet/concept/4118',
+    ])->and(array_column($editorKeywords, 'text'))->toBe([
+        'geodesy',
+        'geophysics',
+        'hydrology',
+    ]);
+});
+
+it('persists only the nine Issue 1123 original XML subjects', function (): void {
+    $doi = '10.5880/TRR228DB.398';
+    $originalSubjects = array_map(
+        static fn (int $number): string => "Original keyword {$number}",
+        range(1, 9),
+    );
+    $xmlSubjects = implode('', array_map(
+        static fn (string $keyword): string => '<subject>'.$keyword.'</subject>',
+        $originalSubjects,
+    ));
+    $doiRecord = [
+        'id' => $doi,
+        'attributes' => [
+            'doi' => $doi,
+            'publicationYear' => 2024,
+            'titles' => [['title' => 'Issue 1123 regression dataset']],
+            'creators' => [[
+                'familyName' => 'Importer',
+                'givenName' => 'Test',
+                'nameType' => 'Personal',
+            ]],
+            'xml' => base64_encode(
+                '<resource xmlns="http://datacite.org/schema/kernel-4"><subjects>'.$xmlSubjects.'</subjects></resource>',
+            ),
+            'subjects' => [
+                ...array_map(static fn (string $keyword): array => ['subject' => $keyword], $originalSubjects),
+                ['subject' => 'FOS: Biological sciences'],
+            ],
+        ],
+    ];
+
+    $sourceRecord = app(OriginalDataCiteSubjectExtractionService::class)
+        ->preferOriginalSubjects($doiRecord, $doi);
+    $resource = (new DataCiteToResourceTransformer)->transform(
+        $sourceRecord,
+        User::factory()->create()->id,
+    );
+
+    expect($resource->subjects()->count())->toBe(9)
+        ->and($resource->subjects()->orderBy('id')->pluck('value')->all())->toBe($originalSubjects)
+        ->and($resource->subjects()->where('value', 'FOS: Biological sciences')->exists())->toBeFalse();
+});
+
+it('preserves arbitrary DataCite subject scheme names during import and re-export', function (): void {
+    $schemes = [
+        'Research Instrument Taxonomy',
+        'Offshore Platform Classification',
+        'Local GEMET-derived Vocabulary',
+    ];
+    $doiRecord = [
+        'id' => '10.5880/custom-subject-schemes',
+        'attributes' => [
+            'doi' => '10.5880/custom-subject-schemes',
+            'publicationYear' => 2026,
+            'titles' => [['title' => 'Custom subject schemes']],
+            'creators' => [[
+                'familyName' => 'Importer',
+                'givenName' => 'Test',
+                'nameType' => 'Personal',
+            ]],
+            'subjects' => array_map(
+                static fn (string $scheme, int $index): array => [
+                    'subject' => "Custom subject {$index}",
+                    'subjectScheme' => $scheme,
+                    'schemeUri' => "https://example.test/schemes/{$index}",
+                ],
+                $schemes,
+                array_keys($schemes),
+            ),
+        ],
+    ];
+
+    $resource = (new DataCiteToResourceTransformer)->transform(
+        $doiRecord,
+        User::factory()->create()->id,
+    );
+    $exportedSubjects = (new DataCiteJsonExporter)->export($resource->fresh())['data']['attributes']['subjects'];
+
+    expect($resource->subjects()->orderBy('id')->pluck('subject_scheme')->all())->toBe($schemes)
+        ->and(array_column($exportedSubjects, 'subjectScheme'))->toBe($schemes);
 });
