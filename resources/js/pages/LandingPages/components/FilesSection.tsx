@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import type { LandingPageContactPerson, LandingPageLicense, LandingPageLink } from '@/types/landing-page';
 
 import { ContactModal } from './ContactModal';
-import { CreativeCommonsIcon } from './CreativeCommonsIcon';
+import { CreativeCommonsIcon, getCreativeCommonsShortName } from './CreativeCommonsIcon';
 import { LandingPageCard } from './LandingPageCard';
 
 interface FilesSectionProps {
@@ -34,9 +34,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
     // Build effective list of download URLs: prefer downloadFiles, fall back to single downloadUrl
     const hasDownloadUrl = typeof downloadUrl === 'string' && downloadUrl !== '#' && downloadUrl.trim() !== '';
     const effectiveDownloads =
-        downloadFiles && downloadFiles.length > 0
-            ? downloadFiles.map((file) => file.tracked_url ?? file.url)
-            : hasDownloadUrl ? [downloadUrl!] : [];
+        downloadFiles && downloadFiles.length > 0 ? downloadFiles.map((file) => file.tracked_url ?? file.url) : hasDownloadUrl ? [downloadUrl!] : [];
 
     // Find contact persons for fallback options
     const contactPersonWithEmail = contactPersons.find((p) => p.has_email);
@@ -51,12 +49,12 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
      */
     const displayMode: FallbackMode =
         effectiveDownloads.length > 0
-        ? 'download'
-        : contactPersonWithEmail
-          ? 'contact-form'
-          : contactPersonWithWebsite
-            ? 'website'
-            : 'fallback-message';
+            ? 'download'
+            : contactPersonWithEmail
+              ? 'contact-form'
+              : contactPersonWithWebsite
+                ? 'website'
+                : 'fallback-message';
 
     const handleContactClick = (person: LandingPageContactPerson) => {
         setSelectedPerson(person);
@@ -70,11 +68,10 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
 
     return (
         <>
-            <LandingPageCard
-                aria-labelledby="heading-files"
-                data-testid="files-section"
-            >
-                <h2 id="heading-files" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Files</h2>
+            <LandingPageCard aria-labelledby="heading-files" data-testid="files-section">
+                <h2 id="heading-files" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Files
+                </h2>
 
                 <div className="space-y-3">
                     {/* Download Link(s) - shown when download URLs are available */}
@@ -164,6 +161,8 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                             <div className="flex flex-col gap-2">
                                 {licenses.map((license) => {
                                     const title = license.spdx_id ?? license.name;
+                                    const shortName = license.spdx_id ? getCreativeCommonsShortName(license.spdx_id) : null;
+                                    const showShortName = shortName !== null && license.name.trim().toUpperCase() !== shortName.toUpperCase();
                                     const icon = license.spdx_id ? (
                                         <CreativeCommonsIcon spdxId={license.spdx_id} />
                                     ) : license.reference ? (
@@ -172,7 +171,10 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                                     const badgeContent = (
                                         <>
                                             {icon}
-                                            <span>{license.name}</span>
+                                            <span className="min-w-0 break-words">
+                                                {license.name}
+                                                {showShortName && ` (${shortName})`}
+                                            </span>
                                         </>
                                     );
 

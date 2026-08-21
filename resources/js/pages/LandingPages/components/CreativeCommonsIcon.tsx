@@ -59,6 +59,26 @@ export function getCreativeCommonsBadgePath(spdxId: string): string | null {
 }
 
 /**
+ * Format supported SPDX identifiers as the familiar Creative Commons short name.
+ */
+export function getCreativeCommonsShortName(spdxId: string): string | null {
+    const upper = spdxId.trim().toUpperCase();
+    const cc0Match = upper.match(/^CC0-(\d+\.\d+)$/);
+
+    if (cc0Match) {
+        return `CC0 ${cc0Match[1]}`;
+    }
+
+    const licenseMatch = upper.match(/^CC-(BY|BY-SA|BY-ND|BY-NC|BY-NC-SA|BY-NC-ND)-(\d+\.\d+)$/);
+
+    if (!licenseMatch) {
+        return null;
+    }
+
+    return `CC ${licenseMatch[1]} ${licenseMatch[2]}`;
+}
+
+/**
  * Creative Commons Badge Component
  *
  * Returns null for non-CC licenses and for CC identifiers without an official
@@ -71,16 +91,7 @@ export function CreativeCommonsIcon({ spdxId, className = 'h-[31px] w-[88px]' }:
         return null;
     }
 
-    return (
-        <img
-            src={badgePath}
-            alt={`Creative Commons ${spdxId}`}
-            width={88}
-            height={31}
-            className={`${className} shrink-0`}
-            loading="lazy"
-        />
-    );
+    return <img src={badgePath} alt={`Creative Commons ${spdxId}`} width={88} height={31} className={`${className} shrink-0`} loading="lazy" />;
 }
 
 /**

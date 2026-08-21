@@ -1695,6 +1695,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             the setup modal, but hides the complete Files section on the preview and public landing page until the option is disabled
                             again.
                         </p>
+                        <h4>License Display</h4>
+                        <p>
+                            In the Files section, Creative Commons licenses show both the full license name and the conventional short notation, for
+                            example <strong>Creative Commons Attribution 4.0 International (CC BY 4.0)</strong>. The badge remains linked to the
+                            license text when a URL is available, and its tooltip shows the SPDX identifier.
+                        </p>
                         <p>
                             From the Data Editor, click <strong>Show LP Preview</strong> in the bottom-right action bar next to{' '}
                             <strong>Save Draft</strong> and <strong>Save &amp; Validate</strong> to save the current metadata as a draft and open the

@@ -492,6 +492,8 @@ describe('Docs page', () => {
         // Beginners can set up landing pages as part of the training workflow
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
         expect(screen.getByText(/Beginner users can create, edit, preview, and publish landing pages/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'License Display', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/Creative Commons Attribution 4\.0 International \(CC BY 4\.0\)/i)).toBeInTheDocument();
     });
 
     it('shows landing pages documentation for curator', async () => {
