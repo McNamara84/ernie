@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Support\GcmdUriHelper;
+use App\Support\GemetVocabularyParser;
 
 class OldDatasetKeywordTransformer
 {
     /**
      * Maps old thesaurus names to scheme names.
-     * Supports both legacy ELMO format and current NASA/GCMD naming conventions.
+     * Supports legacy GEMET plus old and current NASA/GCMD naming conventions.
      */
     private const SCHEME_MAP = [
         // Science Keywords - single standard format
@@ -22,6 +23,8 @@ class OldDatasetKeywordTransformer
         // Instruments - support both legacy and current ELMO formats
         'NASA/GCMD Instruments' => 'Instruments',
         'GCMD Instruments' => 'Instruments',
+        // GEMET - legacy DataCite scheme title
+        'GEMET - INSPIRE themes, version 1.0' => GemetVocabularyParser::SCHEME_TITLE,
     ];
 
     /**
@@ -70,9 +73,14 @@ class OldDatasetKeywordTransformer
         $keyword = trim((string) ($oldKeyword->keyword ?? ''));
         $schemeUri = self::schemeUriForScheme($scheme);
 
-        // Extract UUID from old URI
-        $uuid = self::extractUuidFromOldUri($oldKeyword->uri ?? null);
-        $newUri = $uuid ? self::constructNewUri($uuid) : null;
+        if ($scheme === GemetVocabularyParser::SCHEME_TITLE) {
+            $uuid = null;
+            $newUri = self::normalizeGemetConceptUri($oldKeyword->uri ?? null);
+        } else {
+            // Extract UUID from old GCMD URI
+            $uuid = self::extractUuidFromOldUri($oldKeyword->uri ?? null);
+            $newUri = $uuid ? self::constructNewUri($uuid) : null;
+        }
 
         if ($newUri === null && $keyword !== '') {
             $resolvedKeyword = app(SubjectBreadcrumbPathResolverService::class)
@@ -80,7 +88,9 @@ class OldDatasetKeywordTransformer
 
             if ($resolvedKeyword !== null) {
                 $newUri = $resolvedKeyword['id'];
-                $uuid = self::extractUuidFromOldUri($newUri);
+                $uuid = $scheme === GemetVocabularyParser::SCHEME_TITLE
+                    ? null
+                    : self::extractUuidFromOldUri($newUri);
                 $scheme = $resolvedKeyword['scheme'];
                 $schemeUri = $resolvedKeyword['schemeURI'] ?? self::schemeUriForScheme($scheme);
             }
@@ -123,7 +133,7 @@ class OldDatasetKeywordTransformer
     }
 
     /**
-     * Get list of supported GCMD thesaurus names from old database.
+     * Get list of supported controlled-vocabulary names from the old database.
      *
      * @return array<int, string>
      */
@@ -135,5 +145,22 @@ class OldDatasetKeywordTransformer
     private static function schemeUriForScheme(string $scheme): ?string
     {
         return app(SubjectBreadcrumbPathResolverService::class)->resolveSchemeUri($scheme);
+    }
+
+    private static function normalizeGemetConceptUri(mixed $uri): ?string
+    {
+        if (! is_string($uri)) {
+            return null;
+        }
+
+        if (preg_match(
+            '~^https?://(?:www\.)?eionet\.europa\.eu/gemet/concept/([^/?#\s]+)/?(?:[?#].*)?$~i',
+            trim($uri),
+            $matches,
+        ) !== 1) {
+            return null;
+        }
+
+        return 'http://www.eionet.europa.eu/gemet/concept/'.$matches[1];
     }
 }

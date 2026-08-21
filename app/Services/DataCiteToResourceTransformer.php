@@ -44,6 +44,7 @@ use App\Services\Xml\OriginalDataCiteRelatedIdentifierExtractionService;
 use App\Services\Xml\Sections\RightsSectionParser;
 use App\Support\DataCiteDateNormalizer;
 use App\Support\OrcidNormalizer;
+use App\Support\PortalSubjectNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -1274,7 +1275,9 @@ class DataCiteToResourceTransformer
 
             $rawSubjectValue = is_string($value) ? $value : null;
             $subjectValue = $rawSubjectValue !== null ? (SubjectBreadcrumbPath::normalize($rawSubjectValue) ?? $value) : $value;
-            $subjectScheme = $subjectData['subjectScheme'] ?? null;
+            $subjectScheme = PortalSubjectNormalizer::normalizeScheme(
+                is_string($subjectData['subjectScheme'] ?? null) ? $subjectData['subjectScheme'] : null,
+            );
             $schemeUri = $this->filledString($subjectData['schemeUri'] ?? null);
             $valueUri = $this->filledString($subjectData['valueUri'] ?? null);
             $classificationCode = $subjectData['classificationCode'] ?? null;

@@ -16,23 +16,12 @@ final readonly class OriginalDataCiteRelatedIdentifierExtractionService
 {
     public function __construct(
         private RelatedIdentifierTypeResolverService $typeResolver,
+        private OriginalDataCiteXmlDecoder $xmlDecoder,
     ) {}
 
     public function decode(mixed $value): ?string
     {
-        if (! is_string($value) || trim($value) === '') {
-            return null;
-        }
-
-        $value = trim($value);
-
-        if (str_contains($value, '<')) {
-            return $value;
-        }
-
-        $decoded = base64_decode($value, true);
-
-        return is_string($decoded) && str_contains($decoded, '<') ? $decoded : null;
+        return $this->xmlDecoder->decode($value);
     }
 
     /**

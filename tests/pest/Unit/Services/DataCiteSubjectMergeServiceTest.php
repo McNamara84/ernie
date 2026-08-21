@@ -73,6 +73,46 @@ it('deduplicates controlled paths across scheme aliases, encoded separators, and
     expect($this->service->merge([$dataCiteSubject], [$legacySubject]))->toBe([$dataCiteSubject]);
 });
 
+it('enriches an equivalent Issue 1115 GEMET subject with missing legacy metadata', function (): void {
+    $dataCiteSubject = [
+        'subject' => 'geodesy',
+        'subjectScheme' => 'GEMET - INSPIRE themes, version 1.0',
+    ];
+    $legacySubject = [
+        'subject' => 'geodesy',
+        'subjectScheme' => 'GEMET - GEneral Multilingual Environmental Thesaurus',
+        'schemeUri' => 'http://www.eionet.europa.eu/gemet/concept/',
+        'valueUri' => 'http://www.eionet.europa.eu/gemet/concept/3638',
+        'lang' => 'en',
+    ];
+
+    expect($this->service->merge([$dataCiteSubject], [$legacySubject]))->toBe([[
+        ...$dataCiteSubject,
+        'schemeUri' => 'http://www.eionet.europa.eu/gemet/concept/',
+        'valueUri' => 'http://www.eionet.europa.eu/gemet/concept/3638',
+        'lang' => 'en',
+    ]]);
+});
+
+it('never overwrites existing metadata while enriching an equivalent subject', function (): void {
+    $dataCiteSubject = [
+        'subject' => 'geodesy',
+        'subjectScheme' => 'GEMET',
+        'scheme_uri' => 'https://example.test/original-scheme',
+        'valueURI' => 'http://www.eionet.europa.eu/gemet/concept/3638',
+        'language' => 'de',
+    ];
+    $legacySubject = [
+        'subject' => 'geodesy',
+        'subjectScheme' => 'GEMET - GEneral Multilingual Environmental Thesaurus',
+        'schemeUri' => 'http://www.eionet.europa.eu/gemet/concept/',
+        'valueUri' => 'http://www.eionet.europa.eu/gemet/concept/3638',
+        'lang' => 'en',
+    ];
+
+    expect($this->service->merge([$dataCiteSubject], [$legacySubject]))->toBe([$dataCiteSubject]);
+});
+
 it('deduplicates controlled subjects by classification code and normalized scheme', function (): void {
     $dataCiteSubject = [
         'subject' => 'A DataCite label',

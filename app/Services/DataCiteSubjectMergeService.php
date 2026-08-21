@@ -11,9 +11,8 @@ use Normalizer;
 /**
  * Merges DataCite and legacy subjects in source-priority order.
  *
- * DataCite subjects remain byte-for-byte intact and in their original order.
- * Legacy subjects are only appended when no equivalent DataCite or earlier
- * legacy subject exists.
+ * DataCite subjects remain in their original order. Equivalent legacy subjects
+ * only fill missing metadata; genuinely new legacy subjects are appended.
  */
 final class DataCiteSubjectMergeService
 {
@@ -53,16 +52,16 @@ final class DataCiteSubjectMergeService
     public function merge(array $dataCiteSubjects, array $legacySubjects): array
     {
         $merged = array_values($dataCiteSubjects);
-        /** @var array<string, true> $identities */
-        $identities = [];
+        /** @var array<string, int> $identityIndexes */
+        $identityIndexes = [];
 
-        foreach ($merged as $subject) {
+        foreach ($merged as $index => $subject) {
             if (! is_array($subject)) {
                 continue;
             }
 
             foreach ($this->identities($subject) as $identity) {
-                $identities[$identity] = true;
+                $identityIndexes[$identity] ??= $index;
             }
         }
 
@@ -76,25 +75,61 @@ final class DataCiteSubjectMergeService
                 continue;
             }
 
-            $isDuplicate = false;
+            $matchingIndex = null;
             foreach ($candidateIdentities as $identity) {
-                if (isset($identities[$identity])) {
-                    $isDuplicate = true;
+                if (isset($identityIndexes[$identity])) {
+                    $matchingIndex = $identityIndexes[$identity];
                     break;
                 }
             }
 
-            if ($isDuplicate) {
+            if ($matchingIndex !== null && is_array($merged[$matchingIndex])) {
+                $merged[$matchingIndex] = $this->enrichMissingMetadata($merged[$matchingIndex], $subject);
+
+                foreach ($this->identities($merged[$matchingIndex]) as $identity) {
+                    $identityIndexes[$identity] ??= $matchingIndex;
+                }
+
                 continue;
             }
 
             $merged[] = $subject;
+            $newIndex = count($merged) - 1;
             foreach ($candidateIdentities as $identity) {
-                $identities[$identity] = true;
+                $identityIndexes[$identity] ??= $newIndex;
             }
         }
 
         return $merged;
+    }
+
+    /**
+     * @param  array<string, mixed>  $existing
+     * @param  array<string, mixed>  $legacy
+     * @return array<string, mixed>
+     */
+    private function enrichMissingMetadata(array $existing, array $legacy): array
+    {
+        $fieldAliases = [
+            'subjectScheme' => ['subjectScheme', 'scheme', 'subject_scheme'],
+            'schemeUri' => ['schemeUri', 'schemeURI', 'scheme_uri'],
+            'valueUri' => ['valueUri', 'valueURI', 'value_uri', 'id'],
+            'classificationCode' => ['classificationCode', 'classification_code'],
+            'lang' => ['lang', 'language', 'xml:lang'],
+        ];
+
+        foreach ($fieldAliases as $targetKey => $aliases) {
+            if ($this->stringValue($existing, $aliases) !== null) {
+                continue;
+            }
+
+            $legacyValue = $this->stringValue($legacy, $aliases);
+            if ($legacyValue !== null) {
+                $existing[$targetKey] = $legacyValue;
+            }
+        }
+
+        return $existing;
     }
 
     /**

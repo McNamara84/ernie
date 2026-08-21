@@ -102,6 +102,42 @@ it('loads and transforms controlled keywords in deterministic order', function (
         ]);
 });
 
+it('loads all three Issue 1115 GEMET keywords from the legacy database', function (): void {
+    $thesaurus = 'GEMET - INSPIRE themes, version 1.0';
+    $concepts = [
+        'geodesy' => '3638',
+        'geophysics' => '3655',
+        'hydrology' => '4118',
+    ];
+
+    foreach ($concepts as $keyword => $conceptId) {
+        DB::connection('metaworks')->table('thesauruskeyword')->insert([
+            'resource_id' => 9663,
+            'keyword' => $keyword,
+            'thesaurus' => $thesaurus,
+        ]);
+        DB::connection('metaworks')->table('thesaurusvalue')->insert([
+            'keyword' => $keyword,
+            'thesaurus' => $thesaurus,
+            'uri' => "http://www.eionet.europa.eu/gemet/concept/{$conceptId}",
+            'description' => null,
+        ]);
+    }
+
+    $subjects = $this->service->dataCiteSubjects($this->dataset);
+
+    expect($subjects)->toHaveCount(3)
+        ->and(array_column($subjects, 'subject'))->toBe(['geodesy', 'geophysics', 'hydrology'])
+        ->and(array_column($subjects, 'valueUri'))->toBe([
+            'http://www.eionet.europa.eu/gemet/concept/3638',
+            'http://www.eionet.europa.eu/gemet/concept/3655',
+            'http://www.eionet.europa.eu/gemet/concept/4118',
+        ])
+        ->and(array_unique(array_column($subjects, 'subjectScheme')))->toBe([
+            'GEMET - GEneral Multilingual Environmental Thesaurus',
+        ]);
+});
+
 it('splits, trims, and filters comma-separated free keywords', function (): void {
     $this->dataset->keywords = '  GNSS, , Crustal deformation ,,Seismology  ';
 
