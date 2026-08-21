@@ -412,6 +412,10 @@
         ],
         "fixes": [
             {
+                "title": "Staff Collectives Import as Institutions",
+                "description": "New legacy DataCite imports now recognize unstructured staff collectives such as 'ISG Staff' as institutions instead of splitting them into person-name fields. Their original contributor names, roles, and affiliations remain intact, while explicit or structured person metadata continues to take precedence. Existing imported resources remain unchanged."
+            },
+            {
                 "title": "Reliable Legacy Subject Imports",
                 "description": "New legacy DataCite imports now use the embedded original XML subjects when the REST representation differs and enrich matching GEMET terms with stable identifiers from SUMARIOPMD. REST-only additions are no longer imported, GEMET selections reopen correctly in the Data Editor, and unrelated DataCite subject scheme names remain unchanged during import and re-export. Existing imported resources remain unchanged."
             },
