@@ -14,7 +14,7 @@ use Saloon\XmlWrangler\XmlReader;
 final readonly class OriginalDataCiteSubjectExtractionService
 {
     public function __construct(
-        private OriginalDataCiteXmlDecoder $xmlDecoder,
+        private OriginalDataCiteXmlDecoderService $xmlDecoder,
     ) {}
 
     /**

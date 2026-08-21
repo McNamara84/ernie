@@ -7,7 +7,7 @@ namespace App\Services\Xml;
 /**
  * Decodes the original DataCite XML embedded in API records.
  */
-final class OriginalDataCiteXmlDecoder
+final class OriginalDataCiteXmlDecoderService
 {
     public function decode(mixed $value): ?string
     {

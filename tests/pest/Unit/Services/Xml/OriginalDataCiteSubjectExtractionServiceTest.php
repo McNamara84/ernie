@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use App\Services\Xml\OriginalDataCiteSubjectExtractionService;
-use App\Services\Xml\OriginalDataCiteXmlDecoder;
+use App\Services\Xml\OriginalDataCiteXmlDecoderService;
 use Illuminate\Support\Facades\Log;
 
-covers(OriginalDataCiteSubjectExtractionService::class, OriginalDataCiteXmlDecoder::class);
+covers(OriginalDataCiteSubjectExtractionService::class, OriginalDataCiteXmlDecoderService::class);
 
 beforeEach(function (): void {
     $this->service = app(OriginalDataCiteSubjectExtractionService::class);

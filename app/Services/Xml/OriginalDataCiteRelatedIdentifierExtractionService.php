@@ -16,7 +16,7 @@ final readonly class OriginalDataCiteRelatedIdentifierExtractionService
 {
     public function __construct(
         private RelatedIdentifierTypeResolverService $typeResolver,
-        private OriginalDataCiteXmlDecoder $xmlDecoder,
+        private OriginalDataCiteXmlDecoderService $xmlDecoder,
     ) {}
 
     public function decode(mixed $value): ?string
