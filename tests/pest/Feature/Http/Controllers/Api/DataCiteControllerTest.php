@@ -3,9 +3,16 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\DataCiteController;
+use App\Services\Citations\LegacyCitationCacheService;
 use App\Services\DataCiteApiService;
 
 covers(DataCiteController::class);
+
+beforeEach(function (): void {
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('find')->zeroOrMoreTimes()->andReturnNull();
+    $this->app->instance(LegacyCitationCacheService::class, $legacy);
+});
 
 describe('getCitation', function () {
     it('returns citation for a valid DOI', function () {
@@ -101,7 +108,7 @@ describe('getCitation', function () {
 
         $this->app->instance(DataCiteApiService::class, $mockService);
 
-        $response = $this->getJson('/api/datacite/citation?doi=' . urlencode('https://doi.org/10.5880/GFZ.TEST.2024'));
+        $response = $this->getJson('/api/datacite/citation?doi='.urlencode('https://doi.org/10.5880/GFZ.TEST.2024'));
 
         $response->assertOk()
             ->assertJsonPath('doi', '10.5880/gfz.test.2024');
@@ -126,7 +133,7 @@ describe('getCitation', function () {
 
         $this->app->instance(DataCiteApiService::class, $mockService);
 
-        $response = $this->getJson('/api/datacite/citation?doi=' . urlencode('http://dx.doi.org/10.1111/bij.12893'));
+        $response = $this->getJson('/api/datacite/citation?doi='.urlencode('http://dx.doi.org/10.1111/bij.12893'));
 
         $response->assertOk()
             ->assertJsonPath('doi', '10.1111/bij.12893');
@@ -583,7 +590,7 @@ describe('getAuthors', function () {
 
         $this->app->instance(DataCiteApiService::class, $mockService);
 
-        $response = $this->getJson('/api/datacite/authors?doi=' . urlencode('https://doi.org/10.5880/GFZ.TEST.2024'));
+        $response = $this->getJson('/api/datacite/authors?doi='.urlencode('https://doi.org/10.5880/GFZ.TEST.2024'));
 
         $response->assertOk()
             ->assertJsonPath('doi', '10.5880/gfz.test.2024');

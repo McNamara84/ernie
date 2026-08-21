@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteApiService;
 use App\Support\OrcidNormalizer;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +19,8 @@ use Illuminate\Http\Request;
 class DataCiteController extends Controller
 {
     public function __construct(
-        private DataCiteApiService $dataCiteService
+        private DataCiteApiService $dataCiteService,
+        private RelatedIdentifierCitationLabelService $citationLabelService,
     ) {}
 
     /**
@@ -40,18 +42,16 @@ class DataCiteController extends Controller
             ], 422);
         }
 
-        $metadata = $this->dataCiteService->getMetadata($doi);
+        $citation = $this->citationLabelService->resolve($doi, 'DOI');
 
-        if (! $metadata) {
+        if (! is_string($citation) || trim($citation) === '') {
             return response()->json([
                 'error' => 'Metadata not found for DOI',
             ], 404);
         }
 
-        $citation = $this->dataCiteService->buildCitationFromMetadata($metadata);
-
         return response()->json([
-            'citation' => $citation,
+            'citation' => trim($citation),
             'doi' => $doi,
         ]);
     }

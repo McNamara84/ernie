@@ -189,51 +189,70 @@ class DataCiteToResourceTransformer
             $legacyRelatedIdentifiers,
         );
 
-        if ($citationLabelResolutionMode === CitationLabelResolutionMode::REQUIRED) {
-            $attributes['relatedIdentifiers'] = $this->citationLabelService()->resolveRequired($relatedIdentifiers);
+        $relatedIdentifiers = $this->filterInvalidDoiRelatedIdentifiers(
+            $relatedIdentifiers,
+            (string) ($attributes['doi'] ?? ''),
+        );
+
+        if ($citationLabelResolutionMode === CitationLabelResolutionMode::EXHAUSTIVE) {
+            $attributes['relatedIdentifiers'] = $this->citationLabelService()->resolveExhaustive($relatedIdentifiers);
 
             return $attributes;
         }
 
         $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
-
-        foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
-            $identifier = isset($relatedIdentifier['relatedIdentifier'])
-                ? trim((string) $relatedIdentifier['relatedIdentifier'])
-                : '';
-
-            if ($identifier === '') {
-                unset($relatedIdentifiers[$index]['citationLabel']);
-
-                continue;
-            }
-
-            $relatedIdentifiers[$index]['relatedIdentifier'] = $identifier;
-
-            $citationLabel = isset($relatedIdentifier['citationLabel'])
-                ? trim((string) $relatedIdentifier['citationLabel'])
-                : '';
-
-            if ($citationLabel !== '') {
-                $relatedIdentifiers[$index]['citationLabel'] = $citationLabel;
-
-                continue;
-            }
-
-            $resolvedCitationLabel = $this->citationLabelService()->resolveBestEffort(
-                $identifier,
-                (string) ($relatedIdentifier['relatedIdentifierType'] ?? ''),
-                $citationResolutionDeadline,
-            );
-
-            if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {
-                $relatedIdentifiers[$index]['citationLabel'] = trim($resolvedCitationLabel);
-            }
-        }
-
-        $attributes['relatedIdentifiers'] = $relatedIdentifiers;
+        $attributes['relatedIdentifiers'] = $this->citationLabelService()->resolveBestEffortBatch(
+            $relatedIdentifiers,
+            $citationResolutionDeadline,
+        );
 
         return $attributes;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $relatedIdentifiers
+     * @return list<array<string, mixed>>
+     */
+    private function filterInvalidDoiRelatedIdentifiers(array $relatedIdentifiers, string $resourceDoi): array
+    {
+        $filtered = [];
+        $discarded = [];
+
+        foreach ($relatedIdentifiers as $relatedIdentifier) {
+            $identifierType = trim((string) ($relatedIdentifier['relatedIdentifierType'] ?? ''));
+            $identifier = trim((string) ($relatedIdentifier['relatedIdentifier'] ?? ''));
+
+            if (
+                $identifierType === 'DOI'
+                && ! $this->isValidDoi($identifier)
+            ) {
+                $discarded[] = $identifier;
+
+                continue;
+            }
+
+            $filtered[] = $relatedIdentifier;
+        }
+
+        if ($discarded !== []) {
+            Log::notice('Discarded invalid DOI related identifiers during import.', [
+                'resource_doi' => $resourceDoi,
+                'identifiers' => $discarded,
+            ]);
+        }
+
+        return $filtered;
+    }
+
+    private function isValidDoi(string $identifier): bool
+    {
+        $identifier = preg_replace(
+            '/^(?:doi:\s*|https?:\/\/(?:doi\.org|dx\.doi\.org)\/)/i',
+            '',
+            trim($identifier),
+        ) ?? trim($identifier);
+
+        return preg_match('#^10\.\d{4,9}/\S+$#i', $identifier) === 1;
     }
 
     private function preparedModeSatisfies(mixed $marker, CitationLabelResolutionMode $requestedMode): bool

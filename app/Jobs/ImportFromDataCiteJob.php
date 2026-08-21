@@ -777,7 +777,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 transformer: $transformer,
                 metaworksService: $metaworksService,
                 portalDatacenterNames: $portalDatacenterNames,
-                citationLabelResolutionMode: CitationLabelResolutionMode::REQUIRED,
+                citationLabelResolutionMode: CitationLabelResolutionMode::EXHAUSTIVE,
             );
         } catch (\Exception $exception) {
             Log::warning('Failed to import single DOI from DataCite', [

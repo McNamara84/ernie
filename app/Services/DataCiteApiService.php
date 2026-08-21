@@ -119,10 +119,10 @@ class DataCiteApiService
         ?int $attempts = null,
         ?int $retryDelayMs = null,
     ): array {
-        $concurrency = max(1, $concurrency ?? (int) config('datacite.citation_labels.required_concurrency', 4));
-        $timeoutSeconds = max(0.1, $timeoutSeconds ?? (float) config('datacite.citation_labels.required_timeout_seconds', self::DEFAULT_TIMEOUT_SECONDS));
-        $attempts = max(1, $attempts ?? (int) config('datacite.citation_labels.required_attempts', 3));
-        $retryDelayMs = max(0, $retryDelayMs ?? (int) config('datacite.citation_labels.required_retry_delay_ms', 500));
+        $concurrency = max(1, $concurrency ?? (int) config('datacite.citation_labels.exhaustive_concurrency', 4));
+        $timeoutSeconds = max(0.1, $timeoutSeconds ?? (float) config('datacite.citation_labels.exhaustive_timeout_seconds', self::DEFAULT_TIMEOUT_SECONDS));
+        $attempts = max(1, $attempts ?? (int) config('datacite.citation_labels.exhaustive_attempts', 3));
+        $retryDelayMs = max(0, $retryDelayMs ?? (int) config('datacite.citation_labels.exhaustive_retry_delay_ms', 500));
 
         /** @var array<string, true> $normalizedDois */
         $normalizedDois = [];

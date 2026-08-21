@@ -15,19 +15,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Required Citation Label Resolution
+    | Exhaustive Citation Label Resolution
     |--------------------------------------------------------------------------
     |
-    | Single-resource imports require complete DOI citation labels before they
-    | are considered successful. Requests are pooled in bounded chunks and
-    | retried for transient failures without changing bulk-import behavior.
+    | Single-resource imports exhaust all configured citation-label sources,
+    | while unresolved labels remain optional. Requests are pooled in bounded
+    | chunks and retried for transient failures without changing bulk imports.
     |
     */
     'citation_labels' => [
-        'required_concurrency' => (int) env('DATACITE_CITATION_REQUIRED_CONCURRENCY', 4),
-        'required_timeout_seconds' => (float) env('DATACITE_CITATION_REQUIRED_TIMEOUT_SECONDS', 10),
-        'required_attempts' => (int) env('DATACITE_CITATION_REQUIRED_ATTEMPTS', 3),
-        'required_retry_delay_ms' => (int) env('DATACITE_CITATION_REQUIRED_RETRY_DELAY_MS', 500),
+        'exhaustive_concurrency' => (int) env(
+            'DATACITE_CITATION_EXHAUSTIVE_CONCURRENCY',
+            env('DATACITE_CITATION_REQUIRED_CONCURRENCY', 4),
+        ),
+        'exhaustive_timeout_seconds' => (float) env(
+            'DATACITE_CITATION_EXHAUSTIVE_TIMEOUT_SECONDS',
+            env('DATACITE_CITATION_REQUIRED_TIMEOUT_SECONDS', 10),
+        ),
+        'exhaustive_attempts' => (int) env(
+            'DATACITE_CITATION_EXHAUSTIVE_ATTEMPTS',
+            env('DATACITE_CITATION_REQUIRED_ATTEMPTS', 3),
+        ),
+        'exhaustive_retry_delay_ms' => (int) env(
+            'DATACITE_CITATION_EXHAUSTIVE_RETRY_DELAY_MS',
+            env('DATACITE_CITATION_REQUIRED_RETRY_DELAY_MS', 500),
+        ),
     ],
 
     /*
