@@ -235,8 +235,7 @@ final class Crc806LegacyRightsService
         $contentLength = $response->header('Content-Length');
 
         if (
-            is_string($contentLength)
-            && ctype_digit($contentLength)
+            ctype_digit($contentLength)
             && (int) $contentLength > self::MAX_RESPONSE_BYTES
         ) {
             return null;
@@ -259,7 +258,7 @@ final class Crc806LegacyRightsService
 
             $chunk = $stream->read(min(8192, $remaining));
 
-            if ($chunk === '' && ! $stream->eof()) {
+            if ($chunk === '') {
                 throw new \RuntimeException('CRC806 response stream stopped before EOF.');
             }
 
