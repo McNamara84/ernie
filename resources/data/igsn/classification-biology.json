@@ -56,7 +56,7 @@
         {
             "value": "stem",
             "definition": "A part of plant (--> stem)",
-            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001300"
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0000142"
         },
         {
             "value": "twig",

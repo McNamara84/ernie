@@ -934,6 +934,7 @@ entity "igsn_classifications" as igsn_classifications {
     --
     * resource_id : BIGINT <<FK>>
     * value : VARCHAR(255)
+    classification_type : VARCHAR(20) <<nullable>> //indexed//
     * position : SMALLINT = 0
     created_at : TIMESTAMP
     updated_at : TIMESTAMP

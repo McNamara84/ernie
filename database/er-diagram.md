@@ -857,6 +857,7 @@ erDiagram
         bigint id PK
         bigint resource_id FK
         varchar value
+        varchar classification_type "20, nullable, indexed"
         smallint position
         timestamp created_at
         timestamp updated_at

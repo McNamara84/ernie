@@ -57,7 +57,7 @@ it('loads all versioned material-specific classification values', function (): v
     $vocabulary = new IgsnClassificationVocabularyService;
 
     expect($vocabulary->values(IgsnClassificationType::ROCK))->toHaveCount(76)
-        ->and($vocabulary->values(IgsnClassificationType::MINERAL))->toHaveCount(4176)
+        ->and($vocabulary->values(IgsnClassificationType::MINERAL))->toHaveCount(4172)
         ->and($vocabulary->values(IgsnClassificationType::BIOLOGY))->toHaveCount(24)
         ->and($vocabulary->contains(IgsnClassificationType::ROCK, 'Igneous>Volcanic'))->toBeTrue()
         ->and($vocabulary->contains(IgsnClassificationType::MINERAL, 'Quartz'))->toBeTrue()
@@ -65,9 +65,17 @@ it('loads all versioned material-specific classification values', function (): v
 });
 
 it('keeps the versioned classification catalogs structurally valid', function (): void {
-    $rock = json_decode(file_get_contents(resource_path('data/igsn/classification-rock.json')), true, flags: JSON_THROW_ON_ERROR);
-    $mineral = json_decode(file_get_contents(resource_path('data/igsn/classification-mineral.json')), true, flags: JSON_THROW_ON_ERROR);
-    $biology = json_decode(file_get_contents(resource_path('data/igsn/classification-biology.json')), true, flags: JSON_THROW_ON_ERROR);
+    $rockContents = file_get_contents(resource_path('data/igsn/classification-rock.json'));
+    $mineralContents = file_get_contents(resource_path('data/igsn/classification-mineral.json'));
+    $biologyContents = file_get_contents(resource_path('data/igsn/classification-biology.json'));
+
+    if ($rockContents === false || $mineralContents === false || $biologyContents === false) {
+        throw new RuntimeException('Unable to read an IGSN classification catalog.');
+    }
+
+    $rock = json_decode($rockContents, true, flags: JSON_THROW_ON_ERROR);
+    $mineral = json_decode($mineralContents, true, flags: JSON_THROW_ON_ERROR);
+    $biology = json_decode($biologyContents, true, flags: JSON_THROW_ON_ERROR);
 
     foreach ([$rock['values'], $mineral['values'], array_column($biology['values'], 'value')] as $values) {
         $normalized = array_map(static fn (string $value): string => mb_strtolower(trim($value)), $values);
@@ -90,6 +98,18 @@ it('keeps the versioned classification catalogs structurally valid', function ()
                 ->and($entry['value_uri'])->toStartWith('http://purl.obolibrary.org/obo/BTO_');
         }
     }
+
+    expect($mineral['values'])->not->toContain(
+        'More Info',
+        'Related',
+        'Resources',
+        'Subscribe to our newsletter:',
+    );
+
+    $biologyByValue = array_column($biology['values'], null, 'value');
+
+    expect($biologyByValue['branch']['value_uri'])->toBe('http://purl.obolibrary.org/obo/BTO_0001300')
+        ->and($biologyByValue['stem']['value_uri'])->toBe('http://purl.obolibrary.org/obo/BTO_0000142');
 });
 
 it('canonicalizes and deduplicates classifications for controlled materials', function (): void {
