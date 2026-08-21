@@ -181,6 +181,8 @@ it('does not guess an unsupported or conflicting license', function (string $nam
     'URI with query' => ['CC BY', 'https://creativecommons.org/licenses/by/4.0/?lang=en'],
     'foreign URI host' => ['CC BY', 'https://creativecommons.org.example/licenses/by/4.0/'],
     'conflicting short name' => ['CC BY 4.0', 'https://creativecommons.org/licenses/by-nc-nd/4.0/'],
+    'conflicting version in short name' => ['CC BY-NC-ND 3.0', 'https://creativecommons.org/licenses/by-nc-nd/4.0/'],
+    'unrecognized CC-like short name' => ['CC BY NC ND', 'https://creativecommons.org/licenses/by-nc-nd/4.0/'],
 ]);
 
 it('requires an active matching SPDX catalog right', function (bool $createInactiveRight): void {

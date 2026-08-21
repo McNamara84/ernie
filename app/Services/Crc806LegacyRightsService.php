@@ -449,17 +449,20 @@ final class Crc806LegacyRightsService
         $normalizedName = preg_replace('/^CC-/', 'CC ', $normalizedName) ?? $normalizedName;
         $normalizedName = preg_replace('/\s+/', ' ', $normalizedName) ?? $normalizedName;
 
-        if (preg_match('/^CC0(?:\s+\d+\.\d+)?$/', $normalizedName) === 1) {
-            return str_starts_with($identifier, 'CC0-');
+        if (preg_match('/^CC0(?:\s+(\d+\.\d+))?$/', $normalizedName, $match) === 1) {
+            return str_starts_with($identifier, 'CC0-')
+                && (! isset($match[1]) || $identifier === 'CC0-'.$match[1]);
         }
 
-        if (preg_match('/^CC\s+(BY(?:-(?:NC|ND|SA))*)(?:\s+\d+\.\d+)?$/', $normalizedName, $match) === 1) {
+        if (preg_match('/^CC\s+(BY(?:-(?:NC|ND|SA))*)(?:\s+(\d+\.\d+))?$/', $normalizedName, $match) === 1) {
             $identifierFamily = preg_replace('/-\d+\.\d+$/', '', $identifier) ?? $identifier;
 
-            return $identifierFamily === 'CC-'.$match[1];
+            return $identifierFamily === 'CC-'.$match[1]
+                && (! isset($match[2]) || $identifier === $identifierFamily.'-'.$match[2]);
         }
 
-        return true;
+        return ! str_starts_with($normalizedName, 'CC ')
+            && ! str_starts_with($normalizedName, 'CC0');
     }
 
     /** @param array<string, int|string> $context */
