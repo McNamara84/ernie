@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteSubjectMergeService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\Editor\EditorDataTransformer;
@@ -343,4 +344,43 @@ it('persists only the nine Issue 1123 original XML subjects', function (): void 
     expect($resource->subjects()->count())->toBe(9)
         ->and($resource->subjects()->orderBy('id')->pluck('value')->all())->toBe($originalSubjects)
         ->and($resource->subjects()->where('value', 'FOS: Biological sciences')->exists())->toBeFalse();
+});
+
+it('preserves arbitrary DataCite subject scheme names during import and re-export', function (): void {
+    $schemes = [
+        'Research Instrument Taxonomy',
+        'Offshore Platform Classification',
+        'Local GEMET-derived Vocabulary',
+    ];
+    $doiRecord = [
+        'id' => '10.5880/custom-subject-schemes',
+        'attributes' => [
+            'doi' => '10.5880/custom-subject-schemes',
+            'publicationYear' => 2026,
+            'titles' => [['title' => 'Custom subject schemes']],
+            'creators' => [[
+                'familyName' => 'Importer',
+                'givenName' => 'Test',
+                'nameType' => 'Personal',
+            ]],
+            'subjects' => array_map(
+                static fn (string $scheme, int $index): array => [
+                    'subject' => "Custom subject {$index}",
+                    'subjectScheme' => $scheme,
+                    'schemeUri' => "https://example.test/schemes/{$index}",
+                ],
+                $schemes,
+                array_keys($schemes),
+            ),
+        ],
+    ];
+
+    $resource = (new DataCiteToResourceTransformer)->transform(
+        $doiRecord,
+        User::factory()->create()->id,
+    );
+    $exportedSubjects = (new DataCiteJsonExporter)->export($resource->fresh())['data']['attributes']['subjects'];
+
+    expect($resource->subjects()->orderBy('id')->pluck('subject_scheme')->all())->toBe($schemes)
+        ->and(array_column($exportedSubjects, 'subjectScheme'))->toBe($schemes);
 });

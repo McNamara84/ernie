@@ -404,6 +404,10 @@
         ],
         "fixes": [
             {
+                "title": "Reliable Legacy Subject Imports",
+                "description": "New legacy DataCite imports now use the embedded original XML subjects when the REST representation differs and enrich matching GEMET terms with stable identifiers from SUMARIOPMD. REST-only additions are no longer imported, GEMET selections reopen correctly in the Data Editor, and unrelated DataCite subject scheme names remain unchanged during import and re-export. Existing imported resources remain unchanged."
+            },
+            {
                 "title": "Complete Legacy GCMD Keyword Enrichment for DataCite Imports",
                 "description": "New legacy resource imports now enrich DataCite metadata with all controlled GCMD keywords and free keywords from SUMARIOPMD. Existing DataCite subjects keep their original order, equivalent legacy subjects are omitted, and unavailable legacy metadata no longer blocks the import. Existing imported resources remain unchanged."
             },
