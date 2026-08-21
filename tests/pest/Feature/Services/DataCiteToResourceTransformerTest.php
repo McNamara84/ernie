@@ -2055,6 +2055,138 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
         expect($resource->contributors()->sole()->contributorable_type)->toBe(Institution::class);
     });
 
+    it('imports an unstructured staff contributor as an institution for issue 1125', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform([
+            'attributes' => [
+                'doi' => '10.5880/isg.2023.007',
+                'publicationYear' => 2023,
+                'titles' => [['title' => 'The Colombian gravimetric quasi-geoid: QgeoidCOL2023']],
+                'creators' => [
+                    ['familyName' => 'Liu', 'givenName' => 'Qing', 'nameType' => 'Personal'],
+                ],
+                'contributors' => [
+                    [
+                        'name' => 'ISG Staff',
+                        'affiliation' => ['International Service for the Geoid (ISG)'],
+                        'contributorType' => 'ContactPerson',
+                        'nameIdentifiers' => [],
+                    ],
+                ],
+            ],
+        ], $user->id);
+
+        $contributor = $resource->contributors()
+            ->with(['affiliations', 'contributorTypes'])
+            ->sole();
+        $institution = Institution::findOrFail($contributor->contributorable_id);
+
+        expect($contributor->contributorable_type)->toBe(Institution::class)
+            ->and($institution->name)->toBe('ISG Staff')
+            ->and($contributor->contributorTypes->pluck('slug')->all())->toBe(['ContactPerson'])
+            ->and($contributor->affiliations->pluck('name')->all())
+            ->toBe(['International Service for the Geoid (ISG)'])
+            ->and(Person::query()
+                ->where('given_name', 'ISG')
+                ->where('family_name', 'Staff')
+                ->exists())->toBeFalse();
+    });
+
+    it('matches the staff collective word case-insensitively for creators and contributors', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform([
+            'attributes' => [
+                'doi' => '10.5880/staff-collective-case.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Staff Collective Case Test']],
+                'creators' => [
+                    ['name' => 'ISG STAFF'],
+                ],
+                'contributors' => [
+                    [
+                        'name' => 'Project staff',
+                        'contributorType' => 'Other',
+                    ],
+                ],
+            ],
+        ], $user->id);
+
+        expect($resource->creators()->sole()->creatorable_type)->toBe(Institution::class)
+            ->and($resource->contributors()->sole()->contributorable_type)->toBe(Institution::class);
+    });
+
+    it('does not treat staff substrings or comma-formatted names as collectives', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform([
+            'attributes' => [
+                'doi' => '10.5880/staff-collective-boundaries.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Staff Collective Boundary Test']],
+                'creators' => [
+                    ['name' => 'John Stafford'],
+                    ['name' => 'Staff, Jane'],
+                ],
+            ],
+        ], $user->id);
+
+        $creators = $resource->creators()->orderBy('position')->get();
+        $stafford = Person::findOrFail($creators[0]->creatorable_id);
+        $staff = Person::findOrFail($creators[1]->creatorable_id);
+
+        expect($creators)->toHaveCount(2)
+            ->and($creators[0]->creatorable_type)->toBe(Person::class)
+            ->and($stafford->given_name)->toBe('John')
+            ->and($stafford->family_name)->toBe('Stafford')
+            ->and($creators[1]->creatorable_type)->toBe(Person::class)
+            ->and($staff->given_name)->toBe('Jane')
+            ->and($staff->family_name)->toBe('Staff');
+    });
+
+    it('keeps stronger person signals ahead of the staff collective heuristic', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform([
+            'attributes' => [
+                'doi' => '10.5880/staff-person-signals.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Staff Person Signal Test']],
+                'creators' => [
+                    [
+                        'name' => 'Jane Staff',
+                        'nameType' => 'Personal',
+                    ],
+                    [
+                        'name' => 'Structured Staff',
+                        'givenName' => 'Structured',
+                        'familyName' => 'Staff',
+                    ],
+                    [
+                        'name' => 'Research Staff',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => 'https://orcid.org/0000-0002-1825-0097',
+                                'nameIdentifierScheme' => 'ORCID',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], $user->id);
+
+        $creators = $resource->creators()->orderBy('position')->get();
+
+        expect($creators)->toHaveCount(3)
+            ->and($creators->pluck('creatorable_type')->all())
+            ->toBe([Person::class, Person::class, Person::class]);
+    });
+
     it('corrects legacy institutional creators that DataCite marks as Personal', function (): void {
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;

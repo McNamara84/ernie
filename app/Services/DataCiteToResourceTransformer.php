@@ -1072,12 +1072,17 @@ class DataCiteToResourceTransformer
     }
 
     /**
-     * Recognize the narrowly scoped collective phrase in legacy DEKORP party
-     * names without broadening the general organization keyword list.
+     * Recognize narrowly scoped collective phrases in legacy party names
+     * without broadening the general organization keyword list.
      */
     private function looksLikeCollectiveOrganizationName(string $name): bool
     {
-        return preg_match('/\bproject\s+leaders\b/iu', $name) === 1;
+        if (preg_match('/\bproject\s+leaders\b/iu', $name) === 1) {
+            return true;
+        }
+
+        return ! str_contains($name, ',')
+            && preg_match('/\bstaff\b/iu', $name) === 1;
     }
 
     /**
