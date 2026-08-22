@@ -25,8 +25,8 @@ interface DescriptionFieldProps {
     onChange: (descriptions: DescriptionEntry[]) => void;
     availableTypes: DescriptionTypeFromApi[];
     languages: Language[];
-    abstractValidationMessages?: ValidationMessage[];
-    abstractTouched?: boolean;
+    validationMessages?: ValidationMessage[];
+    validationTouched?: boolean;
     onAbstractValidationBlur?: () => void;
 }
 
@@ -72,8 +72,8 @@ export default function DescriptionField({
     onChange,
     availableTypes,
     languages,
-    abstractValidationMessages = [],
-    abstractTouched = false,
+    validationMessages = [],
+    validationTouched = false,
     onAbstractValidationBlur,
 }: DescriptionFieldProps) {
     const typeOptions = useMemo(() => {
@@ -112,6 +112,7 @@ export default function DescriptionField({
             : populatedAbstracts.length === 0 && firstAbstractIndex >= 0
               ? descriptions[firstAbstractIndex].id
               : null;
+    const groupValidationMessages = validationMessages.filter((message) => message.fieldId === 'abstract' || message.fieldId === undefined);
 
     return (
         <div className="space-y-4">
@@ -123,7 +124,9 @@ export default function DescriptionField({
                 </AlertDescription>
             </Alert>
 
-            {firstAbstractIndex === -1 && abstractTouched && <FieldValidationFeedback messages={abstractValidationMessages} />}
+            {firstAbstractIndex === -1 && validationTouched && groupValidationMessages.length > 0 && (
+                <FieldValidationFeedback messages={groupValidationMessages} />
+            )}
 
             <div className="space-y-4">
                 {descriptions.map((description, index) => {
@@ -134,16 +137,14 @@ export default function DescriptionField({
                     const charCount = description.value.length;
                     const trimmedCharCount = description.value.trim().length;
                     const hasLocalAbstractError = isAbstract && trimmedCharCount > 0 && (trimmedCharCount < 50 || trimmedCharCount > 17_500);
-                    const entryValidationMessages = isAbstract
-                        ? abstractValidationMessages.filter(
-                              (message) =>
-                                  message.fieldId === description.id ||
-                                  (isFirstAbstract && message.fieldId === 'abstract') ||
-                                  (isFirstAbstract && !hasPopulatedAbstract && message.fieldId === undefined),
-                          )
-                        : [];
+                    const entryValidationMessages = validationMessages.filter(
+                        (message) =>
+                            message.fieldId === description.id ||
+                            (isFirstAbstract && message.fieldId === 'abstract') ||
+                            (isFirstAbstract && !hasPopulatedAbstract && message.fieldId === undefined),
+                    );
                     const hasEntryValidationError = entryValidationMessages.some((message) => message.severity === 'error');
-                    const hasValidationError = abstractTouched && (hasLocalAbstractError || hasEntryValidationError);
+                    const hasValidationError = validationTouched && (hasLocalAbstractError || hasEntryValidationError);
                     const descriptionId = `description-${description.id}`;
 
                     return (
@@ -209,10 +210,10 @@ export default function DescriptionField({
                                     required={isRequiredAbstract}
                                     data-testid={isFirstAbstract ? 'abstract-textarea' : undefined}
                                 />
-                                {isAbstract && abstractTouched && entryValidationMessages.length > 0 && (
+                                {validationTouched && entryValidationMessages.length > 0 && (
                                     <FieldValidationFeedback messages={entryValidationMessages} />
                                 )}
-                                {isAbstract && abstractTouched && entryValidationMessages.length === 0 && hasLocalAbstractError && (
+                                {isAbstract && validationTouched && entryValidationMessages.length === 0 && hasLocalAbstractError && (
                                     <p className="text-sm text-destructive" role="alert">
                                         Abstract must be between 50 and 17,500 characters.
                                     </p>

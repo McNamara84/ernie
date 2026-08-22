@@ -147,8 +147,8 @@ describe('DescriptionField', () => {
                 onChange={onChange}
                 availableTypes={allDescriptionTypes}
                 languages={languages}
-                abstractTouched
-                abstractValidationMessages={[{ severity: 'error', message: 'Abstract is required' }]}
+                validationTouched
+                validationMessages={[{ severity: 'error', message: 'Abstract is required' }]}
             />,
         );
 
@@ -165,8 +165,8 @@ describe('DescriptionField', () => {
                 onChange={onChange}
                 availableTypes={allDescriptionTypes}
                 languages={languages}
-                abstractTouched
-                abstractValidationMessages={[
+                validationTouched
+                validationMessages={[
                     {
                         severity: 'error',
                         message: 'Abstract 2 must be at least 50 characters (current: 9)',
@@ -181,6 +181,35 @@ describe('DescriptionField', () => {
         expect(firstAbstract).toHaveAttribute('aria-invalid', 'false');
         expect(secondAbstract).toHaveAttribute('aria-invalid', 'true');
         expect(screen.getByText('Abstract 2 must be at least 50 characters (current: 9)')).toBeInTheDocument();
+    });
+
+    it('associates validation feedback with a non-Abstract entry by its stable id', () => {
+        render(
+            <DescriptionField
+                descriptions={[
+                    abstract('abstract-1', 'A valid abstract containing more than fifty characters for this regression test.'),
+                    { id: 'methods-1', type: 'Methods', value: 'Invalid methods', language: null },
+                ]}
+                onChange={onChange}
+                availableTypes={allDescriptionTypes}
+                languages={languages}
+                validationTouched
+                validationMessages={[
+                    {
+                        severity: 'error',
+                        message: 'Methods validation failed',
+                        fieldId: 'methods-1',
+                    },
+                ]}
+            />,
+        );
+
+        const abstractTextarea = screen.getByPlaceholderText(/Enter a brief summary/i);
+        const methodsTextarea = screen.getByPlaceholderText(/Describe the methods used/i);
+
+        expect(abstractTextarea).toHaveAttribute('aria-invalid', 'false');
+        expect(methodsTextarea).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getByText('Methods validation failed')).toBeInTheDocument();
     });
 
     it('calls Abstract blur validation and displays localized character counts', async () => {

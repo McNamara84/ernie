@@ -4251,6 +4251,67 @@ describe('DataCiteForm', () => {
             ]);
         });
 
+        it('maps backend errors inline for non-Abstract description entries', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockRejectedValue({
+                response: {
+                    status: 422,
+                    data: {
+                        message: 'Validation failed.',
+                        errors: {
+                            'descriptions.1.description': ['Backend rejected the submitted Methods description.'],
+                        },
+                    },
+                },
+                isAxiosError: true,
+            });
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    initialAuthors={[{ type: 'person', lastName: 'Curator' }]}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenterId={1}
+                    initialDescriptions={[
+                        {
+                            type: 'Abstract',
+                            description: 'This submitted Abstract is valid and contains more than fifty characters.',
+                        },
+                        { type: 'Methods', description: 'Submitted methods description.' },
+                    ]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const abstractTextarea = screen.getByPlaceholderText(/Enter a brief summary/i);
+            const methodsTextarea = screen.getByPlaceholderText(/Describe the methods/i);
+
+            await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+            await waitFor(() => {
+                expect(methodsTextarea).toHaveAttribute('aria-invalid', 'true');
+                expect(
+                    within(methodsTextarea.closest('[data-testid="description-entry"]')!).getByText(
+                        'Backend rejected the submitted Methods description.',
+                    ),
+                ).toBeInTheDocument();
+            });
+            expect(abstractTextarea).toHaveAttribute('aria-invalid', 'false');
+        });
+
         it('save button remains enabled when Abstract is filled', { timeout: 60000 }, async () => {
             const user = userEvent.setup();
             render(

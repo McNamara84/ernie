@@ -34,7 +34,7 @@ interface SectionMapping {
 
 export interface ErrorFieldMappingContext {
     /** Stable client-side IDs for inline-capable fields, in submitted description order. */
-    descriptionIds?: readonly (string | null)[];
+    descriptionIds?: readonly string[];
 }
 
 /**

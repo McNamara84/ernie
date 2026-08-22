@@ -1479,25 +1479,15 @@ export default function DataCiteForm({
         dateValidationIssues,
     ]);
 
-    const abstractEntryIds = useMemo(
-        () => descriptions.filter((description) => description.type === 'Abstract').map((description) => description.id),
-        [descriptions],
-    );
+    const descriptionEntryIds = useMemo(() => descriptions.map((description) => description.id), [descriptions]);
     const submittedDescriptions = useMemo(() => descriptions.filter(hasDescriptionPayloadValue), [descriptions]);
-    const uiDescriptionIds = useMemo(
-        () => descriptions.map((description) => (description.type === 'Abstract' ? description.id : null)),
-        [descriptions],
+    const submittedDescriptionIds = useMemo(() => submittedDescriptions.map((description) => description.id), [submittedDescriptions]);
+    const visibleDescriptionValidationMessages = useMemo(
+        () => [...getFieldMessages('abstract'), ...descriptionEntryIds.flatMap((descriptionId) => getFieldMessages(descriptionId))],
+        [descriptionEntryIds, getFieldMessages],
     );
-    const submittedDescriptionIds = useMemo(
-        () => submittedDescriptions.map((description) => (description.type === 'Abstract' ? description.id : null)),
-        [submittedDescriptions],
-    );
-    const visibleAbstractValidationMessages = useMemo(
-        () => [...getFieldMessages('abstract'), ...abstractEntryIds.flatMap((descriptionId) => getFieldMessages(descriptionId))],
-        [abstractEntryIds, getFieldMessages],
-    );
-    const isAbstractValidationTouched =
-        getFieldState('abstract').touched || abstractEntryIds.some((descriptionId) => getFieldState(descriptionId).touched);
+    const isDescriptionValidationTouched =
+        getFieldState('abstract').touched || descriptionEntryIds.some((descriptionId) => getFieldState(descriptionId).touched);
 
     // ===================================================================
     // Accordion Section Status Badges
@@ -1589,13 +1579,13 @@ export default function DataCiteForm({
         }
 
         // Check for validation errors
-        const hasAbstractError = visibleAbstractValidationMessages.some((msg) => msg.severity === 'error');
-        if (hasAbstractError) {
+        const hasDescriptionError = visibleDescriptionValidationMessages.some((msg) => msg.severity === 'error');
+        if (hasDescriptionError) {
             return 'invalid';
         }
 
         return 'valid';
-    }, [descriptions, visibleAbstractValidationMessages]);
+    }, [descriptions, visibleDescriptionValidationMessages]);
 
     const controlledVocabulariesStatus = useMemo(() => {
         // Controlled vocabularies are optional
@@ -2382,7 +2372,7 @@ export default function DataCiteForm({
     }, [saveDraftSilently]);
 
     const revealValidationErrors = useCallback(
-        (errors: Record<string, string[]>, headerMessage: string, descriptionIds = uiDescriptionIds) => {
+        (errors: Record<string, string[]>, headerMessage: string, descriptionIds = descriptionEntryIds) => {
             const mapped = mapBackendErrors(errors, {
                 descriptionIds,
             });
@@ -2412,7 +2402,7 @@ export default function DataCiteForm({
 
             setErrorMessage(headerMessage);
         },
-        [setFieldErrors, uiDescriptionIds, updateOpenAccordionItems],
+        [descriptionEntryIds, setFieldErrors, updateOpenAccordionItems],
     );
 
     const datacenterErrorMessage = useMemo(() => {
@@ -3296,8 +3286,8 @@ export default function DataCiteForm({
                             onChange={handleDescriptionChange}
                             availableTypes={descriptionTypes}
                             languages={languages}
-                            abstractValidationMessages={visibleAbstractValidationMessages}
-                            abstractTouched={isAbstractValidationTouched}
+                            validationMessages={visibleDescriptionValidationMessages}
+                            validationTouched={isDescriptionValidationTouched}
                             onAbstractValidationBlur={() => markFieldTouched('abstract')}
                         />
                     </AccordionContent>
