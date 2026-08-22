@@ -32,6 +32,11 @@ interface SectionMapping {
     sectionName: string;
 }
 
+export interface ErrorFieldMappingContext {
+    /** Stable client-side IDs for inline-capable fields, in submitted description order. */
+    descriptionIds?: readonly (string | null)[];
+}
+
 /**
  * Maps backend validation key prefixes to accordion section IDs and display names.
  */
@@ -128,7 +133,7 @@ export function stripSectionPrefix(message: string): string {
  * For array keys (e.g., "authors.0.lastName"), attempts to build a selector
  * based on the actual data-testid / id attributes rendered by the field components.
  */
-function resolveFieldSelector(backendKey: string): string | null {
+function resolveFieldSelector(backendKey: string, context: ErrorFieldMappingContext): string | null {
     // Direct simple field mapping
     if (backendKey in SIMPLE_FIELD_MAP) {
         return SIMPLE_FIELD_MAP[backendKey];
@@ -162,9 +167,7 @@ function resolveFieldSelector(backendKey: string): string | null {
         switch (prefix) {
             case 'titles':
                 // Main title (index 0) has a stable data-testid; secondary titles use the section
-                return subfield === 'title' && index === '0'
-                    ? '[data-testid="main-title-input"]'
-                    : null;
+                return subfield === 'title' && index === '0' ? '[data-testid="main-title-input"]' : null;
             case 'authors':
                 return `[data-testid="author-${index}-fields-grid"]`;
             case 'contributors':
@@ -173,7 +176,15 @@ function resolveFieldSelector(backendKey: string): string | null {
                 }
                 return `[data-testid="contributor-${index}-type-field"]`;
             case 'descriptions':
-                // Only the abstract textarea has a stable data-testid
+                if (subfield !== 'description') {
+                    return null;
+                }
+
+                if (context.descriptionIds !== undefined) {
+                    const descriptionId = context.descriptionIds[Number(index)];
+                    return descriptionId ? `#description-${descriptionId}-value` : null;
+                }
+
                 return index === '0' ? '[data-testid="abstract-textarea"]' : null;
             case 'datacenter_id':
             case 'datacenters':
@@ -210,7 +221,7 @@ function resolveFieldSelector(backendKey: string): string | null {
  * Returns the key that matches `useFormValidation` state (e.g. 'year', 'doi'),
  * or null for complex array fields where inline validation is not yet supported.
  */
-function resolveFieldId(backendKey: string): string | null {
+function resolveFieldId(backendKey: string, context: ErrorFieldMappingContext): string | null {
     if (backendKey in FIELD_ID_MAP) {
         return FIELD_ID_MAP[backendKey];
     }
@@ -246,8 +257,12 @@ function resolveFieldId(backendKey: string): string | null {
         return 'license-0';
     }
 
-    if (prefix === 'descriptions' && index === '0') {
-        return 'abstract';
+    if (prefix === 'descriptions' && subfield === 'description') {
+        if (context.descriptionIds !== undefined) {
+            return context.descriptionIds[Number(index)] ?? null;
+        }
+
+        return index === '0' ? 'abstract' : null;
     }
 
     return null;
@@ -259,7 +274,7 @@ function resolveFieldId(backendKey: string): string | null {
  * @param errors - The errors object from a Laravel 422 response: `{ "key": ["message", ...], ... }`
  * @returns Array of MappedError objects, sorted by section for grouped display.
  */
-export function mapBackendErrors(errors: Record<string, string[]>): MappedError[] {
+export function mapBackendErrors(errors: Record<string, string[]>, context: ErrorFieldMappingContext = {}): MappedError[] {
     const mappedErrors: MappedError[] = [];
 
     for (const [backendKey, messages] of Object.entries(errors)) {
@@ -281,8 +296,8 @@ export function mapBackendErrors(errors: Record<string, string[]>): MappedError[
             continue;
         }
 
-        const fieldSelector = resolveFieldSelector(backendKey);
-        const fieldId = resolveFieldId(backendKey);
+        const fieldSelector = resolveFieldSelector(backendKey, context);
+        const fieldId = resolveFieldId(backendKey, context);
 
         for (const message of messages) {
             // Use section name from message prefix if available (more accurate),

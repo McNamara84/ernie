@@ -1433,12 +1433,14 @@ export default function DataCiteForm({
             });
         }
 
+        const firstAbstractIndex = descriptions.findIndex((description) => description.type === 'Abstract');
         const abstracts = descriptions
             .map((description, index) => ({ description, index }))
             .filter(({ description }) => description.type === 'Abstract' && description.value.trim() !== '');
 
         if (abstracts.length === 0) {
-            appendValidationMessage(errors, 'descriptions.0.description', 'Abstract is required.');
+            const errorKey = firstAbstractIndex >= 0 ? `descriptions.${firstAbstractIndex}.description` : 'descriptions';
+            appendValidationMessage(errors, errorKey, 'Abstract is required.');
         } else {
             abstracts.forEach(({ description, index }, abstractIndex) => {
                 const abstractLengthResult = validateTextLength(description.value.trim(), {
@@ -1472,6 +1474,17 @@ export default function DataCiteForm({
         titles,
         dateValidationIssues,
     ]);
+
+    const abstractEntryIds = useMemo(
+        () => descriptions.filter((description) => description.type === 'Abstract').map((description) => description.id),
+        [descriptions],
+    );
+    const visibleAbstractValidationMessages = useMemo(
+        () => [...getFieldMessages('abstract'), ...abstractEntryIds.flatMap((descriptionId) => getFieldMessages(descriptionId))],
+        [abstractEntryIds, getFieldMessages],
+    );
+    const isAbstractValidationTouched =
+        getFieldState('abstract').touched || abstractEntryIds.some((descriptionId) => getFieldState(descriptionId).touched);
 
     // ===================================================================
     // Accordion Section Status Badges
@@ -1563,14 +1576,13 @@ export default function DataCiteForm({
         }
 
         // Check for validation errors
-        const abstractMessages = getFieldState('abstract').messages;
-        const hasAbstractError = abstractMessages.some((msg) => msg.severity === 'error');
+        const hasAbstractError = visibleAbstractValidationMessages.some((msg) => msg.severity === 'error');
         if (hasAbstractError) {
             return 'invalid';
         }
 
         return 'valid';
-    }, [descriptions, getFieldState]);
+    }, [descriptions, visibleAbstractValidationMessages]);
 
     const controlledVocabulariesStatus = useMemo(() => {
         // Controlled vocabularies are optional
@@ -2360,7 +2372,9 @@ export default function DataCiteForm({
 
     const revealValidationErrors = useCallback(
         (errors: Record<string, string[]>, headerMessage: string) => {
-            const mapped = mapBackendErrors(errors);
+            const mapped = mapBackendErrors(errors, {
+                descriptionIds: descriptions.map((description) => (description.type === 'Abstract' ? description.id : null)),
+            });
             setMappedValidationErrors(mapped);
             setValidationAlertHeader(headerMessage);
 
@@ -2387,7 +2401,7 @@ export default function DataCiteForm({
 
             setErrorMessage(headerMessage);
         },
-        [setFieldErrors, updateOpenAccordionItems],
+        [descriptions, setFieldErrors, updateOpenAccordionItems],
     );
 
     const datacenterErrorMessage = useMemo(() => {
@@ -3271,8 +3285,8 @@ export default function DataCiteForm({
                             onChange={handleDescriptionChange}
                             availableTypes={descriptionTypes}
                             languages={languages}
-                            abstractValidationMessages={getFieldMessages('abstract')}
-                            abstractTouched={getFieldState('abstract').touched}
+                            abstractValidationMessages={visibleAbstractValidationMessages}
+                            abstractTouched={isAbstractValidationTouched}
                             onAbstractValidationBlur={() => markFieldTouched('abstract')}
                         />
                     </AccordionContent>

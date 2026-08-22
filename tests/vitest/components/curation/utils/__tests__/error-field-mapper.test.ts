@@ -353,6 +353,28 @@ describe('mapBackendErrors', () => {
         expect(mapped[0].fieldId).toBe('abstract');
     });
 
+    it('resolves an indexed Abstract through its stable client-side id', () => {
+        const errors: Record<string, string[]> = {
+            'descriptions.1.description': ['[Descriptions] Abstract is required.'],
+        };
+
+        const mapped = mapBackendErrors(errors, { descriptionIds: [null, 'abstract-entry-id'] });
+
+        expect(mapped[0].fieldSelector).toBe('#description-abstract-entry-id-value');
+        expect(mapped[0].fieldId).toBe('abstract-entry-id');
+    });
+
+    it('does not map an indexed non-Abstract entry to Abstract feedback', () => {
+        const errors: Record<string, string[]> = {
+            'descriptions.0.description': ['[Descriptions] Description is invalid.'],
+        };
+
+        const mapped = mapBackendErrors(errors, { descriptionIds: [null] });
+
+        expect(mapped[0].fieldSelector).toBeNull();
+        expect(mapped[0].fieldId).toBeNull();
+    });
+
     it('resolves "authors" (no index) to null (accordion section fallback)', () => {
         const errors: Record<string, string[]> = {
             authors: ['[Authors] At least one author must be provided.'],

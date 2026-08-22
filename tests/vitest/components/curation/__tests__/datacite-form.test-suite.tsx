@@ -4121,6 +4121,76 @@ describe('DataCiteForm', () => {
             });
         });
 
+        it('attaches the required error to the first Abstract after other description types', async () => {
+            const { container } = render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    initialAuthors={[{ type: 'person', lastName: 'Curator' }]}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenterId={1}
+                    initialDescriptions={[
+                        { type: 'Methods', description: 'Methods remain optional.' },
+                        { type: 'Abstract', description: '' },
+                    ]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const methodsTextarea = screen.getByPlaceholderText(/Describe the methods/i);
+            const abstractTextarea = screen.getByPlaceholderText(/Enter a brief summary/i);
+
+            fireEvent.submit(container.querySelector('form')!);
+
+            await waitFor(() => expect(abstractTextarea).toHaveAttribute('aria-invalid', 'true'));
+            expect(methodsTextarea).toHaveAttribute('aria-invalid', 'false');
+            expect(screen.getAllByText('Abstract is required.').length).toBeGreaterThan(0);
+        });
+
+        it('shows the required error at group level when no Abstract entry exists', async () => {
+            const { container } = render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    initialAuthors={[{ type: 'person', lastName: 'Curator' }]}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenterId={1}
+                    initialDescriptions={[{ type: 'Methods', description: 'Methods remain optional.' }]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const methodsTextarea = screen.getByPlaceholderText(/Describe the methods/i);
+            expect(screen.queryByPlaceholderText(/Enter a brief summary/i)).not.toBeInTheDocument();
+
+            fireEvent.submit(container.querySelector('form')!);
+
+            await waitFor(() => expect(screen.getAllByText('Abstract is required.').length).toBeGreaterThan(0));
+            expect(methodsTextarea).toHaveAttribute('aria-invalid', 'false');
+        });
+
         it('save button remains enabled when Abstract is filled', { timeout: 60000 }, async () => {
             const user = userEvent.setup();
             render(
