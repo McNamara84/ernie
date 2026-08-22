@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AuthorList from '@/components/curation/fields/author/author-list';
 import type { AuthorEntry } from '@/components/curation/fields/author/types';
+import type { ParsedAuthor } from '@/components/curation/fields/author-csv-import';
 
 const dndState = vi.hoisted(() => ({
     event: {
@@ -62,6 +63,27 @@ vi.mock('@dnd-kit/utilities', () => ({
     },
 }));
 
+vi.mock('@/components/curation/fields/author-csv-import', () => ({
+    default: ({ onImport, onClose }: { onImport: (authors: ParsedAuthor[]) => void; onClose: () => void }) => (
+        <div data-testid="csv-import-dialog">
+            <button
+                data-testid="csv-import-action"
+                onClick={() =>
+                    onImport([
+                        { type: 'person', firstName: 'Jane', lastName: 'Doe', affiliations: ['MIT'], isContact: false },
+                        { type: 'institution', institutionName: 'CERN', affiliations: ['CERN'], isContact: false },
+                    ])
+                }
+            >
+                Import
+            </button>
+            <button data-testid="csv-close-action" onClick={onClose}>
+                Cancel
+            </button>
+        </div>
+    ),
+}));
+
 describe('AuthorList Component', () => {
     const mockAuthors: AuthorEntry[] = [
         {
@@ -110,69 +132,88 @@ describe('AuthorList Component', () => {
 
     it('renders empty state when no authors', () => {
         render(<AuthorList authors={[]} {...mockProps} />);
-        
+
         expect(screen.getByText('No authors yet')).toBeInTheDocument();
         expect(screen.getByLabelText('Add first author')).toBeInTheDocument();
     });
 
     it('shows CSV import button in empty state', () => {
         render(<AuthorList authors={[]} {...mockProps} />);
-        
+
         expect(screen.getByLabelText('Import authors from CSV file')).toBeInTheDocument();
     });
 
     it('calls onAdd when Add First Author button is clicked', async () => {
         const user = userEvent.setup({ delay: null });
         render(<AuthorList authors={[]} {...mockProps} />);
-        
+
         const addButton = screen.getByLabelText('Add first author');
         await user.click(addButton);
-        
+
         expect(mockProps.onAdd).toHaveBeenCalledTimes(1);
     });
 
     it('renders list of authors', () => {
         render(<AuthorList authors={mockAuthors} {...mockProps} />);
-        
+
         expect(screen.getByText('Author 1')).toBeInTheDocument();
         expect(screen.getByText('Author 2')).toBeInTheDocument();
     });
 
     it('has role="list" for accessibility', () => {
         render(<AuthorList authors={mockAuthors} {...mockProps} />);
-        
+
         expect(screen.getByRole('list', { name: 'Authors' })).toBeInTheDocument();
     });
 
     it('shows Add Author button when authors exist', () => {
         render(<AuthorList authors={mockAuthors} {...mockProps} />);
-        
+
         expect(screen.getByLabelText('Add another author')).toBeInTheDocument();
     });
 
     it('shows CSV import button when authors exist', () => {
         render(<AuthorList authors={mockAuthors} {...mockProps} />);
-        
+
         expect(screen.getByLabelText('Import authors from CSV file')).toBeInTheDocument();
     });
 
     it('calls onRemove with correct index', async () => {
         const user = userEvent.setup({ delay: null });
         render(<AuthorList authors={mockAuthors} {...mockProps} />);
-        
+
         // Both authors should have remove buttons since there are 2 authors
         const removeButtons = screen.getAllByLabelText(/Remove author/i);
         await user.click(removeButtons[0]);
-        
+
         expect(mockProps.onRemove).toHaveBeenCalledWith(0);
     });
 
-    it('handles bulk add via CSV import', async () => {
+    it('handles bulk add via CSV import with collision-resistant ids', async () => {
+        const user = userEvent.setup({ delay: null });
         const onBulkAdd = vi.fn();
-        render(<AuthorList authors={[]} {...mockProps} onBulkAdd={onBulkAdd} />);
-        
-        // CSV import is tested separately in author-csv-import.test.tsx
-        expect(screen.getByLabelText('Import authors from CSV file')).toBeInTheDocument();
+        const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+        const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+        try {
+            render(<AuthorList authors={[]} {...mockProps} onBulkAdd={onBulkAdd} />);
+
+            await user.click(screen.getByLabelText('Import authors from CSV file'));
+            await user.click(screen.getByTestId('csv-import-action'));
+
+            expect(onBulkAdd).toHaveBeenCalledOnce();
+            const importedAuthors = onBulkAdd.mock.calls[0][0] as AuthorEntry[];
+            const generatedIds = [
+                ...importedAuthors.map((author) => author.id),
+                ...importedAuthors.flatMap((author) => author.affiliations.map((affiliation) => affiliation.id)),
+            ];
+
+            expect(new Set(generatedIds).size).toBe(generatedIds.length);
+            expect(generatedIds.every((id) => typeof id === 'string' && id.includes('-'))).toBe(true);
+        } finally {
+            dateNowSpy.mockRestore();
+            randomSpy.mockRestore();
+        }
     });
 
     it('calls onReorder with the fully reordered author array after drag end', async () => {

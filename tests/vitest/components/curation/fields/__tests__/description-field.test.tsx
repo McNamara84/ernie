@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event';
-import { render, screen } from '@tests/vitest/utils/render';
+import { render, screen, within } from '@tests/vitest/utils/render';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -67,6 +67,26 @@ describe('DescriptionField', () => {
         expect(screen.getAllByPlaceholderText(/Describe the methods used/i)).toHaveLength(2);
         expect(screen.getByDisplayValue('First method')).toBeInTheDocument();
         expect(screen.getByDisplayValue('Second method')).toBeInTheDocument();
+    });
+
+    it('marks only the Abstract currently needed to satisfy the group requirement as required', () => {
+        render(
+            <DescriptionHarness
+                initialDescriptions={[
+                    abstract('abstract-1'),
+                    abstract('abstract-2', 'This populated Abstract contains enough characters to satisfy the requirement.'),
+                ]}
+            />,
+        );
+
+        const [firstEntry, secondEntry] = screen.getAllByTestId('description-entry');
+        const firstAbstract = within(firstEntry).getByPlaceholderText(/Enter a brief summary/i);
+        const secondAbstract = within(secondEntry).getByPlaceholderText(/Enter a brief summary/i);
+
+        expect(firstAbstract).not.toBeRequired();
+        expect(within(firstEntry).getByText('(Optional)')).toBeInTheDocument();
+        expect(secondAbstract).toBeRequired();
+        expect(within(secondEntry).getByText('(Required)')).toBeInTheDocument();
     });
 
     it('updates only the entry identified by its stable id', async () => {

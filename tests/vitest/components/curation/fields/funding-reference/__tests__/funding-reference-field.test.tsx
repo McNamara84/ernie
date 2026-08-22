@@ -151,6 +151,34 @@ describe('FundingReferenceField', () => {
             ]);
         });
 
+        it('creates unique ids for rapid funding-reference additions', async () => {
+            const user = userEvent.setup();
+            const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+            const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+            try {
+                render(<FundingReferenceField value={[]} onChange={onChange} />);
+
+                await waitFor(() => {
+                    expect(screen.queryByText(/loading ror data/i)).not.toBeInTheDocument();
+                });
+
+                const [addButton] = screen.getAllByRole('button', { name: /add funding reference/i });
+                await user.click(addButton);
+                await user.click(addButton);
+
+                const firstId = onChange.mock.calls[0][0][0].id;
+                const secondId = onChange.mock.calls[1][0][0].id;
+
+                expect(firstId).toMatch(/^funding-[0-9a-f-]{36}$/i);
+                expect(secondId).toMatch(/^funding-[0-9a-f-]{36}$/i);
+                expect(secondId).not.toBe(firstId);
+            } finally {
+                dateNowSpy.mockRestore();
+                randomSpy.mockRestore();
+            }
+        });
+
         it('allows adding beyond the former maximum', async () => {
             const legacySizedFundings = Array.from({ length: 100 }, (_, i) =>
                 createFunding({ id: `f-${i}`, funderName: `Funder ${i}` }),

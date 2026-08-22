@@ -198,9 +198,34 @@ it('accepts funding references and instruments beyond the former array limits', 
 
         $validator = Validator::make($payload, $relevantRules);
 
-        expect($rules['fundingReferences'])->toBe(['nullable', 'array'])
-            ->and($rules['instruments'])->toBe(['nullable', 'array'])
+        expect($rules['fundingReferences'])->toBe(['nullable', 'array', 'max:'.StoreResourceRequest::MAX_REPEATABLE_METADATA_ITEMS])
+            ->and($rules['instruments'])->toBe(['nullable', 'array', 'max:'.StoreResourceRequest::MAX_REPEATABLE_METADATA_ITEMS])
             ->and($validator->errors()->toArray())->toBe([]);
+    }
+});
+
+it('applies a high technical ceiling to funding references and instruments', function (): void {
+    $limit = StoreResourceRequest::MAX_REPEATABLE_METADATA_ITEMS;
+    $atLimit = array_fill(0, $limit, null);
+    $overLimit = [...$atLimit, null];
+
+    expect($limit)->toBeGreaterThan(3_711)
+        ->and(StoreDraftResourceRequest::MAX_REPEATABLE_METADATA_ITEMS)->toBe($limit);
+
+    foreach ([new StoreDraftResourceRequest, new StoreResourceRequest] as $request) {
+        $rules = [
+            'fundingReferences' => $request->rules()['fundingReferences'],
+            'instruments' => $request->rules()['instruments'],
+        ];
+
+        expect(Validator::make([
+            'fundingReferences' => $atLimit,
+            'instruments' => $atLimit,
+        ], $rules)->errors()->toArray())->toBe([])
+            ->and(Validator::make([
+                'fundingReferences' => $overLimit,
+                'instruments' => $overLimit,
+            ], $rules)->errors()->keys())->toEqualCanonicalizing(['fundingReferences', 'instruments']);
     }
 });
 

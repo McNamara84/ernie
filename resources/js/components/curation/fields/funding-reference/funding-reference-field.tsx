@@ -69,7 +69,7 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
 
     const handleAdd = () => {
         const newFunding: FundingReferenceEntry = {
-            id: `funding-${Date.now()}`,
+            id: `funding-${crypto.randomUUID()}`,
             funderName: '',
             funderIdentifier: '',
             funderIdentifierType: null,

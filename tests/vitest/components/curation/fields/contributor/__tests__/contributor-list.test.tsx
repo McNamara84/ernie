@@ -107,7 +107,7 @@ vi.mock('@/components/curation/fields/contributor-csv-import', () => ({
                 onClick={() =>
                     onImport([
                         { type: 'person', firstName: 'Jane', lastName: 'Doe', affiliations: ['MIT'], contributorRole: 'DataCurator' },
-                        { type: 'institution', institutionName: 'CERN', affiliations: [], contributorRole: 'HostingInstitution' },
+                        { type: 'institution', institutionName: 'CERN', affiliations: ['CERN'], contributorRole: 'HostingInstitution' },
                     ])
                 }
             >
@@ -533,6 +533,41 @@ describe('ContributorList', () => {
                     expect.objectContaining({ value: 'MIT', rorId: null }),
                 ]),
             );
+        });
+
+        it('creates collision-resistant entry and affiliation ids during one CSV import', async () => {
+            const user = userEvent.setup();
+            const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+            const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+            try {
+                render(
+                    <ContributorList
+                        contributors={[]}
+                        onAdd={onAdd}
+                        onRemove={onRemove}
+                        onContributorChange={onContributorChange}
+                        onReorder={onReorder}
+                        onBulkAdd={onBulkAdd}
+                        {...defaultProps}
+                    />,
+                );
+
+                await user.click(screen.getByRole('button', { name: /import contributors from csv/i }));
+                await user.click(screen.getByTestId('csv-import-action'));
+
+                const importedContributors = onBulkAdd.mock.calls[0][0];
+                const generatedIds = [
+                    ...importedContributors.map((contributor) => contributor.id),
+                    ...importedContributors.flatMap((contributor) => contributor.affiliations.map((affiliation) => affiliation.id)),
+                ];
+
+                expect(new Set(generatedIds).size).toBe(generatedIds.length);
+                expect(generatedIds.every((id) => typeof id === 'string' && id.includes('-'))).toBe(true);
+            } finally {
+                dateNowSpy.mockRestore();
+                randomSpy.mockRestore();
+            }
         });
     });
 

@@ -104,7 +104,14 @@ export default function DescriptionField({
     };
 
     const firstAbstractIndex = descriptions.findIndex((description) => description.type === 'Abstract');
-    const hasPopulatedAbstract = descriptions.some((description) => description.type === 'Abstract' && description.value.trim() !== '');
+    const populatedAbstracts = descriptions.filter((description) => description.type === 'Abstract' && description.value.trim() !== '');
+    const hasPopulatedAbstract = populatedAbstracts.length > 0;
+    const requiredAbstractId =
+        populatedAbstracts.length === 1
+            ? populatedAbstracts[0].id
+            : populatedAbstracts.length === 0 && firstAbstractIndex >= 0
+              ? descriptions[firstAbstractIndex].id
+              : null;
 
     return (
         <div className="space-y-4">
@@ -123,6 +130,7 @@ export default function DescriptionField({
                     const meta = DESCRIPTION_TYPE_META[description.type];
                     const isAbstract = description.type === 'Abstract';
                     const isFirstAbstract = index === firstAbstractIndex;
+                    const isRequiredAbstract = isAbstract && description.id === requiredAbstractId;
                     const charCount = description.value.length;
                     const trimmedCharCount = description.value.trim().length;
                     const hasLocalAbstractError = isAbstract && trimmedCharCount > 0 && (trimmedCharCount < 50 || trimmedCharCount > 17_500);
@@ -177,7 +185,7 @@ export default function DescriptionField({
                             <div className="space-y-2">
                                 <Label htmlFor={`${descriptionId}-value`}>
                                     {meta.label}
-                                    {isAbstract ? (
+                                    {isRequiredAbstract ? (
                                         <span className="ml-2 text-sm font-normal text-destructive">(Required)</span>
                                     ) : (
                                         <span className="ml-2 text-sm font-normal text-muted-foreground">(Optional)</span>
@@ -198,7 +206,7 @@ export default function DescriptionField({
                                     className="resize-y"
                                     aria-describedby={`${descriptionId}-count`}
                                     aria-invalid={hasValidationError}
-                                    required={isAbstract}
+                                    required={isRequiredAbstract}
                                     data-testid={isFirstAbstract ? 'abstract-textarea' : undefined}
                                 />
                                 {isAbstract && abstractTouched && entryValidationMessages.length > 0 && (

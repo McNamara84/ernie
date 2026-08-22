@@ -30,6 +30,11 @@ class StoreDraftResourceRequest extends FormRequest
     use ValidatesEditorDates;
 
     /**
+     * Keep draft request protection aligned with final resource validation.
+     */
+    public const MAX_REPEATABLE_METADATA_ITEMS = StoreResourceRequest::MAX_REPEATABLE_METADATA_ITEMS;
+
+    /**
      * Set of valid DB title type slugs for quick in-request validation.
      *
      * @var array<string, true>
@@ -185,7 +190,7 @@ class StoreDraftResourceRequest extends FormRequest
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
             'relatedIdentifiers.*.source' => ['nullable', 'string', Rule::in([RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT])],
-            'fundingReferences' => ['nullable', 'array'],
+            'fundingReferences' => ['nullable', 'array', 'max:'.self::MAX_REPEATABLE_METADATA_ITEMS],
             'fundingReferences.*.funderName' => ['required', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifier' => ['nullable', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifierType' => ['nullable', 'string', 'in:ROR,Crossref Funder ID,ISNI,GRID,Other'],
@@ -198,7 +203,7 @@ class StoreDraftResourceRequest extends FormRequest
             'mslLaboratories.*.affiliation_name' => ['nullable', 'string', 'max:255'],
             'mslLaboratories.*.affiliation_ror' => ['nullable', 'string', 'max:255'],
             'mslLaboratories.*.position' => ['required', 'integer', 'min:0'],
-            'instruments' => ['nullable', 'array'],
+            'instruments' => ['nullable', 'array', 'max:'.self::MAX_REPEATABLE_METADATA_ITEMS],
             'instruments.*.pid' => ['required', 'string', 'max:512'],
             'instruments.*.pidType' => ['required', 'string', Rule::in(['Handle', 'DOI', 'URL'])],
             'instruments.*.name' => ['required', 'string', 'max:1024'],
