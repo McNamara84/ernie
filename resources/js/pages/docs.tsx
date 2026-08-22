@@ -1190,6 +1190,25 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Descriptions</h3>
                         <p>Provide detailed information about your dataset with different description types:</p>
 
+                        <h4>Managing Description Entries</h4>
+                        <p>
+                            Each description is edited as an independent entry. A resource can contain several descriptions, including multiple
+                            entries with the same description type.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                Select <strong>Add Description</strong> to create another entry, then choose its required Description Type.
+                            </li>
+                            <li>
+                                Select an optional Language for each entry, or keep <strong>No language specified</strong> when the language is
+                                unknown or not applicable.
+                            </li>
+                            <li>Use the remove button on an entry to delete only that description.</li>
+                        </ul>
+                        <p className="mt-4 text-sm text-muted-foreground">
+                            Every resource must contain at least one Abstract with 50 to 17,500 characters.
+                        </p>
+
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Landing Page Formatting:</strong> Description fields support a limited HTML subset for landing-page display
@@ -1210,6 +1229,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <strong>Technical Info:</strong> Technical details about data format, structure, or processing
+                            </li>
+                            <li>
+                                <strong>Series Information:</strong> Information about the series to which the resource belongs
                             </li>
                             <li>
                                 <strong>Table of Contents:</strong> Structure overview for complex datasets

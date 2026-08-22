@@ -206,6 +206,10 @@
         ],
         "improvements": [
             {
+                "title": "Expanded Repeatable Metadata Editing",
+                "description": "The Data Editor no longer applies arbitrary entry limits to repeatable titles, licenses and rights, authors, contributors, controlled and free keywords, spatial and temporal coverage, dates, related works, funding references, and used instruments, so complete imported records remain editable. Descriptions are now independent repeatable entries with their own type and optional language, including multiple entries of the same type. Dates likewise support repeated date types and preserve their date information when resources are opened and saved."
+            },
+            {
                 "title": "Resilient Legacy Related-DOI Citation Import",
                 "description": "Legacy resource imports now preserve supplied Related Work citation labels, reuse historical landing-page citations from the legacy database next, and contact the DOI metadata provider only for remaining labels. Invalid DOI placeholders are discarded, while a valid unresolved related DOI is retained without a label instead of blocking a single-resource import. Legacy database outages are handled once per import process to avoid repeated delays and warning logs."
             },
