@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { SampleFamilySection } from '@/pages/LandingPages/components/SampleFamilySection';
@@ -59,6 +59,7 @@ describe('SampleFamilySection', () => {
         expect(within(navigation).getAllByRole('listitem')).toHaveLength(4);
         expect(screen.queryByRole('tree')).not.toBeInTheDocument();
         expect(screen.queryByRole('treeitem')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Complete sampling hierarchy known to ERNIE/i)).not.toBeInTheDocument();
         expect(screen.getByText('Station Alpha')).toBeInTheDocument();
         expect(screen.getByText('IGSN GFROOT001')).toBeInTheDocument();
         expect(screen.getByText('Sample 1')).toBeInTheDocument();

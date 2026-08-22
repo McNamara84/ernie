@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Log;
 
 final class IgsnSampleFamilyService
 {
+    private const PRIVATE_SAMPLE_NAME = 'Private sample';
+
     /**
      * Build the complete locally known sample family for an IGSN resource.
      *
@@ -161,7 +163,16 @@ final class IgsnSampleFamilyService
             $parentResourceId = (int) $parentResourceId;
             if (isset($visited[$parentResourceId])) {
                 $this->logCycle($seed->resource_id, $parentResourceId);
-                $stableRootId = min(array_keys($visited));
+                $stableRootId = $parentResourceId;
+                $insideCycle = false;
+                foreach (array_keys($visited) as $cycleResourceId) {
+                    $insideCycle = $insideCycle || $cycleResourceId === $parentResourceId;
+                    if (! $insideCycle) {
+                        continue;
+                    }
+
+                    $stableRootId = min($stableRootId, $cycleResourceId);
+                }
 
                 return $visited[$stableRootId];
             }
@@ -227,6 +238,19 @@ final class IgsnSampleFamilyService
             $children[] = $this->buildNode($child, $childrenByParent, $rendered);
         }
 
+        // Keep the structural placeholder so public descendants remain reachable,
+        // but never serialize identifying metadata or links for a private sample.
+        if ($metadata->is_private) {
+            return [
+                'resource_id' => (int) $metadata->resource_id,
+                'name' => self::PRIVATE_SAMPLE_NAME,
+                'igsn' => null,
+                'sample_type' => null,
+                'landing_page' => null,
+                'children' => $children,
+            ];
+        }
+
         $resource = $metadata->resource;
         $landingPage = $resource->landingPage;
 
@@ -248,16 +272,16 @@ final class IgsnSampleFamilyService
     {
         $leftResource = $left->resource;
         $rightResource = $right->resource;
-        $leftName = $this->sampleName($leftResource) ?? '';
-        $rightName = $this->sampleName($rightResource) ?? '';
+        $leftName = $left->is_private ? self::PRIVATE_SAMPLE_NAME : ($this->sampleName($leftResource) ?? '');
+        $rightName = $right->is_private ? self::PRIVATE_SAMPLE_NAME : ($this->sampleName($rightResource) ?? '');
         $nameComparison = strnatcasecmp($leftName, $rightName);
 
         if ($nameComparison !== 0) {
             return $nameComparison;
         }
 
-        $leftIgsn = is_string($leftResource->doi) ? (IgsnIdentifier::handleFromDoi($leftResource->doi) ?? '') : '';
-        $rightIgsn = is_string($rightResource->doi) ? (IgsnIdentifier::handleFromDoi($rightResource->doi) ?? '') : '';
+        $leftIgsn = ! $left->is_private && is_string($leftResource->doi) ? (IgsnIdentifier::handleFromDoi($leftResource->doi) ?? '') : '';
+        $rightIgsn = ! $right->is_private && is_string($rightResource->doi) ? (IgsnIdentifier::handleFromDoi($rightResource->doi) ?? '') : '';
         $igsnComparison = strnatcasecmp($leftIgsn, $rightIgsn);
 
         return $igsnComparison !== 0

@@ -274,10 +274,7 @@ export function SampleFamilySection({ family, currentResourceId }: SampleFamilyS
             <h2 id="heading-sample-family" className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Sample Family
             </h2>
-            <p id="sample-family-description" className="mb-4 text-sm text-gray-600 dark:text-gray-300">
-                Complete sampling hierarchy known to ERNIE ({family.member_count} samples). Select a published sample to open its landing page.
-            </p>
-            <nav aria-labelledby="heading-sample-family" aria-describedby="sample-family-description" className="max-h-[32rem] overflow-auto pr-1">
+            <nav aria-labelledby="heading-sample-family" className="max-h-[32rem] overflow-auto pr-1">
                 <ul className="min-w-64 space-y-1">
                     <FamilyNode node={family.root} currentResourceId={currentResourceId} />
                 </ul>
