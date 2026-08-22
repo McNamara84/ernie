@@ -49,9 +49,10 @@ final class IgsnSampleFamilyService
 
         /** @var array<int, true> $rendered */
         $rendered = [];
+        $childrenByParent = $this->childrenByParent($family);
 
         return [
-            'root' => $this->buildNode($root, $family, $rendered),
+            'root' => $this->buildNode($root, $childrenByParent, $rendered),
             'member_count' => $family->count(),
         ];
     }
@@ -175,7 +176,34 @@ final class IgsnSampleFamilyService
     }
 
     /**
+     * Index and sort every child once so serialization stays O(n) after sorting.
+     *
      * @param  Collection<int, IgsnMetadata>  $family
+     * @return array<int, list<IgsnMetadata>>
+     */
+    private function childrenByParent(Collection $family): array
+    {
+        /** @var array<int, list<IgsnMetadata>> $childrenByParent */
+        $childrenByParent = [];
+
+        foreach ($family as $member) {
+            if ($member->parent_resource_id === null) {
+                continue;
+            }
+
+            $childrenByParent[(int) $member->parent_resource_id][] = $member;
+        }
+
+        foreach ($childrenByParent as $parentResourceId => $children) {
+            usort($children, fn (IgsnMetadata $left, IgsnMetadata $right): int => $this->compareNodes($left, $right));
+            $childrenByParent[$parentResourceId] = $children;
+        }
+
+        return $childrenByParent;
+    }
+
+    /**
+     * @param  array<int, list<IgsnMetadata>>  $childrenByParent
      * @param  array<int, true>  $rendered
      * @return array{
      *     resource_id: int,
@@ -186,19 +214,18 @@ final class IgsnSampleFamilyService
      *     children: array<mixed>
      * }
      */
-    private function buildNode(IgsnMetadata $metadata, Collection $family, array &$rendered): array
+    private function buildNode(IgsnMetadata $metadata, array $childrenByParent, array &$rendered): array
     {
         $rendered[(int) $metadata->resource_id] = true;
 
-        $children = $family
-            ->filter(static fn (IgsnMetadata $candidate): bool => (int) $candidate->parent_resource_id === (int) $metadata->resource_id
-                && ! isset($rendered[(int) $candidate->resource_id]))
-            ->sort(fn (IgsnMetadata $left, IgsnMetadata $right): int => $this->compareNodes($left, $right))
-            ->values()
-            ->map(function (IgsnMetadata $child) use ($family, &$rendered): array {
-                return $this->buildNode($child, $family, $rendered);
-            })
-            ->all();
+        $children = [];
+        foreach ($childrenByParent[(int) $metadata->resource_id] ?? [] as $child) {
+            if (isset($rendered[(int) $child->resource_id])) {
+                continue;
+            }
+
+            $children[] = $this->buildNode($child, $childrenByParent, $rendered);
+        }
 
         $resource = $metadata->resource;
         $landingPage = $resource->landingPage;

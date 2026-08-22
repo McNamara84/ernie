@@ -180,5 +180,7 @@ it('loads siblings in batches instead of issuing one query per sibling', functio
     DB::disableQueryLog();
 
     expect($family['member_count'])->toBe(13)
+        ->and($family['root']['children'])->toHaveCount(12)
+        ->and(collect($family['root']['children'])->pluck('resource_id')->unique())->toHaveCount(12)
         ->and(count($queries))->toBeLessThan(15);
 });
