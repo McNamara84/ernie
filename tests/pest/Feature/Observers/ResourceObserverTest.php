@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
+use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
 use App\Observers\ResourceObserver;
-use App\Enums\CacheKey;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\OaiPmh\OaiPmhSetService;
@@ -87,6 +88,31 @@ describe('updated', function () {
             ->once()
             ->with(Mockery::on(fn (LandingPage $actual): bool => $actual->is($landingPage)))
             ->andReturn(true);
+        $this->portalPageCache->shouldReceive('flush')
+            ->once();
+
+        $this->observer->updated($resource);
+    });
+
+    it('invalidates the complete sample family when an IGSN resource changes', function () {
+        $resource = Resource::factory()->create([
+            'doi' => '10.60510/observer-child',
+            'identifier_type' => 'IGSN',
+        ]);
+        IgsnMetadata::query()->create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+        ]);
+
+        $this->cacheService->shouldReceive('invalidateResourceCache')
+            ->once()
+            ->with($resource->id);
+        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
+            ->once();
+        $this->landingPageRenderDataCache->shouldReceive('forgetForIgsnFamilies')
+            ->once()
+            ->with([$resource->id]);
+        $this->landingPageRenderDataCache->shouldNotReceive('forget');
         $this->portalPageCache->shouldReceive('flush')
             ->once();
 

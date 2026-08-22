@@ -8,6 +8,7 @@ use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\AutomaticIgsnLandingPageService;
+use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\DataCiteToIgsnTransformer;
 use App\Services\IgsnChildDiscoveryService;
 use App\Services\IgsnEnrichmentService;
@@ -1005,6 +1006,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         Log::info('Resolving IGSN parent-child relationships');
 
         $resolved = 0;
+        /** @var list<int> $resolvedResourceIds */
+        $resolvedResourceIds = [];
 
         $query = IgsnMetadata::query()
             ->whereNull('parent_resource_id')
@@ -1020,7 +1023,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         }
 
         $query
-            ->chunkById(500, function ($records) use (&$resolved): void {
+            ->chunkById(500, function ($records) use (&$resolved, &$resolvedResourceIds): void {
                 // Collect all parent handles in this chunk
                 /** @var array<string, list<IgsnMetadata>> */
                 $handleMap = [];
@@ -1066,9 +1069,15 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
                         $igsnMeta->save();
                         $resolved++;
+                        $resolvedResourceIds[] = (int) $igsnMeta->resource_id;
                     }
                 }
             });
+
+        if ($resolvedResourceIds !== []) {
+            app(LandingPageRenderDataCacheService::class)
+                ->forgetForIgsnFamilies($resolvedResourceIds);
+        }
 
         Log::info('Parent-child resolution completed', ['resolved' => $resolved]);
     }

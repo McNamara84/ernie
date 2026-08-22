@@ -847,6 +847,7 @@ describe('API List', function (): void {
                 'model_description',
                 'related_work',
                 'general',
+                'sample_family',
                 'acquisition',
                 'repositories',
                 'dates',
@@ -899,6 +900,7 @@ describe('Model', function (): void {
         ))->toBe([
             'contact',
             'general',
+            'sample_family',
             'acquisition',
             'repositories',
             'dates',
@@ -926,6 +928,7 @@ describe('Model', function (): void {
             'citation',
             'contact',
             'general',
+            'sample_family',
             'acquisition',
             'repositories',
             'dates',

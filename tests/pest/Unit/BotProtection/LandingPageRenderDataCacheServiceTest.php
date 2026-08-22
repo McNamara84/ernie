@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\CacheKey;
+use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
@@ -154,6 +155,47 @@ it('forgets versioned render data by id without deleting a legacy entry', functi
     expect($service->forgetById($landingPage->id))->toBeTrue()
         ->and($cache->has($versionedCacheKey))->toBeFalse()
         ->and($cache->has($legacyCacheKey))->toBeTrue();
+});
+
+it('forgets render data for every landing page in the same IGSN sample family', function (): void {
+    $rootResource = Resource::factory()->create([
+        'doi' => '10.60510/cache-root',
+        'identifier_type' => 'IGSN',
+    ]);
+    $childResource = Resource::factory()->create([
+        'doi' => '10.60510/cache-child',
+        'identifier_type' => 'IGSN',
+    ]);
+    $unrelatedResource = Resource::factory()->create();
+
+    IgsnMetadata::query()->create([
+        'resource_id' => $rootResource->id,
+        'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+    ]);
+    IgsnMetadata::query()->create([
+        'resource_id' => $childResource->id,
+        'parent_resource_id' => $rootResource->id,
+        'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+    ]);
+
+    $rootLandingPage = LandingPage::factory()->published()->create(['resource_id' => $rootResource->id]);
+    $childLandingPage = LandingPage::factory()->published()->create(['resource_id' => $childResource->id]);
+    $unrelatedLandingPage = LandingPage::factory()->published()->create(['resource_id' => $unrelatedResource->id]);
+    $cache = Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags());
+
+    foreach ([$rootLandingPage, $childLandingPage, $unrelatedLandingPage] as $landingPage) {
+        $cache->put(
+            CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id),
+            ['template' => 'default_gfz', 'props' => []],
+            600,
+        );
+    }
+
+    (new LandingPageRenderDataCacheService)->forgetForIgsnFamilies([$childResource->id]);
+
+    expect($cache->has(CacheKey::LANDING_PAGE_RENDER_DATA->key($rootLandingPage->id)))->toBeFalse()
+        ->and($cache->has(CacheKey::LANDING_PAGE_RENDER_DATA->key($childLandingPage->id)))->toBeFalse()
+        ->and($cache->has(CacheKey::LANDING_PAGE_RENDER_DATA->key($unrelatedLandingPage->id)))->toBeTrue();
 });
 
 it('forgets cached render data only for landing pages using a custom template', function (): void {

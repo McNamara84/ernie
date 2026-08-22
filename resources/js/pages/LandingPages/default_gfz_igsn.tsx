@@ -23,6 +23,7 @@ import { ModelDescriptionSection } from './components/ModelDescriptionSection';
 import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { RepositoriesSection } from './components/RepositoriesSection';
 import { ResourceHero } from './components/ResourceHero';
+import { SampleFamilySection } from './components/SampleFamilySection';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { replaceIgsnIdentifierText } from './lib/igsn-display';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
@@ -115,6 +116,9 @@ export default function DefaultGfzIgsnTemplate() {
             // physical-sample-centric and there are no downloadable artefacts.
             files: null,
             general: <GeneralSection key="general" igsn={resource.igsn_metadata} dates={resource.dates || []} />,
+            sample_family: (
+                <SampleFamilySection key="sample_family" family={resource.igsn_sample_family} currentResourceId={resource.id} />
+            ),
             acquisition: (
                 <AcquisitionSection
                     key="acquisition"

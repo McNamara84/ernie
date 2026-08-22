@@ -322,7 +322,7 @@ describe('Landing Page Caching', function () {
             ->assertInertia(fn ($page) => $page->where('landingPage.ftp_url', 'https://data.gfz.de/new.zip'));
     });
 
-    test('ignores a legacy unversioned render payload and caches citation styles under the v3 key', function () {
+    test('ignores a legacy unversioned render payload and caches citation styles under the v4 key', function () {
         config([
             'bot_protection.enabled' => true,
             'bot_protection.landing_cache_ttl' => 600,
@@ -1028,6 +1028,7 @@ describe('Landing Page with Custom Template', function () {
                     'model_description',
                     'related_work',
                     'general',
+                    'sample_family',
                     'acquisition',
                     'repositories',
                     'dates',

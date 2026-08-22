@@ -36,6 +36,13 @@ use Illuminate\Database\Eloquent\Collection;
 
 final class LandingPageResourceTransformer
 {
+    private readonly IgsnSampleFamilyService $sampleFamilyService;
+
+    public function __construct(?IgsnSampleFamilyService $sampleFamilyService = null)
+    {
+        $this->sampleFamilyService = $sampleFamilyService ?? new IgsnSampleFamilyService;
+    }
+
     /**
      * @return array<int, string>
      */
@@ -582,9 +589,12 @@ final class LandingPageResourceTransformer
                     'classification_type' => $classification->classification_type?->value,
                 ])
                 ->all();
+
+            $resourceData['igsn_sample_family'] = $this->sampleFamilyService->forResource($resource);
         } else {
             $resourceData['igsn_metadata'] = null;
             $resourceData['igsn_classifications'] = [];
+            $resourceData['igsn_sample_family'] = null;
         }
 
         return $resourceData;
