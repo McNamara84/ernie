@@ -3,7 +3,7 @@ import { render, screen, within } from '@tests/vitest/utils/render';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import DescriptionField, { DESCRIPTION_LANGUAGE_CODES, type DescriptionEntry } from '@/components/curation/fields/description-field';
+import DescriptionField, { type DescriptionEntry } from '@/components/curation/fields/description-field';
 import type { DescriptionType, Language } from '@/types';
 
 const allDescriptionTypes: DescriptionType[] = [
@@ -81,16 +81,15 @@ describe('DescriptionField', () => {
         expect(screen.getByDisplayValue('English abstract with enough content for this example resource.')).toBeInTheDocument();
     });
 
-    it('offers exactly German and English when adding a language version', async () => {
+    it('offers every language supplied by the editor language vocabulary', async () => {
         const user = userEvent.setup();
         render(<DescriptionHarness initialDescriptions={[abstract('abstract-1', 'Unassigned abstract')]} />);
 
-        expect(DESCRIPTION_LANGUAGE_CODES).toEqual(['de', 'en']);
         await user.click(within(groupFor('Abstract')).getByRole('button', { name: 'Add language version' }));
 
         expect(screen.getByRole('menuitem', { name: 'German (de)' })).toBeInTheDocument();
         expect(screen.getByRole('menuitem', { name: 'English (en)' })).toBeInTheDocument();
-        expect(screen.queryByRole('menuitem', { name: /French/ })).not.toBeInTheDocument();
+        expect(screen.getByRole('menuitem', { name: 'French (fr)' })).toBeInTheDocument();
     });
 
     it('adds and activates a selected language version without changing its sibling', async () => {
@@ -227,8 +226,12 @@ describe('DescriptionField', () => {
             />,
         );
 
+        const invalidTab = within(groupFor('Abstract')).getByRole('tab', { name: /German \(de\).*has validation errors/i });
+        expect(invalidTab).toHaveAttribute('aria-invalid', 'true');
+        expect(within(groupFor('Abstract')).getByRole('tab', { name: 'English (en)' })).not.toHaveAttribute('aria-invalid');
         expect(screen.queryByText('German Abstract must be at least 50 characters')).not.toBeInTheDocument();
-        await user.click(within(groupFor('Abstract')).getByRole('tab', { name: 'German (de)' }));
+
+        await user.click(invalidTab);
         expect(screen.getByText('German Abstract must be at least 50 characters')).toBeInTheDocument();
         expect(screen.getByPlaceholderText(/Enter a brief summary/i)).toHaveAttribute('aria-invalid', 'true');
     });

@@ -7,13 +7,13 @@ namespace App\Support;
 final class DescriptionLanguage
 {
     /** @var list<string> */
-    public const EDITOR_CODES = ['de', 'en'];
+    public const DETECTOR_CODES = ['de', 'en'];
 
-    public static function isEditorLanguage(mixed $value): bool
+    public static function isDetectorLanguage(mixed $value): bool
     {
         $language = LanguageTag::normalize($value);
 
-        return $language !== null && in_array($language, self::EDITOR_CODES, true);
+        return $language !== null && in_array($language, self::DETECTOR_CODES, true);
     }
 
     public static function label(string $code): string

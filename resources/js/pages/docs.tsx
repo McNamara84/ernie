@@ -618,6 +618,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 detection
                             </li>
                             <li>
+                                <strong>Suggested Description Languages</strong> – Suggests reliable German or English language values for
+                                descriptions whose language is still unspecified
+                            </li>
+                            <li>
                                 <strong>Date Type Suggestions</strong> - Discovers missing Created and Issued dates, identifies possible corrections
                                 from Collected to Coverage, and flags definitively implausible date-type chronology. Year-only and year-month values
                                 are compared conservatively, so overlaps with more precise dates do not create hints. ISO date-times with timezone
@@ -657,6 +661,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     summary so you can verify how the recommendation was created.
                                 </p>
                                 <p className="mt-2">
+                                    Description language suggestions show the Description Type, a text preview, the proposed German or English
+                                    language, and the detector confidence. Accepting fills only an empty language field. If the description text has
+                                    changed since discovery, ERNIE rejects the stale suggestion; run the check again to review refreshed evidence.
+                                </p>
+                                <p className="mt-2">
                                     SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata. Clicking
                                     Accept links only that rights statement to the shared SPDX catalog. Clicking Decline keeps the imported statement
                                     unchanged and dismisses the suggestion.
@@ -694,7 +703,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>
                                     Accept to update the resource (and auto-sync to DataCite if a DOI is registered), or decline to permanently
                                     dismiss that suggestion. For title language suggestions, accepting updates the selected title's language field and
-                                    removes the pending suggestion.
+                                    removes the pending suggestion. Description language suggestions follow the same review workflow and never
+                                    overwrite an existing language.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
@@ -1190,20 +1200,26 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Descriptions</h3>
                         <p>Provide detailed information about your dataset with different description types:</p>
 
-                        <h4>Managing Description Entries</h4>
+                        <h4>Managing Description Types and Language Versions</h4>
                         <p>
-                            Each description is edited as an independent entry. A resource can contain several descriptions, including multiple
-                            entries with the same description type.
+                            Descriptions are grouped by Description Type. Each group can contain several language versions, including imported
+                            duplicate or unspecified-language entries.
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                Select <strong>Add Description</strong> to create another entry, then choose its required Description Type.
+                                Select <strong>Add Description Type</strong> to create an Abstract, Methods, Technical Info, or another enabled
+                                group.
                             </li>
                             <li>
-                                Select an optional Language for each entry, or keep <strong>No language specified</strong> when the language is
-                                unknown or not applicable.
+                                Within a group, select <strong>Add language version</strong> and choose any language available in the editor
+                                vocabulary. Use the language tabs to switch between versions.
                             </li>
-                            <li>Use the remove button on an entry to delete only that description.</li>
+                            <li>
+                                Change the language selector for the active version, or keep <strong>No language specified</strong> when it is unknown
+                                or not applicable. Valid imported BCP 47 tags remain visible even if they are not in the current vocabulary.
+                            </li>
+                            <li>Tabs containing validation errors display a red error indicator so inactive invalid versions remain discoverable.</li>
+                            <li>Use <strong>Remove version</strong> to delete only the active language version.</li>
                         </ul>
                         <p className="mt-4 text-sm text-muted-foreground">
                             Every resource must contain at least one Abstract with 50 to 17,500 characters.

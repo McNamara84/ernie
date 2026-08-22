@@ -198,6 +198,29 @@ describe('Title and description language preservation', function () {
             ->assertJsonValidationErrors('descriptions.0.language');
     });
 
+    it('rejects non-string title and description languages instead of normalizing them to null', function () {
+        $payload = validPayloadWithLanguage([
+            'titles' => [
+                ['title' => 'Malformed language title', 'titleType' => 'main-title', 'language' => ['en']],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'abstract',
+                    'description' => 'Malformed language abstract.',
+                    'language' => ['code' => 'en'],
+                ],
+            ],
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'titles.0.language',
+                'descriptions.0.language',
+            ]);
+    });
+
     it('stores null language when not provided', function () {
         $payload = validPayloadWithLanguage([
             'titles' => [
@@ -304,5 +327,28 @@ describe('Draft save language preservation', function () {
         $resource = Resource::latest()->first();
         expect($resource->titles->first()->language)->toBeNull()
             ->and($resource->descriptions->first()->language)->toBeNull();
+    });
+
+    it('rejects non-string title and description languages during draft save', function () {
+        $payload = validPayloadWithLanguage([
+            'titles' => [
+                ['title' => 'Malformed draft title', 'titleType' => 'main-title', 'language' => ['en']],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'abstract',
+                    'description' => 'Malformed draft abstract.',
+                    'language' => ['code' => 'en'],
+                ],
+            ],
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store-draft'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'titles.0.language',
+                'descriptions.0.language',
+            ]);
     });
 });

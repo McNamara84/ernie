@@ -9,6 +9,7 @@ use App\Models\Resource;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Modules\Assistants\DescriptionLanguageSuggestion\Assistant;
 
 uses(RefreshDatabase::class);
@@ -70,6 +71,30 @@ it('discovers only reliable German and English texts without a language', functi
         ->and($suggestions[1]->metadata['source_snapshot']['description_id'] ?? null)->toBe($german->id);
 });
 
+it('eager-loads description types per discovery chunk', function (): void {
+    $resource = Resource::factory()->create();
+
+    foreach (range(1, 3) as $index) {
+        descriptionForLanguageAssistant(
+            $resource,
+            $this->abstractType,
+            "This research description number {$index} contains enough detailed English text for reliable language detection.",
+        );
+    }
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    app(Assistant::class)->runDiscovery(static function (): void {});
+    $queries = DB::getQueryLog();
+    DB::disableQueryLog();
+
+    $descriptionTypeQueries = collect($queries)->filter(
+        static fn (array $query): bool => str_contains(strtolower($query['query']), 'description_types'),
+    );
+
+    expect($descriptionTypeQueries)->toHaveCount(1);
+});
+
 it('accepts a current suggestion and changes only the addressed description', function (): void {
     $resource = Resource::factory()->create();
     $description = descriptionForLanguageAssistant(
@@ -108,6 +133,36 @@ it('rejects stale suggestions after description content changes', function (): v
         ->and($result['message'])->toContain('stale')
         ->and($description->refresh()->language)->toBeNull()
         ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull();
+});
+
+it('refreshes an existing suggestion when changed text detects as the same language', function (): void {
+    $resource = Resource::factory()->create();
+    $description = descriptionForLanguageAssistant(
+        $resource,
+        $this->abstractType,
+        'This resource provides comprehensive observations and validated scientific measurements for hydrological research.',
+    );
+    $assistant = app(Assistant::class);
+    $assistant->runDiscovery(static function (): void {});
+    $suggestion = AssistantSuggestion::query()->where('target_id', $description->id)->sole();
+    $originalHash = $suggestion->metadata['source_hash'];
+
+    $description->update([
+        'value' => 'This updated resource description still contains detailed English observations and validated measurements for research.',
+    ]);
+
+    expect($assistant->runDiscovery(static function (): void {}))->toBe(0);
+
+    $refreshedSuggestion = $suggestion->fresh();
+
+    expect($refreshedSuggestion)->not->toBeNull()
+        ->and($refreshedSuggestion->metadata['source_hash'])->not->toBe($originalHash)
+        ->and($refreshedSuggestion->suggested_label)->toContain('This updated resource description');
+
+    $result = $assistant->acceptSuggestion($refreshedSuggestion->id);
+
+    expect($result['success'])->toBeTrue()
+        ->and($description->refresh()->language)->toBe('en');
 });
 
 it('does not accept unsupported language codes', function (): void {

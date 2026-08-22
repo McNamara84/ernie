@@ -339,7 +339,7 @@ erDiagram
         bigint description_type_id FK
         text value
         longtext landing_page_html
-        varchar language
+        varchar language "max 35, BCP 47 language tag"
         timestamp created_at
         timestamp updated_at
     }

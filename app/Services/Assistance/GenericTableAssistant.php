@@ -192,7 +192,7 @@ abstract class GenericTableAssistant extends AbstractAssistant
     /**
      * Store a suggestion in the generic assistant_suggestions table.
      *
-     * Automatically skips duplicates (same assistant + target + value).
+     * Refreshes duplicates (same assistant + target + value) with current evidence.
      * Also skips suggestions that have been previously dismissed.
      *
      * @param  int  $resourceId  FK to resources table
@@ -202,7 +202,7 @@ abstract class GenericTableAssistant extends AbstractAssistant
      * @param  string  $suggestedLabel  Human-readable label for the suggestion
      * @param  float|null  $similarityScore  Match confidence (0.0 to 1.0), or null
      * @param  array<string, mixed>|null  $metadata  Extra assistant-specific data
-     * @return bool True if stored, false if skipped (duplicate or dismissed)
+     * @return bool True if newly created, false if refreshed or dismissed
      */
     protected function storeSuggestion(
         int $resourceId,
@@ -224,8 +224,9 @@ abstract class GenericTableAssistant extends AbstractAssistant
             return false;
         }
 
-        // Skip if already exists (same assistant + target + value)
-        $wasRecentlyCreated = AssistantSuggestion::firstOrCreate(
+        // Keep current evidence for an existing suggestion so source hashes and
+        // previews cannot become permanently stale after the source changes.
+        $wasRecentlyCreated = AssistantSuggestion::updateOrCreate(
             [
                 'assistant_id' => $this->getId(),
                 'target_type' => $targetType,

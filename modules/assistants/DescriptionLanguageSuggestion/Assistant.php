@@ -15,6 +15,8 @@ use Nitotm\Eld\LanguageDetector;
 
 final class Assistant extends GenericTableAssistant
 {
+    private const DISCOVERY_CHUNK_SIZE = 500;
+
     private const TARGET_TYPE = 'description';
 
     private LanguageDetector $detector;
@@ -24,7 +26,7 @@ final class Assistant extends GenericTableAssistant
         parent::__construct();
 
         $this->detector = new LanguageDetector;
-        $this->detector->langSubset(DescriptionLanguage::EDITOR_CODES);
+        $this->detector->langSubset(DescriptionLanguage::DETECTOR_CODES);
     }
 
     #[\Override]
@@ -44,7 +46,7 @@ final class Assistant extends GenericTableAssistant
             })
             ->whereNotNull('value')
             ->where('value', '<>', '')
-            ->cursor();
+            ->lazyById(self::DISCOVERY_CHUNK_SIZE);
 
         $count = 0;
 
@@ -56,9 +58,7 @@ final class Assistant extends GenericTableAssistant
                 continue;
             }
 
-            $type = $description->descriptionType?->name
-                ?? $description->descriptionType?->slug
-                ?? 'Description';
+            $type = $description->descriptionType->name;
 
             $stored = $this->storeSuggestion(
                 resourceId: $description->resource_id,
@@ -160,7 +160,7 @@ final class Assistant extends GenericTableAssistant
         $resourceId = $this->positiveInt($suggestion->resource_id);
         $language = LanguageTag::normalize($suggestion->suggested_value);
 
-        if ($descriptionId === null || $resourceId === null || ! DescriptionLanguage::isEditorLanguage($language)) {
+        if ($descriptionId === null || $resourceId === null || $language === null || ! DescriptionLanguage::isDetectorLanguage($language)) {
             return null;
         }
 
@@ -193,7 +193,7 @@ final class Assistant extends GenericTableAssistant
         $result = $this->detector->detect($text);
         $code = LanguageTag::normalize($result->language ?? null);
 
-        if ($code === null || ! DescriptionLanguage::isEditorLanguage($code) || ! $result->isReliable()) {
+        if ($code === null || ! DescriptionLanguage::isDetectorLanguage($code) || ! $result->isReliable()) {
             return null;
         }
 
@@ -248,12 +248,6 @@ final class Assistant extends GenericTableAssistant
     {
         if (is_array($suggestion->metadata)) {
             return $suggestion->metadata;
-        }
-
-        if (is_string($suggestion->metadata)) {
-            $decoded = json_decode($suggestion->metadata, true);
-
-            return is_array($decoded) ? $decoded : [];
         }
 
         return [];

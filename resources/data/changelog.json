@@ -4,6 +4,10 @@
         "date": "2026-08-22",
         "features": [
             {
+                "title": "Multilingual Resource Descriptions",
+                "description": "Resource descriptions now preserve and export individual BCP 47 language tags across DataCite JSON/XML, JSON-LD, uploads, legacy imports, and landing pages. The Data Editor groups descriptions by type, provides language-version tabs using the configured editor language vocabulary, keeps imported tags and duplicate versions visible, and marks invalid inactive tabs. Admins and Group Leaders can review reliable German and English language suggestions for previously untagged descriptions on the Assistance page; suggestions never overwrite an existing language and are refreshed when their source text changes."
+            },
+            {
                 "title": "IGSN Sample Family Navigation",
                 "description": "IGSN landing pages now show the complete sample hierarchy known to ERNIE, from the highest local ancestor through all descendants. The current sample is highlighted, published family members link to their landing pages, and draft or missing landing pages remain visible without exposing private preview URLs. The new Sample Family module can be reordered in IGSN landing page templates and is available in public and preview layouts."
             },

@@ -329,7 +329,8 @@ class StoreResourceRequest extends FormRequest
                 }
             }
 
-            $language = LanguageTag::normalize($title['language'] ?? null);
+            $rawLanguage = $title['language'] ?? null;
+            $language = is_string($rawLanguage) ? LanguageTag::normalize($rawLanguage) : $rawLanguage;
 
             $titles[] = [
                 'title' => isset($title['title']) ? trim((string) $title['title']) : null,
@@ -604,7 +605,10 @@ class StoreResourceRequest extends FormRequest
             // Convert to kebab-case for database storage
             $normalizedType = Str::kebab($descriptionType);
 
-            $descriptionLanguage = LanguageTag::normalize($description['language'] ?? null);
+            $rawDescriptionLanguage = $description['language'] ?? null;
+            $descriptionLanguage = is_string($rawDescriptionLanguage)
+                ? LanguageTag::normalize($rawDescriptionLanguage)
+                : $rawDescriptionLanguage;
 
             $descriptions[] = [
                 'descriptionType' => $normalizedType,

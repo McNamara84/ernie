@@ -1,4 +1,4 @@
-import { Globe2, Plus, Trash2 } from 'lucide-react';
+import { CircleAlert, Globe2, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -36,9 +36,6 @@ interface DescriptionGroup {
     type: DescriptionType;
     entries: DescriptionEntry[];
 }
-
-/** Languages evidenced by the GFZ legacy description corpus and offered for new variants. */
-export const DESCRIPTION_LANGUAGE_CODES = ['de', 'en'] as const;
 
 /** UI metadata for each description type (labels, placeholders, help texts). */
 const DESCRIPTION_TYPE_META: Record<DescriptionType, { label: string; placeholder: string; helpText: string }> = {
@@ -111,14 +108,22 @@ export default function DescriptionField({
         return typeOptions.map(({ value }) => ({ type: value, entries: byType.get(value) ?? [] })).filter((group) => group.entries.length > 0);
     }, [descriptions, typeOptions]);
 
-    const languageByCode = useMemo(() => new Map(languages.map((language) => [normalizedLanguage(language.code), language])), [languages]);
-    const descriptionLanguages = useMemo(
-        () =>
-            DESCRIPTION_LANGUAGE_CODES.map(
-                (code, index) => languageByCode.get(code) ?? { id: -(index + 1), code, name: code === 'de' ? 'German' : 'English' },
-            ),
-        [languageByCode],
-    );
+    const descriptionLanguages = useMemo(() => {
+        const seenCodes = new Set<string>();
+
+        return languages.flatMap((language) => {
+            const code = normalizedLanguage(language.code);
+
+            if (!code || seenCodes.has(code)) {
+                return [];
+            }
+
+            seenCodes.add(code);
+
+            return [{ ...language, code }];
+        });
+    }, [languages]);
+    const languageByCode = useMemo(() => new Map(descriptionLanguages.map((language) => [language.code, language])), [descriptionLanguages]);
 
     const updateDescription = (id: string, changes: Partial<Omit<DescriptionEntry, 'id'>>) => {
         onChange(descriptions.map((description) => (description.id === id ? { ...description, ...changes } : description)));
@@ -180,6 +185,34 @@ export default function DescriptionField({
                     const activeEntryId = group.entries.some((entry) => entry.id === configuredActiveId) ? configuredActiveId! : group.entries[0].id;
                     const usedLanguages = new Set(group.entries.map((entry) => normalizedLanguage(entry.language)).filter(Boolean));
                     const addableLanguages = descriptionLanguages.filter((language) => !usedLanguages.has(normalizedLanguage(language.code)));
+                    const validationByEntryId = new Map(
+                        group.entries.map((description) => {
+                            const isAbstract = description.type === 'Abstract';
+                            const isFirstAbstract = descriptions[firstAbstractIndex]?.id === description.id;
+                            const isRequiredAbstract = isAbstract && description.id === requiredAbstractId;
+                            const trimmedCharCount = description.value.trim().length;
+                            const hasLocalAbstractError = isAbstract && trimmedCharCount > 0 && (trimmedCharCount < 50 || trimmedCharCount > 17_500);
+                            const entryValidationMessages = validationMessages.filter(
+                                (message) =>
+                                    message.fieldId === description.id ||
+                                    (isFirstAbstract && message.fieldId === 'abstract') ||
+                                    (isFirstAbstract && !hasPopulatedAbstract && message.fieldId === undefined),
+                            );
+                            const hasEntryValidationError = entryValidationMessages.some((message) => message.severity === 'error');
+
+                            return [
+                                description.id,
+                                {
+                                    isAbstract,
+                                    isFirstAbstract,
+                                    isRequiredAbstract,
+                                    hasLocalAbstractError,
+                                    entryValidationMessages,
+                                    hasValidationError: validationTouched && (hasLocalAbstractError || hasEntryValidationError),
+                                },
+                            ] as const;
+                        }),
+                    );
 
                     return (
                         <section
@@ -230,31 +263,32 @@ export default function DescriptionField({
                                         const language = code ? languageByCode.get(code) : undefined;
                                         const baseLabel = code ? `${language?.name ?? 'Imported language'} (${code})` : 'Language not specified';
                                         const label = matchingEntries.length > 1 ? `${baseLabel} ${duplicateIndex + 1}` : baseLabel;
+                                        const hasValidationError = validationByEntryId.get(entry.id)?.hasValidationError ?? false;
 
                                         return (
-                                            <TabsTrigger key={entry.id} value={entry.id}>
+                                            <TabsTrigger key={entry.id} value={entry.id} aria-invalid={hasValidationError || undefined}>
                                                 {label}
+                                                {hasValidationError && (
+                                                    <>
+                                                        <CircleAlert className="size-3.5 text-destructive" aria-hidden="true" />
+                                                        <span className="sr-only"> has validation errors</span>
+                                                    </>
+                                                )}
                                             </TabsTrigger>
                                         );
                                     })}
                                 </TabsList>
 
                                 {group.entries.map((description) => {
-                                    const isAbstract = description.type === 'Abstract';
-                                    const isFirstAbstract = descriptions[firstAbstractIndex]?.id === description.id;
-                                    const isRequiredAbstract = isAbstract && description.id === requiredAbstractId;
+                                    const {
+                                        isAbstract,
+                                        isFirstAbstract,
+                                        isRequiredAbstract,
+                                        hasLocalAbstractError,
+                                        entryValidationMessages,
+                                        hasValidationError,
+                                    } = validationByEntryId.get(description.id)!;
                                     const charCount = description.value.length;
-                                    const trimmedCharCount = description.value.trim().length;
-                                    const hasLocalAbstractError =
-                                        isAbstract && trimmedCharCount > 0 && (trimmedCharCount < 50 || trimmedCharCount > 17_500);
-                                    const entryValidationMessages = validationMessages.filter(
-                                        (message) =>
-                                            message.fieldId === description.id ||
-                                            (isFirstAbstract && message.fieldId === 'abstract') ||
-                                            (isFirstAbstract && !hasPopulatedAbstract && message.fieldId === undefined),
-                                    );
-                                    const hasEntryValidationError = entryValidationMessages.some((message) => message.severity === 'error');
-                                    const hasValidationError = validationTouched && (hasLocalAbstractError || hasEntryValidationError);
                                     const descriptionId = `description-${description.id}`;
                                     const currentLanguage = normalizedLanguage(description.language);
                                     const siblingLanguages = new Set(
