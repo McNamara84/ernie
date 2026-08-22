@@ -8,6 +8,7 @@ use App\Models\Datacenter;
 use App\Models\OldDataset;
 use App\Models\Resource;
 use App\Models\ResourceType;
+use App\Support\LanguageTag;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -392,7 +393,7 @@ class SumarioPendingResourceImportService
             $normalised[] = [
                 'descriptionType' => Str::kebab((string) ($description['descriptionType'] ?? $description['type'] ?? 'abstract')),
                 'description' => $value,
-                'language' => $this->filledString($description['language'] ?? null),
+                'language' => LanguageTag::validOrNull($description['language'] ?? null),
             ];
         }
 

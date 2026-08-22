@@ -7,6 +7,7 @@ use App\Models\Description;
 use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\LandingPage;
+use App\Models\Language;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
@@ -687,6 +688,73 @@ describe('transformForPortal', function () {
             ->and($result['resourceTypeSlug'])->toBe('physical-object');
     });
 
+    it('selects the abstract in the resource language before deterministic fallbacks', function () {
+        $german = Language::factory()->create([
+            'code' => 'de',
+            'name' => 'German',
+        ]);
+        $resource = createPublishedResourceForSearch('Multilingual Dataset', $this->titleType);
+        $resource->update(['language_id' => $german->id]);
+
+        Description::factory()->for($resource)->abstract()->create([
+            'value' => 'Abstract without a specified language.',
+            'language' => null,
+        ]);
+        Description::factory()->for($resource)->abstract()->create([
+            'value' => 'English abstract.',
+            'language' => 'en',
+        ]);
+        Description::factory()->for($resource)->abstract()->create([
+            'value' => 'Deutscher Abstract.',
+            'language' => 'de',
+        ]);
+
+        $result = $this->service->transformForPortal(
+            $resource->fresh()->load([
+                'titles.titleType',
+                'creators.creatorable',
+                'resourceType',
+                'language',
+                'geoLocations',
+                'landingPage',
+                'descriptions.descriptionType',
+            ])
+        );
+
+        expect($result['abstract'])->toBe('Deutscher Abstract.');
+    });
+
+    it('falls back to English and then the lowest description id', function () {
+        $resource = createPublishedResourceForSearch('Fallback Dataset', $this->titleType);
+
+        Description::factory()->for($resource)->abstract()->create([
+            'value' => 'First English abstract.',
+            'language' => 'en',
+        ]);
+        Description::factory()->for($resource)->abstract()->create([
+            'value' => 'Second English abstract.',
+            'language' => 'en',
+        ]);
+        Description::factory()->for($resource)->abstract()->create([
+            'value' => 'Deutscher Abstract.',
+            'language' => 'de',
+        ]);
+
+        $result = $this->service->transformForPortal(
+            $resource->fresh()->load([
+                'titles.titleType',
+                'creators.creatorable',
+                'resourceType',
+                'language',
+                'geoLocations',
+                'landingPage',
+                'descriptions.descriptionType',
+            ])
+        );
+
+        expect($result['abstract'])->toBe('First English abstract.');
+    });
+
     it('omits global-only coverage from portal geo locations', function () {
         $resource = createPublishedResourceForSearch('Global Dataset', $this->titleType);
         GeoLocation::factory()->withBox(-180, 180, -90, 90)->create([
@@ -745,7 +813,7 @@ describe('getMapData', function () {
     it('returns only resources with geo locations', function () {
         // Resource with geo location
         $resourceWithGeo = createPublishedResourceForSearch('Geo Paper', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $resourceWithGeo->id,
             'point_latitude' => 52.3906,
             'point_longitude' => 13.0645,
@@ -763,14 +831,14 @@ describe('getMapData', function () {
     it('does NOT apply bounds filter to map data', function () {
         // Two resources with different geo locations
         $insideBounds = createPublishedResourceForSearch('Inside', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $insideBounds->id,
             'point_latitude' => 52.5,
             'point_longitude' => 13.4,
         ]);
 
         $outsideBounds = createPublishedResourceForSearch('Outside', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $outsideBounds->id,
             'point_latitude' => 10.0,
             'point_longitude' => -50.0,
@@ -792,14 +860,14 @@ describe('getMapData', function () {
 describe('bounds filtering', function () {
     it('filters resources by point within bounding box', function () {
         $inside = createPublishedResourceForSearch('Inside Berlin', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $inside->id,
             'point_latitude' => 52.52,
             'point_longitude' => 13.405,
         ]);
 
         $outside = createPublishedResourceForSearch('Outside Rio', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $outside->id,
             'point_latitude' => -22.9,
             'point_longitude' => -43.2,
@@ -815,14 +883,14 @@ describe('bounds filtering', function () {
 
     it('filters resources by bounding box overlap', function () {
         $overlapping = createPublishedResourceForSearch('Overlapping', $this->titleType);
-        \App\Models\GeoLocation::factory()->withBox(
+        GeoLocation::factory()->withBox(
             west: 12.0, east: 14.0, south: 51.0, north: 53.0
         )->create([
             'resource_id' => $overlapping->id,
         ]);
 
         $nonOverlapping = createPublishedResourceForSearch('Non-overlapping', $this->titleType);
-        \App\Models\GeoLocation::factory()->withBox(
+        GeoLocation::factory()->withBox(
             west: -50.0, east: -40.0, south: -30.0, north: -20.0
         )->create([
             'resource_id' => $nonOverlapping->id,
@@ -838,14 +906,14 @@ describe('bounds filtering', function () {
 
     it('returns all resources when bounds is null', function () {
         $resource1 = createPublishedResourceForSearch('Paper A', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $resource1->id,
             'point_latitude' => 52.5,
             'point_longitude' => 13.4,
         ]);
 
         $resource2 = createPublishedResourceForSearch('Paper B', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $resource2->id,
             'point_latitude' => -22.9,
             'point_longitude' => -43.2,
@@ -859,7 +927,7 @@ describe('bounds filtering', function () {
     it('includes resources with partially overlapping bounding boxes', function () {
         // Resource bbox that partially overlaps with search bounds
         $partial = createPublishedResourceForSearch('Partial Overlap', $this->titleType);
-        \App\Models\GeoLocation::factory()->withBox(
+        GeoLocation::factory()->withBox(
             west: 10.0, east: 12.5, south: 49.0, north: 51.0
         )->create([
             'resource_id' => $partial->id,
@@ -875,7 +943,7 @@ describe('bounds filtering', function () {
     it('excludes resources with no geo locations when bounds filter is active', function () {
         // Resource WITH geo but outside bounds
         $withGeo = createPublishedResourceForSearch('Has Geo', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $withGeo->id,
             'point_latitude' => -50.0,
             'point_longitude' => -50.0,
@@ -894,7 +962,7 @@ describe('bounds filtering', function () {
     it('handles anti-meridian crossing for points', function () {
         // Point in the Pacific (east of anti-meridian)
         $pacific = createPublishedResourceForSearch('Pacific Island', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $pacific->id,
             'point_latitude' => 0.0,
             'point_longitude' => 175.0,
@@ -902,7 +970,7 @@ describe('bounds filtering', function () {
 
         // Point in Europe (should be excluded)
         $europe = createPublishedResourceForSearch('Europe', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $europe->id,
             'point_latitude' => 52.0,
             'point_longitude' => 13.0,
@@ -920,7 +988,7 @@ describe('bounds filtering', function () {
     it('handles anti-meridian crossing for bounding boxes', function () {
         // Bounding box in western Pacific (does NOT itself cross anti-meridian)
         $pacific = createPublishedResourceForSearch('Pacific Region', $this->titleType);
-        \App\Models\GeoLocation::factory()->withBox(
+        GeoLocation::factory()->withBox(
             west: 172.0, east: 178.0, south: -5.0, north: 5.0
         )->create([
             'resource_id' => $pacific->id,
@@ -928,7 +996,7 @@ describe('bounds filtering', function () {
 
         // Bounding box in Atlantic (should be excluded)
         $atlantic = createPublishedResourceForSearch('Atlantic Region', $this->titleType);
-        \App\Models\GeoLocation::factory()->withBox(
+        GeoLocation::factory()->withBox(
             west: -30.0, east: -20.0, south: 10.0, north: 20.0
         )->create([
             'resource_id' => $atlantic->id,
@@ -946,7 +1014,7 @@ describe('bounds filtering', function () {
     it('handles stored bounding box crossing anti-meridian', function () {
         // Stored bounding box that crosses anti-meridian (west=170, east=-170)
         $crossingBox = createPublishedResourceForSearch('Fiji Region', $this->titleType);
-        \App\Models\GeoLocation::factory()->withBox(
+        GeoLocation::factory()->withBox(
             west: 170.0, east: -170.0, south: -20.0, north: -10.0
         )->create([
             'resource_id' => $crossingBox->id,
@@ -954,7 +1022,7 @@ describe('bounds filtering', function () {
 
         // Normal box in Europe (should be excluded)
         $europe = createPublishedResourceForSearch('Europe Region', $this->titleType);
-        \App\Models\GeoLocation::factory()->withBox(
+        GeoLocation::factory()->withBox(
             west: 10.0, east: 15.0, south: 50.0, north: 55.0
         )->create([
             'resource_id' => $europe->id,
@@ -972,7 +1040,7 @@ describe('bounds filtering', function () {
     it('handles both search and stored box crossing anti-meridian', function () {
         // Stored bounding box that crosses anti-meridian
         $crossingBox = createPublishedResourceForSearch('Pacific Crossing', $this->titleType);
-        \App\Models\GeoLocation::factory()->withBox(
+        GeoLocation::factory()->withBox(
             west: 170.0, east: -170.0, south: -10.0, north: 10.0
         )->create([
             'resource_id' => $crossingBox->id,
@@ -989,14 +1057,14 @@ describe('bounds filtering', function () {
 
     it('combines bounds filter with text search', function () {
         $matchingBoth = createPublishedResourceForSearch('Seismic Berlin Data', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $matchingBoth->id,
             'point_latitude' => 52.52,
             'point_longitude' => 13.405,
         ]);
 
         $matchingTextOnly = createPublishedResourceForSearch('Seismic Tokyo Data', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $matchingTextOnly->id,
             'point_latitude' => 35.68,
             'point_longitude' => 139.69,
@@ -1013,7 +1081,7 @@ describe('bounds filtering', function () {
 
     it('combines bounds filter with keyword filter', function () {
         $matchingBoth = createPublishedResourceForSearch('Paper A', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $matchingBoth->id,
             'point_latitude' => 52.52,
             'point_longitude' => 13.405,
@@ -1021,7 +1089,7 @@ describe('bounds filtering', function () {
         Subject::factory()->create(['resource_id' => $matchingBoth->id, 'value' => 'Seismology']);
 
         $matchingGeoOnly = createPublishedResourceForSearch('Paper B', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $matchingGeoOnly->id,
             'point_latitude' => 52.0,
             'point_longitude' => 13.0,
@@ -1040,14 +1108,14 @@ describe('bounds filtering', function () {
         $resource = createPublishedResourceForSearch('Multi Geo', $this->titleType);
 
         // One geo location outside bounds
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $resource->id,
             'point_latitude' => -40.0,
             'point_longitude' => -60.0,
         ]);
 
         // Another geo location inside bounds
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $resource->id,
             'point_latitude' => 52.5,
             'point_longitude' => 13.4,
@@ -1062,7 +1130,7 @@ describe('bounds filtering', function () {
 
     it('matches point on boundary edge', function () {
         $resource = createPublishedResourceForSearch('Edge Point', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $resource->id,
             'point_latitude' => 50.0,
             'point_longitude' => 11.0,
@@ -1078,7 +1146,7 @@ describe('bounds filtering', function () {
     it('matches polygon with only polygon_points via bbox overlap', function () {
         // Polygon without in_polygon_point — vertices span into the search area
         $polygon = createPublishedResourceForSearch('Polygon Only', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $polygon->id,
             'polygon_points' => [
                 ['latitude' => 51.0, 'longitude' => 12.0],
@@ -1093,7 +1161,7 @@ describe('bounds filtering', function () {
 
         // Polygon outside search bounds
         $outside = createPublishedResourceForSearch('Polygon Outside', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $outside->id,
             'polygon_points' => [
                 ['latitude' => -30.0, 'longitude' => -50.0],
@@ -1118,7 +1186,7 @@ describe('bounds filtering', function () {
         // Polygon whose representative point is outside search bounds but
         // whose vertex bounding box still overlaps the search area.
         $polygon = createPublishedResourceForSearch('Polygon InPoint Outside', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $polygon->id,
             'polygon_points' => [
                 ['latitude' => 49.0, 'longitude' => 12.0],
@@ -1143,7 +1211,7 @@ describe('bounds filtering', function () {
 
     it('matches polygon via in_polygon_point when it is within bounds', function () {
         $polygon = createPublishedResourceForSearch('Polygon InPoint Inside', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $polygon->id,
             'polygon_points' => [
                 ['latitude' => 51.0, 'longitude' => 12.0],
@@ -1166,7 +1234,7 @@ describe('bounds filtering', function () {
 
     it('excludes polygon when both in_polygon_point and bbox are outside bounds', function () {
         $polygon = createPublishedResourceForSearch('Polygon Fully Outside', $this->titleType);
-        \App\Models\GeoLocation::factory()->create([
+        GeoLocation::factory()->create([
             'resource_id' => $polygon->id,
             'polygon_points' => [
                 ['latitude' => -30.0, 'longitude' => -50.0],

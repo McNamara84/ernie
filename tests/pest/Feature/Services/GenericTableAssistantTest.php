@@ -92,7 +92,7 @@ describe('storeSuggestion', function () {
             ->exists())->toBeTrue();
     });
 
-    it('skips duplicate suggestions', function () {
+    it('refreshes duplicate suggestions without counting them as newly created', function () {
         $resource = Resource::factory()->create();
         $assistant = new TestGenericAssistant;
 
@@ -115,15 +115,16 @@ describe('storeSuggestion', function () {
         expect($first)->toBeTrue()
             ->and($second)->toBeFalse();
 
-        // Only one row should exist
-        expect(AssistantSuggestion::where('assistant_id', $assistant->getId())
+        $suggestion = AssistantSuggestion::where('assistant_id', $assistant->getId())
             ->where('target_type', 'right')
             ->where('target_id', 1)
             ->where('suggested_value', 'MIT')
-            ->count())->toBe(1);
+            ->sole();
+
+        expect($suggestion->suggested_label)->toBe('MIT License (updated)');
     });
 
-    it('does not update existing suggestion when duplicate is stored', function () {
+    it('updates current evidence when a duplicate is stored', function () {
         $resource = Resource::factory()->create();
         $assistant = new TestGenericAssistant;
 
@@ -136,7 +137,6 @@ describe('storeSuggestion', function () {
             similarityScore: 0.80,
         );
 
-        // Attempt to store again with different label and score
         $assistant->storeSuggestion(
             resourceId: $resource->id,
             targetType: 'right',
@@ -144,15 +144,16 @@ describe('storeSuggestion', function () {
             suggestedValue: 'MIT',
             suggestedLabel: 'Updated Label',
             similarityScore: 0.99,
+            metadata: ['source_hash' => 'updated-source-hash'],
         );
 
         $suggestion = AssistantSuggestion::where('assistant_id', $assistant->getId())
             ->where('suggested_value', 'MIT')
             ->first();
 
-        // Original values should be preserved (firstOrCreate does not update)
-        expect($suggestion->suggested_label)->toBe('MIT License')
-            ->and($suggestion->similarity_score)->toBe(0.80);
+        expect($suggestion->suggested_label)->toBe('Updated Label')
+            ->and($suggestion->similarity_score)->toBe(0.99)
+            ->and($suggestion->metadata)->toBe(['source_hash' => 'updated-source-hash']);
     });
 
     it('skips previously dismissed suggestions', function () {

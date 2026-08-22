@@ -3267,6 +3267,7 @@ export default function DataCiteForm({
                 <AccordionItem value="descriptions">
                     <AccordionTrigger
                         className={SECTION_TRIGGER_CLASS_NAME}
+                        data-testid="descriptions-accordion-trigger"
                         actions={renderSectionActions(
                             'Descriptions',
                             `Abstract is required (${ABSTRACT_MIN_LENGTH}-${ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters). Other description types are optional.`,

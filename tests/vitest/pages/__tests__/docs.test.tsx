@@ -166,6 +166,26 @@ describe('Docs page', () => {
             }),
         ).toBeInTheDocument();
     });
+
+    it('documents description language suggestion review for group leaders', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByText('Suggested Description Languages')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('Description language suggestions show the Description Type, a text preview') &&
+                    text.includes('run the check again to review refreshed evidence.')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
     it('documents exact-match bulk acceptance for ROR affiliation suggestions', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
@@ -323,6 +343,17 @@ describe('Docs page', () => {
 
         expect(screen.getByText(/legacy DataCite 4\.6 \+ ISO envelope format/i)).toBeInTheDocument();
         expect(screen.getByText(/DataCite Metadata Schema 4\.7/i)).toBeInTheDocument();
+    });
+
+    it('documents description language versions in the Data Editor', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Managing Description Types and Language Versions')).toBeInTheDocument();
+        expect(screen.getByText('Add language version')).toBeInTheDocument();
+        expect(screen.getByText('Remove version')).toBeInTheDocument();
+        expect(screen.getByText(/Tabs containing validation errors display a red error indicator/i)).toBeInTheDocument();
     });
 
     it('documents opening resources from the resources table row', async () => {
@@ -793,16 +824,17 @@ describe('Docs page', () => {
         expect(screen.getByText('Award Title:')).toBeInTheDocument();
     });
 
-    it('documents how to manage repeatable descriptions and their languages', async () => {
+    it('documents how to manage description language versions', async () => {
         const { user } = renderDocsPage('beginner');
 
         await openDatasetsTab(user);
 
-        expect(screen.getByRole('heading', { name: 'Managing Description Entries', level: 4 })).toBeInTheDocument();
-        expect(screen.getByText(/including multiple entries with the same description type/i)).toBeInTheDocument();
-        expect(screen.getByText('Add Description')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Managing Description Types and Language Versions', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/Each group can contain several language versions/i)).toBeInTheDocument();
+        expect(screen.getByText('Add Description Type')).toBeInTheDocument();
+        expect(screen.getByText('Add language version')).toBeInTheDocument();
         expect(screen.getByText('No language specified')).toBeInTheDocument();
-        expect(screen.getByText(/remove button on an entry to delete only that description/i)).toBeInTheDocument();
+        expect(screen.getByText('Remove version')).toBeInTheDocument();
         expect(screen.getByText('Series Information:')).toBeInTheDocument();
     });
 

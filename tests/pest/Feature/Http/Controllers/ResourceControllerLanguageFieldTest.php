@@ -170,6 +170,57 @@ describe('Title and description language preservation', function () {
             ->and($descriptions[1]->language)->toBe('de');
     });
 
+    it('normalizes BCP 47 description language tags', function () {
+        $payload = validPayloadWithLanguage([
+            'descriptions' => [
+                ['descriptionType' => 'abstract', 'description' => 'Canadian English abstract.', 'language' => 'EN_ca'],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload);
+
+        $response->assertStatus(201);
+
+        expect(Resource::latest()->firstOrFail()->descriptions->sole()->language)->toBe('en-ca');
+    });
+
+    it('rejects invalid description language tags', function () {
+        $payload = validPayloadWithLanguage([
+            'descriptions' => [
+                ['descriptionType' => 'abstract', 'description' => 'Invalid language abstract.', 'language' => 'not a language'],
+            ],
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('descriptions.0.language');
+    });
+
+    it('rejects non-string title and description languages instead of normalizing them to null', function () {
+        $payload = validPayloadWithLanguage([
+            'titles' => [
+                ['title' => 'Malformed language title', 'titleType' => 'main-title', 'language' => ['en']],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'abstract',
+                    'description' => 'Malformed language abstract.',
+                    'language' => ['code' => 'en'],
+                ],
+            ],
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'titles.0.language',
+                'descriptions.0.language',
+            ]);
+    });
+
     it('stores null language when not provided', function () {
         $payload = validPayloadWithLanguage([
             'titles' => [
@@ -244,6 +295,20 @@ describe('Draft save language preservation', function () {
         expect($resource->descriptions->first()->language)->toBe('fr');
     });
 
+    it('normalizes BCP 47 description tags through draft save', function () {
+        $payload = validPayloadWithLanguage([
+            'descriptions' => [
+                ['descriptionType' => 'abstract', 'description' => 'Draft Canadian abstract.', 'language' => 'EN_ca'],
+            ],
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store-draft'), $payload)
+            ->assertSuccessful();
+
+        expect(Resource::latest()->firstOrFail()->descriptions->sole()->language)->toBe('en-ca');
+    });
+
     it('normalizes empty language to null in draft save', function () {
         $payload = validPayloadWithLanguage([
             'titles' => [
@@ -262,5 +327,28 @@ describe('Draft save language preservation', function () {
         $resource = Resource::latest()->first();
         expect($resource->titles->first()->language)->toBeNull()
             ->and($resource->descriptions->first()->language)->toBeNull();
+    });
+
+    it('rejects non-string title and description languages during draft save', function () {
+        $payload = validPayloadWithLanguage([
+            'titles' => [
+                ['title' => 'Malformed draft title', 'titleType' => 'main-title', 'language' => ['en']],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'abstract',
+                    'description' => 'Malformed draft abstract.',
+                    'language' => ['code' => 'en'],
+                ],
+            ],
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store-draft'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'titles.0.language',
+                'descriptions.0.language',
+            ]);
     });
 });

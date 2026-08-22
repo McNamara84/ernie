@@ -920,7 +920,7 @@ class OldDataset extends Model
      * Get descriptions for this resource from the description table.
      * Returns an array of descriptions with their types.
      *
-     * @return array<int, array{type: string, description: string}>
+     * @return array<int, array{type: string, description: string, language: null}>
      */
     public function getDescriptions(): array
     {
@@ -933,13 +933,15 @@ class OldDataset extends Model
         // Get all descriptions for this resource
         $descriptions = $db->table('description')
             ->where('resource_id', $this->id)
-            ->select('descriptiontype', 'description')
+            ->select('id', 'descriptiontype', 'description')
+            ->orderBy('id')
             ->get();
 
         return $descriptions->map(function ($desc) {
             return [
                 'type' => $desc->descriptiontype,
                 'description' => $desc->description,
+                'language' => null,
             ];
         })->toArray();
     }

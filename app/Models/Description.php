@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\LanguageTag;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Description Model (DataCite #17)
@@ -20,8 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $landing_page_html
  * @property int $description_type_id
  * @property string|null $language
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  * @property-read DescriptionType $descriptionType
  *
@@ -30,8 +34,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['resource_id', 'value', 'landing_page_html', 'description_type_id', 'language'])]
 class Description extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
+
+    /** @return Attribute<string|null, string|null> */
+    protected function language(): Attribute
+    {
+        return Attribute::make(
+            set: static fn (mixed $value): ?string => LanguageTag::normalize($value),
+        );
+    }
 
     /** @return BelongsTo<Resource, static> */
     public function resource(): BelongsTo

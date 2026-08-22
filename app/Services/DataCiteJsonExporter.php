@@ -678,12 +678,10 @@ class DataCiteJsonExporter
                 'descriptionType' => $description->descriptionType->slug ?? 'Other',
             ];
 
-            // Add language if available
-            if ($resource->language) {
-                $descriptionData['lang'] = $resource->language->code ?? 'en';
-            } elseif ($resource->igsnMetadata) {
-                // IGSN resources default to English since IGSN CSV doesn't include language
-                $descriptionData['lang'] = 'en';
+            $descriptionLanguage = LanguageTag::validOrNull($description->language);
+
+            if ($descriptionLanguage !== null) {
+                $descriptionData['lang'] = $descriptionLanguage;
             }
 
             $descriptions[] = $descriptionData;
@@ -1067,6 +1065,7 @@ class DataCiteJsonExporter
         if (is_string($person->family_name) && $person->family_name !== '') {
             $data['familyName'] = $person->family_name;
         }
+
         return $data;
     }
 
