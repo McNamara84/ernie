@@ -170,7 +170,7 @@ describe('DescriptionField', () => {
         await user.tab();
 
         expect(onBlur).toHaveBeenCalledOnce();
-        expect(screen.getByText(/4 characters/)).toBeInTheDocument();
-        expect(screen.getByText(/46 more needed/)).toBeInTheDocument();
+        expect(screen.getByTestId('abstract-character-count')).toHaveTextContent('4 characters');
+        expect(screen.getByTestId('abstract-character-count')).toHaveTextContent('46 more needed');
     });
 });

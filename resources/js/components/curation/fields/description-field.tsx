@@ -200,6 +200,7 @@ export default function DescriptionField({
                                 )}
                                 <div
                                     id={`${descriptionId}-count`}
+                                    data-testid={isFirstAbstract ? 'abstract-character-count' : undefined}
                                     className={`text-right text-sm ${
                                         hasValidationError || (isAbstract && charCount > 15_750)
                                             ? 'font-medium text-destructive'

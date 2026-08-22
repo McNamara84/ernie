@@ -88,7 +88,7 @@ export class DataCiteFormPage {
 
         // Description Fields
         this.abstractTextarea = page.getByTestId('abstract-textarea');
-        this.abstractCharacterCount = page.locator('#description-Abstract-count');
+        this.abstractCharacterCount = page.getByTestId('abstract-character-count');
 
         // Save Button - use data-testid for stability
         this.saveButton = page.getByTestId('save-resource-button');
