@@ -40,6 +40,34 @@ beforeEach(function (): void {
     test()->seed(RelationTypeSeeder::class);
 });
 
+describe('DataCiteToResourceTransformer - description languages', function (): void {
+    it('preserves repeated types and normalizes each explicit language independently', function (): void {
+        $user = User::factory()->create();
+
+        $resource = (new DataCiteToResourceTransformer)->transform([
+            'attributes' => [
+                'doi' => '10.5880/test.multilingual.descriptions',
+                'publicationYear' => 2026,
+                'language' => 'en',
+                'titles' => [['title' => 'Multilingual Description Import']],
+                'creators' => [['name' => 'Tester, Ada', 'nameType' => 'Personal']],
+                'descriptions' => [
+                    ['descriptionType' => 'Abstract', 'description' => 'English abstract.', 'lang' => 'EN_us'],
+                    ['descriptionType' => 'Abstract', 'description' => 'Deutscher Abstract.', 'lang' => 'de'],
+                    ['descriptionType' => 'Other', 'description' => 'No language metadata.'],
+                    ['descriptionType' => 'Methods', 'description' => 'Invalid language metadata.', 'lang' => 'not a tag'],
+                ],
+            ],
+        ], $user->id);
+
+        $descriptions = $resource->descriptions()->with('descriptionType')->get();
+
+        expect($descriptions)->toHaveCount(4)
+            ->and($descriptions->pluck('descriptionType.slug')->all())->toBe(['Abstract', 'Abstract', 'Other', 'Methods'])
+            ->and($descriptions->pluck('language')->all())->toBe(['en-us', 'de', null, null]);
+    });
+});
+
 describe('DataCiteToResourceTransformer - rights import', function (): void {
     it('links trusted CRC806 SPDX rights while preserving the legacy statement', function (): void {
         $right = Right::query()->create([

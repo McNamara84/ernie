@@ -361,6 +361,38 @@ describe('DataCiteJsonExporter - Contributors', function () {
 });
 
 describe('DataCiteJsonExporter - Descriptions', function () {
+    test('exports each explicit description language without resource or IGSN fallback', function () {
+        $resourceLanguage = Language::firstOrCreate(['code' => 'en'], ['name' => 'English']);
+        $resource = Resource::factory()->create(['language_id' => $resourceLanguage->id]);
+        $abstractType = DescriptionType::firstOrCreate(['slug' => 'Abstract'], ['name' => 'Abstract']);
+
+        Description::create([
+            'resource_id' => $resource->id,
+            'value' => 'Deutscher Abstract.',
+            'description_type_id' => $abstractType->id,
+            'language' => 'de',
+        ]);
+        Description::create([
+            'resource_id' => $resource->id,
+            'value' => 'Abstract without language.',
+            'description_type_id' => $abstractType->id,
+            'language' => null,
+        ]);
+        Description::create([
+            'resource_id' => $resource->id,
+            'value' => 'Canadian English abstract.',
+            'description_type_id' => $abstractType->id,
+            'language' => 'EN_ca',
+        ]);
+
+        $descriptions = $this->exporter->export($resource)['data']['attributes']['descriptions'];
+
+        expect($descriptions)->toHaveCount(3)
+            ->and($descriptions[0]['lang'])->toBe('de')
+            ->and($descriptions[1])->not->toHaveKey('lang')
+            ->and($descriptions[2]['lang'])->toBe('en-ca');
+    });
+
     test('exports abstract description', function () {
         $resource = Resource::factory()->create();
         $abstractType = DescriptionType::firstOrCreate(

@@ -228,6 +228,7 @@ final class LandingPageResourceTransformer
                     'value' => $desc->value,
                     'landing_page_html' => $this->sanitizeLandingPageHtml($desc->landing_page_html, $descriptionFormattingService),
                     'description_type' => $descriptionType !== null ? $descriptionType->name : null,
+                    'language' => $desc->language,
                 ];
             })
             ->all();

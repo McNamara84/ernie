@@ -546,6 +546,35 @@ describe('DataCiteXmlExporter - Titles', function () {
 });
 
 describe('DataCiteXmlExporter - Descriptions', function () {
+    test('exports only each explicit description language without resource fallback', function () {
+        $language = Language::firstOrCreate(['code' => 'en'], ['name' => 'English']);
+        $resource = Resource::factory()->create(['language_id' => $language->id]);
+        $abstractType = DescriptionType::firstOrCreate(
+            ['slug' => 'Abstract'],
+            ['name' => 'Abstract', 'is_active' => true]
+        );
+
+        Description::create([
+            'resource_id' => $resource->id,
+            'value' => 'Deutscher Abstract.',
+            'description_type_id' => $abstractType->id,
+            'language' => 'de',
+        ]);
+        Description::create([
+            'resource_id' => $resource->id,
+            'value' => 'Abstract without language.',
+            'description_type_id' => $abstractType->id,
+        ]);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($this->exporter->export($resource));
+        $descriptions = $dom->getElementsByTagName('description');
+
+        expect($descriptions)->toHaveLength(2)
+            ->and($descriptions->item(0)?->getAttribute('xml:lang'))->toBe('de')
+            ->and($descriptions->item(1)?->hasAttribute('xml:lang'))->toBeFalse();
+    });
+
     test('exports abstract description', function () {
         $resource = Resource::factory()->create();
 
@@ -600,6 +629,7 @@ describe('DataCiteXmlExporter - Descriptions', function () {
             'value' => 'First line.'.PHP_EOL.PHP_EOL.'Second line.',
             'landing_page_html' => '<p>First <strong>line</strong>.</p><p>Second line.</p>',
             'description_type_id' => $abstractType->id,
+            'language' => 'en',
         ]);
 
         $xml = $this->exporter->export($resource);

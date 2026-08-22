@@ -186,7 +186,7 @@ class Resource extends Model
     public function descriptions(): HasMany
     {
         /** @var HasMany<Description, static> $relation */
-        $relation = $this->hasMany(Description::class);
+        $relation = $this->hasMany(Description::class)->orderBy('id');
 
         return $relation;
     }

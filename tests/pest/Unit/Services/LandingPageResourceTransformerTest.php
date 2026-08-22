@@ -168,6 +168,7 @@ test('transformation is null-safe for optional relationships', function () {
             'value' => 'Some description',
             'landing_page_html' => '<p>Some <strong>description</strong></p>',
             'description_type' => null,
+            'language' => null,
         ]);
 
     expect($data['contributors'][0])
@@ -192,6 +193,7 @@ test('transforms landing page html alongside plain text descriptions', function 
         'id' => 1,
         'value' => 'Formatted abstract',
         'landing_page_html' => '<p>Formatted <strong>abstract</strong></p>',
+        'language' => 'de',
     ]);
     $description->setRelation('descriptionType', $descriptionType);
 
@@ -211,6 +213,7 @@ test('transforms landing page html alongside plain text descriptions', function 
         'value' => 'Formatted abstract',
         'landing_page_html' => '<p>Formatted <strong>abstract</strong></p>',
         'description_type' => 'Abstract',
+        'language' => 'de',
     ]);
 });
 

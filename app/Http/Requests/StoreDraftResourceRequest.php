@@ -126,7 +126,7 @@ class StoreDraftResourceRequest extends FormRequest
                 Rule::in(['abstract', 'methods', 'series-information', 'table-of-contents', 'technical-info', 'other']),
             ],
             'descriptions.*.description' => ['required', 'string'],
-            'descriptions.*.language' => ['nullable', 'string', 'max:10'],
+            'descriptions.*.language' => LanguageTag::validationRules(),
             'dates' => ['nullable', 'array'],
             'dates.*.dateType' => [
                 'required',
@@ -584,12 +584,12 @@ class StoreDraftResourceRequest extends FormRequest
 
             $normalizedType = Str::kebab($descriptionType);
 
-            $descriptionLanguage = isset($description['language']) ? trim((string) $description['language']) : '';
+            $descriptionLanguage = LanguageTag::normalize($description['language'] ?? null);
 
             $descriptions[] = [
                 'descriptionType' => $normalizedType,
                 'description' => $descriptionText,
-                'language' => $descriptionLanguage !== '' ? $descriptionLanguage : null,
+                'language' => $descriptionLanguage,
             ];
         }
 

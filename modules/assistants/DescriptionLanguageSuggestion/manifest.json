@@ -1,0 +1,24 @@
+{
+    "id": "description-language-suggestion",
+    "name": "Description Language Detection",
+    "description": "Detects German and English description texts that do not yet have a language tag.",
+    "icon": "Languages",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\DescriptionLanguageSuggestion\\Assistant",
+    "route_prefix": "description-language",
+    "lock_key": "description_language_detection_running",
+    "cache_key_prefix": "description_language_detection",
+    "sort_order": 46,
+    "status_labels": {
+        "checking": "Detecting description languages...",
+        "completed_with_results": "Description language detection completed: {count} new suggestion(s) found.",
+        "completed_empty": "Description language detection completed: No new suggestions found.",
+        "failed": "Description language detection failed: {error}",
+        "already_running": "Description language detection is already running."
+    },
+    "empty_state": {
+        "title": "No pending description language suggestions",
+        "description": "All reliably detectable descriptions are tagged or no suggestions were found."
+    },
+    "card_component": null
+}

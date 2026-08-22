@@ -1,10 +1,12 @@
-import { Plus, Trash2 } from 'lucide-react';
-import { useMemo } from 'react';
+import { Globe2, Plus, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { ValidationMessage } from '@/hooks/use-form-validation';
 import type { DescriptionType as DescriptionTypeFromApi, Language } from '@/types';
@@ -29,6 +31,14 @@ interface DescriptionFieldProps {
     validationTouched?: boolean;
     onAbstractValidationBlur?: () => void;
 }
+
+interface DescriptionGroup {
+    type: DescriptionType;
+    entries: DescriptionEntry[];
+}
+
+/** Languages evidenced by the GFZ legacy description corpus and offered for new variants. */
+export const DESCRIPTION_LANGUAGE_CODES = ['de', 'en'] as const;
 
 /** UI metadata for each description type (labels, placeholders, help texts). */
 const DESCRIPTION_TYPE_META: Record<DescriptionType, { label: string; placeholder: string; helpText: string }> = {
@@ -67,6 +77,8 @@ const DESCRIPTION_TYPE_META: Record<DescriptionType, { label: string; placeholde
     },
 };
 
+const normalizedLanguage = (language?: string | null): string => language?.trim().toLowerCase().replaceAll('_', '-') ?? '';
+
 export default function DescriptionField({
     descriptions,
     onChange,
@@ -76,6 +88,8 @@ export default function DescriptionField({
     validationTouched = false,
     onAbstractValidationBlur,
 }: DescriptionFieldProps) {
+    const [activeEntryIds, setActiveEntryIds] = useState<Partial<Record<DescriptionType, string>>>({});
+
     const typeOptions = useMemo(() => {
         const enabledSlugs = new Set(availableTypes.map((type) => type.slug));
         const currentSlugs = new Set(descriptions.map((description) => description.type));
@@ -85,24 +99,55 @@ export default function DescriptionField({
             .map((type) => ({ value: type, label: DESCRIPTION_TYPE_META[type].label }));
     }, [availableTypes, descriptions]);
 
-    const languageOptions = useMemo(
-        () => languages.map((language) => ({ value: language.code, label: `${language.name} (${language.code})` })),
-        [languages],
+    const groups = useMemo<DescriptionGroup[]>(() => {
+        const byType = new Map<DescriptionType, DescriptionEntry[]>();
+
+        for (const description of descriptions) {
+            const entries = byType.get(description.type) ?? [];
+            entries.push(description);
+            byType.set(description.type, entries);
+        }
+
+        return typeOptions.map(({ value }) => ({ type: value, entries: byType.get(value) ?? [] })).filter((group) => group.entries.length > 0);
+    }, [descriptions, typeOptions]);
+
+    const languageByCode = useMemo(() => new Map(languages.map((language) => [normalizedLanguage(language.code), language])), [languages]);
+    const descriptionLanguages = useMemo(
+        () =>
+            DESCRIPTION_LANGUAGE_CODES.map(
+                (code, index) => languageByCode.get(code) ?? { id: -(index + 1), code, name: code === 'de' ? 'German' : 'English' },
+            ),
+        [languageByCode],
     );
 
     const updateDescription = (id: string, changes: Partial<Omit<DescriptionEntry, 'id'>>) => {
         onChange(descriptions.map((description) => (description.id === id ? { ...description, ...changes } : description)));
     };
 
-    const addDescription = () => {
-        const defaultType = (typeOptions.find((option) => option.value === 'Other')?.value ?? typeOptions[0]?.value ?? 'Abstract') as DescriptionType;
-        onChange([...descriptions, { id: crypto.randomUUID(), type: defaultType, value: '', language: null }]);
+    const addDescriptionGroup = (type: DescriptionType) => {
+        const id = crypto.randomUUID();
+        onChange([...descriptions, { id, type, value: '', language: null }]);
+        setActiveEntryIds((current) => ({ ...current, [type]: id }));
     };
 
-    const removeDescription = (id: string) => {
-        onChange(descriptions.filter((description) => description.id !== id));
+    const addLanguageVersion = (type: DescriptionType, language: string) => {
+        const id = crypto.randomUUID();
+        onChange([...descriptions, { id, type, value: '', language }]);
+        setActiveEntryIds((current) => ({ ...current, [type]: id }));
     };
 
+    const removeDescription = (entry: DescriptionEntry) => {
+        const remaining = descriptions.filter((description) => description.id !== entry.id);
+        onChange(remaining);
+
+        if (activeEntryIds[entry.type] === entry.id) {
+            const nextEntry = remaining.find((description) => description.type === entry.type);
+            setActiveEntryIds((current) => ({ ...current, [entry.type]: nextEntry?.id }));
+        }
+    };
+
+    const currentTypes = new Set(groups.map((group) => group.type));
+    const addableTypes = typeOptions.filter((option) => !currentTypes.has(option.value));
     const firstAbstractIndex = descriptions.findIndex((description) => description.type === 'Abstract');
     const populatedAbstracts = descriptions.filter((description) => description.type === 'Abstract' && description.value.trim() !== '');
     const hasPopulatedAbstract = populatedAbstracts.length > 0;
@@ -115,7 +160,7 @@ export default function DescriptionField({
     const groupValidationMessages = validationMessages.filter((message) => message.fieldId === 'abstract' || message.fieldId === undefined);
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4" data-testid="description-field">
             <Alert className="bg-muted/40">
                 <AlertDescription>
                     Landing pages support a limited HTML subset in descriptions: &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;ul&gt;,
@@ -128,122 +173,217 @@ export default function DescriptionField({
                 <FieldValidationFeedback messages={groupValidationMessages} />
             )}
 
-            <div className="space-y-4">
-                {descriptions.map((description, index) => {
-                    const meta = DESCRIPTION_TYPE_META[description.type];
-                    const isAbstract = description.type === 'Abstract';
-                    const isFirstAbstract = index === firstAbstractIndex;
-                    const isRequiredAbstract = isAbstract && description.id === requiredAbstractId;
-                    const charCount = description.value.length;
-                    const trimmedCharCount = description.value.trim().length;
-                    const hasLocalAbstractError = isAbstract && trimmedCharCount > 0 && (trimmedCharCount < 50 || trimmedCharCount > 17_500);
-                    const entryValidationMessages = validationMessages.filter(
-                        (message) =>
-                            message.fieldId === description.id ||
-                            (isFirstAbstract && message.fieldId === 'abstract') ||
-                            (isFirstAbstract && !hasPopulatedAbstract && message.fieldId === undefined),
-                    );
-                    const hasEntryValidationError = entryValidationMessages.some((message) => message.severity === 'error');
-                    const hasValidationError = validationTouched && (hasLocalAbstractError || hasEntryValidationError);
-                    const descriptionId = `description-${description.id}`;
+            <div className="space-y-5">
+                {groups.map((group) => {
+                    const meta = DESCRIPTION_TYPE_META[group.type];
+                    const configuredActiveId = activeEntryIds[group.type];
+                    const activeEntryId = group.entries.some((entry) => entry.id === configuredActiveId) ? configuredActiveId! : group.entries[0].id;
+                    const usedLanguages = new Set(group.entries.map((entry) => normalizedLanguage(entry.language)).filter(Boolean));
+                    const addableLanguages = descriptionLanguages.filter((language) => !usedLanguages.has(normalizedLanguage(language.code)));
 
                     return (
-                        <div key={description.id} className="space-y-4 rounded-md border p-4" data-testid="description-entry">
-                            <div className="flex items-center justify-between gap-4">
-                                <h3 className="font-medium">Description {index + 1}</h3>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={`Remove description ${index + 1}`}
-                                    onClick={() => removeDescription(description.id)}
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <SelectField
-                                    id={`${descriptionId}-type`}
-                                    label="Description Type"
-                                    value={description.type}
-                                    onValueChange={(value) => updateDescription(description.id, { type: value as DescriptionType })}
-                                    options={typeOptions}
-                                    required
-                                />
-                                <SelectField
-                                    id={`${descriptionId}-language`}
-                                    label="Language"
-                                    value={description.language ?? ''}
-                                    onValueChange={(value) => updateDescription(description.id, { language: value || null })}
-                                    options={languageOptions}
-                                    placeholder="No language specified"
-                                    clearable
-                                    clearLabel="No language specified"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor={`${descriptionId}-value`}>
-                                    {meta.label}
-                                    {isRequiredAbstract ? (
-                                        <span className="ml-2 text-sm font-normal text-destructive">(Required)</span>
-                                    ) : (
-                                        <span className="ml-2 text-sm font-normal text-muted-foreground">(Optional)</span>
-                                    )}
-                                </Label>
-                                <p className="text-sm text-muted-foreground">{meta.helpText}</p>
-                                <Textarea
-                                    id={`${descriptionId}-value`}
-                                    value={description.value}
-                                    onChange={(event) => updateDescription(description.id, { value: event.target.value })}
-                                    onBlur={() => {
-                                        if (isAbstract) {
-                                            onAbstractValidationBlur?.();
-                                        }
-                                    }}
-                                    placeholder={meta.placeholder}
-                                    rows={8}
-                                    className="resize-y"
-                                    aria-describedby={`${descriptionId}-count`}
-                                    aria-invalid={hasValidationError}
-                                    required={isRequiredAbstract}
-                                    data-testid={isFirstAbstract ? 'abstract-textarea' : undefined}
-                                />
-                                {validationTouched && entryValidationMessages.length > 0 && (
-                                    <FieldValidationFeedback messages={entryValidationMessages} />
-                                )}
-                                {isAbstract && validationTouched && entryValidationMessages.length === 0 && hasLocalAbstractError && (
-                                    <p className="text-sm text-destructive" role="alert">
-                                        Abstract must be between 50 and 17,500 characters.
-                                    </p>
-                                )}
-                                <div
-                                    id={`${descriptionId}-count`}
-                                    data-testid={isFirstAbstract ? 'abstract-character-count' : undefined}
-                                    className={`text-right text-sm ${
-                                        hasValidationError || (isAbstract && charCount > 15_750)
-                                            ? 'font-medium text-destructive'
-                                            : isAbstract && charCount > 0 && charCount < 50
-                                              ? 'font-medium text-yellow-600'
-                                              : 'text-muted-foreground'
-                                    }`}
-                                >
-                                    {charCount.toLocaleString('en-US')} characters
-                                    {isAbstract && charCount > 0 && (
-                                        <span className="ml-1">({charCount < 50 ? `${50 - charCount} more needed` : 'of 17,500'})</span>
-                                    )}
+                        <section
+                            key={group.type}
+                            className="space-y-4 rounded-lg border bg-card p-4 shadow-xs"
+                            data-testid="description-entry"
+                            data-description-type={group.type}
+                        >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                    <h3 className="text-base font-semibold">{meta.label}</h3>
+                                    <p className="text-sm text-muted-foreground">{meta.helpText}</p>
                                 </div>
+
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button type="button" variant="outline" size="sm" disabled={addableLanguages.length === 0}>
+                                            <Globe2 />
+                                            Add language version
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Language</DropdownMenuLabel>
+                                        {descriptionLanguages.map((language) => {
+                                            const code = normalizedLanguage(language.code);
+                                            const alreadyUsed = usedLanguages.has(code);
+
+                                            return (
+                                                <DropdownMenuItem
+                                                    key={code}
+                                                    disabled={alreadyUsed}
+                                                    onSelect={() => addLanguageVersion(group.type, code)}
+                                                >
+                                                    {language.name} ({code}){alreadyUsed ? ' — already added' : ''}
+                                                </DropdownMenuItem>
+                                            );
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
-                        </div>
+
+                            <Tabs value={activeEntryId} onValueChange={(id) => setActiveEntryIds((current) => ({ ...current, [group.type]: id }))}>
+                                <TabsList className="h-auto max-w-full flex-wrap justify-start" aria-label={`${meta.label} language versions`}>
+                                    {group.entries.map((entry) => {
+                                        const code = normalizedLanguage(entry.language);
+                                        const matchingEntries = group.entries.filter((candidate) => normalizedLanguage(candidate.language) === code);
+                                        const duplicateIndex = matchingEntries.findIndex((candidate) => candidate.id === entry.id);
+                                        const language = code ? languageByCode.get(code) : undefined;
+                                        const baseLabel = code ? `${language?.name ?? 'Imported language'} (${code})` : 'Language not specified';
+                                        const label = matchingEntries.length > 1 ? `${baseLabel} ${duplicateIndex + 1}` : baseLabel;
+
+                                        return (
+                                            <TabsTrigger key={entry.id} value={entry.id}>
+                                                {label}
+                                            </TabsTrigger>
+                                        );
+                                    })}
+                                </TabsList>
+
+                                {group.entries.map((description) => {
+                                    const isAbstract = description.type === 'Abstract';
+                                    const isFirstAbstract = descriptions[firstAbstractIndex]?.id === description.id;
+                                    const isRequiredAbstract = isAbstract && description.id === requiredAbstractId;
+                                    const charCount = description.value.length;
+                                    const trimmedCharCount = description.value.trim().length;
+                                    const hasLocalAbstractError =
+                                        isAbstract && trimmedCharCount > 0 && (trimmedCharCount < 50 || trimmedCharCount > 17_500);
+                                    const entryValidationMessages = validationMessages.filter(
+                                        (message) =>
+                                            message.fieldId === description.id ||
+                                            (isFirstAbstract && message.fieldId === 'abstract') ||
+                                            (isFirstAbstract && !hasPopulatedAbstract && message.fieldId === undefined),
+                                    );
+                                    const hasEntryValidationError = entryValidationMessages.some((message) => message.severity === 'error');
+                                    const hasValidationError = validationTouched && (hasLocalAbstractError || hasEntryValidationError);
+                                    const descriptionId = `description-${description.id}`;
+                                    const currentLanguage = normalizedLanguage(description.language);
+                                    const siblingLanguages = new Set(
+                                        group.entries
+                                            .filter((entry) => entry.id !== description.id)
+                                            .map((entry) => normalizedLanguage(entry.language))
+                                            .filter(Boolean),
+                                    );
+                                    const selectableLanguages = descriptionLanguages
+                                        .filter((language) => !siblingLanguages.has(normalizedLanguage(language.code)))
+                                        .map((language) => ({
+                                            value: normalizedLanguage(language.code),
+                                            label: `${language.name} (${normalizedLanguage(language.code)})`,
+                                        }));
+
+                                    if (currentLanguage && !selectableLanguages.some((option) => option.value === currentLanguage)) {
+                                        const currentLanguageName = languageByCode.get(currentLanguage)?.name;
+                                        selectableLanguages.push({
+                                            value: currentLanguage,
+                                            label: currentLanguageName
+                                                ? `${currentLanguageName} (${currentLanguage})`
+                                                : `Imported language (${currentLanguage})`,
+                                        });
+                                    }
+
+                                    return (
+                                        <TabsContent key={description.id} value={description.id} className="space-y-4 pt-2">
+                                            <div className="flex flex-wrap items-end justify-between gap-3">
+                                                <SelectField
+                                                    id={`${descriptionId}-language`}
+                                                    label="Language"
+                                                    value={currentLanguage}
+                                                    onValueChange={(value) => updateDescription(description.id, { language: value || null })}
+                                                    options={selectableLanguages}
+                                                    placeholder="No language specified"
+                                                    clearable
+                                                    clearLabel="No language specified"
+                                                    containerProps={{ className: 'min-w-56 flex-1 sm:max-w-xs' }}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    aria-label={`Remove ${meta.label} ${currentLanguage || 'without language'}`}
+                                                    onClick={() => removeDescription(description)}
+                                                >
+                                                    <Trash2 />
+                                                    Remove version
+                                                </Button>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label htmlFor={`${descriptionId}-value`}>
+                                                    {meta.label}
+                                                    {isRequiredAbstract ? (
+                                                        <span className="ml-2 text-sm font-normal text-destructive">(Required)</span>
+                                                    ) : (
+                                                        <span className="ml-2 text-sm font-normal text-muted-foreground">(Optional)</span>
+                                                    )}
+                                                </Label>
+                                                <Textarea
+                                                    id={`${descriptionId}-value`}
+                                                    value={description.value}
+                                                    onChange={(event) => updateDescription(description.id, { value: event.target.value })}
+                                                    onBlur={() => {
+                                                        if (isAbstract) {
+                                                            onAbstractValidationBlur?.();
+                                                        }
+                                                    }}
+                                                    placeholder={meta.placeholder}
+                                                    rows={8}
+                                                    className="resize-y"
+                                                    aria-describedby={`${descriptionId}-count`}
+                                                    aria-invalid={hasValidationError}
+                                                    required={isRequiredAbstract}
+                                                    data-testid={isFirstAbstract ? 'abstract-textarea' : undefined}
+                                                />
+                                                {validationTouched && entryValidationMessages.length > 0 && (
+                                                    <FieldValidationFeedback messages={entryValidationMessages} />
+                                                )}
+                                                {isAbstract && validationTouched && entryValidationMessages.length === 0 && hasLocalAbstractError && (
+                                                    <p className="text-sm text-destructive" role="alert">
+                                                        Abstract must be between 50 and 17,500 characters.
+                                                    </p>
+                                                )}
+                                                <div
+                                                    id={`${descriptionId}-count`}
+                                                    data-testid={isFirstAbstract ? 'abstract-character-count' : undefined}
+                                                    className={`text-right text-sm ${
+                                                        hasValidationError || (isAbstract && charCount > 15_750)
+                                                            ? 'font-medium text-destructive'
+                                                            : isAbstract && charCount > 0 && charCount < 50
+                                                              ? 'font-medium text-yellow-600'
+                                                              : 'text-muted-foreground'
+                                                    }`}
+                                                >
+                                                    {charCount.toLocaleString('en-US')} characters
+                                                    {isAbstract && charCount > 0 && (
+                                                        <span className="ml-1">
+                                                            ({charCount < 50 ? `${50 - charCount} more needed` : 'of 17,500'})
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </TabsContent>
+                                    );
+                                })}
+                            </Tabs>
+                        </section>
                     );
                 })}
             </div>
 
-            <Button type="button" variant="outline" onClick={addDescription}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Description
-            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="outline" disabled={addableTypes.length === 0}>
+                        <Plus />
+                        Add Description Type
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                    <DropdownMenuLabel>Description Type</DropdownMenuLabel>
+                    {addableTypes.map((option) => (
+                        <DropdownMenuItem key={option.value} onSelect={() => addDescriptionGroup(option.value)}>
+                            {option.label}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     );
 }

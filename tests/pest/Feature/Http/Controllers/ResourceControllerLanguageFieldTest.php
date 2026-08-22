@@ -170,6 +170,34 @@ describe('Title and description language preservation', function () {
             ->and($descriptions[1]->language)->toBe('de');
     });
 
+    it('normalizes BCP 47 description language tags', function () {
+        $payload = validPayloadWithLanguage([
+            'descriptions' => [
+                ['descriptionType' => 'abstract', 'description' => 'Canadian English abstract.', 'language' => 'EN_ca'],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload);
+
+        $response->assertStatus(201);
+
+        expect(Resource::latest()->firstOrFail()->descriptions->sole()->language)->toBe('en-ca');
+    });
+
+    it('rejects invalid description language tags', function () {
+        $payload = validPayloadWithLanguage([
+            'descriptions' => [
+                ['descriptionType' => 'abstract', 'description' => 'Invalid language abstract.', 'language' => 'not a language'],
+            ],
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('descriptions.0.language');
+    });
+
     it('stores null language when not provided', function () {
         $payload = validPayloadWithLanguage([
             'titles' => [
@@ -242,6 +270,20 @@ describe('Draft save language preservation', function () {
 
         $resource = Resource::latest()->first();
         expect($resource->descriptions->first()->language)->toBe('fr');
+    });
+
+    it('normalizes BCP 47 description tags through draft save', function () {
+        $payload = validPayloadWithLanguage([
+            'descriptions' => [
+                ['descriptionType' => 'abstract', 'description' => 'Draft Canadian abstract.', 'language' => 'EN_ca'],
+            ],
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store-draft'), $payload)
+            ->assertSuccessful();
+
+        expect(Resource::latest()->firstOrFail()->descriptions->sole()->language)->toBe('en-ca');
     });
 
     it('normalizes empty language to null in draft save', function () {

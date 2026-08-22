@@ -400,6 +400,7 @@ export interface LandingPageDescription {
     value: string;
     landing_page_html?: string | null;
     description_type: string | null;
+    language?: string | null;
 }
 
 /**

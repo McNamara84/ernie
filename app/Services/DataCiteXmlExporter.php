@@ -14,8 +14,8 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Right;
-use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use App\Services\Rights\CustomRightCatalogService;
+use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
 use App\Support\LanguageTag;
@@ -1248,18 +1248,13 @@ class DataCiteXmlExporter
             $descriptionElement = $this->dom->createElement('description');
             $descriptionElement->setAttribute('descriptionType', $description->descriptionType->slug ?? 'Abstract');
 
-            if ($resource->language) {
+            $descriptionLanguage = LanguageTag::validOrNull($description->language);
+
+            if ($descriptionLanguage !== null) {
                 $descriptionElement->setAttributeNS(
                     self::XML_NAMESPACE,
                     'xml:lang',
-                    $resource->language->code ?? 'en'
-                );
-            } elseif ($resource->igsnMetadata) {
-                // IGSN resources default to English since IGSN CSV doesn't include language
-                $descriptionElement->setAttributeNS(
-                    self::XML_NAMESPACE,
-                    'xml:lang',
-                    'en'
+                    $descriptionLanguage
                 );
             }
 
