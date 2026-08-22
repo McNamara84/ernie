@@ -361,9 +361,6 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                                 instruments, ROR for research organizations, and RAiD for research activities
                             </li>
                             <li>
-                                <strong>Limits:</strong> Set maximum titles and licenses per resource
-                            </li>
-                            <li>
                                 <strong>Datacenters:</strong> Manage the list of available datacenters for resource assignment
                             </li>
                         </ul>
@@ -1088,7 +1085,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Titles</h3>
                         <p>
                             Titles are edited in the <strong>Resource Information</strong> section of the Data Editor. Every resource requires at
-                            least one title. You can add up to {editorSettings.limits.maxTitles} titles per resource.
+                            least one title. Additional titles can be added as needed.
                         </p>
 
                         <h4>Title Types</h4>
@@ -1142,9 +1139,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                         </ul>
 
-                        <p className="mt-4 text-sm text-muted-foreground">
-                            You can assign up to {editorSettings.limits.maxLicenses} license(s) per resource.
-                        </p>
+                        <p className="mt-4 text-sm text-muted-foreground">You can assign multiple licenses to a resource.</p>
                     </>
                 ),
             },
@@ -1195,6 +1190,25 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Descriptions</h3>
                         <p>Provide detailed information about your dataset with different description types:</p>
 
+                        <h4>Managing Description Entries</h4>
+                        <p>
+                            Each description is edited as an independent entry. A resource can contain several descriptions, including multiple
+                            entries with the same description type.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                Select <strong>Add Description</strong> to create another entry, then choose its required Description Type.
+                            </li>
+                            <li>
+                                Select an optional Language for each entry, or keep <strong>No language specified</strong> when the language is
+                                unknown or not applicable.
+                            </li>
+                            <li>Use the remove button on an entry to delete only that description.</li>
+                        </ul>
+                        <p className="mt-4 text-sm text-muted-foreground">
+                            Every resource must contain at least one Abstract with 50 to 17,500 characters.
+                        </p>
+
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Landing Page Formatting:</strong> Description fields support a limited HTML subset for landing-page display
@@ -1215,6 +1229,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <strong>Technical Info:</strong> Technical details about data format, structure, or processing
+                            </li>
+                            <li>
+                                <strong>Series Information:</strong> Information about the series to which the resource belongs
                             </li>
                             <li>
                                 <strong>Table of Contents:</strong> Structure overview for complex datasets
@@ -1857,11 +1874,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>
                                     For IGSN landing pages, the left column also includes <strong>General</strong> (Project, Campaign, Type, Name,
                                     IGSN, Parent IGSN, Purpose, Release Date), <strong>Sample Family</strong> (the complete locally known hierarchy
-                                    from the highest ancestor to all descendants, with links to published family members), <strong>Acquisition</strong>{' '}
-                                    (Material, Rock Classification, Geological Unit, Comments, Minimum/Maximum Depth, Depth Scale, Sizes, Collection
-                                    Method, Funding Agency, Chief Scientist, Start/End Date), and <strong>Repositories</strong> (current and original
-                                    repository, their contacts, and sample access). Draft family members remain visible without a link, while empty
-                                    fields and empty modules are hidden automatically on the rendered page.
+                                    from the highest ancestor to all descendants, with links to published family members),{' '}
+                                    <strong>Acquisition</strong> (Material, Rock Classification, Geological Unit, Comments, Minimum/Maximum Depth,
+                                    Depth Scale, Sizes, Collection Method, Funding Agency, Chief Scientist, Start/End Date), and{' '}
+                                    <strong>Repositories</strong> (current and original repository, their contacts, and sample access). Draft family
+                                    members remain visible without a link, while empty fields and empty modules are hidden automatically on the
+                                    rendered page.
                                 </p>
                                 <p>
                                     The right-column <strong>Location / Map</strong> module becomes <strong>Sampling Location</strong> for IGSNs. It

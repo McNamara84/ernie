@@ -705,16 +705,16 @@ describe('DataCiteForm', () => {
 
             expect(screen.getAllByText('Licenses and Rights')).toHaveLength(1);
             expect(within(licensesTrigger).getByText('Specify usage rights and restrictions for your dataset.')).toBeInTheDocument();
-            expect(within(licensesTrigger).getByText('(1 / 99)')).toBeInTheDocument();
+            expect(within(licensesTrigger).getByText('(1)')).toBeInTheDocument();
             expect(within(licensesTrigger).getByLabelText('Required')).toBeInTheDocument();
             expect(within(licensesTrigger).getByLabelText('Section incomplete or has errors')).toBeInTheDocument();
 
             expect(screen.getAllByText('Authors')).toHaveLength(1);
-            expect(within(authorsTrigger).getByText('(0 / 100)')).toBeInTheDocument();
+            expect(within(authorsTrigger).getByText('(0)')).toBeInTheDocument();
             expect(within(authorsTrigger).getByLabelText('Required')).toBeInTheDocument();
 
             expect(screen.getAllByText('Contributors')).toHaveLength(1);
-            expect(within(contributorsTrigger).getByText('(0 / 100)')).toBeInTheDocument();
+            expect(within(contributorsTrigger).getByText('(0)')).toBeInTheDocument();
             expect(within(contributorsTrigger).getByLabelText('Optional section')).toBeInTheDocument();
         });
 
@@ -2523,29 +2523,26 @@ describe('DataCiteForm', () => {
     });
 
     it('disables add license when entries list is empty', () => {
-        expect(canAddLicense([], 1)).toBe(false);
+        expect(canAddLicense([])).toBe(false);
     });
 
-    it('allows adding license when last entry filled and under limit', () => {
-        expect(canAddLicense([{ id: '1', license: 'MIT' }], 2)).toBe(true);
+    it('allows adding a license when the last entry is filled', () => {
+        expect(canAddLicense([{ id: '1', license: 'MIT' }])).toBe(true);
     });
 
     it('prevents adding license when last entry is empty', () => {
         expect(
-            canAddLicense(
-                [
-                    { id: '1', license: 'MIT' },
-                    { id: '2', license: '' },
-                ],
-                3,
-            ),
+            canAddLicense([
+                { id: '1', license: 'MIT' },
+                { id: '2', license: '' },
+            ]),
         ).toBe(false);
     });
 
     it('determines whether titles can be added', () => {
-        expect(canAddTitle([], 3)).toBe(false);
-        expect(canAddTitle([{ id: '1', title: '', titleType: 'main-title' }], 3)).toBe(false);
-        expect(canAddTitle([{ id: '1', title: 'First', titleType: 'main-title' }], 3)).toBe(true);
+        expect(canAddTitle([])).toBe(false);
+        expect(canAddTitle([{ id: '1', title: '', titleType: 'main-title' }])).toBe(false);
+        expect(canAddTitle([{ id: '1', title: 'First', titleType: 'main-title' }])).toBe(true);
     });
 
     it('prefills Language when initialLanguage code is provided', () => {
@@ -2929,7 +2926,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('combobox', { name: /Title Type/ })).toHaveTextContent('Main Title');
     });
 
-    it('limits title rows to max titles', async () => {
+    it('allows title rows beyond the former configured limit', async () => {
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
@@ -2940,7 +2937,6 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
-                maxTitles={3}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -2954,7 +2950,9 @@ describe('DataCiteForm', () => {
         await user.type(secondInput, 'Two');
         await user.click(addButton);
         expect(screen.getAllByRole('textbox', { name: /Title/ })).toHaveLength(3);
-        expect(addButton).toBeDisabled();
+        const thirdInput = screen.getAllByRole('textbox', { name: /Title/ })[2];
+        await user.type(thirdInput, 'Three');
+        expect(addButton).toBeEnabled();
     }, 10000);
 
     /**
@@ -4123,6 +4121,197 @@ describe('DataCiteForm', () => {
             });
         });
 
+        it('attaches the required error to the first Abstract after other description types', async () => {
+            const { container } = render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    initialAuthors={[{ type: 'person', lastName: 'Curator' }]}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenterId={1}
+                    initialDescriptions={[
+                        { type: 'Methods', description: 'Methods remain optional.' },
+                        { type: 'Abstract', description: '' },
+                    ]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const methodsTextarea = screen.getByPlaceholderText(/Describe the methods/i);
+            const abstractTextarea = screen.getByPlaceholderText(/Enter a brief summary/i);
+
+            fireEvent.submit(container.querySelector('form')!);
+
+            await waitFor(() => expect(abstractTextarea).toHaveAttribute('aria-invalid', 'true'));
+            expect(methodsTextarea).toHaveAttribute('aria-invalid', 'false');
+            expect(screen.getAllByText('Abstract is required.').length).toBeGreaterThan(0);
+        });
+
+        it('shows the required error at group level when no Abstract entry exists', async () => {
+            const { container } = render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    initialAuthors={[{ type: 'person', lastName: 'Curator' }]}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenterId={1}
+                    initialDescriptions={[{ type: 'Methods', description: 'Methods remain optional.' }]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const methodsTextarea = screen.getByPlaceholderText(/Describe the methods/i);
+            expect(screen.queryByPlaceholderText(/Enter a brief summary/i)).not.toBeInTheDocument();
+
+            fireEvent.submit(container.querySelector('form')!);
+
+            await waitFor(() => expect(screen.getAllByText('Abstract is required.').length).toBeGreaterThan(0));
+            expect(methodsTextarea).toHaveAttribute('aria-invalid', 'false');
+        });
+
+        it('maps backend description indexes after empty UI entries are omitted from the payload', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockRejectedValue({
+                response: {
+                    status: 422,
+                    data: {
+                        message: 'Validation failed.',
+                        errors: {
+                            'descriptions.0.description': ['Backend rejected the submitted Abstract.'],
+                        },
+                    },
+                },
+                isAxiosError: true,
+            });
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    initialAuthors={[{ type: 'person', lastName: 'Curator' }]}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenterId={1}
+                    initialDescriptions={[
+                        { type: 'Methods', description: '' },
+                        {
+                            type: 'Abstract',
+                            description: 'This submitted Abstract is valid and contains more than fifty characters.',
+                        },
+                    ]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const methodsTextarea = screen.getByPlaceholderText(/Describe the methods/i);
+            const abstractTextarea = screen.getByPlaceholderText(/Enter a brief summary/i);
+
+            await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+            await waitFor(() => {
+                expect(abstractTextarea).toHaveAttribute('aria-invalid', 'true');
+                expect(within(abstractTextarea.closest('[data-testid="description-entry"]')!).getByText('Backend rejected the submitted Abstract.')).toBeInTheDocument();
+            });
+            expect(methodsTextarea).toHaveAttribute('aria-invalid', 'false');
+            expect(mockedAxios.post.mock.calls[0][1].descriptions).toEqual([
+                expect.objectContaining({ descriptionType: 'Abstract' }),
+            ]);
+        });
+
+        it('maps backend errors inline for non-Abstract description entries', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockRejectedValue({
+                response: {
+                    status: 422,
+                    data: {
+                        message: 'Validation failed.',
+                        errors: {
+                            'descriptions.1.description': ['Backend rejected the submitted Methods description.'],
+                        },
+                    },
+                },
+                isAxiosError: true,
+            });
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    initialAuthors={[{ type: 'person', lastName: 'Curator' }]}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenterId={1}
+                    initialDescriptions={[
+                        {
+                            type: 'Abstract',
+                            description: 'This submitted Abstract is valid and contains more than fifty characters.',
+                        },
+                        { type: 'Methods', description: 'Submitted methods description.' },
+                    ]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const abstractTextarea = screen.getByPlaceholderText(/Enter a brief summary/i);
+            const methodsTextarea = screen.getByPlaceholderText(/Describe the methods/i);
+
+            await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+            await waitFor(() => {
+                expect(methodsTextarea).toHaveAttribute('aria-invalid', 'true');
+                expect(
+                    within(methodsTextarea.closest('[data-testid="description-entry"]')!).getByText(
+                        'Backend rejected the submitted Methods description.',
+                    ),
+                ).toBeInTheDocument();
+            });
+            expect(abstractTextarea).toHaveAttribute('aria-invalid', 'false');
+        });
+
         it('save button remains enabled when Abstract is filled', { timeout: 60000 }, async () => {
             const user = userEvent.setup();
             render(
@@ -4195,6 +4384,47 @@ describe('DataCiteForm', () => {
             expect(axios.post).not.toHaveBeenCalled();
         });
 
+        it('marks only the invalid Abstract when repeated Abstracts are validated', async () => {
+            const user = userEvent.setup();
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialDescriptions={[
+                        {
+                            type: 'Abstract',
+                            description: 'This first Abstract is valid and contains more than fifty characters.',
+                        },
+                        {
+                            type: 'Abstract',
+                            description: 'This second Abstract initially contains enough characters to be valid.',
+                        },
+                    ]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const [firstAbstract, secondAbstract] = screen.getAllByPlaceholderText(/Enter a brief summary/i);
+            await user.clear(secondAbstract);
+            await user.type(secondAbstract, 'Too short');
+            await user.tab();
+
+            await waitFor(() => {
+                expect(secondAbstract).toHaveAttribute('aria-invalid', 'true');
+                expect(
+                    screen.getByText('Abstract 2 must be at least 50 characters (current: 9)'),
+                ).toBeInTheDocument();
+            });
+            expect(firstAbstract).toHaveAttribute('aria-invalid', 'false');
+        });
+
         it('includes descriptions in the payload when submitting', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -4217,6 +4447,31 @@ describe('DataCiteForm', () => {
                     initialLicenses={['MIT']}
                     availableDatacenters={availableDatacenters}
                     initialDatacenterId={1}
+                    initialDescriptions={[
+                        {
+                            type: 'Abstract',
+                            description: 'This is a sufficiently long abstract for payload submission tests.',
+                            language: 'en',
+                        },
+                        { type: 'Methods', description: 'First test methodology', language: 'en' },
+                        { type: 'Methods', description: 'Second test methodology', language: 'de' },
+                    ]}
+                    initialDates={[
+                        {
+                            dateType: 'collected',
+                            dateMode: 'single',
+                            startDate: '2024-01-15',
+                            endDate: '',
+                            dateInformation: 'First collection event',
+                        },
+                        {
+                            dateType: 'collected',
+                            dateMode: 'single',
+                            startDate: '2024-02-15',
+                            endDate: '',
+                            dateInformation: 'Second collection event',
+                        },
+                    ]}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
@@ -4225,15 +4480,7 @@ describe('DataCiteForm', () => {
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
 
-            // Fill Abstract (required)
-            const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
-            await user.type(abstractTextarea, 'This is a sufficiently long abstract for payload submission tests.');
-
-            // Fill Methods (optional)
-            const methodsTab = screen.getByRole('tab', { name: /^Methods$/i });
-            await user.click(methodsTab);
-            const methodsTextarea = screen.getByRole('textbox', { name: /Methods/i });
-            await user.type(methodsTextarea, 'Test methodology');
+            expect(screen.getAllByRole('textbox', { name: /Methods/i })).toHaveLength(2);
 
             const saveButton = screen.getByRole('button', { name: /save & validate/i });
             await waitFor(() => expect(saveButton).toBeEnabled());
@@ -4249,19 +4496,38 @@ describe('DataCiteForm', () => {
             const requestBody = JSON.parse(fetchCall![1].body);
 
             expect(requestBody.descriptions).toBeDefined();
-            expect(requestBody.descriptions).toHaveLength(2);
+            expect(requestBody.descriptions).toHaveLength(3);
             expect(requestBody.descriptions).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
                         descriptionType: 'Abstract',
                         description: 'This is a sufficiently long abstract for payload submission tests.',
+                        language: 'en',
                     }),
                     expect.objectContaining({
                         descriptionType: 'Methods',
-                        description: 'Test methodology',
+                        description: 'First test methodology',
+                        language: 'en',
+                    }),
+                    expect.objectContaining({
+                        descriptionType: 'Methods',
+                        description: 'Second test methodology',
+                        language: 'de',
                     }),
                 ]),
             );
+            expect(requestBody.dates).toEqual([
+                expect.objectContaining({
+                    dateType: 'collected',
+                    startDate: '2024-01-15',
+                    dateInformation: 'First collection event',
+                }),
+                expect.objectContaining({
+                    dateType: 'collected',
+                    startDate: '2024-02-15',
+                    dateInformation: 'Second collection event',
+                }),
+            ]);
         }); // Increased timeout for this long-running test with multiple user interactions
 
         it('does not include empty descriptions in the payload', { timeout: 30000 }, async () => {
@@ -4499,7 +4765,7 @@ describe('DataCiteForm', () => {
             expect(datePickerComboboxes).toHaveLength(1);
         });
 
-        it('filters out already used date types from options', async () => {
+        it('allows a date type to be used more than once', async () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -4523,10 +4789,13 @@ describe('DataCiteForm', () => {
             const dateTypeTriggers = screen.getAllByRole('combobox').filter((el) => el.getAttribute('id')?.includes('dateType'));
             await user.click(dateTypeTriggers[1]);
 
-            // 'Available' should not be available since it's already used.
-            const availableOption = screen.queryByRole('option', { name: 'Available' });
-            expect(availableOption).not.toBeInTheDocument();
+            const availableOption = screen.getByRole('option', { name: 'Available' });
+            expect(availableOption).toBeInTheDocument();
+            await user.click(availableOption);
+            expect(dateTypeTriggers[0]).toHaveTextContent('Available');
+            expect(dateTypeTriggers[1]).toHaveTextContent('Available');
 
+            await user.click(dateTypeTriggers[1]);
             const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
             const issuedOption = screen.queryByRole('option', { name: 'Issued' });
             const createdOption = screen.queryByRole('option', { name: 'Created' });

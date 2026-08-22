@@ -57,8 +57,3 @@ export interface AuthorFieldProps {
     affiliationSuggestions: AffiliationSuggestion[];
     authorRoles?: Role[];
 }
-
-/**
- * Maximum number of authors allowed
- */
-export const MAX_AUTHORS = 100;

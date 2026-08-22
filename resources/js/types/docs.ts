@@ -47,15 +47,6 @@ export interface EditorSettings {
         /** Is at least one language active? */
         hasActiveLanguages: boolean;
     };
-    /**
-     * Editor limits
-     */
-    limits: {
-        /** Maximum number of titles per resource */
-        maxTitles: number;
-        /** Maximum number of licenses per resource */
-        maxLicenses: number;
-    };
 }
 
 /**

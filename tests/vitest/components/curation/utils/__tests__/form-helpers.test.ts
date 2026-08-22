@@ -603,80 +603,80 @@ describe('mapInitialContributorToEntry', () => {
 });
 
 describe('canAddTitle', () => {
-    it('returns false when at max titles', () => {
-        const titles = [{ title: 'Title 1' }, { title: 'Title 2' }, { title: 'Title 3' }];
-        expect(canAddTitle(titles as Parameters<typeof canAddTitle>[0], 3)).toBe(false);
+    it('does not impose an item limit', () => {
+        const titles = Array.from({ length: 200 }, (_, index) => ({ title: `Title ${index}` }));
+        expect(canAddTitle(titles as Parameters<typeof canAddTitle>[0])).toBe(true);
     });
 
     it('returns false when titles array is empty', () => {
-        expect(canAddTitle([], 5)).toBe(false);
+        expect(canAddTitle([])).toBe(false);
     });
 
     it('returns false when last title is empty', () => {
         const titles = [{ title: 'Title 1' }, { title: '' }];
-        expect(canAddTitle(titles as Parameters<typeof canAddTitle>[0], 5)).toBe(false);
+        expect(canAddTitle(titles as Parameters<typeof canAddTitle>[0])).toBe(false);
     });
 
     it('returns true when can add more titles', () => {
         const titles = [{ title: 'Title 1' }];
-        expect(canAddTitle(titles as Parameters<typeof canAddTitle>[0], 5)).toBe(true);
+        expect(canAddTitle(titles as Parameters<typeof canAddTitle>[0])).toBe(true);
     });
 });
 
 describe('canAddLicense', () => {
-    it('returns false when at max licenses', () => {
-        const licenses = [{ license: 'CC-BY-4.0' }, { license: 'CC0' }];
-        expect(canAddLicense(licenses as Parameters<typeof canAddLicense>[0], 2)).toBe(false);
+    it('does not impose an item limit', () => {
+        const licenses = Array.from({ length: 200 }, (_, index) => ({ license: `License ${index}` }));
+        expect(canAddLicense(licenses as Parameters<typeof canAddLicense>[0])).toBe(true);
     });
 
     it('returns false when licenses array is empty', () => {
-        expect(canAddLicense([], 5)).toBe(false);
+        expect(canAddLicense([])).toBe(false);
     });
 
     it('returns false when last license is empty', () => {
         const licenses = [{ license: 'CC-BY-4.0' }, { license: '' }];
-        expect(canAddLicense(licenses as Parameters<typeof canAddLicense>[0], 5)).toBe(false);
+        expect(canAddLicense(licenses as Parameters<typeof canAddLicense>[0])).toBe(false);
     });
 
     it('returns true when can add more licenses', () => {
         const licenses = [{ license: 'CC-BY-4.0' }];
-        expect(canAddLicense(licenses as Parameters<typeof canAddLicense>[0], 5)).toBe(true);
+        expect(canAddLicense(licenses as Parameters<typeof canAddLicense>[0])).toBe(true);
     });
 });
 
 describe('canAddDate', () => {
-    it('returns false when at max dates', () => {
-        const dates = [{ startDate: '2024-01-01' }, { startDate: '2024-06-01' }];
-        expect(canAddDate(dates as Parameters<typeof canAddDate>[0], 2)).toBe(false);
+    it('does not impose an item limit', () => {
+        const dates = Array.from({ length: 200 }, () => ({ startDate: '2024-01-01' }));
+        expect(canAddDate(dates as Parameters<typeof canAddDate>[0])).toBe(true);
     });
 
     it('returns false when dates array is empty', () => {
-        expect(canAddDate([], 5)).toBe(false);
+        expect(canAddDate([])).toBe(false);
     });
 
     it('returns false when last date has no start or end date', () => {
         const dates = [{ startDate: '2024-01-01' }, { startDate: '', endDate: '' }];
-        expect(canAddDate(dates as Parameters<typeof canAddDate>[0], 5)).toBe(false);
+        expect(canAddDate(dates as Parameters<typeof canAddDate>[0])).toBe(false);
     });
 
     it('returns true when last date has startDate', () => {
         const dates = [{ startDate: '2024-01-01', endDate: '' }];
-        expect(canAddDate(dates as Parameters<typeof canAddDate>[0], 5)).toBe(true);
+        expect(canAddDate(dates as Parameters<typeof canAddDate>[0])).toBe(true);
     });
 
     it('returns true when last date has endDate', () => {
         const dates = [{ startDate: '', endDate: '2024-12-31' }];
-        expect(canAddDate(dates as Parameters<typeof canAddDate>[0], 5)).toBe(true);
+        expect(canAddDate(dates as Parameters<typeof canAddDate>[0])).toBe(true);
     });
 
     it('returns false when a range date is incomplete', () => {
         const dates = [{ dateMode: 'range', startDate: '2024-01-01', endDate: '' }];
-        expect(canAddDate(dates as Parameters<typeof canAddDate>[0], 5)).toBe(false);
+        expect(canAddDate(dates as Parameters<typeof canAddDate>[0])).toBe(false);
     });
 
     it('returns true when a range date has start and end dates', () => {
         const dates = [{ dateMode: 'range', startDate: '2024-01-01', endDate: '2024-01-31' }];
-        expect(canAddDate(dates as Parameters<typeof canAddDate>[0], 5)).toBe(true);
+        expect(canAddDate(dates as Parameters<typeof canAddDate>[0])).toBe(true);
     });
 });
 

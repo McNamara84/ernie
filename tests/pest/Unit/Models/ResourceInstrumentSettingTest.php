@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\ResourceInstrument;
 use App\Models\Resource;
+use App\Models\ResourceInstrument;
 use App\Models\Setting;
 
 covers(ResourceInstrument::class, Setting::class);
@@ -70,7 +70,4 @@ describe('Setting', function (): void {
         expect(Setting::getValue('non_existent'))->toBeNull();
     });
 
-    test('has default limit constant', function (): void {
-        expect(Setting::DEFAULT_LIMIT)->toBe(99);
-    });
 });

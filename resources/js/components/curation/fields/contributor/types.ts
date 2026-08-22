@@ -67,8 +67,3 @@ export interface ContributorFieldProps {
     personRoleOptions: readonly string[];
     institutionRoleOptions: readonly string[];
 }
-
-/**
- * Maximum number of contributors allowed
- */
-export const MAX_CONTRIBUTORS = 100;

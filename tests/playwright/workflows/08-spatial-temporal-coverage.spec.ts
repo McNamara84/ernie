@@ -445,11 +445,11 @@ test.describe('Spatial and Temporal Coverage', () => {
             }));
             expect(pageWidth.scroll).toBeLessThanOrEqual(pageWidth.client + overflowTolerancePx);
 
-            const otherDescriptionTab = descriptionsSection.getByRole('tab', { name: 'Other' });
-            await expect(otherDescriptionTab).toBeVisible();
-            const otherDescriptionTabBox = await otherDescriptionTab.boundingBox();
-            expect(otherDescriptionTabBox).not.toBeNull();
-            expect(otherDescriptionTabBox!.x + otherDescriptionTabBox!.width).toBeLessThanOrEqual(pageWidth.client + overflowTolerancePx);
+            const descriptionEntry = descriptionsSection.getByTestId('description-entry').first();
+            await expect(descriptionEntry).toBeVisible();
+            const descriptionEntryBox = await descriptionEntry.boundingBox();
+            expect(descriptionEntryBox).not.toBeNull();
+            expect(descriptionEntryBox!.x + descriptionEntryBox!.width).toBeLessThanOrEqual(pageWidth.client + overflowTolerancePx);
         });
     });
 

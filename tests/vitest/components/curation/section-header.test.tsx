@@ -72,9 +72,9 @@ describe('SectionHeader', () => {
 
     describe('Counter', () => {
         it('should render counter when provided', () => {
-            render(<SectionHeader label="Funding" counter={{ current: 3, max: 10 }} />);
+            render(<SectionHeader label="Funding" counter={3} />);
 
-            expect(screen.getByText('(3 / 10)')).toBeInTheDocument();
+            expect(screen.getByText('(3)')).toBeInTheDocument();
         });
 
         it('should not render counter when not provided', () => {
@@ -83,10 +83,11 @@ describe('SectionHeader', () => {
             expect(screen.queryByText(/\(/)).not.toBeInTheDocument();
         });
 
-        it('should show correct counter values', () => {
-            render(<SectionHeader label="Items" counter={{ current: 0, max: 99 }} />);
+        it('should show actual, localized counter values without an artificial maximum', () => {
+            render(<SectionHeader label="Items" counter={1271} />);
 
-            expect(screen.getByText('(0 / 99)')).toBeInTheDocument();
+            expect(screen.getByText('(1,271)')).toBeInTheDocument();
+            expect(screen.queryByText(/\//)).not.toBeInTheDocument();
         });
     });
 
@@ -202,7 +203,7 @@ describe('AccordionSectionHeader', () => {
                 label="Authors"
                 description="People or institutions who created this work."
                 required
-                counter={{ current: 2, max: 100 }}
+                counter={2}
                 badge={<span>EPOS/MSL</span>}
                 status={<span aria-label="Section incomplete or has errors">status</span>}
                 data-testid="accordion-section-header"
@@ -213,7 +214,7 @@ describe('AccordionSectionHeader', () => {
         expect(screen.getByText('Authors')).toBeInTheDocument();
         expect(screen.getByText('People or institutions who created this work.')).toBeInTheDocument();
         expect(screen.getByLabelText('Required')).toBeInTheDocument();
-        expect(screen.getByText('(2 / 100)')).toBeInTheDocument();
+        expect(screen.getByText('(2)')).toBeInTheDocument();
         expect(screen.getByText('EPOS/MSL')).toBeInTheDocument();
         expect(screen.getByLabelText('Section incomplete or has errors')).toBeInTheDocument();
     });

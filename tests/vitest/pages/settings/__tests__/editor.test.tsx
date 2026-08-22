@@ -104,8 +104,6 @@ describe('EditorSettings page', () => {
                 licenses={[]}
                 languages={[{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }]}
                 dateTypes={[{ id: 1, name: 'Accepted', slug: 'accepted', description: 'Test description', active: true }]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -128,15 +126,15 @@ describe('EditorSettings page', () => {
         expect(screen.getByText('Title Types')).toBeInTheDocument();
         expect(screen.getByText('Languages')).toBeInTheDocument();
         expect(screen.getByText('Date Types')).toBeInTheDocument();
-        expect(screen.getByText('Limits')).toBeInTheDocument();
+        expect(screen.queryByText('Limits')).not.toBeInTheDocument();
         expect(screen.getByText('Thesauri')).toBeInTheDocument();
 
         expect(screen.getAllByLabelText('Name')).toHaveLength(2);
         expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(4);
         expect(screen.getAllByLabelText('ELMO active')).toHaveLength(3);
         expect(screen.getByLabelText('Slug')).toBeInTheDocument();
-        expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
-        expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Max Titles')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Max Licenses')).not.toBeInTheDocument();
         screen.getAllByRole('table').forEach((table) => {
             expect(table.parentElement).toHaveClass('overflow-auto');
         });
@@ -176,8 +174,6 @@ describe('EditorSettings page', () => {
                         active: true,
                     },
                 ],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -197,8 +193,6 @@ describe('EditorSettings page', () => {
                 ],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -224,8 +218,6 @@ describe('EditorSettings page', () => {
                 ]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -256,8 +248,6 @@ describe('EditorSettings page', () => {
                     { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true },
                     { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false },
                 ],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -283,8 +273,6 @@ describe('EditorSettings page', () => {
                     { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true },
                     { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false },
                 ]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -317,8 +305,6 @@ describe('EditorSettings page', () => {
                     { id: 2, code: 'de', name: 'German', active: true, elmo_active: true },
                 ],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -344,8 +330,6 @@ describe('EditorSettings page', () => {
                     { id: 2, code: 'de', name: 'German', active: true, elmo_active: true },
                 ]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -376,8 +360,6 @@ describe('EditorSettings page', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -403,8 +385,6 @@ describe('EditorSettings page', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -431,8 +411,6 @@ describe('EditorSettings page', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -455,8 +433,6 @@ describe('EditorSettings page', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -486,8 +462,6 @@ describe('EditorSettings page', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -510,8 +484,6 @@ describe('EditorSettings page', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -539,8 +511,6 @@ describe('EditorSettings page', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -563,8 +533,6 @@ describe('EditorSettings page', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -595,8 +563,6 @@ describe('EditorSettings page', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -622,8 +588,6 @@ describe('EditorSettings page', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -643,60 +607,6 @@ describe('EditorSettings page', () => {
         expect(screen.getByDisplayValue('alternative')).toBeInTheDocument();
     });
 
-    it('updates maxTitles when input changes', async () => {
-        const setDataMock = vi.fn();
-        useFormMock.mockReturnValueOnce({
-            data: {
-                resourceTypes: [],
-                titleTypes: [],
-                licenses: [],
-                languages: [],
-                dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
-                thesauri: defaultThesauriFormData,
-                contributorPersonRoles: [],
-                contributorInstitutionRoles: [],
-                contributorBothRoles: [],
-                descriptionTypes: [],
-
-                relationTypes: [],
-
-                identifierTypes: [],
-            },
-            setData: setDataMock,
-            post: vi.fn(),
-            processing: false,
-        });
-
-        render(
-            <EditorSettings
-                resourceTypes={[]}
-                titleTypes={[]}
-                licenses={[]}
-                languages={[]}
-                dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
-                thesauri={defaultThesauri}
-                pidSettings={[]}
-                landingPageDomains={[]}
-                contributorPersonRoles={[]}
-                contributorInstitutionRoles={[]}
-                contributorBothRoles={[]}
-                descriptionTypes={[]}
-            relationTypes={[]}
-            identifierTypes={[]}
-            datacenters={[]}
-            />,
-        );
-
-        const maxTitlesInput = screen.getByLabelText('Max Titles');
-        await userEvent.clear(maxTitlesInput);
-        await userEvent.type(maxTitlesInput, '15');
-
-        expect(setDataMock).toHaveBeenCalledWith('maxTitles', expect.any(Number));
-    });
 });
 
 describe('Select All / Deselect All header checkboxes', () => {
@@ -708,8 +618,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses: [{ id: 1, identifier: 'MIT', name: 'MIT License', active: true, elmo_active: false, excluded_resource_type_ids: [] }],
                 languages: [{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }],
                 dateTypes: [{ id: 1, name: 'Created', slug: 'created', description: null, active: true }],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [{ id: 1, name: 'ContactPerson', slug: 'contact-person', category: 'person', active: true, elmo_active: false }],
                 contributorInstitutionRoles: [{ id: 2, name: 'Distributor', slug: 'distributor', category: 'institution', active: true, elmo_active: false }],
@@ -732,8 +640,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses={[{ id: 1, identifier: 'MIT', name: 'MIT License', active: true, elmo_active: false, excluded_resource_type_ids: [] }]}
                 languages={[{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }]}
                 dateTypes={[{ id: 1, name: 'Created', slug: 'created', description: null, active: true }]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -777,8 +683,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -804,8 +708,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -838,8 +740,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -865,8 +765,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -898,8 +796,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -925,8 +821,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -956,8 +850,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -983,8 +875,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -1017,8 +907,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 ],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -1044,8 +932,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 ]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -1078,8 +964,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                     { id: 2, code: 'de', name: 'German', active: false, elmo_active: false },
                 ],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -1105,8 +989,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                     { id: 2, code: 'de', name: 'German', active: false, elmo_active: false },
                 ]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -1139,8 +1021,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -1166,8 +1046,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -1200,8 +1078,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                     { id: 1, name: 'Created', slug: 'created', description: null, active: false },
                     { id: 2, name: 'Accepted', slug: 'accepted', description: null, active: false },
                 ],
-                maxTitles: 10,
-                maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
@@ -1227,8 +1103,6 @@ describe('Select All / Deselect All header checkboxes', () => {
                     { id: 1, name: 'Created', slug: 'created', description: null, active: false },
                     { id: 2, name: 'Accepted', slug: 'accepted', description: null, active: false },
                 ]}
-                maxTitles={10}
-                maxLicenses={5}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}

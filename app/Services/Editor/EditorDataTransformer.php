@@ -19,7 +19,6 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\Right;
-use App\Models\Setting;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Support\GemetVocabularyParser;
 use App\Support\OrcidNormalizer;
@@ -133,8 +132,6 @@ class EditorDataTransformer
     public function getCommonProps(): array
     {
         return [
-            'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
-            'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
             'googleMapsApiKey' => config('services.google_maps.api_key'),
             'activeRelationTypes' => RelationType::active()->orderByName()->pluck('slug')->values()->all(),
             'activeIdentifierTypes' => IdentifierType::active()->orderByName()->pluck('slug')->values()->all(),
@@ -575,6 +572,7 @@ class EditorDataTransformer
                     'dateMode' => $dateMode,
                     'startDate' => $this->formatStoredDate($date->start_date ?? $date->date_value),
                     'endDate' => $dateMode === 'range' ? $this->formatStoredDate($date->end_date) : '',
+                    ...($date->date_information !== null ? ['dateInformation' => $date->date_information] : []),
                 ];
             })
             ->values()

@@ -21,6 +21,9 @@ it('returns changelog data grouped by release', function () {
         ])
         ->assertJsonFragment([
             'title' => 'Clear Creative Commons License Labels on Landing Pages',
+        ])
+        ->assertJsonFragment([
+            'title' => 'Expanded Repeatable Metadata Editing',
         ]);
 });
 

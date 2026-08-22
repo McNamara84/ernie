@@ -6,11 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
-interface SectionCounter {
-    current: number;
-    max: number;
-}
-
 interface SectionHeaderProps {
     /** Main label text for the section */
     label: string;
@@ -20,8 +15,8 @@ interface SectionHeaderProps {
     tooltip?: string;
     /** Whether the section contains required fields */
     required?: boolean;
-    /** Counter showing current/max items (e.g., "3 / 10") */
-    counter?: SectionCounter;
+    /** Number of entries currently present in the section */
+    counter?: number;
     /** Action buttons (e.g., CSV Import) aligned to the right */
     actions?: React.ReactNode;
     /** Additional CSS classes for the container */
@@ -39,8 +34,8 @@ interface AccordionSectionHeaderProps {
     description?: string;
     /** Whether the section contains required fields */
     required?: boolean;
-    /** Counter showing current/max items (e.g., "3 / 10") */
-    counter?: SectionCounter;
+    /** Number of entries currently present in the section */
+    counter?: number;
     /** Validation/completion indicator shown next to the title */
     status?: React.ReactNode;
     /** Optional badge shown next to the title, e.g. "EPOS/MSL" */
@@ -113,11 +108,7 @@ export function AccordionSectionHeader({
                     )}
                 </LabelElement>
 
-                {counter && (
-                    <span className="text-sm font-normal text-muted-foreground">
-                        ({counter.current} / {counter.max})
-                    </span>
-                )}
+                {counter !== undefined && <span className="text-sm font-normal text-muted-foreground">({counter.toLocaleString('en-US')})</span>}
 
                 {badge}
 
@@ -141,7 +132,7 @@ export function AccordionSectionHeader({
  *   label="Funding References"
  *   description="Grant and funder information"
  *   tooltip="Add information about research grants that funded this work"
- *   counter={{ current: 2, max: 10 }}
+ *   counter={2}
  *   actions={
  *     <Button variant="outline" size="sm">
  *       <Upload className="mr-2 h-4 w-4" />
@@ -178,11 +169,7 @@ export function SectionHeader({
 
                     <SectionHelpAction label={label} tooltip={tooltip} />
 
-                    {counter && (
-                        <span className="text-sm text-muted-foreground">
-                            ({counter.current} / {counter.max})
-                        </span>
-                    )}
+                    {counter !== undefined && <span className="text-sm text-muted-foreground">({counter.toLocaleString('en-US')})</span>}
                 </div>
 
                 {actions && <div className="flex items-center gap-2">{actions}</div>}

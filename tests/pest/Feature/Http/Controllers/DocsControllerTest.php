@@ -6,7 +6,6 @@ use App\Http\Controllers\DocsController;
 use App\Models\Language;
 use App\Models\ResourceType;
 use App\Models\Right;
-use App\Models\Setting;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Models\User;
@@ -47,7 +46,7 @@ it('passes editor settings to the frontend', function () {
     $response->assertInertia(fn ($page) => $page
         ->has('editorSettings.thesauri')
         ->has('editorSettings.features')
-        ->has('editorSettings.limits')
+        ->missing('editorSettings.limits')
     );
 });
 
@@ -130,26 +129,13 @@ it('includes feature availability flags', function () {
     );
 });
 
-it('includes limits from settings', function () {
+it('does not expose obsolete metadata limits', function () {
     $user = User::factory()->create();
     Cache::flush();
 
     $response = $this->actingAs($user)->get('/docs');
 
     $response->assertInertia(fn ($page) => $page
-        ->has('editorSettings.limits.maxTitles')
-        ->has('editorSettings.limits.maxLicenses')
-    );
-});
-
-it('uses default limits when no settings exist', function () {
-    $user = User::factory()->create();
-    Cache::flush();
-
-    $response = $this->actingAs($user)->get('/docs');
-
-    $response->assertInertia(fn ($page) => $page
-        ->where('editorSettings.limits.maxTitles', Setting::DEFAULT_LIMIT)
-        ->where('editorSettings.limits.maxLicenses', Setting::DEFAULT_LIMIT)
+        ->missing('editorSettings.limits')
     );
 });

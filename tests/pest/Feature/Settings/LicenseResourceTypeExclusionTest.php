@@ -19,7 +19,7 @@ beforeEach(function () {
         'is_active' => true,
         'is_elmo_active' => true,
     ]);
-    
+
     // Create required entities for settings update
     $this->titleType = TitleType::factory()->create(['name' => 'Main', 'slug' => 'main']);
     $this->language = Language::factory()->create(['code' => 'en', 'name' => 'English']);
@@ -98,8 +98,6 @@ describe('EditorSettingsController saves exclusions', function () {
                 'descriptionTypes' => [
                     ['id' => $this->descType->id, 'active' => true, 'elmo_active' => true],
                 ],
-                'maxTitles' => 5,
-                'maxLicenses' => 5,
                 'thesauri' => [],
             ]);
 
@@ -140,8 +138,6 @@ describe('EditorSettingsController saves exclusions', function () {
                 'descriptionTypes' => [
                     ['id' => $this->descType->id, 'active' => true, 'elmo_active' => true],
                 ],
-                'maxTitles' => 5,
-                'maxLicenses' => 5,
                 'thesauri' => [],
             ])
             ->assertRedirect();
@@ -178,8 +174,6 @@ describe('EditorSettingsController saves exclusions', function () {
                 'descriptionTypes' => [
                     ['id' => $this->descType->id, 'active' => true, 'elmo_active' => true],
                 ],
-                'maxTitles' => 5,
-                'maxLicenses' => 5,
                 'thesauri' => [],
             ])
             ->assertRedirect();
@@ -213,8 +207,6 @@ describe('EditorSettingsController saves exclusions', function () {
                 'descriptionTypes' => [
                     ['id' => $this->descType->id, 'active' => true, 'elmo_active' => true],
                 ],
-                'maxTitles' => 5,
-                'maxLicenses' => 5,
                 'thesauri' => [],
             ])
             ->assertSessionHasErrors('licenses.0.excluded_resource_type_ids.0');

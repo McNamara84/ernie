@@ -15,8 +15,6 @@ export interface RorFunder {
     otherLabel: string[];
 }
 
-export const MAX_FUNDING_REFERENCES = 99;
-
 // DataCite 4.6 supported funder identifier types
 export const FUNDER_IDENTIFIER_TYPES = {
     ROR: 'ROR',

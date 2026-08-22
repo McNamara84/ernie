@@ -59,10 +59,6 @@ const defaultEditorSettings: EditorSettings = {
         hasActiveTitleTypes: true,
         hasActiveLanguages: true,
     },
-    limits: {
-        maxTitles: 10,
-        maxLicenses: 5,
-    },
 };
 
 const defaultDataCite: DataCiteDocsSettings = {
@@ -76,7 +72,6 @@ const defaultDataCite: DataCiteDocsSettings = {
 type EditorSettingsOverrides = {
     thesauri?: Partial<EditorSettings['thesauri']>;
     features?: Partial<EditorSettings['features']>;
-    limits?: Partial<EditorSettings['limits']>;
 };
 
 const createEditorSettings = (overrides: EditorSettingsOverrides = {}): EditorSettings => ({
@@ -87,10 +82,6 @@ const createEditorSettings = (overrides: EditorSettingsOverrides = {}): EditorSe
     features: {
         ...defaultEditorSettings.features,
         ...overrides.features,
-    },
-    limits: {
-        ...defaultEditorSettings.limits,
-        ...overrides.limits,
     },
 });
 
@@ -800,6 +791,19 @@ describe('Docs page', () => {
         expect(screen.getByText('Award/Grant Number:')).toBeInTheDocument();
         expect(screen.getByText('Award URI:')).toBeInTheDocument();
         expect(screen.getByText('Award Title:')).toBeInTheDocument();
+    });
+
+    it('documents how to manage repeatable descriptions and their languages', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Managing Description Entries', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/including multiple entries with the same description type/i)).toBeInTheDocument();
+        expect(screen.getByText('Add Description')).toBeInTheDocument();
+        expect(screen.getByText('No language specified')).toBeInTheDocument();
+        expect(screen.getByText(/remove button on an entry to delete only that description/i)).toBeInTheDocument();
+        expect(screen.getByText('Series Information:')).toBeInTheDocument();
     });
 
     it('keeps dataset field documentation close to the editor accordion order', async () => {

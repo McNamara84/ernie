@@ -8,7 +8,6 @@ use App\Enums\CacheKey;
 use App\Models\Language;
 use App\Models\ResourceType;
 use App\Models\Right;
-use App\Models\Setting;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Models\User;
@@ -83,10 +82,6 @@ class DocsController extends Controller
      *         hasActiveResourceTypes: bool,
      *         hasActiveTitleTypes: bool,
      *         hasActiveLanguages: bool
-     *     },
-     *     limits: array{
-     *         maxTitles: int,
-     *         maxLicenses: int
      *     }
      * }
      */
@@ -141,10 +136,6 @@ class DocsController extends Controller
                         'hasActiveResourceTypes' => ResourceType::where('is_active', true)->exists(),
                         'hasActiveTitleTypes' => TitleType::where('is_active', true)->exists(),
                         'hasActiveLanguages' => Language::where('active', true)->exists(),
-                    ],
-                    'limits' => [
-                        'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
-                        'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
                     ],
                 ];
             }

@@ -59,7 +59,7 @@ export default function ContributorList({
 
     // Helper: Convert CSV parsed contributor to ContributorEntry
     const convertParsedContributorToEntry = (parsed: ParsedContributor): ContributorEntry => {
-        const id = `contributor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        const id = `contributor-${crypto.randomUUID()}`;
 
         if (parsed.type === 'institution') {
             return {
@@ -69,7 +69,7 @@ export default function ContributorList({
                 roles: parsed.contributorRole ? [{ value: parsed.contributorRole }] : [],
                 rolesInput: parsed.contributorRole || '',
                 affiliations: parsed.affiliations.map((name: string) => ({
-                    id: `aff-${Date.now()}-${Math.random()}`,
+                    id: `aff-${crypto.randomUUID()}`,
                     value: name,
                     rorId: null,
                 })),
@@ -90,7 +90,7 @@ export default function ContributorList({
             roles: parsed.contributorRole ? [{ value: parsed.contributorRole }] : [],
             rolesInput: parsed.contributorRole || '',
             affiliations: parsed.affiliations.map((name: string) => ({
-                id: `aff-${Date.now()}-${Math.random()}`,
+                id: `aff-${crypto.randomUUID()}`,
                 value: name,
                 rorId: null,
             })),

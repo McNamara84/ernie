@@ -101,6 +101,29 @@ describe('ResourceStorageService', function () {
         expect($description->value)->toBe('Test abstract description.');
     });
 
+    it('stores repeated description types independently with their languages', function () {
+        $resourceType = ResourceType::firstOrFail();
+
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Repeated Descriptions', 'titleType' => 'MainTitle']],
+            'authors' => [['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0]],
+            'descriptions' => [
+                ['descriptionType' => 'Abstract', 'description' => 'First abstract text.', 'language' => 'en'],
+                ['descriptionType' => 'Abstract', 'description' => 'Second abstract text.', 'language' => 'de'],
+                ['descriptionType' => 'Other', 'description' => 'Additional description.', 'language' => null],
+            ],
+        ], $this->user->id);
+
+        $descriptions = $resource->descriptions()->with('descriptionType')->orderBy('id')->get();
+
+        expect($descriptions)->toHaveCount(3)
+            ->and($descriptions->pluck('descriptionType.slug')->all())->toBe(['Abstract', 'Abstract', 'Other'])
+            ->and($descriptions->pluck('value')->all())->toBe(['First abstract text.', 'Second abstract text.', 'Additional description.'])
+            ->and($descriptions->pluck('language')->all())->toBe(['en', 'de', null]);
+    });
+
     it('stores a missing version as null', function () {
         $resourceType = ResourceType::firstOrFail();
 
@@ -1031,6 +1054,36 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             ->and($collectedDate->date_value)->toBeNull()
             ->and($collectedDate->start_date)->toBe('2024-01-01')
             ->and($collectedDate->end_date)->toBe('2024-12-31');
+    });
+
+    it('stores all repeated Collected dates from a legacy-sized group', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $dates = array_map(
+            fn (int $day): array => [
+                'dateType' => 'Collected',
+                'dateMode' => 'single',
+                'startDate' => sprintf('2024-01-%02d', (($day - 1) % 28) + 1),
+                'dateInformation' => "Collection event {$day}",
+            ],
+            range(1, 61),
+        );
+
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Repeated Collected Dates', 'titleType' => 'MainTitle']],
+            'authors' => [['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0]],
+            'dates' => $dates,
+        ], $this->user->id);
+
+        $collectedDates = $resource->dates()
+            ->whereHas('dateType', fn ($query) => $query->whereRaw('LOWER(slug) = ?', ['collected']))
+            ->orderBy('id')
+            ->get();
+
+        expect($collectedDates)->toHaveCount(61)
+            ->and($collectedDates->first()->date_information)->toBe('Collection event 1')
+            ->and($collectedDates->last()->date_information)->toBe('Collection event 61');
     });
 
     it('stores explicit single dates as date_value when only a start date is provided', function () {

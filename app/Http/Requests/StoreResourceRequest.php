@@ -27,6 +27,11 @@ class StoreResourceRequest extends FormRequest
     use ValidatesEditorDates;
 
     /**
+     * Technical request-safety ceiling, deliberately above all audited Legacy cardinalities.
+     */
+    public const MAX_REPEATABLE_METADATA_ITEMS = 10_000;
+
+    /**
      * Set of valid DB title type slugs for quick in-request validation.
      *
      * @var array<string, true>
@@ -242,7 +247,7 @@ class StoreResourceRequest extends FormRequest
             'relatedItems.*.contributors.*.affiliations.*.scheme' => ['nullable', 'string', 'max:32'],
             'relatedItems.*.contributors.*.affiliations.*.scheme_uri' => ['nullable', 'string', 'max:512'],
 
-            'fundingReferences' => ['nullable', 'array', 'max:99'],
+            'fundingReferences' => ['nullable', 'array', 'max:'.self::MAX_REPEATABLE_METADATA_ITEMS],
             'fundingReferences.*.funderName' => ['required', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifier' => ['nullable', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifierType' => ['nullable', 'string', 'in:ROR,Crossref Funder ID,ISNI,GRID,Other'],
@@ -255,7 +260,7 @@ class StoreResourceRequest extends FormRequest
             'mslLaboratories.*.affiliation_name' => ['nullable', 'string', 'max:255'],
             'mslLaboratories.*.affiliation_ror' => ['nullable', 'string', 'max:255'],
             'mslLaboratories.*.position' => ['required', 'integer', 'min:0'],
-            'instruments' => ['nullable', 'array', 'max:100'],
+            'instruments' => ['nullable', 'array', 'max:'.self::MAX_REPEATABLE_METADATA_ITEMS],
             'instruments.*.pid' => ['required', 'string', 'max:512'],
             'instruments.*.pidType' => ['required', 'string', Rule::in(['Handle', 'DOI', 'URL'])],
             'instruments.*.name' => ['required', 'string', 'max:1024'],

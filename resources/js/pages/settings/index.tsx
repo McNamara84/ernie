@@ -110,8 +110,6 @@ interface EditorSettingsProps {
     languages: LanguageRow[];
     dateTypes: DateTypeRow[];
     descriptionTypes: DescriptionTypeRow[];
-    maxTitles: number;
-    maxLicenses: number;
     thesauri: ThesaurusData[];
     pidSettings: PidSettingData[];
     landingPageDomains: LandingPageDomainRow[];
@@ -132,8 +130,6 @@ export default function EditorSettings({
     languages,
     dateTypes,
     descriptionTypes,
-    maxTitles,
-    maxLicenses,
     thesauri,
     pidSettings,
     landingPageDomains,
@@ -278,8 +274,6 @@ export default function EditorSettings({
             active: d.slug === 'Abstract' ? true : d.active,
             elmo_active: d.slug === 'Abstract' ? true : d.elmo_active,
         })),
-        maxTitles,
-        maxLicenses,
         thesauri: thesauri.map((t) => ({
             type: t.type,
             isActive: t.isActive,
@@ -721,7 +715,8 @@ export default function EditorSettings({
                                     Datacenters
                                 </CardTitle>
                                 <CardDescription>
-                                    Manage datacenters that can be assigned to resources. Each validated resource must be assigned to exactly one datacenter.
+                                    Manage datacenters that can be assigned to resources. Each validated resource must be assigned to exactly one
+                                    datacenter.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -1225,37 +1220,6 @@ export default function EditorSettings({
                                             })}
                                         </TableBody>
                                     </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Limits */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Limits</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="maxTitles">Max Titles</Label>
-                                        <Input
-                                            id="maxTitles"
-                                            type="number"
-                                            min={1}
-                                            value={data.maxTitles}
-                                            onChange={(e) => setData('maxTitles', Number(e.target.value))}
-                                        />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="maxLicenses">Max Licenses</Label>
-                                        <Input
-                                            id="maxLicenses"
-                                            type="number"
-                                            min={1}
-                                            value={data.maxLicenses}
-                                            onChange={(e) => setData('maxLicenses', Number(e.target.value))}
-                                        />
-                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

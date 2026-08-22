@@ -155,6 +155,112 @@ describe('SumarioPendingResourceImportService', function () {
             ->and($resource->landingPage->ftp_url)->toBe('https://datapub.gfz.de/pending-one.zip');
     });
 
+    it('passes high-cardinality and repeated legacy metadata to storage without truncation', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 77,
+            'publicstatus' => 'pending',
+            'identifier' => '10.5880/legacy.high-cardinality',
+            'publicationyear' => 2024,
+            'title' => 'High-cardinality Legacy Dataset',
+        ]);
+
+        $user = User::factory()->create();
+        $datacenter = Datacenter::query()->create([
+            'name' => LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER,
+        ]);
+        $authors = array_map(
+            fn (int $index): array => ['type' => 'person', 'lastName' => "Author {$index}"],
+            range(1, 101),
+        );
+        $contributors = array_map(
+            fn (int $index): array => ['type' => 'person', 'lastName' => "Contributor {$index}", 'roles' => ['Other']],
+            range(1, 101),
+        );
+        $coverages = array_map(
+            fn (int $index): array => ['type' => 'point', 'latMin' => (string) $index, 'lonMin' => (string) -$index],
+            range(1, 201),
+        );
+        $relatedWorks = array_map(
+            fn (int $index): array => [
+                'identifier' => "10.5880/related.{$index}",
+                'identifierType' => 'DOI',
+                'relationType' => 'References',
+            ],
+            range(1, 101),
+        );
+        $dates = array_map(
+            fn (int $index): array => [
+                'dateType' => 'Collected',
+                'dateMode' => 'single',
+                'startDate' => '2024-01-01',
+                'dateInformation' => "Collection event {$index}",
+            ],
+            range(1, 61),
+        );
+
+        $editorLoader = Mockery::mock(OldDatasetEditorLoader::class);
+        $editorLoader->shouldReceive('loadForEditor')->once()->with(77)->andReturn([
+            'doi' => '10.5880/legacy.high-cardinality',
+            'year' => '2024',
+            'titles' => [['title' => 'High-cardinality Legacy Dataset', 'titleType' => 'main-title']],
+            'initialRights' => [],
+            'authors' => $authors,
+            'contributors' => $contributors,
+            'descriptions' => [
+                ['type' => 'Abstract', 'description' => 'First legacy abstract'],
+                ['type' => 'Abstract', 'description' => 'Second legacy abstract'],
+            ],
+            'dates' => $dates,
+            'gcmdKeywords' => [],
+            'freeKeywords' => [],
+            'geoLocations' => $coverages,
+            'relatedWorks' => $relatedWorks,
+            'fundingReferences' => [],
+            'mslLaboratories' => [],
+        ]);
+
+        $resourceStorage = Mockery::mock(ResourceStorageService::class);
+        $resourceStorage->shouldReceive('store')->once()->andReturnUsing(function (array $payload) use ($datacenter): array {
+            expect($payload['authors'])->toHaveCount(101)
+                ->and($payload['authors'][100]['lastName'])->toBe('Author 101')
+                ->and($payload['contributors'])->toHaveCount(101)
+                ->and($payload['contributors'][100]['lastName'])->toBe('Contributor 101')
+                ->and($payload['spatialTemporalCoverages'])->toHaveCount(201)
+                ->and($payload['spatialTemporalCoverages'][200]['latMin'])->toBe('201')
+                ->and($payload['relatedIdentifiers'])->toHaveCount(101)
+                ->and($payload['descriptions'])->toHaveCount(2)
+                ->and(array_column($payload['descriptions'], 'descriptionType'))->toBe(['abstract', 'abstract'])
+                ->and($payload['dates'])->toHaveCount(61)
+                ->and($payload['dates'][60]['dateInformation'])->toBe('Collection event 61');
+
+            return [
+                Resource::factory()->create([
+                    'doi' => $payload['doi'],
+                    'datacenter_id' => $datacenter->id,
+                ]),
+                false,
+            ];
+        });
+
+        $datacenterLookup = Mockery::mock(LegacyMetaworksDatacenterLookupService::class);
+        $datacenterLookup->shouldReceive('resolveDatacenterIds')->once()->andReturn([$datacenter->id]);
+        $downloadUrlService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $downloadUrlService->shouldReceive('lookupFileEntries')->once()->andReturn(['files' => [], 'allPublic' => false]);
+
+        $service = new SumarioPendingResourceImportService(
+            editorLoader: $editorLoader,
+            resourceStorage: $resourceStorage,
+            datacenterLookup: $datacenterLookup,
+            downloadUrlService: $downloadUrlService,
+            landingPageImport: new LegacyLandingPageImportService,
+            doiSuggestionService: app(DoiSuggestionService::class),
+        );
+
+        $result = $service->importPendingByDoi('10.5880/legacy.high-cardinality', $user->id);
+
+        expect($result['status'])->toBe('imported');
+    });
+
     it('uses DOI pattern datacenters when importing mixed-case pending SUMARIO resources', function () {
         Config::set('database.connections.legacy_metaworks', [
             'driver' => 'sqlite',

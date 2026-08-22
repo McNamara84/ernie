@@ -22,7 +22,6 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\ResourceRight;
 use App\Models\Right;
-use App\Models\Setting;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\User;
@@ -1185,6 +1184,30 @@ describe('transformDates', function (): void {
             ->and($result[0]['endDate'])->toBe('');
     });
 
+    it('preserves repeated date types, order, and date information', function (): void {
+        $dateType = DateType::factory()->create(['slug' => 'Collected', 'name' => 'Collected']);
+        ResourceDate::create([
+            'resource_id' => $this->resource->id,
+            'date_type_id' => $dateType->id,
+            'date_value' => '2024-01-01',
+            'date_information' => 'First collection event',
+        ]);
+        ResourceDate::create([
+            'resource_id' => $this->resource->id,
+            'date_type_id' => $dateType->id,
+            'date_value' => '2024-02-01',
+            'date_information' => 'Second collection event',
+        ]);
+        $this->resource->load('dates.dateType');
+
+        $result = $this->transformer->transformDates($this->resource);
+
+        expect($result)->toHaveCount(2)
+            ->and(array_column($result, 'dateType'))->toBe(['Collected', 'Collected'])
+            ->and(array_column($result, 'startDate'))->toBe(['2024-01-01', '2024-02-01'])
+            ->and(array_column($result, 'dateInformation'))->toBe(['First collection event', 'Second collection event']);
+    });
+
     it('excludes coverage, accepted, issued, and updated date types', function (): void {
         foreach (['coverage', 'accepted', 'issued', 'updated'] as $slug) {
             $dateType = DateType::factory()->create(['slug' => $slug, 'name' => ucfirst($slug)]);
@@ -1862,27 +1885,10 @@ describe('transformMslLaboratories', function (): void {
 // =========================================================================
 
 describe('getCommonProps', function (): void {
-    it('returns expected keys with defaults', function (): void {
+    it('returns editor infrastructure without artificial metadata limits', function (): void {
         $result = $this->transformer->getCommonProps();
 
-        expect($result)->toHaveKeys(['maxTitles', 'maxLicenses', 'googleMapsApiKey'])
-            ->and($result['maxTitles'])->toBe(99)
-            ->and($result['maxLicenses'])->toBe(99);
-    });
-
-    it('reads maxTitles from settings when configured', function (): void {
-        Setting::create(['key' => 'max_titles', 'value' => '5']);
-
-        $result = $this->transformer->getCommonProps();
-
-        expect($result['maxTitles'])->toBe(5);
-    });
-
-    it('reads maxLicenses from settings when configured', function (): void {
-        Setting::create(['key' => 'max_licenses', 'value' => '3']);
-
-        $result = $this->transformer->getCommonProps();
-
-        expect($result['maxLicenses'])->toBe(3);
+        expect($result)->toHaveKey('googleMapsApiKey')
+            ->not->toHaveKeys(['maxTitles', 'maxLicenses']);
     });
 });

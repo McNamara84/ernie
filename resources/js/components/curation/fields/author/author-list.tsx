@@ -47,7 +47,7 @@ export default function AuthorList({ authors, onAdd, onRemove, onAuthorChange, o
 
     // Helper: Convert CSV row to AuthorEntry
     const convertParsedAuthorToEntry = (parsed: ParsedAuthor): AuthorEntry => {
-        const id = `author-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        const id = `author-${crypto.randomUUID()}`;
 
         if (parsed.type === 'institution') {
             return {
@@ -55,7 +55,7 @@ export default function AuthorList({ authors, onAdd, onRemove, onAuthorChange, o
                 type: 'institution',
                 institutionName: parsed.institutionName || '',
                 affiliations: parsed.affiliations.map((name: string) => ({
-                    id: `aff-${Date.now()}-${Math.random()}`,
+                    id: `aff-${crypto.randomUUID()}`,
                     value: name,
                     rorId: null,
                 })),
@@ -75,7 +75,7 @@ export default function AuthorList({ authors, onAdd, onRemove, onAuthorChange, o
             isContact: parsed.isContact || false,
             orcidVerified: false,
             affiliations: parsed.affiliations.map((name: string) => ({
-                id: `aff-${Date.now()}-${Math.random()}`,
+                id: `aff-${crypto.randomUUID()}`,
                 value: name,
                 rorId: null,
             })),

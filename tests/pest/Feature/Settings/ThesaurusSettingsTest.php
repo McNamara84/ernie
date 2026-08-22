@@ -320,8 +320,6 @@ describe('EditorSettings with Thesauri', function () {
             'descriptionTypes' => [
                 ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
             ],
-            'maxTitles' => 10,
-            'maxLicenses' => 10,
             'thesauri' => [
                 ['type' => 'science_keywords', 'isActive' => false, 'isElmoActive' => true],
                 ['type' => 'platforms', 'isActive' => true, 'isElmoActive' => true],
