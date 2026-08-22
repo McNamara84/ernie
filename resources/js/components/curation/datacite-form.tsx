@@ -187,6 +187,10 @@ function appendValidationMessage(errors: Record<string, string[]>, backendKey: s
     errors[backendKey] = [message];
 }
 
+function hasDescriptionPayloadValue(description: DescriptionEntry): boolean {
+    return description.value.trim() !== '';
+}
+
 function isRawRightsOnlyLicenseEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
     return entry.mode === 'custom' && entry.rawRight !== undefined && entry.uri.trim() === '' && entry.name.trim() !== '';
 }
@@ -1479,6 +1483,15 @@ export default function DataCiteForm({
         () => descriptions.filter((description) => description.type === 'Abstract').map((description) => description.id),
         [descriptions],
     );
+    const submittedDescriptions = useMemo(() => descriptions.filter(hasDescriptionPayloadValue), [descriptions]);
+    const uiDescriptionIds = useMemo(
+        () => descriptions.map((description) => (description.type === 'Abstract' ? description.id : null)),
+        [descriptions],
+    );
+    const submittedDescriptionIds = useMemo(
+        () => submittedDescriptions.map((description) => (description.type === 'Abstract' ? description.id : null)),
+        [submittedDescriptions],
+    );
     const visibleAbstractValidationMessages = useMemo(
         () => [...getFieldMessages('abstract'), ...abstractEntryIds.flatMap((descriptionId) => getFieldMessages(descriptionId))],
         [abstractEntryIds, getFieldMessages],
@@ -2167,13 +2180,11 @@ export default function DataCiteForm({
                 affiliation_name: lab.affiliation_name,
                 affiliation_ror: lab.affiliation_ror || null,
             })),
-            descriptions: descriptions
-                .filter((desc) => desc.value.trim() !== '')
-                .map((desc) => ({
-                    descriptionType: desc.type,
-                    description: desc.value.trim(),
-                    language: desc.language ?? null,
-                })),
+            descriptions: submittedDescriptions.map((desc) => ({
+                descriptionType: desc.type,
+                description: desc.value.trim(),
+                language: desc.language ?? null,
+            })),
             dates: dates.filter(hasValidDateValue).map((date) => ({
                 dateType: date.dateType,
                 dateMode: date.dateMode,
@@ -2244,7 +2255,7 @@ export default function DataCiteForm({
         authors,
         contributors,
         dates,
-        descriptions,
+        submittedDescriptions,
         form.doi,
         form.accessLevel,
         form.language,
@@ -2371,9 +2382,9 @@ export default function DataCiteForm({
     }, [saveDraftSilently]);
 
     const revealValidationErrors = useCallback(
-        (errors: Record<string, string[]>, headerMessage: string) => {
+        (errors: Record<string, string[]>, headerMessage: string, descriptionIds = uiDescriptionIds) => {
             const mapped = mapBackendErrors(errors, {
-                descriptionIds: descriptions.map((description) => (description.type === 'Abstract' ? description.id : null)),
+                descriptionIds,
             });
             setMappedValidationErrors(mapped);
             setValidationAlertHeader(headerMessage);
@@ -2401,7 +2412,7 @@ export default function DataCiteForm({
 
             setErrorMessage(headerMessage);
         },
-        [descriptions, setFieldErrors, updateOpenAccordionItems],
+        [setFieldErrors, uiDescriptionIds, updateOpenAccordionItems],
     );
 
     const datacenterErrorMessage = useMemo(() => {
@@ -2450,9 +2461,9 @@ export default function DataCiteForm({
      */
     const applyBackendValidationErrors = useCallback(
         (errors: Record<string, string[]>, serverMessage: string | undefined, defaultHeader: string) => {
-            revealValidationErrors(errors, serverMessage ?? defaultHeader);
+            revealValidationErrors(errors, serverMessage ?? defaultHeader, submittedDescriptionIds);
         },
-        [revealValidationErrors],
+        [revealValidationErrors, submittedDescriptionIds],
     );
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {

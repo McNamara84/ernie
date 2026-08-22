@@ -4191,6 +4191,66 @@ describe('DataCiteForm', () => {
             expect(methodsTextarea).toHaveAttribute('aria-invalid', 'false');
         });
 
+        it('maps backend description indexes after empty UI entries are omitted from the payload', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockRejectedValue({
+                response: {
+                    status: 422,
+                    data: {
+                        message: 'Validation failed.',
+                        errors: {
+                            'descriptions.0.description': ['Backend rejected the submitted Abstract.'],
+                        },
+                    },
+                },
+                isAxiosError: true,
+            });
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    initialAuthors={[{ type: 'person', lastName: 'Curator' }]}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenterId={1}
+                    initialDescriptions={[
+                        { type: 'Methods', description: '' },
+                        {
+                            type: 'Abstract',
+                            description: 'This submitted Abstract is valid and contains more than fifty characters.',
+                        },
+                    ]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const methodsTextarea = screen.getByPlaceholderText(/Describe the methods/i);
+            const abstractTextarea = screen.getByPlaceholderText(/Enter a brief summary/i);
+
+            await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+            await waitFor(() => {
+                expect(abstractTextarea).toHaveAttribute('aria-invalid', 'true');
+                expect(within(abstractTextarea.closest('[data-testid="description-entry"]')!).getByText('Backend rejected the submitted Abstract.')).toBeInTheDocument();
+            });
+            expect(methodsTextarea).toHaveAttribute('aria-invalid', 'false');
+            expect(mockedAxios.post.mock.calls[0][1].descriptions).toEqual([
+                expect.objectContaining({ descriptionType: 'Abstract' }),
+            ]);
+        });
+
         it('save button remains enabled when Abstract is filled', { timeout: 60000 }, async () => {
             const user = userEvent.setup();
             render(
