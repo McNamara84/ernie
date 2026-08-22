@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-08-20",
+        "date": "2026-08-21",
         "features": [
+            {
+                "title": "IGSN Sample Family Navigation",
+                "description": "IGSN landing pages now show the complete sample hierarchy known to ERNIE, from the highest local ancestor through all descendants. The current sample is highlighted, published family members link to their landing pages, and draft or missing landing pages remain visible without exposing private preview URLs. The new Sample Family module can be reordered in IGSN landing page templates and is available in public and preview layouts."
+            },
             {
                 "title": "Clear Creative Commons License Labels on Landing Pages",
                 "description": "Landing page license badges now show the full license name together with the conventional Creative Commons short notation, for example 'Creative Commons Attribution 4.0 International (CC BY 4.0)'. Existing license links, SPDX tooltips, and Creative Commons symbols remain available."

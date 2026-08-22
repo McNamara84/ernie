@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Igsn\IgsnClassificationType;
+use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\Description;
@@ -1091,4 +1092,66 @@ test('omits parent landing_page when parent is unpublished', function () {
 
     expect($data['igsn_metadata']['parent']['doi'])->toBe('10.60510/igsn-parent');
     expect($data['igsn_metadata']['parent']['landing_page'])->toBeNull();
+});
+
+test('exposes the complete persisted IGSN sample family in the frontend contract', function (): void {
+    $root = Resource::factory()->create([
+        'doi' => '10.60510/transformer-root',
+        'identifier_type' => 'IGSN',
+    ]);
+    $child = Resource::factory()->create([
+        'doi' => '10.60510/transformer-child',
+        'identifier_type' => 'IGSN',
+    ]);
+    IgsnMetadata::query()->create([
+        'resource_id' => $root->id,
+        'sample_type' => 'Hole',
+        'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+    ]);
+    IgsnMetadata::query()->create([
+        'resource_id' => $child->id,
+        'parent_resource_id' => $root->id,
+        'sample_type' => 'Core',
+        'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+    ]);
+    AlternateIdentifier::query()->create([
+        'resource_id' => $root->id,
+        'value' => 'Root sample',
+        'type' => 'Local accession number',
+        'position' => 0,
+    ]);
+    AlternateIdentifier::query()->create([
+        'resource_id' => $child->id,
+        'value' => 'Child sample',
+        'type' => 'Local accession number',
+        'position' => 0,
+    ]);
+    LandingPage::factory()->published()->create([
+        'resource_id' => $root->id,
+        'doi_prefix' => $root->doi,
+        'slug' => 'transformer-root',
+    ]);
+    LandingPage::factory()->draft()->create([
+        'resource_id' => $child->id,
+        'doi_prefix' => $child->doi,
+        'slug' => 'transformer-child',
+    ]);
+
+    $transformer = new LandingPageResourceTransformer;
+    $child->load($transformer->requiredRelations());
+    $data = $transformer->transform($child);
+
+    expect($data['igsn_sample_family']['member_count'])->toBe(2)
+        ->and($data['igsn_sample_family']['root']['resource_id'])->toBe($root->id)
+        ->and($data['igsn_sample_family']['root']['name'])->toBe('Root sample')
+        ->and($data['igsn_sample_family']['root']['igsn'])->toBe('TRANSFORMER-ROOT')
+        ->and($data['igsn_sample_family']['root']['sample_type'])->toBe('Hole')
+        ->and($data['igsn_sample_family']['root']['landing_page'])->toHaveKey('public_url')
+        ->and($data['igsn_sample_family']['root']['children'][0])->toMatchArray([
+            'resource_id' => $child->id,
+            'name' => 'Child sample',
+            'igsn' => 'TRANSFORMER-CHILD',
+            'sample_type' => 'Core',
+            'landing_page' => null,
+        ]);
 });

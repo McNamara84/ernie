@@ -805,6 +805,7 @@ describe('LandingPageTemplatesPage', () => {
             const dialog = screen.getByRole('dialog');
             expect(within(dialog).queryByText('Files & Downloads')).not.toBeInTheDocument();
             expect(within(dialog).getByText('General')).toBeInTheDocument();
+            expect(within(dialog).getByText('Sample Family')).toBeInTheDocument();
             expect(within(dialog).getByText('Acquisition')).toBeInTheDocument();
             expect(within(dialog).getByText('Cite this Resource')).toBeInTheDocument();
 
@@ -819,6 +820,7 @@ describe('LandingPageTemplatesPage', () => {
                             'model_description',
                             'related_work',
                             'general',
+                            'sample_family',
                             'acquisition',
                             'repositories',
                             'dates',

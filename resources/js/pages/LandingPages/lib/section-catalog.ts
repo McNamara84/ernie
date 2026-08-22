@@ -21,6 +21,7 @@ export const RIGHT_SECTION_LABELS: Record<RightColumnSection, string> = {
 export const LEFT_SECTION_LABELS: Record<LeftColumnSection, string> = {
     files: 'Files & Downloads',
     general: 'General',
+    sample_family: 'Sample Family',
     acquisition: 'Acquisition',
     repositories: 'Repositories',
     citation: 'Cite this Resource',
@@ -44,6 +45,7 @@ export const RESOURCE_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = ['files', 'cit
 
 export const IGSN_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
     'general',
+    'sample_family',
     'acquisition',
     'repositories',
     'citation',
@@ -56,6 +58,7 @@ export const IGSN_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
 export const LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
     'files',
     'general',
+    'sample_family',
     'acquisition',
     'repositories',
     'citation',

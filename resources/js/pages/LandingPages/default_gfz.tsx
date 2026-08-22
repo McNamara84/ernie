@@ -132,6 +132,7 @@ export default function DefaultGfzTemplate() {
             ),
             // IGSN-only sections — not rendered in the default resource template
             general: null,
+            sample_family: null,
             acquisition: null,
             repositories: null,
         };

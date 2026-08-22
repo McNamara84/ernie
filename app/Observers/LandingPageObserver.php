@@ -24,6 +24,7 @@ class LandingPageObserver
 
     public function created(LandingPage $landingPage): void
     {
+        $this->invalidateIgsnFamily($landingPage);
         $this->portalPageCache->flush();
     }
 
@@ -36,6 +37,7 @@ class LandingPageObserver
     public function updated(LandingPage $landingPage): void
     {
         $this->renderDataCache->forget($landingPage);
+        $this->invalidateIgsnFamily($landingPage);
         $this->portalPageCache->flush();
 
         if (! $landingPage->wasChanged('is_published')) {
@@ -72,6 +74,14 @@ class LandingPageObserver
     public function deleted(LandingPage $landingPage): void
     {
         $this->renderDataCache->forget($landingPage);
+        $this->invalidateIgsnFamily($landingPage);
         $this->portalPageCache->flush();
+    }
+
+    private function invalidateIgsnFamily(LandingPage $landingPage): void
+    {
+        if ($landingPage->resource()->whereHas('igsnMetadata')->exists()) {
+            $this->renderDataCache->forgetForIgsnFamilies([(int) $landingPage->resource_id]);
+        }
     }
 }

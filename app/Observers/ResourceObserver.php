@@ -197,7 +197,11 @@ class ResourceObserver
      */
     public function deleting(Resource $resource): void
     {
-        $resource->loadMissing(['landingPage', 'resourceAssessment']);
+        $resource->loadMissing(['igsnMetadata', 'landingPage', 'resourceAssessment']);
+
+        if ($resource->igsnMetadata !== null) {
+            $this->landingPageRenderDataCache->forgetForIgsnFamilies([(int) $resource->id]);
+        }
 
         if ($resource->doi !== null && $resource->doi !== '') {
             $resource->loadMissing('resourceType');
@@ -294,6 +298,14 @@ class ResourceObserver
 
     private function invalidateLandingPageRenderCache(Resource $resource): void
     {
+        $resource->loadMissing('igsnMetadata');
+
+        if ($resource->igsnMetadata !== null) {
+            $this->landingPageRenderDataCache->forgetForIgsnFamilies([(int) $resource->id]);
+
+            return;
+        }
+
         $landingPage = $resource->relationLoaded('landingPage')
             ? $resource->getRelation('landingPage')
             : $resource->landingPage()->first();

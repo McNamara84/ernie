@@ -7,6 +7,7 @@ namespace App\Services\BotProtection;
 use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
+use App\Services\IgsnSampleFamilyService;
 use App\Support\Traits\ChecksCacheTagging;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,6 +16,10 @@ use Illuminate\Support\Collection;
 class LandingPageRenderDataCacheService
 {
     use ChecksCacheTagging;
+
+    public function __construct(
+        private readonly IgsnSampleFamilyService $sampleFamilyService = new IgsnSampleFamilyService,
+    ) {}
 
     /**
      * @param  Closure(): array{template: string, props: array<string, mixed>, viewData?: array<string, mixed>}  $resolver
@@ -41,6 +46,40 @@ class LandingPageRenderDataCacheService
     public function forgetById(int $landingPageId): bool
     {
         return CacheKey::LANDING_PAGE_RENDER_DATA->forget($landingPageId);
+    }
+
+    /**
+     * Invalidate every landing page whose rendered sample-family tree can contain
+     * one of the supplied resources.
+     *
+     * @param  list<int>  $seedResourceIds
+     */
+    public function forgetForIgsnFamilies(array $seedResourceIds): void
+    {
+        $familyResourceIds = [];
+
+        foreach (array_values(array_unique(array_map('intval', $seedResourceIds))) as $resourceId) {
+            if (isset($familyResourceIds[$resourceId])) {
+                continue;
+            }
+
+            foreach ($this->sampleFamilyService->resourceIdsForResourceId($resourceId) as $familyResourceId) {
+                $familyResourceIds[$familyResourceId] = true;
+            }
+        }
+
+        if ($familyResourceIds === []) {
+            return;
+        }
+
+        LandingPage::query()
+            ->select('landing_pages.id')
+            ->whereIn('resource_id', array_keys($familyResourceIds))
+            ->chunkById(500, function (Collection $landingPages): void {
+                foreach ($landingPages as $landingPage) {
+                    $this->forgetById((int) $landingPage->id);
+                }
+            }, 'landing_pages.id', 'id');
     }
 
     public function forgetForTemplate(LandingPageTemplate $template): void

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CacheKey;
 use App\Enums\UserRole;
 use App\Jobs\ImportIgsnsFromDataCiteJob;
 use App\Models\IgsnMetadata;
@@ -626,6 +627,21 @@ describe('ImportIgsnsFromDataCiteJob', function () {
             'upload_status' => IgsnMetadata::STATUS_REGISTERED,
             'description_json' => ['parent_igsn_handle' => 'GFPARENT002'],
         ]);
+        $parentLandingPage = LandingPage::factory()->published()->create([
+            'resource_id' => $parentResource->id,
+        ]);
+        $childLandingPage = LandingPage::factory()->published()->create([
+            'resource_id' => $childResource->id,
+        ]);
+        $renderCache = Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags());
+
+        foreach ([$parentLandingPage, $childLandingPage] as $landingPage) {
+            $renderCache->put(
+                CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id),
+                ['template' => 'default_gfz_igsn', 'props' => []],
+                600,
+            );
+        }
 
         // The DOI already exists, so transform won't be called (skipped)
         $this->transformer->shouldReceive('transform')->never();
@@ -639,7 +655,9 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         $childIgsn->refresh();
         expect($childIgsn->parent_resource_id)->toBe($parentResource->id);
         // Handle should be removed from description_json
-        expect($childIgsn->description_json)->toBeNull();
+        expect($childIgsn->description_json)->toBeNull()
+            ->and($renderCache->has(CacheKey::LANDING_PAGE_RENDER_DATA->key($parentLandingPage->id)))->toBeFalse()
+            ->and($renderCache->has(CacheKey::LANDING_PAGE_RENDER_DATA->key($childLandingPage->id)))->toBeFalse();
     });
 
     it('imports a single leaf IGSN', function () {

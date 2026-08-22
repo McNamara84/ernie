@@ -20,7 +20,7 @@ export type RightColumnSection =
  * Left column section identifiers for landing page templates.
  */
 export type LeftColumnSection =
-    'files' | 'general' | 'acquisition' | 'repositories' | 'citation' | 'dates' | 'contact' | 'model_description' | 'related_work';
+    'files' | 'general' | 'sample_family' | 'acquisition' | 'repositories' | 'citation' | 'dates' | 'contact' | 'model_description' | 'related_work';
 
 /**
  * Section order configuration for landing page templates.
@@ -715,6 +715,24 @@ export interface LandingPageIgsnMetadata {
     } | null;
 }
 
+/** One node in the complete locally known IGSN sample hierarchy. */
+export interface LandingPageIgsnFamilyNode {
+    resource_id: number;
+    name: string | null;
+    igsn: string | null;
+    /** IGSN sample type used to identify the hierarchy level. */
+    sample_type: string | null;
+    /** Published landing page URL; null for unpublished or missing pages. */
+    landing_page: { public_url: string } | null;
+    children: LandingPageIgsnFamilyNode[];
+}
+
+/** Complete sample family rooted at the highest ancestor known to ERNIE. */
+export interface LandingPageIgsnSampleFamily {
+    root: LandingPageIgsnFamilyNode;
+    member_count: number;
+}
+
 /**
  * Material-specific IGSN classification entry.
  */
@@ -754,6 +772,8 @@ export interface LandingPageResource {
     igsn_metadata?: LandingPageIgsnMetadata | null;
     /** Material-specific IGSN classifications (ordered) */
     igsn_classifications?: LandingPageIgsnClassification[];
+    /** Complete locally known IGSN hierarchy (null for standalone samples). */
+    igsn_sample_family?: LandingPageIgsnSampleFamily | null;
 }
 
 /**

@@ -64,6 +64,7 @@ describe('section-catalog helpers', () => {
         expect(RESOURCE_LEFT_COLUMN_SECTIONS).toEqual(['files', 'citation', 'dates', 'contact', 'model_description', 'related_work']);
         expect(IGSN_LEFT_COLUMN_SECTIONS).toEqual([
             'general',
+            'sample_family',
             'acquisition',
             'repositories',
             'citation',
@@ -115,6 +116,7 @@ describe('section-catalog helpers', () => {
         expect(normalizeLeftColumnOrder(['contact', 'general', 'files'] as never, 'igsn')).toEqual([
             'contact',
             'general',
+            'sample_family',
             'acquisition',
             'repositories',
             'dates',
@@ -137,6 +139,7 @@ describe('section-catalog helpers', () => {
             'citation',
             'contact',
             'general',
+            'sample_family',
             'acquisition',
             'repositories',
             'dates',
@@ -157,6 +160,7 @@ describe('section-catalog helpers', () => {
         expect(normalizeLeftColumnOrder(['contact', 'files', 'unknown'] as never, 'igsn')).toEqual([
             'contact',
             'general',
+            'sample_family',
             'acquisition',
             'repositories',
             'dates',
