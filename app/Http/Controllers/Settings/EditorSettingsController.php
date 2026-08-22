@@ -18,7 +18,6 @@ use App\Models\PidSetting;
 use App\Models\RelationType;
 use App\Models\ResourceType;
 use App\Models\Right;
-use App\Models\Setting;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Services\KeywordSuggestionService;
@@ -178,8 +177,6 @@ class EditorSettingsController extends Controller
             'languages' => Language::orderBy('id')->get(['id', 'code', 'name', 'active', 'elmo_active']),
             'dateTypes' => $dateTypes,
             'descriptionTypes' => $descriptionTypes,
-            'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
-            'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
             'thesauri' => $thesauri,
             'pidSettings' => $pidSettings,
             'landingPageDomains' => LandingPageDomain::orderBy('domain')->get(['id', 'domain']),
@@ -318,10 +315,6 @@ class EditorSettingsController extends Controller
                     'is_elmo_active' => true,
                     'updated_at' => $now,
                 ]);
-
-            // Update max settings - inside transaction to ensure atomicity
-            Setting::updateOrCreate(['key' => 'max_titles'], ['value' => $validated['maxTitles']]);
-            Setting::updateOrCreate(['key' => 'max_licenses'], ['value' => $validated['maxLicenses']]);
 
             // Update thesaurus settings if provided
             if (isset($validated['thesauri'])) {

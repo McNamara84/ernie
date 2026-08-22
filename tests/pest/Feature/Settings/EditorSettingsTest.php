@@ -31,8 +31,8 @@ test('admin users can view editor settings page', function () {
     Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true]);
     Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
-    Setting::create(['key' => 'max_titles', 'value' => (string) Setting::DEFAULT_LIMIT]);
-    Setting::create(['key' => 'max_licenses', 'value' => (string) Setting::DEFAULT_LIMIT]);
+    Setting::create(['key' => 'max_titles', 'value' => '99']);
+    Setting::create(['key' => 'max_licenses', 'value' => '99']);
     $this->actingAs($user);
     withoutVite();
     $response = $this->get(route('settings'))->assertOk();
@@ -44,8 +44,8 @@ test('admin users can view editor settings page', function () {
         ->has('languages', 1)
         // 1 dateType created in this test
         ->has('dateTypes', 1)
-        ->where('maxTitles', Setting::DEFAULT_LIMIT)
-        ->where('maxLicenses', Setting::DEFAULT_LIMIT)
+        ->missing('maxTitles')
+        ->missing('maxLicenses')
     );
 });
 
@@ -81,8 +81,6 @@ test('admin users can update resource and title types and settings', function ()
         'descriptionTypes' => [
             ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
-        'maxTitles' => 10,
-        'maxLicenses' => 7,
     ])->assertRedirect();
 
     $this->assertDatabaseHas('resource_types', [
@@ -112,11 +110,11 @@ test('admin users can update resource and title types and settings', function ()
         'id' => $dateType->id,
         'is_active' => false,
     ]);
-    expect(Setting::getValue('max_titles'))->toBe('10');
-    expect(Setting::getValue('max_licenses'))->toBe('7');
+    expect(Setting::getValue('max_titles'))->toBe('5');
+    expect(Setting::getValue('max_licenses'))->toBe('2');
 });
 
-test('updating settings with invalid data returns errors', function () {
+test('legacy limit inputs are no longer validated or persisted', function () {
     // Issue #379: Only Admin and Group Leader can access Editor Settings
     $user = User::factory()->admin()->create();
     $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
@@ -140,7 +138,7 @@ test('updating settings with invalid data returns errors', function () {
                 ['id' => $title->id, 'name' => 'Main Title', 'slug' => 'main-title', 'active' => true, 'elmo_active' => false],
             ],
             'licenses' => [
-                ['id' => $right->id, 'active' => true, 'elmo_active' => false],
+                ['id' => $right->id, 'active' => true, 'elmo_active' => false, 'excluded_resource_type_ids' => []],
             ],
             'languages' => [
                 ['id' => $language->id, 'active' => true, 'elmo_active' => false],
@@ -155,8 +153,9 @@ test('updating settings with invalid data returns errors', function () {
             'maxLicenses' => 7,
         ]);
 
-    $response->assertSessionHasErrors('maxTitles')
-        ->assertRedirect(route('settings'));
+    $response->assertSessionDoesntHaveErrors(['maxTitles', 'maxLicenses'])
+        ->assertRedirect();
+    expect(Setting::whereIn('key', ['max_titles', 'max_licenses'])->exists())->toBeFalse();
 });
 
 test('thesaurus settings are auto-created when missing', function () {
@@ -168,9 +167,6 @@ test('thesaurus settings are auto-created when missing', function () {
     Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true]);
     Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
-    Setting::create(['key' => 'max_titles', 'value' => (string) Setting::DEFAULT_LIMIT]);
-    Setting::create(['key' => 'max_licenses', 'value' => (string) Setting::DEFAULT_LIMIT]);
-
     // Verify only migration-seeded settings exist initially.
     expect(ThesaurusSetting::count())->toBe(5);
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_CHRONOSTRAT)->exists())->toBeTrue();
@@ -276,8 +272,6 @@ test('admin can set all resource types to inactive at once', function () {
     $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
     $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
-    Setting::create(['key' => 'max_titles', 'value' => '5']);
-    Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
     $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
@@ -301,8 +295,6 @@ test('admin can set all resource types to inactive at once', function () {
         'descriptionTypes' => [
             ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
-        'maxTitles' => 5,
-        'maxLicenses' => 5,
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $this->assertDatabaseHas('resource_types', ['id' => $rt1->id, 'is_active' => false, 'is_elmo_active' => false]);
@@ -317,8 +309,6 @@ test('admin can set all resource types to active at once', function () {
     $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
     $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
-    Setting::create(['key' => 'max_titles', 'value' => '5']);
-    Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
     $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
@@ -342,8 +332,6 @@ test('admin can set all resource types to active at once', function () {
         'descriptionTypes' => [
             ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
-        'maxTitles' => 5,
-        'maxLicenses' => 5,
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $this->assertDatabaseHas('resource_types', ['id' => $rt1->id, 'is_active' => true, 'is_elmo_active' => true]);
@@ -358,8 +346,6 @@ test('admin can set all licenses to inactive at once', function () {
     $lic2 = Right::create(['identifier' => 'CC0', 'name' => 'Public Domain', 'is_active' => true, 'is_elmo_active' => true]);
     $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
-    Setting::create(['key' => 'max_titles', 'value' => '5']);
-    Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
     $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
@@ -383,8 +369,6 @@ test('admin can set all licenses to inactive at once', function () {
         'descriptionTypes' => [
             ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
-        'maxTitles' => 5,
-        'maxLicenses' => 5,
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $this->assertDatabaseHas('rights', ['id' => $lic1->id, 'is_active' => false, 'is_elmo_active' => false]);
@@ -399,8 +383,6 @@ test('admin can set all languages to inactive at once', function () {
     $lang1 = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     $lang2 = Language::create(['code' => 'de', 'name' => 'German', 'active' => true, 'elmo_active' => true]);
     $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
-    Setting::create(['key' => 'max_titles', 'value' => '5']);
-    Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
     $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
@@ -424,8 +406,6 @@ test('admin can set all languages to inactive at once', function () {
         'descriptionTypes' => [
             ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
-        'maxTitles' => 5,
-        'maxLicenses' => 5,
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $this->assertDatabaseHas('languages', ['id' => $lang1->id, 'active' => false, 'elmo_active' => false]);
@@ -440,8 +420,6 @@ test('admin can set all title types to inactive at once', function () {
     $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
     $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
-    Setting::create(['key' => 'max_titles', 'value' => '5']);
-    Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
     $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
@@ -465,8 +443,6 @@ test('admin can set all title types to inactive at once', function () {
         'descriptionTypes' => [
             ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
-        'maxTitles' => 5,
-        'maxLicenses' => 5,
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $this->assertDatabaseHas('title_types', ['id' => $tt1->id, 'is_active' => false, 'is_elmo_active' => false]);
@@ -481,8 +457,6 @@ test('admin can set all date types to inactive at once', function () {
     $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     $dt1 = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
     $dt2 = DateType::create(['name' => 'Accepted', 'slug' => 'Accepted', 'is_active' => true]);
-    Setting::create(['key' => 'max_titles', 'value' => '5']);
-    Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
     $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
@@ -506,8 +480,6 @@ test('admin can set all date types to inactive at once', function () {
         'descriptionTypes' => [
             ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
-        'maxTitles' => 5,
-        'maxLicenses' => 5,
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $this->assertDatabaseHas('date_types', ['id' => $dt1->id, 'is_active' => false]);

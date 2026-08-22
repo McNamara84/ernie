@@ -59,10 +59,6 @@ const defaultEditorSettings: EditorSettings = {
         hasActiveTitleTypes: true,
         hasActiveLanguages: true,
     },
-    limits: {
-        maxTitles: 10,
-        maxLicenses: 5,
-    },
 };
 
 const defaultDataCite: DataCiteDocsSettings = {
@@ -76,7 +72,6 @@ const defaultDataCite: DataCiteDocsSettings = {
 type EditorSettingsOverrides = {
     thesauri?: Partial<EditorSettings['thesauri']>;
     features?: Partial<EditorSettings['features']>;
-    limits?: Partial<EditorSettings['limits']>;
 };
 
 const createEditorSettings = (overrides: EditorSettingsOverrides = {}): EditorSettings => ({
@@ -87,10 +82,6 @@ const createEditorSettings = (overrides: EditorSettingsOverrides = {}): EditorSe
     features: {
         ...defaultEditorSettings.features,
         ...overrides.features,
-    },
-    limits: {
-        ...defaultEditorSettings.limits,
-        ...overrides.limits,
     },
 });
 

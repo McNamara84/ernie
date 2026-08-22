@@ -1,16 +1,20 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
+import { useMemo } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { ValidationMessage } from '@/hooks/use-form-validation';
-import type { DescriptionType as DescriptionTypeFromApi } from '@/types';
+import type { DescriptionType as DescriptionTypeFromApi, Language } from '@/types';
+
+import { SelectField } from './select-field';
 
 export type DescriptionType = 'Abstract' | 'Methods' | 'SeriesInformation' | 'TableOfContents' | 'TechnicalInfo' | 'Other';
 
 export interface DescriptionEntry {
+    id: string;
     type: DescriptionType;
     value: string;
     language?: string | null;
@@ -20,28 +24,18 @@ interface DescriptionFieldProps {
     descriptions: DescriptionEntry[];
     onChange: (descriptions: DescriptionEntry[]) => void;
     availableTypes: DescriptionTypeFromApi[];
-    // Validation props for Abstract field
+    languages: Language[];
     abstractValidationMessages?: ValidationMessage[];
     abstractTouched?: boolean;
     onAbstractValidationBlur?: () => void;
 }
 
 /** UI metadata for each description type (labels, placeholders, help texts). */
-const DESCRIPTION_TYPE_META: Record<
-    DescriptionType,
-    {
-        label: string;
-        placeholder: string;
-        required?: boolean;
-        helpText?: string;
-    }
-> = {
+const DESCRIPTION_TYPE_META: Record<DescriptionType, { label: string; placeholder: string; helpText: string }> = {
     Abstract: {
         label: 'Abstract',
         placeholder: 'Enter a brief summary of the resource...',
-        required: true,
-        helpText:
-            'A brief description of the resource and the context in which the resource was created.',
+        helpText: 'A brief description of the resource and the context in which the resource was created.',
     },
     Methods: {
         label: 'Methods',
@@ -58,8 +52,7 @@ const DESCRIPTION_TYPE_META: Record<
     TableOfContents: {
         label: 'Table of Contents',
         placeholder: 'Enter the table of contents...',
-        helpText:
-            'A listing of the Table of Contents.',
+        helpText: 'A listing of the Table of Contents.',
     },
     TechnicalInfo: {
         label: 'Technical Info',
@@ -78,76 +71,39 @@ export default function DescriptionField({
     descriptions,
     onChange,
     availableTypes,
+    languages,
     abstractValidationMessages = [],
     abstractTouched = false,
     onAbstractValidationBlur,
 }: DescriptionFieldProps) {
-    // Build the visible types list from the canonical DESCRIPTION_TYPE_META order,
-    // filtered by enabled types, with Abstract always first.
-    const visibleTypes = useMemo(() => {
-        const enabledSlugs = new Set(availableTypes.map((t) => t.slug));
-        return (Object.keys(DESCRIPTION_TYPE_META) as DescriptionType[]).filter(
-            (slug) => slug === 'Abstract' || enabledSlugs.has(slug),
-        );
-    }, [availableTypes]);
+    const typeOptions = useMemo(() => {
+        const enabledSlugs = new Set(availableTypes.map((type) => type.slug));
+        const currentSlugs = new Set(descriptions.map((description) => description.type));
 
-    const [activeTab, setActiveTab] = useState<DescriptionType>('Abstract');
+        return (Object.keys(DESCRIPTION_TYPE_META) as DescriptionType[])
+            .filter((type) => type === 'Abstract' || enabledSlugs.has(type) || currentSlugs.has(type))
+            .map((type) => ({ value: type, label: DESCRIPTION_TYPE_META[type].label }));
+    }, [availableTypes, descriptions]);
 
-    // Use ref to always access current descriptions without recreating the callback.
-    // This prevents handleDescriptionChange from being recreated on every keystroke.
-    const descriptionsRef = useRef(descriptions);
-    descriptionsRef.current = descriptions;
-
-    // Memoize description values map to avoid repeated find() calls
-    const descriptionValuesMap = useMemo(() => {
-        const map = new Map<DescriptionType, string>();
-        for (const d of descriptions) {
-            map.set(d.type, d.value);
-        }
-        return map;
-    }, [descriptions]);
-
-    const getDescriptionValue = useCallback(
-        (type: DescriptionType): string => {
-            return descriptionValuesMap.get(type) || '';
-        },
-        [descriptionValuesMap],
+    const languageOptions = useMemo(
+        () => languages.map((language) => ({ value: language.code, label: `${language.name} (${language.code})` })),
+        [languages],
     );
 
-    // Stable callback that uses ref to access current descriptions.
-    // This prevents unnecessary re-renders of child Textarea components during typing.
-    const handleDescriptionChange = useCallback(
-        (type: DescriptionType, value: string) => {
-            const currentDescriptions = descriptionsRef.current;
-            const existingIndex = currentDescriptions.findIndex((d) => d.type === type);
+    const updateDescription = (id: string, changes: Partial<Omit<DescriptionEntry, 'id'>>) => {
+        onChange(descriptions.map((description) => (description.id === id ? { ...description, ...changes } : description)));
+    };
 
-            if (existingIndex >= 0) {
-                // Update existing description
-                const updated = [...currentDescriptions];
-                updated[existingIndex] = { type, value };
-                onChange(updated);
-            } else {
-                // Add new description
-                onChange([...currentDescriptions, { type, value }]);
-            }
-        },
-        [onChange],
-    );
+    const addDescription = () => {
+        const defaultType = (typeOptions.find((option) => option.value === 'Other')?.value ?? typeOptions[0]?.value ?? 'Abstract') as DescriptionType;
+        onChange([...descriptions, { id: crypto.randomUUID(), type: defaultType, value: '', language: null }]);
+    };
 
-    // Memoize content checks to avoid recalculating on every render.
-    // Uses descriptionValuesMap to avoid duplicating the Map lookup logic.
-    // Optional chaining (?.) with fallback (?? 0) handles edge cases gracefully.
-    const contentStatus = useMemo(() => {
-        const status = new Map<DescriptionType, { hasContent: boolean; charCount: number }>();
-        for (const type of visibleTypes) {
-            const value = descriptionValuesMap.get(type) || '';
-            status.set(type, {
-                hasContent: value.trim().length > 0,
-                charCount: value.length,
-            });
-        }
-        return status;
-    }, [descriptionValuesMap, visibleTypes]);
+    const removeDescription = (id: string) => {
+        onChange(descriptions.filter((description) => description.id !== id));
+    };
+
+    const firstAbstractIndex = descriptions.findIndex((description) => description.type === 'Abstract');
 
     return (
         <div className="space-y-4">
@@ -158,88 +114,115 @@ export default function DescriptionField({
                     &lt;br&gt;; all other formatting remains landing-page only. JSON-LD and Schema.org outputs remain plain text.
                 </AlertDescription>
             </Alert>
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DescriptionType)}>
-                <TabsList className={`grid w-full`} style={{ gridTemplateColumns: `repeat(${visibleTypes.length}, minmax(0, 1fr))` }}>
-                    {visibleTypes.map((type) => {
-                        const meta = DESCRIPTION_TYPE_META[type];
-                        return (
-                            <TabsTrigger key={type} value={type} className="relative">
-                                {meta.label}
-                                {meta.required && (
-                                    <span className="ml-0.5 font-bold text-destructive" aria-label="Required">
-                                        *
-                                    </span>
-                                )}
-                                {contentStatus.get(type)?.hasContent && (
-                                    <span
-                                        className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                        aria-label="Has content"
-                                        title="This description has content"
-                                    />
-                                )}
-                            </TabsTrigger>
-                        );
-                    })}
-                </TabsList>
 
-                {visibleTypes.map((type) => {
-                    const meta = DESCRIPTION_TYPE_META[type];
-                    const isAbstract = type === 'Abstract';
-                    const hasValidationError = isAbstract && abstractTouched && abstractValidationMessages.length > 0;
-                    const charCount = contentStatus.get(type)?.charCount ?? 0;
-                    const isNearLimit = charCount > 15750; // 90% of 17500
-                    const isTooShort = charCount > 0 && charCount < 50;
+            {firstAbstractIndex === -1 && abstractTouched && <FieldValidationFeedback messages={abstractValidationMessages} />}
+
+            <div className="space-y-4">
+                {descriptions.map((description, index) => {
+                    const meta = DESCRIPTION_TYPE_META[description.type];
+                    const isAbstract = description.type === 'Abstract';
+                    const isFirstAbstract = index === firstAbstractIndex;
+                    const charCount = description.value.length;
+                    const hasLocalAbstractError = isAbstract && charCount > 0 && (charCount < 50 || charCount > 17_500);
+                    const hasGlobalAbstractError =
+                        isFirstAbstract && abstractTouched && abstractValidationMessages.some((message) => message.severity === 'error');
+                    const hasValidationError = (abstractTouched && hasLocalAbstractError) || hasGlobalAbstractError;
+                    const descriptionId = `description-${description.id}`;
 
                     return (
-                        <TabsContent key={type} value={type} className="space-y-2">
+                        <div key={description.id} className="space-y-4 rounded-md border p-4" data-testid="description-entry">
+                            <div className="flex items-center justify-between gap-4">
+                                <h3 className="font-medium">Description {index + 1}</h3>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Remove description ${index + 1}`}
+                                    onClick={() => removeDescription(description.id)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <SelectField
+                                    id={`${descriptionId}-type`}
+                                    label="Description Type"
+                                    value={description.type}
+                                    onValueChange={(value) => updateDescription(description.id, { type: value as DescriptionType })}
+                                    options={typeOptions}
+                                    required
+                                />
+                                <SelectField
+                                    id={`${descriptionId}-language`}
+                                    label="Language"
+                                    value={description.language ?? ''}
+                                    onValueChange={(value) => updateDescription(description.id, { language: value || null })}
+                                    options={languageOptions}
+                                    placeholder="No language specified"
+                                    clearable
+                                    clearLabel="No language specified"
+                                />
+                            </div>
+
                             <div className="space-y-2">
-                                <Label htmlFor={`description-${type}`}>
+                                <Label htmlFor={`${descriptionId}-value`}>
                                     {meta.label}
-                                    {meta.required ? (
+                                    {isAbstract ? (
                                         <span className="ml-2 text-sm font-normal text-destructive">(Required)</span>
                                     ) : (
                                         <span className="ml-2 text-sm font-normal text-muted-foreground">(Optional)</span>
                                     )}
                                 </Label>
-                                {meta.helpText && <p className="text-sm text-muted-foreground">{meta.helpText}</p>}
+                                <p className="text-sm text-muted-foreground">{meta.helpText}</p>
                                 <Textarea
-                                    id={`description-${type}`}
-                                    value={getDescriptionValue(type)}
-                                    onChange={(e) => handleDescriptionChange(type, e.target.value)}
+                                    id={`${descriptionId}-value`}
+                                    value={description.value}
+                                    onChange={(event) => updateDescription(description.id, { value: event.target.value })}
                                     onBlur={() => {
-                                        if (isAbstract && onAbstractValidationBlur) {
-                                            onAbstractValidationBlur();
+                                        if (isAbstract) {
+                                            onAbstractValidationBlur?.();
                                         }
                                     }}
                                     placeholder={meta.placeholder}
                                     rows={8}
                                     className="resize-y"
-                                    aria-describedby={`description-${type}-count ${isAbstract ? 'description-abstract-validation' : ''}`}
+                                    aria-describedby={`${descriptionId}-count`}
                                     aria-invalid={hasValidationError}
-                                    required={meta.required}
-                                    data-testid={isAbstract ? 'abstract-textarea' : undefined}
+                                    required={isAbstract}
+                                    data-testid={isFirstAbstract ? 'abstract-textarea' : undefined}
                                 />
-                                {isAbstract && abstractTouched && <FieldValidationFeedback messages={abstractValidationMessages} />}
+                                {isFirstAbstract && abstractTouched && <FieldValidationFeedback messages={abstractValidationMessages} />}
+                                {isAbstract && !isFirstAbstract && abstractTouched && hasLocalAbstractError && (
+                                    <p className="text-sm text-destructive" role="alert">
+                                        Abstract must be between 50 and 17,500 characters.
+                                    </p>
+                                )}
                                 <div
-                                    id={`description-${type}-count`}
+                                    id={`${descriptionId}-count`}
                                     className={`text-right text-sm ${
-                                        hasValidationError
-                                            ? 'text-destructive'
-                                            : isNearLimit || isTooShort
+                                        hasValidationError || (isAbstract && charCount > 15_750)
+                                            ? 'font-medium text-destructive'
+                                            : isAbstract && charCount > 0 && charCount < 50
                                               ? 'font-medium text-yellow-600'
                                               : 'text-muted-foreground'
                                     }`}
                                 >
-                                    {charCount} characters
+                                    {charCount.toLocaleString('en-US')} characters
                                     {isAbstract && charCount > 0 && (
-                                        <span className="ml-1">({charCount < 50 ? `${50 - charCount} more needed` : `of 17,500`})</span>
+                                        <span className="ml-1">({charCount < 50 ? `${50 - charCount} more needed` : 'of 17,500'})</span>
                                     )}
                                 </div>
                             </div>
-                        </TabsContent>
+                        </div>
                     );
                 })}
-            </Tabs>
+            </div>
+
+            <Button type="button" variant="outline" onClick={addDescription}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Description
+            </Button>
         </div>
     );
 }

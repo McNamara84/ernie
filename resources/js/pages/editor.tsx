@@ -36,8 +36,6 @@ import {
 import type { EditorClientLoadStage, EditorLoadContext } from '@/types/editor-load';
 
 interface EditorProps {
-    maxTitles: number;
-    maxLicenses: number;
     googleMapsApiKey: string;
     doi?: string;
     year?: string;
@@ -51,8 +49,8 @@ interface EditorProps {
     landingPage?: EditorLandingPageSummary | null;
     authors?: InitialAuthor[];
     contributors?: InitialContributor[];
-    descriptions?: { type: string; description: string }[];
-    dates?: { dateType: string; dateMode?: 'single' | 'range'; startDate: string; endDate: string }[];
+    descriptions?: { type: string; description: string; language?: string | null }[];
+    dates?: { dateType: string; dateMode?: 'single' | 'range'; startDate: string; endDate: string; dateInformation?: string | null }[];
     gcmdKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; classificationCode?: string }[];
     freeKeywords?: string[];
     gemetKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; classificationCode?: string }[];
@@ -85,8 +83,6 @@ async function fetchEditorOption<T>(url: string, onCompleted: () => void): Promi
 }
 
 export default function Editor({
-    maxTitles,
-    maxLicenses,
     googleMapsApiKey,
     doi = '',
     year = '',
@@ -316,8 +312,6 @@ export default function Editor({
                         contributorPersonRoles={contributorPersonRoles}
                         contributorInstitutionRoles={contributorInstitutionRoles}
                         authorRoles={authorRoles}
-                        maxTitles={maxTitles}
-                        maxLicenses={maxLicenses}
                         googleMapsApiKey={googleMapsApiKey}
                         initialDoi={doi}
                         initialYear={year}

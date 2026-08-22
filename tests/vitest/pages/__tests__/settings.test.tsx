@@ -87,8 +87,6 @@ describe('EditorSettings page', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={1}
-                maxLicenses={1}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -136,8 +134,6 @@ describe('EditorSettings page', () => {
                 dateTypes={[
                     { id: 1, name: 'Accepted', slug: 'accepted', description: 'Test', active: true },
                 ]}
-                maxTitles={5}
-                maxLicenses={10}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -160,7 +156,7 @@ describe('EditorSettings page', () => {
         expect(screen.getByText('Title Types')).toBeInTheDocument();
         expect(screen.getByText('Languages')).toBeInTheDocument();
         expect(screen.getByText('Date Types')).toBeInTheDocument();
-        expect(screen.getByText('Limits')).toBeInTheDocument();
+        expect(screen.queryByText('Limits')).not.toBeInTheDocument();
         expect(screen.getByText('Thesauri')).toBeInTheDocument();
     });
 
@@ -175,8 +171,6 @@ describe('EditorSettings page', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={1}
-                maxLicenses={1}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -206,8 +200,6 @@ describe('EditorSettings page', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={1}
-                maxLicenses={1}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -226,65 +218,6 @@ describe('EditorSettings page', () => {
         ]);
     });
 
-    it('renders limit fields without extra top margin', () => {
-        const resourceTypes = [
-            { id: 1, name: 'Dataset', active: true, elmo_active: false },
-        ];
-        render(
-            <EditorSettings
-                resourceTypes={resourceTypes}
-                titleTypes={[]}
-                licenses={[]}
-                languages={[]}
-                dateTypes={[]}
-                maxTitles={1}
-                maxLicenses={1}
-                thesauri={defaultThesauri}
-                pidSettings={[]}
-                landingPageDomains={[]}
-                contributorPersonRoles={[]}
-                contributorInstitutionRoles={[]}
-                contributorBothRoles={[]}
-                descriptionTypes={[]}
-            relationTypes={[]}
-            identifierTypes={[]}
-            datacenters={[]}
-            />,
-        );
-        const grid = screen.getByLabelText('Max Titles').closest('div')!.parentElement;
-        expect(grid).not.toHaveClass('mt-8');
-    });
-
-    it('renders limits section with heading and inputs', () => {
-        const resourceTypes = [
-            { id: 1, name: 'Dataset', active: true, elmo_active: false },
-        ];
-        render(
-            <EditorSettings
-                resourceTypes={resourceTypes}
-                titleTypes={[]}
-                licenses={[]}
-                languages={[]}
-                dateTypes={[]}
-                maxTitles={1}
-                maxLicenses={1}
-                thesauri={defaultThesauri}
-                pidSettings={[]}
-                landingPageDomains={[]}
-                contributorPersonRoles={[]}
-                contributorInstitutionRoles={[]}
-                contributorBothRoles={[]}
-                descriptionTypes={[]}
-            relationTypes={[]}
-            identifierTypes={[]}
-            datacenters={[]}
-            />,
-        );
-        // Verify Limits card exists with heading
-        expect(screen.getByRole('heading', { name: 'Limits' })).toBeInTheDocument();
-        expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
-        expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
-    });
 });
 
 describe('License settings', () => {
@@ -299,8 +232,6 @@ describe('License settings', () => {
                 licenses={licenses}
                 languages={[]}
                 dateTypes={[]}
-                maxTitles={1}
-                maxLicenses={1}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -332,8 +263,6 @@ describe('Language settings', () => {
                 licenses={[]}
                 languages={languages}
                 dateTypes={[]}
-                maxTitles={1}
-                maxLicenses={1}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -365,8 +294,6 @@ describe('Date Type settings', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={dateTypes}
-                maxTitles={1}
-                maxLicenses={1}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -385,4 +312,3 @@ describe('Date Type settings', () => {
         ]);
     });
 });
-

@@ -165,6 +165,45 @@ it('keeps related-work citation label limits aligned between draft and store req
         ->and($storeRequest->rules())->toHaveKey('relatedIdentifiers.*.source');
 });
 
+it('accepts funding references and instruments beyond the former array limits', function (): void {
+    foreach ([new StoreDraftResourceRequest, new StoreResourceRequest] as $request) {
+        $rules = $request->rules();
+        $relevantRules = array_intersect_key($rules, array_flip([
+            'fundingReferences',
+            'fundingReferences.*.funderName',
+            'fundingReferences.*.funderIdentifier',
+            'fundingReferences.*.funderIdentifierType',
+            'fundingReferences.*.awardNumber',
+            'fundingReferences.*.awardUri',
+            'fundingReferences.*.awardTitle',
+            'instruments',
+            'instruments.*.pid',
+            'instruments.*.pidType',
+            'instruments.*.name',
+        ]));
+        $payload = [
+            'fundingReferences' => array_map(
+                fn (int $index): array => ['funderName' => "Legacy Funder {$index}"],
+                range(1, 150),
+            ),
+            'instruments' => array_map(
+                fn (int $index): array => [
+                    'pid' => "https://example.test/instruments/{$index}",
+                    'pidType' => 'URL',
+                    'name' => "Legacy Instrument {$index}",
+                ],
+                range(1, 150),
+            ),
+        ];
+
+        $validator = Validator::make($payload, $relevantRules);
+
+        expect($rules['fundingReferences'])->toBe(['nullable', 'array'])
+            ->and($rules['instruments'])->toBe(['nullable', 'array'])
+            ->and($validator->errors()->toArray())->toBe([]);
+    }
+});
+
 it('validates and normalizes title language tags for draft and final resource requests', function (): void {
     $draftRequest = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
         'titles' => [

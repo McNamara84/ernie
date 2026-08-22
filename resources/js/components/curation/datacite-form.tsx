@@ -203,8 +203,8 @@ function hasLicenseEntryEvidence(entry: LicenseEntry | undefined): boolean {
     return hasCompleteLicenseEntry(entry) || (entry !== undefined && isRawRightsOnlyLicenseEntry(entry));
 }
 
-function canAddLicenseEntry(licenseEntries: LicenseEntry[], maxLicenses: number): boolean {
-    return licenseEntries.length < maxLicenses && licenseEntries.length > 0 && hasLicenseEntryEvidence(licenseEntries[licenseEntries.length - 1]);
+function canAddLicenseEntry(licenseEntries: LicenseEntry[]): boolean {
+    return licenseEntries.length > 0 && hasLicenseEntryEvidence(licenseEntries[licenseEntries.length - 1]);
 }
 
 function serializeRawRightsOnlyLicenseEntry(entry: CustomLicenseEntry): RawRightsInput {
@@ -234,8 +234,6 @@ export default function DataCiteForm({
     contributorPersonRoles = [],
     contributorInstitutionRoles = [],
     authorRoles = [],
-    maxTitles = 99,
-    maxLicenses = 99,
     googleMapsApiKey,
     initialDoi = '',
     initialYear = '',
@@ -268,13 +266,8 @@ export default function DataCiteForm({
     activeIdentifierTypes,
 }: DataCiteFormProps) {
     const { curationAccordionOpenItems } = usePage<SharedData>().props;
-    const MAX_TITLES = maxTitles;
-    const MAX_LICENSES = maxLicenses;
-
     // Date types shown in the Dates section. Accepted/Issued/Updated are system-managed;
     // Coverage is edited exclusively in Spatial and Temporal Coverage.
-    const MAX_DATES = dateTypes.filter((dt) => isEditableDateType(dt.slug)).length;
-
     const dateTypeOptions = useMemo(
         () =>
             dateTypes
@@ -431,12 +424,13 @@ export default function DataCiteForm({
     const [descriptions, setDescriptions] = useState<DescriptionEntry[]>(() => {
         if (initialDescriptions && initialDescriptions.length > 0) {
             return initialDescriptions.map((desc) => ({
+                id: crypto.randomUUID(),
                 type: desc.type as DescriptionEntry['type'],
                 value: desc.description,
                 language: desc.language ?? null,
             }));
         }
-        return [];
+        return [{ id: crypto.randomUUID(), type: 'Abstract', value: '', language: null }];
     });
     const [dates, setDates] = useState<DateEntry[]>(() => {
         if (initialDates && initialDates.length > 0) {
@@ -463,6 +457,7 @@ export default function DataCiteForm({
                         endTime: dateMode === 'range' ? parsedEnd.time : null,
                         startTimezone: parsedStart.timezone,
                         endTimezone: dateMode === 'range' ? parsedEnd.timezone : null,
+                        dateInformation: date.dateInformation ?? null,
                     };
                 });
         }
@@ -745,33 +740,35 @@ export default function DataCiteForm({
     // Debounce prevents performance issues: validateRequired and validateTextLength are fast,
     // but frequent re-renders during rapid typing can cause lag. 300ms balances responsiveness
     // with preventing excessive validation calls during continuous typing.
-    const abstractValidationRules: ValidationRule[] = [
+    const abstractValidationRules: ValidationRule<DescriptionEntry[]>[] = [
         {
             debounce: 300,
             validate: (value) => {
-                const text = String(value || '');
+                const abstracts = value.filter((description) => description.type === 'Abstract' && description.value.trim() !== '');
 
-                // Required check
-                const requiredResult = validateRequired(text, 'Abstract');
+                const requiredResult = validateRequired(abstracts[0]?.value ?? '', 'Abstract');
                 if (!requiredResult.isValid) {
                     return { severity: 'error', message: requiredResult.error! };
                 }
 
-                // Length check (50-17500 characters)
-                const lengthResult = validateTextLength(text, {
-                    min: ABSTRACT_MIN_LENGTH,
-                    max: ABSTRACT_MAX_LENGTH,
-                    fieldName: 'Abstract',
-                });
-                if (!lengthResult.isValid) {
-                    return { severity: 'error', message: lengthResult.error! };
+                for (const [index, abstract] of abstracts.entries()) {
+                    const text = abstract.value.trim();
+                    const lengthResult = validateTextLength(text, {
+                        min: ABSTRACT_MIN_LENGTH,
+                        max: ABSTRACT_MAX_LENGTH,
+                        fieldName: abstracts.length > 1 ? `Abstract ${index + 1}` : 'Abstract',
+                    });
+                    if (!lengthResult.isValid) {
+                        return { severity: 'error', message: lengthResult.error! };
+                    }
                 }
 
-                // Warning at 90% of max length
-                if (text.length > ABSTRACT_MAX_LENGTH * 0.9) {
+                const longAbstract = abstracts.find((abstract) => abstract.value.trim().length > ABSTRACT_MAX_LENGTH * 0.9);
+                if (longAbstract) {
+                    const length = longAbstract.value.trim().length;
                     return {
                         severity: 'warning',
-                        message: `Abstract is very long (${text.length}/${ABSTRACT_MAX_LENGTH} characters). Consider condensing if possible.`,
+                        message: `Abstract is very long (${length}/${ABSTRACT_MAX_LENGTH} characters). Consider condensing if possible.`,
                     };
                 }
 
@@ -1434,21 +1431,24 @@ export default function DataCiteForm({
             });
         }
 
-        const abstractEntry = descriptions.find((desc) => desc.type === 'Abstract');
-        const abstractText = abstractEntry?.value.trim() ?? '';
+        const abstracts = descriptions
+            .map((description, index) => ({ description, index }))
+            .filter(({ description }) => description.type === 'Abstract' && description.value.trim() !== '');
 
-        if (!abstractText) {
+        if (abstracts.length === 0) {
             appendValidationMessage(errors, 'descriptions.0.description', 'Abstract is required.');
         } else {
-            const abstractLengthResult = validateTextLength(abstractText, {
-                min: ABSTRACT_MIN_LENGTH,
-                max: ABSTRACT_MAX_LENGTH,
-                fieldName: 'Abstract',
-            });
+            abstracts.forEach(({ description, index }, abstractIndex) => {
+                const abstractLengthResult = validateTextLength(description.value.trim(), {
+                    min: ABSTRACT_MIN_LENGTH,
+                    max: ABSTRACT_MAX_LENGTH,
+                    fieldName: abstracts.length > 1 ? `Abstract ${abstractIndex + 1}` : 'Abstract',
+                });
 
-            if (!abstractLengthResult.isValid) {
-                appendValidationMessage(errors, 'descriptions.0.description', abstractLengthResult.error!);
-            }
+                if (!abstractLengthResult.isValid) {
+                    appendValidationMessage(errors, `descriptions.${index}.description`, abstractLengthResult.error!);
+                }
+            });
         }
 
         if (selectedDatacenterId === null) {
@@ -1549,11 +1549,14 @@ export default function DataCiteForm({
     }, [contributors]);
 
     const descriptionsStatus = useMemo(() => {
-        const abstractEntry = descriptions.find((desc) => desc.type === 'Abstract');
-        if (!abstractEntry?.value.trim()) {
-            return 'invalid';
-        }
-        if (abstractEntry.value.trim().length < ABSTRACT_MIN_LENGTH) {
+        const abstracts = descriptions.filter((description) => description.type === 'Abstract' && description.value.trim() !== '');
+        if (
+            abstracts.length === 0 ||
+            abstracts.some((abstract) => {
+                const length = abstract.value.trim().length;
+                return length < ABSTRACT_MIN_LENGTH || length > ABSTRACT_MAX_LENGTH;
+            })
+        ) {
             return 'invalid';
         }
 
@@ -1736,7 +1739,6 @@ export default function DataCiteForm({
     };
 
     const addTitle = () => {
-        if (titles.length >= MAX_TITLES) return;
         const defaultType = titleTypes.find((t) => t.slug !== 'main-title')?.slug ?? '';
         setTitles((prev) => [...prev, { id: crypto.randomUUID(), title: '', titleType: defaultType }]);
     };
@@ -1750,16 +1752,12 @@ export default function DataCiteForm({
     const handleDescriptionChange = (descriptions: DescriptionEntry[]) => {
         setDescriptions(descriptions);
 
-        // Validate Abstract field if it exists
-        const abstractEntry = descriptions.find((d) => d.type === 'Abstract');
-        if (abstractEntry !== undefined) {
-            validateField({
-                fieldId: 'abstract',
-                value: abstractEntry.value,
-                rules: abstractValidationRules,
-                formData: form,
-            });
-        }
+        validateField({
+            fieldId: 'abstract',
+            value: descriptions,
+            rules: abstractValidationRules,
+            formData: form,
+        });
     };
 
     const validatePrimaryLicenseEntries = (entries: LicenseEntry[]) => {
@@ -1819,7 +1817,6 @@ export default function DataCiteForm({
     };
 
     const addLicense = () => {
-        if (licenseEntries.length >= MAX_LICENSES) return;
         setLicenseEntries((prev) => {
             const next: LicenseEntry[] = [...prev, { id: crypto.randomUUID(), mode: 'catalog', license: '' }];
             validatePrimaryLicenseEntries(next);
@@ -1873,11 +1870,7 @@ export default function DataCiteForm({
     };
 
     const addDate = () => {
-        if (dates.length >= MAX_DATES) return;
-        // Find the first unused date type or default to 'other'
-        const usedTypes = new Set(dates.map((d) => normalizeDateTypeSlug(d.dateType)));
-        const availableType =
-            dateTypeOptions.find((dt) => !usedTypes.has(normalizeDateTypeSlug(dt.value)))?.value ?? dateTypeOptions[0]?.value ?? 'other';
+        const availableType = dateTypeOptions[0]?.value ?? 'other';
         setDates((prev) => [
             ...prev,
             {
@@ -1890,6 +1883,7 @@ export default function DataCiteForm({
                 endTime: null,
                 startTimezone: null,
                 endTimezone: null,
+                dateInformation: null,
             },
         ]);
     };
@@ -2171,6 +2165,7 @@ export default function DataCiteForm({
                 dateMode: date.dateMode,
                 startDate: buildDateTime(date.startDate ?? '', date.startTime, date.startTimezone) || null,
                 endDate: date.dateMode === 'range' ? buildDateTime(date.endDate ?? '', date.endTime, date.endTimezone) || null : null,
+                ...(date.dateInformation ? { dateInformation: date.dateInformation } : {}),
             })),
             freeKeywords: freeKeywords.map((kw) => kw.value.trim()).filter((kw) => kw.length > 0),
             gcmdKeywords: gcmdKeywords.map((kw) => ({
@@ -3134,7 +3129,7 @@ export default function DataCiteForm({
                                 onAdd={addTitle}
                                 onRemove={() => removeTitle(index)}
                                 isFirst={index === 0}
-                                canAdd={canAddTitle(titles, MAX_TITLES)}
+                                canAdd={canAddTitle(titles)}
                                 validationMessages={getFieldState(`title-${index}`).messages}
                                 touched={getFieldState(`title-${index}`).touched}
                                 onValidationBlur={() =>
@@ -3158,7 +3153,7 @@ export default function DataCiteForm({
                             label="Licenses and Rights"
                             description="Specify usage rights and restrictions for your dataset."
                             required
-                            counter={{ current: licenseEntries.length, max: MAX_LICENSES }}
+                            counter={licenseEntries.length}
                             status={renderStatusBadge(licensesStatus)}
                         />
                     </AccordionTrigger>
@@ -3183,7 +3178,7 @@ export default function DataCiteForm({
                                         onAdd={addLicense}
                                         onRemove={() => removeLicense(index)}
                                         isFirst={index === 0}
-                                        canAdd={canAddLicenseEntry(licenseEntries, MAX_LICENSES)}
+                                        canAdd={canAddLicenseEntry(licenseEntries)}
                                         required={index === 0}
                                         customNameRequired={index === 0}
                                         customUriRequired={index === 0 && !isRawRightsOnlyLicenseEntry(entry)}
@@ -3212,7 +3207,7 @@ export default function DataCiteForm({
                             label="Authors"
                             description="People or institutions who created this work."
                             required
-                            counter={{ current: authors.length, max: 100 }}
+                            counter={authors.length}
                             status={renderStatusBadge(authorsStatus)}
                         />
                     </AccordionTrigger>
@@ -3238,7 +3233,7 @@ export default function DataCiteForm({
                         <AccordionSectionHeader
                             label="Contributors"
                             description="Additional people who contributed to this work."
-                            counter={{ current: contributors.length, max: 100 }}
+                            counter={contributors.length}
                             status={renderStatusBadge(contributorsStatus)}
                         />
                     </AccordionTrigger>
@@ -3264,6 +3259,7 @@ export default function DataCiteForm({
                             label="Descriptions"
                             description="Detailed information about your dataset."
                             required
+                            counter={descriptions.length}
                             status={renderStatusBadge(descriptionsStatus)}
                         />
                     </AccordionTrigger>
@@ -3272,6 +3268,7 @@ export default function DataCiteForm({
                             descriptions={descriptions}
                             onChange={handleDescriptionChange}
                             availableTypes={descriptionTypes}
+                            languages={languages}
                             abstractValidationMessages={getFieldMessages('abstract')}
                             abstractTouched={getFieldState('abstract').touched}
                             onAbstractValidationBlur={() => markFieldTouched('abstract')}
@@ -3286,7 +3283,7 @@ export default function DataCiteForm({
                         <AccordionSectionHeader
                             label="Controlled Vocabularies"
                             description="Select keywords from standardized vocabularies."
-                            counter={{ current: gcmdKeywords.length, max: 100 }}
+                            counter={gcmdKeywords.length}
                             status={renderStatusBadge(controlledVocabulariesStatus)}
                         />
                     </AccordionTrigger>
@@ -3324,7 +3321,7 @@ export default function DataCiteForm({
                         <AccordionSectionHeader
                             label="Free Keywords"
                             description="Custom keywords for your dataset."
-                            counter={{ current: freeKeywords.length, max: 100 }}
+                            counter={freeKeywords.length}
                             status={renderStatusBadge(freeKeywordsStatus)}
                         />
                     </AccordionTrigger>
@@ -3344,6 +3341,7 @@ export default function DataCiteForm({
                             <AccordionSectionHeader
                                 label="Originating Multi-Scale Laboratories"
                                 description="Select associated EPOS/MSL laboratories."
+                                counter={mslLaboratories.length}
                                 badge={<span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">EPOS/MSL</span>}
                                 status={renderStatusBadge(mslLaboratoriesStatus)}
                             />
@@ -3369,7 +3367,7 @@ export default function DataCiteForm({
                         <AccordionSectionHeader
                             label="Spatial and Temporal Coverage"
                             description="Geographic and time boundaries of your dataset."
-                            counter={{ current: spatialTemporalCoverages.length, max: 50 }}
+                            counter={spatialTemporalCoverages.length}
                             status={renderStatusBadge(spatialTemporalCoverageStatus)}
                         />
                     </AccordionTrigger>
@@ -3389,7 +3387,7 @@ export default function DataCiteForm({
                         <AccordionSectionHeader
                             label="Dates"
                             description="Important dates for your dataset."
-                            counter={{ current: dates.length, max: MAX_DATES }}
+                            counter={dates.length}
                             status={renderStatusBadge(datesStatus)}
                         />
                     </AccordionTrigger>
@@ -3425,11 +3423,7 @@ export default function DataCiteForm({
                                             startTimezone={entry.startTimezone}
                                             endTimezone={entry.endTimezone}
                                             dateTypeDescription={selectedDateType?.description}
-                                            options={dateTypeOptions.filter(
-                                                (dt) =>
-                                                    normalizeDateTypeSlug(dt.value) === normalizeDateTypeSlug(entry.dateType) ||
-                                                    !dates.some((d) => normalizeDateTypeSlug(d.dateType) === normalizeDateTypeSlug(dt.value)),
-                                            )}
+                                            options={dateTypeOptions}
                                             onStartDateChange={(val) => handleDateChange(index, 'startDate', val)}
                                             onEndDateChange={(val) => handleDateChange(index, 'endDate', val)}
                                             onStartTimeChange={(val) => handleDateChange(index, 'startTime', val)}
@@ -3441,7 +3435,7 @@ export default function DataCiteForm({
                                             onAdd={addDate}
                                             onRemove={() => removeDate(index)}
                                             isFirst={index === 0}
-                                            canAdd={canAddDate(dates, MAX_DATES)}
+                                            canAdd={canAddDate(dates)}
                                         />
                                     );
                                 })
@@ -3461,7 +3455,7 @@ export default function DataCiteForm({
                         <AccordionSectionHeader
                             label="Related Work"
                             description="Links to related publications and datasets."
-                            counter={{ current: relatedWorks.length, max: 100 }}
+                            counter={relatedWorks.length}
                             status={renderStatusBadge(relatedWorkStatus)}
                         />
                     </AccordionTrigger>
@@ -3499,7 +3493,7 @@ export default function DataCiteForm({
                             <AccordionSectionHeader
                                 label="Used Instruments"
                                 description="Research instruments used for data collection."
-                                counter={{ current: instruments.length, max: 100 }}
+                                counter={instruments.length}
                                 status={renderStatusBadge(instrumentsStatus)}
                             />
                         </AccordionTrigger>
@@ -3519,7 +3513,7 @@ export default function DataCiteForm({
                         <AccordionSectionHeader
                             label="Funding References"
                             description="Grant and funder information."
-                            counter={{ current: fundingReferences.length, max: 50 }}
+                            counter={fundingReferences.length}
                             status={renderStatusBadge(fundingReferencesStatus)}
                         />
                     </AccordionTrigger>

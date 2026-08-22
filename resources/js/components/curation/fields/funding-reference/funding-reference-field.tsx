@@ -10,7 +10,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { getFunderByRorId, loadRorFunders } from './ror-search';
 import { SortableFundingReferenceItem } from './sortable-funding-reference-item';
 import type { FundingReferenceEntry, RorFunder } from './types';
-import { MAX_FUNDING_REFERENCES } from './types';
 
 interface FundingReferenceFieldProps {
     value: FundingReferenceEntry[];
@@ -69,8 +68,6 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
     }, [isLoadingRor, rorFunders, value, onChange]);
 
     const handleAdd = () => {
-        if (value.length >= MAX_FUNDING_REFERENCES) return;
-
         const newFunding: FundingReferenceEntry = {
             id: `funding-${Date.now()}`,
             funderName: '',
@@ -121,19 +118,11 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
         }
     };
 
-    const canAdd = value.length < MAX_FUNDING_REFERENCES;
     const canRemove = value.length > 0;
 
     return (
         <div className="space-y-6">
-            {/* Info Header */}
-            <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                    {value.length} / {MAX_FUNDING_REFERENCES} funding reference
-                    {value.length !== 1 ? 's' : ''}
-                </p>
-                {isLoadingRor && <p className="text-xs text-muted-foreground">Loading ROR data...</p>}
-            </div>
+            {isLoadingRor && <p className="text-right text-xs text-muted-foreground">Loading ROR data...</p>}
 
             {/* List of Funding References */}
             {value.length === 0 ? (
@@ -173,10 +162,9 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
             )}
 
             {/* Add Button */}
-            <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={!canAdd} className="w-full">
+            <Button type="button" variant="outline" size="sm" onClick={handleAdd} className="w-full">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Funding Reference
-                {!canAdd && ' (Maximum reached)'}
             </Button>
         </div>
     );

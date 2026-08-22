@@ -9,7 +9,6 @@ import type { AffiliationSuggestion } from '@/types/affiliations';
 
 import AuthorList from './author-list';
 import type { AuthorEntry, AuthorType, InstitutionAuthorEntry, PersonAuthorEntry } from './types';
-import { MAX_AUTHORS } from './types';
 
 interface AuthorFieldProps {
     authors: AuthorEntry[];
@@ -57,8 +56,6 @@ const createEmptyAuthor = (type: AuthorType = 'person'): AuthorEntry => {
  */
 export default function AuthorField({ authors, onChange, affiliationSuggestions }: AuthorFieldProps) {
     const handleAdd = (type: AuthorType = 'person') => {
-        if (authors.length >= MAX_AUTHORS) return;
-
         const newAuthor = createEmptyAuthor(type);
         onChange([...authors, newAuthor]);
     };
@@ -78,20 +75,7 @@ export default function AuthorField({ authors, onChange, affiliationSuggestions 
     };
 
     const handleBulkAdd = (newAuthors: AuthorEntry[]) => {
-        // Check if adding would exceed max limit
-        const totalAfterAdd = authors.length + newAuthors.length;
-
-        if (totalAfterAdd > MAX_AUTHORS) {
-            const remaining = MAX_AUTHORS - authors.length;
-            if (remaining > 0) {
-                alert(`Only ${remaining} of ${newAuthors.length} authors can be added (Maximum: ${MAX_AUTHORS})`);
-                onChange([...authors, ...newAuthors.slice(0, remaining)]);
-            } else {
-                alert(`Maximum of ${MAX_AUTHORS} authors already reached.`);
-            }
-        } else {
-            onChange([...authors, ...newAuthors]);
-        }
+        onChange([...authors, ...newAuthors]);
     };
 
     return (
@@ -106,11 +90,6 @@ export default function AuthorField({ authors, onChange, affiliationSuggestions 
                 onBulkAdd={handleBulkAdd}
                 affiliationSuggestions={affiliationSuggestions}
             />
-
-            {/* Max limit info */}
-            {authors.length > 0 && authors.length >= MAX_AUTHORS && (
-                <p className="text-center text-sm text-muted-foreground">Maximum number of authors ({MAX_AUTHORS}) reached.</p>
-            )}
         </div>
     );
 }

@@ -51,8 +51,6 @@ class UpdateSettingsRequest extends FormRequest
             'descriptionTypes.*.id' => ['required', 'integer', 'exists:description_types,id'],
             'descriptionTypes.*.active' => ['required', 'boolean'],
             'descriptionTypes.*.elmo_active' => ['required', 'boolean'],
-            'maxTitles' => ['required', 'integer', 'min:1'],
-            'maxLicenses' => ['required', 'integer', 'min:1'],
             // Thesaurus settings (optional - only sent when thesauri card is present)
             'thesauri' => ['sometimes', 'array'],
             'thesauri.*.type' => ['required', 'string', Rule::in(ThesaurusSetting::getValidTypes())],
@@ -133,7 +131,7 @@ class UpdateSettingsRequest extends FormRequest
         /** @var array<string, int> $existingKeyToId */
         $existingKeyToId = [];
         foreach ($existingPatterns as $ep) {
-            $key = $ep->identifier_type_id . '|' . $ep->type . '|' . $ep->pattern;
+            $key = $ep->identifier_type_id.'|'.$ep->type.'|'.$ep->pattern;
             $existingKeyToId[$key] = (int) $ep->id;
         }
 
@@ -151,17 +149,18 @@ class UpdateSettingsRequest extends FormRequest
                         "identifierTypes.{$itIndex}.patterns.{$pIndex}.id",
                         'This pattern does not belong to the given identifier type.'
                     );
+
                     continue;
                 }
 
-                $key = $row->type . '|' . $pattern['pattern'];
+                $key = $row->type.'|'.$pattern['pattern'];
                 if (isset($seen[$key])) {
                     $validator->errors()->add(
                         "identifierTypes.{$itIndex}.patterns.{$pIndex}.pattern",
                         'This pattern already exists for this identifier type and type.'
                     );
                 } else {
-                    $dbKey = $identifierType['id'] . '|' . $row->type . '|' . $pattern['pattern'];
+                    $dbKey = $identifierType['id'].'|'.$row->type.'|'.$pattern['pattern'];
                     $existingId = $existingKeyToId[$dbKey] ?? null;
 
                     if ($existingId !== null && $existingId !== (int) $pattern['id']) {

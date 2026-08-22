@@ -100,11 +100,11 @@ describe('FundingReferenceField', () => {
             });
         });
 
-        it('shows the counter as 0 / 99', async () => {
+        it('does not show an artificial maximum', async () => {
             render(<FundingReferenceField value={[]} onChange={onChange} />);
 
             await waitFor(() => {
-                expect(screen.getByText(/0 \/ 99/i)).toBeInTheDocument();
+                expect(screen.queryByText(/\/ 99/i)).not.toBeInTheDocument();
             });
         });
     });
@@ -151,20 +151,20 @@ describe('FundingReferenceField', () => {
             ]);
         });
 
-        it('disables add button when maximum is reached', async () => {
-            const maxFundings = Array.from({ length: 99 }, (_, i) =>
+        it('allows adding beyond the former maximum', async () => {
+            const legacySizedFundings = Array.from({ length: 100 }, (_, i) =>
                 createFunding({ id: `f-${i}`, funderName: `Funder ${i}` }),
             );
 
-            render(<FundingReferenceField value={maxFundings} onChange={onChange} />);
+            render(<FundingReferenceField value={legacySizedFundings} onChange={onChange} />);
 
             await waitFor(() => {
                 expect(screen.queryByText(/loading ror data/i)).not.toBeInTheDocument();
             });
 
             const addButton = screen.getByRole('button', { name: /add funding reference/i });
-            expect(addButton).toBeDisabled();
-            expect(addButton).toHaveTextContent(/maximum reached/i);
+            expect(addButton).toBeEnabled();
+            expect(addButton).not.toHaveTextContent(/maximum reached/i);
         });
 
         it('removes a funding reference', async () => {
@@ -221,31 +221,6 @@ describe('FundingReferenceField', () => {
             expect(onChange).toHaveBeenCalledWith([
                 expect.objectContaining({ id: 'f1', awardNumber: 'AWARD-123' }),
             ]);
-        });
-    });
-
-    describe('counter display', () => {
-        it('shows singular text for 1 reference', async () => {
-            const fundings = [createFunding({ id: 'f1' })];
-
-            render(<FundingReferenceField value={fundings} onChange={onChange} />);
-
-            await waitFor(() => {
-                expect(screen.getByText('1 / 99 funding reference')).toBeInTheDocument();
-            });
-        });
-
-        it('shows plural text for multiple references', async () => {
-            const fundings = [
-                createFunding({ id: 'f1' }),
-                createFunding({ id: 'f2' }),
-            ];
-
-            render(<FundingReferenceField value={fundings} onChange={onChange} />);
-
-            await waitFor(() => {
-                expect(screen.getByText('2 / 99 funding references')).toBeInTheDocument();
-            });
         });
     });
 

@@ -12,10 +12,12 @@ vi.mock('@/components/curation/fields/author/author-list', () => ({
         authors,
         onAuthorChange,
         onReorder,
+        onBulkAdd,
     }: {
         authors: AuthorEntry[];
         onAuthorChange: (index: number, author: AuthorEntry) => void;
         onReorder: (authors: AuthorEntry[]) => void;
+        onBulkAdd: (authors: AuthorEntry[]) => void;
     }) => (
         <div data-testid="author-list">
             <button
@@ -40,6 +42,19 @@ vi.mock('@/components/curation/fields/author/author-list', () => ({
                 }
             >
                 Change first author
+            </button>
+            <button
+                data-testid="bulk-add-authors"
+                onClick={() =>
+                    onBulkAdd(
+                        Array.from({ length: 150 }, (_, index) => ({
+                            ...authors[0],
+                            id: `imported-author-${index}`,
+                        })),
+                    )
+                }
+            >
+                Bulk add authors
             </button>
         </div>
     ),
@@ -112,5 +127,17 @@ describe('AuthorField', () => {
             expect.objectContaining({ id: 'author-2', institutionName: 'Institute B' }),
             expect.objectContaining({ id: 'author-3', firstName: 'Grace', lastName: 'Hopper' }),
         ]);
+    });
+
+    it('does not truncate a bulk import beyond the former author limit', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn<(authors: AuthorEntry[]) => void>();
+
+        render(<AuthorField authors={authors} onChange={onChange} affiliationSuggestions={[]} />);
+        await user.click(screen.getByTestId('bulk-add-authors'));
+
+        expect(onChange).toHaveBeenCalledOnce();
+        expect(onChange.mock.calls[0][0]).toHaveLength(153);
+        expect(onChange.mock.calls[0][0][152]).toMatchObject({ id: 'imported-author-149' });
     });
 });

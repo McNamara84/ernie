@@ -1,9 +1,10 @@
 import userEvent from '@testing-library/user-event';
 import { render, screen } from '@tests/vitest/utils/render';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import DescriptionField, { DescriptionEntry } from '@/components/curation/fields/description-field';
-import type { DescriptionType } from '@/types';
+import DescriptionField, { type DescriptionEntry } from '@/components/curation/fields/description-field';
+import type { DescriptionType, Language } from '@/types';
 
 const allDescriptionTypes: DescriptionType[] = [
     { id: 1, name: 'Abstract', slug: 'Abstract' },
@@ -14,213 +15,162 @@ const allDescriptionTypes: DescriptionType[] = [
     { id: 6, name: 'Other', slug: 'Other' },
 ];
 
+const languages: Language[] = [
+    { id: 1, code: 'en', name: 'English' },
+    { id: 2, code: 'de', name: 'German' },
+];
+
+const abstract = (id: string, value = ''): DescriptionEntry => ({ id, type: 'Abstract', value, language: null });
+
+function DescriptionHarness({ initialDescriptions }: { initialDescriptions: DescriptionEntry[] }) {
+    const [descriptions, setDescriptions] = useState(initialDescriptions);
+
+    return (
+        <DescriptionField
+            descriptions={descriptions}
+            onChange={setDescriptions}
+            availableTypes={allDescriptionTypes}
+            languages={languages}
+        />
+    );
+}
+
 describe('DescriptionField', () => {
-    const mockOnChange = vi.fn();
-    const mockOnAbstractValidationBlur = vi.fn();
-
-    const defaultDescriptions: DescriptionEntry[] = [];
-
-    const defaultProps = {
-        descriptions: defaultDescriptions,
-        onChange: mockOnChange,
-        availableTypes: allDescriptionTypes,
-    };
+    const onChange = vi.fn();
 
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it('renders all description type tabs', () => {
-        render(<DescriptionField {...defaultProps} />);
+    it('renders the formatting notice and the current entries', () => {
+        render(<DescriptionHarness initialDescriptions={[abstract('abstract-1')]} />);
 
-        expect(screen.getByRole('tab', { name: /Abstract/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /Methods/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /Series Information/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /Table of Contents/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /Technical Info/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /Other/i })).toBeInTheDocument();
-    });
-
-    it('shows Abstract tab as active by default', () => {
-        render(<DescriptionField {...defaultProps} />);
-
-        const abstractTab = screen.getByRole('tab', { name: /Abstract/i });
-        expect(abstractTab).toHaveAttribute('aria-selected', 'true');
-    });
-
-    it('renders the formatting notice as an alert', () => {
-        render(<DescriptionField {...defaultProps} />);
-
-        const notice = screen.getByRole('alert');
-
-        expect(notice).toHaveTextContent(/Landing pages support a limited HTML subset in descriptions/i);
-        expect(notice).toHaveTextContent(/DataCite JSON and XML retain line breaks as <br>/i);
-        expect(notice).toHaveTextContent(/all other formatting remains landing-page only/i);
-    });
-
-    it('renders Abstract textarea with placeholder', () => {
-        render(<DescriptionField {...defaultProps} />);
-
-        const textarea = screen.getByPlaceholderText(/Enter a brief summary of the resource/i);
-        expect(textarea).toBeInTheDocument();
-    });
-
-    it('marks Abstract as required', () => {
-        render(<DescriptionField {...defaultProps} />);
-
+        expect(screen.getByRole('alert')).toHaveTextContent(/Landing pages support a limited HTML subset/i);
+        expect(screen.getByPlaceholderText(/Enter a brief summary/i)).toBeInTheDocument();
         expect(screen.getByText('(Required)')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Add Description' })).toBeEnabled();
     });
 
-    it('calls onChange when typing in Abstract', async () => {
+    it('preserves and renders repeated description types independently', () => {
+        render(
+            <DescriptionHarness
+                initialDescriptions={[
+                    abstract('abstract-1', 'First abstract with enough content to pass the length rule.'),
+                    abstract('abstract-2', 'Second abstract with different content and enough characters.'),
+                    { id: 'methods-1', type: 'Methods', value: 'First method', language: 'en' },
+                    { id: 'methods-2', type: 'Methods', value: 'Second method', language: 'de' },
+                ]}
+            />,
+        );
+
+        expect(screen.getAllByPlaceholderText(/Enter a brief summary/i)).toHaveLength(2);
+        expect(screen.getAllByPlaceholderText(/Describe the methods used/i)).toHaveLength(2);
+        expect(screen.getByDisplayValue('First method')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Second method')).toBeInTheDocument();
+    });
+
+    it('updates only the entry identified by its stable id', async () => {
         const user = userEvent.setup();
-        render(<DescriptionField {...defaultProps} />);
+        render(
+            <DescriptionHarness
+                initialDescriptions={[
+                    { id: 'methods-1', type: 'Methods', value: 'First', language: null },
+                    { id: 'methods-2', type: 'Methods', value: 'Second', language: null },
+                ]}
+            />,
+        );
 
-        const textarea = screen.getByPlaceholderText(/Enter a brief summary of the resource/i);
-        await user.type(textarea, 'Test abstract content');
+        const [firstTextarea] = screen.getAllByPlaceholderText(/Describe the methods used/i);
+        await user.clear(firstTextarea);
+        await user.type(firstTextarea, 'Changed');
 
-        expect(mockOnChange).toHaveBeenCalled();
+        expect(screen.getByDisplayValue('Changed')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Second')).toBeInTheDocument();
     });
 
-    it('switches tabs when clicking on Methods', async () => {
+    it('adds another description without an item cap', async () => {
         const user = userEvent.setup();
-        render(<DescriptionField {...defaultProps} />);
+        const existing = Array.from({ length: 101 }, (_, index) => ({
+            id: `other-${index}`,
+            type: 'Other' as const,
+            value: `Description ${index}`,
+            language: null,
+        }));
+        render(<DescriptionHarness initialDescriptions={existing} />);
 
-        await user.click(screen.getByRole('tab', { name: /Methods/i }));
+        await user.click(screen.getByRole('button', { name: 'Add Description' }));
 
-        const methodsTab = screen.getByRole('tab', { name: /Methods/i });
-        expect(methodsTab).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getAllByTestId('description-entry')).toHaveLength(102);
     });
 
-    it('displays prefilled Abstract value', () => {
-        const descriptions: DescriptionEntry[] = [{ type: 'Abstract', value: 'Prefilled abstract text' }];
-        render(<DescriptionField {...defaultProps} descriptions={descriptions} />);
-
-        const textarea = screen.getByTestId('abstract-textarea');
-        expect(textarea).toHaveValue('Prefilled abstract text');
-    });
-
-    it('displays character count for Abstract', () => {
-        const descriptions: DescriptionEntry[] = [{ type: 'Abstract', value: 'Test' }];
-        render(<DescriptionField {...defaultProps} descriptions={descriptions} />);
-
-        expect(screen.getByText(/4 characters/)).toBeInTheDocument();
-    });
-
-    it('shows "more needed" message when Abstract is too short', () => {
-        const descriptions: DescriptionEntry[] = [{ type: 'Abstract', value: 'Short' }];
-        render(<DescriptionField {...defaultProps} descriptions={descriptions} />);
-
-        expect(screen.getByText(/more needed/)).toBeInTheDocument();
-    });
-
-    it('shows green indicator when tab has content', () => {
-        const descriptions: DescriptionEntry[] = [{ type: 'Methods', value: 'Method description content' }];
-        render(<DescriptionField {...defaultProps} descriptions={descriptions} />);
-
-        const methodsTab = screen.getByRole('tab', { name: /Methods/i });
-        const indicator = methodsTab.querySelector('[aria-label="Has content"]');
-        expect(indicator).toBeInTheDocument();
-    });
-
-    it('does not show indicator when tab has no content', () => {
-        render(<DescriptionField {...defaultProps} />);
-
-        const methodsTab = screen.getByRole('tab', { name: /Methods/i });
-        const indicator = methodsTab.querySelector('[aria-label="Has content"]');
-        expect(indicator).not.toBeInTheDocument();
-    });
-
-    it('displays help text for Abstract', () => {
-        render(<DescriptionField {...defaultProps} />);
-
-        expect(screen.getByText(/A brief description of the resource/)).toBeInTheDocument();
-    });
-
-    it('calls onAbstractValidationBlur when Abstract loses focus', async () => {
+    it('removes the selected description and leaves the others untouched', async () => {
         const user = userEvent.setup();
-        render(<DescriptionField {...defaultProps} onAbstractValidationBlur={mockOnAbstractValidationBlur} />);
+        render(
+            <DescriptionHarness
+                initialDescriptions={[
+                    abstract('abstract-1', 'Abstract value'),
+                    { id: 'methods-1', type: 'Methods', value: 'Methods value', language: null },
+                ]}
+            />,
+        );
 
-        const textarea = screen.getByTestId('abstract-textarea');
-        await user.click(textarea);
-        await user.tab(); // Move focus away
+        await user.click(screen.getByRole('button', { name: 'Remove description 1' }));
 
-        expect(mockOnAbstractValidationBlur).toHaveBeenCalled();
+        expect(screen.queryByDisplayValue('Abstract value')).not.toBeInTheDocument();
+        expect(screen.getByDisplayValue('Methods value')).toBeInTheDocument();
     });
 
-    it('shows validation messages when Abstract is touched and has errors', () => {
-        const validationMessages = [{ severity: 'error' as const, message: 'Abstract is required' }];
+    it('reports validation feedback for a missing Abstract', () => {
         render(
             <DescriptionField
-                {...defaultProps}
-                abstractValidationMessages={validationMessages}
-                abstractTouched={true}
+                descriptions={[]}
+                onChange={onChange}
+                availableTypes={allDescriptionTypes}
+                languages={languages}
+                abstractTouched
+                abstractValidationMessages={[{ severity: 'error', message: 'Abstract is required' }]}
             />,
         );
 
         expect(screen.getByText('Abstract is required')).toBeInTheDocument();
     });
 
-    it('does not show validation messages when Abstract is not touched', () => {
-        const validationMessages = [{ severity: 'error' as const, message: 'Abstract is required' }];
+    it('validates an additional Abstract independently after the field was touched', () => {
         render(
             <DescriptionField
-                {...defaultProps}
-                abstractValidationMessages={validationMessages}
-                abstractTouched={false}
+                descriptions={[
+                    abstract('abstract-1', 'A valid abstract containing more than fifty characters for this regression test.'),
+                    abstract('abstract-2', 'Too short'),
+                ]}
+                onChange={onChange}
+                availableTypes={allDescriptionTypes}
+                languages={languages}
+                abstractTouched
             />,
         );
 
-        expect(screen.queryByText('Abstract is required')).not.toBeInTheDocument();
+        expect(screen.getByText('Abstract must be between 50 and 17,500 characters.')).toBeInTheDocument();
+        expect(screen.getAllByPlaceholderText(/Enter a brief summary/i)[1]).toHaveAttribute('aria-invalid', 'true');
     });
 
-    it('renders Methods tab content when selected', async () => {
+    it('calls Abstract blur validation and displays localized character counts', async () => {
         const user = userEvent.setup();
-        render(<DescriptionField {...defaultProps} />);
-
-        await user.click(screen.getByRole('tab', { name: /Methods/i }));
-
-        expect(screen.getByPlaceholderText(/Describe the methods used/i)).toBeInTheDocument();
-        expect(screen.getByText('(Optional)')).toBeInTheDocument();
-    });
-
-    it('updates existing description when typing', async () => {
-        const user = userEvent.setup();
-        const descriptions: DescriptionEntry[] = [{ type: 'Abstract', value: 'Initial' }];
-        render(<DescriptionField {...defaultProps} descriptions={descriptions} />);
-
-        const textarea = screen.getByTestId('abstract-textarea');
-        await user.type(textarea, ' more');
-
-        expect(mockOnChange).toHaveBeenCalled();
-        // The onChange should be called with updated description
-        const lastCall = mockOnChange.mock.calls[mockOnChange.mock.calls.length - 1][0];
-        expect(lastCall[0].type).toBe('Abstract');
-    });
-
-    it('sets aria-invalid on Abstract when validation fails', () => {
-        const validationMessages = [{ severity: 'error' as const, message: 'Required' }];
+        const onBlur = vi.fn();
         render(
             <DescriptionField
-                {...defaultProps}
-                abstractValidationMessages={validationMessages}
-                abstractTouched={true}
+                descriptions={[abstract('abstract-1', 'Test')]}
+                onChange={onChange}
+                availableTypes={allDescriptionTypes}
+                languages={languages}
+                onAbstractValidationBlur={onBlur}
             />,
         );
 
-        const textarea = screen.getByTestId('abstract-textarea');
-        expect(textarea).toHaveAttribute('aria-invalid', 'true');
-    });
+        await user.click(screen.getByTestId('abstract-textarea'));
+        await user.tab();
 
-    it('renders all help texts for different description types', async () => {
-        const user = userEvent.setup();
-        render(<DescriptionField {...defaultProps} />);
-
-        // Check Series Information help text
-        await user.click(screen.getByRole('tab', { name: /Series Information/i }));
-        expect(screen.getByText(/Information about a repeating series/)).toBeInTheDocument();
-
-        // Check Technical Info help text
-        await user.click(screen.getByRole('tab', { name: /Technical Info/i }));
-        expect(screen.getByText(/Detailed information that may be associated/)).toBeInTheDocument();
+        expect(onBlur).toHaveBeenCalledOnce();
+        expect(screen.getByText(/4 characters/)).toBeInTheDocument();
+        expect(screen.getByText(/46 more needed/)).toBeInTheDocument();
     });
 });

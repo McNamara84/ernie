@@ -11,7 +11,6 @@ interface SpatialTemporalCoverageFieldProps {
     coverages: SpatialTemporalCoverageEntry[];
     apiKey: string;
     onChange: (coverages: SpatialTemporalCoverageEntry[]) => void;
-    maxCoverages?: number;
 }
 
 /**
@@ -66,8 +65,7 @@ const createEmptyCoverage = (): SpatialTemporalCoverageEntry => {
 /**
  * Checks if a coverage entry can be considered complete enough to allow adding another
  */
-const canAddCoverage = (coverages: SpatialTemporalCoverageEntry[], maxCoverages: number): boolean => {
-    if (coverages.length >= maxCoverages) return false;
+export const canAddCoverage = (coverages: SpatialTemporalCoverageEntry[]): boolean => {
     if (coverages.length === 0) return true;
 
     const lastCoverage = coverages[coverages.length - 1];
@@ -89,7 +87,7 @@ const canAddCoverage = (coverages: SpatialTemporalCoverageEntry[], maxCoverages:
 /**
  * Main component for managing spatial and temporal coverage entries
  */
-export default function SpatialTemporalCoverageField({ coverages, apiKey, onChange, maxCoverages = 99 }: SpatialTemporalCoverageFieldProps) {
+export default function SpatialTemporalCoverageField({ coverages, apiKey, onChange }: SpatialTemporalCoverageFieldProps) {
     const [expandedCoverageIds, setExpandedCoverageIds] = useState<Set<string>>(() => new Set());
 
     // Normalize coverages on mount if they don't have type field
@@ -116,7 +114,7 @@ export default function SpatialTemporalCoverageField({ coverages, apiKey, onChan
     };
 
     const handleAddCoverage = () => {
-        if (canAddCoverage(coverages, maxCoverages)) {
+        if (canAddCoverage(coverages)) {
             const newCoverage = createEmptyCoverage();
 
             setExpandedCoverageIds((current) => {
@@ -175,7 +173,7 @@ export default function SpatialTemporalCoverageField({ coverages, apiKey, onChan
             )}
 
             {/* Add Button */}
-            {coverages.length > 0 && canAddCoverage(coverages, maxCoverages) && (
+            {coverages.length > 0 && canAddCoverage(coverages) && (
                 <div className="flex justify-center">
                     <Button type="button" variant="outline" onClick={handleAddCoverage}>
                         <Plus className="mr-2 h-4 w-4" />
@@ -184,13 +182,8 @@ export default function SpatialTemporalCoverageField({ coverages, apiKey, onChan
                 </div>
             )}
 
-            {/* Max limit reached message */}
-            {coverages.length >= maxCoverages && (
-                <p className="text-center text-sm text-muted-foreground">Maximum number of coverage entries ({maxCoverages}) reached.</p>
-            )}
-
             {/* Help text */}
-            {coverages.length > 0 && !canAddCoverage(coverages, maxCoverages) && coverages.length < maxCoverages && (
+            {coverages.length > 0 && !canAddCoverage(coverages) && (
                 <p className="text-center text-sm text-muted-foreground">
                     Complete the required fields in the last entry to add more coverage entries.
                 </p>

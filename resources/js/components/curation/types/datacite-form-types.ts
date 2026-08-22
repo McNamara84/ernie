@@ -91,6 +91,7 @@ export interface DateEntry {
     endTime: string | null;
     startTimezone: string | null;
     endTimezone: string | null;
+    dateInformation?: string | null;
 }
 
 // ============================================================================
@@ -215,8 +216,6 @@ export interface DataCiteFormProps {
     contributorPersonRoles?: Role[];
     contributorInstitutionRoles?: Role[];
     authorRoles?: Role[];
-    maxTitles?: number;
-    maxLicenses?: number;
     googleMapsApiKey: string;
     initialDoi?: string;
     initialYear?: string;
@@ -232,7 +231,7 @@ export interface DataCiteFormProps {
     initialAuthors?: InitialAuthor[];
     initialContributors?: InitialContributor[];
     initialDescriptions?: { type: string; description: string; language?: string | null }[];
-    initialDates?: { dateType: string; dateMode?: DateMode; startDate: string; endDate: string }[];
+    initialDates?: { dateType: string; dateMode?: DateMode; startDate: string; endDate: string; dateInformation?: string | null }[];
     initialGcmdKeywords?: {
         id: string;
         path: string;

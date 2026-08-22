@@ -10,7 +10,15 @@ import type { AffiliationTag } from '@/types/affiliations';
 
 import type { AuthorEntry, InstitutionAuthorEntry, PersonAuthorEntry } from '../fields/author';
 import type { ContributorEntry, ContributorRoleTag, InstitutionContributorEntry, PersonContributorEntry } from '../fields/contributor';
-import type { DateEntry, InitialAffiliationInput, InitialAuthor, InitialContributor, LicenseEntry, SerializedAffiliation, TitleEntry } from '../types/datacite-form-types';
+import type {
+    DateEntry,
+    InitialAffiliationInput,
+    InitialAuthor,
+    InitialContributor,
+    LicenseEntry,
+    SerializedAffiliation,
+    TitleEntry,
+} from '../types/datacite-form-types';
 
 // ============================================================================
 // String Normalization
@@ -348,14 +356,13 @@ export const mapInitialContributorToEntry = (contributor: InitialContributor): C
 // Form State Validators
 // ============================================================================
 
-
 type LicenseEntryLike = LicenseEntry | { license?: string | null };
 
 /**
  * Check if a new title can be added based on current state.
  */
-export function canAddTitle(titles: TitleEntry[], maxTitles: number): boolean {
-    return titles.length < maxTitles && titles.length > 0 && !!titles[titles.length - 1].title;
+export function canAddTitle(titles: TitleEntry[]): boolean {
+    return titles.length > 0 && !!titles[titles.length - 1].title;
 }
 
 export function hasCompleteLicenseEntry(entry: LicenseEntryLike | undefined): boolean {
@@ -394,15 +401,15 @@ export function isHttpUrl(value: string): boolean {
 /**
  * Check if a new license can be added based on current state.
  */
-export function canAddLicense(licenseEntries: LicenseEntryLike[], maxLicenses: number): boolean {
-    return licenseEntries.length < maxLicenses && licenseEntries.length > 0 && hasCompleteLicenseEntry(licenseEntries[licenseEntries.length - 1]);
+export function canAddLicense(licenseEntries: LicenseEntryLike[]): boolean {
+    return licenseEntries.length > 0 && hasCompleteLicenseEntry(licenseEntries[licenseEntries.length - 1]);
 }
 
 /**
  * Check if a new date can be added based on current state.
  */
-export function canAddDate(dates: DateEntry[], maxDates: number): boolean {
-    if (dates.length >= maxDates || dates.length === 0) {
+export function canAddDate(dates: DateEntry[]): boolean {
+    if (dates.length === 0) {
         return false;
     }
 

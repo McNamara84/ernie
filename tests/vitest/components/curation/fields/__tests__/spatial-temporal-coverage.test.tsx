@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-import SpatialTemporalCoverageField from '@/components/curation/fields/spatial-temporal-coverage';
+import SpatialTemporalCoverageField, { canAddCoverage } from '@/components/curation/fields/spatial-temporal-coverage';
 import type { SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 
 // Mock the CoverageEntry component to simplify testing
@@ -306,8 +306,8 @@ describe('SpatialTemporalCoverageField', () => {
         expect(mockOnChange).toHaveBeenCalledWith([]);
     });
 
-    test('enforces maxCoverages limit', () => {
-        const maxEntries = Array.from({ length: 99 }, (_, i) => ({
+    test('allows adding coverage beyond the former limit', () => {
+        const entriesBeyondFormerLimit = Array.from({ length: 100 }, (_, i) => ({
             id: `test-${i}`,
             type: 'point' as const,
             latMin: '0',
@@ -322,21 +322,7 @@ describe('SpatialTemporalCoverageField', () => {
             description: '',
         }));
 
-        render(
-            <SpatialTemporalCoverageField
-                {...defaultProps}
-                coverages={maxEntries}
-                maxCoverages={99}
-            />,
-        );
-
-        // When max is reached, there should be no add button
-        expect(
-            screen.queryByRole('button', { name: /add.*coverage entry/i }),
-        ).not.toBeInTheDocument();
-
-        // Instead, there should be a message about the limit
-        expect(screen.getByText(/maximum.*99/i)).toBeInTheDocument();
+        expect(canAddCoverage(entriesBeyondFormerLimit)).toBe(true);
     });
 
     test('updates entry field when onChange is called', () => {

@@ -93,9 +93,7 @@ test('docs page includes editor settings for dynamic content', function () {
         ->has('editorSettings.features.hasActiveResourceTypes')
         ->has('editorSettings.features.hasActiveTitleTypes')
         ->has('editorSettings.features.hasActiveLanguages')
-        ->has('editorSettings.limits')
-        ->has('editorSettings.limits.maxTitles')
-        ->has('editorSettings.limits.maxLicenses'));
+        ->missing('editorSettings.limits'));
 });
 
 test('docs page reflects active thesaurus settings', function () {

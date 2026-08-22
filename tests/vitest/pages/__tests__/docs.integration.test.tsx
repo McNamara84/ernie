@@ -54,10 +54,6 @@ const defaultEditorSettings: EditorSettings = {
         hasActiveTitleTypes: true,
         hasActiveLanguages: true,
     },
-    limits: {
-        maxTitles: 10,
-        maxLicenses: 5,
-    },
 };
 
 const defaultDataCite: DataCiteDocsSettings = {

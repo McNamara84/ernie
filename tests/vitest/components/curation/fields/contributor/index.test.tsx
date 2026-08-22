@@ -12,10 +12,12 @@ vi.mock('@/components/curation/fields/contributor/contributor-list', () => ({
         contributors,
         onContributorChange,
         onReorder,
+        onBulkAdd,
     }: {
         contributors: ContributorEntry[];
         onContributorChange: (index: number, contributor: ContributorEntry) => void;
         onReorder: (contributors: ContributorEntry[]) => void;
+        onBulkAdd: (contributors: ContributorEntry[]) => void;
     }) => (
         <div data-testid="contributor-list">
             <button
@@ -40,6 +42,19 @@ vi.mock('@/components/curation/fields/contributor/contributor-list', () => ({
                 }
             >
                 Change first contributor
+            </button>
+            <button
+                data-testid="bulk-add-contributors"
+                onClick={() =>
+                    onBulkAdd(
+                        Array.from({ length: 150 }, (_, index) => ({
+                            ...contributors[0],
+                            id: `imported-contributor-${index}`,
+                        })),
+                    )
+                }
+            >
+                Bulk add contributors
             </button>
         </div>
     ),
@@ -121,5 +136,17 @@ describe('ContributorField', () => {
             expect.objectContaining({ id: 'contributor-2', institutionName: 'Institute B' }),
             expect.objectContaining({ id: 'contributor-3', firstName: 'Grace', lastName: 'Hopper' }),
         ]);
+    });
+
+    it('does not truncate a bulk import beyond the former contributor limit', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn<(contributors: ContributorEntry[]) => void>();
+
+        render(<ContributorField contributors={contributors} onChange={onChange} affiliationSuggestions={[]} {...roleProps} />);
+        await user.click(screen.getByTestId('bulk-add-contributors'));
+
+        expect(onChange).toHaveBeenCalledOnce();
+        expect(onChange.mock.calls[0][0]).toHaveLength(153);
+        expect(onChange.mock.calls[0][0][152]).toMatchObject({ id: 'imported-contributor-149' });
     });
 });
