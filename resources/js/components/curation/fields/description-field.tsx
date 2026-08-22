@@ -104,6 +104,7 @@ export default function DescriptionField({
     };
 
     const firstAbstractIndex = descriptions.findIndex((description) => description.type === 'Abstract');
+    const hasPopulatedAbstract = descriptions.some((description) => description.type === 'Abstract' && description.value.trim() !== '');
 
     return (
         <div className="space-y-4">
@@ -123,10 +124,18 @@ export default function DescriptionField({
                     const isAbstract = description.type === 'Abstract';
                     const isFirstAbstract = index === firstAbstractIndex;
                     const charCount = description.value.length;
-                    const hasLocalAbstractError = isAbstract && charCount > 0 && (charCount < 50 || charCount > 17_500);
-                    const hasGlobalAbstractError =
-                        isFirstAbstract && abstractTouched && abstractValidationMessages.some((message) => message.severity === 'error');
-                    const hasValidationError = (abstractTouched && hasLocalAbstractError) || hasGlobalAbstractError;
+                    const trimmedCharCount = description.value.trim().length;
+                    const hasLocalAbstractError = isAbstract && trimmedCharCount > 0 && (trimmedCharCount < 50 || trimmedCharCount > 17_500);
+                    const entryValidationMessages = isAbstract
+                        ? abstractValidationMessages.filter(
+                              (message) =>
+                                  message.fieldId === description.id ||
+                                  (isFirstAbstract && message.fieldId === 'abstract') ||
+                                  (isFirstAbstract && !hasPopulatedAbstract && message.fieldId === undefined),
+                          )
+                        : [];
+                    const hasEntryValidationError = entryValidationMessages.some((message) => message.severity === 'error');
+                    const hasValidationError = abstractTouched && (hasLocalAbstractError || hasEntryValidationError);
                     const descriptionId = `description-${description.id}`;
 
                     return (
@@ -192,8 +201,10 @@ export default function DescriptionField({
                                     required={isAbstract}
                                     data-testid={isFirstAbstract ? 'abstract-textarea' : undefined}
                                 />
-                                {isFirstAbstract && abstractTouched && <FieldValidationFeedback messages={abstractValidationMessages} />}
-                                {isAbstract && !isFirstAbstract && abstractTouched && hasLocalAbstractError && (
+                                {isAbstract && abstractTouched && entryValidationMessages.length > 0 && (
+                                    <FieldValidationFeedback messages={entryValidationMessages} />
+                                )}
+                                {isAbstract && abstractTouched && entryValidationMessages.length === 0 && hasLocalAbstractError && (
                                     <p className="text-sm text-destructive" role="alert">
                                         Abstract must be between 50 and 17,500 characters.
                                     </p>

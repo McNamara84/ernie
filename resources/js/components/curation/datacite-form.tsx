@@ -744,11 +744,12 @@ export default function DataCiteForm({
         {
             debounce: 300,
             validate: (value) => {
-                const abstracts = value.filter((description) => description.type === 'Abstract' && description.value.trim() !== '');
+                const abstractEntries = value.filter((description) => description.type === 'Abstract');
+                const abstracts = abstractEntries.filter((description) => description.value.trim() !== '');
 
                 const requiredResult = validateRequired(abstracts[0]?.value ?? '', 'Abstract');
                 if (!requiredResult.isValid) {
-                    return { severity: 'error', message: requiredResult.error! };
+                    return { severity: 'error', message: requiredResult.error!, fieldId: abstractEntries[0]?.id };
                 }
 
                 for (const [index, abstract] of abstracts.entries()) {
@@ -759,7 +760,7 @@ export default function DataCiteForm({
                         fieldName: abstracts.length > 1 ? `Abstract ${index + 1}` : 'Abstract',
                     });
                     if (!lengthResult.isValid) {
-                        return { severity: 'error', message: lengthResult.error! };
+                        return { severity: 'error', message: lengthResult.error!, fieldId: abstract.id };
                     }
                 }
 
@@ -769,6 +770,7 @@ export default function DataCiteForm({
                     return {
                         severity: 'warning',
                         message: `Abstract is very long (${length}/${ABSTRACT_MAX_LENGTH} characters). Consider condensing if possible.`,
+                        fieldId: longAbstract.id,
                     };
                 }
 

@@ -4193,6 +4193,47 @@ describe('DataCiteForm', () => {
             expect(axios.post).not.toHaveBeenCalled();
         });
 
+        it('marks only the invalid Abstract when repeated Abstracts are validated', async () => {
+            const user = userEvent.setup();
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialDescriptions={[
+                        {
+                            type: 'Abstract',
+                            description: 'This first Abstract is valid and contains more than fifty characters.',
+                        },
+                        {
+                            type: 'Abstract',
+                            description: 'This second Abstract initially contains enough characters to be valid.',
+                        },
+                    ]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const [firstAbstract, secondAbstract] = screen.getAllByPlaceholderText(/Enter a brief summary/i);
+            await user.clear(secondAbstract);
+            await user.type(secondAbstract, 'Too short');
+            await user.tab();
+
+            await waitFor(() => {
+                expect(secondAbstract).toHaveAttribute('aria-invalid', 'true');
+                expect(
+                    screen.getByText('Abstract 2 must be at least 50 characters (current: 9)'),
+                ).toBeInTheDocument();
+            });
+            expect(firstAbstract).toHaveAttribute('aria-invalid', 'false');
+        });
+
         it('includes descriptions in the payload when submitting', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 

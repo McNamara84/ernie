@@ -135,7 +135,7 @@ describe('DescriptionField', () => {
         expect(screen.getByText('Abstract is required')).toBeInTheDocument();
     });
 
-    it('validates an additional Abstract independently after the field was touched', () => {
+    it('associates a shared validation message only with its Abstract entry', () => {
         render(
             <DescriptionField
                 descriptions={[
@@ -146,11 +146,21 @@ describe('DescriptionField', () => {
                 availableTypes={allDescriptionTypes}
                 languages={languages}
                 abstractTouched
+                abstractValidationMessages={[
+                    {
+                        severity: 'error',
+                        message: 'Abstract 2 must be at least 50 characters (current: 9)',
+                        fieldId: 'abstract-2',
+                    },
+                ]}
             />,
         );
 
-        expect(screen.getByText('Abstract must be between 50 and 17,500 characters.')).toBeInTheDocument();
-        expect(screen.getAllByPlaceholderText(/Enter a brief summary/i)[1]).toHaveAttribute('aria-invalid', 'true');
+        const [firstAbstract, secondAbstract] = screen.getAllByPlaceholderText(/Enter a brief summary/i);
+
+        expect(firstAbstract).toHaveAttribute('aria-invalid', 'false');
+        expect(secondAbstract).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getByText('Abstract 2 must be at least 50 characters (current: 9)')).toBeInTheDocument();
     });
 
     it('calls Abstract blur validation and displays localized character counts', async () => {
