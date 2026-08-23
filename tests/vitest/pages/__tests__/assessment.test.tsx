@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AssessmentPageProps } from '@/types/assessment';
 
-const { mockRouterReload } = vi.hoisted(() => ({
+const { mockRouterGet, mockRouterReload } = vi.hoisted(() => ({
+    mockRouterGet: vi.fn(),
     mockRouterReload: vi.fn(),
 }));
 
@@ -26,7 +27,7 @@ const { mockToast } = vi.hoisted(() => ({
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ title }: { title: string }) => <title>{title}</title>,
-    router: { reload: mockRouterReload },
+    router: { get: mockRouterGet, reload: mockRouterReload },
 }));
 
 vi.mock('axios', () => ({
@@ -68,6 +69,9 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
         fujiHealthy: true,
         fujiStatusMessage: null,
         fujiStatusCode: null,
+        canRunAssessments: true,
+        showImprovementActorLabels: true,
+        includeExternalResources: false,
         resourcesNeedingAttention: [
             {
                 id: 1,
@@ -111,6 +115,7 @@ describe('Assessment page', () => {
         vi.useFakeTimers();
         mockAxiosGet.mockReset();
         mockAxiosPost.mockReset();
+        mockRouterGet.mockReset();
         mockRouterReload.mockReset();
         mockToast.success.mockReset();
         mockToast.error.mockReset();
@@ -126,12 +131,24 @@ describe('Assessment page', () => {
         render(<AssessmentPage {...makeProps()} />);
 
         expect(screen.getByRole('heading', { name: 'Assessment' })).toBeInTheDocument();
-        expect(screen.getByText('10.5880/test.001')).toBeInTheDocument();
+        expect(screen.getAllByText('10.5880/test.001')).toHaveLength(2);
         expect(screen.getByText('Lowest resource score')).toBeInTheDocument();
         expect(screen.getByText('11.25%')).toBeInTheDocument();
-        expect(screen.getByText('10.5880/test.igsn.001')).toBeInTheDocument();
+        expect(screen.getAllByText('10.5880/test.igsn.001')).toHaveLength(2);
         expect(screen.getByText('Lowest IGSN score')).toBeInTheDocument();
         expect(screen.getByText('18.50%')).toBeInTheDocument();
+    });
+
+    it('always stacks the Resource card before the IGSN card', () => {
+        render(<AssessmentPage {...makeProps()} />);
+
+        const stack = screen.getByTestId('assessment-card-stack');
+        const resourceHeading = screen.getByRole('heading', { name: 'Resources needing your attention' });
+        const igsnHeading = screen.getByRole('heading', { name: 'IGSNs needing your attention' });
+
+        expect(stack).toHaveClass('grid', 'gap-6');
+        expect(stack.className).not.toMatch(/grid-cols-/);
+        expect(resourceHeading.compareDocumentPosition(igsnHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it.each([
@@ -206,7 +223,100 @@ describe('Assessment page', () => {
             />,
         );
 
-        expect(screen.getByText('N/A')).toBeInTheDocument();
+        expect(screen.getAllByText('N/A')).toHaveLength(2);
+    });
+
+    it('keeps external landing pages excluded by default and reloads only the resource ranking when enabled', () => {
+        render(<AssessmentPage {...makeProps()} />);
+
+        const filter = screen.getByRole('switch', { name: 'Include resources with external landing pages' });
+
+        expect(filter).not.toBeChecked();
+
+        fireEvent.click(filter);
+
+        expect(mockRouterGet).toHaveBeenCalledWith(
+            '/assessment',
+            { include_external_resources: true },
+            {
+                only: ['includeExternalResources', 'resourcesNeedingAttention'],
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    });
+
+    it('removes the external-resource query parameter when returning to the default filter', () => {
+        render(<AssessmentPage {...makeProps({ includeExternalResources: true })} />);
+
+        const filter = screen.getByRole('switch', { name: 'Include resources with external landing pages' });
+
+        expect(filter).toBeChecked();
+
+        fireEvent.click(filter);
+
+        expect(mockRouterGet).toHaveBeenCalledWith(
+            '/assessment',
+            {},
+            {
+                only: ['includeExternalResources', 'resourcesNeedingAttention'],
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    });
+
+    it('uses fixed table layouts and truncates long titles without discarding the full value', () => {
+        const longTitle = 'A very long resource title that must not push the FAIR opportunity and score columns outside their card';
+
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    resourcesNeedingAttention: [
+                        {
+                            id: 1,
+                            doi: '10.5880/test.long-title',
+                            mainTitle: longTitle,
+                            score: 9.5,
+                            assessedAt: '2026-05-04T09:00:00+00:00',
+                            improvementOpportunity: completeOpportunity,
+                        },
+                    ],
+                })}
+            />,
+        );
+
+        expect(screen.getAllByRole('table').every((table) => table.classList.contains('table-fixed'))).toBe(true);
+
+        const title = screen.getByText(longTitle);
+        expect(title).toHaveClass('truncate');
+        expect(title).toHaveAttribute('title', longTitle);
+    });
+
+    it('renders a read-only curator view with a role-appropriate empty state', () => {
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    canRunAssessments: false,
+                    resourcesNeedingAttention: [],
+                    resourceAssessmentSummary: {
+                        total: 5,
+                        assessed: 0,
+                        failed: 0,
+                        skipped: 0,
+                        unassessed: 5,
+                    },
+                })}
+            />,
+        );
+
+        expect(screen.queryByRole('button', { name: 'Check all' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Check Resources' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Check IGSNs' })).not.toBeInTheDocument();
+        expect(screen.getByText('No assessment results are available yet. Ask an Admin or Group Leader to run Check Resources.')).toBeInTheDocument();
+        expect(screen.getByRole('switch', { name: 'Include resources with external landing pages' })).toBeInTheDocument();
     });
 
     it('starts a resource assessment and reloads the page after the polling job completes', async () => {
@@ -344,7 +454,7 @@ describe('Assessment page', () => {
             await vi.runAllTimersAsync();
         });
 
-        expect(mockToast.error).toHaveBeenCalledWith('F-UJI is not configured.');
+        expect(mockToast.error).toHaveBeenCalledWith('FAIR assessment service is not configured.');
         expect(mockRouterReload).not.toHaveBeenCalled();
     });
 
@@ -413,7 +523,7 @@ describe('Assessment page', () => {
 
     it.each([
         [409, { error: 'Resource assessment is already running.' }, 'warning', 'Resource assessment is already running.'],
-        [503, { error: 'F-UJI is not configured.' }, 'error', 'F-UJI is not configured.'],
+        [503, { error: 'F-UJI is not configured.' }, 'error', 'FAIR assessment service is not configured.'],
     ])('handles resource check start error status %i', async (status, data, toastMethod, expectedMessage) => {
         mockAxiosPost.mockRejectedValueOnce(createAxiosError(status, data));
 
@@ -447,7 +557,7 @@ describe('Assessment page', () => {
             fireEvent.click(screen.getByRole('button', { name: 'Check Resources' }));
         });
 
-        expect(mockToast.error).toHaveBeenCalledWith('F-UJI is currently unavailable. Please try again shortly.');
+        expect(mockToast.error).toHaveBeenCalledWith('The FAIR assessment service is currently unavailable. Please try again shortly.');
     });
 
     it('starts all assessments, warns for partial errors, and polls the started scope', async () => {
@@ -483,7 +593,7 @@ describe('Assessment page', () => {
 
     it.each([
         [409, { error: 'All assessment jobs are already running.' }, 'warning', 'All assessment jobs are already running.'],
-        [503, { error: 'F-UJI is not configured.' }, 'error', 'F-UJI is not configured.'],
+        [503, { error: 'F-UJI is not configured.' }, 'error', 'FAIR assessment service is not configured.'],
     ])('handles check-all start error status %i', async (status, data, toastMethod, expectedMessage) => {
         mockAxiosPost.mockRejectedValueOnce(createAxiosError(status, data));
 
@@ -517,19 +627,20 @@ describe('Assessment page', () => {
             fireEvent.click(screen.getByRole('button', { name: 'Check all' }));
         });
 
-        expect(mockToast.error).toHaveBeenCalledWith('F-UJI is currently unavailable. Please try again shortly.');
+        expect(mockToast.error).toHaveBeenCalledWith('The FAIR assessment service is currently unavailable. Please try again shortly.');
     });
 
-    it('disables all check buttons when F-UJI is not configured', () => {
+    it('disables all check buttons without exposing the assessment provider when the service is not configured', () => {
         render(<AssessmentPage {...makeProps({ fujiConfigured: false, fujiHealthy: false, fujiStatusMessage: 'F-UJI is not configured.' })} />);
 
         expect(screen.getByRole('button', { name: 'Check all' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Check Resources' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Check IGSNs' })).toBeDisabled();
-        expect(screen.getByText('F-UJI is not configured for this environment.')).toBeInTheDocument();
+        expect(screen.getByText('The FAIR assessment service is not configured for this environment.')).toBeInTheDocument();
+        expect(document.body).not.toHaveTextContent('F-UJI');
     });
 
-    it('keeps all check buttons enabled and shows the health message when F-UJI is unhealthy', () => {
+    it('keeps all check buttons enabled and shows a provider-neutral health message when the service is unhealthy', () => {
         render(
             <AssessmentPage {...makeProps({ fujiHealthy: false, fujiStatusMessage: 'F-UJI is currently unavailable. Please try again shortly.' })} />,
         );
@@ -537,10 +648,11 @@ describe('Assessment page', () => {
         expect(screen.getByRole('button', { name: 'Check all' })).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Check Resources' })).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Check IGSNs' })).toBeEnabled();
-        expect(screen.getByText('F-UJI is currently unavailable. Please try again shortly.')).toBeInTheDocument();
+        expect(screen.getByText('FAIR assessment service is currently unavailable. Please try again shortly.')).toBeInTheDocument();
+        expect(document.body).not.toHaveTextContent('F-UJI');
     });
 
-    it('still allows starting a check when F-UJI is unhealthy and surfaces the server-side 503 response', async () => {
+    it('still allows starting a check when the service is unhealthy and sanitizes the server-side 503 response', async () => {
         mockAxiosPost.mockRejectedValueOnce(
             createAxiosError(503, {
                 error: 'F-UJI is currently unavailable. Please try again shortly.',
@@ -561,6 +673,6 @@ describe('Assessment page', () => {
         });
 
         expect(mockAxiosPost).toHaveBeenCalledWith('/assessment/check-resources');
-        expect(mockToast.error).toHaveBeenCalledWith('F-UJI is currently unavailable. Please try again shortly.');
+        expect(mockToast.error).toHaveBeenCalledWith('FAIR assessment service is currently unavailable. Please try again shortly.');
     });
 });

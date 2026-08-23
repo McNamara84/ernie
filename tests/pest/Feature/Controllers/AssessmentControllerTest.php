@@ -111,6 +111,9 @@ describe('index', function () {
                 ->where('fujiConfigured', true)
                 ->where('fujiHealthy', true)
                 ->where('fujiStatusMessage', null)
+                ->where('canRunAssessments', true)
+                ->where('showImprovementActorLabels', true)
+                ->where('includeExternalResources', false)
                 ->has('resourcesNeedingAttention')
                 ->has('igsnsNeedingAttention')
             );
@@ -149,8 +152,24 @@ describe('index', function () {
             ->assertRedirect('/login');
     });
 
-    it('forbids non-admin users', function () {
-        $user = User::factory()->create(['role' => 'curator']);
+    it('returns the assessment page to group leaders and curators with role-appropriate display permissions', function (string $role, bool $canRun): void {
+        $user = User::factory()->create(['role' => $role]);
+
+        $this->actingAs($user)
+            ->get('/assessment')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('auth.user.can_access_assessment', true)
+                ->where('canRunAssessments', $canRun)
+                ->where('showImprovementActorLabels', false)
+            );
+    })->with([
+        'group leader' => ['group_leader', true],
+        'curator' => ['curator', false],
+    ]);
+
+    it('forbids beginners from accessing assessment', function () {
+        $user = User::factory()->create(['role' => 'beginner']);
 
         $this->actingAs($user)
             ->get('/assessment')
@@ -266,6 +285,84 @@ describe('index', function () {
                 ->where('igsnsNeedingAttention.0.mainTitle', 'Lowest IGSN')
                 ->where('igsnsNeedingAttention.0.score', 8.25)
                 ->where('igsnsNeedingAttention.1.mainTitle', 'Higher IGSN')
+            );
+    });
+
+    it('filters external landing pages before limiting the resource ranking without changing IGSNs or summaries', function () {
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'Physical Object',
+            'slug' => 'physical-object',
+        ]);
+
+        foreach (range(1, 11) as $index) {
+            $resource = Resource::factory()->withDoi(sprintf('10.5880/test.external.%02d', $index))->create();
+            Title::factory()->for($resource)->create(['value' => sprintf('External %02d', $index)]);
+            LandingPage::factory()->for($resource)->withDoi((string) $resource->doi)->external()->published()->create();
+            ResourceAssessment::query()->create([
+                'resource_id' => $resource->id,
+                'status' => ResourceAssessment::STATUS_COMPLETED,
+                'total_score' => $index,
+                'assessed_identifier' => $resource->doi,
+                'assessed_at' => now(),
+            ]);
+        }
+
+        foreach (range(1, 10) as $index) {
+            $resource = Resource::factory()->withDoi(sprintf('10.5880/test.internal.%02d', $index))->create();
+            Title::factory()->for($resource)->create(['value' => sprintf('Internal %02d', $index)]);
+            LandingPage::factory()->for($resource)->withDoi((string) $resource->doi)->published()->create();
+            ResourceAssessment::query()->create([
+                'resource_id' => $resource->id,
+                'status' => ResourceAssessment::STATUS_COMPLETED,
+                'total_score' => 50 + $index,
+                'assessed_identifier' => $resource->doi,
+                'assessed_at' => now(),
+            ]);
+        }
+
+        $igsn = Resource::factory()->withDoi('10.60510/GFZ.FILTER.UNCHANGED')->create([
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+        Title::factory()->for($igsn)->create(['value' => 'External IGSN remains ranked']);
+        IgsnMetadata::create([
+            'resource_id' => $igsn->id,
+            'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+        ]);
+        LandingPage::factory()->for($igsn)->withDoi((string) $igsn->doi)->external()->published()->create();
+        ResourceAssessment::query()->create([
+            'resource_id' => $igsn->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 0.5,
+            'assessed_identifier' => $igsn->doi,
+            'assessed_at' => now(),
+        ]);
+
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->get('/assessment')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('includeExternalResources', false)
+                ->has('resourcesNeedingAttention', 10)
+                ->where('resourcesNeedingAttention.0.mainTitle', 'Internal 01')
+                ->where('resourcesNeedingAttention.9.mainTitle', 'Internal 10')
+                ->where('resourceAssessmentSummary.assessed', 21)
+                ->where('igsnsNeedingAttention.0.mainTitle', 'External IGSN remains ranked')
+                ->where('igsnAssessmentSummary.assessed', 1)
+            );
+
+        $this->actingAs($user)
+            ->get('/assessment?include_external_resources=1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('includeExternalResources', true)
+                ->has('resourcesNeedingAttention', 10)
+                ->where('resourcesNeedingAttention.0.mainTitle', 'External 01')
+                ->where('resourcesNeedingAttention.9.mainTitle', 'External 10')
+                ->where('resourceAssessmentSummary.assessed', 21)
+                ->where('igsnsNeedingAttention.0.mainTitle', 'External IGSN remains ranked')
+                ->where('igsnAssessmentSummary.assessed', 1)
             );
     });
 
@@ -549,6 +646,24 @@ describe('index', function () {
                     'Verify and correct the IGSN registration or resolver target so it resolves to the published ERNIE sample landing page.',
                 )
             );
+
+        foreach (['group_leader', 'curator'] as $role) {
+            $restrictedUser = User::factory()->create(['role' => $role]);
+
+            $this->actingAs($restrictedUser)
+                ->get('/assessment')
+                ->assertOk()
+                ->assertInertia(fn ($page) => $page
+                    ->where('resourcesNeedingAttention.0.improvementOpportunity.suggestions.0.actor', 'curator')
+                    ->has('resourcesNeedingAttention.1.improvementOpportunity.suggestions', 0)
+                    ->where(
+                        'resourcesNeedingAttention.1.improvementOpportunity.guidanceMessage',
+                        'ERNIE has no verified score-improving action to recommend for this FAIR category yet.',
+                    )
+                    ->where('igsnsNeedingAttention.0.improvementOpportunity.suggestions.0.actor', 'curator')
+                    ->has('igsnsNeedingAttention.1.improvementOpportunity.suggestions', 0)
+                );
+        }
     });
 
     it('keeps FAIR context relation queries bounded as both attention lists grow', function () {
@@ -724,6 +839,36 @@ describe('checkResources', function () {
         expect($response->json('jobId'))->toBeUuid();
         Queue::assertPushed(RunResourceAssessmentsJob::class, 1);
     });
+
+    it('allows group leaders to start every assessment scope', function (string $endpoint): void {
+        Queue::fake();
+        $user = User::factory()->create(['role' => 'group_leader']);
+
+        $this->actingAs($user)
+            ->post($endpoint)
+            ->assertOk();
+
+        Queue::assertPushed(RunResourceAssessmentsJob::class);
+    })->with([
+        'resources' => '/assessment/check-resources',
+        'IGSNs' => '/assessment/check-igsns',
+        'all scopes' => '/assessment/check-all',
+    ]);
+
+    it('forbids curators from starting every assessment scope', function (string $endpoint): void {
+        Queue::fake();
+        $user = User::factory()->create(['role' => 'curator']);
+
+        $this->actingAs($user)
+            ->post($endpoint)
+            ->assertForbidden();
+
+        Queue::assertNothingPushed();
+    })->with([
+        'resources' => '/assessment/check-resources',
+        'IGSNs' => '/assessment/check-igsns',
+        'all scopes' => '/assessment/check-all',
+    ]);
 
     it('returns 409 when the resource assessment lock is already held', function () {
         $user = User::factory()->create(['role' => 'admin']);

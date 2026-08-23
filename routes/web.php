@@ -246,14 +246,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('assessment', [AssessmentController::class, 'index'])
             ->name('assessment');
 
-        Route::post('assessment/check-all', [AssessmentController::class, 'checkAll'])
-            ->name('assessment.check-all');
+        Route::middleware(['can:run-assessment'])->group(function () {
+            Route::post('assessment/check-all', [AssessmentController::class, 'checkAll'])
+                ->name('assessment.check-all');
 
-        Route::post('assessment/check-resources', [AssessmentController::class, 'checkResources'])
-            ->name('assessment.check-resources');
+            Route::post('assessment/check-resources', [AssessmentController::class, 'checkResources'])
+                ->name('assessment.check-resources');
 
-        Route::post('assessment/check-igsns', [AssessmentController::class, 'checkIgsns'])
-            ->name('assessment.check-igsns');
+            Route::post('assessment/check-igsns', [AssessmentController::class, 'checkIgsns'])
+                ->name('assessment.check-igsns');
+        });
 
         Route::get('assessment/check/{scope}/{jobId}/status', [AssessmentController::class, 'status'])
             ->where('scope', 'resource|igsn')

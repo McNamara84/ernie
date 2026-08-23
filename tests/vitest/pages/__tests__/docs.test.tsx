@@ -211,7 +211,7 @@ describe('Docs page', () => {
         expect(screen.queryByText('Metadata Enrichment Assistance')).not.toBeInTheDocument();
     });
 
-    it('mentions the assessment FAIR sidebar summary for administrators', () => {
+    it('mentions the assessment FAIR sidebar summary for all assessment roles', () => {
         render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         expect(
@@ -222,7 +222,10 @@ describe('Docs page', () => {
 
                 const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes('Assessment entry also shows the current average FAIR score summary in the format Resources / IGSNs');
+                return (
+                    text.includes('For Admins, Group Leaders, and Curators') &&
+                    text.includes('Assessment entry also shows the current average FAIR score summary in the format Resources / IGSNs')
+                );
             }),
         ).toBeInTheDocument();
     });
@@ -239,9 +242,17 @@ describe('Docs page', () => {
 
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes('up to three verified actions') && text.includes('require an ERNIE administrator');
+                return (
+                    text.includes('Admins see both Curator actions and ERNIE administrator actions') &&
+                    text.includes('without a redundant actor label') &&
+                    text.includes('administrator-only guidance is not sent to them')
+                );
             }),
         ).toBeInTheDocument();
+        expect(
+            screen.getByText(/Resource and IGSN rankings are always displayed as separate cards, one below the other/),
+        ).toBeInTheDocument();
+        expect(document.body).not.toHaveTextContent('F-UJI');
         expect(
             screen.getByText((_, element) => {
                 if (element?.tagName !== 'P') {
@@ -256,6 +267,54 @@ describe('Docs page', () => {
                 );
             }),
         ).toBeInTheDocument();
+    });
+
+    it('shows curators the read-only Assessment documentation and role-appropriate navigation', () => {
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByText('FAIR Assessment Dashboard')).toBeInTheDocument();
+        expect(screen.getByText('Review current results')).toBeInTheDocument();
+        expect(screen.getByText(/Curators have read-only access to the latest results/)).toBeInTheDocument();
+        expect(screen.queryByText('Start a check')).not.toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Curators reach it from the normal Tools section');
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows group leaders the Assessment run workflow and documents the default external-resource filter', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByText('Start a check')).toBeInTheDocument();
+        expect(screen.getByText(/These actions are available only to Admins and Group Leaders/)).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('external landing page are excluded from the Resource ranking by default') &&
+                    text.includes('applies this filter before it selects the 10 lowest scores') &&
+                    text.includes('does not change the IGSN ranking')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('keeps Assessment documentation hidden from beginners', () => {
+        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.queryByText('FAIR Assessment Dashboard')).not.toBeInTheDocument();
     });
 
     it('documents the admin and group leader workspace switcher', () => {

@@ -69,6 +69,9 @@ export interface AssessmentPageProps {
     fujiHealthy: boolean;
     fujiStatusMessage: string | null;
     fujiStatusCode: number | null;
+    canRunAssessments: boolean;
+    showImprovementActorLabels: boolean;
+    includeExternalResources: boolean;
     resourcesNeedingAttention: AssessmentEntry[];
     igsnsNeedingAttention: AssessmentEntry[];
     resourceAssessmentSummary: AssessmentSummary;

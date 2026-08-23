@@ -468,6 +468,19 @@ it('returns at most three distinct actions ordered by verified gain and priority
         'resource-searchable-landing-page',
         'resource-core-citation-metadata',
     ]);
+
+    $curatorResult = fairOpportunityResolver()->resolve(
+        fairPayload(['F' => 6, 'A' => 0, 'I' => 0, 'R' => 0], $results),
+        FairImprovementOpportunityResolver::SCOPE_RESOURCE,
+        new FairImprovementContext,
+        ['curator'],
+    );
+
+    expect(array_column($curatorResult['suggestions'], 'key'))->toBe([
+        'resource-searchable-landing-page',
+        'resource-core-citation-metadata',
+        'resource-descriptive-metadata',
+    ])->and(array_unique(array_column($curatorResult['suggestions'], 'actor')))->toBe(['curator']);
 });
 
 it('uses distinct digital-resource and physical-sample wording', function (): void {

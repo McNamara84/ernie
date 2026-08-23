@@ -314,9 +314,21 @@ class AppServiceProvider extends ServiceProvider
                 || $user->role === UserRole::GROUP_LEADER;
         });
 
-        // Access to Assessment page (Admin only)
+        // Access to Assessment page (Admin, Group Leader, Curator)
         Gate::define('access-assessment', function (User $user): bool {
-            return $user->role === UserRole::ADMIN;
+            return in_array($user->role, [
+                UserRole::ADMIN,
+                UserRole::GROUP_LEADER,
+                UserRole::CURATOR,
+            ], true);
+        });
+
+        // Run F-UJI assessments (Admin, Group Leader)
+        Gate::define('run-assessment', function (User $user): bool {
+            return in_array($user->role, [
+                UserRole::ADMIN,
+                UserRole::GROUP_LEADER,
+            ], true);
         });
 
         // Access to database dump exports (Admin only)

@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event';
 import { render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -7,6 +8,7 @@ import { type AssessmentEntry, type AssessmentSummary } from '@/types/assessment
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     router: {
+        get: vi.fn(),
         reload: vi.fn(),
     },
 }));
@@ -70,13 +72,22 @@ const igsnEntry: AssessmentEntry = {
                 text: 'Register the IGSN with DataCite and point it to a published ERNIE sample landing page.',
             },
         ],
-        scopeNote: 'F-UJI also counts digital-data checks in this dimension. ERNIE does not present those checks as actions for a physical sample.',
+        scopeNote:
+            'This dimension also includes checks for downloadable digital data. ERNIE does not present those checks as actions for a physical sample.',
     },
 };
 
 describe('Assessment FAIR opportunity integration', () => {
     it('places the FAIR opportunity column between title and score', () => {
-        render(<AssessmentTable entries={[resourceEntry]} summary={summary} scope="resource" />);
+        render(
+            <AssessmentTable
+                entries={[resourceEntry]}
+                summary={summary}
+                scope="resource"
+                canRunAssessments
+                showImprovementActorLabels
+            />,
+        );
 
         const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
 
@@ -91,6 +102,9 @@ describe('Assessment FAIR opportunity integration', () => {
                 fujiHealthy
                 fujiStatusMessage={null}
                 fujiStatusCode={200}
+                canRunAssessments
+                showImprovementActorLabels
+                includeExternalResources={false}
                 resourcesNeedingAttention={[resourceEntry]}
                 igsnsNeedingAttention={[igsnEntry]}
                 resourceAssessmentSummary={summary}
@@ -103,5 +117,32 @@ describe('Assessment FAIR opportunity integration', () => {
         expect(screen.getAllByRole('columnheader', { name: 'FAIR opportunity' })).toHaveLength(2);
         expect(screen.getByRole('button', { name: /Reusability: very high FAIR improvement potential/ })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Findability: high FAIR improvement potential/ })).toBeInTheDocument();
+    });
+
+    it('shows actor labels only when requested for an administrator', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const commonProps = {
+            fujiConfigured: true,
+            fujiHealthy: true,
+            fujiStatusMessage: null,
+            fujiStatusCode: 200,
+            canRunAssessments: true,
+            includeExternalResources: false,
+            resourcesNeedingAttention: [resourceEntry],
+            igsnsNeedingAttention: [],
+            resourceAssessmentSummary: summary,
+            igsnAssessmentSummary: summary,
+        };
+
+        const view = render(<Assessment {...commonProps} showImprovementActorLabels={false} />);
+
+        await user.hover(screen.getByRole('button', { name: /Reusability: very high FAIR improvement potential/ }));
+        expect(await screen.findByRole('tooltip')).not.toHaveTextContent('Curator action');
+
+        view.unmount();
+        render(<Assessment {...commonProps} showImprovementActorLabels />);
+
+        await user.hover(screen.getByRole('button', { name: /Reusability: very high FAIR improvement potential/ }));
+        expect(await screen.findByRole('tooltip')).toHaveTextContent('Curator action');
     });
 });

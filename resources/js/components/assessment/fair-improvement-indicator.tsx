@@ -24,37 +24,28 @@ const actorLabels = {
 
 const triggerClasses = 'border text-sm font-bold';
 
-function formatPoints(value: number): string {
-    return Number.isInteger(value) ? value.toString() : value.toFixed(2);
-}
-
 function formatGain(value: number): string {
     return value.toFixed(2);
 }
 
-function availablePointsCopy(missingPoints: number, totalPoints: number): string {
-    if (missingPoints === 1) {
-        return `1 F-UJI point out of ${formatPoints(totalPoints)} is available`;
-    }
-
-    return `${formatPoints(missingPoints)} of ${formatPoints(totalPoints)} F-UJI points are available`;
-}
-
 function availableLabel(opportunity: Extract<FairImprovementOpportunity, { status: 'available' }>): string {
-    return `${opportunity.dimensionLabel}: ${severityLabels[opportunity.severity]} FAIR improvement potential; ${availablePointsCopy(opportunity.missingPoints, opportunity.totalPoints)}, worth up to ${formatGain(opportunity.potentialFairGain)} overall percentage points.`;
+    return `${opportunity.dimensionLabel}: ${severityLabels[opportunity.severity]} FAIR improvement potential; worth up to ${formatGain(opportunity.potentialFairGain)} percentage points for the overall FAIR score.`;
 }
 
-function AvailableTooltip({ opportunity }: { opportunity: Extract<FairImprovementOpportunity, { status: 'available' }> }) {
+function AvailableTooltip({
+    opportunity,
+    showActorLabels,
+}: {
+    opportunity: Extract<FairImprovementOpportunity, { status: 'available' }>;
+    showActorLabels: boolean;
+}) {
     const showSuggestions = opportunity.guidanceMessage === undefined && opportunity.suggestions.length > 0;
 
     return (
         <div className="space-y-2">
             <div>
                 <p className="font-semibold">{opportunity.dimensionLabel} offers the largest FAIR-score opportunity.</p>
-                <p className="mt-1">
-                    {availablePointsCopy(opportunity.missingPoints, opportunity.totalPoints)} (up to +{formatGain(opportunity.potentialFairGain)}{' '}
-                    percentage points overall).
-                </p>
+                <p className="mt-1">Up to +{formatGain(opportunity.potentialFairGain)} percentage points for the overall FAIR score.</p>
             </div>
 
             {showSuggestions ? (
@@ -63,7 +54,8 @@ function AvailableTooltip({ opportunity }: { opportunity: Extract<FairImprovemen
                     <ol className="mt-1 list-decimal space-y-1 pl-4">
                         {opportunity.suggestions.slice(0, 3).map((suggestion) => (
                             <li key={suggestion.key}>
-                                <span>{suggestion.text}</span> <span className="font-semibold">({actorLabels[suggestion.actor]})</span>
+                                <span>{suggestion.text}</span>{' '}
+                                {showActorLabels && <span className="font-semibold">({actorLabels[suggestion.actor]})</span>}
                             </li>
                         ))}
                     </ol>
@@ -77,7 +69,13 @@ function AvailableTooltip({ opportunity }: { opportunity: Extract<FairImprovemen
     );
 }
 
-export function FairImprovementIndicator({ opportunity }: { opportunity: FairImprovementOpportunity }) {
+export function FairImprovementIndicator({
+    opportunity,
+    showActorLabels = true,
+}: {
+    opportunity: FairImprovementOpportunity;
+    showActorLabels?: boolean;
+}) {
     if (opportunity.status !== 'available') {
         return (
             <Tooltip>
@@ -113,7 +111,7 @@ export function FairImprovementIndicator({ opportunity }: { opportunity: FairImp
                 </Button>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-sm text-left whitespace-normal">
-                <AvailableTooltip opportunity={opportunity} />
+                <AvailableTooltip opportunity={opportunity} showActorLabels={showActorLabels} />
             </TooltipContent>
         </Tooltip>
     );
