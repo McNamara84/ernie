@@ -2,17 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Enums\UserRole;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
-use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\ResourceCacheService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     Cache::flush();
@@ -79,7 +80,7 @@ test('assessment average summary is shared for assessment users', function () {
 
 test('assessment average summary is not shared for users without assessment access', function () {
     $user = User::factory()->create([
-        'role' => UserRole::GROUP_LEADER,
+        'role' => UserRole::BEGINNER,
     ]);
 
     $request = Request::create('/dashboard');
@@ -93,9 +94,9 @@ test('assessment average summary is not shared for users without assessment acce
 test('assessment average summary resolver returns an empty summary for guests', function () {
     $request = Request::create('/dashboard');
 
-    $resolver = \Closure::bind(
+    $resolver = Closure::bind(
         fn (Request $request): array => $this->resolveSharedAssessmentAverageSummary($request),
-        new HandleInertiaRequests(),
+        new HandleInertiaRequests,
         HandleInertiaRequests::class,
     );
 
@@ -109,15 +110,15 @@ test('assessment average summary resolver returns an empty summary for guests', 
 
 test('assessment average summary resolver returns an empty summary for unauthorized users', function () {
     $user = User::factory()->create([
-        'role' => UserRole::GROUP_LEADER,
+        'role' => UserRole::BEGINNER,
     ]);
 
     $request = Request::create('/dashboard');
     $request->setUserResolver(fn () => $user);
 
-    $resolver = \Closure::bind(
+    $resolver = Closure::bind(
         fn (Request $request): array => $this->resolveSharedAssessmentAverageSummary($request),
-        new HandleInertiaRequests(),
+        new HandleInertiaRequests,
         HandleInertiaRequests::class,
     );
 

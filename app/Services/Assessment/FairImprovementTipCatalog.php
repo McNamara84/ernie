@@ -904,7 +904,7 @@ final class FairImprovementTipCatalog
                 aggregation: $aggregation,
                 requiresTestDetails: $requiresTestDetails,
                 priority: $priority,
-                text: 'Expose the configured download URL as a machine-readable data distribution in ERNIE so F-UJI can identify and retrieve the digital resource.',
+                text: 'Expose the configured download URL as a machine-readable data distribution in ERNIE.',
             );
         }
 

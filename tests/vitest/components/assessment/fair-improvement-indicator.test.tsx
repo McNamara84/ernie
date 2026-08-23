@@ -45,20 +45,21 @@ describe('FairImprovementIndicator', () => {
         expect(screen.getByRole('button')).toHaveClass(expectedClass);
     });
 
-    it('provides a non-color accessible name with dimension, severity, gap, and overall gain', () => {
+    it('provides a non-color accessible name with dimension, severity, and overall gain', () => {
         render(<FairImprovementIndicator opportunity={availableOpportunity()} />);
 
         expect(
             screen.getByRole('button', {
-                name: 'Reusability: very high FAIR improvement potential; 4 of 6 F-UJI points are available, worth up to 15.38 overall percentage points.',
+                name: 'Reusability: very high FAIR improvement potential; worth up to 15.38 percentage points for the overall FAIR score.',
             }),
         ).toBeInTheDocument();
     });
 
-    it('formats fractional point gaps without losing precision', () => {
-        render(<FairImprovementIndicator opportunity={availableOpportunity({ missingPoints: 1.5, totalPoints: 6.5, potentialFairGain: 5 })} />);
+    it('formats the potential percentage-point gain without exposing internal point values', () => {
+        render(<FairImprovementIndicator opportunity={availableOpportunity({ missingPoints: 1.5, totalPoints: 6.5, potentialFairGain: 5.125 })} />);
 
-        expect(screen.getByRole('button')).toHaveAccessibleName(/1\.50 of 6\.50 F-UJI points.*5\.00 overall percentage points/);
+        expect(screen.getByRole('button')).toHaveAccessibleName(/5\.13 percentage points for the overall FAIR score/);
+        expect(screen.getByRole('button')).not.toHaveAccessibleName(/1\.50|6\.50|F-UJI/);
     });
 
     it('uses the shared shadcn button and opens on keyboard focus', async () => {
@@ -103,6 +104,19 @@ describe('FairImprovementIndicator', () => {
         expect(tooltip).not.toHaveTextContent('Unexpected fourth action.');
     });
 
+    it('omits redundant actor labels when only role-appropriate actions are shown', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(<FairImprovementIndicator opportunity={availableOpportunity()} showActorLabels={false} />);
+
+        await user.hover(screen.getByRole('button'));
+
+        const tooltip = await screen.findByRole('tooltip');
+        expect(tooltip).toHaveTextContent('Add a licence in ERNIE');
+        expect(tooltip).not.toHaveTextContent('Curator action');
+        expect(tooltip).not.toHaveTextContent('ERNIE administrator action');
+    });
+
     it('shows reassessment guidance instead of stale actions', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         const guidanceMessage = 'Run the assessment again to refresh FAIR improvement guidance after the recent ERNIE changes.';
@@ -135,7 +149,7 @@ describe('FairImprovementIndicator', () => {
                     guidanceMessage: 'ERNIE has no verified score-improving action to recommend for this FAIR category yet.',
                     suggestions: [],
                     scopeNote:
-                        'F-UJI also counts digital-data checks in this dimension. ERNIE does not present those checks as actions for a physical sample.',
+                        'This dimension also includes checks for downloadable digital data. ERNIE does not present those checks as actions for a physical sample.',
                 })}
             />,
         );
@@ -144,7 +158,8 @@ describe('FairImprovementIndicator', () => {
 
         const tooltip = await screen.findByRole('tooltip');
         expect(tooltip).toHaveTextContent('ERNIE has no verified score-improving action');
-        expect(tooltip).toHaveTextContent('F-UJI also counts digital-data checks');
+        expect(tooltip).toHaveTextContent('This dimension also includes checks for downloadable digital data');
+        expect(tooltip).not.toHaveTextContent('F-UJI');
     });
 
     it.each([
@@ -202,7 +217,7 @@ describe('FairImprovementIndicator', () => {
 
         expect(await screen.findByRole('tooltip')).toHaveTextContent(message);
     });
-    it('uses singular point copy in both the accessible name and tooltip', async () => {
+    it('shows only the overall percentage-point gain in both the accessible name and tooltip', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         render(
@@ -216,12 +231,15 @@ describe('FairImprovementIndicator', () => {
         );
 
         const trigger = screen.getByRole('button', {
-            name: 'Reusability: low FAIR improvement potential; 1 F-UJI point out of 6 is available, worth up to 3.85 overall percentage points.',
+            name: 'Reusability: low FAIR improvement potential; worth up to 3.85 percentage points for the overall FAIR score.',
         });
 
         await user.hover(trigger);
 
-        expect(await screen.findByRole('tooltip')).toHaveTextContent('1 F-UJI point out of 6 is available (up to +3.85 percentage points overall).');
+        const tooltip = await screen.findByRole('tooltip');
+        expect(tooltip).toHaveTextContent('Up to +3.85 percentage points for the overall FAIR score.');
+        expect(tooltip).not.toHaveTextContent('point out of');
+        expect(tooltip).not.toHaveTextContent('F-UJI');
     });
 
     it.each([1, 2])('renders exactly %i ranked actions', async (count) => {

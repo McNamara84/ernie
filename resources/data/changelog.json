@@ -88,8 +88,8 @@
                 "description": "Beginners now receive a guided product tour on the Dashboard after login, covering the main dashboard cards, the sidebar navigation, the upload area, the Resources list, and the IGSN tools. The tour starts only once by default, is tracked per user, and can be reassigned later. Admins and Group Leaders can reopen eligible tours for Beginner and Curator accounts directly on the /users page via a new Assign Tours dialog. Newly added built-in tours can also be rolled out automatically to eligible users without manual data seeding."
             },
             {
-                "title": "Admin FAIR Assessment Dashboard",
-                "description": "A new admin-only Assessment page is now available in the Tools section of the main navigation. It runs F-UJI FAIR checks for both regular resources and IGSNs, shows the 10 lowest-scoring records in separate cards, and lets administrators trigger either scope individually or both together via Check all. Each card displays DOI, main title, and latest FAIR score, while the dashboard also summarizes assessed, failed, skipped, and remaining records. The F-UJI service is integrated into the Docker stack as an internal container so assessment traffic stays inside the ERNIE application network."
+                "title": "Role-Aware FAIR Assessment Dashboard",
+                "description": "The Assessment page is now available to Admins, Group Leaders, and Curators through their respective navigation areas. Admins and Group Leaders can start FAIR checks, while Curators have read-only access to the latest results. Resources and IGSNs are ranked in separate stacked cards, and Resources with external landing pages can be excluded before selecting the 10 lowest FAIR scores. Long resource titles remain within the table layout, and each role receives up to three relevant FAIR score improvement tips, with administrator actions visible only to Admins."
             },
             {
                 "title": "Separate Description-Type Modules on Default Landing Pages",
@@ -231,7 +231,7 @@
             },
             {
                 "title": "Score-Causal FAIR Improvement Guidance",
-                "description": "The admin Assessment dashboard now highlights the F, A, I, or R dimension with the largest raw F-UJI point gap for each listed record. A yellow-to-red indicator communicates its potential effect on the overall FAIR score, while hover and keyboard focus reveal up to three verified ERNIE actions ranked by score impact. Digital Resources and physical-sample IGSNs use distinct guidance, inapplicable file-oriented IGSN checks are explained instead of turned into misleading actions, and platform prerequisites are labelled as administrator work."
+                "description": "The Assessment dashboard now highlights the F, A, I, or R dimension with the greatest improvement potential for each listed record. A yellow-to-red indicator shows the possible percentage gain in the overall FAIR score, while hover and keyboard focus reveal up to three role-appropriate ERNIE actions ranked by score impact. Digital Resources and physical-sample IGSNs use distinct guidance, inapplicable file-oriented IGSN checks are explained instead of turned into misleading actions, and administrator actions are visible only to Admins."
             },
             {
                 "title": "Strict DataCite 4.7 JSON Validation",

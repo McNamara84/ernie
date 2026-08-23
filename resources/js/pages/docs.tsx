@@ -123,8 +123,8 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Sidebar Counters:</strong> The main menu shows total counts on <strong>Resources</strong> and{' '}
                                 <strong>IGSNs List</strong>. The <strong>Assistance</strong> entry continues to show the number of pending
-                                suggestions. For administrators, the <strong>Assessment</strong> entry also shows the current average FAIR score
-                                summary in the format <strong>Resources / IGSNs</strong>.
+                                suggestions. For Admins, Group Leaders, and Curators, the <strong>Assessment</strong> entry also shows the current
+                                average FAIR score summary in the format <strong>Resources / IGSNs</strong>.
                             </p>
                         </div>
 
@@ -134,7 +134,8 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                                 <strong>Administration</strong> switcher at the top of the sidebar. Use <strong>Curation</strong> for day-to-day
                                 metadata work such as the Dashboard, Resources, and IGSN tools. Use <strong>Administration</strong> for privileged
                                 destinations such as Users, Statistics, Editor Settings, Landing Pages, Assistance, Assessment, Logs, and legacy
-                                maintenance pages. ERNIE remembers the last selected workspace locally.
+                                maintenance pages. Curators do not use this workspace switcher and reach Assessment from their <strong>Tools</strong>
+                                section instead. ERNIE remembers the last selected workspace locally.
                             </p>
                         </div>
 
@@ -735,14 +736,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 id: 'assessment',
                 title: 'Assessment',
                 icon: ClipboardCheck,
-                minRole: 'admin',
+                minRole: 'curator',
                 content: (
                     <>
                         <h3>FAIR Assessment Dashboard</h3>
                         <p>
-                            The <strong>Assessment</strong> page (<code>/assessment</code>) is available to administrators in the
-                            <strong>Administration</strong> workspace of the sidebar. It runs F-UJI checks against publicly reachable landing pages
-                            and stores the latest FAIR result per resource.
+                            The <strong>Assessment</strong> page (<code>/assessment</code>) is available to Admins, Group Leaders, and Curators.
+                            Admins and Group Leaders reach it in the <strong>Administration</strong> workspace; Curators reach it from the normal{' '}
+                            <strong>Tools</strong> section. ERNIE stores the latest FAIR result per resource.
                         </p>
 
                         <p>
@@ -754,13 +755,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>What the Dashboard Shows</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Resources needing your attention</strong> – the 10 lowest-scoring non-IGSN resources
+                                <strong>Resources needing your attention</strong> – up to 10 of the lowest-scoring non-IGSN resources after the
+                                selected filter is applied
                             </li>
                             <li>
                                 <strong>IGSNs needing your attention</strong> – the 10 lowest-scoring Physical Object records
                             </li>
                             <li>
-                                A <strong>FAIR opportunity</strong> letter showing the dimension with the largest remaining raw F-UJI point gap:
+                                A <strong>FAIR opportunity</strong> letter showing the dimension with the largest potential percentage-point gain:
                                 Findability, Accessibility, Interoperability, or Reusability
                             </li>
                             <li>
@@ -769,18 +771,29 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>Scope summaries for assessed, failed, skipped, and not yet assessed records</li>
                         </ul>
+                        <p>
+                            The Resource and IGSN rankings are always displayed as separate cards, one below the other: Resources first and IGSNs
+                            underneath.
+                        </p>
+                        <p>
+                            Resources with an <strong>external landing page</strong> are excluded from the Resource ranking by default. Use{' '}
+                            <strong>Include resources with external landing pages</strong> to include them again. ERNIE applies this filter before it
+                            selects the 10 lowest scores, so the list is refilled with the next eligible Resources instead of becoming empty. The
+                            filter does not change the IGSN ranking, scope summaries, or sidebar averages.
+                        </p>
 
                         <h4>Improvement Guidance</h4>
                         <p>
                             Hover over the FAIR opportunity letter, or focus it with the keyboard, to see up to three verified actions with the
-                            greatest scoring effect in that dimension. The guidance describes positive changes in ERNIE and labels actions that
-                            require an ERNIE administrator. It does not repeat F-UJI failure messages or suggest general metadata improvements that do
-                            not affect the assessed metric.
+                            greatest scoring effect in that dimension. Admins see both Curator actions and ERNIE administrator actions, with each
+                            action labelled accordingly. Group Leaders and Curators see only the up to three highest-ranked actions available to their
+                            role, without a redundant actor label; administrator-only guidance is not sent to them. The guidance does not repeat
+                            technical failure messages or suggest general metadata improvements that do not affect the assessed metric.
                         </p>
                         <p>
                             Digital Resources and physical-sample IGSNs use separate guidance. Dataset-oriented checks for downloads, file sizes, and
-                            file formats can still contribute to an IGSN's unchanged raw F-UJI gap, but ERNIE explains that scope difference instead
-                            of asking you to add digital-file metadata to a physical sample.
+                            file formats can still contribute to an IGSN's remaining FAIR opportunity, but ERNIE explains that scope difference
+                            instead of asking you to add digital-file metadata to a physical sample.
                         </p>
                         <p>
                             If tracked ERNIE record, landing-page, or IGSN state changed after the stored assessment, the letter keeps showing the
@@ -790,29 +803,46 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
 
                         <h4>Workflow</h4>
-                        <WorkflowSteps>
-                            <WorkflowSteps.Step number={1} title="Start a check">
-                                <p>
-                                    Use <strong>Check Resources</strong>, <strong>Check IGSNs</strong>, or <strong>Check all</strong> to enqueue new
-                                    F-UJI assessments.
-                                </p>
-                            </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={2} title="Monitor progress">
-                                <p>The page polls the queue status and shows progress messages while each scope is running.</p>
-                            </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={3} title="Review the worst scores">
-                                <p>
-                                    After completion, the page refreshes automatically and lists the weakest FAIR scores first so you can focus
-                                    curation work where it has the biggest impact.
-                                </p>
-                            </WorkflowSteps.Step>
-                        </WorkflowSteps>
+                        {userRole === 'admin' || userRole === 'group_leader' ? (
+                            <WorkflowSteps>
+                                <WorkflowSteps.Step number={1} title="Start a check">
+                                    <p>
+                                        Use <strong>Check Resources</strong>, <strong>Check IGSNs</strong>, or <strong>Check all</strong> to enqueue
+                                        new FAIR assessments. These actions are available only to Admins and Group Leaders.
+                                    </p>
+                                </WorkflowSteps.Step>
+                                <WorkflowSteps.Step number={2} title="Monitor progress">
+                                    <p>The page polls the queue status and shows progress messages while each scope is running.</p>
+                                </WorkflowSteps.Step>
+                                <WorkflowSteps.Step number={3} title="Review the worst scores">
+                                    <p>
+                                        After completion, the page refreshes automatically and lists the weakest FAIR scores first so you can focus
+                                        curation work where it has the biggest impact.
+                                    </p>
+                                </WorkflowSteps.Step>
+                            </WorkflowSteps>
+                        ) : (
+                            <WorkflowSteps>
+                                <WorkflowSteps.Step number={1} title="Review current results">
+                                    <p>
+                                        Curators have read-only access to the latest results. Ask an Admin or Group Leader to start a new FAIR check
+                                        when the stored assessment needs to be refreshed.
+                                    </p>
+                                </WorkflowSteps.Step>
+                                <WorkflowSteps.Step number={2} title="Focus the Resource ranking">
+                                    <p>Keep external landing pages hidden or include them when they are relevant to your review.</p>
+                                </WorkflowSteps.Step>
+                                <WorkflowSteps.Step number={3} title="Apply Curator actions">
+                                    <p>Use the role-appropriate improvement guidance to address the weakest FAIR scores first.</p>
+                                </WorkflowSteps.Step>
+                            </WorkflowSteps>
+                        )}
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
                                 <strong>Important:</strong> A record is skipped when it has no DOI. Missing or draft local landing pages do not
-                                prevent an assessment run. If the dashboard shows a temporary F-UJI warning, you can still start a check and the
-                                server will validate F-UJI availability again before queueing the job.
+                                prevent an assessment run. If the dashboard shows a temporary assessment-service warning, an Admin or Group Leader can
+                                still start a check and the server will validate service availability again before queueing the job.
                             </p>
                         </div>
                     </>
@@ -1207,8 +1237,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                Select <strong>Add Description Type</strong> to create an Abstract, Methods, Technical Info, or another enabled
-                                group.
+                                Select <strong>Add Description Type</strong> to create an Abstract, Methods, Technical Info, or another enabled group.
                             </li>
                             <li>
                                 Within a group, select <strong>Add language version</strong> and choose any language available in the editor
@@ -1219,7 +1248,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 or not applicable. Valid imported BCP 47 tags remain visible even if they are not in the current vocabulary.
                             </li>
                             <li>Tabs containing validation errors display a red error indicator so inactive invalid versions remain discoverable.</li>
-                            <li>Use <strong>Remove version</strong> to delete only the active language version.</li>
+                            <li>
+                                Use <strong>Remove version</strong> to delete only the active language version.
+                            </li>
                         </ul>
                         <p className="mt-4 text-sm text-muted-foreground">
                             Every resource must contain at least one Abstract with 50 to 17,500 characters.

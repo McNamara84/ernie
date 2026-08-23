@@ -6,8 +6,10 @@ import { toast } from 'sonner';
 
 import { FairImprovementIndicator } from '@/components/assessment/fair-improvement-indicator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
+import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -38,12 +40,16 @@ const ENDPOINTS: Record<AssessmentScope, string> = {
     igsn: '/assessment/check-igsns',
 };
 
-const FUJI_UNAVAILABLE_MESSAGE = 'F-UJI is currently unavailable. Please try again shortly.';
+const ASSESSMENT_SERVICE_UNAVAILABLE_MESSAGE = 'The FAIR assessment service is currently unavailable. Please try again shortly.';
 
 type AssessmentErrorPayload = {
     error?: string;
     progress?: string;
 };
+
+function userFacingAssessmentMessage(message: string): string {
+    return message.replace(/F-?UJI/gi, 'FAIR assessment service');
+}
 
 function scopeLabel(scope: AssessmentScope): string {
     return scope === 'igsn' ? 'IGSNs' : 'Resources';
@@ -57,11 +63,11 @@ function getAssessmentErrorMessage(error: unknown, fallback: string): string {
     const payload = error.response?.data as AssessmentErrorPayload | undefined;
 
     if (typeof payload?.progress === 'string' && payload.progress.trim() !== '') {
-        return payload.progress;
+        return userFacingAssessmentMessage(payload.progress);
     }
 
     if (typeof payload?.error === 'string' && payload.error.trim() !== '') {
-        return payload.error;
+        return userFacingAssessmentMessage(payload.error);
     }
 
     return fallback;
@@ -75,13 +81,15 @@ function assessmentLabel(scope: AssessmentScope): string {
     return scope === 'resource' ? 'resource assessments' : 'IGSN assessments';
 }
 
-function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope): string {
+function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope, canRunAssessments: boolean): string {
     if (summary.total === 0) {
         return `No ${scopeLabel(scope).toLowerCase()} are available.`;
     }
 
     if (summary.assessed === 0 && summary.failed === 0 && summary.skipped === 0) {
-        return `No assessment results available yet. Run Check ${scopeLabel(scope)} to populate this list.`;
+        return canRunAssessments
+            ? `No assessment results available yet. Run Check ${scopeLabel(scope)} to populate this list.`
+            : `No assessment results are available yet. Ask an Admin or Group Leader to run Check ${scopeLabel(scope)}.`;
     }
 
     if (summary.assessed === 0) {
@@ -91,28 +99,54 @@ function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope): 
     return `No ${scopeLabel(scope).toLowerCase()} currently require attention.`;
 }
 
-export function AssessmentTable({ entries, summary, scope }: { entries: AssessmentEntry[]; summary: AssessmentSummary; scope: AssessmentScope }) {
+export function AssessmentTable({
+    entries,
+    summary,
+    scope,
+    canRunAssessments,
+    showImprovementActorLabels,
+}: {
+    entries: AssessmentEntry[];
+    summary: AssessmentSummary;
+    scope: AssessmentScope;
+    canRunAssessments: boolean;
+    showImprovementActorLabels: boolean;
+}) {
     if (entries.length === 0) {
-        return <p className="text-sm text-muted-foreground">{emptyStateMessage(summary, scope)}</p>;
+        return <p className="text-sm text-muted-foreground">{emptyStateMessage(summary, scope, canRunAssessments)}</p>;
     }
 
     return (
-        <Table>
+        <Table className="table-fixed">
             <TableHeader>
                 <TableRow>
-                    <TableHead className="w-45">DOI</TableHead>
+                    <TableHead className="hidden w-40 sm:table-cell">DOI</TableHead>
                     <TableHead>Main Title</TableHead>
                     <TableHead className="w-28 text-center">FAIR opportunity</TableHead>
-                    <TableHead className="w-27.5 text-right">Score</TableHead>
+                    <TableHead className="w-20 text-right">Score</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {entries.map((entry) => (
                     <TableRow key={entry.id}>
-                        <TableCell className="font-mono text-xs text-muted-foreground">{entry.doi ?? 'N/A'}</TableCell>
-                        <TableCell className="font-medium">{entry.mainTitle}</TableCell>
+                        <TableCell className="hidden overflow-hidden font-mono text-xs text-muted-foreground sm:table-cell">
+                            <span className="block truncate" title={entry.doi ?? undefined}>
+                                {entry.doi ?? 'N/A'}
+                            </span>
+                        </TableCell>
+                        <TableCell className="min-w-0 overflow-hidden font-medium">
+                            <span className="block truncate" title={entry.mainTitle}>
+                                {entry.mainTitle}
+                            </span>
+                            <span className="block truncate font-mono text-[11px] font-normal text-muted-foreground sm:hidden">
+                                {entry.doi ?? 'N/A'}
+                            </span>
+                        </TableCell>
                         <TableCell className="text-center">
-                            <FairImprovementIndicator opportunity={entry.improvementOpportunity} />
+                            <FairImprovementIndicator
+                                opportunity={entry.improvementOpportunity}
+                                showActorLabels={showImprovementActorLabels}
+                            />
                         </TableCell>
                         <TableCell className="text-right font-semibold">{entry.score.toFixed(2)}%</TableCell>
                     </TableRow>
@@ -127,6 +161,9 @@ export default function Assessment({
     fujiHealthy,
     fujiStatusMessage,
     fujiStatusCode,
+    canRunAssessments,
+    showImprovementActorLabels,
+    includeExternalResources,
     resourcesNeedingAttention,
     igsnsNeedingAttention,
     resourceAssessmentSummary,
@@ -190,14 +227,14 @@ export default function Assessment({
                 if (data.status === 'failed') {
                     stopPolling(scope);
                     patchState(scope, { isChecking: false, progress: '' });
-                    toast.error(data.error ?? `${scopeLabel(scope)} assessment failed.`);
+                    toast.error(userFacingAssessmentMessage(data.error ?? `${scopeLabel(scope)} assessment failed.`));
 
                     return;
                 }
 
                 patchState(scope, {
                     isChecking: true,
-                    progress: data.progress,
+                    progress: userFacingAssessmentMessage(data.progress),
                 });
 
                 pollingRefs.current[scope] = setTimeout(pollStatus, 3000);
@@ -235,7 +272,7 @@ export default function Assessment({
             }
 
             if (axios.isAxiosError(error) && error.response?.status === 503) {
-                toast.error(getAssessmentErrorMessage(error, FUJI_UNAVAILABLE_MESSAGE));
+                toast.error(getAssessmentErrorMessage(error, ASSESSMENT_SERVICE_UNAVAILABLE_MESSAGE));
 
                 return;
             }
@@ -266,7 +303,7 @@ export default function Assessment({
                 patchState(scope, { isChecking: false, progress: '' });
 
                 if (error) {
-                    toast.warning(error);
+                    toast.warning(userFacingAssessmentMessage(error));
                 }
             }
         } catch (error) {
@@ -281,7 +318,7 @@ export default function Assessment({
             }
 
             if (axios.isAxiosError(error) && error.response?.status === 503) {
-                toast.error(getAssessmentErrorMessage(error, FUJI_UNAVAILABLE_MESSAGE));
+                toast.error(getAssessmentErrorMessage(error, ASSESSMENT_SERVICE_UNAVAILABLE_MESSAGE));
 
                 return;
             }
@@ -290,20 +327,29 @@ export default function Assessment({
         }
     }
 
+    function handleExternalResourcesChange(checked: boolean) {
+        router.get('/assessment', checked ? { include_external_resources: true } : {}, {
+            only: ['includeExternalResources', 'resourcesNeedingAttention'],
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
+    }
+
     const isAnyChecking = states.resource.isChecking || states.igsn.isChecking;
     const fujiAvailabilityMessage = !fujiConfigured
-        ? 'F-UJI is not configured for this environment.'
+        ? 'The FAIR assessment service is not configured for this environment.'
         : !fujiHealthy
-          ? (fujiStatusMessage ?? 'F-UJI is configured but unhealthy.')
+          ? userFacingAssessmentMessage(fujiStatusMessage ?? ASSESSMENT_SERVICE_UNAVAILABLE_MESSAGE)
           : null;
 
     const fujiStatusDetail =
         !fujiConfigured || fujiHealthy
             ? null
             : fujiStatusCode === 0
-              ? 'Connection refused or DNS failure — check FUJI_BASE_URL and network connectivity.'
+              ? 'Connection refused or DNS failure — check the assessment service configuration and network connectivity.'
               : fujiStatusCode !== null
-                ? `HTTP ${fujiStatusCode} — check FUJI_BASE_URL, FUJI_USERNAME, FUJI_PASSWORD and the F-UJI service logs.`
+                ? `HTTP ${fujiStatusCode} — check the assessment service configuration and service logs.`
                 : null;
 
     return (
@@ -314,19 +360,21 @@ export default function Assessment({
                 <div className="flex items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Assessment</h1>
-                        <p className="text-sm text-muted-foreground">Admin-only FAIR assessment dashboard for resources and IGSNs.</p>
+                        <p className="text-sm text-muted-foreground">FAIR assessment dashboard for resources and IGSNs.</p>
                     </div>
 
-                    <LoadingButton onClick={handleCheckAll} disabled={!fujiConfiguredForActions} loading={isAnyChecking}>
-                        {isAnyChecking ? (
-                            'Checking...'
-                        ) : (
-                            <>
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Check all
-                            </>
-                        )}
-                    </LoadingButton>
+                    {canRunAssessments && (
+                        <LoadingButton onClick={handleCheckAll} disabled={!fujiConfiguredForActions} loading={isAnyChecking}>
+                            {isAnyChecking ? (
+                                'Checking...'
+                            ) : (
+                                <>
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    Check all
+                                </>
+                            )}
+                        </LoadingButton>
+                    )}
                 </div>
 
                 {fujiAvailabilityMessage !== null && (
@@ -351,25 +399,44 @@ export default function Assessment({
                     );
                 })}
 
-                <div className="grid gap-6 lg:grid-cols-2">
+                <div className="grid gap-6" data-testid="assessment-card-stack">
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+                        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4 space-y-0">
                             <div className="space-y-1.5">
                                 <CardTitle>Resources needing your attention</CardTitle>
                                 <CardDescription>{summaryText(resourceAssessmentSummary)}</CardDescription>
+                                <div className="flex items-center gap-2 pt-1">
+                                    <Switch
+                                        id="include-external-resources"
+                                        size="sm"
+                                        checked={includeExternalResources}
+                                        onCheckedChange={handleExternalResourcesChange}
+                                    />
+                                    <Label htmlFor="include-external-resources" className="text-xs text-muted-foreground">
+                                        Include resources with external landing pages
+                                    </Label>
+                                </div>
                             </div>
-                            <LoadingButton
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleCheck('resource')}
-                                disabled={!fujiConfiguredForActions}
-                                loading={states.resource.isChecking}
-                            >
-                                {states.resource.isChecking ? 'Checking...' : 'Check Resources'}
-                            </LoadingButton>
+                            {canRunAssessments && (
+                                <LoadingButton
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleCheck('resource')}
+                                    disabled={!fujiConfiguredForActions}
+                                    loading={states.resource.isChecking}
+                                >
+                                    {states.resource.isChecking ? 'Checking...' : 'Check Resources'}
+                                </LoadingButton>
+                            )}
                         </CardHeader>
                         <CardContent>
-                            <AssessmentTable entries={resourcesNeedingAttention} summary={resourceAssessmentSummary} scope="resource" />
+                            <AssessmentTable
+                                entries={resourcesNeedingAttention}
+                                summary={resourceAssessmentSummary}
+                                scope="resource"
+                                canRunAssessments={canRunAssessments}
+                                showImprovementActorLabels={showImprovementActorLabels}
+                            />
                         </CardContent>
                     </Card>
 
@@ -379,18 +446,26 @@ export default function Assessment({
                                 <CardTitle>IGSNs needing your attention</CardTitle>
                                 <CardDescription>{summaryText(igsnAssessmentSummary)}</CardDescription>
                             </div>
-                            <LoadingButton
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleCheck('igsn')}
-                                disabled={!fujiConfiguredForActions}
-                                loading={states.igsn.isChecking}
-                            >
-                                {states.igsn.isChecking ? 'Checking...' : 'Check IGSNs'}
-                            </LoadingButton>
+                            {canRunAssessments && (
+                                <LoadingButton
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleCheck('igsn')}
+                                    disabled={!fujiConfiguredForActions}
+                                    loading={states.igsn.isChecking}
+                                >
+                                    {states.igsn.isChecking ? 'Checking...' : 'Check IGSNs'}
+                                </LoadingButton>
+                            )}
                         </CardHeader>
                         <CardContent>
-                            <AssessmentTable entries={igsnsNeedingAttention} summary={igsnAssessmentSummary} scope="igsn" />
+                            <AssessmentTable
+                                entries={igsnsNeedingAttention}
+                                summary={igsnAssessmentSummary}
+                                scope="igsn"
+                                canRunAssessments={canRunAssessments}
+                                showImprovementActorLabels={showImprovementActorLabels}
+                            />
                         </CardContent>
                     </Card>
                 </div>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\CacheKey;
+use App\Enums\UserRole;
 use App\Jobs\RunResourceAssessmentsJob;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
@@ -14,6 +15,7 @@ use App\Services\Assessment\FujiAssessmentService;
 use App\Services\ResourceCacheService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -28,18 +30,34 @@ class AssessmentController extends Controller
         private readonly FairImprovementOpportunityResolver $fairImprovementResolver,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $physicalObjectTypeId = $this->resourceCache->getPhysicalObjectTypeId();
         $fujiHealth = $this->cachedHealthStatus();
+        $includeExternalResources = $request->boolean('include_external_resources');
+        $allowedImprovementActors = $request->user()?->role === UserRole::ADMIN
+            ? ['curator', 'administrator']
+            : ['curator'];
 
         return Inertia::render('assessment', [
             'fujiConfigured' => $this->fujiService->isConfigured(),
             'fujiHealthy' => $fujiHealth['healthy'],
             'fujiStatusMessage' => $fujiHealth['message'],
             'fujiStatusCode' => $fujiHealth['statusCode'],
-            'resourcesNeedingAttention' => $this->buildAttentionList(RunResourceAssessmentsJob::RESOURCE_SCOPE, $physicalObjectTypeId),
-            'igsnsNeedingAttention' => $this->buildAttentionList(RunResourceAssessmentsJob::IGSN_SCOPE, $physicalObjectTypeId),
+            'canRunAssessments' => $request->user()?->can('run-assessment') ?? false,
+            'showImprovementActorLabels' => $request->user()?->role === UserRole::ADMIN,
+            'includeExternalResources' => $includeExternalResources,
+            'resourcesNeedingAttention' => $this->buildAttentionList(
+                scope: RunResourceAssessmentsJob::RESOURCE_SCOPE,
+                physicalObjectTypeId: $physicalObjectTypeId,
+                allowedImprovementActors: $allowedImprovementActors,
+                includeExternalResources: $includeExternalResources,
+            ),
+            'igsnsNeedingAttention' => $this->buildAttentionList(
+                scope: RunResourceAssessmentsJob::IGSN_SCOPE,
+                physicalObjectTypeId: $physicalObjectTypeId,
+                allowedImprovementActors: $allowedImprovementActors,
+            ),
             'resourceAssessmentSummary' => $this->buildSummary(RunResourceAssessmentsJob::RESOURCE_SCOPE, $physicalObjectTypeId),
             'igsnAssessmentSummary' => $this->buildSummary(RunResourceAssessmentsJob::IGSN_SCOPE, $physicalObjectTypeId),
         ]);
@@ -181,6 +199,7 @@ class AssessmentController extends Controller
     }
 
     /**
+     * @param  list<'curator'|'administrator'>  $allowedImprovementActors
      * @return list<array{
      *     id: int,
      *     doi: string|null,
@@ -190,12 +209,25 @@ class AssessmentController extends Controller
      *     improvementOpportunity: array<string, mixed>
      * }>
      */
-    private function buildAttentionList(string $scope, ?int $physicalObjectTypeId): array
-    {
-        $items = $this->buildScopeQuery($scope, $physicalObjectTypeId)
+    private function buildAttentionList(
+        string $scope,
+        ?int $physicalObjectTypeId,
+        array $allowedImprovementActors,
+        bool $includeExternalResources = true,
+    ): array {
+        $query = $this->buildScopeQuery($scope, $physicalObjectTypeId)
             ->join('resource_assessments', 'resource_assessments.resource_id', '=', 'resources.id')
             ->where('resource_assessments.status', ResourceAssessment::STATUS_COMPLETED)
-            ->whereNotNull('resource_assessments.total_score')
+            ->whereNotNull('resource_assessments.total_score');
+
+        if ($scope === RunResourceAssessmentsJob::RESOURCE_SCOPE && ! $includeExternalResources) {
+            $query->whereDoesntHave(
+                'landingPage',
+                static fn (Builder $builder): Builder => $builder->where('template', 'external'),
+            );
+        }
+
+        $items = $query
             ->with([
                 'titles.titleType',
                 'resourceAssessment',
@@ -205,10 +237,11 @@ class AssessmentController extends Controller
                 'igsnMetadata',
             ])
             ->orderBy('resource_assessments.total_score')
+            ->orderBy('resources.id')
             ->select('resources.*')
             ->limit(10)
             ->get()
-            ->map(function (Resource $resource) use ($scope): array {
+            ->map(function (Resource $resource) use ($scope, $allowedImprovementActors): array {
                 $assessment = $resource->resourceAssessment;
                 $context = $this->fairImprovementContextFactory->fromResource(
                     resource: $resource,
@@ -226,6 +259,7 @@ class AssessmentController extends Controller
                         payload: $assessment?->payload,
                         scope: $scope,
                         context: $context,
+                        allowedActors: $allowedImprovementActors,
                     ),
                 ];
             })

@@ -15,9 +15,9 @@ final class FairImprovementOpportunityResolver
 
     public const NO_VERIFIED_ACTION_MESSAGE = 'ERNIE has no verified score-improving action to recommend for this FAIR category yet.';
 
-    public const IGSN_DATASET_ONLY_MESSAGE = 'F-UJI\'s largest gap here concerns checks for downloadable digital data. Those checks do not apply to a physical sample, so ERNIE has no sample-metadata change to recommend for this category.';
+    public const IGSN_DATASET_ONLY_MESSAGE = 'The largest gap here concerns checks for downloadable digital data. Those checks do not apply to a physical sample, so ERNIE has no sample-metadata change to recommend for this category.';
 
-    public const IGSN_SCOPE_NOTE = 'F-UJI also counts digital-data checks in this dimension. ERNIE does not present those checks as actions for a physical sample.';
+    public const IGSN_SCOPE_NOTE = 'This dimension also includes checks for downloadable digital data. ERNIE does not present those checks as actions for a physical sample.';
 
     public const REASSESSMENT_MESSAGE = 'Run the assessment again to refresh FAIR improvement guidance after the recent ERNIE changes.';
 
@@ -46,6 +46,7 @@ final class FairImprovementOpportunityResolver
 
     /**
      * @param  array<string, mixed>|null  $payload
+     * @param  list<'curator'|'administrator'>  $allowedActors
      * @return array{
      *     status: 'available',
      *     dimension: 'F'|'A'|'I'|'R',
@@ -71,6 +72,7 @@ final class FairImprovementOpportunityResolver
         ?array $payload,
         string $scope,
         FairImprovementContext $context,
+        array $allowedActors = ['curator', 'administrator'],
     ): array {
         $invalidScope = $this->invalidScopeResult($scope, $context);
 
@@ -109,7 +111,7 @@ final class FairImprovementOpportunityResolver
         $rankedByDimension = [];
 
         foreach ($tiedDimensions as $dimension) {
-            $rankedByDimension[$dimension] = $version === null
+            $ranked = $version === null
                 ? []
                 : $this->rankedActions(
                     results: $results,
@@ -119,6 +121,11 @@ final class FairImprovementOpportunityResolver
                     dimensionGap: $summary['gaps'][$dimension],
                     context: $context,
                 );
+
+            $rankedByDimension[$dimension] = array_values(array_filter(
+                $ranked,
+                static fn (array $action): bool => in_array($action['actor'], $allowedActors, true),
+            ));
         }
 
         $winner = $this->selectDimension($tiedDimensions, $rankedByDimension);
