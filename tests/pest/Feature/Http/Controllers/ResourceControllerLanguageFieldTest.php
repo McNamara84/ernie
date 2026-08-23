@@ -198,6 +198,21 @@ describe('Title and description language preservation', function () {
             ->assertJsonValidationErrors('descriptions.0.language');
     });
 
+    it('rejects structurally malformed BCP 47 description language tags', function () {
+        foreach (['en-a', 'en-12', 'en-US-a', 'en--US', 'x', 'en-x'] as $language) {
+            $payload = validPayloadWithLanguage([
+                'descriptions' => [
+                    ['descriptionType' => 'abstract', 'description' => 'Malformed tag abstract.', 'language' => $language],
+                ],
+            ]);
+
+            $this->actingAs($this->user)
+                ->postJson(route('editor.resources.store'), $payload)
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('descriptions.0.language');
+        }
+    });
+
     it('rejects non-string title and description languages instead of normalizing them to null', function () {
         $payload = validPayloadWithLanguage([
             'titles' => [
@@ -350,5 +365,20 @@ describe('Draft save language preservation', function () {
                 'titles.0.language',
                 'descriptions.0.language',
             ]);
+    });
+
+    it('rejects structurally malformed BCP 47 description tags during draft save', function () {
+        foreach (['en-a', 'en-12', 'en-US-a', 'en--US', 'x', 'en-x'] as $language) {
+            $payload = validPayloadWithLanguage([
+                'descriptions' => [
+                    ['descriptionType' => 'abstract', 'description' => 'Malformed draft tag.', 'language' => $language],
+                ],
+            ]);
+
+            $this->actingAs($this->user)
+                ->postJson(route('editor.resources.store-draft'), $payload)
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('descriptions.0.language');
+        }
     });
 });

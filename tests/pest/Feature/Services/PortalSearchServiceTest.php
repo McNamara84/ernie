@@ -755,6 +755,33 @@ describe('transformForPortal', function () {
         expect($result['abstract'])->toBe('First English abstract.');
     });
 
+    it('uses the primary subtag when ranking English and German fallback variants', function () {
+        $resource = createPublishedResourceForSearch('Regional Language Dataset', $this->titleType);
+
+        Description::factory()->for($resource)->abstract()->create([
+            'value' => 'Deutsche Zusammenfassung.',
+            'language' => 'de-DE',
+        ]);
+        Description::factory()->for($resource)->abstract()->create([
+            'value' => 'Canadian English abstract.',
+            'language' => 'en-CA',
+        ]);
+
+        $result = $this->service->transformForPortal(
+            $resource->fresh()->load([
+                'titles.titleType',
+                'creators.creatorable',
+                'resourceType',
+                'language',
+                'geoLocations',
+                'landingPage',
+                'descriptions.descriptionType',
+            ])
+        );
+
+        expect($result['abstract'])->toBe('Canadian English abstract.');
+    });
+
     it('omits global-only coverage from portal geo locations', function () {
         $resource = createPublishedResourceForSearch('Global Dataset', $this->titleType);
         GeoLocation::factory()->withBox(-180, 180, -90, 90)->create([

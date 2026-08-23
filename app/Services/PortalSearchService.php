@@ -966,10 +966,11 @@ class PortalSearchService
             ->filter(fn (Description $description): bool => $description->isAbstract())
             ->sortBy(function (Description $description) use ($preferredLanguage): string {
                 $language = LanguageTag::normalize($description->language);
+                $primaryLanguage = LanguageTag::primarySubtag($language);
                 $rank = match (true) {
                     $language !== null && $language === $preferredLanguage => 0,
-                    $language === 'en' => 1,
-                    $language === 'de' => 2,
+                    $primaryLanguage === 'en' => 1,
+                    $primaryLanguage === 'de' => 2,
                     $language !== null => 3,
                     default => 4,
                 };
