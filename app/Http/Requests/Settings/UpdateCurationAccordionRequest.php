@@ -74,6 +74,7 @@ class UpdateCurationAccordionRequest extends FormRequest
         return [
             'open_items' => ['present', 'array'],
             'open_items.*' => ['string', 'distinct', Rule::in(self::ALLOWED_OPEN_ITEMS)],
+            'revision' => ['required', 'integer', 'min:1'],
         ];
     }
 }

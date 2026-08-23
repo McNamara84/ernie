@@ -8,10 +8,16 @@ import { describe as vitestDescribe, it as vitestIt } from 'vitest';
 
 import DataCiteForm, { canAddLicense, canAddTitle, type DataCiteFormProps } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
+import { feedback } from '@/lib/feedback';
 import type { DateType, DescriptionType, Language, License, ResourceType, Role, TitleType } from '@/types';
 import type { LandingPageConfig } from '@/types/landing-page';
 
 type Mock = ReturnType<typeof vi.fn>;
+
+type CurationAccordionPreferencePayload = {
+    open_items: string[];
+    revision: number;
+};
 
 type MockSetupLandingPageModalProps = {
     isOpen: boolean;
@@ -789,7 +795,10 @@ describe('DataCiteForm', () => {
             expect(screen.queryAllByTestId('collapse-all-field-groups')).toHaveLength(0);
             expect(screen.getAllByTestId('expand-all-field-groups').length).toBeGreaterThanOrEqual(12);
             await waitFor(() => {
-                expect(axios.put).toHaveBeenCalledWith('/settings/curation-accordion', { open_items: [] });
+                expect(axios.put).toHaveBeenCalledWith('/settings/curation-accordion', {
+                    open_items: [],
+                    revision: expect.any(Number),
+                });
             });
             expect(mockRouterPut).not.toHaveBeenCalled();
         });
@@ -818,6 +827,7 @@ describe('DataCiteForm', () => {
             await waitFor(() => {
                 expect(axios.put).toHaveBeenCalledWith('/settings/curation-accordion', {
                     open_items: ['used-instruments'],
+                    revision: expect.any(Number),
                 });
             });
             expect(mockRouterPut).not.toHaveBeenCalled();
@@ -843,10 +853,11 @@ describe('DataCiteForm', () => {
                     '/settings/curation-accordion',
                     expect.objectContaining({
                         open_items: expect.arrayContaining(['authors', 'funding-references']),
+                        revision: expect.any(Number),
                     }),
                 );
             });
-            const payload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
+            const payload = vi.mocked(axios.put).mock.calls[0][1] as CurationAccordionPreferencePayload;
             expect(payload.open_items).not.toContain('resource-info');
             expect(mockRouterPut).not.toHaveBeenCalled();
         });
@@ -874,7 +885,7 @@ describe('DataCiteForm', () => {
             await waitFor(() => {
                 expect(axios.put).toHaveBeenCalledTimes(1);
             });
-            const payload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
+            const payload = vi.mocked(axios.put).mock.calls[0][1] as CurationAccordionPreferencePayload;
             expect(payload.open_items).toEqual(expect.arrayContaining(['authors', 'funding-references', 'used-instruments']));
             expect(payload.open_items).not.toContain('resource-info');
             expect(mockRouterPut).not.toHaveBeenCalled();
@@ -902,7 +913,7 @@ describe('DataCiteForm', () => {
             await waitFor(() => {
                 expect(axios.put).toHaveBeenCalledTimes(1);
             });
-            const payload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
+            const payload = vi.mocked(axios.put).mock.calls[0][1] as CurationAccordionPreferencePayload;
             expect(payload.open_items).not.toContain('msl-laboratories');
             expect(payload.open_items).not.toContain('used-instruments');
             expect(mockRouterPut).not.toHaveBeenCalled();
@@ -934,7 +945,7 @@ describe('DataCiteForm', () => {
 
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
             expect(getResourceInfoSection()).toBeVisible();
-            const payload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
+            const payload = vi.mocked(axios.put).mock.calls[0][1] as CurationAccordionPreferencePayload;
             expect(payload.open_items).toContain('used-instruments');
             expect(payload.open_items).not.toContain('authors');
             expect(mockRouterPut).not.toHaveBeenCalled();
@@ -952,7 +963,7 @@ describe('DataCiteForm', () => {
                 await advanceAccordionPreferenceDebounce();
 
                 expect(axios.put).toHaveBeenCalledTimes(1);
-                const payload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
+                const payload = vi.mocked(axios.put).mock.calls[0][1] as CurationAccordionPreferencePayload;
                 expect(payload.open_items).not.toContain('authors');
                 expect(payload.open_items).not.toContain('contributors');
                 expect(payload.open_items).toContain('funding-references');
@@ -980,16 +991,17 @@ describe('DataCiteForm', () => {
             await waitFor(() => {
                 expect(axios.put).toHaveBeenCalledTimes(2);
             });
-            const firstPayload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
+            const firstPayload = vi.mocked(axios.put).mock.calls[0][1] as CurationAccordionPreferencePayload;
+            const secondPayload = vi.mocked(axios.put).mock.calls[1][1] as CurationAccordionPreferencePayload;
             expect(firstPayload.open_items).not.toContain('authors');
             expect(firstPayload.open_items).not.toContain('funding-references');
-            expect((vi.mocked(axios.put).mock.calls[1][1] as { open_items: string[] }).open_items).toEqual(
-                expect.arrayContaining(['authors', 'funding-references']),
-            );
+            expect(secondPayload.open_items).toEqual(expect.arrayContaining(['authors', 'funding-references']));
+            expect(secondPayload.revision).toBeGreaterThan(firstPayload.revision);
             expect(mockRouterPut).not.toHaveBeenCalled();
         });
 
         it('keeps the local accordion state and reports background persistence failures', async () => {
+            const feedbackErrorSpy = vi.spyOn(feedback, 'error');
             vi.mocked(axios.put).mockRejectedValueOnce(new Error('Network error'));
             renderDataCiteForm();
 
@@ -997,7 +1009,7 @@ describe('DataCiteForm', () => {
 
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
             await waitFor(() => {
-                expect(toast.error).toHaveBeenCalledWith('Failed to save the form group display preference.');
+                expect(feedbackErrorSpy).toHaveBeenCalledWith('Failed to save the form group display preference.');
             });
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
 
@@ -1007,6 +1019,7 @@ describe('DataCiteForm', () => {
             });
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'true');
             expect(mockRouterPut).not.toHaveBeenCalled();
+            feedbackErrorSpy.mockRestore();
         });
     });
 

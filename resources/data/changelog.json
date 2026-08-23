@@ -428,6 +428,10 @@
         ],
         "fixes": [
             {
+                "title": "Stable Data Editor Form Group Toggles",
+                "description": "Collapsing or expanding form groups now saves the display preference in the background without reloading the Data Editor or discarding unsaved metadata. Preference updates are ordered across open editor tabs so delayed older requests cannot overwrite a newer choice."
+            },
+            {
                 "title": "Staff Collectives Import as Institutions",
                 "description": "New legacy DataCite imports now recognize unstructured staff collectives such as 'ISG Staff' as institutions instead of splitting them into person-name fields. Their original contributor names, roles, and affiliations remain intact, while explicit or structured person metadata continues to take precedence. Existing imported resources remain unchanged."
             },
