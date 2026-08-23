@@ -19,6 +19,7 @@ coverage-parallel.xml
 /resources/js/wayfinder
 /storage/*.key
 /storage/pail
+/storage/framework/lsp-*
 /vendor
 .env
 .env.backup
