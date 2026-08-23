@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Xml\Sections;
 
+use App\Support\LanguageTag;
 use App\Support\Xml\XmlElementHelpers;
 use DOMDocument;
 use DOMElement;
@@ -70,7 +71,7 @@ final readonly class DescriptionSectionParser
             $descriptions[] = [
                 'type' => $descriptionType !== '' ? $descriptionType : 'Other',
                 'description' => $description,
-                'language' => trim($descLang) !== '' ? trim($descLang) : null,
+                'language' => LanguageTag::validOrNull($descLang),
             ];
         }
 
@@ -126,7 +127,7 @@ final readonly class DescriptionSectionParser
             $descriptions[] = [
                 'type' => is_string($descriptionType) && $descriptionType !== '' ? $descriptionType : 'Other',
                 'description' => $description,
-                'language' => is_string($descLang) && trim($descLang) !== '' ? trim($descLang) : null,
+                'language' => LanguageTag::validOrNull($descLang),
             ];
         }
 

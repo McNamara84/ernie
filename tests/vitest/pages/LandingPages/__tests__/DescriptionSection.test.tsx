@@ -42,6 +42,29 @@ describe('DescriptionSection', () => {
         expect(paragraphs[1]).toHaveTextContent('Second technical block.');
     });
 
+    it('labels each explicit language and sets the HTML lang attribute', () => {
+        const descriptions = [
+            { id: 1, value: 'Deutscher Abstract.', description_type: 'Abstract', language: 'de' },
+            { id: 2, value: 'English abstract.', description_type: 'Abstract', language: 'en' },
+        ];
+
+        render(<DescriptionSection descriptions={descriptions} sectionKey="abstract" />);
+
+        expect(screen.getByText('German (de)')).toBeInTheDocument();
+        expect(screen.getByText('English (en)')).toBeInTheDocument();
+        expect(screen.getByTestId('abstract-text').closest('article')).toHaveAttribute('lang', 'de');
+        expect(screen.getByTestId('abstract-text-2').closest('article')).toHaveAttribute('lang', 'en');
+    });
+
+    it('does not claim a language when none is stored', () => {
+        const descriptions = [{ id: 1, value: 'Unspecified abstract.', description_type: 'Abstract', language: null }];
+
+        render(<DescriptionSection descriptions={descriptions} sectionKey="abstract" />);
+
+        expect(screen.getByTestId('abstract-text').closest('article')).not.toHaveAttribute('lang');
+        expect(screen.queryByText(/\((de|en)\)/)).not.toBeInTheDocument();
+    });
+
     it('matches abstract case-insensitively', () => {
         const descriptions = [{ id: 1, value: 'Lowercase abstract.', description_type: 'abstract' }];
         render(<DescriptionSection descriptions={descriptions} sectionKey="abstract" />);

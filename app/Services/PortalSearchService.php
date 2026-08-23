@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CacheKey;
-use App\Models\Description;
 use App\Models\Datacenter;
 use App\Models\DateType;
+use App\Models\Description;
 use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\LandingPage;
@@ -16,8 +16,9 @@ use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Subject;
-use App\Support\PortalSubjectNormalizer;
 use App\Models\Title;
+use App\Support\LanguageTag;
+use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -80,8 +81,8 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
-    *     free_keywords?: string[]|null,
-    *     thesaurus_keywords?: string[]|null,
+     *     free_keywords?: string[]|null,
+     *     thesaurus_keywords?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -116,8 +117,8 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
-    *     free_keywords?: string[]|null,
-    *     thesaurus_keywords?: string[]|null,
+     *     free_keywords?: string[]|null,
+     *     thesaurus_keywords?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -139,8 +140,8 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
-    *     free_keywords?: string[]|null,
-    *     thesaurus_keywords?: string[]|null,
+     *     free_keywords?: string[]|null,
+     *     thesaurus_keywords?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -154,6 +155,7 @@ class PortalSearchService
                 'titles.titleType',
                 'creators.creatorable',
                 'resourceType',
+                'language:id,code',
                 'geoLocations',
                 'landingPage',
             ])
@@ -446,7 +448,7 @@ class PortalSearchService
      * Apply selected thesaurus node filters with AND logic.
      *
      * @param  Builder<Resource>  $query
-    * @param  string[]|null  $selectedNodeIds
+     * @param  string[]|null  $selectedNodeIds
      */
     private function applyThesaurusKeywordFilter(Builder $query, ?array $selectedNodeIds): void
     {
@@ -959,8 +961,23 @@ class PortalSearchService
             return null;
         }
 
+        $preferredLanguage = LanguageTag::normalize($resource->language?->code);
         $abstract = $resource->descriptions
-            ->first(fn (Description $description): bool => $description->isAbstract());
+            ->filter(fn (Description $description): bool => $description->isAbstract())
+            ->sortBy(function (Description $description) use ($preferredLanguage): string {
+                $language = LanguageTag::normalize($description->language);
+                $primaryLanguage = LanguageTag::primarySubtag($language);
+                $rank = match (true) {
+                    $language !== null && $language === $preferredLanguage => 0,
+                    $primaryLanguage === 'en' => 1,
+                    $primaryLanguage === 'de' => 2,
+                    $language !== null => 3,
+                    default => 4,
+                };
+
+                return sprintf('%d-%020d', $rank, $description->id);
+            })
+            ->first();
 
         if ($abstract === null) {
             return null;
@@ -981,7 +998,7 @@ class PortalSearchService
                 $descriptionQuery = $descriptionRelation->getQuery();
 
                 $descriptionQuery
-                    ->select(['id', 'resource_id', 'value', 'description_type_id'])
+                    ->select(['id', 'resource_id', 'value', 'description_type_id', 'language'])
                     ->whereHas('descriptionType', function (Builder $typeQuery): void {
                         $typeQuery->where('slug', 'Abstract');
                     })

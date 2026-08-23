@@ -4243,12 +4243,12 @@ describe('DataCiteForm', () => {
 
             await waitFor(() => {
                 expect(abstractTextarea).toHaveAttribute('aria-invalid', 'true');
-                expect(within(abstractTextarea.closest('[data-testid="description-entry"]')!).getByText('Backend rejected the submitted Abstract.')).toBeInTheDocument();
+                expect(
+                    within(abstractTextarea.closest('[data-testid="description-entry"]')!).getByText('Backend rejected the submitted Abstract.'),
+                ).toBeInTheDocument();
             });
             expect(methodsTextarea).toHaveAttribute('aria-invalid', 'false');
-            expect(mockedAxios.post.mock.calls[0][1].descriptions).toEqual([
-                expect.objectContaining({ descriptionType: 'Abstract' }),
-            ]);
+            expect(mockedAxios.post.mock.calls[0][1].descriptions).toEqual([expect.objectContaining({ descriptionType: 'Abstract' })]);
         });
 
         it('maps backend errors inline for non-Abstract description entries', async () => {
@@ -4411,18 +4411,21 @@ describe('DataCiteForm', () => {
                 />,
             );
 
-            const [firstAbstract, secondAbstract] = screen.getAllByPlaceholderText(/Enter a brief summary/i);
+            const firstAbstract = screen.getByPlaceholderText(/Enter a brief summary/i);
+            await user.click(screen.getByRole('tab', { name: 'Language not specified 2' }));
+            const secondAbstract = screen.getByPlaceholderText(/Enter a brief summary/i);
             await user.clear(secondAbstract);
             await user.type(secondAbstract, 'Too short');
             await user.tab();
 
             await waitFor(() => {
                 expect(secondAbstract).toHaveAttribute('aria-invalid', 'true');
-                expect(
-                    screen.getByText('Abstract 2 must be at least 50 characters (current: 9)'),
-                ).toBeInTheDocument();
+                expect(screen.getByText('Abstract 2 must be at least 50 characters (current: 9)')).toBeInTheDocument();
             });
-            expect(firstAbstract).toHaveAttribute('aria-invalid', 'false');
+            expect(firstAbstract).not.toBeInTheDocument();
+
+            await user.click(screen.getByRole('tab', { name: 'Language not specified 1' }));
+            expect(screen.getByPlaceholderText(/Enter a brief summary/i)).toHaveAttribute('aria-invalid', 'false');
         });
 
         it('includes descriptions in the payload when submitting', { timeout: 60000 }, async () => {
@@ -4480,7 +4483,10 @@ describe('DataCiteForm', () => {
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
 
-            expect(screen.getAllByRole('textbox', { name: /Methods/i })).toHaveLength(2);
+            const methodsGroup = screen.getAllByTestId('description-entry').find((element) => element.dataset.descriptionType === 'Methods');
+            expect(methodsGroup).toBeDefined();
+            expect(within(methodsGroup!).getByRole('tab', { name: 'English (en)' })).toBeInTheDocument();
+            expect(within(methodsGroup!).getByRole('tab', { name: 'German (de)' })).toBeInTheDocument();
 
             const saveButton = screen.getByRole('button', { name: /save & validate/i });
             await waitFor(() => expect(saveButton).toBeEnabled());

@@ -226,8 +226,9 @@ describe('JSON Upload - DataCite JSON format', function () {
 
         $json = dataCiteJson(minimalAttributes([
             'descriptions' => [
-                ['description' => 'This is the abstract.', 'descriptionType' => 'Abstract'],
-                ['description' => 'Method description.', 'descriptionType' => 'Methods'],
+                ['description' => 'This is the abstract.', 'descriptionType' => 'Abstract', 'lang' => 'EN_ca'],
+                ['description' => 'Method description.', 'descriptionType' => 'Methods', 'lang' => 'de'],
+                ['description' => 'Description without language.', 'descriptionType' => 'Other'],
             ],
         ]));
         $file = UploadedFile::fake()->createWithContent('descriptions.json', $json);
@@ -238,13 +239,21 @@ describe('JSON Upload - DataCite JSON format', function () {
 
         $resource = Resource::with('descriptions.descriptionType')->findOrFail($response->json('resourceId'));
 
-        expect($resource->descriptions)->toHaveCount(2)
-            ->and($resource->descriptions->pluck('value')->all())->toBe(['This is the abstract.', 'Method description.'])
-            ->and($resource->descriptions->pluck('descriptionType.slug')->all())->toBe(['Abstract', 'Methods']);
+        expect($resource->descriptions)->toHaveCount(3)
+            ->and($resource->descriptions->pluck('value')->all())->toBe([
+                'This is the abstract.',
+                'Method description.',
+                'Description without language.',
+            ])
+            ->and($resource->descriptions->pluck('descriptionType.slug')->all())->toBe(['Abstract', 'Methods', 'Other'])
+            ->and($resource->descriptions->pluck('language')->all())->toBe(['en-ca', 'de', null]);
 
-        expect($data['descriptions'])->toHaveCount(2);
+        expect($data['descriptions'])->toHaveCount(3);
         expect($data['descriptions'][0]['description'])->toBe('This is the abstract.');
         expect($data['descriptions'][0]['type'])->toBe('Abstract');
+        expect($data['descriptions'][0]['language'])->toBe('en-ca');
+        expect($data['descriptions'][1]['language'])->toBe('de');
+        expect($data['descriptions'][2]['language'])->toBeNull();
     });
 
     test('extracts dates', function () {
@@ -606,6 +615,12 @@ describe('JSON Upload - JSON-LD format', function () {
                 'attrs' => ['resourceTypeGeneral' => 'Dataset'],
                 'value' => 'Dataset',
             ],
+            'descriptions' => [
+                'description' => [
+                    'attrs' => ['descriptionType' => 'Abstract', 'lang' => 'de'],
+                    'value' => 'Deutsche JSON-LD-Beschreibung.',
+                ],
+            ],
         ], JSON_THROW_ON_ERROR);
 
         $file = UploadedFile::fake()->createWithContent('test.jsonld', $jsonLd);
@@ -622,6 +637,9 @@ describe('JSON Upload - JSON-LD format', function () {
         expect($data['titles'][0]['title'])->toBe('JSON-LD Test');
         expect($data['authors'][0]['lastName'])->toBe('Doe');
         expect($data['year'])->toBe('2025');
+        expect($data['descriptions'][0]['description'])->toBe('Deutsche JSON-LD-Beschreibung.');
+        expect($data['descriptions'][0]['language'])->toBe('de');
+        expect($resource->descriptions()->sole()->language)->toBe('de');
     });
 
     test('accepts JSON-LD with attrs/value pattern for titles', function () {

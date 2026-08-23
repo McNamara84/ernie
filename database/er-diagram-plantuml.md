@@ -378,7 +378,7 @@ entity "descriptions" as descriptions {
     * description_type_id : BIGINT <<FK>>
     * value : TEXT
     landing_page_html : LONGTEXT
-    language : VARCHAR(10)
+    language : VARCHAR(35) //BCP 47 language tag//
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }

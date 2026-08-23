@@ -19,6 +19,7 @@ use App\Services\UploadLogService;
 use App\Services\Uploads\UploadedResourceDraftService;
 use App\Support\DataCiteDateNormalizer;
 use App\Support\GcmdUriHelper;
+use App\Support\LanguageTag;
 use App\Support\MslLaboratoryService;
 use App\Support\UploadError;
 use App\Support\XmlKeywordExtractor;
@@ -658,7 +659,7 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $descriptions
-     * @return array<int, array{type: string, description: string}>
+     * @return array<int, array{type: string, description: string, language: string|null}>
      */
     private function extractDescriptions(array $descriptions): array
     {
@@ -673,6 +674,7 @@ class UploadJsonController extends Controller
             $result[] = [
                 'type' => $desc['descriptionType'] ?? 'Other',
                 'description' => $text,
+                'language' => LanguageTag::validOrNull($desc['lang'] ?? null),
             ];
         }
 

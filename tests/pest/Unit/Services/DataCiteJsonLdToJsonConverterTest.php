@@ -423,7 +423,7 @@ describe('descriptions conversion', function () {
             '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
             'descriptions' => [
                 'description' => [
-                    'attrs' => ['descriptionType' => 'Abstract'],
+                    'attrs' => ['descriptionType' => 'Abstract', 'lang' => 'de'],
                     'value' => 'This is the abstract.',
                 ],
             ],
@@ -433,6 +433,7 @@ describe('descriptions conversion', function () {
 
         expect($result['descriptions'][0]['description'])->toBe('This is the abstract.');
         expect($result['descriptions'][0]['descriptionType'])->toBe('Abstract');
+        expect($result['descriptions'][0]['lang'])->toBe('de');
     });
 });
 

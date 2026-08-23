@@ -118,7 +118,7 @@ class StoreResourceRequest extends FormRequest
                 Rule::in(['abstract', 'methods', 'series-information', 'table-of-contents', 'technical-info', 'other']),
             ],
             'descriptions.*.description' => ['required', 'string'],
-            'descriptions.*.language' => ['nullable', 'string', 'max:10'],
+            'descriptions.*.language' => LanguageTag::validationRules(),
             'dates' => ['nullable', 'array'],
             'dates.*.dateType' => [
                 'required',
@@ -329,7 +329,8 @@ class StoreResourceRequest extends FormRequest
                 }
             }
 
-            $language = LanguageTag::normalize($title['language'] ?? null);
+            $rawLanguage = $title['language'] ?? null;
+            $language = is_string($rawLanguage) ? LanguageTag::normalize($rawLanguage) : $rawLanguage;
 
             $titles[] = [
                 'title' => isset($title['title']) ? trim((string) $title['title']) : null,
@@ -604,12 +605,15 @@ class StoreResourceRequest extends FormRequest
             // Convert to kebab-case for database storage
             $normalizedType = Str::kebab($descriptionType);
 
-            $descriptionLanguage = isset($description['language']) ? trim((string) $description['language']) : '';
+            $rawDescriptionLanguage = $description['language'] ?? null;
+            $descriptionLanguage = is_string($rawDescriptionLanguage)
+                ? LanguageTag::normalize($rawDescriptionLanguage)
+                : $rawDescriptionLanguage;
 
             $descriptions[] = [
                 'descriptionType' => $normalizedType,
                 'description' => $descriptionText,
-                'language' => $descriptionLanguage !== '' ? $descriptionLanguage : null,
+                'language' => $descriptionLanguage,
             ];
         }
 

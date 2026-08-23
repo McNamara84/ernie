@@ -44,6 +44,7 @@ use App\Services\Xml\OriginalDataCiteRelatedIdentifierExtractionService;
 use App\Services\Xml\Sections\RightsSectionParser;
 use App\Support\DataCiteDateNormalizer;
 use App\Support\GemetVocabularyParser;
+use App\Support\LanguageTag;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Support\Facades\DB;
@@ -1283,7 +1284,7 @@ class DataCiteToResourceTransformer
                 'resource_id' => $resource->id,
                 'value' => $description,
                 'description_type_id' => $descriptionTypeId,
-                'language' => $descriptionData['lang'] ?? null,
+                'language' => LanguageTag::validOrNull($descriptionData['lang'] ?? null),
             ]);
         }
     }
