@@ -414,7 +414,9 @@ describe('index', function () {
             ->from('/assessment')
             ->get('/assessment?doi=not-a-doi')
             ->assertRedirect('/assessment')
-            ->assertSessionHasErrors('doi');
+            ->assertSessionHasErrors([
+                'doi' => 'Enter a valid DOI in the format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx.',
+            ]);
 
         $this->actingAs($user)
             ->from('/assessment')

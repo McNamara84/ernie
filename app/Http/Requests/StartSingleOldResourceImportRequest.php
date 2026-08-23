@@ -30,7 +30,7 @@ class StartSingleOldResourceImportRequest extends FormRequest
                     }
 
                     if (! app(DoiSuggestionService::class)->isValidDoiFormat($value)) {
-                        $fail('Enter a valid DOI in the format 10.xxxx/... or https://doi.org/10.xxxx/....');
+                        $fail('Enter a valid DOI in the format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx.');
                     }
                 },
             ],

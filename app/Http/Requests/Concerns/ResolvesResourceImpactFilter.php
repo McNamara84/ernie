@@ -34,7 +34,7 @@ trait ResolvesResourceImpactFilter
                 'max:255',
                 function (string $attribute, mixed $value, \Closure $fail): void {
                     if (is_string($value) && ! app(DoiSuggestionService::class)->isValidDoiFormat($value)) {
-                        $fail('Enter a valid DOI in the format 10.xxxx/... or https://doi.org/10.xxxx/....');
+                        $fail('Enter a valid DOI in the format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx.');
                     }
                 },
             ],
