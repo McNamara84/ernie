@@ -11,7 +11,7 @@ interface DescriptionSectionProps {
 const languageLabel = (code: string): string => {
     const normalized = code.trim().toLowerCase().replaceAll('_', '-');
 
-    if (normalized === 'de') return 'Deutsch (de)';
+    if (normalized === 'de') return 'German (de)';
     if (normalized === 'en') return 'English (en)';
 
     return normalized;

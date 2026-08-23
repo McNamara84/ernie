@@ -50,7 +50,7 @@ describe('DescriptionSection', () => {
 
         render(<DescriptionSection descriptions={descriptions} sectionKey="abstract" />);
 
-        expect(screen.getByText('Deutsch (de)')).toBeInTheDocument();
+        expect(screen.getByText('German (de)')).toBeInTheDocument();
         expect(screen.getByText('English (en)')).toBeInTheDocument();
         expect(screen.getByTestId('abstract-text').closest('article')).toHaveAttribute('lang', 'de');
         expect(screen.getByTestId('abstract-text-2').closest('article')).toHaveAttribute('lang', 'en');
