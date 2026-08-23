@@ -6,8 +6,10 @@ use App\Services\Assistance\AssistanceReviewService;
 use App\Services\Assistance\AssistantContract;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\DoiSuggestionService;
+use App\Services\Resources\ResourceImpactFilterService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 covers(AssistanceReviewService::class);
 
@@ -42,19 +44,37 @@ function reviewServiceAssistant(string $id, array $resources, array $suggestions
     $assistant = Mockery::mock(AssistantContract::class);
     $assistant->shouldReceive('getId')->andReturn($id);
     $timestamps = collect($resources)->pluck('resource_created_at_timestamp', 'resource_id');
-    $assistant->shouldReceive('listPendingSuggestionReferences')->andReturn(array_map(
-        static fn (array $suggestion): array => [
-            'suggestion_id' => $suggestion['id'],
-            'resource_id' => $suggestion['resource_id'],
-            'resource_created_at_timestamp' => (int) $timestamps->get($suggestion['resource_id'], 0),
-            'impacted_resource_ids' => [$suggestion['resource_id']],
-        ],
-        $suggestions,
-    ));
+    $assistant->shouldReceive('pendingSuggestionImpactQuery')->andReturnUsing(function () use ($id, $suggestions, $timestamps) {
+        $combined = null;
+
+        foreach ($suggestions as $suggestion) {
+            $query = DB::query()->selectRaw(
+                '? AS assistant_id, ? AS suggestion_id, ? AS resource_id, ? AS impact_resource_id, ? AS resource_created_at',
+                [
+                    $id,
+                    $suggestion['id'],
+                    $suggestion['resource_id'],
+                    $suggestion['resource_id'],
+                    (int) $timestamps->get($suggestion['resource_id'], 0),
+                ],
+            );
+
+            if ($combined === null) {
+                $combined = $query;
+            } else {
+                $combined->unionAll($query);
+            }
+        }
+
+        return $combined ?? DB::query()
+            ->selectRaw('NULL AS assistant_id, NULL AS suggestion_id, NULL AS resource_id, NULL AS impact_resource_id, NULL AS resource_created_at')
+            ->whereRaw('1 = 0');
+    });
     $assistant->shouldReceive('loadSuggestionsForResources')
-        ->andReturnUsing(fn (array $resourceIds): array => array_values(array_filter(
+        ->andReturnUsing(fn (array $resourceIds, ?array $suggestionIds = null): array => array_values(array_filter(
             $suggestions,
-            fn (array $suggestion): bool => in_array($suggestion['resource_id'], $resourceIds, true),
+            fn (array $suggestion): bool => in_array($suggestion['resource_id'], $resourceIds, true)
+                && ($suggestionIds === null || in_array($suggestion['id'], $suggestionIds, true)),
         )));
 
     return $assistant;
@@ -79,7 +99,10 @@ it('paginates resources while hydrating every suggestion for the visible resourc
     $request = Request::create('/assistance', 'GET', ['all_page' => 1]);
     LengthAwarePaginator::currentPageResolver(fn (string $pageName = 'page'): int => (int) $request->query($pageName, 1));
 
-    $result = (new AssistanceReviewService($registrar, new DoiSuggestionService))->build($request, 1);
+    $result = (new AssistanceReviewService(
+        $registrar,
+        new ResourceImpactFilterService(new DoiSuggestionService),
+    ))->build($request, 1);
     $allGroup = $result['allAssistantResources']->items()[0];
 
     expect($result['allAssistantResources']->total())->toBe(2)
@@ -105,7 +128,10 @@ it('resolves all-assistant and per-assistant page parameters independently', fun
     $request = Request::create('/assistance', 'GET', ['all_page' => 2, 'assistant-a_page' => 1]);
     LengthAwarePaginator::currentPageResolver(fn (string $pageName = 'page'): int => (int) $request->query($pageName, 1));
 
-    $result = (new AssistanceReviewService($registrar, new DoiSuggestionService))->build($request, 1);
+    $result = (new AssistanceReviewService(
+        $registrar,
+        new ResourceImpactFilterService(new DoiSuggestionService),
+    ))->build($request, 1);
 
     expect($result['allAssistantResources']->currentPage())->toBe(2)
         ->and($result['allAssistantResources']->items()[0]['resource_id'])->toBe(20)
@@ -130,7 +156,10 @@ it('uses the newest numeric creation timestamp when assistants report the same r
     $request = Request::create('/assistance');
     LengthAwarePaginator::currentPageResolver(static fn (): int => 1);
 
-    $result = (new AssistanceReviewService($registrar, new DoiSuggestionService))->build($request, 25);
+    $result = (new AssistanceReviewService(
+        $registrar,
+        new ResourceImpactFilterService(new DoiSuggestionService),
+    ))->build($request, 25);
 
     expect(array_column($result['allAssistantResources']->items(), 'resource_id'))->toBe([10, 20]);
 });

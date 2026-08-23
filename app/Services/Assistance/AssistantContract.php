@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Assistance;
 
 use App\Models\User;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
@@ -51,34 +52,21 @@ interface AssistantContract
     public function loadSuggestions(int $perPage): LengthAwarePaginator;
 
     /**
-     * List resources that currently have pending suggestions for this assistant.
-     *
-     * The creation time is a Unix timestamp in seconds. Using a numeric value
-     * keeps resource ordering independent of database-specific datetime formats.
-     *
-     * @return list<array{resource_id: int, resource_created_at_timestamp: int}>
+     * Build a database-side query that maps each pending suggestion to every
+     * resource it can affect. The query must expose the columns assistant_id,
+     * suggestion_id, resource_id, impact_resource_id, and resource_created_at.
      */
-    public function listPendingResources(): array;
+    public function pendingSuggestionImpactQuery(): QueryBuilder;
 
     /**
-     * List pending suggestions together with every resource affected by accepting them.
-     *
-     * @return list<array{
-     *     suggestion_id: int,
-     *     resource_id: int,
-     *     resource_created_at_timestamp: int,
-     *     impacted_resource_ids: list<int>
-     * }>
-     */
-    public function listPendingSuggestionReferences(): array;
-
-    /**
-     * Load every pending suggestion for the supplied resources.
+     * Load pending suggestions for the supplied resources and, when provided,
+     * restrict hydration to the supplied suggestion IDs.
      *
      * @param  list<int>  $resourceIds
+     * @param  list<int>|null  $suggestionIds
      * @return list<array<string, mixed>>
      */
-    public function loadSuggestionsForResources(array $resourceIds): array;
+    public function loadSuggestionsForResources(array $resourceIds, ?array $suggestionIds = null): array;
 
     /**
      * @return array<string, mixed>|null

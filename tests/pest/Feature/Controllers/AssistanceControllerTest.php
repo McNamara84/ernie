@@ -23,6 +23,7 @@ use App\Services\Assistance\AssistantContract;
 use App\Services\Assistance\AssistantRegistrar;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
@@ -399,6 +400,75 @@ describe('index', function () {
                 ->where('sections.orcid-suggestion.total', 0)
                 ->where('allAssistantResources.total', 0)
             );
+    });
+
+    it('keeps shared-entity impact filtering database-side for a large backlog', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $datacenter = Datacenter::factory()->create();
+        $origin = Resource::factory()->withDoi('10.5880/backlog.origin')->create([
+            'datacenter_id' => $datacenter->id,
+        ]);
+        $person = Person::factory()->create();
+
+        ResourceCreator::create([
+            'resource_id' => $origin->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+        SuggestedOrcid::create([
+            'resource_id' => $origin->id,
+            'person_id' => $person->id,
+            'suggested_orcid' => '0000-0001-5109-3700',
+            'similarity_score' => 0.95,
+            'candidate_first_name' => 'Jane',
+            'candidate_last_name' => 'Doe',
+            'candidate_affiliations' => [],
+            'source_context' => 'creator',
+            'discovered_at' => now(),
+        ]);
+
+        $resourceTemplate = $origin->getAttributes();
+        unset($resourceTemplate['id']);
+        $resourceRows = [];
+
+        foreach (range(1, 250) as $index) {
+            $resourceRows[] = [
+                ...$resourceTemplate,
+                'doi' => '10.5880/backlog.'.$index,
+            ];
+        }
+
+        Resource::query()->insert($resourceRows);
+        $affectedIds = Resource::query()
+            ->where('doi', 'like', '10.5880/backlog.%')
+            ->where('id', '!=', $origin->id)
+            ->pluck('id');
+        $now = now();
+        ResourceContributor::query()->insert($affectedIds->map(static fn (int $resourceId): array => [
+            'resource_id' => $resourceId,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
+            'position' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all());
+
+        $maximumBindingCount = 0;
+        DB::listen(static function ($query) use (&$maximumBindingCount): void {
+            $maximumBindingCount = max($maximumBindingCount, count($query->bindings));
+        });
+
+        $this->actingAs($user)
+            ->get('/assistance?doi=10.5880%2Fbacklog.250&per_page=1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('pendingCounts.orcid-suggestion', 1)
+                ->where('sections.orcid-suggestion.total', 1)
+                ->has('sections.orcid-suggestion.data.0.suggestions', 1)
+            );
+
+        expect($maximumBindingCount)->toBeLessThan(100);
     });
 
     it('keeps active filters in assistance pagination links', function () {

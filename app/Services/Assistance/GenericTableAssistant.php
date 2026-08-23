@@ -10,7 +10,9 @@ use App\Models\AssistantSuggestion;
 use App\Models\User;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Base class for NEW student-created assistant modules that use the generic tables.
@@ -69,62 +71,38 @@ abstract class GenericTableAssistant extends AbstractAssistant
     }
 
     #[\Override]
-    public function listPendingResources(): array
+    public function pendingSuggestionImpactQuery(): QueryBuilder
     {
-        return array_values(AssistantSuggestion::query()
-            ->where('assistant_id', $this->getId())
-            ->join('resources', 'assistant_suggestions.resource_id', '=', 'resources.id')
-            ->selectRaw('assistant_suggestions.resource_id AS resource_id, MAX(resources.created_at) AS resource_created_at')
-            ->groupBy('assistant_suggestions.resource_id')
-            ->orderByDesc('resource_created_at')
-            ->orderByDesc('assistant_suggestions.resource_id')
-            ->get()
-            ->map(fn (AssistantSuggestion $suggestion): array => [
-                'resource_id' => (int) $suggestion->resource_id,
-                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
-                    (string) $suggestion->getAttribute('resource_created_at'),
-                ),
-            ])
-            ->all());
-    }
-
-    #[\Override]
-    public function listPendingSuggestionReferences(): array
-    {
-        return array_values(AssistantSuggestion::query()
+        return DB::table('assistant_suggestions')
             ->where('assistant_id', $this->getId())
             ->join('resources', 'assistant_suggestions.resource_id', '=', 'resources.id')
             ->select([
                 'assistant_suggestions.id AS suggestion_id',
                 'assistant_suggestions.resource_id AS resource_id',
+                'assistant_suggestions.resource_id AS impact_resource_id',
                 'resources.created_at AS resource_created_at',
             ])
-            ->orderByDesc('resources.created_at')
-            ->orderByDesc('assistant_suggestions.id')
-            ->get()
-            ->map(fn (AssistantSuggestion $suggestion): array => [
-                'suggestion_id' => (int) $suggestion->getAttribute('suggestion_id'),
-                'resource_id' => (int) $suggestion->resource_id,
-                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
-                    (string) $suggestion->getAttribute('resource_created_at'),
-                ),
-                'impacted_resource_ids' => [(int) $suggestion->resource_id],
-            ])
-            ->all());
+            ->selectRaw('? AS assistant_id', [$this->getId()]);
     }
 
     #[\Override]
-    public function loadSuggestionsForResources(array $resourceIds): array
+    public function loadSuggestionsForResources(array $resourceIds, ?array $suggestionIds = null): array
     {
-        if ($resourceIds === []) {
+        if ($resourceIds === [] || $suggestionIds === []) {
             return [];
         }
 
-        return array_values(AssistantSuggestion::query()
+        $query = AssistantSuggestion::query()
             ->where('assistant_id', $this->getId())
             ->whereIn('assistant_suggestions.resource_id', $resourceIds)
             ->with('resource')
-            ->join('resources', 'assistant_suggestions.resource_id', '=', 'resources.id')
+            ->join('resources', 'assistant_suggestions.resource_id', '=', 'resources.id');
+
+        if ($suggestionIds !== null) {
+            $query->whereIn('assistant_suggestions.id', $suggestionIds);
+        }
+
+        return array_values($query
             ->select('assistant_suggestions.*')
             ->orderByDesc('resources.created_at')
             ->orderByDesc('assistant_suggestions.discovered_at')

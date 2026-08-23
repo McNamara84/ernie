@@ -6,8 +6,6 @@ namespace App\Services\Assistance;
 
 use App\Enums\CacheKey;
 use App\Models\User;
-use DateTimeImmutable;
-use DateTimeZone;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -116,44 +114,6 @@ abstract class AbstractAssistant implements AssistantContract
     }
 
     /**
-     * Direct-impact fallback for custom assistants that have not provided a
-     * lighter-weight reference query. Built-in assistants override this path.
-     */
-    public function listPendingSuggestionReferences(): array
-    {
-        $resources = $this->listPendingResources();
-        $timestamps = [];
-
-        foreach ($resources as $resource) {
-            $timestamps[$resource['resource_id']] = $resource['resource_created_at_timestamp'];
-        }
-
-        if ($timestamps === []) {
-            return [];
-        }
-
-        $references = [];
-
-        foreach ($this->loadSuggestionsForResources(array_keys($timestamps)) as $suggestion) {
-            $suggestionId = (int) ($suggestion['id'] ?? 0);
-            $resourceId = (int) ($suggestion['resource_id'] ?? 0);
-
-            if ($suggestionId <= 0 || $resourceId <= 0) {
-                continue;
-            }
-
-            $references[] = [
-                'suggestion_id' => $suggestionId,
-                'resource_id' => $resourceId,
-                'resource_created_at_timestamp' => (int) ($timestamps[$resourceId] ?? 0),
-                'impacted_resource_ids' => [$resourceId],
-            ];
-        }
-
-        return $references;
-    }
-
-    /**
      * Add assistant identity and action capabilities to a transformed item.
      *
      * @return array<string, mixed>
@@ -255,14 +215,6 @@ abstract class AbstractAssistant implements AssistantContract
         $this->forgetTotalPendingCount();
 
         return ['success' => true, 'message' => 'Suggestion declined.'];
-    }
-
-    /**
-     * Normalize database datetime values to the numeric review contract.
-     */
-    protected function resourceCreatedAtTimestamp(string $createdAt): int
-    {
-        return (new DateTimeImmutable($createdAt, new DateTimeZone('UTC')))->getTimestamp();
     }
 
     /**

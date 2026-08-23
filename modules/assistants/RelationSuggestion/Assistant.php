@@ -10,7 +10,9 @@ use App\Models\User;
 use App\Services\Assistance\AbstractAssistant;
 use App\Services\RelationDiscoveryService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Assistant module for discovering related works via external APIs.
@@ -44,59 +46,36 @@ class Assistant extends AbstractAssistant
     }
 
     #[\Override]
-    public function listPendingResources(): array
+    public function pendingSuggestionImpactQuery(): QueryBuilder
     {
-        return array_values(SuggestedRelation::query()
-            ->join('resources', 'suggested_relations.resource_id', '=', 'resources.id')
-            ->selectRaw('suggested_relations.resource_id AS resource_id, MAX(resources.created_at) AS resource_created_at')
-            ->groupBy('suggested_relations.resource_id')
-            ->orderByDesc('resource_created_at')
-            ->orderByDesc('suggested_relations.resource_id')
-            ->get()
-            ->map(fn (SuggestedRelation $suggestion): array => [
-                'resource_id' => (int) $suggestion->resource_id,
-                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
-                    (string) $suggestion->getAttribute('resource_created_at'),
-                ),
-            ])
-            ->all());
-    }
-
-    #[\Override]
-    public function listPendingSuggestionReferences(): array
-    {
-        return array_values(SuggestedRelation::query()
+        return DB::table('suggested_relations')
             ->join('resources', 'suggested_relations.resource_id', '=', 'resources.id')
             ->select([
                 'suggested_relations.id AS suggestion_id',
                 'suggested_relations.resource_id AS resource_id',
+                'suggested_relations.resource_id AS impact_resource_id',
                 'resources.created_at AS resource_created_at',
             ])
-            ->orderByDesc('resources.created_at')
-            ->orderByDesc('suggested_relations.id')
-            ->get()
-            ->map(fn (SuggestedRelation $suggestion): array => [
-                'suggestion_id' => (int) $suggestion->getAttribute('suggestion_id'),
-                'resource_id' => (int) $suggestion->resource_id,
-                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
-                    (string) $suggestion->getAttribute('resource_created_at'),
-                ),
-                'impacted_resource_ids' => [(int) $suggestion->resource_id],
-            ])
-            ->all());
+            ->selectRaw('? AS assistant_id', [$this->getId()]);
     }
 
     #[\Override]
-    public function loadSuggestionsForResources(array $resourceIds): array
+    public function loadSuggestionsForResources(array $resourceIds, ?array $suggestionIds = null): array
     {
-        if ($resourceIds === []) {
+        if ($resourceIds === [] || $suggestionIds === []) {
             return [];
         }
 
-        return SuggestedRelation::query()
+        $query = SuggestedRelation::query()
             ->with(['resource.titles.titleType', 'identifierType', 'relationType'])
             ->whereIn('suggested_relations.resource_id', $resourceIds)
-            ->join('resources', 'suggested_relations.resource_id', '=', 'resources.id')
+            ->join('resources', 'suggested_relations.resource_id', '=', 'resources.id');
+
+        if ($suggestionIds !== null) {
+            $query->whereIn('suggested_relations.id', $suggestionIds);
+        }
+
+        return $query
             ->select('suggested_relations.*')
             ->orderByDesc('resources.created_at')
             ->orderByDesc('suggested_relations.discovered_at')

@@ -515,7 +515,9 @@ export function ResourceReview({
                             <div className="text-4xl">&#10003;</div>
                             <p className="mt-2 text-lg font-medium">{hasActiveFilters ? 'No matching suggestions' : 'No pending suggestions'}</p>
                             <p className="text-sm text-muted-foreground">
-                                {hasActiveFilters ? 'No resources match the active DOI and Datacenter filters.' : 'All resources have been reviewed.'}
+                                {hasActiveFilters
+                                    ? 'No pending suggestions affect resources matching the active DOI and Datacenter filters.'
+                                    : 'All resources have been reviewed.'}
                             </p>
                         </div>
                     )}
@@ -565,7 +567,7 @@ export function ResourceReview({
                                 <p className="mt-2 text-lg font-medium">{hasActiveFilters ? 'No matching suggestions' : manifest.emptyState.title}</p>
                                 <p className="text-sm text-muted-foreground">
                                     {hasActiveFilters
-                                        ? `No ${manifest.name} resources match the active DOI and Datacenter filters.`
+                                        ? `No pending ${manifest.name} suggestions affect resources matching the active DOI and Datacenter filters.`
                                         : manifest.emptyState.description}
                                 </p>
                             </div>

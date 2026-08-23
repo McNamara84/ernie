@@ -6,7 +6,8 @@ namespace App\Services\Resources;
 
 use App\Services\DoiSuggestionService;
 use App\Support\ResourceImpactFilter;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 final readonly class ResourceImpactFilterService
 {
@@ -15,19 +16,27 @@ final readonly class ResourceImpactFilterService
     ) {}
 
     /**
-     * @param  Builder<*>  $query
+     * @param  EloquentBuilder<*>|QueryBuilder  $query
      */
-    public function apply(Builder $query, ResourceImpactFilter $filter): void
+    public function apply(EloquentBuilder|QueryBuilder $query, ResourceImpactFilter $filter, string $resourceTable = 'resources'): void
     {
+        $doiExpression = match ($resourceTable) {
+            'resources' => 'LOWER(TRIM(resources.doi))',
+            'impact_resources' => 'LOWER(TRIM(impact_resources.doi))',
+            default => throw new \InvalidArgumentException('Unsupported resource table alias.'),
+        };
+
         if ($filter->doi !== null) {
+            $baseQuery = $query instanceof EloquentBuilder ? $query->getQuery() : $query;
+
             $query->whereIn(
-                $query->getQuery()->raw('LOWER(TRIM(resources.doi))'),
+                $baseQuery->getConnection()->raw($doiExpression),
                 $this->doiVariants($filter->doi),
             );
         }
 
         if ($filter->datacenterId !== null) {
-            $query->where('resources.datacenter_id', $filter->datacenterId);
+            $query->where($resourceTable.'.datacenter_id', $filter->datacenterId);
         }
     }
 

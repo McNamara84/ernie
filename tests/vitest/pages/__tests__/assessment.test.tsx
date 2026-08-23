@@ -295,7 +295,22 @@ describe('Assessment page', () => {
         );
 
         expect(screen.getByText('No resources match the active DOI and Datacenter filters.')).toBeInTheDocument();
-        expect(screen.getByText('No igsns match the active DOI and Datacenter filters.')).toBeInTheDocument();
+        expect(screen.getByText('No IGSNs match the active DOI and Datacenter filters.')).toBeInTheDocument();
+    });
+
+    it('retains status-aware empty states when a filtered assessment exists but failed', () => {
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    filters: { doi: '10.5880/failed', datacenter_id: null },
+                    resourcesNeedingAttention: [],
+                    resourceAssessmentSummary: { total: 1, assessed: 0, failed: 1, skipped: 0, unassessed: 0 },
+                })}
+            />,
+        );
+
+        expect(screen.getByText('No completed resource assessments are available yet.')).toBeInTheDocument();
+        expect(screen.queryByText('No resources match the active DOI and Datacenter filters.')).not.toBeInTheDocument();
     });
 
     it('removes the external-resource query parameter when returning to the default filter', () => {

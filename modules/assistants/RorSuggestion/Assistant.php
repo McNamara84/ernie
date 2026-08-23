@@ -6,16 +6,19 @@ namespace Modules\Assistants\RorSuggestion;
 
 use App\Jobs\DiscoverRorsJob;
 use App\Models\Affiliation;
+use App\Models\Institution;
 use App\Models\Person;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\SuggestedRor;
 use App\Models\User;
 use App\Services\Assistance\AbstractAssistant;
-use App\Services\Assistance\ResourceEntityImpactResolverService;
 use App\Services\RorDiscoveryService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Assistant module for discovering ROR identifiers for entities without one.
@@ -30,7 +33,6 @@ class Assistant extends AbstractAssistant
 
     public function __construct(
         private readonly RorDiscoveryService $service,
-        private readonly ResourceEntityImpactResolverService $impactResolver,
     ) {
         parent::__construct();
     }
@@ -58,91 +60,65 @@ class Assistant extends AbstractAssistant
     }
 
     #[\Override]
-    public function listPendingResources(): array
+    public function pendingSuggestionImpactQuery(): QueryBuilder
     {
-        return array_values(SuggestedRor::query()
-            ->join('resources', 'suggested_rors.resource_id', '=', 'resources.id')
-            ->selectRaw('suggested_rors.resource_id AS resource_id, MAX(resources.created_at) AS resource_created_at')
-            ->groupBy('suggested_rors.resource_id')
-            ->orderByDesc('resource_created_at')
-            ->orderByDesc('suggested_rors.resource_id')
-            ->get()
-            ->map(fn (SuggestedRor $suggestion): array => [
-                'resource_id' => (int) $suggestion->resource_id,
-                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
-                    (string) $suggestion->getAttribute('resource_created_at'),
-                ),
-            ])
-            ->all());
-    }
-
-    #[\Override]
-    public function listPendingSuggestionReferences(): array
-    {
-        $suggestions = SuggestedRor::query()
+        $direct = DB::table('suggested_rors')
             ->join('resources', 'suggested_rors.resource_id', '=', 'resources.id')
             ->select([
                 'suggested_rors.id AS suggestion_id',
                 'suggested_rors.resource_id AS resource_id',
-                'suggested_rors.entity_type AS entity_type',
-                'suggested_rors.entity_id AS entity_id',
+                'suggested_rors.resource_id AS impact_resource_id',
                 'resources.created_at AS resource_created_at',
             ])
-            ->orderByDesc('resources.created_at')
-            ->orderByDesc('suggested_rors.id')
-            ->get();
+            ->selectRaw('? AS assistant_id', [$this->getId()]);
 
-        $institutionIds = $suggestions
-            ->where('entity_type', 'institution')
-            ->pluck('entity_id')
-            ->map(static fn (mixed $id): int => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
-        $affiliationIds = $suggestions
-            ->where('entity_type', 'affiliation')
-            ->pluck('entity_id')
-            ->map(static fn (mixed $id): int => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
-        $institutionImpacts = $this->impactResolver->forInstitutions($institutionIds);
-        $affiliationImpacts = $this->impactResolver->forAffiliations($affiliationIds);
+        $institutionCreatorImpacts = $this->institutionImpactQuery(
+            table: 'resource_creators',
+            alias: 'impact_creators',
+            typeColumn: 'creatorable_type',
+            idColumn: 'creatorable_id',
+        );
+        $institutionContributorImpacts = $this->institutionImpactQuery(
+            table: 'resource_contributors',
+            alias: 'impact_contributors',
+            typeColumn: 'contributorable_type',
+            idColumn: 'contributorable_id',
+        );
+        $affiliationCreatorImpacts = $this->affiliationImpactQuery(
+            table: 'resource_creators',
+            alias: 'impact_creators',
+            affiliatableType: ResourceCreator::class,
+        );
+        $affiliationContributorImpacts = $this->affiliationImpactQuery(
+            table: 'resource_contributors',
+            alias: 'impact_contributors',
+            affiliatableType: ResourceContributor::class,
+        );
 
-        return $suggestions
-            ->map(function (SuggestedRor $suggestion) use ($institutionImpacts, $affiliationImpacts): array {
-                $resourceId = (int) $suggestion->resource_id;
-                $entityId = (int) $suggestion->entity_id;
-                $resolvedImpacts = match ($suggestion->entity_type) {
-                    'institution' => $institutionImpacts[$entityId] ?? [],
-                    'affiliation' => $affiliationImpacts[$entityId] ?? [],
-                    default => [],
-                };
-
-                return [
-                    'suggestion_id' => (int) $suggestion->getAttribute('suggestion_id'),
-                    'resource_id' => $resourceId,
-                    'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
-                        (string) $suggestion->getAttribute('resource_created_at'),
-                    ),
-                    'impacted_resource_ids' => array_values(array_unique([$resourceId, ...$resolvedImpacts])),
-                ];
-            })
-            ->values()
-            ->all();
+        return $direct
+            ->union($institutionCreatorImpacts)
+            ->union($institutionContributorImpacts)
+            ->union($affiliationCreatorImpacts)
+            ->union($affiliationContributorImpacts);
     }
 
     #[\Override]
-    public function loadSuggestionsForResources(array $resourceIds): array
+    public function loadSuggestionsForResources(array $resourceIds, ?array $suggestionIds = null): array
     {
-        if ($resourceIds === []) {
+        if ($resourceIds === [] || $suggestionIds === []) {
             return [];
         }
 
-        $suggestions = SuggestedRor::query()
+        $query = SuggestedRor::query()
             ->with(['resource.titles.titleType'])
             ->whereIn('suggested_rors.resource_id', $resourceIds)
-            ->join('resources', 'suggested_rors.resource_id', '=', 'resources.id')
+            ->join('resources', 'suggested_rors.resource_id', '=', 'resources.id');
+
+        if ($suggestionIds !== null) {
+            $query->whereIn('suggested_rors.id', $suggestionIds);
+        }
+
+        $suggestions = $query
             ->select('suggested_rors.*')
             ->orderByDesc('resources.created_at')
             ->orderByDesc('suggested_rors.similarity_score')
@@ -155,6 +131,45 @@ class Assistant extends AbstractAssistant
             ->map(fn (SuggestedRor $suggestion): array => $this->present($suggestion))
             ->values()
             ->all();
+    }
+
+    private function institutionImpactQuery(string $table, string $alias, string $typeColumn, string $idColumn): QueryBuilder
+    {
+        return DB::table('suggested_rors')
+            ->join('resources', 'suggested_rors.resource_id', '=', 'resources.id')
+            ->join($table.' AS '.$alias, function (JoinClause $join) use ($alias, $typeColumn, $idColumn): void {
+                $join->on($alias.'.'.$idColumn, '=', 'suggested_rors.entity_id')
+                    ->where($alias.'.'.$typeColumn, Institution::class);
+            })
+            ->where('suggested_rors.entity_type', 'institution')
+            ->select([
+                'suggested_rors.id AS suggestion_id',
+                'suggested_rors.resource_id AS resource_id',
+                $alias.'.resource_id AS impact_resource_id',
+                'resources.created_at AS resource_created_at',
+            ])
+            ->selectRaw('? AS assistant_id', [$this->getId()]);
+    }
+
+    private function affiliationImpactQuery(string $table, string $alias, string $affiliatableType): QueryBuilder
+    {
+        return DB::table('suggested_rors')
+            ->join('resources', 'suggested_rors.resource_id', '=', 'resources.id')
+            ->join('affiliations AS impact_affiliations', function (JoinClause $join): void {
+                $join->on('impact_affiliations.id', '=', 'suggested_rors.entity_id');
+            })
+            ->join($table.' AS '.$alias, function (JoinClause $join) use ($alias, $affiliatableType): void {
+                $join->on($alias.'.id', '=', 'impact_affiliations.affiliatable_id')
+                    ->where('impact_affiliations.affiliatable_type', $affiliatableType);
+            })
+            ->where('suggested_rors.entity_type', 'affiliation')
+            ->select([
+                'suggested_rors.id AS suggestion_id',
+                'suggested_rors.resource_id AS resource_id',
+                $alias.'.resource_id AS impact_resource_id',
+                'resources.created_at AS resource_created_at',
+            ])
+            ->selectRaw('? AS assistant_id', [$this->getId()]);
     }
 
     /**

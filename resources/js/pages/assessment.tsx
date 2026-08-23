@@ -63,6 +63,10 @@ function scopeLabel(scope: AssessmentScope): string {
     return scope === 'igsn' ? 'IGSNs' : 'Resources';
 }
 
+function scopeNoun(scope: AssessmentScope): string {
+    return scope === 'igsn' ? 'IGSNs' : 'resources';
+}
+
 function getAssessmentErrorMessage(error: unknown, fallback: string): string {
     if (!axios.isAxiosError(error)) {
         return fallback;
@@ -90,12 +94,12 @@ function assessmentLabel(scope: AssessmentScope): string {
 }
 
 function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope, canRunAssessments: boolean, hasActiveFilters = false): string {
-    if (hasActiveFilters) {
-        return `No ${scopeLabel(scope).toLowerCase()} match the active DOI and Datacenter filters.`;
+    if (hasActiveFilters && summary.total === 0) {
+        return `No ${scopeNoun(scope)} match the active DOI and Datacenter filters.`;
     }
 
     if (summary.total === 0) {
-        return `No ${scopeLabel(scope).toLowerCase()} are available.`;
+        return `No ${scopeNoun(scope)} are available.`;
     }
 
     if (summary.assessed === 0 && summary.failed === 0 && summary.skipped === 0) {
@@ -108,7 +112,7 @@ function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope, c
         return `No completed ${assessmentLabel(scope)} are available yet.`;
     }
 
-    return `No ${scopeLabel(scope).toLowerCase()} currently require attention.`;
+    return `No ${scopeNoun(scope)} currently require attention.`;
 }
 
 export function AssessmentTable({
