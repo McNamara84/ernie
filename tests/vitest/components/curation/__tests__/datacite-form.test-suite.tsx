@@ -40,6 +40,7 @@ const { mockRouterPut, mockRouterVisit, mockSetupLandingPageModal, mockUsePagePr
     mockSetupLandingPageModal: vi.fn(),
     mockUsePageProps: vi.fn(() => ({
         curationAccordionOpenItems: null as string[] | null,
+        curationAccordionRevision: null as number | null,
     })),
 }));
 
@@ -450,6 +451,7 @@ describe('DataCiteForm', () => {
         mockUsePageProps.mockReset();
         mockUsePageProps.mockReturnValue({
             curationAccordionOpenItems: null,
+            curationAccordionRevision: null,
         });
 
         (useRorAffiliations as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -770,6 +772,7 @@ describe('DataCiteForm', () => {
         it('ignores a legacy saved resource-info preference while keeping the static section visible', () => {
             mockUsePageProps.mockReturnValue({
                 curationAccordionOpenItems: ['resource-info'],
+                curationAccordionRevision: null,
             });
 
             renderDataCiteForm();
@@ -806,6 +809,7 @@ describe('DataCiteForm', () => {
         it('preserves hidden conditional field groups when collapsing all visible field groups', async () => {
             mockUsePageProps.mockReturnValue({
                 curationAccordionOpenItems: ['resource-info', 'authors', 'funding-references', 'used-instruments'],
+                curationAccordionRevision: null,
             });
             global.fetch = vi.fn((input: RequestInfo | URL) => {
                 const url = input.toString();
@@ -836,6 +840,7 @@ describe('DataCiteForm', () => {
         it('expands every visible field group from a saved collapsed preference', async () => {
             mockUsePageProps.mockReturnValue({
                 curationAccordionOpenItems: [],
+                curationAccordionRevision: null,
             });
             renderDataCiteForm();
             const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -865,6 +870,7 @@ describe('DataCiteForm', () => {
         it('preserves hidden conditional field groups when expanding all visible field groups', async () => {
             mockUsePageProps.mockReturnValue({
                 curationAccordionOpenItems: ['used-instruments'],
+                curationAccordionRevision: null,
             });
             global.fetch = vi.fn((input: RequestInfo | URL) => {
                 const url = input.toString();
@@ -894,6 +900,7 @@ describe('DataCiteForm', () => {
         it('does not include hidden conditional field groups when expanding all', async () => {
             mockUsePageProps.mockReturnValue({
                 curationAccordionOpenItems: [],
+                curationAccordionRevision: null,
             });
             global.fetch = vi.fn((input: RequestInfo | URL) => {
                 const url = input.toString();
@@ -922,6 +929,7 @@ describe('DataCiteForm', () => {
         it('preserves hidden conditional field groups when toggling a visible field group', async () => {
             mockUsePageProps.mockReturnValue({
                 curationAccordionOpenItems: ['authors', 'used-instruments'],
+                curationAccordionRevision: null,
             });
             global.fetch = vi.fn((input: RequestInfo | URL) => {
                 const url = input.toString();
@@ -971,6 +979,50 @@ describe('DataCiteForm', () => {
             } finally {
                 vi.useRealTimers();
             }
+        });
+
+        it('seeds preference revisions from the latest server revision', async () => {
+            const serverRevision = 4_000_000_000_000_000;
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: null,
+                curationAccordionRevision: serverRevision,
+            });
+            renderDataCiteForm();
+
+            fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
+
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledTimes(1);
+            });
+            const payload = vi.mocked(axios.put).mock.calls[0][1] as CurationAccordionPreferencePayload;
+            expect(payload.revision).toBe(serverRevision + 1);
+        });
+
+        it('resynchronizes future preference revisions returned by the server', async () => {
+            const serverRevision = 4_000_000_000_000_000;
+            vi.mocked(axios.put).mockResolvedValueOnce({
+                data: undefined,
+                status: 204,
+                statusText: 'No Content',
+                headers: { 'x-curation-accordion-revision': String(serverRevision) },
+                config: {},
+            } as Awaited<ReturnType<typeof axios.put>>);
+            renderDataCiteForm();
+
+            fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledTimes(1);
+            });
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            fireEvent.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledTimes(2);
+            });
+            const payload = vi.mocked(axios.put).mock.calls[1][1] as CurationAccordionPreferencePayload;
+            expect(payload.revision).toBe(serverRevision + 1);
         });
 
         it('serializes immediate preference writes so the newest state is persisted last', async () => {

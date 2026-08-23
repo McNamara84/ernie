@@ -57,7 +57,8 @@ test('authenticated users can persist curation accordion open items', function (
             'open_items' => ['authors', 'funding-references'],
             'revision' => 100,
         ])
-        ->assertNoContent();
+        ->assertNoContent()
+        ->assertHeader('X-Curation-Accordion-Revision', '100');
 
     $user->refresh();
 
@@ -187,12 +188,15 @@ test('a stale request from another editor tab cannot overwrite a newer preferenc
         ])
         ->assertNoContent();
 
-    $this->actingAs($user)
+    $staleResponse = $this->actingAs($user)
         ->putJson(route('curation-accordion.update'), [
             'open_items' => ['authors'],
             'revision' => 199,
-        ])
-        ->assertNoContent();
+        ]);
+
+    $staleResponse
+        ->assertNoContent()
+        ->assertHeader('X-Curation-Accordion-Revision', '200');
 
     $user->refresh();
 

@@ -102,6 +102,7 @@ export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
 const ABSTRACT_MIN_LENGTH = 50;
 const ABSTRACT_MAX_LENGTH = 17500;
 const CURATION_ACCORDION_PREFERENCE_URL = '/settings/curation-accordion';
+const CURATION_ACCORDION_REVISION_HEADER = 'x-curation-accordion-revision';
 const CURATION_ACCORDION_REVISION_PRECISION = 1_000;
 const SECTION_TRIGGER_CLASS_NAME = 'hover:no-underline';
 const DRAFT_AUTOSAVE_INTERVAL_MS = 60_000;
@@ -113,6 +114,12 @@ function createCurationAccordionRevision(): number {
         typeof performance === 'undefined' || !Number.isFinite(performance.timeOrigin) ? Date.now() : performance.timeOrigin + performance.now();
 
     return Math.trunc(epochMilliseconds * CURATION_ACCORDION_REVISION_PRECISION);
+}
+
+function parseCurationAccordionRevision(value: unknown): number | null {
+    const revision = typeof value === 'number' ? value : Number(value);
+
+    return Number.isSafeInteger(revision) && revision > 0 ? revision : null;
 }
 
 type DraftSaveResponse = {
@@ -278,7 +285,7 @@ export default function DataCiteForm({
     activeRelationTypes,
     activeIdentifierTypes,
 }: DataCiteFormProps) {
-    const { curationAccordionOpenItems } = usePage<SharedData>().props;
+    const { curationAccordionOpenItems, curationAccordionRevision } = usePage<SharedData>().props;
     // Date types shown in the Dates section. Accepted/Issued/Updated are system-managed;
     // Coverage is edited exclusively in Spatial and Temporal Coverage.
     const dateTypeOptions = useMemo(
@@ -554,7 +561,7 @@ export default function DataCiteForm({
     );
     const openAccordionItemsRef = useRef(openAccordionItems);
     const accordionPreferenceRequestQueueRef = useRef<Promise<void>>(Promise.resolve());
-    const lastAccordionPreferenceRevisionRef = useRef(0);
+    const lastAccordionPreferenceRevisionRef = useRef(parseCurationAccordionRevision(curationAccordionRevision) ?? 0);
 
     // State to trigger auto-switch to MSL tab when it becomes available
     const [shouldAutoSwitchToMsl, setAutoSwitchToMslState] = useState<boolean>(false);
@@ -1052,10 +1059,15 @@ export default function DataCiteForm({
             // the action-time revision to reject stale writes from other tabs.
             accordionPreferenceRequestQueueRef.current = accordionPreferenceRequestQueueRef.current.then(async () => {
                 try {
-                    await axios.put(CURATION_ACCORDION_PREFERENCE_URL, {
+                    const response = await axios.put(CURATION_ACCORDION_PREFERENCE_URL, {
                         open_items: [...items],
                         revision,
                     });
+                    const currentRevision = parseCurationAccordionRevision(response.headers[CURATION_ACCORDION_REVISION_HEADER]);
+
+                    if (currentRevision !== null) {
+                        lastAccordionPreferenceRevisionRef.current = Math.max(lastAccordionPreferenceRevisionRef.current, currentRevision);
+                    }
                 } catch {
                     feedback.error('Failed to save the form group display preference.');
                 }
