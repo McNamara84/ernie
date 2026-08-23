@@ -7,14 +7,14 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateCurationAccordionRequest;
 use App\Models\User;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 
 class CurationAccordionController extends Controller
 {
     /**
      * Update the user's curation form accordion preference.
      */
-    public function update(UpdateCurationAccordionRequest $request): RedirectResponse
+    public function update(UpdateCurationAccordionRequest $request): Response
     {
         /** @var User $user */
         $user = $request->user();
@@ -25,6 +25,6 @@ class CurationAccordionController extends Controller
             'curation_accordion_open_items' => array_values($validated['open_items']),
         ]);
 
-        return back();
+        return response()->noContent();
     }
 }

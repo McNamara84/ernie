@@ -3,12 +3,15 @@ import '@testing-library/jest-dom/vitest';
 import userEvent from '@testing-library/user-event';
 import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import axios from 'axios';
-import { afterAll, afterEach, beforeAll, beforeEach, describe as vitestDescribe, expect, it as vitestIt, type Mock, vi } from 'vitest';
+import { toast } from 'sonner';
+import { describe as vitestDescribe, it as vitestIt } from 'vitest';
 
 import DataCiteForm, { canAddLicense, canAddTitle, type DataCiteFormProps } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import type { DateType, DescriptionType, Language, License, ResourceType, Role, TitleType } from '@/types';
 import type { LandingPageConfig } from '@/types/landing-page';
+
+type Mock = ReturnType<typeof vi.fn>;
 
 type MockSetupLandingPageModalProps = {
     isOpen: boolean;
@@ -451,7 +454,11 @@ describe('DataCiteForm', () => {
 
         // Mock axios.post for form submission - return axios response format
         // Note: Vocabularies are loaded via fetch, not axios
-        const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn>; isAxiosError: (error: unknown) => boolean };
+        const mockedAxios = axios as unknown as {
+            post: ReturnType<typeof vi.fn>;
+            put: ReturnType<typeof vi.fn>;
+            isAxiosError: (error: unknown) => boolean;
+        };
 
         // Axios response: { data, status, statusText, headers, config, request }
         mockedAxios.post = vi.fn().mockResolvedValue({
@@ -461,6 +468,14 @@ describe('DataCiteForm', () => {
             headers: {},
             config: {},
         });
+        mockedAxios.put = vi.fn().mockResolvedValue({
+            data: undefined,
+            status: 204,
+            statusText: 'No Content',
+            headers: {},
+            config: {},
+        });
+        vi.mocked(toast.error).mockClear();
 
         // Mock axios.isAxiosError helper - check for truthy isAxiosError flag
         mockedAxios.isAxiosError = (error: unknown) => {
@@ -757,6 +772,7 @@ describe('DataCiteForm', () => {
             expect(within(getResourceInfoSection()).getByLabelText('DOI')).toBeVisible();
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
             expect(screen.getAllByRole('button', { name: /Expand all field groups/i }).length).toBeGreaterThan(0);
+            expect(axios.put).not.toHaveBeenCalled();
             expect(mockRouterPut).not.toHaveBeenCalled();
         });
 
@@ -772,17 +788,13 @@ describe('DataCiteForm', () => {
             expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'false');
             expect(screen.queryAllByTestId('collapse-all-field-groups')).toHaveLength(0);
             expect(screen.getAllByTestId('expand-all-field-groups').length).toBeGreaterThanOrEqual(12);
-            expect(mockRouterPut).toHaveBeenCalledWith(
-                '/settings/curation-accordion',
-                { open_items: [] },
-                expect.objectContaining({
-                    preserveScroll: true,
-                    preserveState: true,
-                }),
-            );
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledWith('/settings/curation-accordion', { open_items: [] });
+            });
+            expect(mockRouterPut).not.toHaveBeenCalled();
         });
 
-        it('preserves hidden conditional field groups when collapsing all visible field groups', () => {
+        it('preserves hidden conditional field groups when collapsing all visible field groups', async () => {
             mockUsePageProps.mockReturnValue({
                 curationAccordionOpenItems: ['resource-info', 'authors', 'funding-references', 'used-instruments'],
             });
@@ -803,16 +815,12 @@ describe('DataCiteForm', () => {
             expect(getResourceInfoSection()).toBeVisible();
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
             expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'false');
-            expect(mockRouterPut).toHaveBeenCalledWith(
-                '/settings/curation-accordion',
-                {
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledWith('/settings/curation-accordion', {
                     open_items: ['used-instruments'],
-                },
-                expect.objectContaining({
-                    preserveScroll: true,
-                    preserveState: true,
-                }),
-            );
+                });
+            });
+            expect(mockRouterPut).not.toHaveBeenCalled();
         });
 
         it('expands every visible field group from a saved collapsed preference', async () => {
@@ -830,21 +838,20 @@ describe('DataCiteForm', () => {
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'true');
             expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'true');
             expect(screen.queryAllByTestId('expand-all-field-groups')).toHaveLength(0);
-            expect(mockRouterPut).toHaveBeenCalledWith(
-                '/settings/curation-accordion',
-                expect.objectContaining({
-                    open_items: expect.arrayContaining(['authors', 'funding-references']),
-                }),
-                expect.objectContaining({
-                    preserveScroll: true,
-                    preserveState: true,
-                }),
-            );
-            const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledWith(
+                    '/settings/curation-accordion',
+                    expect.objectContaining({
+                        open_items: expect.arrayContaining(['authors', 'funding-references']),
+                    }),
+                );
+            });
+            const payload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
             expect(payload.open_items).not.toContain('resource-info');
+            expect(mockRouterPut).not.toHaveBeenCalled();
         });
 
-        it('preserves hidden conditional field groups when expanding all visible field groups', () => {
+        it('preserves hidden conditional field groups when expanding all visible field groups', async () => {
             mockUsePageProps.mockReturnValue({
                 curationAccordionOpenItems: ['used-instruments'],
             });
@@ -864,9 +871,13 @@ describe('DataCiteForm', () => {
 
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'true');
             expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'true');
-            const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledTimes(1);
+            });
+            const payload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
             expect(payload.open_items).toEqual(expect.arrayContaining(['authors', 'funding-references', 'used-instruments']));
             expect(payload.open_items).not.toContain('resource-info');
+            expect(mockRouterPut).not.toHaveBeenCalled();
         });
 
         it('does not include hidden conditional field groups when expanding all', async () => {
@@ -888,9 +899,13 @@ describe('DataCiteForm', () => {
 
             await user.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
 
-            const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledTimes(1);
+            });
+            const payload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
             expect(payload.open_items).not.toContain('msl-laboratories');
             expect(payload.open_items).not.toContain('used-instruments');
+            expect(mockRouterPut).not.toHaveBeenCalled();
         });
 
         it('preserves hidden conditional field groups when toggling a visible field group', async () => {
@@ -919,9 +934,79 @@ describe('DataCiteForm', () => {
 
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
             expect(getResourceInfoSection()).toBeVisible();
-            const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
+            const payload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
             expect(payload.open_items).toContain('used-instruments');
             expect(payload.open_items).not.toContain('authors');
+            expect(mockRouterPut).not.toHaveBeenCalled();
+        });
+
+        it('debounces rapid individual toggles and persists only the latest complete state', async () => {
+            renderDataCiteForm();
+            vi.useFakeTimers();
+
+            try {
+                fireEvent.click(getAccordionTrigger(/Authors/i));
+                fireEvent.click(getAccordionTrigger(/Contributors/i));
+
+                expect(axios.put).not.toHaveBeenCalled();
+                await advanceAccordionPreferenceDebounce();
+
+                expect(axios.put).toHaveBeenCalledTimes(1);
+                const payload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
+                expect(payload.open_items).not.toContain('authors');
+                expect(payload.open_items).not.toContain('contributors');
+                expect(payload.open_items).toContain('funding-references');
+                expect(mockRouterPut).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('serializes immediate preference writes so the newest state is persisted last', async () => {
+            const firstRequest = createDeferred<unknown>();
+            vi.mocked(axios.put).mockReturnValueOnce(firstRequest.promise as ReturnType<typeof axios.put>);
+            renderDataCiteForm();
+
+            fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledTimes(1);
+            });
+
+            fireEvent.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
+            expect(axios.put).toHaveBeenCalledTimes(1);
+
+            firstRequest.resolve({});
+
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledTimes(2);
+            });
+            const firstPayload = vi.mocked(axios.put).mock.calls[0][1] as { open_items: string[] };
+            expect(firstPayload.open_items).not.toContain('authors');
+            expect(firstPayload.open_items).not.toContain('funding-references');
+            expect((vi.mocked(axios.put).mock.calls[1][1] as { open_items: string[] }).open_items).toEqual(
+                expect.arrayContaining(['authors', 'funding-references']),
+            );
+            expect(mockRouterPut).not.toHaveBeenCalled();
+        });
+
+        it('keeps the local accordion state and reports background persistence failures', async () => {
+            vi.mocked(axios.put).mockRejectedValueOnce(new Error('Network error'));
+            renderDataCiteForm();
+
+            fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
+
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
+            await waitFor(() => {
+                expect(toast.error).toHaveBeenCalledWith('Failed to save the form group display preference.');
+            });
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
+
+            fireEvent.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledTimes(2);
+            });
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'true');
+            expect(mockRouterPut).not.toHaveBeenCalled();
         });
     });
 
@@ -3636,7 +3721,7 @@ describe('DataCiteForm', () => {
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
 
-        mockRouterPut.mockClear();
+        vi.mocked(axios.put).mockClear();
         vi.useFakeTimers();
 
         try {
@@ -3688,6 +3773,7 @@ describe('DataCiteForm', () => {
             // Should NOT redirect on validation failure (Issue #624)
             expect(mockRouterVisit).not.toHaveBeenCalled();
             await advanceAccordionPreferenceDebounce();
+            expect(axios.put).not.toHaveBeenCalled();
             expect(mockRouterPut).not.toHaveBeenCalled();
         } finally {
             vi.useRealTimers();
@@ -3814,6 +3900,7 @@ describe('DataCiteForm', () => {
         });
         expect(getResourceInfoSection()).toBeVisible();
         expect(getResourceInfoSection().querySelector('[data-slot="accordion-trigger"]')).toBeNull();
+        expect(axios.put).not.toHaveBeenCalled();
         expect(mockRouterPut).not.toHaveBeenCalled();
     });
 
@@ -3979,9 +4066,9 @@ describe('DataCiteForm', () => {
         await user.click(fundingTrigger);
         expect(fundingTrigger).toHaveAttribute('aria-expanded', 'false');
         await waitFor(() => {
-            expect(mockRouterPut).toHaveBeenCalled();
+            expect(axios.put).toHaveBeenCalled();
         });
-        mockRouterPut.mockClear();
+        vi.mocked(axios.put).mockClear();
 
         const fundingScrollSpy = vi.spyOn(fundingTrigger, 'scrollIntoView');
 
@@ -4007,6 +4094,7 @@ describe('DataCiteForm', () => {
                 await vi.advanceTimersByTimeAsync(250);
             });
 
+            expect(axios.put).not.toHaveBeenCalled();
             expect(mockRouterPut).not.toHaveBeenCalled();
         } finally {
             animationFrameSpy.mockRestore();

@@ -544,6 +544,7 @@ export default function DataCiteForm({
         normalizeAccordionItems(curationAccordionOpenItems ?? DEFAULT_OPEN_ACCORDION_ITEMS),
     );
     const openAccordionItemsRef = useRef(openAccordionItems);
+    const accordionPreferenceRequestQueueRef = useRef<Promise<void>>(Promise.resolve());
 
     // State to trigger auto-switch to MSL tab when it becomes available
     const [shouldAutoSwitchToMsl, setAutoSwitchToMslState] = useState<boolean>(false);
@@ -1033,17 +1034,20 @@ export default function DataCiteForm({
 
     const persistAccordionPreference = useCallback((items: readonly CurationAccordionItemValue[], immediate = false) => {
         const persist = () => {
-            router.put(
-                CURATION_ACCORDION_PREFERENCE_URL,
-                {
-                    open_items: [...items],
-                },
-                {
-                    preserveScroll: true,
-                    preserveState: true,
-                    only: ['curationAccordionOpenItems'],
-                },
-            );
+            accordionPreferenceTimeoutRef.current = null;
+
+            // Preference updates must not become Inertia visits: reloading an existing
+            // resource replaces the form and discards unsaved editor state. Queue the
+            // idempotent writes so a slower, older request can never win the race.
+            accordionPreferenceRequestQueueRef.current = accordionPreferenceRequestQueueRef.current.then(async () => {
+                try {
+                    await axios.put(CURATION_ACCORDION_PREFERENCE_URL, {
+                        open_items: [...items],
+                    });
+                } catch {
+                    toast.error('Failed to save the form group display preference.');
+                }
+            });
         };
 
         if (accordionPreferenceTimeoutRef.current) {

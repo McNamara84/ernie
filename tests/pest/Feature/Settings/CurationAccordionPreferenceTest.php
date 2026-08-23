@@ -33,15 +33,20 @@ test('guests are redirected when updating curation accordion preference', functi
     ])->assertRedirect(route('login'));
 });
 
+test('unauthenticated background preference updates are rejected', function () {
+    $this->putJson(route('curation-accordion.update'), [
+        'open_items' => ['authors'],
+    ])->assertUnauthorized();
+});
+
 test('authenticated users can persist curation accordion open items', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->put(route('curation-accordion.update'), [
+        ->putJson(route('curation-accordion.update'), [
             'open_items' => ['authors', 'funding-references'],
         ])
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
+        ->assertNoContent();
 
     expect($user->refresh()->curation_accordion_open_items)->toBe([
         'authors',
@@ -55,11 +60,10 @@ test('authenticated users can persist all curation accordions as collapsed', fun
     ]);
 
     $this->actingAs($user)
-        ->put(route('curation-accordion.update'), [
+        ->putJson(route('curation-accordion.update'), [
             'open_items' => [],
         ])
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
+        ->assertNoContent();
 
     expect($user->refresh()->curation_accordion_open_items)->toBe([]);
 });
@@ -70,9 +74,8 @@ test('omitting open items persists the default collapsed preference', function (
     ]);
 
     $this->actingAs($user)
-        ->put(route('curation-accordion.update'))
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
+        ->putJson(route('curation-accordion.update'))
+        ->assertNoContent();
 
     expect($user->refresh()->curation_accordion_open_items)->toBe([]);
 });
@@ -83,12 +86,11 @@ test('non-array open items are rejected without changing the preference', functi
     ]);
 
     $this->actingAs($user)
-        ->from('/editor')
-        ->put(route('curation-accordion.update'), [
+        ->putJson(route('curation-accordion.update'), [
             'open_items' => 'authors',
         ])
-        ->assertRedirect('/editor')
-        ->assertSessionHasErrors('open_items');
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('open_items');
 
     expect($user->refresh()->curation_accordion_open_items)->toBe(['authors']);
 });
@@ -97,12 +99,11 @@ test('unknown curation accordion item values are rejected', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->from('/editor')
-        ->put(route('curation-accordion.update'), [
+        ->putJson(route('curation-accordion.update'), [
             'open_items' => ['authors', 'unknown-section'],
         ])
-        ->assertRedirect('/editor')
-        ->assertSessionHasErrors('open_items.1');
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('open_items.1');
 
     expect($user->refresh()->curation_accordion_open_items)->toBeNull();
 });
@@ -111,11 +112,10 @@ test('legacy resource information values are discarded while valid accordion ite
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->put(route('curation-accordion.update'), [
+        ->putJson(route('curation-accordion.update'), [
             'open_items' => ['resource-info', 'authors'],
         ])
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
+        ->assertNoContent();
 
     expect($user->refresh()->curation_accordion_open_items)->toBe(['authors']);
 });
@@ -124,12 +124,13 @@ test('duplicate curation accordion item values are rejected', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->from('/editor')
-        ->put(route('curation-accordion.update'), [
+        ->putJson(route('curation-accordion.update'), [
             'open_items' => ['authors', 'authors'],
         ])
-        ->assertRedirect('/editor')
-        ->assertSessionHasErrors('open_items.1');
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('open_items.1');
+
+    expect($user->refresh()->curation_accordion_open_items)->toBeNull();
 });
 
 test('curation accordion open items migration can be rerun safely', function () {
