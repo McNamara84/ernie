@@ -59,6 +59,7 @@ export interface SharedData {
     sidebarOpen: boolean;
     fontSizePreference: FontSize;
     curationAccordionOpenItems: CurationAccordionItemValue[] | null;
+    curationAccordionRevision: number | null;
     dataResourceCount?: number;
     igsnCount?: number;
     dataInstitutionCount?: number;
@@ -74,6 +75,7 @@ export interface User {
     email: string;
     font_size_preference: FontSize;
     curation_accordion_open_items?: CurationAccordionItemValue[] | null;
+    curation_accordion_revision?: number | null;
     role?: UserRole;
     role_label?: string;
     is_active?: boolean;

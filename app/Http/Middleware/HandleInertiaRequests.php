@@ -89,6 +89,7 @@ class HandleInertiaRequests extends Middleware
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'fontSizePreference' => $request->user() ? $request->user()->font_size_preference : 'regular',
             'curationAccordionOpenItems' => $request->user()?->curation_accordion_open_items,
+            'curationAccordionRevision' => $request->user()?->curation_accordion_revision,
             'dataResourceCount' => fn (): int => $this->resolveSharedDataResourceCount($request),
             'igsnCount' => fn (): int => $this->resolveSharedIgsnCount($request),
             'appUrl' => $this->getBaseUrl($request),

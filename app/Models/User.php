@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property bool $is_active
  * @property string|null $font_size_preference
  * @property array<int, string>|null $curation_accordion_open_items
+ * @property int|null $curation_accordion_revision
  * @property array<int, string>|null $assistance_collapsed_assistant_ids
  * @property Carbon|null $email_verified_at
  * @property Carbon|null $deactivated_at
@@ -36,7 +37,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'password_set_at', 'font_size_preference', 'curation_accordion_open_items', 'assistance_collapsed_assistant_ids', 'role', 'is_active'])]
+#[Fillable(['name', 'email', 'password', 'password_set_at', 'font_size_preference', 'curation_accordion_open_items', 'curation_accordion_revision', 'assistance_collapsed_assistant_ids', 'role', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -55,6 +56,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'password_set_at' => 'datetime',
             'curation_accordion_open_items' => 'array',
+            'curation_accordion_revision' => 'integer',
             'assistance_collapsed_assistant_ids' => 'array',
             'role' => UserRole::class,
             'is_active' => 'boolean',

@@ -241,6 +241,15 @@ describe('HandleInertiaRequests', function () {
         expect($shared['curationAccordionOpenItems'])->toBeNull();
     });
 
+    it('shares null curationAccordionRevision when no user', function () {
+        $middleware = new HandleInertiaRequests;
+        $request = Request::create('/test');
+
+        $shared = $middleware->share($request);
+
+        expect($shared['curationAccordionRevision'])->toBeNull();
+    });
+
     it('shares curationAccordionOpenItems from authenticated user', function () {
         $user = User::factory()->create([
             'curation_accordion_open_items' => ['authors', 'funding-references'],
@@ -252,6 +261,19 @@ describe('HandleInertiaRequests', function () {
         $shared = $middleware->share($request);
 
         expect($shared['curationAccordionOpenItems'])->toBe(['authors', 'funding-references']);
+    });
+
+    it('shares curationAccordionRevision from authenticated user', function () {
+        $user = User::factory()->create([
+            'curation_accordion_revision' => 4_000_000_000_000_000,
+        ]);
+        $middleware = new HandleInertiaRequests;
+        $request = Request::create('/test');
+        $request->setUserResolver(fn () => $user);
+
+        $shared = $middleware->share($request);
+
+        expect($shared['curationAccordionRevision'])->toBe(4_000_000_000_000_000);
     });
 
     it('shares appUrl and baseUrl', function () {
