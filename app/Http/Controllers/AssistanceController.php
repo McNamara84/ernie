@@ -9,6 +9,7 @@ use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
 use App\Http\Requests\Assistance\AcceptSuggestionRequest;
 use App\Http\Requests\Assistance\BatchSuggestionsRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
+use App\Http\Requests\Assistance\IndexAssistanceRequest;
 use App\Models\RelationType;
 use App\Models\User;
 use App\Services\Assistance\AssistanceReviewService;
@@ -40,9 +41,10 @@ class AssistanceController extends Controller
     /**
      * Display the Assistance page with suggestions from all registered assistants.
      */
-    public function index(Request $request): Response
+    public function index(IndexAssistanceRequest $request): Response
     {
         $perPage = max(1, min((int) $request->input('per_page', 25), 100));
+        $filter = $request->resourceImpactFilter();
         $assistants = $this->registrar->getAll();
         $manifests = [];
 
@@ -50,7 +52,7 @@ class AssistanceController extends Controller
             $manifests[] = $assistant->getManifest()->toArray();
         }
 
-        $review = $this->reviewService->build($request, $perPage);
+        $review = $this->reviewService->build($request, $perPage, $filter);
         $user = $request->user();
         $savedCollapsedAssistantIds = $user instanceof User ? $user->assistance_collapsed_assistant_ids : null;
         $collapsedAssistantIds = is_array($savedCollapsedAssistantIds)
@@ -59,6 +61,7 @@ class AssistanceController extends Controller
 
         return Inertia::render('assistance', [
             ...$review,
+            'filters' => $filter->toArray(),
             'manifests' => $manifests,
             'assistanceCollapsedAssistantIds' => $collapsedAssistantIds,
             'relationTypes' => $this->relationTypeOptions(),

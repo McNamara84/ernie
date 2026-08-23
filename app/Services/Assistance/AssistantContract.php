@@ -61,6 +61,18 @@ interface AssistantContract
     public function listPendingResources(): array;
 
     /**
+     * List pending suggestions together with every resource affected by accepting them.
+     *
+     * @return list<array{
+     *     suggestion_id: int,
+     *     resource_id: int,
+     *     resource_created_at_timestamp: int,
+     *     impacted_resource_ids: list<int>
+     * }>
+     */
+    public function listPendingSuggestionReferences(): array;
+
+    /**
      * Load every pending suggestion for the supplied resources.
      *
      * @param  list<int>  $resourceIds

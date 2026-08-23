@@ -1,3 +1,5 @@
+import type { ResourceImpactDatacenterOption, ResourceImpactFilterState } from '@/types/resource-impact-filters';
+
 export interface SuggestedRelationItem {
     id: number;
     resource_id: number;
@@ -73,6 +75,12 @@ export interface SuggestionReviewMetadata {
     can_decline: boolean;
     exclusive_target_key: string | null;
     label: string;
+    filter_match?: {
+        kind: 'indirect';
+        matched_resource_count: number;
+        matched_doi: string | null;
+        matched_datacenter_name: string | null;
+    };
 }
 
 export interface AssistanceResourceGroup {
@@ -318,6 +326,8 @@ export interface AssistancePageProps {
     assistanceCollapsedAssistantIds?: string[] | null;
     manifests: AssistantManifest[];
     relationTypes?: AssistanceRelationTypeOption[];
+    filters?: ResourceImpactFilterState;
+    datacenterOptions?: ResourceImpactDatacenterOption[];
 }
 
 export interface BatchSuggestionResult {

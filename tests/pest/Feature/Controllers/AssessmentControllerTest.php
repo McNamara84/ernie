@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\AssessmentController;
 use App\Jobs\RunResourceAssessmentsJob;
+use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\Resource;
@@ -286,6 +287,140 @@ describe('index', function () {
                 ->where('igsnsNeedingAttention.0.score', 8.25)
                 ->where('igsnsNeedingAttention.1.mainTitle', 'Higher IGSN')
             );
+    });
+
+    it('filters lists and summaries by normalized DOI and datacenter while exposing only assessment datacenters', function () {
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'Physical Object',
+            'slug' => 'physical-object',
+        ]);
+        $matchingDatacenter = Datacenter::factory()->create(['name' => 'Alpha Assessment Center']);
+        $otherDatacenter = Datacenter::factory()->create(['name' => 'Beta Assessment Center']);
+        Datacenter::factory()->create(['name' => 'Unused Center']);
+
+        $matching = Resource::factory()->withDoi('10.5880/filter.one')->create([
+            'datacenter_id' => $matchingDatacenter->id,
+        ]);
+        Title::factory()->for($matching)->create(['value' => 'Matching assessment']);
+        ResourceAssessment::query()->create([
+            'resource_id' => $matching->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 22.5,
+            'assessed_identifier' => $matching->doi,
+            'assessed_at' => now(),
+        ]);
+
+        $failed = Resource::factory()->withDoi('10.5880/filter.failed')->create([
+            'datacenter_id' => $matchingDatacenter->id,
+        ]);
+        ResourceAssessment::query()->create([
+            'resource_id' => $failed->id,
+            'status' => ResourceAssessment::STATUS_FAILED,
+            'error_message' => 'Assessment failed.',
+            'assessed_identifier' => $failed->doi,
+            'assessed_at' => now(),
+        ]);
+
+        $other = Resource::factory()->withDoi('10.5880/filter.other')->create([
+            'datacenter_id' => $otherDatacenter->id,
+        ]);
+        Title::factory()->for($other)->create(['value' => 'Other assessment']);
+        ResourceAssessment::query()->create([
+            'resource_id' => $other->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 10,
+            'assessed_identifier' => $other->doi,
+            'assessed_at' => now(),
+        ]);
+
+        $matchingIgsn = Resource::factory()->withDoi('10.5880/filter.igsn')->create([
+            'datacenter_id' => $matchingDatacenter->id,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+        Title::factory()->for($matchingIgsn)->create(['value' => 'Matching IGSN assessment']);
+        IgsnMetadata::create([
+            'resource_id' => $matchingIgsn->id,
+            'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+        ]);
+        ResourceAssessment::query()->create([
+            'resource_id' => $matchingIgsn->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 15,
+            'assessed_identifier' => $matchingIgsn->doi,
+            'assessed_at' => now(),
+        ]);
+
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->get('/assessment?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FFILTER.ONE')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.doi', '10.5880/filter.one')
+                ->where('filters.datacenter_id', null)
+                ->where('resourceAssessmentSummary.total', 1)
+                ->where('resourceAssessmentSummary.assessed', 1)
+                ->where('resourceAssessmentSummary.failed', 0)
+                ->has('resourcesNeedingAttention', 1)
+                ->where('resourcesNeedingAttention.0.id', $matching->id)
+                ->has('igsnsNeedingAttention', 0)
+                ->has('datacenterOptions', 2)
+                ->where('datacenterOptions.0.name', 'Alpha Assessment Center')
+                ->where('datacenterOptions.1.name', 'Beta Assessment Center')
+            );
+
+        $this->actingAs($user)
+            ->get('/assessment?datacenter_id='.$matchingDatacenter->id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.datacenter_id', $matchingDatacenter->id)
+                ->where('resourceAssessmentSummary.total', 2)
+                ->where('resourceAssessmentSummary.assessed', 1)
+                ->where('resourceAssessmentSummary.failed', 1)
+                ->where('igsnAssessmentSummary.total', 1)
+                ->where('igsnAssessmentSummary.assessed', 1)
+                ->has('resourcesNeedingAttention', 1)
+                ->where('resourcesNeedingAttention.0.id', $matching->id)
+                ->has('igsnsNeedingAttention', 1)
+                ->where('igsnsNeedingAttention.0.id', $matchingIgsn->id)
+            );
+
+        $this->actingAs($user)
+            ->get('/assessment?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FFILTER.IGSN&datacenter_id='.$matchingDatacenter->id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.doi', '10.5880/filter.igsn')
+                ->where('resourceAssessmentSummary.total', 0)
+                ->where('igsnAssessmentSummary.total', 1)
+                ->where('igsnAssessmentSummary.assessed', 1)
+                ->has('resourcesNeedingAttention', 0)
+                ->has('igsnsNeedingAttention', 1)
+                ->where('igsnsNeedingAttention.0.id', $matchingIgsn->id)
+            );
+
+        $this->actingAs($user)
+            ->get('/assessment?doi=10.5880%2Ffilter.one&datacenter_id='.$otherDatacenter->id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('resourceAssessmentSummary.total', 0)
+                ->has('resourcesNeedingAttention', 0)
+            );
+    });
+
+    it('rejects invalid assessment filter values', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->from('/assessment')
+            ->get('/assessment?doi=not-a-doi')
+            ->assertRedirect('/assessment')
+            ->assertSessionHasErrors('doi');
+
+        $this->actingAs($user)
+            ->from('/assessment')
+            ->get('/assessment?datacenter_id=999999')
+            ->assertRedirect('/assessment')
+            ->assertSessionHasErrors('datacenter_id');
     });
 
     it('filters external landing pages before limiting the resource ranking without changing IGSNs or summaries', function () {

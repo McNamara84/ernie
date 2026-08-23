@@ -15,6 +15,7 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\SuggestedRor;
 use App\Models\User;
+use App\Services\Assistance\ResourceEntityImpactResolverService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
@@ -61,6 +62,7 @@ class RorDiscoveryService
     public function __construct(
         private readonly DataCiteSyncService $dataCiteSyncService,
         private readonly RorAffiliationBulkAcceptanceService $affiliationBulkAcceptanceService,
+        private readonly ResourceEntityImpactResolverService $impactResolver,
     ) {}
 
     /**
@@ -956,52 +958,11 @@ class RorDiscoveryService
     private function getResourceIdsForEntity(SuggestedRor $suggestion): array
     {
         return match ($suggestion->entity_type) {
-            'affiliation' => $this->getResourceIdsForAffiliationEntity($suggestion->entity_id),
-            'institution' => $this->getResourceIdsForInstitutionEntity($suggestion->entity_id),
+            'affiliation' => $this->impactResolver->forAffiliations([$suggestion->entity_id])[$suggestion->entity_id] ?? [],
+            'institution' => $this->impactResolver->forInstitutions([$suggestion->entity_id])[$suggestion->entity_id] ?? [],
             'funder' => [$suggestion->resource_id],
             default => [],
         };
-    }
-
-    /**
-     * Get resource IDs linked to an affiliation via creator/contributor.
-     *
-     * Queries the polymorphic target directly to handle orphaned rows safely.
-     *
-     * @return array<int, int>
-     */
-    private function getResourceIdsForAffiliationEntity(int $affiliationId): array
-    {
-        $affiliation = Affiliation::find($affiliationId);
-        if ($affiliation === null) {
-            return [];
-        }
-
-        $resourceId = match ($affiliation->affiliatable_type) {
-            ResourceCreator::class => ResourceCreator::where('id', $affiliation->affiliatable_id)->value('resource_id'),
-            ResourceContributor::class => ResourceContributor::where('id', $affiliation->affiliatable_id)->value('resource_id'),
-            default => null,
-        };
-
-        return $resourceId !== null ? [$resourceId] : [];
-    }
-
-    /**
-     * Get resource IDs linked to an institution as creator or contributor.
-     *
-     * @return array<int, int>
-     */
-    private function getResourceIdsForInstitutionEntity(int $institutionId): array
-    {
-        $creatorIds = ResourceCreator::where('creatorable_type', Institution::class)
-            ->where('creatorable_id', $institutionId)
-            ->pluck('resource_id');
-
-        $contributorIds = ResourceContributor::where('contributorable_type', Institution::class)
-            ->where('contributorable_id', $institutionId)
-            ->pluck('resource_id');
-
-        return $creatorIds->merge($contributorIds)->unique()->values()->all();
     }
 
     /**

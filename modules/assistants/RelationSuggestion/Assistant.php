@@ -63,6 +63,30 @@ class Assistant extends AbstractAssistant
     }
 
     #[\Override]
+    public function listPendingSuggestionReferences(): array
+    {
+        return array_values(SuggestedRelation::query()
+            ->join('resources', 'suggested_relations.resource_id', '=', 'resources.id')
+            ->select([
+                'suggested_relations.id AS suggestion_id',
+                'suggested_relations.resource_id AS resource_id',
+                'resources.created_at AS resource_created_at',
+            ])
+            ->orderByDesc('resources.created_at')
+            ->orderByDesc('suggested_relations.id')
+            ->get()
+            ->map(fn (SuggestedRelation $suggestion): array => [
+                'suggestion_id' => (int) $suggestion->getAttribute('suggestion_id'),
+                'resource_id' => (int) $suggestion->resource_id,
+                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
+                    (string) $suggestion->getAttribute('resource_created_at'),
+                ),
+                'impacted_resource_ids' => [(int) $suggestion->resource_id],
+            ])
+            ->all());
+    }
+
+    #[\Override]
     public function loadSuggestionsForResources(array $resourceIds): array
     {
         if ($resourceIds === []) {

@@ -12,6 +12,7 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\SuggestedOrcid;
 use App\Models\User;
+use App\Services\Assistance\ResourceEntityImpactResolverService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -44,6 +45,7 @@ class OrcidDiscoveryService
     public function __construct(
         private readonly OrcidService $orcidService,
         private readonly DataCiteSyncService $dataCiteSyncService,
+        private readonly ResourceEntityImpactResolverService $impactResolver,
     ) {}
 
     /**
@@ -626,18 +628,7 @@ class OrcidDiscoveryService
     private function syncAffectedResources(Person $person): array
     {
         $syncedDois = [];
-
-        // Get all resource IDs where this person is a creator
-        $creatorResourceIds = ResourceCreator::where('creatorable_type', Person::class)
-            ->where('creatorable_id', $person->id)
-            ->pluck('resource_id');
-
-        // Get all resource IDs where this person is a contributor
-        $contributorResourceIds = ResourceContributor::where('contributorable_type', Person::class)
-            ->where('contributorable_id', $person->id)
-            ->pluck('resource_id');
-
-        $resourceIds = $creatorResourceIds->merge($contributorResourceIds)->unique();
+        $resourceIds = $this->impactResolver->forPersons([$person->id])[$person->id] ?? [];
 
         $resources = Resource::whereIn('id', $resourceIds)
             ->whereNotNull('doi')

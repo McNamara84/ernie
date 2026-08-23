@@ -1,3 +1,5 @@
+import type { ResourceImpactDatacenterOption, ResourceImpactFilterState } from '@/types/resource-impact-filters';
+
 export type AssessmentScope = 'resource' | 'igsn';
 
 export type FairDimension = 'F' | 'A' | 'I' | 'R';
@@ -72,6 +74,8 @@ export interface AssessmentPageProps {
     canRunAssessments: boolean;
     showImprovementActorLabels: boolean;
     includeExternalResources: boolean;
+    filters?: ResourceImpactFilterState;
+    datacenterOptions?: ResourceImpactDatacenterOption[];
     resourcesNeedingAttention: AssessmentEntry[];
     igsnsNeedingAttention: AssessmentEntry[];
     resourceAssessmentSummary: AssessmentSummary;

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 
 import { RelationTypeSelect } from '@/components/assistance/relation-type-select';
 import { ResourceReview } from '@/components/assistance/resource-review';
+import { ResourceImpactFilters } from '@/components/resource-impact-filters';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +37,7 @@ import {
     type SuggestedSubjectMetadataEnrichmentItem,
     type SuggestionAcceptanceInput,
 } from '@/types/assistance';
+import type { ResourceImpactFilterState } from '@/types/resource-impact-filters';
 import { validateORCID } from '@/utils/validation-rules';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -1527,6 +1529,8 @@ export default function AssistancePage({
     allAssistantResources,
     assistanceCollapsedAssistantIds,
     relationTypes = [],
+    filters = { doi: null, datacenter_id: null },
+    datacenterOptions = [],
 }: AssistancePageProps) {
     const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
     const [acceptanceInputs, setAcceptanceInputs] = useState<Record<string, SuggestionAcceptanceInput>>({});
@@ -1578,10 +1582,31 @@ export default function AssistancePage({
     const reloadAssistanceSections = useCallback(() => {
         router.reload({
             only: allAssistantResources
-                ? ['sections', 'allAssistantResources', 'pendingCounts', 'relationTypes', 'pendingAssistanceTotalCount']
-                : ['sections', 'relationTypes', 'pendingAssistanceTotalCount'],
+                ? ['sections', 'allAssistantResources', 'pendingCounts', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount']
+                : ['sections', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount'],
         });
     }, [allAssistantResources]);
+
+    const handleFiltersChange = useCallback((nextFilters: ResourceImpactFilterState) => {
+        const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+
+        for (const key of [...params.keys()]) {
+            if (key === 'all_page' || (key !== 'per_page' && key.endsWith('_page'))) params.delete(key);
+        }
+
+        if (nextFilters.doi === null) params.delete('doi');
+        else params.set('doi', nextFilters.doi);
+
+        if (nextFilters.datacenter_id === null) params.delete('datacenter_id');
+        else params.set('datacenter_id', String(nextFilters.datacenter_id));
+
+        router.get('/assistance', Object.fromEntries(params.entries()), {
+            only: ['filters', 'datacenterOptions', 'sections', 'allAssistantResources', 'pendingCounts'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    }, []);
 
     const enqueueRorBulkMatches = useCallback((matches: RorAffiliationBulkMatch[]) => {
         setRorBulkMatchQueue((current) => [...current, ...matches.filter((match) => match.available && match.count > 0)]);
@@ -1999,6 +2024,8 @@ export default function AssistancePage({
                     </Button>
                 </div>
 
+                <ResourceImpactFilters filters={filters} datacenterOptions={datacenterOptions} onChange={handleFiltersChange} />
+
                 {/* Progress indicators */}
                 {manifests.map((manifest) => {
                     const state = states[manifest.id];
@@ -2026,6 +2053,7 @@ export default function AssistancePage({
                         onRorFollowUps={enqueueRorBulkMatches}
                         renderSuggestion={renderCard}
                         acceptanceInputs={acceptanceInputs}
+                        hasActiveFilters={filters.doi !== null || filters.datacenter_id !== null}
                     />
                 )}
 

@@ -12,6 +12,7 @@ use App\Models\ResourceCreator;
 use App\Models\SuggestedRor;
 use App\Models\User;
 use App\Services\Assistance\AbstractAssistant;
+use App\Services\Assistance\ResourceEntityImpactResolverService;
 use App\Services\RorDiscoveryService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -29,6 +30,7 @@ class Assistant extends AbstractAssistant
 
     public function __construct(
         private readonly RorDiscoveryService $service,
+        private readonly ResourceEntityImpactResolverService $impactResolver,
     ) {
         parent::__construct();
     }
@@ -72,6 +74,62 @@ class Assistant extends AbstractAssistant
                 ),
             ])
             ->all());
+    }
+
+    #[\Override]
+    public function listPendingSuggestionReferences(): array
+    {
+        $suggestions = SuggestedRor::query()
+            ->join('resources', 'suggested_rors.resource_id', '=', 'resources.id')
+            ->select([
+                'suggested_rors.id AS suggestion_id',
+                'suggested_rors.resource_id AS resource_id',
+                'suggested_rors.entity_type AS entity_type',
+                'suggested_rors.entity_id AS entity_id',
+                'resources.created_at AS resource_created_at',
+            ])
+            ->orderByDesc('resources.created_at')
+            ->orderByDesc('suggested_rors.id')
+            ->get();
+
+        $institutionIds = $suggestions
+            ->where('entity_type', 'institution')
+            ->pluck('entity_id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $affiliationIds = $suggestions
+            ->where('entity_type', 'affiliation')
+            ->pluck('entity_id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $institutionImpacts = $this->impactResolver->forInstitutions($institutionIds);
+        $affiliationImpacts = $this->impactResolver->forAffiliations($affiliationIds);
+
+        return $suggestions
+            ->map(function (SuggestedRor $suggestion) use ($institutionImpacts, $affiliationImpacts): array {
+                $resourceId = (int) $suggestion->resource_id;
+                $entityId = (int) $suggestion->entity_id;
+                $resolvedImpacts = match ($suggestion->entity_type) {
+                    'institution' => $institutionImpacts[$entityId] ?? [],
+                    'affiliation' => $affiliationImpacts[$entityId] ?? [],
+                    default => [],
+                };
+
+                return [
+                    'suggestion_id' => (int) $suggestion->getAttribute('suggestion_id'),
+                    'resource_id' => $resourceId,
+                    'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
+                        (string) $suggestion->getAttribute('resource_created_at'),
+                    ),
+                    'impacted_resource_ids' => array_values(array_unique([$resourceId, ...$resolvedImpacts])),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     #[\Override]

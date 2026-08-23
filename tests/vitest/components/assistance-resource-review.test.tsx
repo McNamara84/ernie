@@ -127,6 +127,22 @@ beforeEach(() => {
 });
 
 describe('resource-oriented assistance review', () => {
+    it('explains indirect matches without changing the origin resource group', () => {
+        const item = suggestion(1, 'Shared person suggestion');
+        item.review!.filter_match = {
+            kind: 'indirect',
+            matched_resource_count: 1,
+            matched_doi: '10.5880/affected',
+            matched_datacenter_name: null,
+        };
+
+        renderReview([item]);
+
+        expect(screen.getAllByText('Indirect match').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Affects 10.5880/affected').length).toBeGreaterThan(0);
+        expect(screen.getAllByRole('link', { name: '10.1234/test' }).length).toBeGreaterThan(0);
+    });
+
     it('does not misclassify a legacy suggestion with an assistant-specific suggestions field', () => {
         const item: BaseSuggestionItem = {
             ...suggestion(1, 'Legacy candidate'),

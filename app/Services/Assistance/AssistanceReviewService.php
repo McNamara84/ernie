@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Assistance;
 
+use App\Models\Datacenter;
+use App\Models\Resource;
+use App\Services\DoiSuggestionService;
+use App\Support\ResourceImpactFilter;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -14,26 +18,77 @@ final class AssistanceReviewService
 {
     public function __construct(
         private readonly AssistantRegistrar $registrar,
+        private readonly DoiSuggestionService $doiService,
     ) {}
 
     /**
      * @return array{
      *     allAssistantResources: LengthAwarePaginator<int, array<string, mixed>>,
      *     sections: array<string, LengthAwarePaginator<int, array<string, mixed>>>,
-     *     pendingCounts: array<string, int>
+     *     pendingCounts: array<string, int>,
+     *     datacenterOptions: list<array{id: int, name: string}>
      * }
      */
-    public function build(Request $request, int $perPage): array
+    public function build(Request $request, int $perPage, ?ResourceImpactFilter $filter = null): array
     {
+        $filter ??= new ResourceImpactFilter;
         $assistants = $this->registrar->getAll();
         $allResources = [];
         $assistantResources = [];
         $pendingCounts = [];
+        $referencesByAssistant = [];
+        $allImpactedResourceIds = [];
 
         foreach ($assistants as $assistantId => $assistant) {
-            $resources = $assistant->listPendingResources();
+            $references = $assistant->listPendingSuggestionReferences();
+            $referencesByAssistant[$assistantId] = $references;
+
+            foreach ($references as $reference) {
+                array_push($allImpactedResourceIds, ...$reference['impacted_resource_ids']);
+            }
+        }
+
+        $impactResources = $this->loadImpactResources($allImpactedResourceIds);
+        $matchingResourceIds = $this->matchingResourceIds($impactResources, $filter, $allImpactedResourceIds);
+        $allowedSuggestions = [];
+
+        foreach ($assistants as $assistantId => $assistant) {
+            $resources = [];
+            $seenResourceIds = [];
+            $pendingCounts[$assistantId] = 0;
+            $allowedSuggestions[$assistantId] = [];
+
+            foreach ($referencesByAssistant[$assistantId] as $reference) {
+                $matchedResourceIds = array_values(array_intersect(
+                    $reference['impacted_resource_ids'],
+                    $matchingResourceIds,
+                ));
+
+                if ($matchedResourceIds === []) {
+                    continue;
+                }
+
+                $pendingCounts[$assistantId]++;
+                $resourceId = $reference['resource_id'];
+                $allowedSuggestions[$assistantId][$reference['suggestion_id']] = $this->filterMatchMetadata(
+                    originResourceId: $resourceId,
+                    matchedResourceIds: $matchedResourceIds,
+                    resources: $impactResources,
+                    filter: $filter,
+                );
+
+                if (isset($seenResourceIds[$resourceId])) {
+                    continue;
+                }
+
+                $seenResourceIds[$resourceId] = true;
+                $resources[] = [
+                    'resource_id' => $resourceId,
+                    'resource_created_at_timestamp' => $reference['resource_created_at_timestamp'],
+                ];
+            }
+
             $assistantResources[$assistantId] = $resources;
-            $pendingCounts[$assistantId] = $assistant->countPending();
 
             foreach ($resources as $resource) {
                 $resourceId = $resource['resource_id'];
@@ -49,6 +104,7 @@ final class AssistanceReviewService
         $allPaginator = $this->paginateResources(
             resources: $allRows,
             assistants: $assistants,
+            allowedSuggestions: $allowedSuggestions,
             perPage: $perPage,
             pageName: 'all_page',
             request: $request,
@@ -60,6 +116,7 @@ final class AssistanceReviewService
             $sections[$assistantId] = $this->paginateResources(
                 resources: $this->sortResources($assistantResources[$assistantId]),
                 assistants: [$assistantId => $assistant],
+                allowedSuggestions: [$assistantId => $allowedSuggestions[$assistantId]],
                 perPage: $perPage,
                 pageName: $assistantId.'_page',
                 request: $request,
@@ -70,6 +127,7 @@ final class AssistanceReviewService
             'allAssistantResources' => $allPaginator,
             'sections' => $sections,
             'pendingCounts' => $pendingCounts,
+            'datacenterOptions' => $this->datacenterOptions($impactResources),
         ];
     }
 
@@ -93,11 +151,13 @@ final class AssistanceReviewService
     /**
      * @param  list<array{resource_id: int, resource_created_at_timestamp: int}>  $resources
      * @param  array<string, AssistantContract>  $assistants
+     * @param  array<string, array<int, array<string, mixed>|null>>  $allowedSuggestions
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
     private function paginateResources(
         array $resources,
         array $assistants,
+        array $allowedSuggestions,
         int $perPage,
         string $pageName,
         Request $request,
@@ -105,7 +165,7 @@ final class AssistanceReviewService
         $page = max(1, LengthAwarePaginator::resolveCurrentPage($pageName));
         $pageResources = array_slice($resources, ($page - 1) * $perPage, $perPage);
         $resourceIds = array_column($pageResources, 'resource_id');
-        $groups = $this->hydrateResourceGroups($resourceIds, $assistants);
+        $groups = $this->hydrateResourceGroups($resourceIds, $assistants, $allowedSuggestions);
 
         $paginator = new LengthAwarePaginator(
             items: $groups,
@@ -124,9 +184,10 @@ final class AssistanceReviewService
     /**
      * @param  list<int>  $resourceIds
      * @param  array<string, AssistantContract>  $assistants
+     * @param  array<string, array<int, array<string, mixed>|null>>  $allowedSuggestions
      * @return list<array<string, mixed>>
      */
-    private function hydrateResourceGroups(array $resourceIds, array $assistants): array
+    private function hydrateResourceGroups(array $resourceIds, array $assistants, array $allowedSuggestions): array
     {
         if ($resourceIds === []) {
             return [];
@@ -144,12 +205,21 @@ final class AssistanceReviewService
             ];
         }
 
-        foreach ($assistants as $assistant) {
+        foreach ($assistants as $assistantId => $assistant) {
             foreach ($assistant->loadSuggestionsForResources($resourceIds) as $suggestion) {
                 $resourceId = (int) ($suggestion['resource_id'] ?? 0);
+                $suggestionId = (int) ($suggestion['id'] ?? 0);
 
-                if (! isset($groups[$resourceId])) {
+                if (! isset($groups[$resourceId]) || ! array_key_exists($suggestionId, $allowedSuggestions[$assistantId] ?? [])) {
                     continue;
+                }
+
+                $filterMatch = $allowedSuggestions[$assistantId][$suggestionId];
+
+                if (is_array($filterMatch)) {
+                    $review = is_array($suggestion['review'] ?? null) ? $suggestion['review'] : [];
+                    $review['filter_match'] = $filterMatch;
+                    $suggestion['review'] = $review;
                 }
 
                 $doi = $suggestion['resource_doi'] ?? null;
@@ -177,6 +247,112 @@ final class AssistanceReviewService
         }
 
         return $ordered;
+    }
+
+    /**
+     * @param  array<int, int>  $resourceIds
+     * @return array<int, Resource>
+     */
+    private function loadImpactResources(array $resourceIds): array
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $resourceIds),
+            static fn (int $id): bool => $id > 0,
+        )));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return Resource::query()
+            ->with('datacenter:id,name')
+            ->whereIn('id', $ids)
+            ->get(['id', 'doi', 'datacenter_id'])
+            ->keyBy('id')
+            ->all();
+    }
+
+    /**
+     * @param  array<int, Resource>  $resources
+     * @param  array<int, int>  $allImpactedResourceIds
+     * @return list<int>
+     */
+    private function matchingResourceIds(array $resources, ResourceImpactFilter $filter, array $allImpactedResourceIds): array
+    {
+        if (! $filter->isActive()) {
+            return array_values(array_unique(array_map('intval', $allImpactedResourceIds)));
+        }
+
+        $matches = [];
+
+        foreach ($resources as $resource) {
+            if ($filter->doi !== null) {
+                $resourceDoi = is_string($resource->doi) ? $this->doiService->normalizeDoi($resource->doi) : null;
+
+                if ($resourceDoi !== $filter->doi) {
+                    continue;
+                }
+            }
+
+            if ($filter->datacenterId !== null && $resource->datacenter_id !== $filter->datacenterId) {
+                continue;
+            }
+
+            $matches[] = $resource->id;
+        }
+
+        return $matches;
+    }
+
+    /**
+     * @param  list<int>  $matchedResourceIds
+     * @param  array<int, Resource>  $resources
+     * @return array<string, mixed>|null
+     */
+    private function filterMatchMetadata(
+        int $originResourceId,
+        array $matchedResourceIds,
+        array $resources,
+        ResourceImpactFilter $filter,
+    ): ?array {
+        if (! $filter->isActive() || in_array($originResourceId, $matchedResourceIds, true)) {
+            return null;
+        }
+
+        $firstMatch = $resources[$matchedResourceIds[0]] ?? null;
+
+        return [
+            'kind' => 'indirect',
+            'matched_resource_count' => count($matchedResourceIds),
+            'matched_doi' => $filter->doi,
+            'matched_datacenter_name' => $filter->datacenterId !== null ? $firstMatch?->datacenter?->name : null,
+        ];
+    }
+
+    /**
+     * @param  array<int, Resource>  $resources
+     * @return list<array{id: int, name: string}>
+     */
+    private function datacenterOptions(array $resources): array
+    {
+        $options = [];
+
+        foreach ($resources as $resource) {
+            $datacenter = $resource->datacenter;
+
+            if (! $datacenter instanceof Datacenter) {
+                continue;
+            }
+
+            $options[$datacenter->id] = [
+                'id' => $datacenter->id,
+                'name' => $datacenter->name,
+            ];
+        }
+
+        uasort($options, static fn (array $left, array $right): int => strcasecmp($left['name'], $right['name']));
+
+        return array_values($options);
     }
 
     /**

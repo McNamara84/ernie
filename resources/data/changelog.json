@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "features": [
+            {
+                "title": "DOI and Datacenter Filters for Assessment and Assistance",
+                "description": "Authorized users can now filter Assessment results and Assistance suggestions by an exact DOI, a relevant datacenter, or both together. DOI inputs accept bare identifiers and doi.org URLs, while each Datacenter dropdown only lists centers with completed assessments or pending suggestion impacts. Assessment summaries and Assistance counts follow the active filters, and ORCID or ROR suggestions remain discoverable when they indirectly affect the selected resource through a shared person or institution."
+            },
             {
                 "title": "Multilingual Resource Descriptions",
                 "description": "Resource descriptions now preserve and export individual BCP 47 language tags across DataCite JSON/XML, JSON-LD, uploads, legacy imports, and landing pages. The Data Editor groups descriptions by type, provides language-version tabs using the configured editor language vocabulary, keeps imported tags and duplicate versions visible, and marks invalid inactive tabs. Admins and Group Leaders can review reliable German and English language suggestions for previously untagged descriptions on the Assistance page; suggestions never overwrite an existing language and are refreshed when their source text changes."

@@ -8,6 +8,7 @@ use App\Jobs\DiscoverOrcidsJob;
 use App\Models\SuggestedOrcid;
 use App\Models\User;
 use App\Services\Assistance\AbstractAssistant;
+use App\Services\Assistance\ResourceEntityImpactResolverService;
 use App\Services\OrcidDiscoveryService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -25,6 +26,7 @@ class Assistant extends AbstractAssistant
 {
     public function __construct(
         private readonly OrcidDiscoveryService $service,
+        private readonly ResourceEntityImpactResolverService $impactResolver,
     ) {
         parent::__construct();
     }
@@ -110,6 +112,44 @@ class Assistant extends AbstractAssistant
                 ),
             ])
             ->all());
+    }
+
+    #[\Override]
+    public function listPendingSuggestionReferences(): array
+    {
+        $suggestions = SuggestedOrcid::query()
+            ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
+            ->select([
+                'suggested_orcids.id AS suggestion_id',
+                'suggested_orcids.resource_id AS resource_id',
+                'suggested_orcids.person_id AS person_id',
+                'resources.created_at AS resource_created_at',
+            ])
+            ->orderByDesc('resources.created_at')
+            ->orderByDesc('suggested_orcids.id')
+            ->get();
+        $personIds = $suggestions->pluck('person_id')->map(static fn (mixed $id): int => (int) $id)->unique()->values()->all();
+        $impactsByPerson = $this->impactResolver->forPersons($personIds);
+
+        return $suggestions
+            ->map(function (SuggestedOrcid $suggestion) use ($impactsByPerson): array {
+                $resourceId = (int) $suggestion->resource_id;
+                $impactedResourceIds = array_values(array_unique([
+                    $resourceId,
+                    ...($impactsByPerson[(int) $suggestion->person_id] ?? []),
+                ]));
+
+                return [
+                    'suggestion_id' => (int) $suggestion->getAttribute('suggestion_id'),
+                    'resource_id' => $resourceId,
+                    'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
+                        (string) $suggestion->getAttribute('resource_created_at'),
+                    ),
+                    'impacted_resource_ids' => $impactedResourceIds,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     #[\Override]

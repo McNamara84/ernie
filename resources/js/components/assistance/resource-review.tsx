@@ -60,6 +60,7 @@ interface ResourceReviewProps {
     onRorFollowUps: (matches: RorAffiliationBulkMatch[]) => void;
     renderSuggestion: (manifest: AssistantManifest, item: BaseSuggestionItem, processing: boolean) => ReactNode;
     acceptanceInputs?: Record<string, SuggestionAcceptanceInput>;
+    hasActiveFilters?: boolean;
 }
 
 function fallbackReview(item: BaseSuggestionItem, manifest: AssistantManifest): SuggestionReviewMetadata {
@@ -117,6 +118,17 @@ function identity(item: BaseSuggestionItem): string {
     return `${item.review?.assistant_id ?? item.assistant_id}:${item.id}`;
 }
 
+function indirectMatchDescription(match: NonNullable<SuggestionReviewMetadata['filter_match']>): string {
+    if (match.matched_doi) return `Affects ${match.matched_doi}`;
+
+    const resourceLabel = match.matched_resource_count === 1 ? 'resource' : 'resources';
+    if (match.matched_datacenter_name) {
+        return `Affects ${match.matched_resource_count} ${resourceLabel} in ${match.matched_datacenter_name}`;
+    }
+
+    return `Affects ${match.matched_resource_count} matching ${resourceLabel}`;
+}
+
 function suggestionGroups(items: BaseSuggestionItem[]): Array<{ key: string; exclusive: boolean; items: BaseSuggestionItem[] }> {
     const groups: Array<{ key: string; exclusive: boolean; items: BaseSuggestionItem[] }> = [];
 
@@ -143,6 +155,7 @@ export function ResourceReview({
     onRorFollowUps,
     renderSuggestion,
     acceptanceInputs = {},
+    hasActiveFilters = false,
 }: ResourceReviewProps) {
     const manifestsById = useMemo(() => new Map(manifests.map((manifest) => [manifest.id, manifest])), [manifests]);
     const [activeView, setActiveView] = useState<'all' | 'assistant'>(initialReviewView);
@@ -441,6 +454,12 @@ export function ResourceReview({
                                                             {review.assistant_name}
                                                         </Badge>
                                                     )}
+                                                    {review.filter_match?.kind === 'indirect' && (
+                                                        <div className="mx-2 mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                                            <Badge variant="secondary">Indirect match</Badge>
+                                                            <span>{indirectMatchDescription(review.filter_match)}</span>
+                                                        </div>
+                                                    )}
                                                     {renderSuggestion(manifest, item, processing)}
                                                 </div>
                                             </div>
@@ -494,8 +513,10 @@ export function ResourceReview({
                     ) : (
                         <div className="flex flex-col items-center justify-center py-12 text-center">
                             <div className="text-4xl">&#10003;</div>
-                            <p className="mt-2 text-lg font-medium">No pending suggestions</p>
-                            <p className="text-sm text-muted-foreground">All resources have been reviewed.</p>
+                            <p className="mt-2 text-lg font-medium">{hasActiveFilters ? 'No matching suggestions' : 'No pending suggestions'}</p>
+                            <p className="text-sm text-muted-foreground">
+                                {hasActiveFilters ? 'No resources match the active DOI and Datacenter filters.' : 'All resources have been reviewed.'}
+                            </p>
                         </div>
                     )}
                     {renderPagination(data, sectionKey)}
@@ -541,8 +562,12 @@ export function ResourceReview({
                         ) : (
                             <div className="flex flex-col items-center justify-center py-12 text-center">
                                 <div className="text-4xl">&#10003;</div>
-                                <p className="mt-2 text-lg font-medium">{manifest.emptyState.title}</p>
-                                <p className="text-sm text-muted-foreground">{manifest.emptyState.description}</p>
+                                <p className="mt-2 text-lg font-medium">{hasActiveFilters ? 'No matching suggestions' : manifest.emptyState.title}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {hasActiveFilters
+                                        ? `No ${manifest.name} resources match the active DOI and Datacenter filters.`
+                                        : manifest.emptyState.description}
+                                </p>
                             </div>
                         )}
                         {renderPagination(data, manifest.id)}

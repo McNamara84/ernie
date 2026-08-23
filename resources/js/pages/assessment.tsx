@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { FairImprovementIndicator } from '@/components/assessment/fair-improvement-indicator';
+import { ResourceImpactFilters } from '@/components/resource-impact-filters';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { LoadingButton } from '@/components/ui/loading-button';
@@ -20,6 +21,7 @@ import {
     type AssessmentScope,
     type AssessmentSummary,
 } from '@/types/assessment';
+import type { ResourceImpactFilterState } from '@/types/resource-impact-filters';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -33,7 +35,13 @@ type ScopeState = {
     progress: string;
 };
 
-const RELOAD_KEYS = ['resourcesNeedingAttention', 'igsnsNeedingAttention', 'resourceAssessmentSummary', 'igsnAssessmentSummary'] as const;
+const RELOAD_KEYS = [
+    'resourcesNeedingAttention',
+    'igsnsNeedingAttention',
+    'resourceAssessmentSummary',
+    'igsnAssessmentSummary',
+    'datacenterOptions',
+] as const;
 
 const ENDPOINTS: Record<AssessmentScope, string> = {
     resource: '/assessment/check-resources',
@@ -81,7 +89,11 @@ function assessmentLabel(scope: AssessmentScope): string {
     return scope === 'resource' ? 'resource assessments' : 'IGSN assessments';
 }
 
-function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope, canRunAssessments: boolean): string {
+function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope, canRunAssessments: boolean, hasActiveFilters = false): string {
+    if (hasActiveFilters) {
+        return `No ${scopeLabel(scope).toLowerCase()} match the active DOI and Datacenter filters.`;
+    }
+
     if (summary.total === 0) {
         return `No ${scopeLabel(scope).toLowerCase()} are available.`;
     }
@@ -105,15 +117,17 @@ export function AssessmentTable({
     scope,
     canRunAssessments,
     showImprovementActorLabels,
+    hasActiveFilters = false,
 }: {
     entries: AssessmentEntry[];
     summary: AssessmentSummary;
     scope: AssessmentScope;
     canRunAssessments: boolean;
     showImprovementActorLabels: boolean;
+    hasActiveFilters?: boolean;
 }) {
     if (entries.length === 0) {
-        return <p className="text-sm text-muted-foreground">{emptyStateMessage(summary, scope, canRunAssessments)}</p>;
+        return <p className="text-sm text-muted-foreground">{emptyStateMessage(summary, scope, canRunAssessments, hasActiveFilters)}</p>;
     }
 
     return (
@@ -143,10 +157,7 @@ export function AssessmentTable({
                             </span>
                         </TableCell>
                         <TableCell className="text-center">
-                            <FairImprovementIndicator
-                                opportunity={entry.improvementOpportunity}
-                                showActorLabels={showImprovementActorLabels}
-                            />
+                            <FairImprovementIndicator opportunity={entry.improvementOpportunity} showActorLabels={showImprovementActorLabels} />
                         </TableCell>
                         <TableCell className="text-right font-semibold">{entry.score.toFixed(2)}%</TableCell>
                     </TableRow>
@@ -164,6 +175,8 @@ export default function Assessment({
     canRunAssessments,
     showImprovementActorLabels,
     includeExternalResources,
+    filters = { doi: null, datacenter_id: null },
+    datacenterOptions = [],
     resourcesNeedingAttention,
     igsnsNeedingAttention,
     resourceAssessmentSummary,
@@ -327,8 +340,25 @@ export default function Assessment({
         }
     }
 
+    function assessmentQuery(nextFilters: ResourceImpactFilterState, includeExternal: boolean) {
+        return {
+            ...(nextFilters.doi !== null ? { doi: nextFilters.doi } : {}),
+            ...(nextFilters.datacenter_id !== null ? { datacenter_id: nextFilters.datacenter_id } : {}),
+            ...(includeExternal ? { include_external_resources: true } : {}),
+        };
+    }
+
+    function handleFiltersChange(nextFilters: ResourceImpactFilterState) {
+        router.get('/assessment', assessmentQuery(nextFilters, includeExternalResources), {
+            only: ['filters', ...RELOAD_KEYS],
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
+    }
+
     function handleExternalResourcesChange(checked: boolean) {
-        router.get('/assessment', checked ? { include_external_resources: true } : {}, {
+        router.get('/assessment', assessmentQuery(filters, checked), {
             only: ['includeExternalResources', 'resourcesNeedingAttention'],
             preserveScroll: true,
             preserveState: true,
@@ -337,6 +367,7 @@ export default function Assessment({
     }
 
     const isAnyChecking = states.resource.isChecking || states.igsn.isChecking;
+    const hasActiveFilters = filters.doi !== null || filters.datacenter_id !== null;
     const fujiAvailabilityMessage = !fujiConfigured
         ? 'The FAIR assessment service is not configured for this environment.'
         : !fujiHealthy
@@ -376,6 +407,8 @@ export default function Assessment({
                         </LoadingButton>
                     )}
                 </div>
+
+                <ResourceImpactFilters filters={filters} datacenterOptions={datacenterOptions} onChange={handleFiltersChange} />
 
                 {fujiAvailabilityMessage !== null && (
                     <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
@@ -436,6 +469,7 @@ export default function Assessment({
                                 scope="resource"
                                 canRunAssessments={canRunAssessments}
                                 showImprovementActorLabels={showImprovementActorLabels}
+                                hasActiveFilters={hasActiveFilters}
                             />
                         </CardContent>
                     </Card>
@@ -465,6 +499,7 @@ export default function Assessment({
                                 scope="igsn"
                                 canRunAssessments={canRunAssessments}
                                 showImprovementActorLabels={showImprovementActorLabels}
+                                hasActiveFilters={hasActiveFilters}
                             />
                         </CardContent>
                     </Card>
