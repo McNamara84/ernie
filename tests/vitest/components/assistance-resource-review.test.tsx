@@ -127,6 +127,58 @@ beforeEach(() => {
 });
 
 describe('resource-oriented assistance review', () => {
+    it('describes filtered empty states as an absence of suggestion impacts', async () => {
+        const user = userEvent.setup();
+        const emptyPage: PaginatedData<AssistanceResourceGroup> = {
+            data: [],
+            current_page: 1,
+            last_page: 1,
+            per_page: 25,
+            total: 0,
+            from: null,
+            to: null,
+            links: [],
+        };
+
+        render(
+            <ResourceReview
+                allAssistantResources={emptyPage}
+                sections={{ [manifest.id]: emptyPage }}
+                manifests={[manifest]}
+                hasActiveFilters
+                checking={{ [manifest.id]: false }}
+                onCheck={vi.fn()}
+                onReload={vi.fn()}
+                onRorFollowUps={vi.fn()}
+                renderSuggestion={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText('No pending suggestions affect resources matching the active DOI and Datacenter filters.')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('tab', { name: 'By assistant' }));
+
+        expect(
+            screen.getByText('No pending Test assistant suggestions affect resources matching the active DOI and Datacenter filters.'),
+        ).toBeInTheDocument();
+    });
+
+    it('explains indirect matches without changing the origin resource group', () => {
+        const item = suggestion(1, 'Shared person suggestion');
+        item.review!.filter_match = {
+            kind: 'indirect',
+            matched_resource_count: 1,
+            matched_doi: '10.5880/affected',
+            matched_datacenter_name: null,
+        };
+
+        renderReview([item]);
+
+        expect(screen.getAllByText('Indirect match').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Affects 10.5880/affected').length).toBeGreaterThan(0);
+        expect(screen.getAllByRole('link', { name: '10.1234/test' }).length).toBeGreaterThan(0);
+    });
+
     it('does not misclassify a legacy suggestion with an assistant-specific suggestions field', () => {
         const item: BaseSuggestionItem = {
             ...suggestion(1, 'Legacy candidate'),

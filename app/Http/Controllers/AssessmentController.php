@@ -6,16 +6,19 @@ namespace App\Http\Controllers;
 
 use App\Enums\CacheKey;
 use App\Enums\UserRole;
+use App\Http\Requests\Assessment\IndexAssessmentRequest;
 use App\Jobs\RunResourceAssessmentsJob;
+use App\Models\Datacenter;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Services\Assessment\FairImprovementContextFactory;
 use App\Services\Assessment\FairImprovementOpportunityResolver;
 use App\Services\Assessment\FujiAssessmentService;
 use App\Services\ResourceCacheService;
+use App\Services\Resources\ResourceImpactFilterService;
+use App\Support\ResourceImpactFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -26,15 +29,17 @@ class AssessmentController extends Controller
     public function __construct(
         private readonly FujiAssessmentService $fujiService,
         private readonly ResourceCacheService $resourceCache,
+        private readonly ResourceImpactFilterService $filterService,
         private readonly FairImprovementContextFactory $fairImprovementContextFactory,
         private readonly FairImprovementOpportunityResolver $fairImprovementResolver,
     ) {}
 
-    public function index(Request $request): Response
+    public function index(IndexAssessmentRequest $request): Response
     {
         $physicalObjectTypeId = $this->resourceCache->getPhysicalObjectTypeId();
         $fujiHealth = $this->cachedHealthStatus();
         $includeExternalResources = $request->boolean('include_external_resources');
+        $filter = $request->resourceImpactFilter();
         $allowedImprovementActors = $request->user()?->role === UserRole::ADMIN
             ? ['curator', 'administrator']
             : ['curator'];
@@ -47,19 +52,23 @@ class AssessmentController extends Controller
             'canRunAssessments' => $request->user()?->can('run-assessment') ?? false,
             'showImprovementActorLabels' => $request->user()?->role === UserRole::ADMIN,
             'includeExternalResources' => $includeExternalResources,
+            'filters' => $filter->toArray(),
+            'datacenterOptions' => $this->assessmentDatacenterOptions(),
             'resourcesNeedingAttention' => $this->buildAttentionList(
                 scope: RunResourceAssessmentsJob::RESOURCE_SCOPE,
                 physicalObjectTypeId: $physicalObjectTypeId,
                 allowedImprovementActors: $allowedImprovementActors,
                 includeExternalResources: $includeExternalResources,
+                filter: $filter,
             ),
             'igsnsNeedingAttention' => $this->buildAttentionList(
                 scope: RunResourceAssessmentsJob::IGSN_SCOPE,
                 physicalObjectTypeId: $physicalObjectTypeId,
                 allowedImprovementActors: $allowedImprovementActors,
+                filter: $filter,
             ),
-            'resourceAssessmentSummary' => $this->buildSummary(RunResourceAssessmentsJob::RESOURCE_SCOPE, $physicalObjectTypeId),
-            'igsnAssessmentSummary' => $this->buildSummary(RunResourceAssessmentsJob::IGSN_SCOPE, $physicalObjectTypeId),
+            'resourceAssessmentSummary' => $this->buildSummary(RunResourceAssessmentsJob::RESOURCE_SCOPE, $physicalObjectTypeId, $filter),
+            'igsnAssessmentSummary' => $this->buildSummary(RunResourceAssessmentsJob::IGSN_SCOPE, $physicalObjectTypeId, $filter),
         ]);
     }
 
@@ -173,13 +182,15 @@ class AssessmentController extends Controller
     /**
      * @return array{total: int, assessed: int, failed: int, skipped: int, unassessed: int}
      */
-    private function buildSummary(string $scope, ?int $physicalObjectTypeId): array
+    private function buildSummary(string $scope, ?int $physicalObjectTypeId, ResourceImpactFilter $filter): array
     {
-        $total = $scope === RunResourceAssessmentsJob::IGSN_SCOPE
-            ? $this->resourceCache->getIgsnCount($physicalObjectTypeId)
-            : $this->resourceCache->getDataResourceCount($physicalObjectTypeId);
+        $total = $filter->isActive()
+            ? $this->buildScopeQuery($scope, $physicalObjectTypeId, $filter)->count()
+            : ($scope === RunResourceAssessmentsJob::IGSN_SCOPE
+                ? $this->resourceCache->getIgsnCount($physicalObjectTypeId)
+                : $this->resourceCache->getDataResourceCount($physicalObjectTypeId));
 
-        $statusCounts = $this->buildScopeQuery($scope, $physicalObjectTypeId)
+        $statusCounts = $this->buildScopeQuery($scope, $physicalObjectTypeId, $filter)
             ->join('resource_assessments', 'resource_assessments.resource_id', '=', 'resources.id')
             ->selectRaw('resource_assessments.status as status, COUNT(*) as aggregate')
             ->groupBy('resource_assessments.status')
@@ -214,8 +225,9 @@ class AssessmentController extends Controller
         ?int $physicalObjectTypeId,
         array $allowedImprovementActors,
         bool $includeExternalResources = true,
+        ?ResourceImpactFilter $filter = null,
     ): array {
-        $query = $this->buildScopeQuery($scope, $physicalObjectTypeId)
+        $query = $this->buildScopeQuery($scope, $physicalObjectTypeId, $filter)
             ->join('resource_assessments', 'resource_assessments.resource_id', '=', 'resources.id')
             ->where('resource_assessments.status', ResourceAssessment::STATUS_COMPLETED)
             ->whereNotNull('resource_assessments.total_score');
@@ -281,8 +293,11 @@ class AssessmentController extends Controller
     /**
      * @return Builder<Resource>
      */
-    private function buildScopeQuery(string $scope, ?int $physicalObjectTypeId): Builder
-    {
+    private function buildScopeQuery(
+        string $scope,
+        ?int $physicalObjectTypeId,
+        ?ResourceImpactFilter $filter = null,
+    ): Builder {
         $query = Resource::query();
 
         if ($scope === RunResourceAssessmentsJob::IGSN_SCOPE) {
@@ -290,17 +305,37 @@ class AssessmentController extends Controller
                 return $query->whereRaw('1 = 0');
             }
 
-            return $query->where('resource_type_id', $physicalObjectTypeId);
+            $query->where('resource_type_id', $physicalObjectTypeId);
+        } elseif ($physicalObjectTypeId !== null) {
+            $query->where(function (Builder $builder) use ($physicalObjectTypeId): void {
+                $builder->whereNull('resource_type_id')
+                    ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
+            });
         }
 
-        if ($physicalObjectTypeId === null) {
-            return $query;
+        if ($filter !== null) {
+            $this->filterService->apply($query, $filter);
         }
 
-        return $query->where(function (Builder $builder) use ($physicalObjectTypeId): void {
-            $builder->whereNull('resource_type_id')
-                ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
-        });
+        return $query;
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function assessmentDatacenterOptions(): array
+    {
+        return array_values(Datacenter::query()
+            ->whereHas('resources.resourceAssessment', static function (Builder $query): void {
+                $query->where('status', ResourceAssessment::STATUS_COMPLETED);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(static fn (Datacenter $datacenter): array => [
+                'id' => $datacenter->id,
+                'name' => $datacenter->name,
+            ])
+            ->all());
     }
 
     private function lockKey(string $scope): string

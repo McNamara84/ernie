@@ -72,6 +72,8 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
         canRunAssessments: true,
         showImprovementActorLabels: true,
         includeExternalResources: false,
+        filters: { doi: null, datacenter_id: null },
+        datacenterOptions: [],
         resourcesNeedingAttention: [
             {
                 id: 1,
@@ -247,6 +249,70 @@ describe('Assessment page', () => {
         );
     });
 
+    it('applies normalized DOI filters while preserving the external-resource setting', () => {
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    includeExternalResources: true,
+                    datacenterOptions: [{ id: 7, name: 'GFZ Data Services' }],
+                })}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText('DOI'), { target: { value: 'https://doi.org/10.5880/FILTER.ONE' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockRouterGet).toHaveBeenCalledWith(
+            '/assessment',
+            { doi: '10.5880/filter.one', include_external_resources: true },
+            {
+                only: [
+                    'filters',
+                    'resourcesNeedingAttention',
+                    'igsnsNeedingAttention',
+                    'resourceAssessmentSummary',
+                    'igsnAssessmentSummary',
+                    'datacenterOptions',
+                ],
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    });
+
+    it('shows filter-specific empty states when no assessment results match', () => {
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    filters: { doi: '10.5880/missing', datacenter_id: null },
+                    resourcesNeedingAttention: [],
+                    igsnsNeedingAttention: [],
+                    resourceAssessmentSummary: { total: 0, assessed: 0, failed: 0, skipped: 0, unassessed: 0 },
+                    igsnAssessmentSummary: { total: 0, assessed: 0, failed: 0, skipped: 0, unassessed: 0 },
+                })}
+            />,
+        );
+
+        expect(screen.getByText('No resources match the active DOI and Datacenter filters.')).toBeInTheDocument();
+        expect(screen.getByText('No IGSNs match the active DOI and Datacenter filters.')).toBeInTheDocument();
+    });
+
+    it('retains status-aware empty states when a filtered assessment exists but failed', () => {
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    filters: { doi: '10.5880/failed', datacenter_id: null },
+                    resourcesNeedingAttention: [],
+                    resourceAssessmentSummary: { total: 1, assessed: 0, failed: 1, skipped: 0, unassessed: 0 },
+                })}
+            />,
+        );
+
+        expect(screen.getByText('No completed resource assessments are available yet.')).toBeInTheDocument();
+        expect(screen.queryByText('No resources match the active DOI and Datacenter filters.')).not.toBeInTheDocument();
+    });
+
     it('removes the external-resource query parameter when returning to the default filter', () => {
         render(<AssessmentPage {...makeProps({ includeExternalResources: true })} />);
 
@@ -344,7 +410,7 @@ describe('Assessment page', () => {
         expect(mockAxiosGet).toHaveBeenCalledWith('/assessment/check/resource/11111111-1111-4111-8111-111111111111/status');
 
         expect(mockRouterReload).toHaveBeenCalledWith({
-            only: ['resourcesNeedingAttention', 'igsnsNeedingAttention', 'resourceAssessmentSummary', 'igsnAssessmentSummary'],
+            only: ['resourcesNeedingAttention', 'igsnsNeedingAttention', 'resourceAssessmentSummary', 'igsnAssessmentSummary', 'datacenterOptions'],
         });
         expect(mockToast.success).toHaveBeenCalledWith('Resources assessment completed.');
     });

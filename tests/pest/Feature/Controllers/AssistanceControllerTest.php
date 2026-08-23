@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use App\Http\Controllers\AssistanceController;
 use App\Models\AssistantSuggestion;
+use App\Models\Datacenter;
 use App\Models\DismissedRelation;
 use App\Models\IdentifierType;
+use App\Models\Institution;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
 use App\Models\RelatedItem;
@@ -21,6 +23,7 @@ use App\Services\Assistance\AssistantContract;
 use App\Services\Assistance\AssistantRegistrar;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
@@ -307,6 +310,257 @@ describe('index', function () {
                 ->where('pendingCounts.date-type-suggestion', 3)
                 ->where('pendingCounts.size-format-suggestion', 1)
             );
+    });
+
+    it('filters suggestions by indirect ORCID impact and keeps counts and datacenter options consistent', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $originDatacenter = Datacenter::factory()->create(['name' => 'Alpha Origin Center']);
+        $affectedDatacenter = Datacenter::factory()->create(['name' => 'Beta Affected Center']);
+        $origin = Resource::factory()->withDoi('10.5880/assistance.origin')->create([
+            'datacenter_id' => $originDatacenter->id,
+        ]);
+        $affected = Resource::factory()->withDoi('10.5880/assistance.affected')->create([
+            'datacenter_id' => $affectedDatacenter->id,
+        ]);
+        $person = Person::factory()->create();
+
+        ResourceCreator::create([
+            'resource_id' => $origin->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+        ResourceContributor::create([
+            'resource_id' => $affected->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
+            'position' => 1,
+        ]);
+        $orcidSuggestion = SuggestedOrcid::create([
+            'resource_id' => $origin->id,
+            'person_id' => $person->id,
+            'suggested_orcid' => '0000-0001-5109-3700',
+            'similarity_score' => 0.95,
+            'candidate_first_name' => 'Jane',
+            'candidate_last_name' => 'Doe',
+            'candidate_affiliations' => [],
+            'source_context' => 'creator',
+            'discovered_at' => now(),
+        ]);
+        AssistantSuggestion::create([
+            'assistant_id' => 'date-type-suggestion',
+            'resource_id' => $origin->id,
+            'target_type' => 'date_type',
+            'target_id' => $origin->id,
+            'suggested_value' => 'Created',
+            'suggested_label' => 'Direct-only suggestion',
+            'discovered_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/assistance?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FASSISTANCE.AFFECTED&datacenter_id='.$affectedDatacenter->id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.doi', '10.5880/assistance.affected')
+                ->where('filters.datacenter_id', $affectedDatacenter->id)
+                ->where('pendingCounts.orcid-suggestion', 1)
+                ->where('pendingCounts.date-type-suggestion', 0)
+                ->where('sections.orcid-suggestion.total', 1)
+                ->where('sections.orcid-suggestion.data.0.resource_id', $origin->id)
+                ->where('sections.orcid-suggestion.data.0.suggestions.0.id', $orcidSuggestion->id)
+                ->where('sections.orcid-suggestion.data.0.suggestions.0.review.filter_match.kind', 'indirect')
+                ->where('sections.orcid-suggestion.data.0.suggestions.0.review.filter_match.matched_resource_count', 1)
+                ->where('sections.orcid-suggestion.data.0.suggestions.0.review.filter_match.matched_doi', '10.5880/assistance.affected')
+                ->where('sections.date-type-suggestion.total', 0)
+                ->where('allAssistantResources.total', 1)
+                ->has('allAssistantResources.data.0.suggestions', 1)
+                ->has('datacenterOptions', 2)
+                ->where('datacenterOptions.0.name', 'Alpha Origin Center')
+                ->where('datacenterOptions.1.name', 'Beta Affected Center')
+            );
+
+        $this->actingAs($user)
+            ->get('/assistance?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FASSISTANCE.ORIGIN&datacenter_id='.$originDatacenter->id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.doi', '10.5880/assistance.origin')
+                ->where('pendingCounts.orcid-suggestion', 1)
+                ->where('pendingCounts.date-type-suggestion', 1)
+                ->where('sections.orcid-suggestion.total', 1)
+                ->where('sections.date-type-suggestion.total', 1)
+                ->where('allAssistantResources.total', 1)
+                ->has('allAssistantResources.data.0.suggestions', 2)
+            );
+
+        $this->actingAs($user)
+            ->get('/assistance?doi=10.5880%2Fassistance.affected&datacenter_id='.$originDatacenter->id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('pendingCounts.orcid-suggestion', 0)
+                ->where('sections.orcid-suggestion.total', 0)
+                ->where('allAssistantResources.total', 0)
+            );
+    });
+
+    it('keeps shared-entity impact filtering database-side for a large backlog', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $datacenter = Datacenter::factory()->create();
+        $origin = Resource::factory()->withDoi('10.5880/backlog.origin')->create([
+            'datacenter_id' => $datacenter->id,
+        ]);
+        $person = Person::factory()->create();
+
+        ResourceCreator::create([
+            'resource_id' => $origin->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+        SuggestedOrcid::create([
+            'resource_id' => $origin->id,
+            'person_id' => $person->id,
+            'suggested_orcid' => '0000-0001-5109-3700',
+            'similarity_score' => 0.95,
+            'candidate_first_name' => 'Jane',
+            'candidate_last_name' => 'Doe',
+            'candidate_affiliations' => [],
+            'source_context' => 'creator',
+            'discovered_at' => now(),
+        ]);
+
+        $resourceTemplate = $origin->getAttributes();
+        unset($resourceTemplate['id']);
+        $resourceRows = [];
+
+        foreach (range(1, 250) as $index) {
+            $resourceRows[] = [
+                ...$resourceTemplate,
+                'doi' => '10.5880/backlog.'.$index,
+            ];
+        }
+
+        Resource::query()->insert($resourceRows);
+        $affectedIds = Resource::query()
+            ->where('doi', 'like', '10.5880/backlog.%')
+            ->where('id', '!=', $origin->id)
+            ->pluck('id');
+        $now = now();
+        ResourceContributor::query()->insert($affectedIds->map(static fn (int $resourceId): array => [
+            'resource_id' => $resourceId,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
+            'position' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all());
+
+        $maximumBindingCount = 0;
+        DB::listen(static function ($query) use (&$maximumBindingCount): void {
+            $maximumBindingCount = max($maximumBindingCount, count($query->bindings));
+        });
+
+        $this->actingAs($user)
+            ->get('/assistance?doi=10.5880%2Fbacklog.250&per_page=1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('pendingCounts.orcid-suggestion', 1)
+                ->where('sections.orcid-suggestion.total', 1)
+                ->has('sections.orcid-suggestion.data.0.suggestions', 1)
+            );
+
+        expect($maximumBindingCount)->toBeLessThan(100);
+    });
+
+    it('keeps active filters in assistance pagination links', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $datacenter = Datacenter::factory()->create();
+
+        foreach (range(1, 2) as $index) {
+            $resource = Resource::factory()->withDoi('10.5880/pagination.'.$index)->create([
+                'datacenter_id' => $datacenter->id,
+            ]);
+            AssistantSuggestion::create([
+                'assistant_id' => 'date-type-suggestion',
+                'resource_id' => $resource->id,
+                'target_type' => 'date_type',
+                'target_id' => $resource->id,
+                'suggested_value' => 'Created',
+                'suggested_label' => 'Paginated suggestion '.$index,
+                'discovered_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($user)
+            ->get('/assistance?datacenter_id='.$datacenter->id.'&per_page=1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('sections.date-type-suggestion.total', 2)
+                ->where('sections.date-type-suggestion.per_page', 1)
+                ->where('sections.date-type-suggestion.next_page_url', fn (string $url): bool => str_contains($url, 'datacenter_id='.$datacenter->id)
+                    && str_contains($url, 'per_page=1'))
+                ->where('allAssistantResources.next_page_url', fn (string $url): bool => str_contains($url, 'datacenter_id='.$datacenter->id)
+                    && str_contains($url, 'per_page=1'))
+            );
+    });
+
+    it('includes ROR institution suggestions when the filtered resource shares the institution', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $origin = Resource::factory()->withDoi('10.5880/ror.origin')->create();
+        $affected = Resource::factory()->withDoi('10.5880/ror.affected')->create();
+        $institution = Institution::factory()->create();
+
+        foreach ([$origin, $affected] as $resource) {
+            ResourceCreator::create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Institution::class,
+                'creatorable_id' => $institution->id,
+                'position' => 1,
+            ]);
+        }
+
+        SuggestedRor::create([
+            'resource_id' => $origin->id,
+            'entity_type' => 'institution',
+            'entity_id' => $institution->id,
+            'entity_name' => $institution->name,
+            'suggested_ror_id' => 'https://ror.org/012345678',
+            'suggested_name' => $institution->name,
+            'similarity_score' => 0.98,
+            'ror_aliases' => [],
+            'locations' => [],
+            'existing_identifier' => null,
+            'existing_identifier_type' => null,
+            'discovered_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/assistance?doi=10.5880%2Fror.affected')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('pendingCounts.ror-suggestion', 1)
+                ->where('sections.ror-suggestion.total', 1)
+                ->where('sections.ror-suggestion.data.0.resource_id', $origin->id)
+                ->where('sections.ror-suggestion.data.0.suggestions.0.review.filter_match.kind', 'indirect')
+                ->where('sections.ror-suggestion.data.0.suggestions.0.review.filter_match.matched_doi', '10.5880/ror.affected')
+            );
+    });
+
+    it('rejects invalid assistance filter values', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->from('/assistance')
+            ->get('/assistance?doi=not-a-doi')
+            ->assertRedirect('/assistance')
+            ->assertSessionHasErrors([
+                'doi' => 'Enter a valid DOI in the format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx.',
+            ]);
+
+        $this->actingAs($user)
+            ->from('/assistance')
+            ->get('/assistance?datacenter_id=999999')
+            ->assertRedirect('/assistance')
+            ->assertSessionHasErrors('datacenter_id');
     });
 
     it('rejects unauthenticated users', function () {

@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Modules\Assistants\OrcidSuggestion;
 
 use App\Jobs\DiscoverOrcidsJob;
+use App\Models\Person;
 use App\Models\SuggestedOrcid;
 use App\Models\User;
 use App\Services\Assistance\AbstractAssistant;
 use App\Services\OrcidDiscoveryService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Assistant module for discovering ORCID identifiers via the ORCID Public API.
@@ -94,35 +98,66 @@ class Assistant extends AbstractAssistant
     }
 
     #[\Override]
-    public function listPendingResources(): array
+    public function pendingSuggestionImpactQuery(): QueryBuilder
     {
-        return array_values(SuggestedOrcid::query()
+        $direct = DB::table('suggested_orcids')
             ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
-            ->selectRaw('suggested_orcids.resource_id AS resource_id, MAX(resources.created_at) AS resource_created_at')
-            ->groupBy('suggested_orcids.resource_id')
-            ->orderByDesc('resource_created_at')
-            ->orderByDesc('suggested_orcids.resource_id')
-            ->get()
-            ->map(fn (SuggestedOrcid $suggestion): array => [
-                'resource_id' => (int) $suggestion->resource_id,
-                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
-                    (string) $suggestion->getAttribute('resource_created_at'),
-                ),
+            ->select([
+                'suggested_orcids.id AS suggestion_id',
+                'suggested_orcids.resource_id AS resource_id',
+                'suggested_orcids.resource_id AS impact_resource_id',
+                'resources.created_at AS resource_created_at',
             ])
-            ->all());
+            ->selectRaw('? AS assistant_id', [$this->getId()]);
+
+        $creatorImpacts = DB::table('suggested_orcids')
+            ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
+            ->join('resource_creators AS impact_creators', function (JoinClause $join): void {
+                $join->on('impact_creators.creatorable_id', '=', 'suggested_orcids.person_id')
+                    ->where('impact_creators.creatorable_type', Person::class);
+            })
+            ->select([
+                'suggested_orcids.id AS suggestion_id',
+                'suggested_orcids.resource_id AS resource_id',
+                'impact_creators.resource_id AS impact_resource_id',
+                'resources.created_at AS resource_created_at',
+            ])
+            ->selectRaw('? AS assistant_id', [$this->getId()]);
+
+        $contributorImpacts = DB::table('suggested_orcids')
+            ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
+            ->join('resource_contributors AS impact_contributors', function (JoinClause $join): void {
+                $join->on('impact_contributors.contributorable_id', '=', 'suggested_orcids.person_id')
+                    ->where('impact_contributors.contributorable_type', Person::class);
+            })
+            ->select([
+                'suggested_orcids.id AS suggestion_id',
+                'suggested_orcids.resource_id AS resource_id',
+                'impact_contributors.resource_id AS impact_resource_id',
+                'resources.created_at AS resource_created_at',
+            ])
+            ->selectRaw('? AS assistant_id', [$this->getId()]);
+
+        return $direct->union($creatorImpacts)->union($contributorImpacts);
     }
 
     #[\Override]
-    public function loadSuggestionsForResources(array $resourceIds): array
+    public function loadSuggestionsForResources(array $resourceIds, ?array $suggestionIds = null): array
     {
-        if ($resourceIds === []) {
+        if ($resourceIds === [] || $suggestionIds === []) {
             return [];
         }
 
-        $suggestions = SuggestedOrcid::query()
+        $query = SuggestedOrcid::query()
             ->with(['resource.titles.titleType', 'person'])
             ->whereIn('suggested_orcids.resource_id', $resourceIds)
-            ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
+            ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id');
+
+        if ($suggestionIds !== null) {
+            $query->whereIn('suggested_orcids.id', $suggestionIds);
+        }
+
+        $suggestions = $query
             ->select('suggested_orcids.*')
             ->orderByDesc('resources.created_at')
             ->orderByDesc('suggested_orcids.similarity_score')

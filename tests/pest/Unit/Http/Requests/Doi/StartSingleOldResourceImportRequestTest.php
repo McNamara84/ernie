@@ -108,7 +108,7 @@ describe('StartSingleOldResourceImportRequest', function () {
         });
 
         expect($failures)->toBe([
-            'Enter a valid DOI in the format 10.xxxx/... or https://doi.org/10.xxxx/....',
+            'Enter a valid DOI in the format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx.',
         ]);
     });
 });

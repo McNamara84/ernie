@@ -655,6 +655,18 @@ reason.
 
 - [ ] `Assistance` loads pending tasks and counts consistently.
 
+- [ ] Entering a bare DOI or the equivalent `https://doi.org/...` URL filters
+      both Assistance views to exact, case-insensitive matches only; applying the
+      filter resets result pagination and clearing it restores the full lists.
+
+- [ ] The Assistance Datacenter dropdown contains only datacenters affected by
+      pending suggestions. Combining DOI and Datacenter uses AND semantics, and
+      the displayed task counts and pagination match the filtered suggestions.
+
+- [ ] An ORCID or ROR suggestion that would also update the filtered resource via
+      a shared person or institution remains visible and is clearly marked as an
+      indirect match.
+
 - [ ] A synthetic suggestion can be opened, reviewed, accepted, or rejected; the
       resource and counts update appropriately.
 
@@ -663,6 +675,14 @@ reason.
 
 - [ ] `Assessment` loads the summary and resources without a persistent loading
       state.
+
+- [ ] Entering a bare DOI or the equivalent `https://doi.org/...` URL filters
+      both Resource and IGSN results exactly; the visible summaries and empty
+      states reflect the filter and clearing it restores the unfiltered results.
+
+- [ ] The Assessment Datacenter dropdown contains only datacenters with completed
+      assessments. Combining DOI and Datacenter uses AND semantics without
+      changing the scope of `Check` or `Check all` jobs.
 
 - [ ] Both Assessment tables show the letter for the largest raw F-UJI gap (`F`,
       `A`, `I`, or `R`) for usable results; color, accessible name, and tooltip

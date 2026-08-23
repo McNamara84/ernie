@@ -155,7 +155,9 @@ describe('relation type acceptance input', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenCalledWith('/assistance/relations/11/accept', { relation_type_id: 2 });
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({
+                only: ['sections', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount'],
+            });
         });
     });
 

@@ -147,6 +147,30 @@ describe('Docs page', () => {
         expect(screen.getByText('Metadata Enrichment Assistance')).toBeInTheDocument();
     });
 
+    it('documents DOI, Datacenter, and indirect Assistance filtering for group leaders', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByText('Filter Pending Suggestions')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('The Datacenter dropdown lists only datacenters that have resources affected');
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes("Such results remain grouped under the suggestion's origin resource and are marked Indirect match");
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('documents description segmentation suggestions for group leaders', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
@@ -249,9 +273,7 @@ describe('Docs page', () => {
                 );
             }),
         ).toBeInTheDocument();
-        expect(
-            screen.getByText(/Resource and IGSN rankings are always displayed as separate cards, one below the other/),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/Resource and IGSN rankings are always displayed as separate cards, one below the other/)).toBeInTheDocument();
         expect(document.body).not.toHaveTextContent('F-UJI');
         expect(
             screen.getByText((_, element) => {
@@ -287,6 +309,22 @@ describe('Docs page', () => {
                 return text.includes('Curators reach it from the normal Tools section');
             }),
         ).toBeInTheDocument();
+    });
+
+    it('documents composable DOI and Datacenter Assessment filters for curators', () => {
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByText('Filter Assessment Results')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('The Datacenter dropdown lists only datacenters represented by stored assessment results');
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/starting a check still assesses its full selected scope/)).toBeInTheDocument();
     });
 
     it('shows group leaders the Assessment run workflow and documents the default external-resource filter', () => {

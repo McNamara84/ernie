@@ -594,6 +594,22 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Assistance, including on another browser or device.
                         </p>
 
+                        <h4>Filter Pending Suggestions</h4>
+                        <p>
+                            Use the <strong>DOI</strong> field to show only pending suggestions that would affect one exact resource. You may enter a
+                            bare DOI or a <code>doi.org</code> URL; ERNIE normalizes the value before matching it. The <strong>Datacenter</strong>{' '}
+                            dropdown lists only datacenters that have resources affected by at least one pending suggestion. When both filters are
+                            selected, the same affected resource must match both. The filters apply to the <strong>All assistants</strong> and{' '}
+                            <strong>By assistant</strong> views, their counts, and their pagination. Use <strong>Clear all</strong> to return to the
+                            complete review backlog.
+                        </p>
+                        <p>
+                            ORCID and ROR suggestions can affect more than the resource on which they were discovered because a person or institution
+                            may be shared by several resources. Such results remain grouped under the suggestion&apos;s origin resource and are marked{' '}
+                            <strong>Indirect match</strong>; the label identifies the DOI or Datacenter resource that would also be changed. Running
+                            checks and the Assistance sidebar badge continue to cover the complete backlog, independent of these display filters.
+                        </p>
+
                         <h4>Available Assistants</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
@@ -750,6 +766,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             The sidebar entry itself also shows a compact FAIR average summary in the format <strong>Resources / IGSNs</strong>, for
                             example <strong>6.9 / 3.2</strong>. The numbers reflect the latest completed assessments with a stored FAIR score in each
                             scope.
+                        </p>
+
+                        <h4>Filter Assessment Results</h4>
+                        <p>
+                            Use the <strong>DOI</strong> field to select one exact assessed resource. A bare DOI and a <code>doi.org</code> URL are
+                            treated as the same value. The <strong>Datacenter</strong> dropdown lists only datacenters represented by stored
+                            assessment results. If both filters are active, a result must match both. The filters apply to the Resource and IGSN
+                            attention cards and to their assessed, failed, skipped, and remaining summaries.
+                        </p>
+                        <p>
+                            The DOI and Datacenter filters can be combined with <strong>Include resources with external landing pages</strong>. They
+                            change only the displayed results and summaries: starting a check still assesses its full selected scope, and the FAIR
+                            averages shown in the sidebar remain global.
                         </p>
 
                         <h4>What the Dashboard Shows</h4>

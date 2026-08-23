@@ -92,6 +92,7 @@ beforeEach(() => {
     mockedRouterReload.mockReset();
     mockedToastInfo.mockReset();
     mockedToastWarning.mockReset();
+    window.history.replaceState({}, '', '/assistance');
 });
 
 function makeOrcidSuggestion(overrides: Partial<SuggestedOrcidItem> = {}): SuggestedOrcidItem {
@@ -510,6 +511,38 @@ function paginated<T>(data: T[], overrides: Partial<PaginatedData<BaseSuggestion
 }
 
 // ── Tests ────────────────────────────────────────────────────────────
+
+describe('Assistance resource filters', () => {
+    it('applies a normalized DOI while resetting pagination and preserving unrelated query parameters', async () => {
+        window.history.replaceState({}, '', '/assistance?all_page=3&size_format_page=2&per_page=50&view=compact&doi=10.5880%2Fold');
+        const user = userEvent.setup();
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        await user.type(screen.getByRole('searchbox', { name: 'DOI' }), 'https://doi.org/10.5880/FILTER.ONE');
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockedRouterGet).toHaveBeenCalledWith(
+            '/assistance',
+            {
+                per_page: '50',
+                view: 'compact',
+                doi: '10.5880/filter.one',
+            },
+            {
+                only: ['filters', 'datacenterOptions', 'sections', 'allAssistantResources', 'pendingCounts'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    });
+});
 
 describe('Assistance resource header links', () => {
     it('delineates each resource in a card with a compact suggestion list', () => {
@@ -1205,7 +1238,9 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
         await waitFor(() => {
             expect(mockedToastWarning).toHaveBeenCalledWith('Suggestion not found.');
             expect(mockedToastInfo).not.toHaveBeenCalled();
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({
+                only: ['sections', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount'],
+            });
         });
     });
 });
@@ -1829,7 +1864,9 @@ describe('RorSuggestionCard – ROR link', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(1, '/assistance/rors/954/accept');
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({
+                only: ['sections', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount'],
+            });
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
@@ -1888,7 +1925,9 @@ describe('RorSuggestionCard – ROR link', () => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/rors/bulk-affiliation-accept', {
                 bulk_token: BULK_TOKEN_MATCH,
             });
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({
+                only: ['sections', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount'],
+            });
         });
     });
 
@@ -1995,7 +2034,9 @@ describe('RorSuggestionCard – ROR link', () => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(3, '/assistance/rors/bulk-affiliation-accept', {
                 bulk_token: BULK_TOKEN_RETRY,
             });
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({
+                only: ['sections', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount'],
+            });
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
@@ -2046,7 +2087,9 @@ describe('RorSuggestionCard – ROR link', () => {
                 bulk_token: BULK_TOKEN_EXPIRED,
             });
             expect(mockedToastWarning).toHaveBeenCalledWith('Bulk ROR acceptance token is invalid or has expired.');
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({
+                only: ['sections', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount'],
+            });
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
@@ -2084,7 +2127,9 @@ describe('RorSuggestionCard – ROR link', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenCalledTimes(1);
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({
+                only: ['sections', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount'],
+            });
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
@@ -2180,7 +2225,7 @@ describe('RorSuggestionCard – ROR link', () => {
         await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Decline' }));
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
         expect(mockedRouterReload).toHaveBeenCalledWith({
-            only: ['sections', 'allAssistantResources', 'pendingCounts', 'relationTypes', 'pendingAssistanceTotalCount'],
+            only: ['sections', 'allAssistantResources', 'pendingCounts', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount'],
         });
     });
 });
