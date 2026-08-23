@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { CitationManagerModal } from '@/components/citations/CitationManagerModal';
+import { DataCiteUrlUpdateModal, type DataCiteUrlUpdateRun } from '@/components/datacite-url-update-modal';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
 import { type ResourcesActionKey, type ResourcesActionState, ResourcesBulkActionsToolbar } from '@/components/resources/bulk-actions-toolbar';
@@ -82,6 +83,8 @@ interface ResourcesProps {
     error?: string;
     sort: ResourceSortState;
     canImportFromDataCite?: boolean;
+    canUpdateDataCiteLandingPageUrls?: boolean;
+    dataCiteUrlUpdateRun?: DataCiteUrlUpdateRun | null;
 }
 
 interface SortOption {
@@ -661,6 +664,8 @@ function ResourcesPage({
     error,
     sort: initialSort,
     canImportFromDataCite,
+    canUpdateDataCiteLandingPageUrls,
+    dataCiteUrlUpdateRun,
 }: ResourcesProps) {
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const canManageLandingPages = auth.user?.can_manage_landing_pages ?? false;
@@ -678,6 +683,7 @@ function ResourcesPage({
     const [showImportModal, setShowImportModal] = useState(false);
     const [showDatacenterImportModal, setShowDatacenterImportModal] = useState(false);
     const [showSingleImportModal, setShowSingleImportModal] = useState(false);
+    const [showDataCiteUrlUpdateModal, setShowDataCiteUrlUpdateModal] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [isBulkRegistering, setIsBulkRegistering] = useState(false);
     const [isBulkExporting, setIsBulkExporting] = useState(false);
@@ -2014,35 +2020,51 @@ function ResourcesPage({
                                 onAction={handleResourceAction}
                                 onUnavailableAction={handleUnavailableAction}
                             />
-                            {canImportFromDataCite && (
+                            {(canImportFromDataCite || canUpdateDataCiteLandingPageUrls) && (
                                 <div className="ml-auto flex flex-wrap items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="default"
-                                        onClick={() => setShowImportModal(true)}
-                                        className="flex items-center gap-2"
-                                    >
-                                        <DataCiteIcon className="size-4" aria-hidden="true" />
-                                        Import all old Resources
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="default"
-                                        onClick={() => setShowDatacenterImportModal(true)}
-                                        className="flex items-center gap-2"
-                                    >
-                                        <DataCiteIcon className="size-4" aria-hidden="true" />
-                                        Import all Resources from a Datacenter
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="default"
-                                        onClick={() => setShowSingleImportModal(true)}
-                                        className="flex items-center gap-2"
-                                    >
-                                        <DataCiteIcon className="size-4" aria-hidden="true" />
-                                        Import old single Resource
-                                    </Button>
+                                    {canUpdateDataCiteLandingPageUrls && (
+                                        <Button
+                                            variant="outline"
+                                            size="default"
+                                            onClick={() => setShowDataCiteUrlUpdateModal(true)}
+                                            className="flex items-center gap-2"
+                                            data-testid="resources-datacite-url-update"
+                                        >
+                                            <DataCiteIcon className="size-4" aria-hidden="true" />
+                                            Update DataCite landing-page URLs
+                                        </Button>
+                                    )}
+                                    {canImportFromDataCite && (
+                                        <>
+                                            <Button
+                                                variant="outline"
+                                                size="default"
+                                                onClick={() => setShowImportModal(true)}
+                                                className="flex items-center gap-2"
+                                            >
+                                                <DataCiteIcon className="size-4" aria-hidden="true" />
+                                                Import all old Resources
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="default"
+                                                onClick={() => setShowDatacenterImportModal(true)}
+                                                className="flex items-center gap-2"
+                                            >
+                                                <DataCiteIcon className="size-4" aria-hidden="true" />
+                                                Import all Resources from a Datacenter
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="default"
+                                                onClick={() => setShowSingleImportModal(true)}
+                                                className="flex items-center gap-2"
+                                            >
+                                                <DataCiteIcon className="size-4" aria-hidden="true" />
+                                                Import old single Resource
+                                            </Button>
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -2475,6 +2497,15 @@ function ResourcesPage({
                     resourceTypes={citationVocabularies.resourceTypes}
                     relationTypes={citationVocabularies.relationTypes}
                     contributorTypes={citationVocabularies.contributorTypes}
+                />
+            )}
+
+            {canUpdateDataCiteLandingPageUrls && (
+                <DataCiteUrlUpdateModal
+                    scope="resources"
+                    open={showDataCiteUrlUpdateModal}
+                    onOpenChange={setShowDataCiteUrlUpdateModal}
+                    initialRun={dataCiteUrlUpdateRun}
                 />
             )}
         </AppLayout>

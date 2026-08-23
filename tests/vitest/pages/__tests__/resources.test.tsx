@@ -74,6 +74,10 @@ vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ defaul
 vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
 vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({ default: () => null }));
 vi.mock('@/components/citations/CitationManagerModal', () => ({ CitationManagerModal: () => null }));
+vi.mock('@/components/datacite-url-update-modal', () => ({
+    DataCiteUrlUpdateModal: ({ open, scope }: { open: boolean; scope: string }) =>
+        open ? <div data-testid="datacite-url-update-modal-mock">{scope}</div> : null,
+}));
 vi.mock('@/components/ui/validation-error-modal', () => ({ ValidationErrorModal: () => null }));
 vi.mock('@/hooks/use-citation-vocabularies', () => ({
     useCitationVocabularies: () => ({
@@ -155,6 +159,29 @@ describe('ResourcesPage', () => {
         } else {
             Reflect.deleteProperty(navigator, 'clipboard');
         }
+    });
+
+    it('shows and opens the URL migration only when the admin capability prop is true', async () => {
+        const listProps = {
+            resources: [],
+            pagination: {
+                current_page: 1,
+                last_page: 1,
+                per_page: 50,
+                total: 0,
+                from: 0,
+                to: 0,
+                has_more: false,
+            },
+            sort: { key: 'id' as const, direction: 'asc' as const },
+        };
+        const { rerender } = render(<ResourcesPage {...listProps} canUpdateDataCiteLandingPageUrls />);
+
+        await userEvent.click(screen.getByTestId('resources-datacite-url-update'));
+        expect(screen.getByTestId('datacite-url-update-modal-mock')).toHaveTextContent('resources');
+
+        rerender(<ResourcesPage {...listProps} canUpdateDataCiteLandingPageUrls={false} />);
+        expect(screen.queryByTestId('resources-datacite-url-update')).not.toBeInTheDocument();
     });
 
     it('renders a table with the streamlined dataset overview', async () => {

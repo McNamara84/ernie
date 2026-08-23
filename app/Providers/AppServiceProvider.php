@@ -254,6 +254,11 @@ class AppServiceProvider extends ServiceProvider
             return $user->role !== UserRole::BEGINNER;
         });
 
+        // Perform the controlled bulk landing-page URL migration at DataCite.
+        Gate::define('update-datacite-landing-page-urls', function (User $user): bool {
+            return $user->role === UserRole::ADMIN;
+        });
+
         // Send review links to resource ContactPerson contributors.
         Gate::define('send-review-links', function (User $user): bool {
             return in_array($user->role, [

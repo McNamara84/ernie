@@ -5,11 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Resource;
-use App\Models\User;
-use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -24,11 +21,6 @@ use Illuminate\Support\Facades\Log;
  */
 class DataCiteRegistrationService implements DataCiteServiceInterface
 {
-    /**
-     * The DataCite API client instance
-     */
-    private PendingRequest $client;
-
     /**
      * The API endpoint URL
      */
@@ -49,9 +41,10 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
     /**
      * Initialize the DataCite registration service
      */
-    public function __construct()
-    {
-        $this->testMode = $this->determineTestMode();
+    public function __construct(
+        private readonly DataCiteMemberApiClient $client,
+    ) {
+        $this->testMode = $this->client->isTestMode();
 
         // Select configuration based on test mode
         $config = $this->testMode
@@ -82,53 +75,6 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
             ]);
         }
 
-        // Initialize HTTP client with authentication
-        $this->client = Http::withBasicAuth(
-            $username,
-            $password
-        )
-            ->withHeaders([
-                'Content-Type' => 'application/vnd.api+json',
-                'Accept' => 'application/vnd.api+json',
-            ])
-            ->timeout(30)
-            ->retry(3, 100);
-    }
-
-    /**
-     * Determine if DataCite test mode should be used
-     *
-     * This method implements critical safety logic to protect against accidental DOI registration
-     * in production by users who are still in training.
-     *
-     * Test mode is activated when:
-     * 1. Global test mode is enabled in configuration (config/datacite.php)
-     * 2. The authenticated user has the BEGINNER role (restricted to test DOIs only)
-     *
-     * IMPORTANT: Beginner users are ALWAYS forced to use test mode, regardless of global settings.
-     * This safety mechanism cannot be overridden - even if global test_mode=false, beginners
-     * will still register test DOIs. This ensures that users in training cannot accidentally
-     * register production DOIs while learning the system.
-     *
-     * @return bool True if test mode should be used, false for production mode
-     *
-     * @see config/datacite.php - Global test mode configuration
-     */
-    private function determineTestMode(): bool
-    {
-        $authenticatedUser = auth()->user();
-        $user = $authenticatedUser instanceof User ? $authenticatedUser : null;
-        $resolver = app(DataCiteModeResolverService::class);
-
-        if ($resolver->isTestModeForcedForUser($user)) {
-            Log::info('Forcing DataCite test mode for beginner user (safety restriction)', [
-                'user_id' => $user?->id,
-                'user_role' => $user?->role->value,
-                'reason' => 'Beginners are restricted to test DOIs only',
-            ]);
-        }
-
-        return $resolver->shouldUseTestMode($user);
     }
 
     /**
@@ -199,8 +145,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
 
         try {
             // Send POST request to DataCite API
-            $response = $this->client
-                ->post("{$this->endpoint}/dois", $payload);
+            $response = $this->client->createDoi($payload);
             $response->throw();
 
             $responseData = $response->json();
@@ -328,8 +273,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         }
 
         try {
-            $response = $this->client
-                ->post("{$this->endpoint}/dois", $payload);
+            $response = $this->client->createDoi($payload);
             $response->throw();
 
             $responseData = $response->json();
@@ -440,11 +384,8 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
             // URL-encode DOI to prevent potential issues with special characters
             // Safe because we validated $resource->doi is not null above (lines 220-224)
             assert($resource->doi !== null); // PHPStan hint: DOI is validated above
-            $encodedDoi = urlencode($resource->doi);
-
             // Send PUT request to DataCite API
-            $response = $this->client
-                ->put("{$this->endpoint}/dois/{$encodedDoi}", $payload);
+            $response = $this->client->updateDoi($resource->doi, $payload);
             $response->throw();
 
             $responseData = $response->json();
@@ -506,5 +447,23 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
     public function getEndpoint(): string
     {
         return $this->endpoint;
+    }
+
+    /**
+     * Update only the landing-page URL without changing metadata or DOI state.
+     *
+     * @return array<string, mixed>
+     */
+    public function updateLandingPageUrl(string $identifier, string $targetUrl): array
+    {
+        $response = $this->client->updateLandingPageUrl($identifier, $targetUrl);
+        $response->throw();
+
+        $responseData = $response->json();
+        if (! is_array($responseData)) {
+            throw new \RuntimeException('Received invalid JSON response from DataCite API');
+        }
+
+        return $responseData;
     }
 }

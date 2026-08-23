@@ -10,6 +10,7 @@ use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\DatabaseDumpController;
 use App\Http\Controllers\DatacenterController;
 use App\Http\Controllers\DataCiteImportController;
+use App\Http\Controllers\DataCiteUrlUpdateController;
 use App\Http\Controllers\DocsController;
 use App\Http\Controllers\DoiValidationController;
 use App\Http\Controllers\EditorController;
@@ -373,6 +374,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Resources routes (new curated resources)
+    Route::middleware(['can:update-datacite-landing-page-urls'])
+        ->prefix('datacite/landing-page-url-updates')
+        ->group(function (): void {
+            Route::get('preview', [DataCiteUrlUpdateController::class, 'preview'])
+                ->name('datacite.url-updates.preview');
+            Route::post('/', [DataCiteUrlUpdateController::class, 'store'])
+                ->name('datacite.url-updates.store');
+            Route::get('{run}', [DataCiteUrlUpdateController::class, 'show'])
+                ->name('datacite.url-updates.show');
+            Route::get('{run}/items', [DataCiteUrlUpdateController::class, 'items'])
+                ->name('datacite.url-updates.items');
+            Route::post('{run}/cancel', [DataCiteUrlUpdateController::class, 'cancel'])
+                ->name('datacite.url-updates.cancel');
+            Route::post('{run}/resume', [DataCiteUrlUpdateController::class, 'resume'])
+                ->name('datacite.url-updates.resume');
+            Route::post('{run}/retry-failed', [DataCiteUrlUpdateController::class, 'retryFailed'])
+                ->name('datacite.url-updates.retry-failed');
+        });
+
     Route::get('resources/filter-options', [ResourceFilterController::class, 'getFilterOptions'])
         ->name('resources.filter-options');
 

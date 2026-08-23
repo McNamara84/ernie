@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DataCiteUrlUpdateScope;
 use App\Enums\UserRole;
 use App\Exceptions\JsonValidationException;
+use App\Models\DataCiteUrlUpdateRun;
 use App\Models\DateType;
 use App\Models\GeoLocation;
 use App\Models\IgsnMetadata;
@@ -18,6 +20,7 @@ use App\Models\TitleType;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteRegistrationService;
+use App\Services\DataCiteUrlUpdateRunPresenter;
 use App\Services\JsonSchemaValidator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Client\RequestException;
@@ -37,6 +40,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class IgsnController extends Controller
 {
+    public function __construct(
+        private readonly DataCiteUrlUpdateRunPresenter $dataCiteUrlUpdateRunPresenter,
+    ) {}
+
     private const DEFAULT_PER_PAGE = 50;
 
     private const MIN_PER_PAGE = 1;
@@ -117,6 +124,12 @@ class IgsnController extends Controller
         $canRegister = $user?->can('register-doi') ?? false;
         $canImport = $user?->can('importFromDataCite', Resource::class) ?? false;
 
+        $canUpdateDataCiteLandingPageUrls = $user?->can('update-datacite-landing-page-urls') ?? false;
+        $urlUpdateRun = $canUpdateDataCiteLandingPageUrls
+            ? DataCiteUrlUpdateRun::query()->active()->latest()->first()
+                ?? DataCiteUrlUpdateRun::query()->where('scope', DataCiteUrlUpdateScope::IGSNS)->latest()->first()
+            : null;
+
         return Inertia::render('igsns/index', [
             'igsns' => $igsns,
             'pagination' => [
@@ -137,6 +150,8 @@ class IgsnController extends Controller
             'canDelete' => $canDelete,
             'canRegister' => $canRegister,
             'canImport' => $canImport,
+            'canUpdateDataCiteLandingPageUrls' => $canUpdateDataCiteLandingPageUrls,
+            'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),
             'igsnPrefix' => (string) config('datacite.production.igsn_prefix', '10.60510'),
             'filters' => [
                 'prefix' => $prefix,

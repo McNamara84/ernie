@@ -13,6 +13,30 @@ return [
     */
     'test_mode' => env('DATACITE_TEST_MODE', true),
 
+    // Existing DOI create/full-update paths retry transient transport and 5xx
+    // failures only. URL migration jobs own their persistent retry lifecycle.
+    'transport_transient_attempts' => (int) env('DATACITE_TRANSPORT_TRANSIENT_ATTEMPTS', 3),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Landing Page URL Domain Migration
+    |--------------------------------------------------------------------------
+    |
+    | APP_URL is the only canonical target base after a domain move. DataCite
+    | recommends conservative sustained rates for large DOI updates.
+    |
+    */
+    'landing_page_url_update' => [
+        'requests_per_window' => (int) env('DATACITE_URL_UPDATE_REQUESTS_PER_WINDOW', 300),
+        'window_seconds' => (int) env('DATACITE_URL_UPDATE_WINDOW_SECONDS', 300),
+        'minimum_interval_ms' => (int) env('DATACITE_URL_UPDATE_MINIMUM_INTERVAL_MS', 1000),
+        'connect_timeout_seconds' => (int) env('DATACITE_URL_UPDATE_CONNECT_TIMEOUT_SECONDS', 10),
+        'timeout_seconds' => (int) env('DATACITE_URL_UPDATE_TIMEOUT_SECONDS', 30),
+        'max_transient_attempts' => (int) env('DATACITE_URL_UPDATE_MAX_TRANSIENT_ATTEMPTS', 5),
+        'queue' => env('DATACITE_URL_UPDATE_QUEUE', 'datacite'),
+        'support_email' => env('DATACITE_USER_AGENT_EMAIL'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Exhaustive Citation Label Resolution

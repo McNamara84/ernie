@@ -55,6 +55,13 @@ interface DataCiteServiceInterface
     public function updateMetadata(Resource $resource): array;
 
     /**
+     * Update only the landing-page URL of an existing DataCite identifier.
+     *
+     * @return array<string, mixed>
+     */
+    public function updateLandingPageUrl(string $identifier, string $targetUrl): array;
+
+    /**
      * Get available DOI prefixes for the current environment.
      *
      * @return array<int, string>

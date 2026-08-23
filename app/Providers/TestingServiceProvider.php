@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Services\DataCiteMemberApiClient;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
 use App\Services\FakeDataCiteRegistrationService;
+use Illuminate\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -33,7 +35,7 @@ class TestingServiceProvider extends ServiceProvider
                 return new FakeDataCiteRegistrationService;
             }
 
-            return new DataCiteRegistrationService;
+            return new DataCiteRegistrationService($app->make(DataCiteMemberApiClient::class));
         });
 
         // Also bind the interface to the same resolution logic
@@ -45,7 +47,7 @@ class TestingServiceProvider extends ServiceProvider
     /**
      * Determine if fake DataCite service should be used based on missing credentials
      *
-     * @param  \Illuminate\Foundation\Application  $app
+     * @param  Application  $app
      */
     private function shouldUseFakeDataCiteService($app): bool
     {
