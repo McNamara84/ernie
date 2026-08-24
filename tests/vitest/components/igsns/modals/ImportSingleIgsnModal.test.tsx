@@ -430,6 +430,79 @@ describe('ImportSingleIgsnModal', () => {
         expect(screen.getByText('Queue worker failed')).toBeInTheDocument();
     });
 
+    it.each([
+        ['legacy_source_unavailable', 'The legacy IGSN metadata service is currently unavailable. No IGSNs were imported. Please try again later.'],
+        ['legacy_invalid_payload', 'The legacy IGSN metadata service returned invalid data. No IGSNs were imported. Please try again later.'],
+        ['legacy_source_not_configured', 'Legacy IGSN metadata enrichment is not configured. No IGSNs were imported.'],
+        ['parent_relationship_conflict', 'DataCite and legacy metadata disagree about the IGSN family. No IGSNs were imported.'],
+    ])('shows an actionable message for the %s failure code', async (errorCode, expectedMessage) => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'single-igsn-import-123', message: 'Import started' },
+        });
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'failed',
+                error: 'Internal exception details',
+                error_code: errorCode,
+                error_source: 'legacy_portal',
+            },
+        });
+
+        render(<ImportSingleIgsnModal isOpen={true} onClose={mockOnClose} />);
+
+        await user.type(screen.getByLabelText('IGSN'), 'ICDPFAIL001');
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText('Import failed')).toBeInTheDocument();
+        expect(screen.getByText(expectedMessage)).toBeInTheDocument();
+        expect(screen.queryByText('Internal exception details')).not.toBeInTheDocument();
+    });
+
+    it('allows a failed atomic import to be retried with the same IGSN', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock)
+            .mockResolvedValueOnce({ data: { import_id: 'failed-import', message: 'Import started' } })
+            .mockResolvedValueOnce({ data: { import_id: 'retry-import', message: 'Import restarted' } });
+        (axios.get as Mock)
+            .mockResolvedValueOnce({
+                data: {
+                    status: 'failed',
+                    error_code: 'legacy_source_unavailable',
+                },
+            })
+            .mockResolvedValue({
+                data: {
+                    status: 'running',
+                    total: 1,
+                    processed: 0,
+                    imported: 0,
+                    skipped: 0,
+                    failed: 0,
+                    enriched: 0,
+                    skipped_dois: [],
+                    failed_dois: [],
+                },
+            });
+
+        render(<ImportSingleIgsnModal isOpen={true} onClose={mockOnClose} />);
+
+        await user.type(screen.getByLabelText('IGSN'), 'GFRETRY001');
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+        await user.click(await screen.findByRole('button', { name: /try again/i }));
+
+        await waitFor(() => {
+            expect(axios.post).toHaveBeenCalledTimes(2);
+            expect(axios.post).toHaveBeenLastCalledWith(
+                '/igsns/import/start-single',
+                { igsn: 'GFRETRY001' },
+                { headers: { 'X-CSRF-TOKEN': 'test-token' } },
+            );
+        });
+    });
+
     it('shows cancelled status from polling', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 

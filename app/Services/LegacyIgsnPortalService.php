@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\LegacyIgsnPortalException;
 use App\Support\IgsnIdentifier;
 use App\Support\LegacyIgsnDatacenterCatalog;
 use Generator;
@@ -166,6 +167,67 @@ class LegacyIgsnPortalService
         return $assignments;
     }
 
+    /**
+     * Fetch legacy DIF XML for a set of IGSN handles in as few portal requests
+     * as possible. A null value is an authoritative "no DIF" response from a
+     * reachable portal; transport and payload failures are exceptions.
+     *
+     * @param  list<string>  $handles
+     * @return array<string, string|null> Uppercase IGSN handle to decoded DIF XML.
+     */
+    public function difForHandles(array $handles): array
+    {
+        $results = [];
+
+        foreach ($handles as $handle) {
+            $normalized = strtoupper(trim($handle));
+            if (IgsnIdentifier::isValidHandle($normalized)) {
+                $results[$normalized] = null;
+            }
+        }
+
+        foreach (array_chunk(array_keys($results), 100) as $chunk) {
+            $quotedHandles = array_map(
+                fn (string $handle): string => '"'.$this->escapeSolrQuotedValue($handle).'"',
+                $chunk,
+            );
+
+            foreach ($this->documents([
+                'q' => 'igsn:('.implode(' OR ', $quotedHandles).')',
+                'fl' => 'igsn,dif,has_dif',
+                'sort' => 'igsn asc',
+            ]) as $document) {
+                $handle = $this->handleFromDocument($document);
+                if ($handle === null || ! array_key_exists($handle, $results)) {
+                    continue;
+                }
+
+                $hasDif = filter_var($document['has_dif'] ?? false, FILTER_VALIDATE_BOOL);
+                if (! $hasDif) {
+                    continue;
+                }
+
+                $encodedDif = $document['dif'] ?? null;
+                if (! is_string($encodedDif) || $encodedDif === '') {
+                    throw LegacyIgsnPortalException::invalidPayload(
+                        'The legacy IGSN portal returned a sample without its declared DIF metadata.'
+                    );
+                }
+
+                $difXml = base64_decode($encodedDif, true);
+                if ($difXml === false || trim($difXml) === '') {
+                    throw LegacyIgsnPortalException::invalidPayload(
+                        'The legacy IGSN portal returned invalid DIF metadata.'
+                    );
+                }
+
+                $results[$handle] = $difXml;
+            }
+        }
+
+        return $results;
+    }
+
     public function clearDatacenterCache(): void
     {
         Cache::forget(self::DATACENTER_CACHE_KEY);
@@ -176,20 +238,30 @@ class LegacyIgsnPortalService
      */
     private function fetchDatacenters(): array
     {
-        $response = $this->postQuery([
-            'q' => '*:*',
-            'facet' => 'true',
-            'facet.field' => 'datacentre_facet',
-            'facet.limit' => 100,
-            'facet.mincount' => 1,
-            'rows' => 0,
-            'json.nl' => 'map',
-        ]);
-        $payload = $this->jsonPayload($response);
+        $payload = $this->queryPayload(
+            [
+                'q' => '*:*',
+                'facet' => 'true',
+                'facet.field' => 'datacentre_facet',
+                'facet.limit' => 100,
+                'facet.mincount' => 1,
+                'rows' => 0,
+                'json.nl' => 'map',
+            ],
+            function (array $payload): void {
+                if (! is_array($payload['facet_counts']['facet_fields']['datacentre_facet'] ?? null)) {
+                    throw LegacyIgsnPortalException::invalidPayload(
+                        'The legacy IGSN portal returned an invalid datacenter response.'
+                    );
+                }
+            },
+        );
         $facets = $payload['facet_counts']['facet_fields']['datacentre_facet'] ?? null;
 
         if (! is_array($facets)) {
-            throw new RuntimeException('The legacy IGSN portal returned an invalid datacenter response.');
+            throw LegacyIgsnPortalException::invalidPayload(
+                'The legacy IGSN portal returned an invalid datacenter response.'
+            );
         }
 
         $datacenters = [];
@@ -239,24 +311,40 @@ class LegacyIgsnPortalService
         $total = null;
 
         do {
-            $response = $this->postQuery([
-                ...$parameters,
-                'rows' => $pageSize,
-                'start' => $start,
-                'json.nl' => 'map',
-            ]);
-            $payload = $this->jsonPayload($response);
+            $payload = $this->queryPayload(
+                [
+                    ...$parameters,
+                    'rows' => $pageSize,
+                    'start' => $start,
+                    'json.nl' => 'map',
+                ],
+                function (array $payload): void {
+                    $responseData = $payload['response'] ?? null;
+                    $pageTotal = is_array($responseData) ? ($responseData['numFound'] ?? null) : null;
+                    $pageDocuments = is_array($responseData) ? ($responseData['docs'] ?? null) : null;
+
+                    if (! is_numeric($pageTotal) || ! is_array($pageDocuments) || ! array_is_list($pageDocuments)) {
+                        throw LegacyIgsnPortalException::invalidPayload(
+                            'The legacy IGSN portal sample response is incomplete.'
+                        );
+                    }
+                },
+            );
             $responseData = $payload['response'] ?? null;
 
             if (! is_array($responseData)) {
-                throw new RuntimeException('The legacy IGSN portal returned an invalid sample response.');
+                throw LegacyIgsnPortalException::invalidPayload(
+                    'The legacy IGSN portal returned an invalid sample response.'
+                );
             }
 
             $pageTotal = $responseData['numFound'] ?? null;
             $pageDocuments = $responseData['docs'] ?? null;
 
             if (! is_numeric($pageTotal) || ! is_array($pageDocuments)) {
-                throw new RuntimeException('The legacy IGSN portal sample response is incomplete.');
+                throw LegacyIgsnPortalException::invalidPayload(
+                    'The legacy IGSN portal sample response is incomplete.'
+                );
             }
 
             $total ??= max(0, (int) $pageTotal);
@@ -271,7 +359,9 @@ class LegacyIgsnPortalService
             $start += $documentCount;
 
             if ($documentCount === 0 && $start < $total) {
-                throw new RuntimeException('The legacy IGSN portal pagination ended unexpectedly.');
+                throw LegacyIgsnPortalException::invalidPayload(
+                    'The legacy IGSN portal pagination ended unexpectedly.'
+                );
             }
         } while ($start < $total);
     }
@@ -318,6 +408,21 @@ class LegacyIgsnPortalService
     /**
      * @param  array<string, mixed>  $document
      */
+    private function handleFromDocument(array $document): ?string
+    {
+        $handle = $document['igsn'] ?? null;
+        if (! is_string($handle) && ! is_numeric($handle)) {
+            return null;
+        }
+
+        $normalized = strtoupper(trim((string) $handle));
+
+        return IgsnIdentifier::isValidHandle($normalized) ? $normalized : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     */
     private function datacenterNameFromDocument(array $document): ?string
     {
         $rawFacets = $document['datacentre_facet'] ?? [];
@@ -345,30 +450,31 @@ class LegacyIgsnPortalService
         $url = trim((string) config('datacite.legacy_igsn_portal.proxy_url'));
 
         if ($url === '' || ! str_starts_with($url, 'https://')) {
-            throw new RuntimeException('The legacy IGSN portal proxy URL must use HTTPS.');
+            throw LegacyIgsnPortalException::invalidConfiguration(
+                'The legacy IGSN portal proxy URL must use HTTPS.'
+            );
         }
 
         try {
             $response = Http::asForm()
                 ->acceptJson()
+                ->connectTimeout(max(1, (int) config('datacite.legacy_igsn_portal.connect_timeout_seconds', 5)))
                 ->timeout(max(1, (int) config('datacite.legacy_igsn_portal.timeout_seconds', 30)))
-                ->retry(
-                    max(1, (int) config('datacite.legacy_igsn_portal.retry_times', 3)),
-                    max(0, (int) config('datacite.legacy_igsn_portal.retry_sleep_ms', 500)),
-                    throw: false,
-                )
                 ->post($url, [
-                    'query' => http_build_query($parameters, '', '&', PHP_QUERY_RFC3986),
+                    'query' => http_build_query([
+                        ...$parameters,
+                        'wt' => 'json',
+                    ], '', '&', PHP_QUERY_RFC3986),
                 ]);
         } catch (ConnectionException $exception) {
-            throw new RuntimeException(
+            throw LegacyIgsnPortalException::unavailable(
                 'The legacy IGSN portal could not be reached.',
-                previous: $exception,
+                $exception,
             );
         }
 
         if (! $response->successful()) {
-            throw new RuntimeException(sprintf(
+            throw LegacyIgsnPortalException::unavailable(sprintf(
                 'The legacy IGSN portal request failed with HTTP %d.',
                 $response->status(),
             ));
@@ -382,13 +488,73 @@ class LegacyIgsnPortalService
      */
     private function jsonPayload(Response $response): array
     {
+        $contentType = strtolower(trim($response->header('Content-Type')));
+        $supportedContentType = $contentType === ''
+            || str_contains($contentType, 'json')
+            // The public legacy proxy currently labels valid JSON as text/html.
+            || str_starts_with($contentType, 'text/html');
+
+        if (! $supportedContentType) {
+            throw LegacyIgsnPortalException::invalidPayload(
+                'The legacy IGSN portal returned an unexpected content type.'
+            );
+        }
+
         $payload = $response->json();
 
         if (! is_array($payload)) {
-            throw new RuntimeException('The legacy IGSN portal returned invalid JSON.');
+            throw LegacyIgsnPortalException::invalidPayload(
+                'The legacy IGSN portal returned invalid JSON.'
+            );
         }
 
         return $payload;
+    }
+
+    /**
+     * Retry the complete interaction, including JSON decoding. Laravel's HTTP
+     * retry helper cannot retry a successful HTTP response with a malformed
+     * body, which is the failure mode observed in production.
+     *
+     * @param  array<string, scalar>  $parameters
+     * @param  (callable(array<string, mixed>): void)|null  $validate
+     * @return array<string, mixed>
+     */
+    private function queryPayload(array $parameters, ?callable $validate = null): array
+    {
+        $attempts = max(1, (int) config('datacite.legacy_igsn_portal.retry_times', 3));
+        $sleepMilliseconds = max(0, (int) config('datacite.legacy_igsn_portal.retry_sleep_ms', 500));
+        $jitterMilliseconds = max(0, (int) config('datacite.legacy_igsn_portal.retry_jitter_ms', 100));
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            try {
+                $payload = $this->jsonPayload($this->postQuery($parameters));
+                if ($validate !== null) {
+                    $validate($payload);
+                }
+
+                return $payload;
+            } catch (LegacyIgsnPortalException $exception) {
+                if (! $exception->retryable || $attempt === $attempts) {
+                    throw $exception;
+                }
+
+                Log::warning('Retrying legacy IGSN portal request', [
+                    'attempt' => $attempt,
+                    'max_attempts' => $attempts,
+                    'failure_code' => $exception->failureCode,
+                ]);
+
+                if ($sleepMilliseconds > 0) {
+                    $jitter = $jitterMilliseconds > 0 ? random_int(0, $jitterMilliseconds) : 0;
+                    usleep(($sleepMilliseconds * $attempt + $jitter) * 1000);
+                }
+            }
+        }
+
+        throw LegacyIgsnPortalException::unavailable(
+            'The legacy IGSN portal request failed unexpectedly.'
+        );
     }
 
     private function escapeSolrQuotedValue(string $value): string

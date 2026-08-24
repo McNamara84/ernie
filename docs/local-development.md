@@ -173,6 +173,25 @@ Production uses separate DataCite Repository accounts for ordinary GFZ DOIs and 
 
 There is no separate post-import sync flag: `DATACITE_TEST_MODE` is the only switch. The queue worker must consume the `imports` queue so the bounded synchronization jobs can complete.
 
+### Legacy IGSN enrichment
+
+Single-IGSN imports preload their complete DataCite family and the corresponding legacy DIF metadata before writing resources. The public legacy IGSN portal is the mandatory source for this strict preflight. If the portal is unreachable, returns invalid JSON, or contains malformed DIF data, the complete single import fails without creating any new resource, IGSN metadata, relationship, datacenter assignment, or landing page. Existing ERNIE resources remain unchanged and are not backfilled.
+
+The default portal endpoint and retry settings are defined by:
+
+- `GFZ_IGSN_PORTAL_PROXY_URL`
+- `GFZ_IGSN_PORTAL_CONNECT_TIMEOUT`
+- `GFZ_IGSN_PORTAL_TIMEOUT`
+- `GFZ_IGSN_PORTAL_RETRY_TIMES`
+- `GFZ_IGSN_PORTAL_RETRY_SLEEP_MS`
+- `GFZ_IGSN_PORTAL_RETRY_JITTER_MS`
+
+Keep the portal URL on HTTPS. Retries include the observed failure mode in which the proxy answers with HTTP 200 but the body is not valid JSON. The queue job records a stable `error_code` such as `legacy_source_unavailable` or `legacy_invalid_payload` in the import progress instead of silently creating a DataCite-only partial record.
+
+Authenticated Solr and the direct legacy database remain optional enrichment sources for non-single imports. Enable `IGSN_LEGACY_DB_ENABLED` only after the configured TLS and credentials have been verified from both the app and queue containers. Network reachability of port 3306 alone does not prove that the legacy database connection works.
+
+Both app and queue services must use `QUEUE_CONNECTION=database`, and the worker command must consume `imports`. The single-import start endpoint returns `202 Accepted`; later portal or persistence failures are reported through the import status endpoint.
+
 ### DataCite landing-page domain migration
 
 The admin-only actions on `/resources` and `/igsns` use a persistent queue and the shared application cache. The Docker worker consumes the dedicated `datacite` queue. Queue connections whose configured driver is `sync` or `null` are rejected regardless of the connection name, because the run must survive request timeouts, browser navigation, deployments, and worker restarts.

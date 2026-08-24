@@ -220,7 +220,7 @@ it('assigns the legacy datacenter during a single IGSN import', function (): voi
         ->with('10.60510/gfsingle')
         ->andReturn($record);
     $this->importService->shouldReceive('extractParentDois')
-        ->once()
+        ->twice()
         ->with($record)
         ->andReturn([]);
     $this->importService->shouldReceive('fetchChildIgsnsForParent')
@@ -239,6 +239,9 @@ it('assigns the legacy datacenter during a single IGSN import', function (): voi
         ->once()
         ->andReturnUsing(fn (array $data): Resource => createDatacenterJobResource($data));
     $this->enrichment->shouldReceive('enrich')->once()->andReturnFalse();
+    $this->enrichment->shouldReceive('prepareStrict')->once()->with(['GFSINGLE']);
+    $this->enrichment->shouldReceive('preparedParentHandles')->once()->andReturn([]);
+    $this->enrichment->shouldReceive('clearStrictPreparation')->once();
 
     $importId = Str::uuid()->toString();
     $job = new ImportIgsnsFromDataCiteJob(

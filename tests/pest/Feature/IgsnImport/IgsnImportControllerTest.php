@@ -116,7 +116,7 @@ describe('IgsnImportController', function () {
             $response = $this->actingAs($this->adminUser)
                 ->postJson('/igsns/import/start-single', ['igsn' => 'ICDP5052EUYY001']);
 
-            $response->assertOk();
+            $response->assertStatus(202);
             Queue::assertPushed(
                 ImportIgsnsFromDataCiteJob::class,
                 fn (ImportIgsnsFromDataCiteJob $job): bool => $job->getSingleDoi() === '10.60510/icdp5052euyy001',
@@ -137,7 +137,7 @@ describe('IgsnImportController', function () {
             $response = $this->actingAs($this->groupLeader)
                 ->postJson('/igsns/import/start-single', ['igsn' => '10.60510/ICDP5052EUYY001']);
 
-            $response->assertOk();
+            $response->assertStatus(202);
             Queue::assertPushed(ImportIgsnsFromDataCiteJob::class);
         });
 

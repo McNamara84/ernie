@@ -4,27 +4,94 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\LegacyIgsnPortalException;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
+use App\Services\Igsn\IgsnDifMetadataExtractor;
 use Illuminate\Support\Facades\Log;
 
 /**
  * Orchestrates IGSN metadata enrichment using a fallback chain.
  *
- * Strategy: Solr (primary, 92% coverage) → Legacy DB (fallback, adds ~2.3%).
+ * Strategy: Solr → Legacy DB → public legacy portal.
  * Enrichment is non-critical: failures are logged but don't stop the import.
+ * Single imports can opt into strict preloading, which makes portal failures
+ * fatal before the first domain write and keeps network I/O out of the import
+ * transaction.
  */
 class IgsnEnrichmentService
 {
-    /** @var array{status: string, source: 'solr'|'legacy_db'|null} */
+    /** @var array{status: string, source: 'solr'|'legacy_db'|'portal'|null} */
     private array $lastResult = ['status' => 'not_attempted', 'source' => null];
 
     private bool $reportedUnavailableSources = false;
 
+    /** @var array<string, string|null>|null */
+    private ?array $strictDifByHandle = null;
+
+    /** @var array<string, string> */
+    private array $strictParentByHandle = [];
+
     public function __construct(
         private IgsnSolrEnrichmentService $solrService,
         private IgsnLegacyDbEnrichmentService $dbService,
+        private LegacyIgsnPortalService $portalService,
+        private IgsnDifXmlParser $difParser,
+        private IgsnDifMetadataExtractor $difExtractor,
     ) {}
+
+    /**
+     * Preload and validate all legacy metadata required by an atomic single
+     * import. A reachable portal without a DIF document is authoritative and
+     * represented by null. Technical and malformed responses are exceptions.
+     *
+     * @param  list<string>  $handles
+     */
+    public function prepareStrict(array $handles): void
+    {
+        $this->strictDifByHandle = $this->portalService->difForHandles($handles);
+        $this->strictParentByHandle = [];
+
+        foreach ($this->strictDifByHandle as $handle => $difXml) {
+            if ($difXml === null) {
+                continue;
+            }
+
+            try {
+                $metadata = $this->difExtractor->extract($difXml);
+            } catch (\Throwable $exception) {
+                throw new LegacyIgsnPortalException(
+                    'The legacy IGSN portal returned DIF metadata that could not be normalized.',
+                    LegacyIgsnPortalException::INVALID_PAYLOAD,
+                    true,
+                    $exception,
+                );
+            }
+
+            if ($metadata === null) {
+                throw LegacyIgsnPortalException::invalidPayload(
+                    'The legacy IGSN portal returned invalid DIF XML.'
+                );
+            }
+
+            $parent = $metadata['parent_igsn'] ?? null;
+            if (is_string($parent) && trim($parent) !== '') {
+                $this->strictParentByHandle[$handle] = strtoupper(trim($parent));
+            }
+        }
+    }
+
+    /** @return array<string, string> Child handle to parent handle. */
+    public function preparedParentHandles(): array
+    {
+        return $this->strictParentByHandle;
+    }
+
+    public function clearStrictPreparation(): void
+    {
+        $this->strictDifByHandle = null;
+        $this->strictParentByHandle = [];
+    }
 
     /**
      * Enrich a resource with IGSN-specific metadata from legacy sources.
@@ -54,6 +121,32 @@ class IgsnEnrichmentService
             return false;
         }
 
+        if ($this->strictDifByHandle !== null) {
+            if (! array_key_exists($igsnHandle, $this->strictDifByHandle)) {
+                throw new \RuntimeException(
+                    "Legacy metadata was not prepared for IGSN {$igsnHandle}."
+                );
+            }
+
+            $difXml = $this->strictDifByHandle[$igsnHandle];
+            if ($difXml === null) {
+                $this->lastResult = ['status' => 'no_dif_found', 'source' => 'portal'];
+
+                return false;
+            }
+
+            if (! $this->difParser->enrichFromDifXml($difXml, $resource, $igsnMetadata)) {
+                throw LegacyIgsnPortalException::invalidPayload(
+                    'The prepared legacy DIF metadata could not be persisted.'
+                );
+            }
+
+            $this->lastResult = ['status' => 'enriched', 'source' => 'portal'];
+            Log::info('IGSN legacy enrichment completed', ['doi' => $doi, 'source' => 'portal']);
+
+            return true;
+        }
+
         $attempted = false;
         $configuration = $this->configurationStatus();
 
@@ -81,6 +174,25 @@ class IgsnEnrichmentService
             }
         }
 
+        if ($configuration['portal']) {
+            $attempted = true;
+
+            try {
+                $difXml = $this->portalService->difForHandles([$igsnHandle])[$igsnHandle] ?? null;
+                if ($difXml !== null && $this->difParser->enrichFromDifXml($difXml, $resource, $igsnMetadata)) {
+                    $this->lastResult = ['status' => 'enriched', 'source' => 'portal'];
+                    Log::info('IGSN legacy enrichment completed', ['doi' => $doi, 'source' => 'portal']);
+
+                    return true;
+                }
+            } catch (LegacyIgsnPortalException $exception) {
+                Log::warning('IGSN portal enrichment failed', [
+                    'doi' => $doi,
+                    'failure_code' => $exception->failureCode,
+                ]);
+            }
+        }
+
         $this->lastResult['status'] = $attempted ? 'no_dif_found' : 'sources_unavailable';
         $context = [
             'doi' => $doi,
@@ -98,18 +210,21 @@ class IgsnEnrichmentService
         return false;
     }
 
-    /** @return array{solr: bool, legacy_db: bool} */
+    /** @return array{solr: bool, legacy_db: bool, portal: bool} */
     public function configurationStatus(): array
     {
+        $portalUrl = trim((string) config('datacite.legacy_igsn_portal.proxy_url'));
+
         return [
             'solr' => filled(config('datacite.solr.host'))
                 && filled(config('datacite.solr.user'))
                 && filled(config('datacite.solr.password')),
             'legacy_db' => (bool) config('database.connections.igsn_legacy.configured', false),
+            'portal' => str_starts_with($portalUrl, 'https://'),
         ];
     }
 
-    /** @return array{status: string, source: 'solr'|'legacy_db'|null} */
+    /** @return array{status: string, source: 'solr'|'legacy_db'|'portal'|null} */
     public function lastResult(): array
     {
         return $this->lastResult;

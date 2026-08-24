@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Exceptions\IgsnParentRelationshipException;
+use App\Exceptions\LegacyIgsnPortalException;
 use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
@@ -26,6 +28,8 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
+use Throwable;
 
 /**
  * Background job for importing IGSNs from the DataCite API.
@@ -58,6 +62,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         private ?string $singleDoi = null,
         private ?string $legacyDatacenterId = null,
     ) {
+        $this->onQueue('imports');
+
         if ($this->singleDoi !== null && $this->legacyDatacenterId !== null) {
             throw new \InvalidArgumentException(
                 'Single-IGSN and datacenter import modes are mutually exclusive.'
@@ -316,6 +322,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
             $this->updateProgressKeys([
                 'status' => 'failed',
+                'phase' => 'completed',
+                ...$this->failureMetadata($e),
                 'error' => $e->getMessage(),
                 'completed_at' => now()->toIso8601String(),
             ]);
@@ -531,7 +539,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
     ): void {
         $requestedDoi = IgsnIdentifier::normalizeDoi((string) $this->singleDoi);
         if ($requestedDoi === null) {
-            throw new \RuntimeException('Single IGSN import requested without a valid IGSN DOI.');
+            throw new RuntimeException('Single IGSN import requested without a valid IGSN DOI.');
         }
 
         $requestedHandle = (string) IgsnIdentifier::handleFromDoi($requestedDoi);
@@ -595,16 +603,11 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         $childHandles = $targets['childHandles'];
         $targetDois = $targets['dois'];
         $targetRecords = $targets['records'];
-        $targetHandles = array_values(array_filter(array_map(
-            fn (string $doi): ?string => IgsnIdentifier::handleFromDoi($doi),
-            $targetDois,
-        )));
         $total = count($targetDois);
-        $assignments = $legacyPortalService->assignmentsForHandles($targetHandles);
-        $datacenterIds = $this->datacenterIdsForAssignments($assignments);
 
         $this->updateProgress([
             'status' => 'running',
+            'phase' => 'preflight',
             'total' => $total,
             'processed' => 0,
             'imported' => 0,
@@ -622,131 +625,193 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             'completed_at' => null,
         ]);
 
-        $processed = 0;
-        $imported = 0;
-        $skipped = 0;
-        $failed = 0;
-        $enriched = 0;
-        /** @var array<int, string> */
-        $skippedDois = [];
-        /** @var array<int, array{doi: string, error: string}> */
-        $failedDois = [];
-        $unassigned = 0;
-        /** @var list<string> $unassignedDois */
-        $unassignedDois = [];
-        $warnings = [];
-        $maxStoredDois = 100;
-
+        /** @var array<string, array<string, mixed>> $normalizedRecords */
+        $normalizedRecords = [];
         foreach ($targetDois as $doi) {
             if ($this->isCancelled()) {
-                Log::info('Single IGSN import cancelled by user', [
-                    'import_id' => $this->importId,
-                    'processed' => $processed,
-                ]);
-                break;
+                $this->markSingleImportCancelled($total, $requestedHandle, $childHandles, $startedAt);
+
+                return;
             }
 
-            $processed++;
-
-            $igsnRecord = $targetRecords[$doi] ?? $importService->fetchSingleIgsn($doi);
-
-            if ($igsnRecord === null) {
-                $failed++;
-                if (count($failedDois) < $maxStoredDois) {
-                    $failedDois[] = ['doi' => $doi, 'error' => 'IGSN was discovered as a related import target but was not found at DataCite.'];
-                }
-                $this->updateProgressCounts($processed, $imported, $skipped, $failed, $enriched, $skippedDois, $failedDois, $total);
-
-                continue;
-            }
-
-            ['doi' => $normalizedDoi, 'igsnRecord' => $igsnRecord] = $this->normalizeIgsnRecord($doi, $igsnRecord);
-
-            try {
-                $result = $this->processIgsnRecord(
-                    $normalizedDoi,
-                    $igsnRecord,
-                    $transformer,
-                    $enrichmentService,
-                    $datacenterIds[$normalizedDoi] ?? null,
+            $record = $targetRecords[$doi] ?? $importService->fetchSingleIgsn($doi);
+            if ($record === null) {
+                $exception = new RuntimeException(
+                    "IGSN {$doi} was discovered as a related import target but was not found at DataCite."
+                );
+                $this->markAtomicSingleImportFailed(
+                    $exception,
+                    $total,
+                    $requestedHandle,
+                    $childHandles,
+                    $startedAt,
+                    $doi,
                 );
 
-                if ($result['status'] === 'skipped') {
-                    $skipped++;
-                    if (count($skippedDois) < $maxStoredDois) {
-                        $skippedDois[] = $normalizedDoi;
-                    }
-                    $this->updateProgressCounts($processed, $imported, $skipped, $failed, $enriched, $skippedDois, $failedDois, $total);
-
-                    continue;
-                }
-
-                $imported++;
-                if (! $result['assigned']) {
-                    $unassigned++;
-                    if (count($unassignedDois) < $maxStoredDois) {
-                        $unassignedDois[] = $normalizedDoi;
-                    }
-                    $warnings = [$this->unassignedWarning($unassigned)];
-                }
-
-                if ($result['enriched']) {
-                    $enriched++;
-                }
-            } catch (\Exception $e) {
-                $failed++;
-                if (count($failedDois) < $maxStoredDois) {
-                    $failedDois[] = ['doi' => $normalizedDoi, 'error' => $e->getMessage()];
-                }
-
-                Log::warning('Failed to import single IGSN target', [
-                    'doi' => $normalizedDoi,
-                    'error' => $e->getMessage(),
-                ]);
+                throw $exception;
             }
 
-            $this->updateProgressCounts($processed, $imported, $skipped, $failed, $enriched, $skippedDois, $failedDois, $total);
+            ['doi' => $normalizedDoi, 'igsnRecord' => $normalizedRecord] = $this->normalizeIgsnRecord($doi, $record);
+            $normalizedRecords[$normalizedDoi] = $normalizedRecord;
         }
 
-        if (! $this->isCancelled()) {
-            $this->resolveParentRelationships($targetHandles);
+        $existingDois = Resource::query()
+            ->whereIn('doi', array_keys($normalizedRecords))
+            ->pluck('doi')
+            ->filter(fn (mixed $doi): bool => is_string($doi))
+            ->map(fn (string $doi): string => strtolower($doi))
+            ->values()
+            ->all();
+        $newDois = array_values(array_diff(array_keys($normalizedRecords), $existingDois));
+        $newHandles = array_values(array_filter(array_map(
+            fn (string $doi): ?string => IgsnIdentifier::handleFromDoi($doi),
+            $newDois,
+        )));
+
+        $syncIdCountBeforeTransaction = count($this->resourceIdsForDataCiteSync);
+
+        try {
+            $assignments = $legacyPortalService->assignmentsForHandles($newHandles);
+            $enrichmentService->prepareStrict($newHandles);
+            $parentDoisByChild = $this->buildSingleParentDoiMap(
+                $normalizedRecords,
+                $newDois,
+                $importService,
+                $enrichmentService->preparedParentHandles(),
+            );
+
+            $this->updateProgressKeys(['phase' => 'importing']);
+
+            $result = DB::transaction(function () use (
+                $assignments,
+                $enrichmentService,
+                $existingDois,
+                $newHandles,
+                $normalizedRecords,
+                $parentDoisByChild,
+                $transformer,
+            ): array {
+                $datacenterIds = $this->datacenterIdsForAssignments($assignments);
+                $processed = 0;
+                $imported = 0;
+                $skipped = 0;
+                $enriched = 0;
+                $unassigned = 0;
+                $skippedDois = [];
+                $unassignedDois = [];
+
+                foreach ($normalizedRecords as $doi => $record) {
+                    if ($this->isCancelled()) {
+                        throw new RuntimeException('Single IGSN import was cancelled.');
+                    }
+
+                    $processed++;
+                    if (in_array($doi, $existingDois, true)) {
+                        $skipped++;
+                        $skippedDois[] = $doi;
+
+                        continue;
+                    }
+
+                    $recordResult = $this->processIgsnRecord(
+                        $doi,
+                        $record,
+                        $transformer,
+                        $enrichmentService,
+                        $datacenterIds[$doi] ?? null,
+                        strictEnrichment: true,
+                    );
+
+                    if ($recordResult['status'] === 'skipped') {
+                        $skipped++;
+                        $skippedDois[] = $doi;
+
+                        continue;
+                    }
+
+                    $imported++;
+                    if ($recordResult['enriched']) {
+                        $enriched++;
+                    }
+                    if (! $recordResult['assigned']) {
+                        $unassigned++;
+                        $unassignedDois[] = $doi;
+                    }
+                }
+
+                $this->resolveParentRelationships($newHandles, $parentDoisByChild);
+
+                return compact(
+                    'processed',
+                    'imported',
+                    'skipped',
+                    'enriched',
+                    'unassigned',
+                    'skippedDois',
+                    'unassignedDois',
+                );
+            });
+        } catch (Throwable $exception) {
+            $this->resourceIdsForDataCiteSync = array_slice(
+                $this->resourceIdsForDataCiteSync,
+                0,
+                $syncIdCountBeforeTransaction,
+            );
+
+            if ($this->isCancelled()) {
+                $this->markSingleImportCancelled($total, $requestedHandle, $childHandles, $startedAt);
+
+                return;
+            }
+
+            $this->markAtomicSingleImportFailed(
+                $exception,
+                $total,
+                $requestedHandle,
+                $childHandles,
+                $startedAt,
+            );
+
+            throw $exception;
+        } finally {
+            $enrichmentService->clearStrictPreparation();
         }
 
-        $finalStatus = $this->determineFinalStatus();
+        $warnings = $result['unassigned'] > 0
+            ? [$this->unassignedWarning($result['unassigned'])]
+            : [];
 
         $this->updateProgress([
-            'status' => $finalStatus === 'cancelled' ? 'cancelled' : 'running',
-            'phase' => $finalStatus === 'cancelled' ? 'completed' : 'syncing',
+            'status' => 'running',
+            'phase' => 'syncing',
             'total' => $total,
-            'processed' => $processed,
-            'imported' => $imported,
-            'skipped' => $skipped,
-            'failed' => $failed,
-            'enriched' => $enriched,
-            'skipped_dois' => $skippedDois,
-            'failed_dois' => $failedDois,
+            'processed' => $result['processed'],
+            'imported' => $result['imported'],
+            'skipped' => $result['skipped'],
+            'failed' => 0,
+            'enriched' => $result['enriched'],
+            'skipped_dois' => $result['skippedDois'],
+            'failed_dois' => [],
             'requested_igsn' => $requestedHandle,
             'discovered_children' => $childHandles,
-            'unassigned' => $unassigned,
-            'unassigned_dois' => $unassignedDois,
+            'unassigned' => $result['unassigned'],
+            'unassigned_dois' => $result['unassignedDois'],
             'warnings' => $warnings,
             'started_at' => $startedAt,
-            'completed_at' => $finalStatus === 'cancelled' ? now()->toIso8601String() : null,
+            'completed_at' => null,
         ]);
 
-        if ($finalStatus !== 'cancelled') {
-            $this->finishDataCiteSyncPhase();
-        }
+        $this->finishDataCiteSyncPhase();
 
         Log::info('Single IGSN import completed', [
             'import_id' => $this->importId,
             'requested_igsn' => $requestedHandle,
             'total' => $total,
-            'imported' => $imported,
-            'skipped' => $skipped,
-            'failed' => $failed,
-            'enriched' => $enriched,
-            'unassigned' => $unassigned,
+            'imported' => $result['imported'],
+            'skipped' => $result['skipped'],
+            'failed' => 0,
+            'enriched' => $result['enriched'],
+            'unassigned' => $result['unassigned'],
         ]);
     }
 
@@ -830,6 +895,89 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
     }
 
     /**
+     * @param  array<string, array<string, mixed>>  $recordsByDoi
+     * @param  list<string>  $newDois
+     * @param  array<string, string>  $legacyParentsByHandle
+     * @return array<string, string> Child DOI to parent DOI.
+     */
+    private function buildSingleParentDoiMap(
+        array $recordsByDoi,
+        array $newDois,
+        IgsnImportService $importService,
+        array $legacyParentsByHandle,
+    ): array {
+        $parentsByChild = [];
+
+        foreach ($newDois as $childDoi) {
+            $record = $recordsByDoi[$childDoi];
+            $dataCiteParents = array_values(array_unique(array_filter(array_map(
+                fn (string $doi): ?string => IgsnIdentifier::normalizeDoi($doi),
+                $importService->extractParentDois($record),
+            ))));
+
+            if (count($dataCiteParents) > 1) {
+                throw new IgsnParentRelationshipException(
+                    "IGSN {$childDoi} has multiple DataCite parent relationships."
+                );
+            }
+
+            $childHandle = IgsnIdentifier::handleFromDoi($childDoi);
+            $legacyParentHandle = $childHandle !== null
+                ? ($legacyParentsByHandle[$childHandle] ?? null)
+                : null;
+            $legacyParentDoi = null;
+
+            if ($legacyParentHandle !== null) {
+                if (! IgsnIdentifier::isValidHandle($legacyParentHandle)) {
+                    throw LegacyIgsnPortalException::invalidPayload(
+                        "The legacy parent identifier for IGSN {$childDoi} is invalid."
+                    );
+                }
+
+                $legacyParentDoi = IgsnIdentifier::doiFromHandle($legacyParentHandle);
+            }
+
+            $dataCiteParentDoi = $dataCiteParents[0] ?? null;
+            if ($dataCiteParentDoi !== null
+                && $legacyParentDoi !== null
+                && $dataCiteParentDoi !== $legacyParentDoi) {
+                throw new IgsnParentRelationshipException(
+                    "DataCite and legacy metadata disagree about the parent of IGSN {$childDoi}."
+                );
+            }
+
+            $parentDoi = $dataCiteParentDoi ?? $legacyParentDoi;
+            if ($parentDoi === null) {
+                continue;
+            }
+
+            if ($parentDoi === $childDoi) {
+                throw new IgsnParentRelationshipException("IGSN {$childDoi} cannot be its own parent.");
+            }
+
+            $parentsByChild[$childDoi] = $parentDoi;
+        }
+
+        foreach (array_keys($parentsByChild) as $startDoi) {
+            $visited = [];
+            $currentDoi = $startDoi;
+
+            while (isset($parentsByChild[$currentDoi])) {
+                if (isset($visited[$currentDoi])) {
+                    throw new IgsnParentRelationshipException(
+                        "A cycle was detected in the IGSN family containing {$startDoi}."
+                    );
+                }
+
+                $visited[$currentDoi] = true;
+                $currentDoi = $parentsByChild[$currentDoi];
+            }
+        }
+
+        return $parentsByChild;
+    }
+
+    /**
      * @param  list<string>  $targetDois
      * @param  array<string, array<string, mixed>>  $targetRecords
      * @param  list<string>  $childHandles
@@ -905,6 +1053,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         DataCiteToIgsnTransformer $transformer,
         IgsnEnrichmentService $enrichmentService,
         ?int $datacenterId = null,
+        bool $strictEnrichment = false,
     ): array {
         try {
             if (Resource::where('doi', $doi)->exists()) {
@@ -935,14 +1084,22 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         $wasEnriched = false;
 
         if ($igsnMetadata instanceof IgsnMetadata) {
-            try {
+            if ($strictEnrichment) {
                 $wasEnriched = $enrichmentService->enrich($importedResource, $igsnMetadata);
-            } catch (\Throwable $e) {
-                Log::debug('IGSN enrichment failed (non-critical)', [
-                    'doi' => $doi,
-                    'error' => $e->getMessage(),
-                ]);
+            } else {
+                try {
+                    $wasEnriched = $enrichmentService->enrich($importedResource, $igsnMetadata);
+                } catch (Throwable $e) {
+                    Log::debug('IGSN enrichment failed (non-critical)', [
+                        'doi' => $doi,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
+        } elseif ($strictEnrichment) {
+            throw new RuntimeException(
+                "The transformer did not create IGSN metadata for {$doi}."
+            );
         }
 
         $landingPageResult = app(AutomaticIgsnLandingPageService::class)
@@ -1000,14 +1157,56 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      * This pass resolves them to actual parent_resource_id values.
      *
      * @param  list<string>|null  $onlyHandles
+     * @param  array<string, string>  $parentDoisByChild
      */
-    private function resolveParentRelationships(?array $onlyHandles = null): void
-    {
+    private function resolveParentRelationships(
+        ?array $onlyHandles = null,
+        array $parentDoisByChild = [],
+    ): void {
         Log::info('Resolving IGSN parent-child relationships');
 
         $resolved = 0;
         /** @var list<int> $resolvedResourceIds */
         $resolvedResourceIds = [];
+
+        foreach ($parentDoisByChild as $childDoi => $parentDoi) {
+            $child = Resource::query()->where('doi', $childDoi)->first();
+            $parent = Resource::query()->where('doi', $parentDoi)->first();
+
+            if ($child === null || $parent === null) {
+                throw new IgsnParentRelationshipException(
+                    "The parent relationship {$childDoi} -> {$parentDoi} could not be resolved."
+                );
+            }
+
+            $metadata = $child->igsnMetadata;
+            if (! $metadata instanceof IgsnMetadata) {
+                throw new RuntimeException("IGSN metadata is missing for {$childDoi}.");
+            }
+
+            $description = $metadata->description_json;
+            $legacyParentHandle = is_array($description)
+                ? ($description['parent_igsn_handle'] ?? null)
+                : null;
+            $expectedParentHandle = IgsnIdentifier::handleFromDoi($parentDoi);
+
+            if (is_string($legacyParentHandle)
+                && $expectedParentHandle !== null
+                && strcasecmp($legacyParentHandle, $expectedParentHandle) !== 0) {
+                throw new IgsnParentRelationshipException(
+                    "DataCite and legacy metadata disagree about the parent of IGSN {$childDoi}."
+                );
+            }
+
+            $metadata->parent_resource_id = $parent->id;
+            if (is_array($description)) {
+                unset($description['parent_igsn_handle']);
+                $metadata->description_json = $description !== [] ? $description : null;
+            }
+            $metadata->save();
+            $resolved++;
+            $resolvedResourceIds[] = (int) $metadata->resource_id;
+        }
 
         $query = IgsnMetadata::query()
             ->whereNull('parent_resource_id')
@@ -1116,6 +1315,75 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
     }
 
     /**
+     * @param  list<string>  $childHandles
+     */
+    private function markSingleImportCancelled(
+        int $total,
+        string $requestedHandle,
+        array $childHandles,
+        string $startedAt,
+    ): void {
+        $this->updateProgress([
+            'status' => 'cancelled',
+            'phase' => 'completed',
+            'total' => $total,
+            'processed' => 0,
+            'imported' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+            'enriched' => 0,
+            'skipped_dois' => [],
+            'failed_dois' => [],
+            'requested_igsn' => $requestedHandle,
+            'discovered_children' => $childHandles,
+            'unassigned' => 0,
+            'unassigned_dois' => [],
+            'warnings' => [],
+            'started_at' => $startedAt,
+            'completed_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * @param  list<string>  $childHandles
+     */
+    private function markAtomicSingleImportFailed(
+        Throwable $exception,
+        int $total,
+        string $requestedHandle,
+        array $childHandles,
+        string $startedAt,
+        ?string $failedDoi = null,
+    ): void {
+        $doi = $failedDoi ?? IgsnIdentifier::doiFromHandle($requestedHandle);
+
+        $this->updateProgress([
+            'status' => 'failed',
+            'phase' => 'completed',
+            ...$this->failureMetadata($exception, 'atomic_import_failed'),
+            'error' => $exception->getMessage(),
+            'total' => $total,
+            'processed' => 0,
+            'imported' => 0,
+            'skipped' => 0,
+            'failed' => 1,
+            'enriched' => 0,
+            'skipped_dois' => [],
+            'failed_dois' => [[
+                'doi' => $doi,
+                'error' => $exception->getMessage(),
+            ]],
+            'requested_igsn' => $requestedHandle,
+            'discovered_children' => $childHandles,
+            'unassigned' => 0,
+            'unassigned_dois' => [],
+            'warnings' => [],
+            'started_at' => $startedAt,
+            'completed_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
      * @param  array<int, string>  $skippedDois
      * @param  array<int, array{doi: string, error: string}>  $failedDois
      */
@@ -1194,7 +1462,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         );
     }
 
-    public function failed(?\Throwable $exception): void
+    public function failed(?Throwable $exception): void
     {
         Log::error('IGSN import job failed completely', [
             'import_id' => $this->importId,
@@ -1203,9 +1471,39 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
         $this->updateProgressKeys([
             'status' => 'failed',
+            'phase' => 'completed',
+            ...$this->failureMetadata($exception),
             'error' => $exception?->getMessage() ?? 'Unknown error',
             'completed_at' => now()->toIso8601String(),
         ]);
+    }
+
+    /** @return array{error_code: string, error_source: string|null} */
+    private function failureMetadata(?Throwable $exception, string $fallbackCode = 'import_job_failed'): array
+    {
+        $currentProgress = Cache::get($this->getCacheKey(), []);
+        $existingCode = is_array($currentProgress) ? ($currentProgress['error_code'] ?? null) : null;
+        $existingSource = is_array($currentProgress) ? ($currentProgress['error_source'] ?? null) : null;
+
+        if (is_string($existingCode) && $existingCode !== '') {
+            return [
+                'error_code' => $existingCode,
+                'error_source' => is_string($existingSource) ? $existingSource : null,
+            ];
+        }
+
+        if ($exception instanceof LegacyIgsnPortalException) {
+            return ['error_code' => $exception->failureCode, 'error_source' => 'legacy_portal'];
+        }
+
+        if ($exception instanceof IgsnParentRelationshipException) {
+            return [
+                'error_code' => IgsnParentRelationshipException::FAILURE_CODE,
+                'error_source' => 'datacite_legacy_metadata',
+            ];
+        }
+
+        return ['error_code' => $fallbackCode, 'error_source' => null];
     }
 
     public function getImportId(): string

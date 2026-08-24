@@ -165,7 +165,7 @@ class IgsnImportController extends Controller
         return response()->json([
             'import_id' => $importId,
             'message' => 'Single IGSN import started successfully',
-        ]);
+        ], 202);
     }
 
     /**
@@ -270,7 +270,9 @@ class IgsnImportController extends Controller
             'unassigned' => 0,
             'unassigned_dois' => [],
             'warnings' => [],
-            'phase' => 'importing',
+            'phase' => 'preflight',
+            'error_code' => null,
+            'error_source' => null,
             'sync_total' => 0,
             'sync_processed' => 0,
             'sync_succeeded' => 0,
