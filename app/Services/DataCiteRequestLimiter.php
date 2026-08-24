@@ -42,11 +42,15 @@ class DataCiteRequestLimiter
     {
         $seconds = max(1, $seconds);
         $untilMs = $this->nowMs() + ($seconds * 1000);
-        $current = (int) Cache::get(self::COOLDOWN_KEY, 0);
 
-        if ($untilMs > $current) {
-            Cache::put(self::COOLDOWN_KEY, $untilMs, now()->addSeconds($seconds + 60));
-        }
+        Cache::lock(self::LOCK_KEY, 10)->block(5, function () use ($untilMs): void {
+            $current = (int) Cache::get(self::COOLDOWN_KEY, 0);
+
+            if ($untilMs > $current) {
+                $ttlMs = max(1000, $untilMs - $this->nowMs() + 60_000);
+                Cache::put(self::COOLDOWN_KEY, $untilMs, now()->addMilliseconds($ttlMs));
+            }
+        });
     }
 
     public function clear(): void

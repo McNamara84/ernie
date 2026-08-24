@@ -13,6 +13,7 @@ class DataCiteUrlUpdatePreviewService
         private readonly DataCiteUrlUpdateCandidateService $candidates,
         private readonly DataCiteUrlUpdateTargetService $target,
         private readonly DataCiteMemberApiClient $client,
+        private readonly DataCiteUrlUpdateQueueService $queueConnection,
     ) {}
 
     /** @return array<string, mixed> */
@@ -24,7 +25,7 @@ class DataCiteUrlUpdatePreviewService
         $canStart = $targetValidation['valid'];
         $blockingMessage = $targetValidation['message'];
 
-        if ((string) config('queue.default') === 'sync') {
+        if (! $this->queueConnection->isPersistent()) {
             $canStart = false;
             $blockingMessage = 'A persistent queue connection is required for DataCite URL updates.';
         }

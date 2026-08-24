@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DataCiteUrlUpdateModal, type DataCiteUrlUpdateRun } from '@/components/datacite-url-update-modal';
@@ -96,6 +96,7 @@ describe('DataCiteUrlUpdateModal', () => {
         expect(screen.getByText(preview.items[0].target_url)).toBeInTheDocument();
         expect(screen.getByText('DataCite Production')).toBeInTheDocument();
         expect(screen.getByText(/External landing pages are always excluded/)).toBeInTheDocument();
+        expect(screen.getByTestId('datacite-url-update-confirm')).toHaveAttribute('data-slot', 'loading-button');
         expect(mockPost).not.toHaveBeenCalled();
 
         await user.click(screen.getByTestId('datacite-url-update-confirm'));
@@ -145,28 +146,51 @@ describe('DataCiteUrlUpdateModal', () => {
             paused_at: null,
             can_resume: false,
         };
-        mockGet.mockResolvedValueOnce({ data: { run: pausedRun } }).mockResolvedValueOnce({
-            data: {
-                items: [
-                    {
-                        id: 7,
-                        resource_id: 42,
-                        identifier: '10.5880/problem',
-                        status: 'skipped_remote_missing',
-                        before_url: null,
-                        target_url: 'https://dataservices.gfz.de/new',
-                        error_message: 'The identifier was not found at DataCite.',
-                    },
-                ],
-            },
-        });
+        mockGet
+            .mockResolvedValueOnce({ data: { run: pausedRun } })
+            .mockResolvedValueOnce({
+                data: {
+                    items: [
+                        {
+                            id: 7,
+                            resource_id: 42,
+                            identifier: '10.5880/problem',
+                            status: 'skipped_remote_missing',
+                            before_url: null,
+                            target_url: 'https://dataservices.gfz.de/new',
+                            error_message: 'The identifier was not found at DataCite.',
+                        },
+                    ],
+                    pagination: { current_page: 1, last_page: 2, total: 2 },
+                },
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    items: [
+                        {
+                            id: 8,
+                            resource_id: 43,
+                            identifier: '10.5880/second-problem',
+                            status: 'failed',
+                            before_url: 'https://ernie.rz-vm499.gfz.de/old',
+                            target_url: 'https://dataservices.gfz.de/newer',
+                            error_message: 'DataCite remained unavailable.',
+                        },
+                    ],
+                    pagination: { current_page: 2, last_page: 2, total: 2 },
+                },
+            });
         mockPost.mockResolvedValueOnce({ data: { run: resumedRun } });
         const user = userEvent.setup();
 
         render(<DataCiteUrlUpdateModal scope="resources" open onOpenChange={vi.fn()} initialRun={pausedRun} />);
 
         expect(await screen.findByText('10.5880/problem')).toBeInTheDocument();
+        expect(screen.getByText('10.5880/second-problem')).toBeInTheDocument();
         expect(screen.getByText('The identifier was not found at DataCite.')).toBeInTheDocument();
+        expect(mockGet).toHaveBeenCalledWith(`/datacite/landing-page-url-updates/${pausedRun.id}/items`, {
+            params: { issues: 1, page: 2 },
+        });
         await user.click(screen.getByRole('button', { name: /Resume/ }));
 
         await waitFor(() => {

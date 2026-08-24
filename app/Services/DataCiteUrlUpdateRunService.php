@@ -24,11 +24,12 @@ class DataCiteUrlUpdateRunService
         private readonly DataCiteUrlUpdateCandidateService $candidates,
         private readonly DataCiteUrlUpdateTargetService $target,
         private readonly DataCiteMemberApiClient $client,
+        private readonly DataCiteUrlUpdateQueueService $queueConnection,
     ) {}
 
     public function start(DataCiteUrlUpdateScope $scope, User $user): DataCiteUrlUpdateRun
     {
-        if ((string) config('queue.default') === 'sync') {
+        if (! $this->queueConnection->isPersistent()) {
             throw ValidationException::withMessages([
                 'queue' => ['A persistent queue connection is required for DataCite URL updates.'],
             ]);
@@ -105,7 +106,8 @@ class DataCiteUrlUpdateRunService
 
             if ($run->total > 0) {
                 ProcessDataCiteUrlUpdateRunJob::dispatch($run->id)
-                    ->onQueue((string) config('datacite.landing_page_url_update.queue', 'datacite'));
+                    ->onQueue((string) config('datacite.landing_page_url_update.queue', 'datacite'))
+                    ->afterCommit();
             }
 
             return $run->refresh();
@@ -138,7 +140,9 @@ class DataCiteUrlUpdateRunService
             $run->status = DataCiteUrlUpdateRunStatus::CANCEL_REQUESTED;
             $run->last_controlled_by_user_id = $user->id;
             $run->save();
-            ProcessDataCiteUrlUpdateRunJob::dispatch($run->id)->onQueue($this->queue());
+            ProcessDataCiteUrlUpdateRunJob::dispatch($run->id)
+                ->onQueue($this->queue())
+                ->afterCommit();
 
             return $run;
         });
@@ -193,6 +197,8 @@ class DataCiteUrlUpdateRunService
                             'error_message' => null,
                             'last_http_status' => null,
                             'processed_at' => null,
+                            'preflight_attempts' => 0,
+                            'update_attempts' => 0,
                         ]);
                     }
                 } else {
@@ -219,7 +225,9 @@ class DataCiteUrlUpdateRunService
                 $run->completed_at = null;
                 $run->save();
 
-                ProcessDataCiteUrlUpdateRunJob::dispatch($run->id)->onQueue($this->queue());
+                ProcessDataCiteUrlUpdateRunJob::dispatch($run->id)
+                    ->onQueue($this->queue())
+                    ->afterCommit();
 
                 return $run;
             });

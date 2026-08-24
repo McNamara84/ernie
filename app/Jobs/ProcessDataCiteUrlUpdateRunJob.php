@@ -445,7 +445,8 @@ class ProcessDataCiteUrlUpdateRunJob implements ShouldQueue
     {
         self::dispatch($this->runId)
             ->onQueue((string) config('datacite.landing_page_url_update.queue', 'datacite'))
-            ->delay(now()->addSeconds(max(0, $delaySeconds)));
+            ->delay(now()->addSeconds(max(0, $delaySeconds)))
+            ->afterCommit();
     }
 
     public function failed(?Throwable $exception): void

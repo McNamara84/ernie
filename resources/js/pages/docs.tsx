@@ -2095,6 +2095,70 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
+                id: 'datacite-landing-page-url-migration',
+                title: 'DataCite Landing-Page URL Migration',
+                icon: Link2,
+                minRole: 'admin',
+                content: (
+                    <>
+                        <h3>Updating DataCite URLs after an ERNIE Domain Move</h3>
+                        <p>
+                            Administrators can update the landing-page URLs of identifiers already managed by ERNIE after the canonical{' '}
+                            <code>APP_URL</code> changes. The action is available on both <code>/resources</code> and <code>/igsns</code>. Resources
+                            with external landing pages are always excluded; DataCite is never searched for additional identifiers.
+                        </p>
+
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Preview the migration">
+                                <p>
+                                    Select <strong>Update DataCite landing-page URLs</strong>. ERNIE shows the eligible local count, DataCite
+                                    environment, canonical target base, and the first ten current/new URL comparisons. Do not continue if the
+                                    environment, target, candidate count, or sample URLs are unexpected.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Start after confirmation">
+                                <p>
+                                    Confirm the preview to create a persistent background run. Every record is checked again before DataCite is
+                                    contacted, and only its landing-page URL is updated. Closing the dialog or navigating away does not stop the run.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Monitor progress">
+                                <p>
+                                    Reopen the action to see updated, already-current, skipped, failed, and remaining totals. When the run pauses or
+                                    finishes, ERNIE loads every skipped or failed item across all result pages for review.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={4} title="Request cancellation">
+                                <p>
+                                    Use <strong>Request cancellation</strong> to stop before the next DataCite operation. The current request may
+                                    finish first; the audit history and completed item results remain available.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={5} title="Resume a paused or cancelled run">
+                                <p>
+                                    Resolve the reported configuration, authentication, queue, or rate-limit cause, then select{' '}
+                                    <strong>Resume</strong>. ERNIE continues from the remaining safe item state without repeating completed updates.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={6} title="Retry failed items">
+                                <p>
+                                    After reviewing every failure and confirming that its cause was transient, select <strong>Retry failed</strong>.
+                                    Only failed items are re-queued, with a fresh preflight and update retry budget.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Production safety:</strong> Start only after DNS, TLS, the new public landing pages, a persistent queue
+                                worker, shared cache, and the intended DataCite environment have been verified. Only one migration run can be active
+                                at a time.
+                            </p>
+                        </div>
+                    </>
+                ),
+            },
+            {
                 id: 'legacy-import',
                 title: 'Legacy Dataset Import',
                 icon: FolderOpen,

@@ -173,7 +173,7 @@ There is no separate post-import sync flag: `DATACITE_TEST_MODE` is the only swi
 
 ### DataCite landing-page domain migration
 
-The admin-only actions on `/resources` and `/igsns` use a persistent queue and the shared application cache. The Docker worker consumes the dedicated `datacite` queue. A `sync` queue is intentionally rejected because the run must survive request timeouts, browser navigation, deployments, and worker restarts.
+The admin-only actions on `/resources` and `/igsns` use a persistent queue and the shared application cache. The Docker worker consumes the dedicated `datacite` queue. Queue connections whose configured driver is `sync` or `null` are rejected regardless of the connection name, because the run must survive request timeouts, browser navigation, deployments, and worker restarts.
 
 Keep the safe rate defaults from `.env.example`: at most 300 authenticated requests per rolling five-minute window, at least one second between requests, concurrency one, a 10-second connection timeout, and a 30-second request timeout. All DataCite writes in ERNIE share this limiter. Redis or another cache shared by every web and queue process is therefore required; an in-process array cache is not safe outside automated tests.
 

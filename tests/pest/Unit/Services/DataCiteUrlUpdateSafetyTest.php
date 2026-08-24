@@ -96,6 +96,10 @@ test('the limiter enforces both spacing and a hard rolling-window cap', function
 
     $clock->imposeCooldown(60);
     expect($clock->reserveSlot())->toBe(60000);
+
+    $clock->milliseconds += 1000;
+    $clock->imposeCooldown(5);
+    expect($clock->reserveSlot())->toBe(59000);
 });
 
 test('queue callers can defer a long limiter wait without occupying the worker', function (): void {
@@ -130,7 +134,10 @@ test('a rate-limited URL job is requeued without counting an HTTP attempt', func
         ->and($item->fresh()->preflight_attempts)->toBe(0)
         ->and($run->fresh()->status)->toBe(DataCiteUrlUpdateRunStatus::RUNNING);
     Http::assertSentCount(1);
-    Queue::assertPushed(ProcessDataCiteUrlUpdateRunJob::class);
+    Queue::assertPushed(
+        ProcessDataCiteUrlUpdateRunJob::class,
+        fn (ProcessDataCiteUrlUpdateRunJob $job): bool => $job->afterCommit === true,
+    );
 });
 
 test('the member client sends an authenticated JSON API partial URL update only', function (): void {

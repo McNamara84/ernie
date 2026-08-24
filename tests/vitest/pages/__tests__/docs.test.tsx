@@ -142,6 +142,25 @@ describe('Docs page', () => {
         expect(screen.getAllByText('API Documentation').length).toBeGreaterThan(0);
     });
 
+    it('shows the complete DataCite landing-page URL migration workflow only to admins', async () => {
+        const { user } = renderDocsPage('admin');
+        await openDatasetsTab(user);
+
+        expect(screen.getAllByText('DataCite Landing-Page URL Migration').length).toBeGreaterThan(0);
+        expect(screen.getByRole('heading', { name: 'Preview the migration' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Start after confirmation' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Monitor progress' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Request cancellation' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Resume a paused or cancelled run' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Retry failed items' })).toBeInTheDocument();
+    });
+
+    it('hides the DataCite landing-page URL migration workflow from non-admins', async () => {
+        const groupLeader = renderDocsPage('group_leader');
+        await openDatasetsTab(groupLeader.user);
+        expect(screen.queryByText('Preview the migration')).not.toBeInTheDocument();
+    });
+
     it('shows assistance documentation for group leaders', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         expect(screen.getByText('Metadata Enrichment Assistance')).toBeInTheDocument();

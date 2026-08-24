@@ -252,8 +252,11 @@ test('APP_URL alone defines the new domain and optional base path', function ():
         ->assertJsonPath('items.0.outcome', 'ready');
 });
 
-test('a synchronous queue blocks preview and confirmed start', function (): void {
-    config(['queue.default' => 'sync']);
+test('a non-persistent queue driver blocks preview and confirmed start regardless of its connection name', function (string $driver): void {
+    config([
+        'queue.default' => 'custom-url-migration-queue',
+        'queue.connections.custom-url-migration-queue' => ['driver' => $driver],
+    ]);
     Http::preventStrayRequests();
 
     $this->actingAs($this->admin)
@@ -265,7 +268,7 @@ test('a synchronous queue blocks preview and confirmed start', function (): void
     $this->postJson(route('datacite.url-updates.store'), ['scope' => 'resources'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('queue');
-});
+})->with(['sync', 'null']);
 
 test('confirmation snapshots eligible records and enforces one global active run', function (): void {
     $eligible = createUrlMigrationResource('10.5880/start-me');
@@ -284,7 +287,10 @@ test('confirmation snapshots eligible records and enforces one global active run
         ->and($run->items->first()->resource_id)->toBe($eligible->id)
         ->and($run->items->first()->status)->toBe(DataCiteUrlUpdateItemStatus::PENDING_PREFLIGHT);
 
-    Queue::assertPushed(ProcessDataCiteUrlUpdateRunJob::class, fn (ProcessDataCiteUrlUpdateRunJob $job): bool => $job->runId === $run->id);
+    Queue::assertPushed(
+        ProcessDataCiteUrlUpdateRunJob::class,
+        fn (ProcessDataCiteUrlUpdateRunJob $job): bool => $job->runId === $run->id && $job->afterCommit === true,
+    );
 
     $this->postJson(route('datacite.url-updates.store'), ['scope' => 'igsns'])
         ->assertUnprocessable()
@@ -302,6 +308,40 @@ test('an empty confirmed selection completes without dispatching a job', functio
 
     expect(DataCiteUrlUpdateRun::query()->active()->exists())->toBeFalse();
     Queue::assertNothingPushed();
+});
+
+test('all issue pages remain available for complete review', function (): void {
+    $run = DataCiteUrlUpdateRun::factory()->create([
+        'status' => DataCiteUrlUpdateRunStatus::COMPLETED,
+        'active_marker' => null,
+        'total' => 51,
+        'processed' => 51,
+        'skipped' => 51,
+    ]);
+    DataCiteUrlUpdateItem::factory()
+        ->count(51)
+        ->state([
+            'run_id' => $run->id,
+            'status' => DataCiteUrlUpdateItemStatus::SKIPPED_REMOTE_MISSING,
+            'error_message' => 'The identifier was not found at DataCite.',
+            'processed_at' => now(),
+        ])
+        ->create();
+
+    $this->actingAs($this->admin)
+        ->getJson(route('datacite.url-updates.items', ['run' => $run, 'issues' => 1, 'page' => 1]))
+        ->assertOk()
+        ->assertJsonCount(50, 'items')
+        ->assertJsonPath('pagination.current_page', 1)
+        ->assertJsonPath('pagination.last_page', 2)
+        ->assertJsonPath('pagination.total', 51);
+
+    $this->getJson(route('datacite.url-updates.items', ['run' => $run, 'issues' => 1, 'page' => 2]))
+        ->assertOk()
+        ->assertJsonCount(1, 'items')
+        ->assertJsonPath('pagination.current_page', 2)
+        ->assertJsonPath('pagination.last_page', 2)
+        ->assertJsonPath('pagination.total', 51);
 });
 
 test('cancel resume and retry controls preserve a resumable audit trail', function (): void {
@@ -345,6 +385,8 @@ test('cancel resume and retry controls preserve a resumable audit trail', functi
         'status' => DataCiteUrlUpdateItemStatus::FAILED,
         'processed_at' => now(),
         'error_message' => 'temporary failure',
+        'preflight_attempts' => 5,
+        'update_attempts' => 4,
     ]);
 
     $this->postJson(route('datacite.url-updates.retry-failed', $run))
@@ -353,5 +395,11 @@ test('cancel resume and retry controls preserve a resumable audit trail', functi
         ->assertJsonPath('run.failed', 0)
         ->assertJsonPath('run.processed', 0);
 
-    expect($item->fresh()->status)->toBe(DataCiteUrlUpdateItemStatus::PENDING_PREFLIGHT);
+    $retriedItem = $item->fresh();
+    expect($retriedItem->status)->toBe(DataCiteUrlUpdateItemStatus::PENDING_PREFLIGHT)
+        ->and($retriedItem->preflight_attempts)->toBe(0)
+        ->and($retriedItem->update_attempts)->toBe(0)
+        ->and(Queue::pushed(ProcessDataCiteUrlUpdateRunJob::class))->toHaveCount(3)
+        ->and(Queue::pushed(ProcessDataCiteUrlUpdateRunJob::class)
+            ->every(fn (ProcessDataCiteUrlUpdateRunJob $job): bool => $job->afterCommit === true))->toBeTrue();
 });

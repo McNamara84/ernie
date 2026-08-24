@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -47,13 +48,7 @@ interface PreviewItem {
     target_url: string;
     datacite_state: string | null;
     target_reachable: boolean;
-    outcome:
-        | 'ready'
-        | 'target_unreachable'
-        | 'already_current'
-        | 'remote_missing'
-        | 'authentication_failed'
-        | 'datacite_unavailable';
+    outcome: 'ready' | 'target_unreachable' | 'already_current' | 'remote_missing' | 'authentication_failed' | 'datacite_unavailable';
     message: string | null;
 }
 
@@ -78,6 +73,15 @@ interface RunItem {
     before_url: string | null;
     target_url: string;
     error_message: string | null;
+}
+
+interface RunItemsResponse {
+    items: RunItem[];
+    pagination: {
+        current_page: number;
+        last_page: number;
+        total: number;
+    };
 }
 
 interface DataCiteUrlUpdateModalProps {
@@ -131,6 +135,24 @@ export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }
     const [error, setError] = useState<string | null>(null);
     const currentRunId = useRef<string | null>(initialRun?.id ?? null);
 
+    const loadIssues = useCallback(async (runId: string) => {
+        const allIssues: RunItem[] = [];
+        let page = 1;
+
+        while (true) {
+            const response = await axios.get<RunItemsResponse>(`/datacite/landing-page-url-updates/${runId}/items`, {
+                params: { issues: 1, page },
+            });
+            allIssues.push(...response.data.items);
+            const lastPage = Math.max(1, response.data.pagination.last_page);
+            if (page >= lastPage) break;
+
+            page += 1;
+        }
+
+        setIssues(allIssues);
+    }, []);
+
     const loadPreview = useCallback(async () => {
         setRun(null);
         currentRunId.current = null;
@@ -149,18 +171,18 @@ export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }
         }
     }, [scope]);
 
-    const loadRun = useCallback(async (runId: string) => {
-        const response = await axios.get<{ run: DataCiteUrlUpdateRun }>(`/datacite/landing-page-url-updates/${runId}`);
-        currentRunId.current = response.data.run.id;
-        setRun(response.data.run);
+    const loadRun = useCallback(
+        async (runId: string) => {
+            const response = await axios.get<{ run: DataCiteUrlUpdateRun }>(`/datacite/landing-page-url-updates/${runId}`);
+            currentRunId.current = response.data.run.id;
+            setRun(response.data.run);
 
-        if (terminalStatuses.has(response.data.run.status) || response.data.run.status === 'paused') {
-            const itemResponse = await axios.get<{ items: RunItem[] }>(`/datacite/landing-page-url-updates/${runId}/items`, {
-                params: { issues: 1 },
-            });
-            setIssues(itemResponse.data.items);
-        }
-    }, []);
+            if (terminalStatuses.has(response.data.run.status) || response.data.run.status === 'paused') {
+                await loadIssues(runId);
+            }
+        },
+        [loadIssues],
+    );
 
     useEffect(() => {
         if (!open) return;
@@ -422,15 +444,15 @@ export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }
                             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isActing}>
                                 Cancel
                             </Button>
-                            <Button
+                            <LoadingButton
                                 type="button"
                                 onClick={() => void start()}
+                                loading={isActing}
                                 disabled={isActing || !preview.can_start || preview.total === 0}
                                 data-testid="datacite-url-update-confirm"
                             >
-                                {isActing && <Spinner />}
                                 Start URL update
-                            </Button>
+                            </LoadingButton>
                         </>
                     )}
                     {run && (
