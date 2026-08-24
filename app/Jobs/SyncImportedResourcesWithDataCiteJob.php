@@ -63,7 +63,9 @@ class SyncImportedResourcesWithDataCiteJob implements ShouldQueue
             }
 
             try {
-                $result = $syncService->syncIfRegistered($resource);
+                $result = $this->importType === ImportProgressService::TYPE_RESOURCE
+                    ? $syncService->syncLandingPageUrlIfRegistered($resource)
+                    : $syncService->syncIfRegistered($resource);
 
                 if ($result->hasFailed()) {
                     $progressService->recordSyncFailure(

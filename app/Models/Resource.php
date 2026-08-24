@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\AccessLevel;
+use App\Enums\ResourceWorkflowStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -36,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $legacy_source_id
  * @property string|null $legacy_source_status
  * @property bool $force_review_status
+ * @property ResourceWorkflowStatus|null $workflow_status_override
  * @property AccessLevel|null $access_level
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -69,7 +71,7 @@ use Illuminate\Support\Carbon;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
-#[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'datacenter_id', 'created_by_user_id', 'updated_by_user_id', 'legacy_source', 'legacy_source_id', 'legacy_source_status', 'force_review_status', 'access_level'])]
+#[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'datacenter_id', 'created_by_user_id', 'updated_by_user_id', 'legacy_source', 'legacy_source_id', 'legacy_source_status', 'force_review_status', 'workflow_status_override', 'access_level'])]
 class Resource extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -79,6 +81,7 @@ class Resource extends Model
         'publication_year' => 'integer',
         'legacy_source_id' => 'integer',
         'force_review_status' => 'boolean',
+        'workflow_status_override' => ResourceWorkflowStatus::class,
         'access_level' => AccessLevel::class,
     ];
 
@@ -543,21 +546,26 @@ class Resource extends Model
     /**
      * Determine the publication status of this resource (Issue #548).
      *
-     * Status hierarchy:
-     * - 'review'/'published': legacy SUMARIO pending imports marked with force_review_status override completeness checks
-     * - 'draft': non-legacy resources missing any mandatory field
-     * - 'curation': all mandatory fields present, no DOI or no landing page
-     * - 'review': has DOI + landing page with is_published = false
-     * - 'published': has DOI + landing page with is_published = true
+     * Status precedence:
+     * 1. A DOI with a published landing page is published, regardless of completeness.
+     * 2. Explicit legacy workflow overrides select review or draft
+     *    (force_review_status remains a compatibility alias for review).
+     * 3. A resource missing any mandatory field is draft.
+     * 4. A complete resource with a DOI and an unpublished landing page is review.
+     * 5. Every other complete resource is in curation.
      */
     public function publicStatus(): string
     {
-        if ($this->force_review_status) {
-            if ($this->doi && $this->landingPage) {
-                return $this->landingPage->is_published ? 'published' : 'review';
-            }
+        if ($this->doi && $this->landingPage?->is_published) {
+            return 'published';
+        }
 
+        if ($this->workflow_status_override === ResourceWorkflowStatus::REVIEW || $this->force_review_status) {
             return 'review';
+        }
+
+        if ($this->workflow_status_override === ResourceWorkflowStatus::DRAFT) {
+            return 'draft';
         }
 
         if (! $this->isComplete()) {
@@ -565,7 +573,7 @@ class Resource extends Model
         }
 
         if ($this->doi && $this->landingPage) {
-            return $this->landingPage->is_published ? 'published' : 'review';
+            return 'review';
         }
 
         return 'curation';

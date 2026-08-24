@@ -19,8 +19,9 @@ class LegacyLandingPageDecisionService
     {
         $legacyPublicStatus = strtolower(trim((string) $legacyPublicStatus));
         $dataCiteState = strtolower(trim((string) $dataCiteState));
-        $shouldCreate = in_array($legacyPublicStatus, ['published', 'pending'], true);
-        $shouldPublish = $legacyPublicStatus === 'published' && $dataCiteState === 'findable';
+        $isReleased = in_array($legacyPublicStatus, ['released', 'published'], true);
+        $shouldCreate = $isReleased || $legacyPublicStatus === 'pending';
+        $shouldPublish = $isReleased && $dataCiteState === 'findable';
 
         return [
             'should_create' => $shouldCreate,

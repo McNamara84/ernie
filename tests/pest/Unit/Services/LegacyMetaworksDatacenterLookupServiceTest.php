@@ -125,6 +125,14 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
             '10.5880/fidgeo.2026.059',
             [LegacyMetaworksDatacenterLookupService::FID_GEO_DATACENTER],
         ],
+        'DOME FIDGEO.D DOI' => [
+            '10.5880/fidgeo.d.2026.001',
+            [LegacyMetaworksDatacenterLookupService::SPP2238_DATACENTER],
+        ],
+        'DOME FIDGEO.D DOI with mixed case' => [
+            '10.5880/FIDGEO.D.2025.004',
+            [LegacyMetaworksDatacenterLookupService::SPP2238_DATACENTER],
+        ],
         'FID GEO short DOI' => [
             '10.5880/fid.2018.006',
             [LegacyMetaworksDatacenterLookupService::FID_GEO_DATACENTER],

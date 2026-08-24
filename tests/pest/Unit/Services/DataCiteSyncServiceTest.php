@@ -5,9 +5,7 @@ declare(strict_types=1);
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteServiceInterface;
-use App\Services\DataCiteSyncResult;
 use App\Services\DataCiteSyncService;
-use Illuminate\Http\Client\RequestException;
 
 covers(DataCiteSyncService::class);
 
@@ -84,5 +82,72 @@ describe('syncIfRegistered', function (): void {
         expect($result->success)->toBeFalse();
         expect($result->attempted)->toBeTrue();
         expect($result->errorMessage)->toContain('Connection timeout');
+    });
+});
+
+describe('syncLandingPageUrlIfRegistered', function (): void {
+    $createSyncService = fn (?DataCiteServiceInterface $service = null): DataCiteSyncService => new DataCiteSyncService(
+        $service ?? Mockery::mock(DataCiteServiceInterface::class),
+    );
+
+    test('updates only the URL of a published internal landing page', function () use ($createSyncService): void {
+        $resource = Resource::factory()->create(['doi' => '10.5880/import.2026.001']);
+        LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+            'template' => 'default_gfz',
+        ]);
+        $resource->load('landingPage');
+        $targetUrl = $resource->landingPage->public_url;
+
+        $registration = Mockery::mock(DataCiteServiceInterface::class);
+        $registration->shouldReceive('isTestMode')->once()->andReturn(false);
+        $registration->shouldReceive('updateLandingPageUrl')
+            ->once()
+            ->with('10.5880/import.2026.001', $targetUrl)
+            ->andReturn([]);
+        $registration->shouldNotReceive('updateMetadata');
+
+        $result = $createSyncService($registration)->syncLandingPageUrlIfRegistered($resource);
+
+        expect($result)->toMatchObject([
+            'attempted' => true,
+            'success' => true,
+            'doi' => '10.5880/import.2026.001',
+        ]);
+    });
+
+    test('does not update an unpublished landing page', function () use ($createSyncService): void {
+        $resource = Resource::factory()->create(['doi' => '10.5880/import.review']);
+        LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+
+        $registration = Mockery::mock(DataCiteServiceInterface::class);
+        $registration->shouldNotReceive('updateLandingPageUrl');
+
+        $result = $createSyncService($registration)->syncLandingPageUrlIfRegistered($resource);
+
+        expect($result->hasFailed())->toBeTrue()
+            ->and($result->errorMessage)->toContain('published');
+    });
+
+    test('does not replace an external landing page URL', function () use ($createSyncService): void {
+        $resource = Resource::factory()->create(['doi' => '10.14470/external']);
+        LandingPage::factory()->external()->published()->create(['resource_id' => $resource->id]);
+
+        $registration = Mockery::mock(DataCiteServiceInterface::class);
+        $registration->shouldNotReceive('updateLandingPageUrl');
+
+        $result = $createSyncService($registration)->syncLandingPageUrlIfRegistered($resource);
+
+        expect($result->hasFailed())->toBeTrue()
+            ->and($result->errorMessage)->toContain('External');
+    });
+
+    test('returns not required without a DOI', function () use ($createSyncService): void {
+        $resource = Resource::factory()->create(['doi' => null]);
+
+        $result = $createSyncService()->syncLandingPageUrlIfRegistered($resource);
+
+        expect($result->attempted)->toBeFalse()
+            ->and($result->success)->toBeTrue();
     });
 });

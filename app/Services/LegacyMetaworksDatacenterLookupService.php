@@ -109,7 +109,11 @@ class LegacyMetaworksDatacenterLookupService
             'datacenters' => [self::ENMAP_DATACENTER],
         ],
         [
-            'pattern' => '/(?:^|[.\/_-])fid(?:geo)?(?:[.\/_-]|$)/',
+            'pattern' => '/^fidgeo\.d(?:[._-]|$)/',
+            'datacenters' => [self::SPP2238_DATACENTER],
+        ],
+        [
+            'pattern' => '/(?!^fidgeo\.d(?:[._-]|$))(?:^|[.\/_-])fid(?:geo)?(?:[.\/_-]|$)/',
             'datacenters' => [self::FID_GEO_DATACENTER],
         ],
         [

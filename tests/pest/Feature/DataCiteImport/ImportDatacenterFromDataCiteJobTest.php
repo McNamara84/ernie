@@ -6,12 +6,14 @@ use App\Enums\CitationLabelResolutionMode;
 use App\Enums\UserRole;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Datacenter;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\GfzDataServicesPortalService;
 use App\Services\LegacyMetaworksDatacenterLookupService;
+use App\Services\LegacyResourceLookupService;
 use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
@@ -86,6 +88,159 @@ function datacenterDoiRecord(string $doi): array
 }
 
 describe('datacenter-scoped DataCite import job', function () {
+    it('imports the complete DOME manifest as eight published and three review resources', function () {
+        $datacenterName = 'SPP 2238 - Dynamics of Ore Metals Enrichment - DOME';
+        $publishedDois = [
+            '10.5880/fidgeo.d.2022.014',
+            '10.5880/fidgeo.d.2023.001',
+            '10.5880/fidgeo.d.2024.001',
+            '10.5880/fidgeo.d.2024.002',
+            '10.5880/fidgeo.d.2025.001',
+            '10.5880/fidgeo.d.2025.002',
+            '10.5880/fidgeo.d.2025.003',
+            '10.5880/fidgeo.d.2026.001',
+        ];
+        $pendingDois = [
+            '10.5880/fidgeo.d.2025.004',
+            '10.5880/fidgeo.d.2026.002',
+            '10.5880/fidgeo.d.2026.003',
+        ];
+        $portalTargets = array_fill_keys($publishedDois, [$datacenterName]);
+
+        $this->portalService
+            ->shouldReceive('resourcesForDatacenter')
+            ->once()
+            ->with('DOIDB.DOME')
+            ->andReturn([
+                'datacenter' => [
+                    'id' => 'DOIDB.DOME',
+                    'name' => $datacenterName,
+                    'resource_count' => 8,
+                ],
+                'resources' => $portalTargets,
+            ]);
+        $this->pendingImportService
+            ->shouldReceive('importablePendingDoisForDatacenter')
+            ->once()
+            ->with($datacenterName)
+            ->andReturn($pendingDois);
+
+        $legacyLookup = Mockery::mock(LegacyResourceLookupService::class);
+        $legacyLookup
+            ->shouldReceive('importMetadataByDoi')
+            ->times(8)
+            ->andReturn(['relatedIdentifiers' => [], 'subjects' => []]);
+        $this->app->instance(LegacyResourceLookupService::class, $legacyLookup);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () use ($publishedDois) {
+                foreach ($publishedDois as $doi) {
+                    $record = datacenterDoiRecord($doi);
+                    $record['attributes']['state'] = 'findable';
+                    $record['attributes']['url'] = 'https://dataservices.gfz.de/dome/showshort.php?id=legacy';
+                    $record['attributes']['rightsList'] = [['rights' => 'CC BY 4.0']];
+                    yield $record;
+                }
+            })());
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->times(3)
+            ->withArgs(fn (string $doi): bool => in_array($doi, $pendingDois, true))
+            ->andReturnNull();
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->times(8)
+            ->andReturnUsing(fn (array $record): Resource => Resource::factory()->create([
+                'doi' => $record['attributes']['doi'],
+                // Exercise the publication/status precedence for legacy records
+                // that do not yet satisfy newer ERNIE completeness requirements.
+                'access_level' => null,
+            ]));
+
+        $this->metaworksService
+            ->shouldReceive('lookupFileEntries')
+            ->times(8)
+            ->andReturnUsing(function (string $doi): array {
+                $downloadUrl = $doi === '10.5880/fidgeo.d.2026.001'
+                    ? 'https://datapub.gfz.de/download/10.5880.FIDGEO.D.2026.001-lagvge'
+                    : 'https://datapub.gfz.de/download/'.str_replace('/', '.', $doi);
+
+                return [
+                    'files' => [[
+                        'url' => $downloadUrl,
+                        'label' => 'Data and description',
+                        'visible' => 'public',
+                    ]],
+                    'allPublic' => true,
+                    'resourceFound' => true,
+                    'hasFileRows' => true,
+                    'resourcePublicStatus' => 'released',
+                ];
+            });
+
+        $domeDatacenter = Datacenter::query()->create(['name' => $datacenterName]);
+        $this->pendingImportService
+            ->shouldReceive('importPendingByDoi')
+            ->times(3)
+            ->withArgs(fn (string $doi, int $userId): bool => in_array($doi, $pendingDois, true)
+                && $userId === $this->user->id)
+            ->andReturnUsing(function (string $doi) use ($domeDatacenter): array {
+                $resource = Resource::factory()->create([
+                    'doi' => $doi,
+                    'datacenter_id' => $domeDatacenter->id,
+                    'access_level' => null,
+                    'legacy_source' => 'sumario-pmd',
+                    'legacy_source_status' => 'pending',
+                    'force_review_status' => true,
+                ]);
+                LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+
+                return [
+                    'status' => 'imported',
+                    'resource' => $resource,
+                    'doi' => $doi,
+                    'error' => null,
+                ];
+            });
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, null, 'DOIDB.DOME'))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        $resources = Resource::query()
+            ->whereIn('doi', [...$publishedDois, ...$pendingDois])
+            ->with('landingPage')
+            ->get();
+
+        expect($status)->toMatchArray([
+            'status' => 'completed',
+            'total' => 11,
+            'processed' => 11,
+            'imported' => 11,
+            'skipped' => 0,
+            'failed' => 0,
+            'sync_total' => 8,
+            'sync_skipped_test_mode' => true,
+        ])
+            ->and($resources)->toHaveCount(11)
+            ->and($resources->filter(fn (Resource $resource): bool => $resource->publicStatus() === 'published'))->toHaveCount(8)
+            ->and($resources->filter(fn (Resource $resource): bool => $resource->publicStatus() === 'review'))->toHaveCount(3);
+
+        $downloadLandingPage = $resources
+            ->firstWhere('doi', '10.5880/fidgeo.d.2026.001')
+            ?->landingPage;
+
+        expect($downloadLandingPage)
+            ->not->toBeNull()
+            ->and($downloadLandingPage->is_published)->toBeTrue()
+            ->and($downloadLandingPage->ftp_url)
+            ->toBe('https://datapub.gfz.de/download/10.5880.FIDGEO.D.2026.001-lagvge');
+    });
+
     it('imports only portal targets and assigns every portal facet to new resources', function () {
         $this->portalService
             ->shouldReceive('resourcesForDatacenter')
@@ -466,7 +621,7 @@ describe('datacenter-scoped DataCite import job', function () {
             ->toBe('ArboDat 2016');
     });
 
-    it('continues with portal resources and reports a warning when pending selection fails', function () {
+    it('fails before local writes when pending selection is unavailable', function () {
         $this->portalService
             ->shouldReceive('resourcesForDatacenter')
             ->once()
@@ -486,29 +641,28 @@ describe('datacenter-scoped DataCite import job', function () {
             ->andThrow(new RuntimeException('legacy database unavailable'));
         $this->importService
             ->shouldReceive('fetchAllDois')
-            ->once()
-            ->andReturn((function () {
-                yield datacenterDoiRecord('10.5880/riesgos');
-            })());
+            ->never();
         $this->transformer
             ->shouldReceive('transform')
-            ->once()
-            ->andReturnUsing(
-                fn (): Resource => Resource::factory()->create(['doi' => '10.5880/riesgos']),
-            );
+            ->never();
 
         $importId = Str::uuid()->toString();
-        (new ImportFromDataCiteJob($this->user->id, $importId, null, 'Riesgos'))
-            ->handle($this->importService, $this->transformer, $this->metaworksService);
+        $job = new ImportFromDataCiteJob($this->user->id, $importId, null, 'Riesgos');
+
+        expect(fn () => $job->handle($this->importService, $this->transformer, $this->metaworksService))
+            ->toThrow(
+                RuntimeException::class,
+                'Matching SUMARIO pending resources could not be loaded: legacy database unavailable',
+            );
 
         $status = Cache::get("datacite_import:{$importId}");
 
         expect($status)
             ->toMatchArray([
-                'status' => 'completed',
-                'imported' => 1,
-                'warnings' => ['Matching SUMARIO pending resources could not be loaded.'],
-            ]);
+                'status' => 'failed',
+                'error' => 'Matching SUMARIO pending resources could not be loaded: legacy database unavailable',
+            ])
+            ->and(Resource::query()->where('doi', '10.5880/riesgos')->exists())->toBeFalse();
     });
 
     it('uses the targeted DataCite lookup for portal resources missing from the bulk stream', function () {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Resources;
 
+use App\Enums\AccessLevel;
+use App\Enums\ResourceWorkflowStatus;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
@@ -170,45 +172,73 @@ final readonly class ResourceQueryBuilder
         }
 
         // Status filter - keep semantics in sync with Resource::publicStatus():
-        // - draft: missing mandatory fields (type, year, creators, rights, main title or abstract)
+        // - draft: not published/forced-review and missing mandatory fields
         // - curation: complete + no DOI OR (has DOI but no landing page)
-        // - review: complete + has DOI AND landing page with is_published = false
-        // - published: complete + has DOI AND landing page with is_published = true
+        // - review: forced review OR complete + DOI + unpublished landing page
+        // - published: DOI + published landing page, regardless of completeness
         if (! empty($filters['status'])) {
             $statuses = $filters['status'];
             $query->where(function ($q) use ($statuses) {
                 foreach ($statuses as $status) {
                     if ($status === 'draft') {
                         $q->orWhere(function ($subQ) {
-                            $subQ->where(function ($inner) {
-                                $inner->whereNull('resource_type_id')
-                                    ->orWhereNull('publication_year')
-                                    ->orWhereDoesntHave('creators')
-                                    ->orWhereDoesntHave('rights')
-                                    ->orWhere(function ($titleQ) {
-                                        // No Main Title with non-empty trimmed value
-                                        // (legacy: NULL title_type_id counts as MainTitle)
-                                        $titleQ->whereDoesntHave('titles', function ($tQ) {
-                                            $tQ->whereRaw("TRIM(value) != ''")
-                                                ->where(function ($typeQ) {
-                                                    $typeQ->whereNull('title_type_id')
-                                                        ->orWhereHas('titleType', function ($ttQ) {
-                                                            $ttQ->where('slug', 'MainTitle');
+                            $subQ->where(function ($notPublishedQ) {
+                                $notPublishedQ->whereNull('doi')
+                                    ->orWhereDoesntHave('landingPage', function ($lpQ) {
+                                        $lpQ->where('is_published', true);
+                                    });
+                            })
+                                ->where(function ($inner) {
+                                    $inner->where('workflow_status_override', ResourceWorkflowStatus::DRAFT->value)
+                                        ->orWhere(function ($incompleteQ) {
+                                            $incompleteQ->whereNull('workflow_status_override')
+                                                ->where('force_review_status', false)
+                                                ->where(function ($missingQ) {
+                                                    $missingQ->whereNull('resource_type_id')
+                                                        ->orWhereNull('publication_year')
+                                                        ->orWhereNull('access_level')
+                                                        ->orWhereDoesntHave('creators')
+                                                        ->orWhereDoesntHave('rights')
+                                                        ->orWhere(function ($embargoQ) {
+                                                            $embargoQ->where('access_level', AccessLevel::EMBARGOED->value)
+                                                                ->whereDoesntHave('dates', function ($dateQ) {
+                                                                    $dateQ->whereHas('dateType', function ($typeQ) {
+                                                                        $typeQ->whereRaw('LOWER(slug) = ?', ['available']);
+                                                                    })->where(function ($valueQ) {
+                                                                        $valueQ->whereRaw("TRIM(COALESCE(start_date, '')) != ''")
+                                                                            ->orWhereRaw("TRIM(COALESCE(date_value, '')) != ''");
+                                                                    });
+                                                                });
+                                                        })
+                                                        ->orWhere(function ($titleQ) {
+                                                            // No Main Title with non-empty trimmed value
+                                                            // (legacy: NULL title_type_id counts as MainTitle)
+                                                            $titleQ->whereDoesntHave('titles', function ($tQ) {
+                                                                $tQ->whereRaw("TRIM(value) != ''")
+                                                                    ->where(function ($typeQ) {
+                                                                        $typeQ->whereNull('title_type_id')
+                                                                            ->orWhereHas('titleType', function ($ttQ) {
+                                                                                $ttQ->where('slug', 'MainTitle');
+                                                                            });
+                                                                    });
+                                                            });
+                                                        })
+                                                        ->orWhereDoesntHave('descriptions', function ($dQ) {
+                                                            $dQ->whereRaw("TRIM(value) != ''")
+                                                                ->whereHas('descriptionType', function ($dtQ) {
+                                                                    $dtQ->where('slug', 'Abstract');
+                                                                });
                                                         });
                                                 });
                                         });
-                                    })
-                                    ->orWhereDoesntHave('descriptions', function ($dQ) {
-                                        $dQ->whereRaw("TRIM(value) != ''")
-                                            ->whereHas('descriptionType', function ($dtQ) {
-                                                $dtQ->where('slug', 'Abstract');
-                                            });
-                                    });
-                            });
+                                });
                         });
                     } elseif ($status === 'curation') {
                         $q->orWhere(function ($subQ) {
-                            $this->applyCompletenessConstraints($subQ)
+                            $this->applyCompletenessConstraints(
+                                $subQ->whereNull('workflow_status_override')
+                                    ->where('force_review_status', false),
+                            )
                                 ->where(function ($inner) {
                                     $inner->whereNull('doi')
                                         ->orWhereDoesntHave('landingPage');
@@ -216,16 +246,32 @@ final readonly class ResourceQueryBuilder
                         });
                     } elseif ($status === 'review') {
                         $q->orWhere(function ($subQ) {
-                            $this->applyCompletenessConstraints($subQ)
-                                ->whereNotNull('doi')
-                                ->whereHas('landingPage', function ($lpQ) {
-                                    $lpQ->where('is_published', false);
-                                });
+                            $subQ->where(function ($notPublishedQ) {
+                                $notPublishedQ->whereNull('doi')
+                                    ->orWhereDoesntHave('landingPage', function ($lpQ) {
+                                        $lpQ->where('is_published', true);
+                                    });
+                            })->where(function ($reviewQ) {
+                                $reviewQ->where('workflow_status_override', ResourceWorkflowStatus::REVIEW->value)
+                                    ->orWhere(function ($legacyReviewQ) {
+                                        $legacyReviewQ->whereNull('workflow_status_override')
+                                            ->where('force_review_status', true);
+                                    })
+                                    ->orWhere(function ($completeReviewQ) {
+                                        $this->applyCompletenessConstraints(
+                                            $completeReviewQ->whereNull('workflow_status_override')
+                                                ->where('force_review_status', false),
+                                        )
+                                            ->whereNotNull('doi')
+                                            ->whereHas('landingPage', function ($lpQ) {
+                                                $lpQ->where('is_published', false);
+                                            });
+                                    });
+                            });
                         });
                     } elseif ($status === 'published') {
                         $q->orWhere(function ($subQ) {
-                            $this->applyCompletenessConstraints($subQ)
-                                ->whereNotNull('doi')
+                            $subQ->whereNotNull('doi')
                                 ->whereHas('landingPage', function ($lpQ) {
                                     $lpQ->where('is_published', true);
                                 });
@@ -422,8 +468,20 @@ final readonly class ResourceQueryBuilder
     {
         return $query->whereNotNull('resource_type_id')
             ->whereNotNull('publication_year')
+            ->whereNotNull('access_level')
             ->whereHas('creators')
             ->whereHas('rights')
+            ->where(function ($accessQ) {
+                $accessQ->where('access_level', '!=', AccessLevel::EMBARGOED->value)
+                    ->orWhereHas('dates', function ($dateQ) {
+                        $dateQ->whereHas('dateType', function ($typeQ) {
+                            $typeQ->whereRaw('LOWER(slug) = ?', ['available']);
+                        })->where(function ($valueQ) {
+                            $valueQ->whereRaw("TRIM(COALESCE(start_date, '')) != ''")
+                                ->orWhereRaw("TRIM(COALESCE(date_value, '')) != ''");
+                        });
+                    });
+            })
             ->whereHas('titles', function ($tQ) {
                 $tQ->whereRaw("TRIM(value) != ''")
                     ->where(function ($typeQ) {

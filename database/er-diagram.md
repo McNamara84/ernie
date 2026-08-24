@@ -245,6 +245,7 @@ erDiagram
         bigint legacy_source_id "nullable"
         varchar legacy_source_status "50, nullable"
         boolean force_review_status "default false"
+        varchar workflow_status_override "20, nullable, indexed"
         timestamp created_at
         timestamp updated_at
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\ResourceWorkflowStatus;
 use App\Models\Datacenter;
 use App\Models\OldDataset;
 use App\Models\Resource;
@@ -27,8 +28,6 @@ class SumarioPendingResourceImportService
     {
         return OldDataset::query()
             ->where('publicstatus', 'pending')
-            ->whereNotNull('identifier')
-            ->where('identifier', '!=', '')
             ->count();
     }
 
@@ -152,28 +151,35 @@ class SumarioPendingResourceImportService
         /** @var iterable<int, OldDataset> $pendingDatasets */
         $pendingDatasets = OldDataset::query()
             ->where('publicstatus', 'pending')
-            ->whereNotNull('identifier')
-            ->where('identifier', '!=', '')
             ->orderBy('id')
             ->cursor();
 
         foreach ($pendingDatasets as $oldDataset) {
             $summary['processed']++;
             $doi = $this->normaliseDoi((string) $oldDataset->identifier);
+            $doi = $doi !== '' ? $doi : null;
+            $importLabel = $doi ?? $this->legacyImportLabel($oldDataset);
 
-            if ($this->shouldSkipLegacyDoi($doi)) {
+            if ($doi !== null && $this->shouldSkipLegacyDoi($doi)) {
                 $summary['skipped']++;
                 if (count($summary['skipped_dois']) < $maxStoredDois) {
-                    $summary['skipped_dois'][] = $doi;
+                    $summary['skipped_dois'][] = $importLabel;
                 }
 
                 continue;
             }
 
-            if (Resource::where('doi', $doi)->exists()) {
+            $alreadyImported = $doi !== null
+                ? Resource::where('doi', $doi)->exists()
+                : Resource::query()
+                    ->where('legacy_source', 'sumario-pmd')
+                    ->where('legacy_source_id', $oldDataset->id)
+                    ->exists();
+
+            if ($alreadyImported) {
                 $summary['skipped']++;
                 if (count($summary['skipped_dois']) < $maxStoredDois) {
-                    $summary['skipped_dois'][] = $doi;
+                    $summary['skipped_dois'][] = $importLabel;
                 }
 
                 continue;
@@ -187,13 +193,13 @@ class SumarioPendingResourceImportService
 
                 if (count($summary['failed_dois']) < $maxStoredDois) {
                     $summary['failed_dois'][] = [
-                        'doi' => $doi,
+                        'doi' => $importLabel,
                         'error' => $exception->getMessage(),
                     ];
                 }
 
                 Log::warning('Failed to import SUMARIO pending resource', [
-                    'doi' => $doi,
+                    'doi' => $importLabel,
                     'old_resource_id' => $oldDataset->id,
                     'error' => $exception->getMessage(),
                 ]);
@@ -211,7 +217,7 @@ class SumarioPendingResourceImportService
             ->first();
     }
 
-    private function importDataset(OldDataset $oldDataset, string $doi, int $userId): Resource
+    private function importDataset(OldDataset $oldDataset, ?string $doi, int $userId): Resource
     {
         $editorData = $this->editorLoader->loadForEditor((int) $oldDataset->id);
         $payload = $this->mapEditorPayloadForStorage($editorData, $oldDataset, $doi);
@@ -222,19 +228,24 @@ class SumarioPendingResourceImportService
             'legacy_source' => 'sumario-pmd',
             'legacy_source_id' => $oldDataset->id,
             'legacy_source_status' => $oldDataset->publicstatus,
-            'force_review_status' => true,
+            'force_review_status' => $doi !== null,
+            'workflow_status_override' => $doi === null
+                ? ResourceWorkflowStatus::DRAFT
+                : ResourceWorkflowStatus::REVIEW,
         ])->save();
 
         $fileResult = ['files' => [], 'allPublic' => false];
 
-        try {
-            $fileResult = $this->downloadUrlService->lookupFileEntries($doi);
-        } catch (\Throwable $exception) {
-            Log::warning('SUMARIO pending import could not load legacy file URLs', [
-                'doi' => $doi,
-                'old_resource_id' => $oldDataset->id,
-                'error' => $exception->getMessage(),
-            ]);
+        if ($doi !== null) {
+            try {
+                $fileResult = $this->downloadUrlService->lookupFileEntries($doi);
+            } catch (\Throwable $exception) {
+                Log::warning('SUMARIO pending import could not load legacy file URLs', [
+                    'doi' => $doi,
+                    'old_resource_id' => $oldDataset->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
         }
 
         $this->landingPageImport->createForResource(
@@ -251,7 +262,7 @@ class SumarioPendingResourceImportService
      * @param  array<string, mixed>  $editorData
      * @return array<string, mixed>
      */
-    private function mapEditorPayloadForStorage(array $editorData, OldDataset $oldDataset, string $doi): array
+    private function mapEditorPayloadForStorage(array $editorData, OldDataset $oldDataset, ?string $doi): array
     {
         return [
             'resourceId' => null,
@@ -273,14 +284,14 @@ class SumarioPendingResourceImportService
             'relatedIdentifiers' => $this->normaliseRelatedIdentifiers($editorData['relatedWorks'] ?? []),
             'fundingReferences' => is_array($editorData['fundingReferences'] ?? null) ? array_values($editorData['fundingReferences']) : [],
             'mslLaboratories' => is_array($editorData['mslLaboratories'] ?? null) ? array_values($editorData['mslLaboratories']) : [],
-            'datacenter_id' => $this->datacenterIdForDoi($doi),
+            'datacenter_id' => $doi !== null ? $this->datacenterIdForDoi($doi) : null,
         ];
     }
 
     /**
      * @return list<array{title: string, titleType: string, language?: string|null}>
      */
-    private function normaliseTitles(mixed $titles, OldDataset $oldDataset, string $doi): array
+    private function normaliseTitles(mixed $titles, OldDataset $oldDataset, ?string $doi): array
     {
         $normalised = [];
 
@@ -306,7 +317,8 @@ class SumarioPendingResourceImportService
 
         if ($normalised === []) {
             $normalised[] = [
-                'title' => $this->filledString($oldDataset->title ?? null) ?? "Legacy dataset {$doi}",
+                'title' => $this->filledString($oldDataset->title ?? null)
+                    ?? 'Legacy dataset '.$this->legacyImportLabel($oldDataset),
                 'titleType' => 'main-title',
             ];
         }
@@ -525,5 +537,10 @@ class SumarioPendingResourceImportService
         $value = trim((string) $value);
 
         return $value !== '' ? $value : null;
+    }
+
+    private function legacyImportLabel(OldDataset $oldDataset): string
+    {
+        return "legacy:sumario-pmd:{$oldDataset->id}";
     }
 }

@@ -13,6 +13,16 @@ it('derives internal landing page publication solely from legacy and DataCite st
 
     expect($service->internalLandingPageDecision($publicStatus, $dataCiteState))->toBe($expected);
 })->with([
+    'released and findable' => [
+        'released',
+        'findable',
+        ['should_create' => true, 'should_publish' => true, 'should_sync' => true],
+    ],
+    'released but registered' => [
+        'released',
+        'registered',
+        ['should_create' => true, 'should_publish' => false, 'should_sync' => false],
+    ],
     'published and findable' => [
         'published',
         'findable',
@@ -27,6 +37,11 @@ it('derives internal landing page publication solely from legacy and DataCite st
         'pending',
         'findable',
         ['should_create' => true, 'should_publish' => false, 'should_sync' => false],
+    ],
+    'status matching is case insensitive and trims whitespace' => [
+        ' Released ',
+        ' FINDABLE ',
+        ['should_create' => true, 'should_publish' => true, 'should_sync' => true],
     ],
     'unknown status creates nothing' => [
         null,
