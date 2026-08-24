@@ -128,11 +128,13 @@ function outcomeBadge(item: PreviewItem) {
 
 export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }: DataCiteUrlUpdateModalProps) {
     const [preview, setPreview] = useState<PreviewResponse | null>(null);
-    const [run, setRun] = useState<DataCiteUrlUpdateRun | null>(null);
+    const [run, setRun] = useState<DataCiteUrlUpdateRun | null>(initialRun ?? null);
     const [issues, setIssues] = useState<RunItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingRun, setIsLoadingRun] = useState(false);
     const [isActing, setIsActing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [loadRetryTarget, setLoadRetryTarget] = useState<'preview' | 'run' | null>(null);
     const currentRunId = useRef<string | null>(initialRun?.id ?? null);
 
     const loadIssues = useCallback(async (runId: string) => {
@@ -159,6 +161,7 @@ export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }
         setPreview(null);
         setIssues([]);
         setError(null);
+        setLoadRetryTarget(null);
         setIsLoading(true);
 
         try {
@@ -166,6 +169,7 @@ export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }
             setPreview(response.data);
         } catch (requestError) {
             setError(responseError(requestError, 'The DataCite URL preview could not be loaded.'));
+            setLoadRetryTarget('preview');
         } finally {
             setIsLoading(false);
         }
@@ -184,6 +188,24 @@ export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }
         [loadIssues],
     );
 
+    const loadExistingRun = useCallback(
+        async (runId: string) => {
+            setError(null);
+            setLoadRetryTarget(null);
+            setIsLoadingRun(true);
+
+            try {
+                await loadRun(runId);
+            } catch (requestError) {
+                setError(responseError(requestError, 'The previous DataCite URL update could not be loaded.'));
+                setLoadRetryTarget('run');
+            } finally {
+                setIsLoadingRun(false);
+            }
+        },
+        [loadRun],
+    );
+
     useEffect(() => {
         if (!open) return;
 
@@ -191,15 +213,12 @@ export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }
 
         if (runId) {
             setPreview(null);
-            setError(null);
             if (initialRun?.id === runId) setRun(initialRun);
-            void loadRun(runId).catch((requestError) => {
-                setError(responseError(requestError, 'The previous DataCite URL update could not be loaded.'));
-            });
+            void loadExistingRun(runId);
         } else {
             void loadPreview();
         }
-    }, [initialRun, loadPreview, loadRun, open]);
+    }, [initialRun, loadExistingRun, loadPreview, open]);
 
     useEffect(() => {
         if (!open || !run || terminalStatuses.has(run.status) || run.status === 'paused') return;
@@ -259,6 +278,18 @@ export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }
 
     const progress = useMemo(() => (run && run.total > 0 ? Math.round((run.processed / run.total) * 100) : 0), [run]);
     const displayedScope = preview?.scope_label ?? run?.scope_label ?? (scope === 'resources' ? 'Resources' : 'IGSNs');
+    const retryRunId = currentRunId.current ?? initialRun?.id ?? null;
+
+    const retryLoad = () => {
+        if (loadRetryTarget === 'run') {
+            if (!retryRunId) return;
+
+            void loadExistingRun(retryRunId);
+            return;
+        }
+
+        void loadPreview();
+    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -290,6 +321,13 @@ export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }
                         <div className="flex min-h-48 items-center justify-center gap-3 text-muted-foreground">
                             <Spinner />
                             Checking the first ten identifiers at DataCite…
+                        </div>
+                    )}
+
+                    {isLoadingRun && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                            <Spinner />
+                            Loading the existing DataCite URL update...
                         </div>
                     )}
 
@@ -473,7 +511,12 @@ export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }
                                 </Button>
                             )}
                             {terminalStatuses.has(run.status) && (
-                                <Button type="button" variant="outline" onClick={() => void loadPreview()} disabled={isActing || isLoading}>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => void loadPreview()}
+                                    disabled={isActing || isLoading || isLoadingRun}
+                                >
                                     Prepare another run
                                 </Button>
                             )}
@@ -482,9 +525,9 @@ export function DataCiteUrlUpdateModal({ scope, open, onOpenChange, initialRun }
                             </Button>
                         </>
                     )}
-                    {!preview && !run && !isLoading && (
-                        <Button type="button" variant="outline" onClick={() => void loadPreview()}>
-                            Retry preview
+                    {loadRetryTarget && !isLoading && !isLoadingRun && (
+                        <Button type="button" variant="outline" onClick={retryLoad}>
+                            {loadRetryTarget === 'run' ? 'Retry run status' : 'Retry preview'}
                         </Button>
                     )}
                 </DialogFooter>

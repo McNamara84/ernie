@@ -128,6 +128,55 @@ describe('DataCiteUrlUpdateModal', () => {
         expect(screen.getByTestId('datacite-url-update-confirm')).toBeDisabled();
     });
 
+    it('keeps preview retry hidden while an existing run is loading', async () => {
+        let resolveRun: ((value: { data: { run: DataCiteUrlUpdateRun } }) => void) | undefined;
+        mockGet.mockReturnValueOnce(
+            new Promise<{ data: { run: DataCiteUrlUpdateRun } }>((resolve) => {
+                resolveRun = resolve;
+            }),
+        );
+
+        render(<DataCiteUrlUpdateModal scope="resources" open onOpenChange={vi.fn()} initialRun={baseRun} />);
+
+        expect(screen.getByText('Loading the existing DataCite URL update...')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Retry preview' })).not.toBeInTheDocument();
+        expect(mockGet).toHaveBeenCalledWith(`/datacite/landing-page-url-updates/${baseRun.id}`);
+
+        resolveRun?.({ data: { run: baseRun } });
+        await waitFor(() => {
+            expect(screen.queryByText('Loading the existing DataCite URL update...')).not.toBeInTheDocument();
+        });
+    });
+
+    it('retries the existing run endpoint after its initial load fails', async () => {
+        mockGet.mockRejectedValueOnce(new Error('run unavailable')).mockResolvedValueOnce({ data: { run: baseRun } });
+        const user = userEvent.setup();
+
+        render(<DataCiteUrlUpdateModal scope="resources" open onOpenChange={vi.fn()} initialRun={baseRun} />);
+
+        await user.click(await screen.findByRole('button', { name: 'Retry run status' }));
+
+        await waitFor(() => {
+            expect(mockGet).toHaveBeenCalledTimes(2);
+        });
+        expect(mockGet).toHaveBeenNthCalledWith(1, `/datacite/landing-page-url-updates/${baseRun.id}`);
+        expect(mockGet).toHaveBeenNthCalledWith(2, `/datacite/landing-page-url-updates/${baseRun.id}`);
+        expect(mockGet).not.toHaveBeenCalledWith('/datacite/landing-page-url-updates/preview', expect.anything());
+    });
+
+    it('retries the preview endpoint after an initial preview error', async () => {
+        mockGet.mockRejectedValueOnce(new Error('preview unavailable')).mockResolvedValueOnce({ data: preview });
+        const user = userEvent.setup();
+
+        render(<DataCiteUrlUpdateModal scope="resources" open onOpenChange={vi.fn()} />);
+
+        await user.click(await screen.findByRole('button', { name: 'Retry preview' }));
+
+        expect(await screen.findByText('10.5880/example')).toBeInTheDocument();
+        expect(mockGet).toHaveBeenNthCalledWith(1, '/datacite/landing-page-url-updates/preview', { params: { scope: 'resources' } });
+        expect(mockGet).toHaveBeenNthCalledWith(2, '/datacite/landing-page-url-updates/preview', { params: { scope: 'resources' } });
+    });
+
     it('restores a paused persistent run, lists issues, and resumes it', async () => {
         const pausedRun: DataCiteUrlUpdateRun = {
             ...baseRun,
