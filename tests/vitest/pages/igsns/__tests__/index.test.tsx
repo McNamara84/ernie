@@ -46,6 +46,10 @@ vi.mock('@/layouts/app-layout', () => ({
 vi.mock('@/components/igsns/status-badge', () => ({
     IgsnStatusBadge: ({ status }: { status: string }) => <span data-testid="status-badge">{status}</span>,
 }));
+vi.mock('@/components/datacite-url-update-modal', () => ({
+    DataCiteUrlUpdateModal: ({ open, scope }: { open: boolean; scope: string }) =>
+        open ? <div data-testid="datacite-url-update-modal-mock">{scope}</div> : null,
+}));
 vi.mock('@/components/igsns/bulk-actions-toolbar', () => ({
     BulkActionsToolbar: ({
         selectedCount,
@@ -253,6 +257,16 @@ describe('IgsnsPage', () => {
             expect(screen.queryByRole('button', { name: /import all igsns/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import single igsn/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import by datacenter/i })).not.toBeInTheDocument();
+        });
+
+        it('shows and opens the URL migration only when the admin capability prop is true', async () => {
+            const { rerender } = render(<IgsnsPage {...defaultProps} canUpdateDataCiteLandingPageUrls />);
+
+            await userEvent.click(screen.getByTestId('igsns-datacite-url-update'));
+            expect(screen.getByTestId('datacite-url-update-modal-mock')).toHaveTextContent('igsns');
+
+            rerender(<IgsnsPage {...defaultProps} canUpdateDataCiteLandingPageUrls={false} />);
+            expect(screen.queryByTestId('igsns-datacite-url-update')).not.toBeInTheDocument();
         });
 
         it('opens the single IGSN import modal', async () => {

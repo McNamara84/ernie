@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Resource;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Fake DataCite Registration Service for testing
@@ -35,7 +36,7 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
     public function registerDoi(Resource $resource, string $prefix): array
     {
         // Log that fake service is being used
-        \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: registerDoi called', [
+        Log::info('FakeDataCiteRegistrationService: registerDoi called', [
             'resource_id' => $resource->id,
             'prefix' => $prefix,
         ]);
@@ -50,7 +51,7 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
         // Check if resource has a landing page (same as real service)
         $resource->load('landingPage');
         if (! $resource->landingPage) {
-            \Illuminate\Support\Facades\Log::error('FakeDataCiteRegistrationService: Resource has no landing page', [
+            Log::error('FakeDataCiteRegistrationService: Resource has no landing page', [
                 'resource_id' => $resource->id,
             ]);
             throw new \RuntimeException(
@@ -58,7 +59,7 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
             );
         }
 
-        \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: Generating fake DOI', [
+        Log::info('FakeDataCiteRegistrationService: Generating fake DOI', [
             'resource_id' => $resource->id,
             'has_landing_page' => true,
             'landing_page_id' => $resource->landingPage->id,
@@ -70,13 +71,13 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
         $suffix = "test-{$resource->id}-{$timestamp}";
         $doi = "{$prefix}/{$suffix}";
 
-        \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: Returning successful response', [
+        Log::info('FakeDataCiteRegistrationService: Returning successful response', [
             'doi' => $doi,
         ]);
 
         // Use the landing page's computed public_url accessor
         $publicUrl = $resource->landingPage->public_url;
-        \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: Got public URL', [
+        Log::info('FakeDataCiteRegistrationService: Got public URL', [
             'url' => $publicUrl,
         ]);
 
@@ -152,7 +153,7 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
      */
     public function registerIgsn(Resource $resource): array
     {
-        \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: registerIgsn called', [
+        Log::info('FakeDataCiteRegistrationService: registerIgsn called', [
             'resource_id' => $resource->id,
             'igsn' => $resource->doi,
         ]);
@@ -175,7 +176,7 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
         $prefix = explode('/', $resource->doi, 2)[0];
         if (! in_array($prefix, $this->prefixes, true)) {
             throw new \InvalidArgumentException(
-                "IGSN prefix '{$prefix}' is not allowed. Allowed prefixes: " . implode(', ', $this->prefixes)
+                "IGSN prefix '{$prefix}' is not allowed. Allowed prefixes: ".implode(', ', $this->prefixes)
             );
         }
 
@@ -228,5 +229,21 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
     public function getEndpoint(): string
     {
         return 'https://fake.datacite.org';
+    }
+
+    /** @return array<string, mixed> */
+    public function updateLandingPageUrl(string $identifier, string $targetUrl): array
+    {
+        return [
+            'data' => [
+                'id' => $identifier,
+                'type' => 'dois',
+                'attributes' => [
+                    'doi' => $identifier,
+                    'url' => $targetUrl,
+                    'state' => 'findable',
+                ],
+            ],
+        ];
     }
 }

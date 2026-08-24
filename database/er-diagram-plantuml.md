@@ -1052,6 +1052,52 @@ entity "dismissed_rors" as dismissed_rors {
     updated_at : TIMESTAMP
 }
 
+entity "datacite_url_update_runs" as datacite_url_update_runs {
+    * **id** : UUID <<PK>>
+    --
+    * scope : VARCHAR(20)
+    * status : VARCHAR(30)
+    active_marker : VARCHAR(20) <<UK>> <<nullable>>
+    initiated_by_user_id : BIGINT <<FK>> <<nullable>>
+    last_controlled_by_user_id : BIGINT <<FK>> <<nullable>>
+    * test_mode : BOOLEAN
+    * datacite_endpoint : VARCHAR(500)
+    * target_base_url : VARCHAR(500)
+    * total : INT UNSIGNED
+    * processed : INT UNSIGNED
+    * updated : INT UNSIGNED
+    * already_current : INT UNSIGNED
+    * skipped : INT UNSIGNED
+    * failed : INT UNSIGNED
+    pause_reason : TEXT <<nullable>>
+    last_error : TEXT <<nullable>>
+    started_at : TIMESTAMP <<nullable>>
+    paused_at : TIMESTAMP <<nullable>>
+    cancelled_at : TIMESTAMP <<nullable>>
+    completed_at : TIMESTAMP <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "datacite_url_update_items" as datacite_url_update_items {
+    * **id** : BIGINT <<PK>>
+    --
+    * run_id : UUID <<FK>>
+    resource_id : BIGINT <<FK>> <<nullable>>
+    * identifier : VARCHAR(255)
+    * status : VARCHAR(50)
+    before_url : VARCHAR(2048) <<nullable>>
+    * target_url : VARCHAR(2048)
+    datacite_state : VARCHAR(30) <<nullable>>
+    * preflight_attempts : SMALLINT UNSIGNED
+    * update_attempts : SMALLINT UNSIGNED
+    last_http_status : SMALLINT UNSIGNED <<nullable>>
+    error_message : TEXT <<nullable>>
+    processed_at : TIMESTAMP <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 ' ==========================================================================
 ' OAI-PMH TABLES (Harvesting Protocol)
 ' ==========================================================================
@@ -1132,6 +1178,12 @@ guided_tours ||--o{ user_guided_tour_assignments
 users ||--o{ database_dump_exports : "user_id"
 users ||--o{ database_dump_downloads : "user_id"
 database_dump_exports ||--o{ database_dump_downloads
+
+' DataCite landing-page URL migration relationships
+users |o--o{ datacite_url_update_runs : "initiated_by_user_id"
+users |o--o{ datacite_url_update_runs : "last_controlled_by_user_id"
+datacite_url_update_runs ||--o{ datacite_url_update_items
+resources |o--o{ datacite_url_update_items
 
 ' Resource core relationships
 resources ||--o{ titles

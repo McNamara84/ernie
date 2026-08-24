@@ -57,5 +57,6 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="INERTIA_SSR_ENABLED" value="false"/>
         <env name="ERNIE_API_KEY" value="test-api-key"/>
+        <env name="DATACITE_URL_UPDATE_MINIMUM_INTERVAL_MS" value="0"/>
     </php>
 </phpunit>

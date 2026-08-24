@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DataCiteUrlUpdateScope;
 use App\Http\Requests\Resource\DestroyAllResourcesRequest;
 use App\Http\Requests\Resource\DestroyResourceRequest;
 use App\Http\Requests\Resource\DestroyResourcesRequest;
@@ -11,9 +12,11 @@ use App\Http\Requests\Resource\IndexResourcesRequest;
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Http\Resources\ResourceListItemResource;
+use App\Models\DataCiteUrlUpdateRun;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteSyncService;
+use App\Services\DataCiteUrlUpdateRunPresenter;
 use App\Services\Resources\DeleteAllResourcesService;
 use App\Services\Resources\ResourceQueryBuilder;
 use App\Services\ResourceStorageService;
@@ -35,6 +38,7 @@ class ResourceController extends Controller
         private readonly ResourceStorageService $storageService,
         private readonly DataCiteSyncService $syncService,
         private readonly DeleteAllResourcesService $deleteAllResourcesService,
+        private readonly DataCiteUrlUpdateRunPresenter $dataCiteUrlUpdateRunPresenter,
     ) {}
 
     /**
@@ -49,6 +53,12 @@ class ResourceController extends Controller
         $items = $resources->items();
         $resourcesData = ResourceListItemResource::collection(collect($items))
             ->resolve($request);
+
+        $canUpdateDataCiteLandingPageUrls = $request->user()?->can('update-datacite-landing-page-urls') ?? false;
+        $urlUpdateRun = $canUpdateDataCiteLandingPageUrls
+            ? DataCiteUrlUpdateRun::query()->active()->latest()->first()
+                ?? DataCiteUrlUpdateRun::query()->where('scope', DataCiteUrlUpdateScope::RESOURCES)->latest()->first()
+            : null;
 
         return Inertia::render('resources', [
             'resources' => $resourcesData,
@@ -66,6 +76,8 @@ class ResourceController extends Controller
                 'direction' => $criteria['sortDirection'],
             ],
             'canImportFromDataCite' => $request->user()?->can('importFromDataCite', Resource::class) ?? false,
+            'canUpdateDataCiteLandingPageUrls' => $canUpdateDataCiteLandingPageUrls,
+            'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),
         ]);
     }
 

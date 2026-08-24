@@ -4,6 +4,8 @@ import { Braces, CloudUpload, Download, FileJson, Globe, RefreshCw } from 'lucid
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
+import { DataCiteUrlUpdateModal, type DataCiteUrlUpdateRun } from '@/components/datacite-url-update-modal';
+import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { BulkActionsToolbar } from '@/components/igsns/bulk-actions-toolbar';
 import { type IgsnFilterOptions, IgsnFilters, type IgsnFilterState } from '@/components/igsns/igsn-filters';
 import ImportIgsnsModal from '@/components/igsns/modals/ImportIgsnsModal';
@@ -72,6 +74,8 @@ interface IgsnsPageProps {
     canDelete: boolean;
     canImport: boolean;
     canRegister: boolean;
+    canUpdateDataCiteLandingPageUrls?: boolean;
+    dataCiteUrlUpdateRun?: DataCiteUrlUpdateRun | null;
     igsnPrefix: string;
     search: string;
     totalCount: number;
@@ -144,6 +148,8 @@ function IgsnsPage({
     canDelete,
     canImport,
     canRegister,
+    canUpdateDataCiteLandingPageUrls,
+    dataCiteUrlUpdateRun,
     igsnPrefix,
     search: initialSearch,
     totalCount,
@@ -166,6 +172,7 @@ function IgsnsPage({
     const [isDatacenterImportModalOpen, setIsDatacenterImportModalOpen] = useState(false);
     const [isSingleImportModalOpen, setIsSingleImportModalOpen] = useState(false);
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
+    const [isDataCiteUrlUpdateModalOpen, setIsDataCiteUrlUpdateModalOpen] = useState(false);
     const [selectedIgsnForLandingPage, setSelectedIgsnForLandingPage] = useState<Igsn | null>(null);
     const [registeringIgsns, setRegisteringIgsns] = useState<Set<number>>(new Set());
     const [isBulkRegistering, setIsBulkRegistering] = useState(false);
@@ -527,20 +534,34 @@ function IgsnsPage({
                                 <CardTitle>Physical Samples (IGSNs)</CardTitle>
                                 <CardDescription>Manage physical sample metadata with International Generic Sample Numbers.</CardDescription>
                             </div>
-                            {canImport && (
+                            {(canImport || canUpdateDataCiteLandingPageUrls) && (
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Import all IGSNs
-                                    </Button>
-                                    <Button variant="outline" onClick={() => setIsSingleImportModalOpen(true)}>
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Import single IGSN
-                                    </Button>
-                                    <Button variant="outline" onClick={() => setIsDatacenterImportModalOpen(true)}>
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Import by datacenter
-                                    </Button>
+                                    {canUpdateDataCiteLandingPageUrls && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setIsDataCiteUrlUpdateModalOpen(true)}
+                                            data-testid="igsns-datacite-url-update"
+                                        >
+                                            <DataCiteIcon className="mr-2 size-4" aria-hidden="true" />
+                                            Update DataCite landing-page URLs
+                                        </Button>
+                                    )}
+                                    {canImport && (
+                                        <>
+                                            <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Import all IGSNs
+                                            </Button>
+                                            <Button variant="outline" onClick={() => setIsSingleImportModalOpen(true)}>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Import single IGSN
+                                            </Button>
+                                            <Button variant="outline" onClick={() => setIsDatacenterImportModalOpen(true)}>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Import by datacenter
+                                            </Button>
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -852,6 +873,14 @@ function IgsnsPage({
                 onClose={() => setIsDatacenterImportModalOpen(false)}
                 onSuccess={() => router.reload()}
             />
+            {canUpdateDataCiteLandingPageUrls && (
+                <DataCiteUrlUpdateModal
+                    scope="igsns"
+                    open={isDataCiteUrlUpdateModalOpen}
+                    onOpenChange={setIsDataCiteUrlUpdateModalOpen}
+                    initialRun={dataCiteUrlUpdateRun}
+                />
+            )}
         </AppLayout>
     );
 }

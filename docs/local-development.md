@@ -171,6 +171,16 @@ With `DATACITE_TEST_MODE=false` on Production, the same local landing pages are 
 
 There is no separate post-import sync flag: `DATACITE_TEST_MODE` is the only switch. The queue worker must consume the `imports` queue so the bounded synchronization jobs can complete.
 
+### DataCite landing-page domain migration
+
+The admin-only actions on `/resources` and `/igsns` use a persistent queue and the shared application cache. The Docker worker consumes the dedicated `datacite` queue. Queue connections whose configured driver is `sync` or `null` are rejected regardless of the connection name, because the run must survive request timeouts, browser navigation, deployments, and worker restarts.
+
+Keep the safe rate defaults from `.env.example`: at most 300 authenticated requests per rolling five-minute window, at least one second between requests, concurrency one, a 10-second connection timeout, and a 30-second request timeout. Target landing-page reachability checks have separate configurable connection and total timeouts of three and eight seconds. All DataCite writes in ERNIE share this limiter. Redis or another cache shared by every web and queue process is therefore required; an in-process array cache is not safe outside automated tests.
+
+After a domain move, the configured HTTPS `APP_URL` is the sole source for every new landing-page URL. There is deliberately no separate old-host or expected-new-host setting. `DATACITE_USER_AGENT_EMAIL` should identify the operational contact DataCite can reach.
+
+For a local dry run, use DataCite test credentials and `DATACITE_TEST_MODE=true`, configure `APP_URL` to the HTTPS base URL being tested, and make sure the generated target URLs are actually reachable from the app/queue containers. Never place production credentials in a local environment.
+
 ## Troubleshooting
 
 ### `419 Page Expired`

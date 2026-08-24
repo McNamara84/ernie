@@ -856,3 +856,69 @@ Basic accessibility in Chrome:
 open blocker or critical defects, and after successful cleanup. Deviations and
 `N/A` results must have a clear rationale. The final decision rests with Tanja
 ([anti@gfz.de](mailto:anti@gfz.de)).
+
+---
+
+## 4. DataCite Landing-Page Domain Migration Runbook
+
+This is a controlled production operation after the public domain cutover, not
+part of a routine stage regression. Coordinate its timing with the Product
+Owner and the operators responsible for DNS, TLS, reverse proxy, DataCite
+credentials, cache, and queue workers.
+
+### 4.1 Preconditions
+
+- [ ] DNS, TLS, and the reverse proxy serve public landing pages at the new
+      production URL.
+- [ ] `APP_URL` contains that new canonical HTTPS base URL; configuration caches
+      were rebuilt, and all web and queue processes were restarted.
+- [ ] The old host redirects permanently and remains available during the
+      migration and downstream cache propagation period.
+- [ ] Production uses a persistent queue connection and a shared cache store;
+      a worker consumes the `datacite` queue.
+- [ ] Production DataCite credentials and `DATACITE_TEST_MODE=false` were
+      confirmed without copying secrets into the test log.
+- [ ] Several new landing-page URLs were checked from outside the GFZ network,
+      including one DOI and one IGSN path.
+- [ ] The same workflow was completed successfully against DataCite Test with
+      synthetic identifiers before enabling production credentials.
+
+Stop if the dialog reports a wrong `APP_URL`, wrong DataCite environment,
+unreachable target pages, authentication failure, or an unexpected candidate
+count.
+
+### 4.2 Resources
+
+- [ ] Sign in as an administrator, open `/resources`, and select `Update
+    DataCite landing-page URLs`.
+- [ ] Confirm the `DataCite Production` badge, production endpoint, target base,
+      eligible total, and all ten current/new URL samples.
+- [ ] Confirm that no sampled external landing page is present and that every
+      after-URL uses the new `APP_URL` with the existing DOI path and slug.
+- [ ] Start the run once, keep the queue worker under observation, and wait for
+      a terminal status. Browser navigation or closing the dialog is safe.
+- [ ] Record totals for updated, already current, skipped, and failed items.
+- [ ] Review every skipped/failed item. Resume only after a pause cause is fixed;
+      use `Retry failed` only for understood transient failures.
+
+### 4.3 IGSNs
+
+- [ ] Start the IGSN workflow only after the resource run has reached a terminal
+      state; ERNIE permits only one global run.
+- [ ] Confirm that the candidate count covers only locally `registered` IGSNs
+      with published ERNIE landing pages.
+- [ ] Repeat the preview, confirmation, monitoring, and issue review used for
+      resources, and record all final counters.
+
+### 4.4 Verification and Close-Out
+
+- [ ] Resolve representative updated DOI and IGSN identifiers via `doi.org` and
+      verify their final landing pages under the new `APP_URL`.
+- [ ] Verify representative records with `already_current`, remote-missing, and
+      failed outcomes; no external local landing page was processed.
+- [ ] Account for DataCite and resolver propagation time before declaring a
+      discrepancy.
+- [ ] Preserve the persistent run/item audit records and operational logs; do
+      not delete them after completion.
+- [ ] Keep the old-host redirect until the agreed cache and reference migration
+      period ends.

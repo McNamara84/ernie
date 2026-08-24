@@ -1,10 +1,11 @@
 # ERNIE Database ER Diagram
+
 ```mermaid
 erDiagram
     %% =========================================================================
     %% LOOKUP TABLES (DataCite Controlled Vocabularies)
     %% =========================================================================
-    
+
     resource_types {
         bigint id PK
         varchar name
@@ -967,6 +968,50 @@ erDiagram
         timestamp updated_at
     }
 
+    datacite_url_update_runs {
+        uuid id PK
+        varchar scope "20, indexed"
+        varchar status "30, indexed"
+        varchar active_marker UK "20, nullable"
+        bigint initiated_by_user_id FK "nullable"
+        bigint last_controlled_by_user_id FK "nullable"
+        boolean test_mode
+        varchar datacite_endpoint "500"
+        varchar target_base_url "500"
+        int_unsigned total
+        int_unsigned processed
+        int_unsigned updated
+        int_unsigned already_current
+        int_unsigned skipped
+        int_unsigned failed
+        text pause_reason "nullable"
+        text last_error "nullable"
+        timestamp started_at "nullable"
+        timestamp paused_at "nullable"
+        timestamp cancelled_at "nullable"
+        timestamp completed_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    datacite_url_update_items {
+        bigint id PK
+        uuid run_id FK
+        bigint resource_id FK "nullable"
+        varchar identifier "255"
+        varchar status "50, indexed"
+        varchar before_url "2048, nullable"
+        varchar target_url "2048"
+        varchar datacite_state "30, nullable"
+        smallint_unsigned preflight_attempts
+        smallint_unsigned update_attempts
+        smallint_unsigned last_http_status "nullable"
+        text error_message "nullable"
+        timestamp processed_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     %% =========================================================================
     %% OAI-PMH TABLES (Harvesting Protocol)
     %% =========================================================================
@@ -1043,6 +1088,12 @@ erDiagram
     users ||--o{ database_dump_exports : "requests"
     users ||--o{ database_dump_downloads : "downloads"
     database_dump_exports ||--o{ database_dump_downloads : "has"
+
+    %% DataCite landing-page URL migration relationships
+    users |o--o{ datacite_url_update_runs : "initiates"
+    users |o--o{ datacite_url_update_runs : "last controls"
+    datacite_url_update_runs ||--o{ datacite_url_update_items : "contains"
+    resources |o--o{ datacite_url_update_items : "migration candidate"
 
     %% Resource core relationships
     resources ||--o{ titles : "has"

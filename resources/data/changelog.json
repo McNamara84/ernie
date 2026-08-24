@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-08-23",
+        "date": "2026-08-24",
         "features": [
+            {
+                "title": "Admin Workflow for DataCite Landing-Page URL Migrations",
+                "description": "Administrators can now migrate the DataCite landing-page URLs of published ERNIE Resources and registered IGSNs after APP_URL changes. Before confirmation, ERNIE displays the first ten current and new URLs; the persistent background run then provides progress, cancellation, resume, and failed-item retry controls. Resources with external landing pages and identifiers not present in the eligible local ERNIE records are always excluded, while shared rate limits, cooldowns, and retry handling protect the DataCite account."
+            },
             {
                 "title": "DOI and Datacenter Filters for Assessment and Assistance",
                 "description": "Authorized users can now filter Assessment results and Assistance suggestions by an exact DOI, a relevant datacenter, or both together. DOI inputs accept bare identifiers and doi.org URLs, while each Datacenter dropdown only lists centers with completed assessments or pending suggestion impacts. Assessment summaries and Assistance counts follow the active filters, and ORCID or ROR suggestions remain discoverable when they indirectly affect the selected resource through a shared person or institution."
