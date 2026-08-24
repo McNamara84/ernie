@@ -133,7 +133,7 @@ test('only admins can access the URL migration API', function (): void {
 });
 
 test('list pages expose the URL migration action and run details only to admins', function (): void {
-    $run = DataCiteUrlUpdateRun::factory()->create();
+    $run = DataCiteUrlUpdateRun::factory()->active()->create();
     $curator = User::factory()->curator()->create();
 
     foreach (['resources', 'igsns.index'] as $routeName) {
@@ -227,6 +227,26 @@ test('preview blocks the workflow when APP_URL is not an absolute HTTPS URL', fu
     Http::assertNothingSent();
 });
 
+test('preview does not call DataCite after target reachability has blocked the workflow', function (): void {
+    createUrlMigrationResource('10.5880/unreachable-target');
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://dataservices.gfz.de/*' => Http::response('', 503),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->getJson(route('datacite.url-updates.preview', ['scope' => 'resources']))
+        ->assertOk()
+        ->assertJsonPath('can_start', false)
+        ->assertJsonPath('items.0.outcome', 'target_unreachable');
+
+    Http::assertSentCount(1);
+    Http::assertNotSent(fn (Request $request): bool => str_starts_with(
+        $request->url(),
+        'https://api.test.datacite.org/',
+    ));
+});
+
 test('APP_URL alone defines the new domain and optional base path', function (): void {
     $resource = createUrlMigrationResource('10.5880/dynamic-app-url');
     config(['app.url' => 'https://new-ernie.example/catalogue']);
@@ -253,11 +273,15 @@ test('APP_URL alone defines the new domain and optional base path', function ():
 });
 
 test('a non-persistent queue driver blocks preview and confirmed start regardless of its connection name', function (string $driver): void {
+    createUrlMigrationResource("10.5880/blocked-{$driver}");
     config([
         'queue.default' => 'custom-url-migration-queue',
         'queue.connections.custom-url-migration-queue' => ['driver' => $driver],
     ]);
     Http::preventStrayRequests();
+    Http::fake([
+        'https://dataservices.gfz.de/*' => Http::response('', 200),
+    ]);
 
     $this->actingAs($this->admin)
         ->getJson(route('datacite.url-updates.preview', ['scope' => 'resources']))
@@ -268,6 +292,12 @@ test('a non-persistent queue driver blocks preview and confirmed start regardles
     $this->postJson(route('datacite.url-updates.store'), ['scope' => 'resources'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('queue');
+
+    Http::assertSentCount(1);
+    Http::assertNotSent(fn (Request $request): bool => str_starts_with(
+        $request->url(),
+        'https://api.test.datacite.org/',
+    ));
 })->with(['sync', 'null']);
 
 test('a non-persistent queue driver blocks resume and retry before changing persistent state', function (string $action, string $status, string $driver): void {
@@ -390,7 +420,7 @@ test('all issue pages remain available for complete review', function (): void {
 
 test('cancel resume and retry controls preserve a resumable audit trail', function (): void {
     $resource = createUrlMigrationResource('10.5880/control');
-    $run = DataCiteUrlUpdateRun::factory()->create(['total' => 1]);
+    $run = DataCiteUrlUpdateRun::factory()->active()->create(['total' => 1]);
     $item = DataCiteUrlUpdateItem::factory()->create([
         'run_id' => $run->id,
         'resource_id' => $resource->id,

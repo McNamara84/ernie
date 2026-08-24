@@ -50,7 +50,7 @@ class DataCiteUrlUpdatePreviewService
                 $message = 'The new landing page is not reachable.';
             }
 
-            if ($targetValidation['valid']) {
+            if ($canStart) {
                 try {
                     $response = $this->client->getDoi($identifier);
                     $status = $response->status();

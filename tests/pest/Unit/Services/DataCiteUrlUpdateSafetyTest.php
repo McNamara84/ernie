@@ -14,7 +14,10 @@ use App\Services\DataCiteMemberApiClient;
 use App\Services\DataCiteRequestLimiter;
 use App\Services\DataCiteUrlUpdateCandidateService;
 use App\Services\DataCiteUrlUpdateTargetService;
+use GuzzleHttp\Psr7\Response as Psr7Response;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -49,7 +52,7 @@ function createJobUrlMigrationResource(string $doi = '10.5880/job-test'): Resour
 /** @return array{DataCiteUrlUpdateRun, DataCiteUrlUpdateItem} */
 function createPendingUrlMigrationJob(Resource $resource): array
 {
-    $run = DataCiteUrlUpdateRun::factory()->create(['total' => 1]);
+    $run = DataCiteUrlUpdateRun::factory()->active()->create(['total' => 1]);
     $item = DataCiteUrlUpdateItem::factory()->create([
         'run_id' => $run->id,
         'resource_id' => $resource->id,
@@ -187,6 +190,27 @@ test('target reachability falls back to a bounded GET when HEAD is unsupported',
 
     $methods = Http::recorded()->map(fn (array $pair): string => $pair[0]->method())->all();
     expect($methods)->toBe(['HEAD', 'GET']);
+});
+
+test('target reachability uses its configured timeouts for HEAD and fallback GET requests', function (): void {
+    config([
+        'datacite.landing_page_url_update.reachability_connect_timeout_seconds' => 2,
+        'datacite.landing_page_url_update.reachability_timeout_seconds' => 6,
+    ]);
+    $targetUrl = 'https://dataservices.gfz.de/10.5880/configured-timeouts/landing';
+    $pendingRequest = Mockery::mock(PendingRequest::class);
+    Http::shouldReceive('connectTimeout')->twice()->with(2)->andReturn($pendingRequest);
+    $pendingRequest->shouldReceive('timeout')->twice()->with(6)->andReturnSelf();
+    $pendingRequest->shouldReceive('withOptions')->twice()
+        ->with(['allow_redirects' => ['max' => 3, 'strict' => true]])
+        ->andReturnSelf();
+    $pendingRequest->shouldReceive('head')->once()->with($targetUrl)
+        ->andReturn(new Response(new Psr7Response(405)));
+    $pendingRequest->shouldReceive('withHeaders')->once()->with(['Range' => 'bytes=0-0'])->andReturnSelf();
+    $pendingRequest->shouldReceive('get')->once()->with($targetUrl)
+        ->andReturn(new Response(new Psr7Response(200)));
+
+    expect(app(DataCiteUrlUpdateTargetService::class)->isReachable($targetUrl))->toBeTrue();
 });
 
 test('the job performs a remote GET before a minimal PUT and completes the audit counters', function (): void {

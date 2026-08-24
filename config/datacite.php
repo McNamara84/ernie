@@ -32,6 +32,8 @@ return [
         'minimum_interval_ms' => (int) env('DATACITE_URL_UPDATE_MINIMUM_INTERVAL_MS', 1000),
         'connect_timeout_seconds' => (int) env('DATACITE_URL_UPDATE_CONNECT_TIMEOUT_SECONDS', 10),
         'timeout_seconds' => (int) env('DATACITE_URL_UPDATE_TIMEOUT_SECONDS', 30),
+        'reachability_connect_timeout_seconds' => (int) env('DATACITE_URL_UPDATE_REACHABILITY_CONNECT_TIMEOUT_SECONDS', 3),
+        'reachability_timeout_seconds' => (int) env('DATACITE_URL_UPDATE_REACHABILITY_TIMEOUT_SECONDS', 8),
         'max_transient_attempts' => (int) env('DATACITE_URL_UPDATE_MAX_TRANSIENT_ATTEMPTS', 5),
         'queue' => env('DATACITE_URL_UPDATE_QUEUE', 'datacite'),
         'support_email' => env('DATACITE_USER_AGENT_EMAIL'),

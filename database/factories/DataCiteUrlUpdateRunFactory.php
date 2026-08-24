@@ -20,8 +20,8 @@ class DataCiteUrlUpdateRunFactory extends Factory
     {
         return [
             'scope' => DataCiteUrlUpdateScope::RESOURCES,
-            'status' => DataCiteUrlUpdateRunStatus::QUEUED,
-            'active_marker' => DataCiteUrlUpdateRun::ACTIVE_MARKER,
+            'status' => DataCiteUrlUpdateRunStatus::COMPLETED,
+            'active_marker' => null,
             'initiated_by_user_id' => User::factory(),
             'last_controlled_by_user_id' => null,
             'test_mode' => true,
@@ -33,6 +33,16 @@ class DataCiteUrlUpdateRunFactory extends Factory
             'already_current' => 0,
             'skipped' => 0,
             'failed' => 0,
+            'completed_at' => now(),
         ];
+    }
+
+    public function active(): static
+    {
+        return $this->state(fn (): array => [
+            'status' => DataCiteUrlUpdateRunStatus::QUEUED,
+            'active_marker' => DataCiteUrlUpdateRun::ACTIVE_MARKER,
+            'completed_at' => null,
+        ]);
     }
 }

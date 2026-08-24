@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\LandingPage;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 
 class DataCiteUrlUpdateTargetService
@@ -42,14 +43,10 @@ class DataCiteUrlUpdateTargetService
     public function isReachable(string $url): bool
     {
         try {
-            $response = Http::connectTimeout(3)
-                ->timeout(8)
-                ->withOptions(['allow_redirects' => ['max' => 3, 'strict' => true]])
-                ->head($url);
+            $response = $this->reachabilityRequest()->head($url);
 
             if (! $response->successful() && $response->status() === 405) {
-                $response = Http::connectTimeout(3)
-                    ->timeout(8)
+                $response = $this->reachabilityRequest()
                     ->withHeaders(['Range' => 'bytes=0-0'])
                     ->get($url);
             }
@@ -98,5 +95,18 @@ class DataCiteUrlUpdateTargetService
         $query = isset($parts['query']) ? '?'.$parts['query'] : '';
 
         return "{$scheme}://{$host}{$port}{$path}{$query}";
+    }
+
+    private function reachabilityRequest(): PendingRequest
+    {
+        return Http::connectTimeout(max(1, (int) config(
+            'datacite.landing_page_url_update.reachability_connect_timeout_seconds',
+            3,
+        )))
+            ->timeout(max(1, (int) config(
+                'datacite.landing_page_url_update.reachability_timeout_seconds',
+                8,
+            )))
+            ->withOptions(['allow_redirects' => ['max' => 3, 'strict' => true]]);
     }
 }
