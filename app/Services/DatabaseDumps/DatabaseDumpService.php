@@ -52,10 +52,16 @@ final class DatabaseDumpService
             $target = $this->target($export->target_key);
             $connectionName = (string) $target['connection'];
             $connection = $this->connectionConfig($connectionName);
-            $client = $this->processRunner->findDumpClient();
+            $requiredClient = $this->requiredDumpClient($target);
+            $client = $this->processRunner->findDumpClient($requiredClient);
 
             if ($client === null) {
-                $failedMessage = 'No mysqldump or mariadb-dump binary is available in the application container.';
+                $failedMessage = $requiredClient === null
+                    ? 'No mysqldump or mariadb-dump binary is available in the application container.'
+                    : sprintf(
+                        'The required database dump client [%s] is not available in the application container.',
+                        basename($requiredClient),
+                    );
 
                 throw new \RuntimeException('No database dump client is available.');
             }
@@ -63,7 +69,9 @@ final class DatabaseDumpService
             $this->assertLocalDisk($export->disk);
 
             $serverInfo = $this->serverInfoProvider->resolve($connectionName);
-            $flags = $this->buildDumpFlags($client, $target, $connection);
+            $usesSslMode = ($target['requires_legacy_ssl_probe'] ?? false) === true
+                && $this->processRunner->supportsOption($client, '--ssl-mode');
+            $flags = $this->buildDumpFlags($client, $target, $connection, $usesSslMode);
             $disk = Storage::disk($export->disk);
             $path = $export->path ?? $this->buildPath($export);
             $filename = $export->filename ?? basename($path);
@@ -85,7 +93,7 @@ final class DatabaseDumpService
                 ],
             ])->save();
 
-            $optionFile = $this->writeTemporaryOptionFile($export, $connection);
+            $optionFile = $this->writeTemporaryOptionFile($export, $connection, $usesSslMode);
             $command = array_merge(
                 [$client, "--defaults-extra-file={$optionFile}"],
                 $flags,
@@ -206,11 +214,25 @@ final class DatabaseDumpService
 
     /**
      * @param  array<string, mixed>  $target
+     */
+    private function requiredDumpClient(array $target): ?string
+    {
+        $client = $target['dump_binary'] ?? null;
+
+        return is_string($client) && trim($client) !== '' ? $client : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $target
      * @param  array<string, mixed>  $connection
      * @return list<string>
      */
-    private function buildDumpFlags(string $client, array $target, array $connection): array
-    {
+    private function buildDumpFlags(
+        string $client,
+        array $target,
+        array $connection,
+        bool $usesSslMode,
+    ): array {
         $flags = [
             '--databases',
             '--single-transaction',
@@ -229,7 +251,9 @@ final class DatabaseDumpService
         }
 
         if (($target['requires_legacy_ssl_probe'] ?? false) === true) {
-            $flags[] = '--ssl';
+            // The IGSN MySQL 5.6 server currently has no TLS support. PREFERRED
+            // preserves the existing fallback while still trying TLS first.
+            $flags[] = $usesSslMode ? '--ssl-mode=PREFERRED' : '--ssl';
         }
 
         if (! empty($connection['charset']) && is_string($connection['charset'])) {
@@ -242,8 +266,11 @@ final class DatabaseDumpService
     /**
      * @param  array<string, mixed>  $connection
      */
-    private function writeTemporaryOptionFile(DatabaseDumpExport $export, array $connection): string
-    {
+    private function writeTemporaryOptionFile(
+        DatabaseDumpExport $export,
+        array $connection,
+        bool $usesSslMode,
+    ): string {
         $directory = storage_path('app/private/database-dumps/tmp');
 
         if (! is_dir($directory)) {
@@ -271,11 +298,12 @@ final class DatabaseDumpService
         $sslCa = $options[Mysql::ATTR_SSL_CA] ?? null;
         $sslVerifyServerCert = $options[Mysql::ATTR_SSL_VERIFY_SERVER_CERT] ?? null;
 
-        if (is_string($sslCa) && $sslCa !== '') {
+        if (is_string($sslCa) && $sslCa !== '' && (! $usesSslMode || $sslVerifyServerCert !== false)) {
             $lines[] = $this->formatOptionLine('ssl-ca', $sslCa);
         }
 
-        if ($sslVerifyServerCert === false) {
+        // Oracle MySQL clients replaced this MariaDB option with --ssl-mode.
+        if (! $usesSslMode && $sslVerifyServerCert === false) {
             $lines[] = 'ssl-verify-server-cert=0';
         }
 

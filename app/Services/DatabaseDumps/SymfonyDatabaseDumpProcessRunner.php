@@ -13,8 +13,12 @@ final class SymfonyDatabaseDumpProcessRunner implements DatabaseDumpProcessRunne
      */
     private array $helpOutputCache = [];
 
-    public function findDumpClient(): ?string
+    public function findDumpClient(?string $requiredBinary = null): ?string
     {
+        if (is_string($requiredBinary) && trim($requiredBinary) !== '') {
+            return $this->resolveExecutable($requiredBinary);
+        }
+
         $configuredBinary = config('database_dumps.dump_binary');
 
         $candidates = array_values(array_filter([
