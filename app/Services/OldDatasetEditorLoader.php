@@ -18,6 +18,7 @@ class OldDatasetEditorLoader
 
     public function __construct(
         private ?LegacyKeywordService $legacyKeywordService = null,
+        private ?LegacyResourceTypeResolverService $resourceTypeResolver = null,
     ) {}
 
     /**
@@ -206,21 +207,9 @@ class OldDatasetEditorLoader
      */
     private function mapResourceType(?string $oldType): string
     {
-        if (empty($oldType)) {
-            return '1'; // Default to 'Dataset'
-        }
+        $this->resourceTypeResolver ??= app(LegacyResourceTypeResolverService::class);
 
-        // Map old resource type strings to new IDs
-        $typeMap = [
-            'Dataset' => '1',
-            'Collection' => '2',
-            'Model' => '3',
-            'Software' => '4',
-            'Image' => '5',
-            'PhysicalObject' => '6',
-        ];
-
-        return $typeMap[$oldType] ?? '1'; // Default to Dataset
+        return (string) $this->resourceTypeResolver->resolveId($oldType);
     }
 
     /**

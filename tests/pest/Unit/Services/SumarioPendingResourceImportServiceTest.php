@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\ResourceWorkflowStatus;
 use App\Models\Datacenter;
 use App\Models\Resource;
+use App\Models\ResourceType;
 use App\Models\User;
 use App\Services\DoiSuggestionService;
 use App\Services\LegacyLandingPageImportService;
@@ -13,6 +14,7 @@ use App\Services\MetaworksDownloadUrlService;
 use App\Services\OldDatasetEditorLoader;
 use App\Services\ResourceStorageService;
 use App\Services\SumarioPendingResourceImportService;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -23,6 +25,8 @@ uses(RefreshDatabase::class);
 
 describe('SumarioPendingResourceImportService', function () {
     beforeEach(function () {
+        $this->seed(ResourceTypeSeeder::class);
+
         Config::set('database.connections.metaworks', [
             'driver' => 'sqlite',
             'database' => ':memory:',
@@ -37,6 +41,7 @@ describe('SumarioPendingResourceImportService', function () {
             $table->string('identifier')->nullable()->collation('NOCASE');
             $table->integer('publicationyear')->nullable();
             $table->string('title')->nullable();
+            $table->string('resourcetypegeneral')->nullable();
         });
     });
 
@@ -47,6 +52,7 @@ describe('SumarioPendingResourceImportService', function () {
             'identifier' => '10.5880/pending.one',
             'publicationyear' => 2024,
             'title' => 'Legacy Pending Dataset',
+            'resourcetypegeneral' => 'Dataset',
         ]);
 
         $user = User::factory()->create();
@@ -95,9 +101,15 @@ describe('SumarioPendingResourceImportService', function () {
             ->shouldReceive('store')
             ->once()
             ->andReturnUsing(function (array $payload, int $userId) use ($user, $datacenter): array {
+                $datasetTypeId = ResourceType::query()->where('slug', 'dataset')->value('id');
+
                 expect($userId)->toBe($user->id)
                     ->and($payload['doi'])->toBe('10.5880/pending.one')
                     ->and($payload['language'])->toBeNull()
+                    ->and($payload['resourceType'])->toBe($datasetTypeId)
+                    ->and($payload['resourceType'])->not->toBe(
+                        ResourceType::query()->where('slug', 'audiovisual')->value('id')
+                    )
                     ->and($payload['authors'][0]['isContact'])->toBeTrue()
                     ->and($payload['authors'][0]['email'])->toBe('jane@example.org')
                     ->and($payload['datacenter_id'])->toBe($datacenter->id);
@@ -482,13 +494,20 @@ describe('SumarioPendingResourceImportService', function () {
         ],
     ]);
 
-    it('skips a pending SUMARIO resource when the DOI already exists in ERNIE', function () {
+    it('repairs the resource type when a pending SUMARIO resource already exists in ERNIE', function () {
         DB::connection('metaworks')->table('resource')->insert([
             'id' => 56,
             'publicstatus' => 'pending',
             'identifier' => '10.5880/pending.existing',
+            'resourcetypegeneral' => 'Dataset',
         ]);
-        Resource::factory()->create(['doi' => '10.5880/pending.existing']);
+        $audiovisualTypeId = ResourceType::query()->where('slug', 'audiovisual')->value('id');
+        $datasetTypeId = ResourceType::query()->where('slug', 'dataset')->value('id');
+        $user = User::factory()->create();
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/pending.existing',
+            'resource_type_id' => $audiovisualTypeId,
+        ]);
 
         $service = new SumarioPendingResourceImportService(
             editorLoader: Mockery::mock(OldDatasetEditorLoader::class),
@@ -499,9 +518,12 @@ describe('SumarioPendingResourceImportService', function () {
             doiSuggestionService: app(DoiSuggestionService::class),
         );
 
-        $result = $service->importPendingByDoi('10.5880/pending.existing', 1);
+        $result = $service->importPendingByDoi('10.5880/pending.existing', $user->id);
+        $repairedResource = $resource->fresh();
 
-        expect($result['status'])->toBe('skipped');
+        expect($result['status'])->toBe('skipped')
+            ->and($repairedResource->resource_type_id)->toBe($datasetTypeId)
+            ->and($repairedResource->updated_by_user_id)->toBe($user->id);
     });
 
     it('skips pending SUMARIO resources whose DOI contains test or delete', function () {
@@ -543,6 +565,7 @@ describe('SumarioPendingResourceImportService', function () {
             'identifier' => null,
             'publicationyear' => 2024,
             'title' => 'Local legacy draft',
+            'resourcetypegeneral' => 'Dataset',
         ]);
 
         $user = User::factory()->create();
@@ -597,6 +620,14 @@ describe('SumarioPendingResourceImportService', function () {
         expect($service->countImportablePending())->toBe(1);
 
         $firstRun = $service->importAllPending($user->id);
+        $importedResource = Resource::query()
+            ->where('legacy_source', 'sumario-pmd')
+            ->where('legacy_source_id', 91)
+            ->firstOrFail();
+        $importedResource->forceFill([
+            'resource_type_id' => ResourceType::query()->where('slug', 'audiovisual')->value('id'),
+        ])->saveQuietly();
+
         $secondRun = $service->importAllPending($user->id);
         $resource = Resource::query()
             ->where('legacy_source', 'sumario-pmd')
@@ -619,6 +650,7 @@ describe('SumarioPendingResourceImportService', function () {
             ])
             ->and($resource->doi)->toBeNull()
             ->and($resource->workflow_status_override)->toBe(ResourceWorkflowStatus::DRAFT)
+            ->and($resource->resource_type_id)->toBe(ResourceType::query()->where('slug', 'dataset')->value('id'))
             ->and($resource->force_review_status)->toBeFalse()
             ->and($resource->publicStatus())->toBe('draft')
             ->and($resource->landingPage)->not->toBeNull()

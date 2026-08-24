@@ -8,7 +8,6 @@ use App\Enums\ResourceWorkflowStatus;
 use App\Models\Datacenter;
 use App\Models\OldDataset;
 use App\Models\Resource;
-use App\Models\ResourceType;
 use App\Support\LanguageTag;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -22,6 +21,7 @@ class SumarioPendingResourceImportService
         private readonly MetaworksDownloadUrlService $downloadUrlService,
         private readonly LegacyLandingPageImportService $landingPageImport,
         private readonly DoiSuggestionService $doiSuggestionService,
+        private ?LegacyResourceTypeResolverService $resourceTypeResolver = null,
     ) {}
 
     public function countImportablePending(): int
@@ -58,7 +58,11 @@ class SumarioPendingResourceImportService
             ];
         }
 
-        if (Resource::where('doi', $normalisedDoi)->exists()) {
+        $existingResource = Resource::where('doi', $normalisedDoi)->first();
+
+        if ($existingResource !== null) {
+            $this->repairExistingResourceType($existingResource, $oldDataset, $userId);
+
             return [
                 'status' => 'skipped',
                 'resource' => null,
@@ -169,14 +173,15 @@ class SumarioPendingResourceImportService
                 continue;
             }
 
-            $alreadyImported = $doi !== null
-                ? Resource::where('doi', $doi)->exists()
+            $existingResource = $doi !== null
+                ? Resource::where('doi', $doi)->first()
                 : Resource::query()
                     ->where('legacy_source', 'sumario-pmd')
                     ->where('legacy_source_id', $oldDataset->id)
-                    ->exists();
+                    ->first();
 
-            if ($alreadyImported) {
+            if ($existingResource !== null) {
+                $this->repairExistingResourceType($existingResource, $oldDataset, $userId);
                 $summary['skipped']++;
                 if (count($summary['skipped_dois']) < $maxStoredDois) {
                     $summary['skipped_dois'][] = $importLabel;
@@ -270,7 +275,7 @@ class SumarioPendingResourceImportService
             'year' => $this->normaliseYear($editorData['year'] ?? $oldDataset->publicationyear),
             'version' => $this->filledString($editorData['version'] ?? null),
             'language' => $this->filledString($editorData['language'] ?? null),
-            'resourceType' => $this->resolveResourceTypeId($editorData['resourceType'] ?? null),
+            'resourceType' => $this->resolveLegacyResourceTypeId($oldDataset->resourcetypegeneral),
             'titles' => $this->normaliseTitles($editorData['titles'] ?? [], $oldDataset, $doi),
             'licenses' => $this->normaliseStringList($editorData['initialRights'] ?? []),
             'rawRights' => is_array($editorData['initialRawRights'] ?? null) ? array_values($editorData['initialRawRights']) : [],
@@ -493,16 +498,39 @@ class SumarioPendingResourceImportService
         ])->id;
     }
 
-    private function resolveResourceTypeId(mixed $resourceType): ?int
+    private function resolveLegacyResourceTypeId(?string $legacyResourceType): int
     {
-        if (is_numeric($resourceType) && ResourceType::whereKey((int) $resourceType)->exists()) {
-            return (int) $resourceType;
+        $this->resourceTypeResolver ??= app(LegacyResourceTypeResolverService::class);
+
+        return $this->resourceTypeResolver->resolveId($legacyResourceType);
+    }
+
+    private function repairExistingResourceType(
+        Resource $resource,
+        OldDataset $oldDataset,
+        int $userId,
+    ): void {
+        $resourceTypeId = $this->resolveLegacyResourceTypeId($oldDataset->resourcetypegeneral);
+
+        if ((int) $resource->resource_type_id === $resourceTypeId) {
+            return;
         }
 
-        return ResourceType::query()
-            ->where('slug', 'dataset')
-            ->value('id')
-            ?? ResourceType::query()->value('id');
+        $previousResourceTypeId = $resource->resource_type_id;
+
+        $resource->forceFill([
+            'resource_type_id' => $resourceTypeId,
+            'updated_by_user_id' => $userId,
+        ])->save();
+
+        Log::info('Repaired legacy resource type during pending import', [
+            'resource_id' => $resource->id,
+            'doi' => $resource->doi,
+            'legacy_resource_id' => $oldDataset->id,
+            'legacy_resource_type' => $oldDataset->resourcetypegeneral,
+            'previous_resource_type_id' => $previousResourceTypeId,
+            'resource_type_id' => $resourceTypeId,
+        ]);
     }
 
     private function normaliseYear(mixed $year): ?int
