@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AccessLevel;
+use App\Enums\ResourceWorkflowStatus;
 use App\Models\Datacenter;
 use App\Models\Description;
 use App\Models\DescriptionType;
@@ -250,6 +251,88 @@ describe('Status Filter', function (): void {
                 ->has('resources', 1)
                 ->where('resources.0.id', $publishedResource->id)
                 ->where('resources.0.publicstatus', 'published')
+            );
+    });
+
+    it('keeps published resources out of draft even when newer mandatory fields are missing', function (): void {
+        $publishedResource = Resource::factory()->create([
+            'doi' => '10.5880/incomplete-but-published',
+            'access_level' => null,
+        ]);
+        LandingPage::factory()->published()->create([
+            'resource_id' => $publishedResource->id,
+        ]);
+        $draftResource = Resource::factory()->create([
+            'doi' => '10.5880/incomplete-draft',
+            'access_level' => null,
+        ]);
+
+        get(route('resources', ['status' => ['published']]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->has('resources', 1)
+                ->where('resources.0.id', $publishedResource->id)
+                ->where('resources.0.publicstatus', 'published')
+            );
+
+        get(route('resources', ['status' => ['draft']]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->has('resources', 1)
+                ->where('resources.0.id', $draftResource->id)
+                ->where('resources.0.publicstatus', 'draft')
+            );
+    });
+
+    it('keeps an incomplete forced legacy review out of draft', function (): void {
+        $reviewResource = Resource::factory()->create([
+            'doi' => '10.5880/incomplete-review',
+            'access_level' => null,
+            'force_review_status' => true,
+        ]);
+
+        get(route('resources', ['status' => ['review']]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->has('resources', 1)
+                ->where('resources.0.id', $reviewResource->id)
+                ->where('resources.0.publicstatus', 'review')
+            );
+
+        get(route('resources', ['status' => ['draft']]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->has('resources', 0)
+            );
+    });
+
+    it('keeps a complete DOI-less legacy resource in draft when the source explicitly marks it as a draft', function (): void {
+        $draftResource = Resource::factory()->create([
+            'doi' => null,
+            'workflow_status_override' => ResourceWorkflowStatus::DRAFT,
+        ]);
+        makeResourceComplete($draftResource);
+
+        expect($draftResource->fresh()->publicStatus())->toBe('draft');
+
+        get(route('resources', ['status' => ['draft']]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->has('resources', 1)
+                ->where('resources.0.id', $draftResource->id)
+                ->where('resources.0.publicstatus', 'draft')
+            );
+
+        get(route('resources', ['status' => ['curation']]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->has('resources', 0)
             );
     });
 

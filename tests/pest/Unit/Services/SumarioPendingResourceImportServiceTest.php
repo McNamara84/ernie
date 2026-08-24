@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ResourceWorkflowStatus;
 use App\Models\Datacenter;
 use App\Models\Resource;
 use App\Models\User;
@@ -533,5 +534,95 @@ describe('SumarioPendingResourceImportService', function () {
         expect($result['status'])->toBe('skipped')
             ->and($result['doi'])->toBe('10.5880/fidgeo.test.to.be.deleted')
             ->and(Resource::where('doi', '10.5880/fidgeo.test.to.be.deleted')->exists())->toBeFalse();
+    });
+
+    it('imports DOI-less pending records once as explicit drafts keyed by their legacy id', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 91,
+            'publicstatus' => 'pending',
+            'identifier' => null,
+            'publicationyear' => 2024,
+            'title' => 'Local legacy draft',
+        ]);
+
+        $user = User::factory()->create();
+        $editorLoader = Mockery::mock(OldDatasetEditorLoader::class);
+        $editorLoader
+            ->shouldReceive('loadForEditor')
+            ->once()
+            ->with(91)
+            ->andReturn([
+                'doi' => '',
+                'year' => '2024',
+                'titles' => [['title' => 'Local legacy draft', 'titleType' => 'main-title']],
+                'initialRights' => [],
+                'authors' => [],
+                'contributors' => [],
+                'descriptions' => [],
+                'dates' => [],
+                'gcmdKeywords' => [],
+                'freeKeywords' => [],
+                'geoLocations' => [],
+                'relatedWorks' => [],
+                'fundingReferences' => [],
+                'mslLaboratories' => [],
+            ]);
+
+        $resourceStorage = Mockery::mock(ResourceStorageService::class);
+        $resourceStorage
+            ->shouldReceive('store')
+            ->once()
+            ->andReturnUsing(function (array $payload, int $userId) use ($user): array {
+                expect($userId)->toBe($user->id)
+                    ->and($payload['doi'])->toBeNull()
+                    ->and($payload['datacenter_id'])->toBeNull();
+
+                return [Resource::factory()->create(['doi' => null]), false];
+            });
+
+        $datacenterLookup = Mockery::mock(LegacyMetaworksDatacenterLookupService::class);
+        $datacenterLookup->shouldNotReceive('resolveDatacenterIds');
+        $downloadUrlService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $downloadUrlService->shouldNotReceive('lookupFileEntries');
+
+        $service = new SumarioPendingResourceImportService(
+            editorLoader: $editorLoader,
+            resourceStorage: $resourceStorage,
+            datacenterLookup: $datacenterLookup,
+            downloadUrlService: $downloadUrlService,
+            landingPageImport: new LegacyLandingPageImportService,
+            doiSuggestionService: app(DoiSuggestionService::class),
+        );
+
+        expect($service->countImportablePending())->toBe(1);
+
+        $firstRun = $service->importAllPending($user->id);
+        $secondRun = $service->importAllPending($user->id);
+        $resource = Resource::query()
+            ->where('legacy_source', 'sumario-pmd')
+            ->where('legacy_source_id', 91)
+            ->with('landingPage')
+            ->firstOrFail();
+
+        expect($firstRun)->toMatchArray([
+            'processed' => 1,
+            'imported' => 1,
+            'skipped' => 0,
+            'failed' => 0,
+        ])
+            ->and($secondRun)->toMatchArray([
+                'processed' => 1,
+                'imported' => 0,
+                'skipped' => 1,
+                'failed' => 0,
+                'skipped_dois' => ['legacy:sumario-pmd:91'],
+            ])
+            ->and($resource->doi)->toBeNull()
+            ->and($resource->workflow_status_override)->toBe(ResourceWorkflowStatus::DRAFT)
+            ->and($resource->force_review_status)->toBeFalse()
+            ->and($resource->publicStatus())->toBe('draft')
+            ->and($resource->landingPage)->not->toBeNull()
+            ->and($resource->landingPage->is_published)->toBeFalse()
+            ->and(Resource::query()->where('legacy_source', 'sumario-pmd')->where('legacy_source_id', 91)->count())->toBe(1);
     });
 });

@@ -31,7 +31,7 @@ it('has a hard test-mode guard in the queued sync job', function (): void {
     LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
 
     $syncService = Mockery::mock(DataCiteSyncService::class);
-    $syncService->shouldNotReceive('syncIfRegistered');
+    $syncService->shouldNotReceive('syncLandingPageUrlIfRegistered');
 
     (new SyncImportedResourcesWithDataCiteJob(
         ImportProgressService::TYPE_RESOURCE,
@@ -48,7 +48,7 @@ it('records successful synchronization separately from import counts', function 
     $progress->beginSync(ImportProgressService::TYPE_RESOURCE, $this->importId, [$resource->id]);
 
     $syncService = Mockery::mock(DataCiteSyncService::class);
-    $syncService->shouldReceive('syncIfRegistered')
+    $syncService->shouldReceive('syncLandingPageUrlIfRegistered')
         ->once()
         ->andReturn(DataCiteSyncResult::succeeded('10.5880/success'));
 
@@ -77,7 +77,7 @@ it('keeps local data and exposes retryable synchronization failures', function (
     $progress->beginSync(ImportProgressService::TYPE_RESOURCE, $this->importId, [$resource->id]);
 
     $syncService = Mockery::mock(DataCiteSyncService::class);
-    $syncService->shouldReceive('syncIfRegistered')
+    $syncService->shouldReceive('syncLandingPageUrlIfRegistered')
         ->once()
         ->andReturn(DataCiteSyncResult::failed('10.5880/failure', 'DataCite unavailable'));
 

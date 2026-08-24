@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\AccessLevel;
 use App\Models\DateType;
 use App\Models\Description;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\Right;
@@ -34,6 +35,25 @@ function resourceCompleteExceptForAccess(?AccessLevel $accessLevel): Resource
 
 test('an access level is mandatory for resource completeness', function (): void {
     expect(resourceCompleteExceptForAccess(null)->isComplete())->toBeFalse();
+});
+
+test('a published landing page remains authoritative when newer mandatory fields are missing', function (): void {
+    $resource = resourceCompleteExceptForAccess(null);
+    LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+
+    $resource = $resource->fresh([
+        'landingPage',
+        'titles.titleType',
+        'creators',
+        'rights',
+        'descriptions.descriptionType',
+        'dates.dateType',
+    ]);
+
+    expect($resource)
+        ->not->toBeNull()
+        ->and($resource->isComplete())->toBeFalse()
+        ->and($resource->publicStatus())->toBe('published');
 });
 
 test('non-embargoed access levels need no Available date', function (AccessLevel $accessLevel): void {

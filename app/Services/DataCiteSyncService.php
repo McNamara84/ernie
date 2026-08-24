@@ -70,6 +70,59 @@ class DataCiteSyncService
     }
 
     /**
+     * Update only the landing-page URL for an imported DOI.
+     *
+     * Imports must not overwrite the authoritative metadata already stored at
+     * DataCite. Only published internal landing pages are eligible.
+     */
+    public function syncLandingPageUrlIfRegistered(Resource $resource): DataCiteSyncResult
+    {
+        $doi = trim((string) $resource->doi);
+
+        if ($doi === '') {
+            return DataCiteSyncResult::notRequired();
+        }
+
+        $resource->loadMissing('landingPage');
+        $landingPage = $resource->landingPage;
+
+        if ($landingPage === null) {
+            return DataCiteSyncResult::failed($doi, 'Landing page is required to update the DataCite URL.');
+        }
+
+        if (! $landingPage->is_published) {
+            return DataCiteSyncResult::failed($doi, 'Only published landing pages may be synchronized with DataCite.');
+        }
+
+        if ($landingPage->isExternal()) {
+            return DataCiteSyncResult::failed($doi, 'External landing pages are not eligible for imported DataCite URL synchronization.');
+        }
+
+        $targetUrl = trim((string) $landingPage->public_url);
+
+        if ($targetUrl === '') {
+            return DataCiteSyncResult::failed($doi, 'The published landing page has no public URL.');
+        }
+
+        try {
+            Log::info('Starting imported DataCite landing-page URL sync', [
+                'resource_id' => $resource->id,
+                'doi' => $doi,
+                'target_url' => $targetUrl,
+                'test_mode' => $this->registrationService->isTestMode(),
+            ]);
+
+            $this->registrationService->updateLandingPageUrl($doi, $targetUrl);
+
+            return DataCiteSyncResult::succeeded($doi);
+        } catch (RequestException $exception) {
+            return DataCiteSyncResult::failed($doi, $this->extractErrorMessage($exception));
+        } catch (\RuntimeException $exception) {
+            return DataCiteSyncResult::failed($doi, $exception->getMessage());
+        }
+    }
+
+    /**
      * Perform the actual DataCite metadata update.
      *
      * @param  Resource  $resource  Resource with DOI and landing page

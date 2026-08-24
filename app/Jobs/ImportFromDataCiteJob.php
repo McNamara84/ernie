@@ -7,7 +7,6 @@ namespace App\Jobs;
 use App\Enums\AccessLevel;
 use App\Enums\CitationLabelResolutionMode;
 use App\Models\Datacenter;
-use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\Crc806LegacyRightsService;
 use App\Services\DataCiteImportService;
@@ -138,19 +137,10 @@ class ImportFromDataCiteJob implements ShouldQueue
             }
 
             $pendingImportService = app(SumarioPendingResourceImportService::class);
-            $pendingImportUnavailable = false;
-
-            try {
-                $pendingTotal = $pendingImportService->countImportablePending();
-            } catch (\Throwable $exception) {
-                $pendingTotal = 0;
-                $pendingImportUnavailable = true;
-
-                Log::warning('SUMARIO pending import count failed; skipping pending resources', [
-                    'import_id' => $this->importId,
-                    'error' => $exception->getMessage(),
-                ]);
-            }
+            // This is an intentional preflight. A legacy outage must fail before
+            // DataCite resources are written; continuing would silently create a
+            // partial import (for example 8 instead of 8+3 for DOME).
+            $pendingTotal = $pendingImportService->countImportablePending();
 
             // Get total count for progress calculation
             $total = $importService->getTotalDoiCount() + $pendingTotal;
@@ -275,7 +265,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $this->updateProgressCounts($processed, $imported, $skipped, $failed, $enriched, $skippedDois, $enrichedDois, $failedDois, $total);
             }
 
-            if (! $pendingImportUnavailable && $this->determineFinalStatus() !== 'cancelled') {
+            if ($this->determineFinalStatus() !== 'cancelled') {
                 try {
                     $pendingSummary = $pendingImportService->importAllPending($this->userId, $maxStoredDois);
 
@@ -294,21 +284,16 @@ class ImportFromDataCiteJob implements ShouldQueue
                         $maxStoredDois,
                     );
                 } catch (\Throwable $exception) {
-                    $processed += $pendingTotal;
-                    $failed += $pendingTotal;
-
-                    if ($pendingTotal > 0 && count($failedDois) < $maxStoredDois) {
-                        $failedDois[] = [
-                            'doi' => 'sumario-pending',
-                            'error' => 'SUMARIO pending import is unavailable.',
-                        ];
-                    }
-
-                    Log::warning('SUMARIO pending import failed; continuing DataCite import job', [
+                    Log::error('SUMARIO pending import failed', [
                         'import_id' => $this->importId,
                         'pending_total' => $pendingTotal,
                         'error' => $exception->getMessage(),
                     ]);
+
+                    throw new \RuntimeException(
+                        'SUMARIO pending resources could not be imported.',
+                        previous: $exception,
+                    );
                 }
 
                 $this->updateProgressCounts($processed, $imported, $skipped, $failed, $enriched, $skippedDois, $enrichedDois, $failedDois, $total);
@@ -383,21 +368,23 @@ class ImportFromDataCiteJob implements ShouldQueue
         /** @var array<string, list<string>> $targets */
         $targets = $portalSelection['resources'];
         $pendingImportService = app(SumarioPendingResourceImportService::class);
-        $warnings = [];
-
         try {
             $pendingDois = $pendingImportService
                 ->importablePendingDoisForDatacenter($datacenter['name']);
         } catch (\Throwable $exception) {
-            $pendingDois = [];
-            $warnings[] = 'Matching SUMARIO pending resources could not be loaded.';
-
-            Log::warning('SUMARIO pending datacenter lookup failed; importing portal resources only', [
+            Log::error('SUMARIO pending datacenter preflight failed', [
                 'import_id' => $this->importId,
                 'datacenter_id' => $datacenter['id'],
                 'error' => $exception->getMessage(),
             ]);
+
+            throw new \RuntimeException(
+                'Matching SUMARIO pending resources could not be loaded.',
+                previous: $exception,
+            );
         }
+
+        $warnings = [];
 
         foreach ($pendingDois as $pendingDoi) {
             $normalizedDoi = $this->normalizeDoi($pendingDoi);
@@ -970,15 +957,13 @@ class ImportFromDataCiteJob implements ShouldQueue
             $existingResource = Resource::where('doi', $doi)->first();
 
             if ($existingResource !== null) {
-                Log::debug('Skipping existing DOI', ['doi' => $doi]);
-
-                $dataCiteLandingPageSync = $this->syncDataCiteLandingPageIfAllowed($existingResource, $doi, $doiRecord);
-
-                return [
-                    'status' => 'skipped',
-                    'metaworks_unavailable' => false,
-                    'enriched' => $dataCiteLandingPageSync['changed'],
-                ];
+                return $this->repairExistingResource(
+                    resource: $existingResource,
+                    doi: $doi,
+                    doiRecord: $doiRecord,
+                    metaworksService: $metaworksService,
+                    shouldLookupMetaworks: $shouldLookupMetaworks,
+                );
             }
 
             $doiRecord = app(OriginalDataCiteSubjectExtractionService::class)
@@ -1043,15 +1028,25 @@ class ImportFromDataCiteJob implements ShouldQueue
                 Log::debug('Skipping existing DOI', ['doi' => $doi]);
 
                 $existingResource = Resource::where('doi', $doi)->first();
-                $dataCiteLandingPageSync = $existingResource !== null
-                    ? $this->syncDataCiteLandingPageIfAllowed($existingResource, $doi, $preparedDoiRecord)
-                    : $this->emptyDataCiteLandingPageSyncResult();
 
-                return [
-                    'status' => 'skipped',
-                    'metaworks_unavailable' => $metaworksUnavailable,
-                    'enriched' => $dataCiteLandingPageSync['changed'],
-                ];
+                if ($existingResource === null) {
+                    return [
+                        'status' => 'skipped',
+                        'metaworks_unavailable' => $metaworksUnavailable,
+                        'enriched' => false,
+                    ];
+                }
+
+                $repairResult = $this->repairExistingResource(
+                    resource: $existingResource,
+                    doi: $doi,
+                    doiRecord: $preparedDoiRecord,
+                    metaworksService: $metaworksService,
+                    shouldLookupMetaworks: $shouldLookupMetaworks && ! $metaworksUnavailable,
+                );
+                $repairResult['metaworks_unavailable'] = $repairResult['metaworks_unavailable'] || $metaworksUnavailable;
+
+                return $repairResult;
             }
 
             /** @var Resource $importedResource */
@@ -1067,7 +1062,9 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
-            if ($shouldLookupMetaworks && ! $metaworksUnavailable && ! LandingPage::where('resource_id', $importedResource->id)->exists()) {
+            $importedResource->loadMissing('landingPage');
+
+            if ($shouldLookupMetaworks && ! $metaworksUnavailable && ! $importedResource->landingPage?->isExternal()) {
                 $legacyDownloadSync = $this->syncLegacyDownloadLinks($importedResource, $doi, $doiRecord, $metaworksService);
             }
 
@@ -1095,19 +1092,65 @@ class ImportFromDataCiteJob implements ShouldQueue
                 Log::debug('Skipping DOI due to concurrent insert (race condition)', ['doi' => $doi]);
 
                 $existingResource = Resource::where('doi', $doi)->first();
-                $dataCiteLandingPageSync = $existingResource !== null
-                    ? $this->syncDataCiteLandingPageIfAllowed($existingResource, $doi, $doiRecord)
-                    : $this->emptyDataCiteLandingPageSyncResult();
 
-                return [
-                    'status' => 'skipped',
-                    'metaworks_unavailable' => $metaworksUnavailable,
-                    'enriched' => $dataCiteLandingPageSync['changed'],
-                ];
+                if ($existingResource === null) {
+                    return [
+                        'status' => 'skipped',
+                        'metaworks_unavailable' => $metaworksUnavailable,
+                        'enriched' => false,
+                    ];
+                }
+
+                $repairResult = $this->repairExistingResource(
+                    resource: $existingResource,
+                    doi: $doi,
+                    doiRecord: $doiRecord,
+                    metaworksService: $metaworksService,
+                    shouldLookupMetaworks: $shouldLookupMetaworks && ! $metaworksUnavailable,
+                );
+                $repairResult['metaworks_unavailable'] = $repairResult['metaworks_unavailable'] || $metaworksUnavailable;
+
+                return $repairResult;
             }
 
             throw $exception;
         }
+    }
+
+    /**
+     * Repair enrichment that may have been missed by an earlier import while
+     * still reporting the DOI as skipped for import-count compatibility.
+     *
+     * @param  array<string, mixed>  $doiRecord
+     * @return array{status: 'skipped', metaworks_unavailable: bool, enriched: bool}
+     */
+    private function repairExistingResource(
+        Resource $resource,
+        string $doi,
+        array $doiRecord,
+        MetaworksDownloadUrlService $metaworksService,
+        bool $shouldLookupMetaworks,
+    ): array {
+        Log::debug('Repairing existing DOI import enrichment', ['doi' => $doi]);
+
+        $dataCiteLandingPageSync = $this->syncDataCiteLandingPageIfAllowed($resource, $doi, $doiRecord);
+        $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
+        $resource->unsetRelation('landingPage');
+        $resource->load('landingPage');
+
+        if ($shouldLookupMetaworks && ! $resource->landingPage?->isExternal()) {
+            $legacyDownloadSync = $this->syncLegacyDownloadLinks($resource, $doi, $doiRecord, $metaworksService);
+        }
+
+        if ($dataCiteLandingPageSync['sync_eligible'] || $legacyDownloadSync['sync_eligible']) {
+            $this->resourceIdsForDataCiteSync[] = (int) $resource->id;
+        }
+
+        return [
+            'status' => 'skipped',
+            'metaworks_unavailable' => $legacyDownloadSync['metaworks_unavailable'],
+            'enriched' => $dataCiteLandingPageSync['changed'] || $legacyDownloadSync['changed'],
+        ];
     }
 
     /**
@@ -1327,7 +1370,11 @@ class ImportFromDataCiteJob implements ShouldQueue
         return [
             'changed' => $syncResult['changed'],
             'metaworks_unavailable' => false,
-            'sync_eligible' => $syncResult['created'] && $decision['should_sync'],
+            'sync_eligible' => $decision['should_sync']
+                && $syncResult['landing_page'] !== null
+                && $syncResult['landing_page']->is_published
+                && ! $syncResult['landing_page']->isExternal()
+                && trim((string) $syncResult['landing_page']->public_url) !== trim((string) ($attributes['url'] ?? '')),
         ];
     }
 

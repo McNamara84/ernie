@@ -50,8 +50,9 @@ class LegacyLandingPageImportService
      * Synchronise missing legacy file entries into an existing or new landing page.
      *
      * Existing curator-provided values are preserved: a non-empty primary download
-     * URL is never overwritten, existing additional links are kept, and publish
-     * state is only set when a new legacy landing page is created.
+     * URL is never overwritten and existing additional links are kept. A released
+     * legacy resource may publish an existing draft page, but this method never
+     * unpublishes an existing page.
      *
      * @param  list<array{url: string, label?: string|null, visible?: string|null}>  $fileEntries
      * @return array{changed: bool, created: bool, ftp_url_added: bool, links_added: int, landing_page: LandingPage|null}
@@ -83,12 +84,23 @@ class LegacyLandingPageImportService
                 );
             }
 
-            if ($fileEntries === []) {
+            if ($landingPage->isExternal()) {
                 return $this->syncResult(landingPage: $landingPage);
             }
 
-            if ($landingPage->isExternal()) {
-                return $this->syncResult(landingPage: $landingPage);
+            $published = false;
+
+            if ($isPublished && ! $landingPage->is_published) {
+                $landingPage->forceFill([
+                    'is_published' => true,
+                    'published_at' => $landingPage->published_at ?? now(),
+                ])->save();
+                $published = true;
+                $landingPage->refresh();
+            }
+
+            if ($fileEntries === []) {
+                return $this->syncResult(changed: $published, landingPage: $landingPage);
             }
 
             $landingPage->loadMissing('links');
@@ -132,7 +144,7 @@ class LegacyLandingPageImportService
             }
 
             return $this->syncResult(
-                changed: $ftpUrlAdded || $downloadsUnavailableCleared || $linksAdded > 0,
+                changed: $published || $ftpUrlAdded || $downloadsUnavailableCleared || $linksAdded > 0,
                 ftpUrlAdded: $ftpUrlAdded,
                 linksAdded: $linksAdded,
                 landingPage: $landingPage->fresh(['links']),

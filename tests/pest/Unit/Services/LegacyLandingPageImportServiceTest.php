@@ -168,8 +168,8 @@ describe('LegacyLandingPageImportService', function () {
             ->and($result['ftp_url_added'])->toBeTrue()
             ->and($result['links_added'])->toBe(1)
             ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/new-primary.zip')
-            ->and($landingPage->is_published)->toBeFalse()
-            ->and($landingPage->published_at)->toBeNull()
+            ->and($landingPage->is_published)->toBeTrue()
+            ->and($landingPage->published_at)->not->toBeNull()
             ->and($landingPage->links)->toHaveCount(2)
             ->and($landingPage->links->pluck('url')->all())->toBe([
                 'https://datapub.gfz.de/already-linked.zip',
