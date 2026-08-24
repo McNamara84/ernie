@@ -41,6 +41,9 @@ return [
             'label' => 'IGSN',
             'description' => 'Legacy IGSN metadata database',
             'connection' => 'igsn_legacy',
+            // MariaDB 11.x dump clients query information_schema columns that
+            // do not exist on MySQL 5.6. Use the bundled Oracle MySQL client.
+            'dump_binary' => env('DATABASE_DUMP_IGSN_BINARY', '/usr/local/bin/mysql-legacy-mysqldump'),
             'legacy' => true,
             'requires_legacy_ssl_probe' => true,
             'server_version_hint' => 'MySQL 5.6.36',

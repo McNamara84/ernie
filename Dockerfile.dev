@@ -5,6 +5,8 @@
 # Usage: docker-compose -f docker-compose.dev.yml up --build
 # =============================================================================
 
+FROM mysql:8.4.7@sha256:0426ec38c7a10aa45ba383887df7878f74ee70e2fd589c7b69207f3577901903 AS legacy-mysql-dump-client
+
 # -----------------------------------------------------------------------------
 # Stage: PHP-FPM Application (Development)
 # -----------------------------------------------------------------------------
@@ -152,6 +154,11 @@ RUN apt-get update \
     && apt-get install -y nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# MariaDB 11.x's dump client is incompatible with the legacy MySQL 5.6 IGSN
+# server. Keep this separate Oracle client only while that export is required.
+COPY --from=legacy-mysql-dump-client /usr/bin/mysqldump /usr/local/bin/mysql-legacy-mysqldump
+RUN /usr/local/bin/mysql-legacy-mysqldump --version
 
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip sodium xsl intl sockets

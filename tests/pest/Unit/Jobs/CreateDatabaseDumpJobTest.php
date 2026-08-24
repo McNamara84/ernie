@@ -17,7 +17,7 @@ final class CreateDatabaseDumpJobTestRunner implements DatabaseDumpProcessRunner
 {
     public int $runs = 0;
 
-    public function findDumpClient(): ?string
+    public function findDumpClient(?string $requiredBinary = null): string
     {
         return '/usr/bin/mysqldump';
     }

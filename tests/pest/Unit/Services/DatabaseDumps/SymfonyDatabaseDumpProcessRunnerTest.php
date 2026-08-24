@@ -16,6 +16,19 @@ it('prefers a configured executable dump client', function (): void {
     expect((new SymfonyDatabaseDumpProcessRunner)->findDumpClient())->toBe(PHP_BINARY);
 });
 
+it('uses a required target-specific client', function (): void {
+    config()->set('database_dumps.dump_binary', storage_path('framework/testing/missing-global-mysqldump'));
+
+    expect((new SymfonyDatabaseDumpProcessRunner)->findDumpClient(PHP_BINARY))->toBe(PHP_BINARY);
+});
+
+it('does not fall back when a required target-specific client is missing', function (): void {
+    config()->set('database_dumps.dump_binary', PHP_BINARY);
+    $missingClient = storage_path('framework/testing/missing-target-mysqldump');
+
+    expect((new SymfonyDatabaseDumpProcessRunner)->findDumpClient($missingClient))->toBeNull();
+});
+
 it('detects supported options from cached client help output', function (): void {
     $runner = new SymfonyDatabaseDumpProcessRunner;
     $script = storage_path('framework/testing/fake-mysqldump-client.php');

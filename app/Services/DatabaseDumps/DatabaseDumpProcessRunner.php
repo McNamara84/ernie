@@ -6,7 +6,7 @@ namespace App\Services\DatabaseDumps;
 
 interface DatabaseDumpProcessRunner
 {
-    public function findDumpClient(): ?string;
+    public function findDumpClient(?string $requiredBinary = null): ?string;
 
     public function supportsOption(string $client, string $option): bool;
 

@@ -1,3 +1,5 @@
+FROM mysql:8.4.7@sha256:0426ec38c7a10aa45ba383887df7878f74ee70e2fd589c7b69207f3577901903 AS legacy-mysql-dump-client
+
 FROM php:8.5.9-fpm-trixie@sha256:32ef9f35b567a741f24c5d2c3312f803fe6c9e34b7db46212f95fce675e1d13f AS app-base
 
 WORKDIR /var/www/html
@@ -33,6 +35,11 @@ RUN apt-get update \
     gnupg \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# MariaDB 11.x's dump client is incompatible with the legacy MySQL 5.6 IGSN
+# server. Keep this separate Oracle client only while that export is required.
+COPY --from=legacy-mysql-dump-client /usr/bin/mysqldump /usr/local/bin/mysql-legacy-mysqldump
+RUN /usr/local/bin/mysql-legacy-mysqldump --version
 
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip sodium xsl intl sockets
 
