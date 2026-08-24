@@ -29,11 +29,7 @@ class DataCiteUrlUpdateRunService
 
     public function start(DataCiteUrlUpdateScope $scope, User $user): DataCiteUrlUpdateRun
     {
-        if (! $this->queueConnection->isPersistent()) {
-            throw ValidationException::withMessages([
-                'queue' => ['A persistent queue connection is required for DataCite URL updates.'],
-            ]);
-        }
+        $this->ensurePersistentQueue();
 
         $validation = $this->target->validateTargetBase();
         if (! $validation['valid']) {
@@ -160,6 +156,8 @@ class DataCiteUrlUpdateRunService
 
     private function reactivate(DataCiteUrlUpdateRun $run, User $user, bool $retryFailed): DataCiteUrlUpdateRun
     {
+        $this->ensurePersistentQueue();
+
         $lock = Cache::lock(self::START_LOCK_KEY, 30);
         if (! $lock->get()) {
             throw ValidationException::withMessages(['run' => ['Another DataCite URL update is being controlled.']]);
@@ -250,6 +248,15 @@ class DataCiteUrlUpdateRunService
     private function queue(): string
     {
         return (string) config('datacite.landing_page_url_update.queue', 'datacite');
+    }
+
+    private function ensurePersistentQueue(): void
+    {
+        if (! $this->queueConnection->isPersistent()) {
+            throw ValidationException::withMessages([
+                'queue' => ['A persistent queue connection is required for DataCite URL updates.'],
+            ]);
+        }
     }
 
     /** @param list<array<string, mixed>> $rows */

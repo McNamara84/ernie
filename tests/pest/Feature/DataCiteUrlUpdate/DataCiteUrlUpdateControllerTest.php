@@ -270,6 +270,50 @@ test('a non-persistent queue driver blocks preview and confirmed start regardles
         ->assertJsonValidationErrors('queue');
 })->with(['sync', 'null']);
 
+test('a non-persistent queue driver blocks resume and retry before changing persistent state', function (string $action, string $status, string $driver): void {
+    config([
+        'queue.default' => 'custom-url-migration-queue',
+        'queue.connections.custom-url-migration-queue' => ['driver' => $driver],
+    ]);
+
+    $isRetry = $action === 'retry-failed';
+    $run = DataCiteUrlUpdateRun::factory()->create([
+        'status' => DataCiteUrlUpdateRunStatus::from($status),
+        'active_marker' => null,
+        'total' => 1,
+        'processed' => $isRetry ? 1 : 0,
+        'failed' => $isRetry ? 1 : 0,
+    ]);
+    $item = DataCiteUrlUpdateItem::factory()->create([
+        'run_id' => $run->id,
+        'status' => $isRetry
+            ? DataCiteUrlUpdateItemStatus::FAILED
+            : DataCiteUrlUpdateItemStatus::PENDING_PREFLIGHT,
+        'preflight_attempts' => $isRetry ? 5 : 0,
+        'update_attempts' => $isRetry ? 4 : 0,
+        'processed_at' => $isRetry ? now() : null,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->postJson(route("datacite.url-updates.{$action}", $run))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('queue');
+
+    expect($run->fresh()->status)->toBe(DataCiteUrlUpdateRunStatus::from($status))
+        ->and($run->fresh()->active_marker)->toBeNull()
+        ->and($item->fresh()->status)->toBe($isRetry
+            ? DataCiteUrlUpdateItemStatus::FAILED
+            : DataCiteUrlUpdateItemStatus::PENDING_PREFLIGHT)
+        ->and($item->fresh()->preflight_attempts)->toBe($isRetry ? 5 : 0)
+        ->and($item->fresh()->update_attempts)->toBe($isRetry ? 4 : 0);
+    Queue::assertNothingPushed();
+})->with([
+    'resume via custom sync connection' => ['resume', 'cancelled', 'sync'],
+    'resume via custom null connection' => ['resume', 'cancelled', 'null'],
+    'retry via custom sync connection' => ['retry-failed', 'completed', 'sync'],
+    'retry via custom null connection' => ['retry-failed', 'completed', 'null'],
+]);
+
 test('confirmation snapshots eligible records and enforces one global active run', function (): void {
     $eligible = createUrlMigrationResource('10.5880/start-me');
     createUrlMigrationResource('10.5880/skip-external', true, true);
