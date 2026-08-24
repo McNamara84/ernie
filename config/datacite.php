@@ -87,8 +87,10 @@ return [
             '10.1594',
             '10.14470',
         ],
-        'igsn_prefix' => '10.60510',
-        'igsn_client_id' => 'gfz.igsn',
+        'igsn_prefix' => env('DATACITE_IGSN_PREFIX', '10.60510'),
+        'igsn_client_id' => env('DATACITE_IGSN_CLIENT_ID', 'gfz.igsn'),
+        'igsn_username' => env('DATACITE_IGSN_USERNAME'),
+        'igsn_password' => env('DATACITE_IGSN_PASSWORD'),
     ],
 
     /*

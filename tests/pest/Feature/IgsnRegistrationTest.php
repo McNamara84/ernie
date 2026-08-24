@@ -24,6 +24,9 @@ beforeEach(function () {
         'datacite.production.password' => 'prod-password',
         'datacite.production.endpoint' => 'https://api.datacite.org',
         'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
+        'datacite.production.igsn_prefix' => '10.60510',
+        'datacite.production.igsn_username' => 'GFZ.IGSN',
+        'datacite.production.igsn_password' => 'igsn-password',
     ]);
 
     $this->user = User::factory()->curator()->create();
@@ -118,6 +121,28 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
 
             return $body['data']['attributes']['prefix'] === '10.83186';
         });
+    });
+
+    test('uses the dedicated repository credentials when registering a production IGSN', function () {
+        config(['datacite.test_mode' => false]);
+        $resource = createIgsnWithMetadata(['doi' => '10.60510/GFTEST001']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        Http::fake([
+            'api.datacite.org/*' => Http::response([
+                'data' => [
+                    'id' => '10.60510/GFTEST001',
+                    'type' => 'dois',
+                    'attributes' => ['doi' => '10.60510/GFTEST001', 'state' => 'findable'],
+                ],
+            ], 201),
+        ]);
+
+        $response = app(DataCiteRegistrationService::class)->registerIgsn($resource);
+
+        expect($response['data']['id'])->toBe('10.60510/GFTEST001');
+        Http::assertSent(fn (Request $request): bool => $request->header('Authorization')[0]
+            === 'Basic '.base64_encode('GFZ.IGSN:igsn-password'));
     });
 
     test('rejects IGSN with invalid DOI format (missing suffix)', function () {

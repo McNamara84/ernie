@@ -222,9 +222,13 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
 
         // Extract and validate prefix from IGSN
         $prefix = $this->extractPrefix($resource->doi);
-        if (! in_array($prefix, $this->prefixes, true)) {
+        $allowedIgsnPrefixes = $this->testMode
+            ? $this->prefixes
+            : [trim((string) Config::get('datacite.production.igsn_prefix', ''))];
+
+        if (! in_array($prefix, $allowedIgsnPrefixes, true)) {
             throw new \InvalidArgumentException(
-                "IGSN prefix '{$prefix}' is not allowed. Allowed prefixes: ".implode(', ', $this->prefixes)
+                "IGSN prefix '{$prefix}' is not allowed. Allowed prefixes: ".implode(', ', $allowedIgsnPrefixes)
             );
         }
 

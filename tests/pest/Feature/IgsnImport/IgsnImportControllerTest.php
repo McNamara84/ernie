@@ -25,6 +25,8 @@ beforeEach(function () {
         'prefixes' => ['10.5880'],
         'igsn_prefix' => '10.60510',
         'igsn_client_id' => 'gfz.igsn',
+        'igsn_username' => 'GFZ.IGSN',
+        'igsn_password' => 'igsn-password',
     ]);
 });
 

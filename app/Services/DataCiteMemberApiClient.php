@@ -46,19 +46,36 @@ class DataCiteMemberApiClient
 
     public function getDoi(string $identifier, bool $deferWhenLimited = false): Response
     {
-        return $this->send('GET', $this->doiUrl($identifier), deferWhenLimited: $deferWhenLimited);
+        return $this->send(
+            'GET',
+            $this->doiUrl($identifier),
+            deferWhenLimited: $deferWhenLimited,
+            credentialIdentifier: $identifier,
+        );
     }
 
     /** @param array<string, mixed> $payload */
     public function createDoi(array $payload): Response
     {
-        return $this->send('POST', "{$this->endpoint}/dois", $payload, $this->writeAttempts());
+        return $this->send(
+            'POST',
+            "{$this->endpoint}/dois",
+            $payload,
+            $this->writeAttempts(),
+            credentialIdentifier: $this->payloadIdentifier($payload),
+        );
     }
 
     /** @param array<string, mixed> $payload */
     public function updateDoi(string $identifier, array $payload): Response
     {
-        return $this->send('PUT', $this->doiUrl($identifier), $payload, $this->writeAttempts());
+        return $this->send(
+            'PUT',
+            $this->doiUrl($identifier),
+            $payload,
+            $this->writeAttempts(),
+            credentialIdentifier: $identifier,
+        );
     }
 
     public function updateLandingPageUrl(string $identifier, string $targetUrl, bool $deferWhenLimited = false): Response
@@ -71,7 +88,7 @@ class DataCiteMemberApiClient
                     'url' => $targetUrl,
                 ],
             ],
-        ], 1, $deferWhenLimited);
+        ], 1, $deferWhenLimited, $identifier);
     }
 
     /**
@@ -83,12 +100,13 @@ class DataCiteMemberApiClient
         ?array $payload = null,
         int $maxAttempts = 1,
         bool $deferWhenLimited = false,
+        ?string $credentialIdentifier = null,
     ): Response {
         $maxAttempts = max(1, $maxAttempts);
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             $this->limiter->waitForSlot($deferWhenLimited);
-            $request = $this->request();
+            $request = $this->request($credentialIdentifier);
 
             try {
                 $response = $payload === null
@@ -138,10 +156,9 @@ class DataCiteMemberApiClient
         return 60;
     }
 
-    private function request(): PendingRequest
+    private function request(?string $credentialIdentifier = null): PendingRequest
     {
-        $username = (string) ($this->environmentConfig['username'] ?? '');
-        $password = (string) ($this->environmentConfig['password'] ?? '');
+        [$username, $password] = $this->credentialsFor($credentialIdentifier);
         $supportEmail = trim((string) config('datacite.landing_page_url_update.support_email', ''));
         $appUrl = rtrim((string) config('app.url'), '/');
         $userAgent = 'ERNIE/1.0 ('.$appUrl;
@@ -158,6 +175,54 @@ class DataCiteMemberApiClient
             ])
             ->connectTimeout(max(1, (int) config('datacite.landing_page_url_update.connect_timeout_seconds', 10)))
             ->timeout(max(1, (int) config('datacite.landing_page_url_update.timeout_seconds', 30)));
+    }
+
+    /**
+     * @return array{string, string}
+     */
+    private function credentialsFor(?string $identifier): array
+    {
+        if (! $this->testMode && $this->isProductionIgsn($identifier)) {
+            $username = trim((string) ($this->environmentConfig['igsn_username'] ?? ''));
+            $password = (string) ($this->environmentConfig['igsn_password'] ?? '');
+
+            if ($username === '' || $password === '') {
+                throw new \RuntimeException(
+                    'DataCite production IGSN credentials are not configured. '
+                    .'Please set DATACITE_IGSN_USERNAME and DATACITE_IGSN_PASSWORD.'
+                );
+            }
+
+            return [$username, $password];
+        }
+
+        return [
+            (string) ($this->environmentConfig['username'] ?? ''),
+            (string) ($this->environmentConfig['password'] ?? ''),
+        ];
+    }
+
+    private function isProductionIgsn(?string $identifier): bool
+    {
+        if ($identifier === null) {
+            return false;
+        }
+
+        $prefix = strtolower(trim((string) ($this->environmentConfig['igsn_prefix'] ?? '')));
+        $normalizedIdentifier = strtolower(trim($identifier));
+
+        return $prefix !== ''
+            && ($normalizedIdentifier === $prefix || str_starts_with($normalizedIdentifier, $prefix.'/'));
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function payloadIdentifier(array $payload): ?string
+    {
+        $identifier = data_get($payload, 'data.attributes.doi')
+            ?? data_get($payload, 'data.id')
+            ?? data_get($payload, 'data.attributes.prefix');
+
+        return is_string($identifier) ? $identifier : null;
     }
 
     private function doiUrl(string $identifier): string

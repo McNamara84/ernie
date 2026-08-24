@@ -38,6 +38,9 @@ beforeEach(function () {
         'datacite.production.password' => 'prod-password',
         'datacite.production.endpoint' => 'https://api.datacite.org',
         'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
+        'datacite.production.igsn_prefix' => '10.60510',
+        'datacite.production.igsn_username' => 'GFZ.IGSN',
+        'datacite.production.igsn_password' => 'igsn-password',
     ]);
 
     $this->resource = Resource::factory()->create([
@@ -246,6 +249,27 @@ test('registerDoi uses production credentials when test mode is disabled', funct
             && $request->header('Authorization')[0] === 'Basic '.base64_encode('PROD.USER:prod-password');
     });
 });
+
+test('updateMetadata uses dedicated production repository credentials for an IGSN', function () {
+    config(['datacite.test_mode' => false]);
+    $this->resource->update(['doi' => '10.60510/GFTEST001']);
+
+    Http::fake([
+        '*datacite.org/*' => Http::response([
+            'data' => [
+                'id' => '10.60510/GFTEST001',
+                'type' => 'dois',
+                'attributes' => ['state' => 'findable'],
+            ],
+        ]),
+    ]);
+
+    app(DataCiteRegistrationService::class)->updateMetadata($this->resource);
+
+    Http::assertSent(fn ($request) => $request->header('Authorization')[0]
+        === 'Basic '.base64_encode('GFZ.IGSN:igsn-password'));
+});
+
 test('registerDoi forces test credentials for beginner users when test mode is disabled', function () {
     $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
     $this->actingAs($beginner);

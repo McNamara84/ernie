@@ -29,6 +29,12 @@ beforeEach(function (): void {
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.username' => 'TEST.USER',
         'datacite.test.password' => 'secret',
+        'datacite.production.endpoint' => 'https://api.datacite.org',
+        'datacite.production.username' => 'PROD.USER',
+        'datacite.production.password' => 'prod-secret',
+        'datacite.production.igsn_prefix' => '10.60510',
+        'datacite.production.igsn_username' => 'GFZ.IGSN',
+        'datacite.production.igsn_password' => 'igsn-secret',
         'datacite.landing_page_url_update.minimum_interval_ms' => 0,
         'datacite.landing_page_url_update.requests_per_window' => 300,
         'datacite.landing_page_url_update.window_seconds' => 300,
@@ -163,6 +169,51 @@ test('the member client sends an authenticated JSON API partial URL update only'
                 ],
             ];
     });
+});
+
+test('the production member client uses the dedicated IGSN repository credentials for prefix 10.60510', function (): void {
+    config(['datacite.test_mode' => false]);
+    Http::fake(['https://api.datacite.org/*' => Http::response([
+        'data' => ['attributes' => ['url' => 'https://dataservices.gfz.de/igsn/new']],
+    ])]);
+
+    app(DataCiteMemberApiClient::class)->updateLandingPageUrl(
+        '10.60510/GFTEST001',
+        'https://dataservices.gfz.de/igsn/new',
+    );
+
+    Http::assertSent(fn (Request $request): bool => $request->header('Authorization')[0]
+        === 'Basic '.base64_encode('GFZ.IGSN:igsn-secret'));
+});
+
+test('the production member client keeps generic repository credentials for non-IGSN DOIs', function (): void {
+    config(['datacite.test_mode' => false]);
+    Http::fake(['https://api.datacite.org/*' => Http::response([
+        'data' => ['attributes' => ['url' => 'https://dataservices.gfz.de/resources/new']],
+    ])]);
+
+    app(DataCiteMemberApiClient::class)->updateLandingPageUrl(
+        '10.5880/GFTEST001',
+        'https://dataservices.gfz.de/resources/new',
+    );
+
+    Http::assertSent(fn (Request $request): bool => $request->header('Authorization')[0]
+        === 'Basic '.base64_encode('PROD.USER:prod-secret'));
+});
+
+test('the production member client fails clearly before an IGSN write when repository credentials are missing', function (): void {
+    config([
+        'datacite.test_mode' => false,
+        'datacite.production.igsn_password' => '',
+    ]);
+    Http::fake();
+
+    expect(fn () => app(DataCiteMemberApiClient::class)->updateLandingPageUrl(
+        '10.60510/GFTEST001',
+        'https://dataservices.gfz.de/igsn/new',
+    ))->toThrow(RuntimeException::class, 'DATACITE_IGSN_USERNAME and DATACITE_IGSN_PASSWORD');
+
+    Http::assertNothingSent();
 });
 
 test('the shared member client never retries permanent DataCite validation errors', function (): void {

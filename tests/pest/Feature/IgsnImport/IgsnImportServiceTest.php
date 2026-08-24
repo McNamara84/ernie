@@ -14,6 +14,8 @@ beforeEach(function () {
         'prefixes' => ['10.5880'],
         'igsn_prefix' => '10.60510',
         'igsn_client_id' => 'gfz.igsn',
+        'igsn_username' => 'GFZ.IGSN',
+        'igsn_password' => 'igsn-password',
     ]);
 });
 
@@ -37,11 +39,11 @@ describe('IgsnImportService', function () {
     })->throws(RuntimeException::class, 'IGSN client ID is not configured');
 
     it('throws exception when credentials are missing', function () {
-        Config::set('datacite.production.username', '');
-        Config::set('datacite.production.password', '');
+        Config::set('datacite.production.igsn_username', '');
+        Config::set('datacite.production.igsn_password', '');
 
         new IgsnImportService;
-    })->throws(RuntimeException::class, 'credentials are not configured');
+    })->throws(RuntimeException::class, 'production IGSN credentials are not configured');
 
     it('fetches total IGSN count from API', function () {
         Http::fake([
@@ -83,7 +85,9 @@ describe('IgsnImportService', function () {
             $url = $request->url();
 
             return str_contains($url, 'client-id=gfz.igsn')
-                && str_contains($url, 'prefix=10.60510');
+                && str_contains($url, 'prefix=10.60510')
+                && $request->header('Authorization')[0]
+                    === 'Basic '.base64_encode('GFZ.IGSN:igsn-password');
         });
     });
 

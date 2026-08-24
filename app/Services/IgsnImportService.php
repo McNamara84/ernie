@@ -68,13 +68,13 @@ class IgsnImportService
             );
         }
 
-        $username = $config['username'];
-        $password = $config['password'];
+        $username = $config['igsn_username'] ?? null;
+        $password = $config['igsn_password'] ?? null;
 
         if (empty($username) || empty($password)) {
             throw new \RuntimeException(
-                'DataCite production credentials are not configured. '
-                .'Please set DATACITE_USERNAME and DATACITE_PASSWORD.'
+                'DataCite production IGSN credentials are not configured. '
+                .'Please set DATACITE_IGSN_USERNAME and DATACITE_IGSN_PASSWORD.'
             );
         }
 
