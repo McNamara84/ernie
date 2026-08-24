@@ -283,6 +283,46 @@ describe('ImportFromDataCiteJob', function () {
             ->and(Resource::query()->where('doi', '10.5880/datacite.before.pending.failure')->exists())->toBeFalse();
     });
 
+    it('keeps the underlying diagnostic in the cached error when pending import fails', function () {
+        $this->pendingImportService
+            ->shouldReceive('countImportablePending')
+            ->once()
+            ->andReturn(1);
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(0);
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                if (false) {
+                    yield [];
+                }
+            })());
+        $this->transformer
+            ->shouldReceive('transform')
+            ->never();
+        $this->pendingImportService
+            ->shouldReceive('importAllPending')
+            ->once()
+            ->with($this->user->id, 100)
+            ->andThrow(new RuntimeException('legacy cursor read timed out'));
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $expectedError = 'SUMARIO pending resources could not be imported: legacy cursor read timed out';
+
+        expect(fn () => $job->handle($this->importService, $this->transformer, $this->metaworksService))
+            ->toThrow(RuntimeException::class, $expectedError);
+
+        expect(Cache::get("datacite_import:{$importId}"))
+            ->toMatchArray([
+                'status' => 'failed',
+                'error' => $expectedError,
+            ]);
+    });
+
     it('skips existing DOIs', function () {
         // Create existing resource
         $existingResource = Resource::factory()->create(['doi' => '10.5880/existing']);

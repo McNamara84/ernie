@@ -650,14 +650,17 @@ describe('datacenter-scoped DataCite import job', function () {
         $job = new ImportFromDataCiteJob($this->user->id, $importId, null, 'Riesgos');
 
         expect(fn () => $job->handle($this->importService, $this->transformer, $this->metaworksService))
-            ->toThrow(RuntimeException::class, 'Matching SUMARIO pending resources could not be loaded.');
+            ->toThrow(
+                RuntimeException::class,
+                'Matching SUMARIO pending resources could not be loaded: legacy database unavailable',
+            );
 
         $status = Cache::get("datacite_import:{$importId}");
 
         expect($status)
             ->toMatchArray([
                 'status' => 'failed',
-                'error' => 'Matching SUMARIO pending resources could not be loaded.',
+                'error' => 'Matching SUMARIO pending resources could not be loaded: legacy database unavailable',
             ])
             ->and(Resource::query()->where('doi', '10.5880/riesgos')->exists())->toBeFalse();
     });

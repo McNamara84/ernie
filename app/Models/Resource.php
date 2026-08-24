@@ -546,13 +546,13 @@ class Resource extends Model
     /**
      * Determine the publication status of this resource (Issue #548).
      *
-     * Status hierarchy:
-     * - 'published': a DOI with a published landing page, independent of newer completeness rules
-     * - 'review': legacy SUMARIO pending imports marked with force_review_status override completeness checks
-     * - 'draft': non-legacy resources missing any mandatory field
-     * - 'curation': all mandatory fields present, no DOI or no landing page
-     * - 'review': has DOI + landing page with is_published = false
-     * - 'published': has DOI + landing page with is_published = true
+     * Status precedence:
+     * 1. A DOI with a published landing page is published, regardless of completeness.
+     * 2. Explicit legacy workflow overrides select review or draft
+     *    (force_review_status remains a compatibility alias for review).
+     * 3. A resource missing any mandatory field is draft.
+     * 4. A complete resource with a DOI and an unpublished landing page is review.
+     * 5. Every other complete resource is in curation.
      */
     public function publicStatus(): string
     {

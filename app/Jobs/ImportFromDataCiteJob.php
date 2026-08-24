@@ -291,7 +291,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                     ]);
 
                     throw new \RuntimeException(
-                        'SUMARIO pending resources could not be imported.',
+                        'SUMARIO pending resources could not be imported: '.$exception->getMessage(),
                         previous: $exception,
                     );
                 }
@@ -379,7 +379,7 @@ class ImportFromDataCiteJob implements ShouldQueue
             ]);
 
             throw new \RuntimeException(
-                'Matching SUMARIO pending resources could not be loaded.',
+                'Matching SUMARIO pending resources could not be loaded: '.$exception->getMessage(),
                 previous: $exception,
             );
         }

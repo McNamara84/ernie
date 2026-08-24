@@ -275,6 +275,7 @@ entity "resources" as resources {
     legacy_source_id : BIGINT <<nullable>>
     legacy_source_status : VARCHAR(50) <<nullable>>
     * force_review_status : BOOLEAN = false
+    workflow_status_override : VARCHAR(20) <<nullable>> //indexed//
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
