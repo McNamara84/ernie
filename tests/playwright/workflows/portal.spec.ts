@@ -127,6 +127,27 @@ test.describe('Portal Page', () => {
         });
     });
 
+    test.describe('Datacenter Filter', () => {
+        test('shows the filtered results from the top after applying a datacenter', async ({ page }) => {
+            const trigger = page.getByRole('button', { name: 'All Datacenters' });
+            await trigger.scrollIntoViewIfNeeded();
+            await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+            await trigger.click();
+
+            const option = page.getByRole('option', { name: /Playwright: Portal Datacenter/ });
+            await expect(option).toBeVisible();
+
+            const scrollBeforeFiltering = await page.evaluate(() => window.scrollY);
+            expect(scrollBeforeFiltering).toBeGreaterThan(0);
+
+            await option.click();
+            await expect(page).toHaveURL(/datacenter/);
+
+            await expect(page.getByTestId('portal-results-list').first()).toBeVisible();
+            await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+        });
+    });
+
     test.describe('Map Interaction', () => {
         test('map can be collapsed and expanded', async ({ page }) => {
             const mapToggle = page.getByRole('button', { name: /map/i });
@@ -252,7 +273,7 @@ test.describe('Portal Page', () => {
             // Focus the search input directly
             const searchInput = page.getByPlaceholder(/search datasets/i);
             await searchInput.focus();
-            
+
             // Should be able to type
             await page.keyboard.type('keyboard test');
 

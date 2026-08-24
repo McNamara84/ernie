@@ -1,0 +1,1 @@
+export const ABSTRACT_MAX_LENGTH = 17_500;

@@ -208,10 +208,7 @@ describe('DescriptionField', () => {
         const user = userEvent.setup();
         render(
             <DescriptionField
-                descriptions={[
-                    abstract('abstract-en', 'A valid abstract containing more than fifty characters for this regression test.', 'en'),
-                    abstract('abstract-de', 'Zu kurz', 'de'),
-                ]}
+                descriptions={[abstract('abstract-en', 'A valid English abstract.', 'en'), abstract('abstract-de', 'x'.repeat(17_501), 'de')]}
                 onChange={onChange}
                 availableTypes={allDescriptionTypes}
                 languages={languages}
@@ -219,7 +216,7 @@ describe('DescriptionField', () => {
                 validationMessages={[
                     {
                         severity: 'error',
-                        message: 'German Abstract must be at least 50 characters',
+                        message: 'German Abstract must not exceed 17500 characters',
                         fieldId: 'abstract-de',
                     },
                 ]}
@@ -229,10 +226,10 @@ describe('DescriptionField', () => {
         const invalidTab = within(groupFor('Abstract')).getByRole('tab', { name: /German \(de\).*has validation errors/i });
         expect(invalidTab).toHaveAttribute('aria-invalid', 'true');
         expect(within(groupFor('Abstract')).getByRole('tab', { name: 'English (en)' })).not.toHaveAttribute('aria-invalid');
-        expect(screen.queryByText('German Abstract must be at least 50 characters')).not.toBeInTheDocument();
+        expect(screen.queryByText('German Abstract must not exceed 17500 characters')).not.toBeInTheDocument();
 
         await user.click(invalidTab);
-        expect(screen.getByText('German Abstract must be at least 50 characters')).toBeInTheDocument();
+        expect(screen.getByText('German Abstract must not exceed 17500 characters')).toBeInTheDocument();
         expect(screen.getByPlaceholderText(/Enter a brief summary/i)).toHaveAttribute('aria-invalid', 'true');
     });
 
@@ -254,6 +251,22 @@ describe('DescriptionField', () => {
 
         expect(onBlur).toHaveBeenCalledOnce();
         expect(screen.getByTestId('abstract-character-count')).toHaveTextContent('4 characters');
-        expect(screen.getByTestId('abstract-character-count')).toHaveTextContent('46 more needed');
+        expect(screen.getByTestId('abstract-character-count')).toHaveTextContent('of 17,500');
+        expect(screen.getByTestId('abstract-textarea')).toHaveAttribute('aria-invalid', 'false');
+    });
+
+    it('marks an Abstract above the maximum length as invalid', () => {
+        render(
+            <DescriptionField
+                descriptions={[abstract('abstract-1', 'x'.repeat(17_501))]}
+                onChange={onChange}
+                availableTypes={allDescriptionTypes}
+                languages={languages}
+                validationTouched
+            />,
+        );
+
+        expect(screen.getByTestId('abstract-textarea')).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getByText(/Abstract must not exceed 17,500 characters\./)).toBeInTheDocument();
     });
 });

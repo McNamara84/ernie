@@ -540,7 +540,8 @@ describe('DefaultGfzIgsnTemplate', () => {
             const logo = screen.getByAltText('GFZ Data Services');
 
             expect(logo).toHaveAttribute('src', 'https://cdn.example/custom.png');
-            expect(logo).toHaveClass('h-24', 'max-w-full', 'object-contain');
+            expect(logo).toHaveClass('h-auto', 'w-auto', 'max-w-full', 'object-contain');
+            expect(logo).not.toHaveClass('h-24');
             expect(logo).not.toHaveClass('dark:grayscale');
             expect(logo).not.toHaveClass('dark:invert');
             expect(logo).not.toHaveClass('dark:mix-blend-screen');

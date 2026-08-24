@@ -186,34 +186,27 @@ test.describe('DataCite Form Validation UX', () => {
             await formPage.expectValidationSuccess(formPage.mainTitleInput);
         });
 
-        test('validates abstract length with character counter', async ({ page }) => {
+        test('accepts short abstracts and enforces only the maximum length', async ({ page }) => {
             await formPage.expandAccordion(formPage.descriptionsAccordion);
 
-            // Too short (less than 50 characters)
             const shortText = 'This is too short';
             await formPage.abstractTextarea.fill(shortText);
             await formPage.abstractTextarea.blur();
             await page.waitForTimeout(400);
 
-            // Should show character count
             const charCount = await formPage.getAbstractCharacterCount();
             expect(charCount).toContain(String(shortText.length));
+            expect(charCount).toContain('of 17,500');
+            await formPage.expectValidationSuccess(formPage.abstractTextarea);
 
-            // Should show error styling
-            await formPage.expectValidationError(formPage.abstractTextarea);
-
-            // Valid length (50+ characters)
-            const validText = 'This is a comprehensive abstract that contains more than fifty characters as required for validation.';
-            await formPage.abstractTextarea.fill(validText);
+            const overlongText = 'x'.repeat(17_501);
+            await formPage.abstractTextarea.fill(overlongText);
             await formPage.abstractTextarea.blur();
             await page.waitForTimeout(400);
 
-            // Character count should update
             const newCharCount = await formPage.getAbstractCharacterCount();
-            expect(newCharCount).toContain(String(validText.length));
-
-            // Should show success
-            await formPage.expectValidationSuccess(formPage.abstractTextarea);
+            expect(newCharCount).toContain('17,501');
+            await formPage.expectValidationError(formPage.abstractTextarea);
         });
     });
 

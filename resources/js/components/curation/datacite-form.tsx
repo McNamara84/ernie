@@ -80,6 +80,7 @@ import {
     type TitleEntry,
 } from './types/datacite-form-types';
 import { type DateMode, isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from './utils/date-rules';
+import { ABSTRACT_MAX_LENGTH } from './utils/description-rules';
 import {
     canAddDate,
     canAddTitle,
@@ -99,8 +100,6 @@ export type { DataCiteFormProps, EditorLandingPageSummary, InitialAuthor, Initia
 // Re-export helper functions for backward compatibility
 export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
 
-const ABSTRACT_MIN_LENGTH = 50;
-const ABSTRACT_MAX_LENGTH = 17500;
 const CURATION_ACCORDION_PREFERENCE_URL = '/settings/curation-accordion';
 const CURATION_ACCORDION_REVISION_HEADER = 'x-curation-accordion-revision';
 const CURATION_ACCORDION_REVISION_PRECISION = 1_000;
@@ -777,7 +776,6 @@ export default function DataCiteForm({
                 for (const [index, abstract] of abstracts.entries()) {
                     const text = abstract.value.trim();
                     const lengthResult = validateTextLength(text, {
-                        min: ABSTRACT_MIN_LENGTH,
                         max: ABSTRACT_MAX_LENGTH,
                         fieldName: abstracts.length > 1 ? `Abstract ${index + 1}` : 'Abstract',
                     });
@@ -1478,7 +1476,6 @@ export default function DataCiteForm({
         } else {
             abstracts.forEach(({ description, index }, abstractIndex) => {
                 const abstractLengthResult = validateTextLength(description.value.trim(), {
-                    min: ABSTRACT_MIN_LENGTH,
                     max: ABSTRACT_MAX_LENGTH,
                     fieldName: abstracts.length > 1 ? `Abstract ${abstractIndex + 1}` : 'Abstract',
                 });
@@ -1602,7 +1599,7 @@ export default function DataCiteForm({
             abstracts.length === 0 ||
             abstracts.some((abstract) => {
                 const length = abstract.value.trim().length;
-                return length < ABSTRACT_MIN_LENGTH || length > ABSTRACT_MAX_LENGTH;
+                return length > ABSTRACT_MAX_LENGTH;
             })
         ) {
             return 'invalid';
@@ -1823,7 +1820,27 @@ export default function DataCiteForm({
 
             const next = [...prev];
             const updated: LicenseEntry =
-                mode === 'custom' ? { id: current.id, mode: 'custom', name: '', uri: '' } : { id: current.id, mode: 'catalog', license: '' };
+                current.mode === 'catalog'
+                    ? {
+                          id: current.id,
+                          mode: 'custom',
+                          name: current.customDraft?.name ?? '',
+                          uri: current.customDraft?.uri ?? '',
+                          sourceResourceRightId: current.customDraft?.sourceResourceRightId,
+                          rawRight: current.customDraft?.rawRight,
+                          catalogDraft: current.license,
+                      }
+                    : {
+                          id: current.id,
+                          mode: 'catalog',
+                          license: current.catalogDraft ?? '',
+                          customDraft: {
+                              name: current.name,
+                              uri: current.uri,
+                              sourceResourceRightId: current.sourceResourceRightId,
+                              rawRight: current.rawRight,
+                          },
+                      };
 
             next[index] = updated;
 
@@ -1839,7 +1856,20 @@ export default function DataCiteForm({
             if (!current) return prev;
 
             const next = [...prev];
-            const updated: LicenseEntry = { id: current.id, mode: 'catalog', license: value };
+            const updated: LicenseEntry =
+                current.mode === 'catalog'
+                    ? { ...current, license: value }
+                    : {
+                          id: current.id,
+                          mode: 'catalog',
+                          license: value,
+                          customDraft: {
+                              name: current.name,
+                              uri: current.uri,
+                              sourceResourceRightId: current.sourceResourceRightId,
+                              rawRight: current.rawRight,
+                          },
+                      };
             next[index] = updated;
 
             validatePrimaryLicenseEntries(next);
@@ -3300,7 +3330,7 @@ export default function DataCiteForm({
                         data-testid="descriptions-accordion-trigger"
                         actions={renderSectionActions(
                             'Descriptions',
-                            `Abstract is required (${ABSTRACT_MIN_LENGTH}-${ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters). Other description types are optional.`,
+                            `Abstract is required (maximum ${ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters). Other description types are optional.`,
                         )}
                     >
                         <AccordionSectionHeader
