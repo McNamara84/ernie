@@ -7,6 +7,7 @@ use App\Enums\ContributorCategory;
 use App\Enums\UserRole;
 use App\Http\Requests\Resource\SendResourceReviewLinksRequest;
 use App\Mail\ResourceReviewLink;
+use App\Mail\ResourceReviewLinkMigration;
 use App\Models\ContributorType;
 use App\Models\Description;
 use App\Models\DescriptionType;
@@ -130,6 +131,13 @@ function postReviewMailRequest(User $user, array $ids): TestResponse
     ]);
 }
 
+function postReviewMailMigrationRequest(User $user, array $ids): TestResponse
+{
+    return test()->actingAs($user)->postJson(route('resources.send-review-link-migrations'), [
+        'ids' => $ids,
+    ]);
+}
+
 describe('authorization and request validation', function (): void {
     it('allows Admin, Group Leader and Curator roles', function (UserRole $role): void {
         $resource = createReviewMailResource();
@@ -155,6 +163,31 @@ describe('authorization and request validation', function (): void {
             ->assertForbidden();
 
         $this->postJson(route('resources.send-review-links'), ['ids' => [$resource->id]])
+            ->assertForbidden();
+
+        Mail::assertNothingQueued();
+    });
+
+    it('authorizes the explicit migration endpoint independently of the invitation endpoint', function (): void {
+        $resource = createReviewMailResource();
+        addReviewMailContributor($resource, 'reviewer@example.test');
+
+        postReviewMailMigrationRequest(User::factory()->curator()->create(), [$resource->id])
+            ->assertOk()
+            ->assertJsonPath('queued_messages', 1);
+
+        Mail::assertQueued(ResourceReviewLinkMigration::class, 1);
+        Mail::assertNotQueued(ResourceReviewLink::class);
+    });
+
+    it('rejects Beginner users and guests at the migration endpoint', function (): void {
+        $resource = createReviewMailResource();
+        addReviewMailContributor($resource, 'reviewer@example.test');
+
+        postReviewMailMigrationRequest(User::factory()->beginner()->create(), [$resource->id])
+            ->assertForbidden();
+
+        $this->postJson(route('resources.send-review-link-migrations'), ['ids' => [$resource->id]])
             ->assertForbidden();
 
         Mail::assertNothingQueued();
@@ -287,7 +320,7 @@ describe('atomic review selection preflight', function (): void {
 });
 
 describe('recipient resolution and batch results', function (): void {
-    it('queues one personalized migration notice with the configured contact address', function (): void {
+    it('keeps the existing endpoint on the personalized invitation workflow', function (): void {
         $resource = createReviewMailResource('Seismic Dataset');
         addReviewMailContributor($resource, 'ada@example.test');
         $curator = User::factory()->curator()->create();
@@ -304,7 +337,7 @@ describe('recipient resolution and batch results', function (): void {
                 'skipped_recipients_count' => 0,
             ]);
 
-        Mail::assertQueued(ResourceReviewLink::class, function (ResourceReviewLink $mail) use ($resource): bool {
+        Mail::assertQueued(ResourceReviewLink::class, function (ResourceReviewLink $mail) use ($resource, $curator): bool {
             return $mail->hasTo('ada@example.test')
                 && $mail->hasReplyTo('datapub@example.test')
                 && $mail->hasCc('datapub@example.test')
@@ -313,8 +346,50 @@ describe('recipient resolution and batch results', function (): void {
                 && $mail->resourceDoi === $resource->doi
                 && $mail->recipientName === 'Ada Reviewer'
                 && $mail->reviewUrl === $resource->landingPage?->preview_url
+                && $mail->initiatorName === $curator->name
+                && $mail->initiatorEmail === $curator->email
                 && $mail->contactAddress === 'datapub@example.test';
         });
+
+        Mail::assertNotQueued(ResourceReviewLinkMigration::class);
+    });
+
+    it('queues the migration notice only through the explicit migration endpoint', function (): void {
+        $resource = createReviewMailResource('Migrated Seismic Dataset');
+        addReviewMailContributor($resource, 'ada@example.test');
+
+        postReviewMailMigrationRequest(User::factory()->curator()->create(), [$resource->id])
+            ->assertOk()
+            ->assertJsonPath('message', 'Review-link migration emails queued for delivery.')
+            ->assertJsonPath('queued_messages', 1);
+
+        Mail::assertQueued(ResourceReviewLinkMigration::class, function (ResourceReviewLinkMigration $mail) use ($resource): bool {
+            return $mail->hasTo('ada@example.test')
+                && $mail->hasReplyTo('datapub@example.test')
+                && $mail->hasCc('datapub@example.test')
+                && $mail->resourceId === $resource->id
+                && $mail->resourceTitle === 'Migrated Seismic Dataset'
+                && $mail->resourceDoi === $resource->doi
+                && $mail->recipientName === 'Ada Reviewer'
+                && $mail->reviewUrl === $resource->landingPage?->preview_url
+                && $mail->contactAddress === 'datapub@example.test';
+        });
+
+        Mail::assertNotQueued(ResourceReviewLink::class);
+    });
+
+    it('keeps a migrated review resource without a DOI eligible for delivery', function (): void {
+        $resource = createReviewMailResource('Migrated Dataset Awaiting DOI', ['doi' => null]);
+        addReviewMailContributor($resource, 'ada@example.test');
+
+        postReviewMailMigrationRequest(User::factory()->curator()->create(), [$resource->id])
+            ->assertOk()
+            ->assertJsonPath('queued_messages', 1);
+
+        Mail::assertQueued(ResourceReviewLinkMigration::class, fn (ResourceReviewLinkMigration $mail): bool => $mail->resourceId === $resource->id
+            && $mail->resourceDoi === null
+            && $mail->resourceTitle === 'Migrated Dataset Awaiting DOI'
+            && $mail->reviewUrl === $resource->landingPage?->preview_url);
     });
 
     it('keeps a review resource without a DOI eligible for delivery', function (): void {

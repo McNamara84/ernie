@@ -189,6 +189,8 @@ interface ReviewLinkBatchResponse {
     skipped_recipients_count: number;
 }
 
+type ReviewLinkEmailKind = 'invitation' | 'migration';
+
 const BATCH_EXPORT_FORMAT_BY_ACTION: Record<ResourceExportAction, 'datacite-json' | 'datacite-xml' | 'jsonld'> = {
     'export-datacite-json': 'datacite-json',
     'export-datacite-xml': 'datacite-xml',
@@ -1062,8 +1064,10 @@ function ResourcesPage({
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
     const [citationManagerResourceId, setCitationManagerResourceId] = useState<number | null>(null);
     const [isUpdateMetadataDialogOpen, setIsUpdateMetadataDialogOpen] = useState(false);
-    const [isReviewLinkDialogOpen, setIsReviewLinkDialogOpen] = useState(false);
+    const [reviewLinkEmailKind, setReviewLinkEmailKind] = useState<ReviewLinkEmailKind | null>(null);
     const [isSendingReviewLinks, setIsSendingReviewLinks] = useState(false);
+    const isReviewLinkDialogOpen = reviewLinkEmailKind !== null;
+    const isReviewLinkMigration = reviewLinkEmailKind === 'migration';
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeletingResource, setIsDeletingResource] = useState(false);
     const [selectedDeleteStatuses, setSelectedDeleteStatuses] = useState<Record<ResourceDeleteStatus, boolean>>(createDefaultDeleteStatusSelection);
@@ -1142,7 +1146,7 @@ function ResourcesPage({
     const handleReviewLinkDialogOpenChange = useCallback(
         (open: boolean) => {
             if (!open && !isSendingReviewLinks) {
-                setIsReviewLinkDialogOpen(false);
+                setReviewLinkEmailKind(null);
             }
         },
         [isSendingReviewLinks],
@@ -1152,14 +1156,15 @@ function ResourcesPage({
         async (event: ReactMouseEvent<HTMLButtonElement>) => {
             event.preventDefault();
 
-            if (isSendingReviewLinks || selectedResourceIds.length === 0) {
+            if (isSendingReviewLinks || reviewLinkEmailKind === null || selectedResourceIds.length === 0) {
                 return;
             }
 
             setIsSendingReviewLinks(true);
 
             try {
-                const response = await axios.post<ReviewLinkBatchResponse>('/resources/send-review-links', {
+                const endpoint = reviewLinkEmailKind === 'migration' ? '/resources/send-review-link-migrations' : '/resources/send-review-links';
+                const response = await axios.post<ReviewLinkBatchResponse>(endpoint, {
                     ids: selectedResourceIds,
                 });
                 const result = response.data;
@@ -1167,14 +1172,16 @@ function ResourcesPage({
                 const successfulResources = result.successful_resources?.length ?? 0;
                 const failedResources = result.failed_resources?.length ?? 0;
                 const skippedRecipients = result.skipped_recipients_count ?? 0;
+                const singularEmail = reviewLinkEmailKind === 'migration' ? 'migration notice' : 'review invitation';
+                const emailLabel = queuedMessages === 1 ? singularEmail : `${singularEmail}s`;
 
                 if (failedResources > 0 || skippedRecipients > 0) {
                     toast.warning(
-                        `${queuedMessages} ${queuedMessages === 1 ? 'review email' : 'review emails'} queued for ${successfulResources} ${successfulResources === 1 ? 'resource' : 'resources'}; ${skippedRecipients} ${skippedRecipients === 1 ? 'recipient was' : 'recipients were'} skipped and ${failedResources} ${failedResources === 1 ? 'resource has' : 'resources have'} no queued email.`,
+                        `${queuedMessages} ${emailLabel} queued for ${successfulResources} ${successfulResources === 1 ? 'resource' : 'resources'}; ${skippedRecipients} ${skippedRecipients === 1 ? 'recipient was' : 'recipients were'} skipped and ${failedResources} ${failedResources === 1 ? 'resource has' : 'resources have'} no queued email.`,
                     );
                 } else {
                     toast.success(
-                        `${queuedMessages} ${queuedMessages === 1 ? 'review email' : 'review emails'} queued for ${successfulResources} ${successfulResources === 1 ? 'resource' : 'resources'}.`,
+                        `${queuedMessages} ${emailLabel} queued for ${successfulResources} ${successfulResources === 1 ? 'resource' : 'resources'}.`,
                     );
                 }
 
@@ -1182,11 +1189,11 @@ function ResourcesPage({
                     setSelectedIds(new Set());
                 }
 
-                setIsReviewLinkDialogOpen(false);
+                setReviewLinkEmailKind(null);
             } catch (error) {
                 console.error('Failed to queue review emails:', error);
 
-                let message = 'Failed to send review links.';
+                let message = reviewLinkEmailKind === 'migration' ? 'Failed to send review-link migration notices.' : 'Failed to send review links.';
                 if (isAxiosError(error) && error.response?.data && typeof error.response.data === 'object') {
                     const responseData = error.response.data as { message?: unknown; errors?: Record<string, unknown> };
                     const idsError = normalizeValidationMessage(responseData.errors?.ids);
@@ -1203,7 +1210,7 @@ function ResourcesPage({
                 setIsSendingReviewLinks(false);
             }
         },
-        [isSendingReviewLinks, selectedResourceIds],
+        [isSendingReviewLinks, reviewLinkEmailKind, selectedResourceIds],
     );
 
     const handleConfirmDelete = useCallback(
@@ -1613,6 +1620,19 @@ function ResourcesPage({
                         : undefined,
             loading: isSendingReviewLinks,
         },
+        'send-review-link-migration': {
+            visible: canSendReviewLinks,
+            available: selectedCount > 0 && selectedOutsideReviewCount === 0 && selectedWithoutReviewLinkCount === 0,
+            reason:
+                selectedCount === 0
+                    ? noSelectionReason
+                    : selectedOutsideReviewCount > 0
+                      ? `Review-link migration notices are only available when every selected resource is in review. ${formatSelectionCount(selectedOutsideReviewCount, 'selected resource is', 'selected resources are')} not in review.`
+                      : selectedWithoutReviewLinkCount > 0
+                        ? `${formatSelectionCount(selectedWithoutReviewLinkCount, 'selected review resource has', 'selected review resources have')} no usable replacement review link.`
+                        : undefined,
+            loading: isSendingReviewLinks,
+        },
         delete: {
             visible: canDeleteResources,
             available: selectedCount > 0,
@@ -1655,7 +1675,10 @@ function ResourcesPage({
                     setIsUpdateMetadataDialogOpen(true);
                     break;
                 case 'send-review-link':
-                    setIsReviewLinkDialogOpen(true);
+                    setReviewLinkEmailKind('invitation');
+                    break;
+                case 'send-review-link-migration':
+                    setReviewLinkEmailKind('migration');
                     break;
                 case 'delete':
                     handleOpenDeleteDialog();
@@ -2352,23 +2375,37 @@ function ResourcesPage({
             </AlertDialog>
 
             <AlertDialog open={isReviewLinkDialogOpen} onOpenChange={handleReviewLinkDialogOpenChange}>
-                <AlertDialogContent data-testid="resources-review-link-confirmation-dialog">
+                <AlertDialogContent
+                    data-testid={
+                        isReviewLinkMigration ? 'resources-review-link-migration-confirmation-dialog' : 'resources-review-link-confirmation-dialog'
+                    }
+                >
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Send review links?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will queue external emails for {selectedCount} {selectedCount === 1 ? 'resource' : 'resources'}. Every ContactPerson
-                            contributor with a valid email address receives one separate email per resource. The GFZ Data Services contact address is
-                            included in Cc on every message.
-                        </AlertDialogDescription>
+                        <AlertDialogTitle>{isReviewLinkMigration ? 'Send review-link migration notices?' : 'Send review links?'}</AlertDialogTitle>
+                        {isReviewLinkMigration ? (
+                            <AlertDialogDescription>
+                                Use this only when the ContactPerson previously received a review link that became invalid during the server
+                                migration. The email explicitly says that the old link no longer works and provides the replacement link for{' '}
+                                {selectedCount} {selectedCount === 1 ? 'resource' : 'resources'}.
+                            </AlertDialogDescription>
+                        ) : (
+                            <AlertDialogDescription>
+                                This will queue review invitations for {selectedCount} {selectedCount === 1 ? 'resource' : 'resources'}. Every
+                                ContactPerson contributor with a valid email address receives one separate invitation per resource. The GFZ Data
+                                Services contact address is included in Cc on every message.
+                            </AlertDialogDescription>
+                        )}
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isSendingReviewLinks}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={(event) => void handleConfirmSendReviewLinks(event)}
                             disabled={isSendingReviewLinks}
-                            data-testid="resources-confirm-send-review-links"
+                            data-testid={
+                                isReviewLinkMigration ? 'resources-confirm-send-review-link-migrations' : 'resources-confirm-send-review-links'
+                            }
                         >
-                            {isSendingReviewLinks ? 'Queuing...' : 'Send review links'}
+                            {isSendingReviewLinks ? 'Queuing...' : isReviewLinkMigration ? 'Send migration notices' : 'Send review links'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

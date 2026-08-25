@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Review invitation for one resource and one ContactPerson contributor.
+ * Review-link migration notification for one resource and one ContactPerson contributor.
  */
-final class ResourceReviewLink extends Mailable implements ShouldQueue
+final class ResourceReviewLinkMigration extends Mailable implements ShouldQueue
 {
     use Queueable;
     use SerializesModels;
@@ -28,15 +28,13 @@ final class ResourceReviewLink extends Mailable implements ShouldQueue
         public readonly ?string $resourceDoi,
         public readonly string $reviewUrl,
         public readonly string $recipientName,
-        public readonly string $initiatorName,
-        public readonly string $initiatorEmail,
         public readonly string $contactAddress,
     ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: "Review requested: {$this->resourceTitle}",
+            subject: "Your review link has changed - {$this->resourceTitle}",
             replyTo: [$this->contactAddress],
             cc: [$this->contactAddress],
         );
@@ -45,15 +43,14 @@ final class ResourceReviewLink extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            view: 'emails.resource-review-link',
-            text: 'emails.resource-review-link-text',
+            view: 'emails.resource-review-link-migration',
+            text: 'emails.resource-review-link-migration-text',
             with: [
                 'resourceTitle' => $this->resourceTitle,
                 'resourceDoi' => $this->resourceDoi,
                 'reviewUrl' => $this->reviewUrl,
                 'recipientName' => $this->recipientName,
-                'initiatorName' => $this->initiatorName,
-                'initiatorEmail' => $this->initiatorEmail,
+                'contactAddress' => $this->contactAddress,
             ],
         );
     }
@@ -68,7 +65,7 @@ final class ResourceReviewLink extends Mailable implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        Log::error('Resource review email delivery failed', [
+        Log::error('Resource review-link migration email delivery failed', [
             'resource_id' => $this->resourceId,
             'error' => $exception?->getMessage(),
         ]);

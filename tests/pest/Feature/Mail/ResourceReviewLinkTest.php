@@ -16,6 +16,8 @@ function makeResourceReviewLinkMail(?string $doi = '10.5880/test.review.001'): R
         resourceDoi: $doi,
         reviewUrl: 'https://example.test/10.5880/test.review.001/seismic?preview=secret-token',
         recipientName: 'Ada Reviewer',
+        initiatorName: 'Ernie Curator',
+        initiatorEmail: 'curator@example.test',
         contactAddress: 'datapub@example.test',
     );
 }
@@ -24,7 +26,7 @@ describe('envelope', function (): void {
     it('sets the subject, configured Reply-To and configured Cc', function (): void {
         $envelope = makeResourceReviewLinkMail()->envelope();
 
-        expect($envelope->subject)->toBe('Your review link has changed - Seismic Review Dataset')
+        expect($envelope->subject)->toBe('Review requested: Seismic Review Dataset')
             ->and($envelope->replyTo)->toHaveCount(1)
             ->and($envelope->replyTo[0]->address)->toBe('datapub@example.test')
             ->and($envelope->cc)->toHaveCount(1)
@@ -43,11 +45,12 @@ describe('content', function (): void {
                 'resourceDoi' => '10.5880/test.review.001',
                 'reviewUrl' => 'https://example.test/10.5880/test.review.001/seismic?preview=secret-token',
                 'recipientName' => 'Ada Reviewer',
-                'contactAddress' => 'datapub@example.test',
+                'initiatorName' => 'Ernie Curator',
+                'initiatorEmail' => 'curator@example.test',
             ]);
     });
 
-    it('renders the complete personalized migration notice in HTML and text', function (?string $doi): void {
+    it('renders the normal invitation without migration claims in HTML and text', function (?string $doi): void {
         $mailable = makeResourceReviewLinkMail($doi);
 
         $html = $mailable->render();
@@ -55,19 +58,15 @@ describe('content', function (): void {
 
         $expectedCopy = [
             'Dear Ada Reviewer,',
-            'with this automated email we want to inform you that your review link has changed due to a server migration on our side. This change is necessary to continue providing our services as quickly as possible.',
+            'Please review the following resource before publication:',
             'Title:',
             'Seismic Review Dataset',
-            'Your new review link:',
+            'Review link:',
             'https://example.test/10.5880/test.review.001/seismic?preview=secret-token',
-            'The old review link is no longer valid. Therefore, if your work is currently under review by a journal, we kindly ask you to resend the updated review link to the reviewers to grant them access before your dataset is published.',
-            'The DOI link is not affected by this change and can be cited as usual.',
-            'We expect to be able to process data publication requests again starting September 3. Until then, we appreciate your patience.',
-            "This is an automated mail. Please do not reply to the sender's address.",
-            'If you have any questions, please contact us via:',
-            'datapub@example.test',
-            'Kind regards,',
-            'the data publication team at GFZ Data Services',
+            'If you have questions or feedback, please contact:',
+            'Ernie Curator',
+            'curator@example.test',
+            'This review link provides access to a non-public preview. Please do not forward it beyond the intended review group.',
         ];
 
         foreach ($expectedCopy as $copy) {
@@ -76,17 +75,14 @@ describe('content', function (): void {
         }
 
         expect($html)->toContain('href="https://example.test/10.5880/test.review.001/seismic?preview=secret-token"')
-            ->toContain('href="mailto:datapub@example.test"')
-            ->not->toContain('Resource review requested')
-            ->not->toContain('Please review the following resource before publication')
-            ->not->toContain('This review link provides access to a non-public preview')
-            ->not->toContain('Ernie Curator')
-            ->not->toContain('curator@example.test')
-            ->and($text)->not->toContain('GFZ DATA SERVICES - RESOURCE REVIEW LINK')
-            ->not->toContain('Please review the following resource before publication')
-            ->not->toContain('This review link provides access to a non-public preview')
-            ->not->toContain('Ernie Curator')
-            ->not->toContain('curator@example.test');
+            ->toContain('href="mailto:curator@example.test"')
+            ->not->toContain('Your review link has changed')
+            ->not->toContain('server migration')
+            ->not->toContain('The old review link is no longer valid')
+            ->and($text)->toContain('GFZ DATA SERVICES - RESOURCE REVIEW LINK')
+            ->not->toContain('Your review link has changed')
+            ->not->toContain('server migration')
+            ->not->toContain('The old review link is no longer valid');
 
         if ($doi === null) {
             expect($html)->not->toContain('<strong>DOI:</strong>')

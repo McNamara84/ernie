@@ -561,7 +561,7 @@ describe('ResourcesPage - bulk selection', () => {
         await clickResourceAction('resources-action-send-review-link');
 
         expect(screen.getByTestId('resources-review-link-confirmation-dialog')).toBeInTheDocument();
-        expect(screen.getByText(/queue external emails for 2 resources/i)).toBeInTheDocument();
+        expect(screen.getByText(/queue review invitations for 2 resources/i)).toBeInTheDocument();
         expect(screen.getByText(/included in cc on every message/i)).toBeInTheDocument();
         expect(axiosPostMock).not.toHaveBeenCalled();
 
@@ -601,11 +601,43 @@ describe('ResourcesPage - bulk selection', () => {
         await waitFor(() => {
             expect(axiosPostMock).toHaveBeenCalledTimes(1);
             expect(axiosPostMock).toHaveBeenCalledWith('/resources/send-review-links', { ids: [21, 22] });
-            expect(toastMock.success).toHaveBeenCalledWith('3 review emails queued for 2 resources.');
+            expect(toastMock.success).toHaveBeenCalledWith('3 review invitations queued for 2 resources.');
         });
 
         expect(screen.getByText(/select rows to enable resource actions/i)).toBeInTheDocument();
         expect(screen.queryByTestId('resources-review-link-confirmation-dialog')).not.toBeInTheDocument();
+    });
+
+    it('uses a separate confirmation and endpoint for review-link migration notices', async () => {
+        axiosPostMock.mockResolvedValueOnce({
+            data: {
+                message: 'Review-link migration emails queued for delivery.',
+                queued_messages: 1,
+                successful_resources: [{ id: 21, queued_recipients: 1 }],
+                failed_resources: [],
+                skipped_recipients_count: 0,
+            },
+        });
+
+        render(<ResourcesPage {...buildProps([buildResource({ id: 21, publicstatus: 'review', landingPage })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-21'));
+        await clickResourceAction('resources-action-send-review-link-migration');
+
+        expect(screen.getByTestId('resources-review-link-migration-confirmation-dialog')).toBeInTheDocument();
+        expect(screen.getByText(/use this only when the contactperson previously received a review link/i)).toBeInTheDocument();
+        expect(screen.getByText(/old link no longer works/i)).toBeInTheDocument();
+        expect(axiosPostMock).not.toHaveBeenCalled();
+
+        await userEvent.click(screen.getByTestId('resources-confirm-send-review-link-migrations'));
+
+        await waitFor(() => {
+            expect(axiosPostMock).toHaveBeenCalledTimes(1);
+            expect(axiosPostMock).toHaveBeenCalledWith('/resources/send-review-link-migrations', { ids: [21] });
+            expect(toastMock.success).toHaveBeenCalledWith('1 migration notice queued for 1 resource.');
+        });
+
+        expect(screen.queryByTestId('resources-review-link-migration-confirmation-dialog')).not.toBeInTheDocument();
     });
 
     it('reports partial review-link results with skipped recipients and resources', async () => {
@@ -702,6 +734,7 @@ describe('ResourcesPage - bulk selection', () => {
         await openResourceActionsMenu();
 
         expect(screen.queryByTestId('resources-action-send-review-link')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('resources-action-send-review-link-migration')).not.toBeInTheDocument();
     });
 
     it('submits selected draft resources to the batch delete endpoint after confirmation', async () => {

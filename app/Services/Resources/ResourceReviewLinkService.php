@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Resources;
 
 use App\Mail\ResourceReviewLink;
+use App\Mail\ResourceReviewLinkMigration;
 use App\Models\ContributorType;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
+use App\Models\User;
+use Closure;
+use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
@@ -44,7 +48,70 @@ final readonly class ResourceReviewLinkService
      *     skipped_recipients_count:int
      * }
      */
-    public function queue(array $resourceIds, string $contactAddress): array
+    public function queue(array $resourceIds, User $initiator, string $contactAddress): array
+    {
+        return $this->queueWithMessageFactory(
+            $resourceIds,
+            static fn (
+                int $resourceId,
+                string $resourceTitle,
+                ?string $resourceDoi,
+                string $reviewUrl,
+                string $recipientName,
+            ): Mailable => new ResourceReviewLink(
+                resourceId: $resourceId,
+                resourceTitle: $resourceTitle,
+                resourceDoi: $resourceDoi,
+                reviewUrl: $reviewUrl,
+                recipientName: $recipientName,
+                initiatorName: $initiator->name,
+                initiatorEmail: $initiator->email,
+                contactAddress: $contactAddress,
+            ),
+        );
+    }
+
+    /**
+     * @param  list<int>  $resourceIds
+     * @return array{
+     *     queued_messages:int,
+     *     successful_resources:list<array{id:int,queued_recipients:int}>,
+     *     failed_resources:list<array{id:int,reason:string}>,
+     *     skipped_recipients_count:int
+     * }
+     */
+    public function queueMigration(array $resourceIds, string $contactAddress): array
+    {
+        return $this->queueWithMessageFactory(
+            $resourceIds,
+            static fn (
+                int $resourceId,
+                string $resourceTitle,
+                ?string $resourceDoi,
+                string $reviewUrl,
+                string $recipientName,
+            ): Mailable => new ResourceReviewLinkMigration(
+                resourceId: $resourceId,
+                resourceTitle: $resourceTitle,
+                resourceDoi: $resourceDoi,
+                reviewUrl: $reviewUrl,
+                recipientName: $recipientName,
+                contactAddress: $contactAddress,
+            ),
+        );
+    }
+
+    /**
+     * @param  list<int>  $resourceIds
+     * @param  Closure(int, string, ?string, string, string): Mailable  $messageFactory
+     * @return array{
+     *     queued_messages:int,
+     *     successful_resources:list<array{id:int,queued_recipients:int}>,
+     *     failed_resources:list<array{id:int,reason:string}>,
+     *     skipped_recipients_count:int
+     * }
+     */
+    private function queueWithMessageFactory(array $resourceIds, Closure $messageFactory): array
     {
         $resources = Resource::query()
             ->with(self::RELATIONS)
@@ -141,13 +208,12 @@ final readonly class ResourceReviewLinkService
 
             foreach ($recipients as $recipient) {
                 try {
-                    Mail::to($recipient['email'])->queue(new ResourceReviewLink(
-                        resourceId: $resourceId,
-                        resourceTitle: $resourceTitle,
-                        resourceDoi: $resource->doi,
-                        reviewUrl: $reviewUrl,
-                        recipientName: $recipient['name'],
-                        contactAddress: $contactAddress,
+                    Mail::to($recipient['email'])->queue($messageFactory(
+                        $resourceId,
+                        $resourceTitle,
+                        $resource->doi,
+                        $reviewUrl,
+                        $recipient['name'],
                     ));
 
                     $queuedRecipients++;
