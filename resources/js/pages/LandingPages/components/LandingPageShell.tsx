@@ -68,7 +68,7 @@ export function LandingPageShell({
                         </div>
                         <div className="flex justify-center">
                             {customLogoUrl ? (
-                                <img src={customLogoUrl} alt="GFZ Data Services" className="h-24 max-w-full object-contain" />
+                                <img src={customLogoUrl} alt="GFZ Data Services" className="h-auto w-auto max-w-full object-contain" />
                             ) : (
                                 <img src="/images/gfz-ds-logo.png" alt="GFZ Data Services" className={defaultHeaderLogoClassName} />
                             )}

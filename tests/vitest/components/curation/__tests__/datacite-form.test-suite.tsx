@@ -3355,6 +3355,12 @@ describe('DataCiteForm', () => {
         await user.click(screen.getByRole('button', { name: 'Custom' }));
         await user.type(screen.getByRole('textbox', { name: /^License name/ }), 'Community Data License');
         await user.type(screen.getByRole('textbox', { name: /^License text URL/ }), 'https://example.test/licenses/community-data');
+        await user.click(screen.getByRole('button', { name: 'Catalog' }));
+        await user.click(screen.getByRole('button', { name: 'Custom' }));
+
+        expect(screen.getByRole('textbox', { name: /^License name/ })).toHaveValue('Community Data License');
+        expect(screen.getByRole('textbox', { name: /^License text URL/ })).toHaveValue('https://example.test/licenses/community-data');
+
         await fillRequiredAuthor(user);
         await fillRequiredAbstract(user);
 
@@ -3371,6 +3377,57 @@ describe('DataCiteForm', () => {
                 uri: 'https://example.test/licenses/community-data',
             },
         ]);
+        expect(body.rawRights).toEqual([]);
+    });
+
+    it('restores an imported catalog license and excludes the inactive custom draft from the payload', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Catalog License Dataset', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenterId={1}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+        if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(licensesTrigger);
+        }
+
+        expect(screen.getByLabelText(/^License/, { selector: 'button' })).toHaveTextContent('MIT License');
+
+        await user.click(screen.getByRole('button', { name: 'Custom' }));
+        await user.type(screen.getByRole('textbox', { name: /^License name/ }), 'Temporary Custom License');
+        await user.type(screen.getByRole('textbox', { name: /^License text URL/ }), 'https://example.test/licenses/temporary');
+        await user.click(screen.getByRole('button', { name: 'Catalog' }));
+
+        expect(screen.getByLabelText(/^License/, { selector: 'button' })).toHaveTextContent('MIT License');
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(body.licenses).toEqual(['MIT']);
+        expect(body.customLicenses).toEqual([]);
         expect(body.rawRights).toEqual([]);
     });
 
@@ -3546,6 +3603,9 @@ describe('DataCiteForm', () => {
         if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(licensesTrigger);
         }
+
+        await user.click(screen.getByRole('button', { name: 'Catalog' }));
+        await user.click(screen.getByRole('button', { name: 'Custom' }));
 
         expect(screen.getByRole('textbox', { name: /^License name/ })).toHaveValue('Imported Community License');
         expect(screen.getByRole('textbox', { name: /^License text URL/ })).toHaveValue('https://example.test/licenses/imported-community');
@@ -4497,7 +4557,7 @@ describe('DataCiteForm', () => {
             await waitFor(() => expect(saveButton).toBeEnabled());
         });
 
-        it('blocks Save & Validate when Abstract is shorter than 50 characters', async () => {
+        it('accepts a non-empty Abstract shorter than 50 characters', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             render(
                 <DataCiteForm
@@ -4532,12 +4592,24 @@ describe('DataCiteForm', () => {
             await user.click(screen.getByRole('button', { name: /save & validate/i }));
 
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /^Abstract must be at least 50 characters \(current: 14\)$/i })).toBeInTheDocument();
+                expect(getSaveAxiosCall()).toBeDefined();
             });
-            expect(axios.post).not.toHaveBeenCalled();
+
+            const saveCall = getSaveAxiosCall();
+            const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+            expect(screen.queryByText(/Abstract must be at least/i)).not.toBeInTheDocument();
+            expect(body.descriptions).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        descriptionType: 'Abstract',
+                        description: 'Short abstract',
+                    }),
+                ]),
+            );
         });
 
-        it('marks only the invalid Abstract when repeated Abstracts are validated', async () => {
+        it('accepts short Abstracts when repeated Abstracts are validated', async () => {
             const user = userEvent.setup();
             render(
                 <DataCiteForm
@@ -4572,13 +4644,46 @@ describe('DataCiteForm', () => {
             await user.tab();
 
             await waitFor(() => {
-                expect(secondAbstract).toHaveAttribute('aria-invalid', 'true');
-                expect(screen.getByText('Abstract 2 must be at least 50 characters (current: 9)')).toBeInTheDocument();
+                expect(secondAbstract).toHaveAttribute('aria-invalid', 'false');
             });
+            expect(screen.queryByText(/Abstract 2 must be at least/i)).not.toBeInTheDocument();
             expect(firstAbstract).not.toBeInTheDocument();
 
             await user.click(screen.getByRole('tab', { name: 'Language not specified 1' }));
             expect(screen.getByPlaceholderText(/Enter a brief summary/i)).toHaveAttribute('aria-invalid', 'false');
+        });
+
+        it('blocks Save & Validate when an Abstract exceeds 17,500 characters', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenterId={1}
+                    initialAuthors={[{ type: 'person', lastName: 'Curator' }]}
+                    initialDescriptions={[{ type: 'Abstract', description: 'x'.repeat(17_501) }]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Abstract must not exceed 17500 characters \(current: 17501\)/i })).toBeInTheDocument();
+            });
+            expect(getSaveAxiosCall()).toBeNull();
         });
 
         it('includes descriptions in the payload when submitting', { timeout: 60000 }, async () => {

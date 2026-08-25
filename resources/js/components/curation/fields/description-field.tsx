@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { ValidationMessage } from '@/hooks/use-form-validation';
 import type { DescriptionType as DescriptionTypeFromApi, Language } from '@/types';
 
+import { ABSTRACT_MAX_LENGTH } from '../utils/description-rules';
 import { SelectField } from './select-field';
 
 export type DescriptionType = 'Abstract' | 'Methods' | 'SeriesInformation' | 'TableOfContents' | 'TechnicalInfo' | 'Other';
@@ -191,7 +192,7 @@ export default function DescriptionField({
                             const isFirstAbstract = descriptions[firstAbstractIndex]?.id === description.id;
                             const isRequiredAbstract = isAbstract && description.id === requiredAbstractId;
                             const trimmedCharCount = description.value.trim().length;
-                            const hasLocalAbstractError = isAbstract && trimmedCharCount > 0 && (trimmedCharCount < 50 || trimmedCharCount > 17_500);
+                            const hasLocalAbstractError = isAbstract && trimmedCharCount > ABSTRACT_MAX_LENGTH;
                             const entryValidationMessages = validationMessages.filter(
                                 (message) =>
                                     message.fieldId === description.id ||
@@ -371,25 +372,21 @@ export default function DescriptionField({
                                                 )}
                                                 {isAbstract && validationTouched && entryValidationMessages.length === 0 && hasLocalAbstractError && (
                                                     <p className="text-sm text-destructive" role="alert">
-                                                        Abstract must be between 50 and 17,500 characters.
+                                                        Abstract must not exceed {ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters.
                                                     </p>
                                                 )}
                                                 <div
                                                     id={`${descriptionId}-count`}
                                                     data-testid={isFirstAbstract ? 'abstract-character-count' : undefined}
                                                     className={`text-right text-sm ${
-                                                        hasValidationError || (isAbstract && charCount > 15_750)
+                                                        hasValidationError || (isAbstract && charCount > ABSTRACT_MAX_LENGTH * 0.9)
                                                             ? 'font-medium text-destructive'
-                                                            : isAbstract && charCount > 0 && charCount < 50
-                                                              ? 'font-medium text-yellow-600'
-                                                              : 'text-muted-foreground'
+                                                            : 'text-muted-foreground'
                                                     }`}
                                                 >
                                                     {charCount.toLocaleString('en-US')} characters
                                                     {isAbstract && charCount > 0 && (
-                                                        <span className="ml-1">
-                                                            ({charCount < 50 ? `${50 - charCount} more needed` : 'of 17,500'})
-                                                        </span>
+                                                        <span className="ml-1">(of {ABSTRACT_MAX_LENGTH.toLocaleString('en-US')})</span>
                                                     )}
                                                 </div>
                                             </div>

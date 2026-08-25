@@ -34,11 +34,11 @@ interface UsePortalFiltersReturn {
  */
 export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptions): UsePortalFiltersReturn {
     const updateFilters = useCallback(
-        (newFilters: Partial<PortalFilters>, resetPage = true) => {
+        (newFilters: Partial<PortalFilters>, resetPage = true, preserveScroll = true) => {
             const resolvedFilters = mergePortalFilters(filters, newFilters);
             const url = buildPortalFilterUrl(resolvedFilters, !resetPage && currentPage > 1 ? currentPage : null);
 
-            router.get(url, {}, { preserveState: true, preserveScroll: true });
+            router.get(url, {}, { preserveState: true, preserveScroll });
         },
         [filters, currentPage],
     );
@@ -59,7 +59,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
 
     const setDatacenter = useCallback(
         (datacenter: string[]) => {
-            updateFilters({ datacenter }, true);
+            updateFilters({ datacenter }, true, false);
         },
         [updateFilters],
     );

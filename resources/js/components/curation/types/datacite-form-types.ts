@@ -64,19 +64,24 @@ export interface RawRightsInput {
     sourceResourceRightId?: number | null;
 }
 
-export type CatalogLicenseEntry = {
-    id: string;
-    mode: 'catalog';
-    license: string;
-};
-
-export type CustomLicenseEntry = {
-    id: string;
-    mode: 'custom';
+export type CustomLicenseDraft = {
     name: string;
     uri: string;
     sourceResourceRightId?: number | null;
     rawRight?: RawRightsInput;
+};
+
+export type CatalogLicenseEntry = {
+    id: string;
+    mode: 'catalog';
+    license: string;
+    customDraft?: CustomLicenseDraft;
+};
+
+export type CustomLicenseEntry = CustomLicenseDraft & {
+    id: string;
+    mode: 'custom';
+    catalogDraft?: string;
 };
 
 export type LicenseEntry = CatalogLicenseEntry | CustomLicenseEntry;

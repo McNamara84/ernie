@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\AccessLevel;
 use App\Enums\UserRole;
+use App\Models\Datacenter;
 use App\Models\Description;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
@@ -202,6 +203,11 @@ class PlaywrightTestSeeder extends Seeder
                 'position' => 1,
             ]);
         }
+
+        $portalDatacenter = Datacenter::query()->firstOrCreate([
+            'name' => 'Playwright: Portal Datacenter',
+        ]);
+        $publishedResource->update(['datacenter_id' => $portalDatacenter->id]);
 
         // Use updateOrCreate to ensure doi_prefix is correctly set on every seeder run.
         // This intentionally overwrites any manual changes because Playwright tests

@@ -470,6 +470,8 @@ describe('Docs page', () => {
         expect(screen.getByText('Add language version')).toBeInTheDocument();
         expect(screen.getByText('Remove version')).toBeInTheDocument();
         expect(screen.getByText(/Tabs containing validation errors display a red error indicator/i)).toBeInTheDocument();
+        expect(screen.getByText(/at least one non-empty Abstract with a maximum of 17,500 characters/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Abstract with 50 to 17,500 characters/i)).not.toBeInTheDocument();
     });
 
     it('documents opening resources from the resources table row', async () => {

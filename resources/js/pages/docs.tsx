@@ -1282,7 +1282,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                         </ul>
                         <p className="mt-4 text-sm text-muted-foreground">
-                            Every resource must contain at least one Abstract with 50 to 17,500 characters.
+                            Every resource must contain at least one non-empty Abstract with a maximum of 17,500 characters.
                         </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">

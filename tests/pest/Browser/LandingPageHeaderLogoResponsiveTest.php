@@ -6,14 +6,21 @@ use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use Database\Seeders\PlaywrightTestSeeder;
+use Illuminate\Foundation\Vite;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
-uses()->group('issue-1051', 'browser', 'landing-pages');
+uses()->group('issue-1051', 'issue-1146', 'browser', 'landing-pages');
 
-describe('Issue 1051 responsive landing page header logo', function (): void {
-    it('preserves the five-to-one logo ratio on desktop and mobile viewports', function (): void {
+describe('Issues 1051 and 1146 responsive landing page header logo', function (): void {
+    beforeEach(function (): void {
+        app(Vite::class)
+            ->useHotFile(storage_path('framework/testing-vite.hot'))
+            ->useBuildDirectory('build');
+    });
+
+    it('uses the natural logo width up to the available header width', function (): void {
         /** @var TestCase $this */
         $this->seed(PlaywrightTestSeeder::class);
 
@@ -73,6 +80,7 @@ describe('Issue 1051 responsive landing page header logo', function (): void {
                         }
 
                         const rect = logo.getBoundingClientRect();
+                        const containerRect = logo.parentElement?.getBoundingClientRect();
                         const style = getComputedStyle(logo);
                         const intrinsicRatio = logo.naturalWidth / logo.naturalHeight;
                         const boxRatio = rect.width / rect.height;
@@ -87,6 +95,7 @@ describe('Issue 1051 responsive landing page header logo', function (): void {
                             viewportWidth: window.innerWidth,
                             naturalWidth: logo.naturalWidth,
                             naturalHeight: logo.naturalHeight,
+                            containerWidth: containerRect?.width ?? 0,
                             objectFit: style.objectFit,
                             elementWidth: rect.width,
                             elementHeight: rect.height,
@@ -100,6 +109,10 @@ describe('Issue 1051 responsive landing page header logo', function (): void {
                 expect($logoState['naturalWidth'], "{$viewport} natural width")->toBe(1200);
                 expect($logoState['naturalHeight'], "{$viewport} natural height")->toBe(240);
                 expect($logoState['objectFit'], "{$viewport} object fit")->toBe('contain');
+                expect(
+                    abs($logoState['elementWidth'] - min($logoState['naturalWidth'], $logoState['containerWidth'])),
+                    "{$viewport} width capped by natural or available width",
+                )->toBeLessThanOrEqual(1.0);
                 expect($logoState['elementWidth'], "{$viewport} element width")
                     ->toBeLessThanOrEqual($logoState['viewportWidth']);
                 expect(
@@ -107,6 +120,9 @@ describe('Issue 1051 responsive landing page header logo', function (): void {
                     "{$viewport} rendered content ratio",
                 )->toBeLessThan(0.01);
             }
+
+            expect($logoState['elementWidth'], 'mobile logo shrinks below its natural width')
+                ->toBeLessThan($logoState['naturalWidth']);
         } finally {
             Storage::disk('public')->delete($logoPath);
         }

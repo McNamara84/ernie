@@ -213,6 +213,25 @@ describe('usePortalFilters', () => {
         });
     });
 
+    describe('setDatacenter', () => {
+        it('resets the page and scroll position when applying a datacenter filter', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: defaultFilters, currentPage: 3 }),
+            );
+
+            act(() => {
+                result.current.setDatacenter(['INTERMAGNET']);
+            });
+
+            expect(routerMock.get).toHaveBeenCalledWith(
+                '/portal?datacenter%5B%5D=INTERMAGNET',
+                {},
+                { preserveState: true, preserveScroll: false },
+            );
+            expect(routerMock.get.mock.calls[0][0]).not.toContain('page=');
+        });
+    });
+
     describe('clearFilters', () => {
         it('navigates to /portal without any params', () => {
             const { result } = renderHook(() =>
