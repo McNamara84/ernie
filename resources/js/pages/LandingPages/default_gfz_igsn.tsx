@@ -71,6 +71,13 @@ export default function DefaultGfzIgsnTemplate() {
     const localName = resource.igsn_metadata?.name?.trim();
     const mainTitle = templateData.mainTitle.trim().toLowerCase() === ':tba' && localName ? localName : templateData.mainTitle;
     const citation = replaceIgsnIdentifierText(templateData.citation, resource.doi, resource.igsn_metadata?.igsn);
+    const citationPresentation = {
+        ...templateData.citationPresentation,
+        compact: replaceIgsnIdentifierText(templateData.citationPresentation.compact, resource.doi, resource.igsn_metadata?.igsn),
+        expanded: replaceIgsnIdentifierText(templateData.citationPresentation.expanded, resource.doi, resource.igsn_metadata?.igsn),
+        compactPrefix: replaceIgsnIdentifierText(templateData.citationPresentation.compactPrefix, resource.doi, resource.igsn_metadata?.igsn),
+        compactSuffix: replaceIgsnIdentifierText(templateData.citationPresentation.compactSuffix, resource.doi, resource.igsn_metadata?.igsn),
+    };
     const { status, subtitle } = templateData;
 
     const rightOrder = sectionOrder?.rightColumn ?? RIGHT_COLUMN_SECTIONS;
@@ -116,9 +123,7 @@ export default function DefaultGfzIgsnTemplate() {
             // physical-sample-centric and there are no downloadable artefacts.
             files: null,
             general: <GeneralSection key="general" igsn={resource.igsn_metadata} dates={resource.dates || []} />,
-            sample_family: (
-                <SampleFamilySection key="sample_family" family={resource.igsn_sample_family} currentResourceId={resource.id} />
-            ),
+            sample_family: <SampleFamilySection key="sample_family" family={resource.igsn_sample_family} currentResourceId={resource.id} />,
             acquisition: (
                 <AcquisitionSection
                     key="acquisition"
@@ -162,7 +167,15 @@ export default function DefaultGfzIgsnTemplate() {
             mainAriaLabel="Sample details"
             customLogoUrl={customLogoUrl}
             hero={
-                <ResourceHero resourceType="IGSN" status={status} mainTitle={mainTitle} subtitle={subtitle} citation={citation} useIgsnIcon={true} />
+                <ResourceHero
+                    resourceType="IGSN"
+                    status={status}
+                    mainTitle={mainTitle}
+                    subtitle={subtitle}
+                    citation={citation}
+                    citationPresentation={citationPresentation}
+                    useIgsnIcon={true}
+                />
             }
             metadataSection={rightSectionRegistry.metadata}
             locationSection={rightSectionRegistry.location}

@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ResourcesPage from '@/pages/resources';
@@ -67,7 +67,26 @@ vi.mock('@/layouts/app-layout', () => ({
 }));
 
 vi.mock('@/components/resources-filters', () => ({
-    ResourcesFilters: () => <div data-testid="resources-filters" />,
+    ResourcesFilters: ({
+        filters,
+        onFilterChange,
+    }: {
+        filters: { datacenter_id?: number; without_datacenter?: boolean; search?: string };
+        onFilterChange: (filters: Record<string, unknown>) => void;
+    }) => (
+        <div data-testid="resources-filters">
+            <span data-testid="resource-filter-state">{JSON.stringify(filters)}</span>
+            <button type="button" data-testid="select-datacenter" onClick={() => onFilterChange({ ...filters, datacenter_id: 7 })}>
+                Select datacenter
+            </button>
+            <button type="button" data-testid="select-without-datacenter" onClick={() => onFilterChange({ without_datacenter: true })}>
+                Select without datacenter
+            </button>
+            <button type="button" data-testid="clear-datacenter" onClick={() => onFilterChange({ search: filters.search })}>
+                Clear datacenter
+            </button>
+        </div>
+    ),
 }));
 vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({ default: () => null }));
 vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
@@ -114,6 +133,8 @@ describe('ResourcesPage', () => {
         routerMock.visit.mockClear();
         axiosGetMock.mockReset();
         axiosGetMock.mockResolvedValue({ data: {} });
+        localStorage.clear();
+        window.history.replaceState({}, '', '/resources');
         buildCurationQueryFromResourceMock.mockReset();
         buildCurationQueryFromResourceMock.mockResolvedValue({});
         editorRouteMock.mockClear();
@@ -159,6 +180,89 @@ describe('ResourcesPage', () => {
         } else {
             Reflect.deleteProperty(navigator, 'clipboard');
         }
+    });
+
+    describe('datacenter filter persistence', () => {
+        const listProps = {
+            resources: [],
+            pagination: {
+                current_page: 1,
+                last_page: 1,
+                per_page: 50,
+                total: 0,
+                from: 0,
+                to: 0,
+                has_more: false,
+            },
+            sort: { key: 'updated_at' as const, direction: 'desc' as const },
+            filters: {},
+        };
+
+        it('restores a valid stored datacenter only on a clean resources URL', async () => {
+            localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 7 }));
+            axiosGetMock.mockResolvedValueOnce({
+                data: { datacenters: [{ id: 7, name: 'GFZ' }], resource_types: [], curators: [], statuses: [], year_range: {} },
+            });
+
+            render(<ResourcesPage {...listProps} />);
+
+            await waitFor(() => {
+                expect(routerMock.visit).toHaveBeenCalledWith('/resources?sort_key=updated_at&sort_direction=desc&datacenter_id=7', {
+                    preserveState: false,
+                    replace: true,
+                });
+            });
+            expect(screen.getByTestId('resource-filter-state')).toHaveTextContent('"datacenter_id":7');
+        });
+
+        it('restores the stored without-datacenter selection', async () => {
+            localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'without_datacenter' }));
+            axiosGetMock.mockResolvedValueOnce({ data: { datacenters: [] } });
+
+            render(<ResourcesPage {...listProps} />);
+
+            await waitFor(() => {
+                expect(routerMock.visit).toHaveBeenCalledWith('/resources?sort_key=updated_at&sort_direction=desc&without_datacenter=1', {
+                    preserveState: false,
+                    replace: true,
+                });
+            });
+        });
+
+        it('discards a stored datacenter that no longer exists', async () => {
+            localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 99 }));
+            axiosGetMock.mockResolvedValueOnce({ data: { datacenters: [{ id: 7, name: 'GFZ' }] } });
+
+            render(<ResourcesPage {...listProps} />);
+
+            await waitFor(() => expect(axiosGetMock).toHaveBeenCalledWith('/resources/filter-options'));
+            await waitFor(() => expect(localStorage.getItem('ernie.resources.datacenter-filter.v1')).toBeNull());
+            expect(routerMock.visit).not.toHaveBeenCalled();
+        });
+
+        it('does not restore over an explicit filtered URL', async () => {
+            window.history.replaceState({}, '', '/resources?search=volcano');
+            localStorage.setItem('ernie.resources.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 7 }));
+            axiosGetMock.mockResolvedValueOnce({ data: { datacenters: [{ id: 7, name: 'GFZ' }] } });
+
+            render(<ResourcesPage {...listProps} filters={{ search: 'volcano' }} />);
+
+            await waitFor(() => expect(axiosGetMock).toHaveBeenCalledWith('/resources/filter-options'));
+            expect(routerMock.visit).not.toHaveBeenCalled();
+            expect(screen.getByTestId('resource-filter-state')).toHaveTextContent('"search":"volcano"');
+        });
+
+        it('updates and clears only the datacenter preference after user changes', () => {
+            render(<ResourcesPage {...listProps} filters={{ search: 'volcano' }} />);
+
+            fireEvent.click(screen.getByTestId('select-datacenter'));
+            expect(localStorage.getItem('ernie.resources.datacenter-filter.v1')).toBe(
+                JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 7 }),
+            );
+
+            fireEvent.click(screen.getByTestId('clear-datacenter'));
+            expect(localStorage.getItem('ernie.resources.datacenter-filter.v1')).toBeNull();
+        });
     });
 
     it('shows and opens the URL migration only when the admin capability prop is true', async () => {

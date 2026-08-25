@@ -1,6 +1,6 @@
 import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 
-import { buildCitation } from './buildCitation';
+import { buildCitationPresentation } from './buildCitation';
 
 export function getLandingPageStatus(isPreview: boolean, landingPage: LandingPageConfig | null): string {
     return isPreview ? 'preview' : landingPage?.status || 'published';
@@ -20,10 +20,13 @@ export function getLandingPageTemplateData(
     isPreview: boolean,
     citationAuthorLimit?: number,
 ) {
+    const citationPresentation = buildCitationPresentation(resource, { creatorLimit: citationAuthorLimit });
+
     return {
         status: getLandingPageStatus(isPreview, landingPage),
         mainTitle: getLandingPageMainTitle(resource),
         subtitle: getLandingPageSubtitle(resource),
-        citation: buildCitation(resource, { creatorLimit: citationAuthorLimit }),
+        citation: citationPresentation.compact,
+        citationPresentation,
     };
 }

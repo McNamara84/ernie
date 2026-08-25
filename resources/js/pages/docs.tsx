@@ -1788,6 +1788,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             the setup modal, but hides the complete Files section on the preview and public landing page until the option is disabled
                             again.
                         </p>
+                        <h4>Expanding Citation Authors</h4>
+                        <p>
+                            When a landing-page template limits the number of citation authors, the citation ends its shortened author list with an
+                            interactive <strong>et al.</strong> control. Activate it to show every author inline. The same control then reads{' '}
+                            <strong>Show fewer authors</strong> and collapses the list again; keyboard focus stays on the control in both states. The
+                            copy action uses whichever compact or expanded citation is currently visible.
+                        </p>
                         <h4>License Display</h4>
                         <p>
                             In the Files section, Creative Commons licenses show both the full license name and the conventional short notation, for
@@ -2218,7 +2225,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             datacenters assigned to at least one regular resource; datacenters used exclusively by physical-sample IGSNs and unused
                             datacenters are omitted. Choose <strong>Without Datacenter</strong> to find resources that still need a datacenter
                             assignment, or <strong>All Datacenters</strong> to remove the filter. The selected value appears with the other active
-                            filter badges and remains applied when you change the sorting or load more results.
+                            filter badges and remains applied when you change the sorting or load more results. ERNIE also remembers a selected
+                            datacenter or <strong>Without Datacenter</strong> in this browser and restores it the next time you open the unfiltered{' '}
+                            <code>/resources</code> page. A datacenter supplied in the URL takes precedence. Choosing <strong>All Datacenters</strong>{' '}
+                            or clearing the datacenter badge or all filters removes the saved selection; other filters remain URL-based and are not
+                            stored as this browser preference.
                         </p>
 
                         <p>

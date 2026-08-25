@@ -426,6 +426,7 @@ describe('Datacenter Filter', function (): void {
                 ->component('resources')
                 ->has('resources', 1)
                 ->where('resources.0.id', $selectedResource->id)
+                ->where('filters.datacenter_id', $selectedDatacenter->id)
             );
     });
 
@@ -451,6 +452,7 @@ describe('Datacenter Filter', function (): void {
                 ->component('resources')
                 ->has('resources', 1)
                 ->where('resources.0.id', $resourceWithoutDatacenter->id)
+                ->where('filters.without_datacenter', true)
             );
     });
 

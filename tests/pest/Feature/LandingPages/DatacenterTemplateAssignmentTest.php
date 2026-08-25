@@ -7,6 +7,7 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
+use App\Services\BotProtection\PortalPageCacheService;
 
 beforeEach(function (): void {
     $this->admin = User::factory()->admin()->create();
@@ -44,6 +45,30 @@ it('atomically moves a datacenter from one regular template to another', functio
 
     expect($datacenter->fresh()->landing_page_template_id)->toBe($secondTemplate->id)
         ->and($firstTemplate->datacenters()->exists())->toBeFalse();
+});
+
+it('flushes the portal payload cache when a datacenter template assignment changes', function (): void {
+    $template = LandingPageTemplate::factory()->create();
+    $datacenter = Datacenter::factory()->create();
+    $portalCache = Mockery::mock(PortalPageCacheService::class);
+    $portalCache->shouldReceive('flush')->once();
+    app()->instance(PortalPageCacheService::class, $portalCache);
+
+    $this->actingAs($this->admin)
+        ->putJson("/landing-pages/{$template->id}", ['datacenter_ids' => [$datacenter->id]])
+        ->assertOk();
+});
+
+it('does not flush the portal payload cache when datacenter assignments are unchanged', function (): void {
+    $template = LandingPageTemplate::factory()->create();
+    $datacenter = Datacenter::factory()->create(['landing_page_template_id' => $template->id]);
+    $portalCache = Mockery::mock(PortalPageCacheService::class);
+    $portalCache->shouldNotReceive('flush');
+    app()->instance(PortalPageCacheService::class, $portalCache);
+
+    $this->actingAs($this->admin)
+        ->putJson("/landing-pages/{$template->id}", ['datacenter_ids' => [$datacenter->id]])
+        ->assertOk();
 });
 
 it('assigns datacenters to IGSN templates through the independent IGSN slot', function (): void {

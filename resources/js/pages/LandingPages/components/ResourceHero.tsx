@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import type { CitationPresentation } from '@/pages/LandingPages/lib/buildCitation';
 
 import { LandingPageCard } from './LandingPageCard';
 import { getResourceTypeIcon } from './ResourceTypeIcons';
@@ -14,12 +15,14 @@ interface ResourceHeroProps {
     mainTitle: string;
     subtitle?: string;
     citation: string;
+    citationPresentation?: CitationPresentation;
     /** Use FlaskConical icon for IGSN instead of resource type icon */
     useIgsnIcon?: boolean;
 }
 
-export function ResourceHero({ resourceType, status, mainTitle, subtitle, citation, useIgsnIcon = false }: ResourceHeroProps) {
+export function ResourceHero({ resourceType, status, mainTitle, subtitle, citation, citationPresentation, useIgsnIcon = false }: ResourceHeroProps) {
     const [copied, setCopied] = useState(false);
+    const [isCitationExpanded, setIsCitationExpanded] = useState(false);
     const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Use FlaskConical for IGSN, otherwise use resource type icon
@@ -36,9 +39,16 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
         };
     }, []);
 
+    useEffect(() => {
+        setIsCitationExpanded(false);
+    }, [citation, citationPresentation?.expanded]);
+
+    const expandableCitation = citationPresentation?.isTruncated === true ? citationPresentation : null;
+    const visibleCitation = expandableCitation && isCitationExpanded ? expandableCitation.expanded : citation;
+
     const handleCopy = async () => {
         try {
-            await navigator.clipboard.writeText(citation);
+            await navigator.clipboard.writeText(visibleCitation);
             setCopied(true);
             toast.success('Citation copied to clipboard');
             // Clear any existing timeout before scheduling a new one
@@ -58,10 +68,7 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
     };
 
     return (
-        <LandingPageCard
-            aria-labelledby="heading-title"
-            className="mx-8 my-6"
-        >
+        <LandingPageCard aria-labelledby="heading-title" className="mx-8 my-6">
             {/* Top Row: Resource Type, Title, Status */}
             <div className="mb-6 flex items-start justify-between gap-4">
                 {/* Left: Resource Type */}
@@ -72,7 +79,9 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
 
                 {/* Center: Title + Subtitle */}
                 <div className="flex-1 space-y-1 text-center">
-                    <h1 id="heading-title" className="text-xl leading-tight font-bold text-gray-900 dark:text-gray-100">{mainTitle}</h1>
+                    <h1 id="heading-title" className="text-xl leading-tight font-bold text-gray-900 dark:text-gray-100">
+                        {mainTitle}
+                    </h1>
                     {subtitle && <p className="text-base font-normal text-gray-600 italic dark:text-gray-400">{subtitle}</p>}
                 </div>
 
@@ -85,11 +94,28 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
 
             {/* Bottom: Citation */}
             <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
-                {statusConfig.reviewLabel && (
-                    <p className={`mb-2 text-sm font-semibold ${statusConfig.textColor}`}>{statusConfig.reviewLabel}</p>
-                )}
+                {statusConfig.reviewLabel && <p className={`mb-2 text-sm font-semibold ${statusConfig.textColor}`}>{statusConfig.reviewLabel}</p>}
                 <div className="flex items-start gap-3">
-                    <p className="flex-1 text-sm leading-relaxed text-gray-700 dark:text-gray-300">{citation}</p>
+                    <p className="flex-1 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
+                        {expandableCitation ? (
+                            <>
+                                {isCitationExpanded ? `${expandableCitation.expanded} ` : expandableCitation.compactPrefix}
+                                <Button
+                                    type="button"
+                                    variant="link"
+                                    className="inline h-auto min-h-0 rounded-sm p-0 align-baseline text-sm font-normal text-inherit decoration-dotted underline-offset-2 hover:text-gray-950 dark:hover:text-white"
+                                    aria-expanded={isCitationExpanded}
+                                    aria-label={isCitationExpanded ? 'Show fewer citation authors' : 'Show all citation authors'}
+                                    onClick={() => setIsCitationExpanded((isExpanded) => !isExpanded)}
+                                >
+                                    {isCitationExpanded ? 'Show fewer authors' : 'et al.'}
+                                </Button>
+                                {!isCitationExpanded && expandableCitation.compactSuffix}
+                            </>
+                        ) : (
+                            citation
+                        )}
+                    </p>
                     <Button
                         variant="ghost"
                         size="icon"

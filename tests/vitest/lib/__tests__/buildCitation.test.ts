@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildCitation } from '@/pages/LandingPages/lib/buildCitation';
+import { buildCitation, buildCitationPresentation } from '@/pages/LandingPages/lib/buildCitation';
 
 // Type for buildCitation parameter - extracted from the first parameter
 type CitationResource = Parameters<typeof buildCitation>[0];
@@ -496,5 +496,44 @@ describe('buildCitation', () => {
         expect(buildCitation(resource, { omitDoiWhenMissing: true })).toBe(
             'GFZ (2026): Published Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST.2026',
         );
+    });
+
+    it('provides compact and expanded citation variants around a structured et al. marker', () => {
+        const resource: CitationResource = {
+            creators: [
+                { creatorable: { type: 'Person', given_name: 'John', family_name: 'Doe' } },
+                { creatorable: { type: 'Person', given_name: 'Jane', family_name: 'Smith' } },
+                { creatorable: { type: 'Institution', name: 'GFZ' } },
+            ],
+            titles: [{ title: 'Long Author Dataset', title_type: 'MainTitle' }],
+            year: 2026,
+            doi: '10.5880/GFZ.LONG.2026',
+        };
+
+        expect(buildCitationPresentation(resource, { creatorLimit: 2 })).toEqual({
+            compact: 'Doe, J.; Smith, J.; et al. (2026): Long Author Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026',
+            expanded: 'Doe, J.; Smith, J.; GFZ (2026): Long Author Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026',
+            isTruncated: true,
+            compactPrefix: 'Doe, J.; Smith, J.; ',
+            compactSuffix: ' (2026): Long Author Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026',
+        });
+    });
+
+    it('returns identical non-interactive variants when no creators are hidden', () => {
+        const resource: CitationResource = {
+            creators: [{ creatorable: { type: 'Person', given_name: 'John', family_name: 'Doe' } }],
+            titles: [{ title: 'Short Citation', title_type: 'MainTitle' }],
+            year: 2026,
+            doi: null,
+        };
+        const citation = 'Doe, J. (2026): Short Citation. GFZ Data Services. DOI not available';
+
+        expect(buildCitationPresentation(resource, { creatorLimit: 2 })).toEqual({
+            compact: citation,
+            expanded: citation,
+            isTruncated: false,
+            compactPrefix: citation,
+            compactSuffix: '',
+        });
     });
 });

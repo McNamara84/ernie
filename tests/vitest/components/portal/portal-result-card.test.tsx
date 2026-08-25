@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render, screen, within } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { PortalResultCard } from '@/components/portal/PortalResultCard';
@@ -110,12 +110,7 @@ describe('PortalResultCard', () => {
         });
 
         it('handles four authors with "et al."', () => {
-            const creators: PortalCreator[] = [
-                { name: 'Author1' },
-                { name: 'Author2' },
-                { name: 'Author3' },
-                { name: 'Author4' },
-            ];
+            const creators: PortalCreator[] = [{ name: 'Author1' }, { name: 'Author2' }, { name: 'Author3' }, { name: 'Author4' }];
             const resource = createMockResource({ creators, year: null });
             render(<PortalResultCard resource={resource} />);
 
@@ -190,11 +185,7 @@ describe('PortalResultCard', () => {
             const resource = createMockResource({
                 title: 'A much longer full title than the row can comfortably show',
                 abstract: 'This abstract gives searchers more context without opening the landing page.',
-                creators: [
-                    { name: 'Smith', givenName: 'Jane' },
-                    { name: 'Jones', givenName: 'Max' },
-                    { name: 'GFZ Data Services' },
-                ],
+                creators: [{ name: 'Smith', givenName: 'Jane' }, { name: 'Jones', givenName: 'Max' }, { name: 'GFZ Data Services' }],
             });
 
             render(<PortalResultCard resource={resource} />);
@@ -207,6 +198,39 @@ describe('PortalResultCard', () => {
             expect(scoped.getByText('A much longer full title than the row can comfortably show')).toBeInTheDocument();
             expect(scoped.getByText('Jane Smith, Max Jones, GFZ Data Services')).toBeInTheDocument();
             expect(scoped.getByText('This abstract gives searchers more context without opening the landing page.')).toBeInTheDocument();
+        });
+
+        it('limits hover-preview creators and appends non-interactive et al.', async () => {
+            const user = userEvent.setup();
+            const resource = createMockResource({
+                citationAuthorDisplayLimit: 2,
+                creators: [
+                    { name: 'Smith', givenName: 'Jane' },
+                    { name: 'Jones', givenName: 'Max' },
+                    { name: 'Miller', givenName: 'Ada' },
+                ],
+            });
+
+            render(<PortalResultCard resource={resource} />);
+            await user.hover(screen.getByRole('link'));
+
+            const preview = await screen.findByTestId('portal-result-preview');
+            expect(within(preview).getByText('Jane Smith, Max Jones, et al.')).toBeInTheDocument();
+            expect(within(preview).queryByText(/Ada Miller/)).not.toBeInTheDocument();
+            expect(within(preview).queryByRole('button', { name: /et al/i })).not.toBeInTheDocument();
+        });
+
+        it('uses the defensive default when the server limit is missing or invalid', async () => {
+            const user = userEvent.setup();
+            const creators = Array.from({ length: 51 }, (_, index) => ({ name: `Creator ${index + 1}` }));
+            const resource = createMockResource({ citationAuthorDisplayLimit: 0, creators });
+
+            render(<PortalResultCard resource={resource} />);
+            await user.hover(screen.getByRole('link'));
+
+            const preview = await screen.findByTestId('portal-result-preview');
+            expect(preview).toHaveTextContent('Creator 50, et al.');
+            expect(preview).not.toHaveTextContent('Creator 51');
         });
 
         it('shows the same preview on keyboard focus', async () => {
@@ -247,11 +271,7 @@ describe('PortalResultCard', () => {
                 isIgsn: false,
                 year: 2024,
                 landingPageUrl: '/landing/full-resource',
-                creators: [
-                    { name: 'Harrison' },
-                    { name: 'Martinez' },
-                    { name: 'Chen' },
-                ],
+                creators: [{ name: 'Harrison' }, { name: 'Martinez' }, { name: 'Chen' }],
             });
             render(<PortalResultCard resource={resource} />);
 

@@ -632,6 +632,9 @@ describe('Docs page', () => {
         // Beginners can set up landing pages as part of the training workflow
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
         expect(screen.getByText(/Beginner users can create, edit, preview, and publish landing pages/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Expanding Citation Authors', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/keyboard focus stays on the control in both states/i)).toBeInTheDocument();
+        expect(screen.getByText(/copy action uses whichever compact or expanded citation is currently visible/i)).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'License Display', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/Creative Commons Attribution 4\.0 International \(CC BY 4\.0\)/i)).toBeInTheDocument();
     });
@@ -728,6 +731,26 @@ describe('Docs page', () => {
                     text.includes('published resources require an explicit checkbox that is off by default') &&
                     text.includes('DataCite remains unchanged') &&
                     text.includes('Curators continue to see published resources as protected.')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('documents datacenter-filter persistence for beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Filtering by Datacenter', level: 4 })).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    element?.tagName === 'P' &&
+                    text.includes('remembers a selected datacenter or Without Datacenter in this browser') &&
+                    text.includes('A datacenter supplied in the URL takes precedence') &&
+                    text.includes('clearing the datacenter badge or all filters removes the saved selection')
                 );
             }),
         ).toBeInTheDocument();
