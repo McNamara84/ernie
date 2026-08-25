@@ -75,6 +75,7 @@ class ResourceController extends Controller
                 'key' => $criteria['sortKey'],
                 'direction' => $criteria['sortDirection'],
             ],
+            'filters' => $criteria['filters'],
             'canImportFromDataCite' => $request->user()?->can('importFromDataCite', Resource::class) ?? false,
             'canUpdateDataCiteLandingPageUrls' => $canUpdateDataCiteLandingPageUrls,
             'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),

@@ -44,6 +44,14 @@ interface BuildCitationOptions {
     omitDoiWhenMissing?: boolean;
 }
 
+export interface CitationPresentation {
+    compact: string;
+    expanded: string;
+    isTruncated: boolean;
+    compactPrefix: string;
+    compactSuffix: string;
+}
+
 function formatCreatorName(creator: Creator): string | null {
     // Check if creatorable data exists (new structure)
     if (creator.creatorable) {
@@ -74,23 +82,29 @@ function formatCreatorName(creator: Creator): string | null {
     return null;
 }
 
+function getCreatorNames(creators: Creator[] | undefined): string[] {
+    return creators?.map(formatCreatorName).filter((name): name is string => Boolean(name)) ?? [];
+}
+
+function getCreatorLimit(creatorLimit?: number): number | null {
+    return typeof creatorLimit === 'number' && Number.isInteger(creatorLimit) && creatorLimit > 0 ? creatorLimit : null;
+}
+
 function formatCreatorList(creators: Creator[] | undefined, creatorLimit?: number): string {
-    const creatorNames = creators?.map(formatCreatorName).filter((name): name is string => Boolean(name)) ?? [];
+    const creatorNames = getCreatorNames(creators);
 
     if (creatorNames.length === 0) {
         return 'Unknown Creator';
     }
 
-    const limit = typeof creatorLimit === 'number' && Number.isInteger(creatorLimit) && creatorLimit > 0 ? creatorLimit : null;
+    const limit = getCreatorLimit(creatorLimit);
     const shouldLimit = limit !== null && creatorNames.length > limit;
     const visibleCreatorNames = shouldLimit ? creatorNames.slice(0, limit) : creatorNames;
 
     return shouldLimit ? `${visibleCreatorNames.join('; ')}; et al.` : visibleCreatorNames.join('; ');
 }
 
-export function buildCitation(resource: Resource, options: BuildCitationOptions = {}): string {
-    const creators = formatCreatorList(resource.creators, options.creatorLimit);
-
+function buildCitationSuffix(resource: Resource, options: BuildCitationOptions): string {
     // Extract year (check both field names for compatibility)
     const year = resource.year || resource.publication_year || 'n.d.';
 
@@ -101,14 +115,51 @@ export function buildCitation(resource: Resource, options: BuildCitationOptions 
     // Extract publisher (default to GFZ Data Services)
     const publisher = resource.publisher || 'GFZ Data Services';
 
-    const citationWithoutDoi = `${creators} (${year}): ${mainTitle}. ${publisher}.`;
+    const citationSuffixWithoutDoi = ` (${year}): ${mainTitle}. ${publisher}.`;
 
     if (!resource.doi && options.omitDoiWhenMissing) {
-        return citationWithoutDoi;
+        return citationSuffixWithoutDoi;
     }
 
     // Build citation in format: [Creators] ([Year]): [Title]. [Publisher]. [DOI URL]
     const doi = resource.doi ? `https://doi.org/${resource.doi}` : 'DOI not available';
 
-    return `${citationWithoutDoi} ${doi}`;
+    return `${citationSuffixWithoutDoi} ${doi}`;
+}
+
+export function buildCitation(resource: Resource, options: BuildCitationOptions = {}): string {
+    return `${formatCreatorList(resource.creators, options.creatorLimit)}${buildCitationSuffix(resource, options)}`;
+}
+
+/**
+ * Builds both ResourceHero citation variants without requiring the component
+ * to parse an arbitrary citation string to locate the interactive `et al.`.
+ */
+export function buildCitationPresentation(resource: Resource, options: BuildCitationOptions = {}): CitationPresentation {
+    const creatorNames = getCreatorNames(resource.creators);
+    const limit = getCreatorLimit(options.creatorLimit);
+    const isTruncated = limit !== null && creatorNames.length > limit;
+
+    if (!isTruncated || limit === null) {
+        const citation = buildCitation(resource, options);
+
+        return {
+            compact: citation,
+            expanded: citation,
+            isTruncated: false,
+            compactPrefix: citation,
+            compactSuffix: '',
+        };
+    }
+
+    const compactPrefix = `${creatorNames.slice(0, limit).join('; ')}; `;
+    const compactSuffix = buildCitationSuffix(resource, options);
+
+    return {
+        compact: `${compactPrefix}et al.${compactSuffix}`,
+        expanded: `${creatorNames.join('; ')}${compactSuffix}`,
+        isTruncated: true,
+        compactPrefix,
+        compactSuffix,
+    };
 }

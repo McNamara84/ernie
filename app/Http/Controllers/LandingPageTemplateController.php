@@ -11,8 +11,9 @@ use App\Models\Datacenter;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
-use App\Services\LandingPageTemplateResolverService;
+use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\LandingPageContentDescriptorOptionsService;
+use App\Services\LandingPageTemplateResolverService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -158,10 +159,15 @@ class LandingPageTemplateController extends Controller
             $landingPageTemplate->fill($updateData);
 
             if ($landingPageTemplate->isDirty()) {
+                $citationAuthorLimitChanged = $landingPageTemplate->isDirty('citation_author_display_limit');
                 $landingPageTemplate->save();
-                DB::afterCommit(
-                    fn () => app(LandingPageRenderDataCacheService::class)->forgetForTemplate($landingPageTemplate),
-                );
+                DB::afterCommit(function () use ($landingPageTemplate, $citationAuthorLimitChanged): void {
+                    app(LandingPageRenderDataCacheService::class)->forgetForTemplate($landingPageTemplate);
+
+                    if ($citationAuthorLimitChanged) {
+                        app(PortalPageCacheService::class)->flush();
+                    }
+                });
             }
 
             if (array_key_exists('datacenter_ids', $validated)) {
@@ -342,8 +348,7 @@ class LandingPageTemplateController extends Controller
         Resource $resource,
         LandingPageTemplateResolverService $resolver,
         LandingPageContentDescriptorOptionsService $descriptorOptions,
-    ): JsonResponse
-    {
+    ): JsonResponse {
         $this->authorize('view', $resource);
 
         LandingPageTemplate::ensureSystemTemplatesExist();
@@ -451,11 +456,19 @@ class LandingPageTemplateController extends Controller
             }
         }
 
+        sort($selectedIds);
+
         $currentIds = Datacenter::query()
             ->where($foreignKey, $template->id)
             ->pluck('id')
             ->map(fn (mixed $id): int => (int) $id)
             ->all();
+        sort($currentIds);
+
+        if ($currentIds === $selectedIds) {
+            return;
+        }
+
         $affectedIds = array_values(array_unique([...$currentIds, ...$selectedIds]));
 
         if ($affectedIds !== []) {
@@ -471,9 +484,10 @@ class LandingPageTemplateController extends Controller
             Datacenter::query()->whereKey($selectedIds)->update([$foreignKey => $template->id]);
         }
 
-        DB::afterCommit(
-            fn () => app(LandingPageRenderDataCacheService::class)->forgetForDatacenters($affectedIds),
-        );
+        DB::afterCommit(function () use ($affectedIds): void {
+            app(LandingPageRenderDataCacheService::class)->forgetForDatacenters($affectedIds);
+            app(PortalPageCacheService::class)->flush();
+        });
     }
 
     private function loadTemplateUsage(LandingPageTemplate $template): void

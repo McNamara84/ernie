@@ -57,7 +57,14 @@ export function PortalResultCard({ resource }: PortalResultCardProps) {
     const authors = formatAuthors(resource.creators);
     const landingPageUrl = resource.landingPageUrl;
     const hasLandingPage = landingPageUrl !== null;
-    const previewCreators = resource.creators.length > 0 ? resource.creators.map(formatCreatorDisplayName) : ['Unknown'];
+    const configuredCreatorLimit = resource.citationAuthorDisplayLimit;
+    const creatorLimit =
+        typeof configuredCreatorLimit === 'number' && Number.isInteger(configuredCreatorLimit) && configuredCreatorLimit > 0
+            ? configuredCreatorLimit
+            : 50;
+    const hasHiddenPreviewCreators = resource.creators.length > creatorLimit;
+    const previewCreators = resource.creators.length > 0 ? resource.creators.slice(0, creatorLimit).map(formatCreatorDisplayName) : ['Unknown'];
+    const previewCreatorText = `${previewCreators.join(', ')}${hasHiddenPreviewCreators ? ', et al.' : ''}`;
 
     const rowContent = (
         <div
@@ -73,33 +80,24 @@ export function PortalResultCard({ resource }: PortalResultCardProps) {
 
             {/* DOI / IGSN identifier */}
             {resource.doi && (
-                <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:block sm:max-w-[180px] sm:truncate">
-                    {resource.doi}
-                </span>
+                <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:block sm:max-w-[180px] sm:truncate">{resource.doi}</span>
             )}
 
             <div className="flex min-w-0 flex-1 items-center gap-3">
                 {/* Title - takes remaining space and truncates first */}
                 <span
                     data-testid="portal-result-title"
-                    className={cn(
-                        'min-w-0 flex-1 truncate text-sm font-medium',
-                        hasLandingPage && 'group-hover:text-primary',
-                    )}
+                    className={cn('min-w-0 flex-1 truncate text-sm font-medium', hasLandingPage && 'group-hover:text-primary')}
                 >
                     {resource.title}
                 </span>
 
                 <div data-testid="portal-result-meta" className="flex shrink-0 items-center gap-2">
                     {/* Authors */}
-                    <span className="hidden max-w-[220px] truncate text-sm text-muted-foreground md:block">
-                        {authors}
-                    </span>
+                    <span className="hidden max-w-[220px] truncate text-sm text-muted-foreground md:block">{authors}</span>
 
                     {/* Year */}
-                    {resource.year && (
-                        <span className="shrink-0 text-sm text-muted-foreground">{resource.year}</span>
-                    )}
+                    {resource.year && <span className="shrink-0 text-sm text-muted-foreground">{resource.year}</span>}
                 </div>
             </div>
         </div>
@@ -114,24 +112,21 @@ export function PortalResultCard({ resource }: PortalResultCardProps) {
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={`View ${resource.title} (opens in new tab)`}
-                        className="group block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="group block rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                     >
                         {rowContent}
                     </a>
                 </HoverCardTrigger>
-                <HoverCardContent
-                    align="start"
-                    className="w-[min(32rem,calc(100vw-2rem))] max-h-[min(70vh,32rem)] overflow-y-auto"
-                >
+                <HoverCardContent align="start" className="max-h-[min(70vh,32rem)] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto">
                     <div className="space-y-3" data-testid="portal-result-preview">
                         <div className="space-y-1">
                             <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Title</p>
-                            <p className="text-sm font-semibold leading-snug text-foreground">{resource.title}</p>
+                            <p className="text-sm leading-snug font-semibold text-foreground">{resource.title}</p>
                         </div>
 
                         <div className="space-y-1">
                             <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Creators</p>
-                            <p className="text-sm leading-snug text-foreground">{previewCreators.join(', ')}</p>
+                            <p className="text-sm leading-snug text-foreground">{previewCreatorText}</p>
                         </div>
 
                         {resource.abstract && (

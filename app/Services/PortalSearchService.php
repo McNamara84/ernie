@@ -39,6 +39,7 @@ class PortalSearchService
 
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
+        private readonly LandingPageTemplateResolverService $templateResolver,
     ) {}
 
     private const DEFAULT_PER_PAGE = 20;
@@ -157,7 +158,9 @@ class PortalSearchService
                 'resourceType',
                 'language:id,code',
                 'geoLocations',
-                'landingPage',
+                'landingPage.landingPageTemplate',
+                'datacenter.landingPageTemplate',
+                'datacenter.igsnLandingPageTemplate',
             ])
             ->whereHas('landingPage', function (Builder $q): void {
                 $q->where('is_published', true);
@@ -918,6 +921,9 @@ class PortalSearchService
         $geoLocations = $this->formatGeoLocations($resource);
 
         $resourceType = $resource->resourceType;
+        $resolvedTemplate = $resource->landingPage !== null
+            ? $this->templateResolver->forLandingPage($resource, $resource->landingPage)
+            : $this->templateResolver->automatic($resource);
 
         return [
             'id' => $resource->id,
@@ -931,6 +937,7 @@ class PortalSearchService
             'isIgsn' => $resourceType?->slug === 'physical-object',
             'geoLocations' => $geoLocations,
             'landingPageUrl' => $resource->landingPage?->public_url,
+            'citationAuthorDisplayLimit' => (int) $resolvedTemplate['template']->citation_author_display_limit,
         ];
     }
 

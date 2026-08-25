@@ -54,6 +54,7 @@ export interface PortalResource {
     isIgsn: boolean;
     geoLocations: PortalGeoLocation[];
     landingPageUrl: string | null;
+    citationAuthorDisplayLimit?: number;
 }
 
 /**

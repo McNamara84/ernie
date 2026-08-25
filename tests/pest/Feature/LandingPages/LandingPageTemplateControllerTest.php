@@ -12,6 +12,7 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\User;
 use App\Policies\LandingPageTemplatePolicy;
+use App\Services\BotProtection\PortalPageCacheService;
 use Database\Factories\LandingPageTemplateFactory;
 use Database\Seeders\LandingPageTemplateSeeder;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -531,6 +532,38 @@ describe('Update', function (): void {
             ->assertOk();
 
         expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue();
+    });
+
+    it('flushes the portal payload cache when the citation author limit changes', function (): void {
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->admin->id,
+            'citation_author_display_limit' => 50,
+        ]);
+        $portalCache = Mockery::mock(PortalPageCacheService::class);
+        $portalCache->shouldReceive('flush')->once();
+        app()->instance(PortalPageCacheService::class, $portalCache);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", ['citation_author_display_limit' => 12])
+            ->assertOk();
+    });
+
+    it('does not flush the portal payload cache for unchanged or unrelated template values', function (): void {
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->admin->id,
+            'creator_display_limit' => 40,
+            'citation_author_display_limit' => 50,
+        ]);
+        $portalCache = Mockery::mock(PortalPageCacheService::class);
+        $portalCache->shouldNotReceive('flush');
+        app()->instance(PortalPageCacheService::class, $portalCache);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'creator_display_limit' => 41,
+                'citation_author_display_limit' => 50,
+            ])
+            ->assertOk();
     });
 
     it('rejects invalid section keys in right column', function (): void {

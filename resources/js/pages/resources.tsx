@@ -38,6 +38,12 @@ import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
 import { openDetachedTab } from '@/lib/detached-tab';
+import {
+    clearStoredResourceDatacenterFilter,
+    persistResourceDatacenterFilter,
+    readStoredResourceDatacenterFilter,
+    storedResourceDatacenterFilterToState,
+} from '@/lib/resources-datacenter-filter-storage';
 import { cn } from '@/lib/utils';
 import {
     areResourceColumnWidthsDefault,
@@ -65,7 +71,6 @@ import {
     type ResourceSortKey,
     type ResourceSortState,
 } from '@/types/resources';
-import { parseResourceFiltersFromUrl } from '@/utils/filter-parser';
 
 interface PaginationInfo {
     current_page: number;
@@ -82,6 +87,7 @@ interface ResourcesProps {
     pagination: PaginationInfo;
     error?: string;
     sort: ResourceSortState;
+    filters?: ResourceFilterState;
     canImportFromDataCite?: boolean;
     canUpdateDataCiteLandingPageUrls?: boolean;
     dataCiteUrlUpdateRun?: DataCiteUrlUpdateRun | null;
@@ -665,6 +671,7 @@ function ResourcesPage({
     pagination: initialPagination,
     error,
     sort: initialSort,
+    filters: initialFilters,
     canImportFromDataCite,
     canUpdateDataCiteLandingPageUrls,
     dataCiteUrlUpdateRun,
@@ -689,19 +696,14 @@ function ResourcesPage({
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [isBulkRegistering, setIsBulkRegistering] = useState(false);
     const [isBulkExporting, setIsBulkExporting] = useState(false);
-    const [filters, setFilters] = useState<ResourceFilterState>(() => {
-        // SSR-safe: Only access window.location on the client side
-        if (typeof window === 'undefined') {
-            return {};
-        }
-        return parseResourceFiltersFromUrl(window.location.search);
-    });
+    const [filters, setFilters] = useState<ResourceFilterState>(() => initialFilters ?? {});
     const [filterOptions, setFilterOptions] = useState<ResourceFilterOptions | null>(null);
     const [columnWidths, setColumnWidths] = useState<ResourceColumnWidths>(DEFAULT_RESOURCE_COLUMN_WIDTHS);
     const [tableCanResize, setTableCanResize] = useState<boolean>(true);
 
     const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
+    const attemptedDatacenterFilterRestoreRef = useRef(false);
 
     useEffect(() => {
         setResources(initialResources);
@@ -712,8 +714,54 @@ function ResourcesPage({
     }, [initialPagination]);
 
     useEffect(() => {
+        if (initialFilters) {
+            setFilters(initialFilters);
+        }
+    }, [initialFilters]);
+
+    useEffect(() => {
         setColumnWidths(readStoredResourceColumnWidths());
     }, []);
+
+    useEffect(() => {
+        if (attemptedDatacenterFilterRestoreRef.current || !filterOptions || typeof window === 'undefined') {
+            return;
+        }
+
+        attemptedDatacenterFilterRestoreRef.current = true;
+
+        if (window.location.pathname !== '/resources' || window.location.search !== '') {
+            return;
+        }
+
+        const storedFilter = readStoredResourceDatacenterFilter();
+        if (!storedFilter) {
+            return;
+        }
+
+        if (
+            storedFilter.type === 'datacenter' &&
+            !(filterOptions.datacenters ?? []).some((datacenter) => datacenter.id === storedFilter.datacenterId)
+        ) {
+            clearStoredResourceDatacenterFilter();
+
+            return;
+        }
+
+        const restoredFilters = storedResourceDatacenterFilterToState(storedFilter);
+        setFilters(restoredFilters);
+
+        const params = new URLSearchParams({
+            sort_key: sortState.key,
+            sort_direction: sortState.direction,
+        });
+        appendResourceFilters(params, restoredFilters);
+
+        router.visit(`/resources?${params.toString()}`, {
+            preserveState: false,
+            replace: true,
+        });
+    }, [filterOptions, sortState.direction, sortState.key]);
 
     useEffect(() => {
         const handleViewportResize = () => {
@@ -832,6 +880,7 @@ function ResourcesPage({
     const handleFilterChange = useCallback(
         (newFilters: ResourceFilterState) => {
             setFilters(newFilters);
+            persistResourceDatacenterFilter(newFilters);
 
             // Build query string with current sort state
             const params = new URLSearchParams({

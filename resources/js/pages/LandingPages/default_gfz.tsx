@@ -61,7 +61,7 @@ export default function DefaultGfzTemplate() {
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
 
     const resourceType = resource.resource_type?.name || 'Other';
-    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(
+    const { status, mainTitle, subtitle, citation, citationPresentation } = getLandingPageTemplateData(
         resource,
         landingPage,
         isPreview,
@@ -144,7 +144,16 @@ export default function DefaultGfzTemplate() {
             isDark={isDark}
             mainAriaLabel="Dataset details"
             customLogoUrl={customLogoUrl}
-            hero={<ResourceHero resourceType={resourceType} status={status} mainTitle={mainTitle} subtitle={subtitle} citation={citation} />}
+            hero={
+                <ResourceHero
+                    resourceType={resourceType}
+                    status={status}
+                    mainTitle={mainTitle}
+                    subtitle={subtitle}
+                    citation={citation}
+                    citationPresentation={citationPresentation}
+                />
+            }
             metadataSection={rightSectionRegistry.metadata}
             locationSection={rightSectionRegistry.location}
             renderLocationBeforeMetadata={renderLocationBeforeMetadata}

@@ -7,6 +7,7 @@ use App\Models\Description;
 use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\LandingPage;
+use App\Models\LandingPageTemplate;
 use App\Models\Language;
 use App\Models\Person;
 use App\Models\Resource;
@@ -16,8 +17,10 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\KeywordSuggestionService;
+use App\Services\LandingPageTemplateResolverService;
 use App\Services\PortalSearchService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 covers(PortalSearchService::class);
 
@@ -76,7 +79,7 @@ function createPortalSearchServiceWithResolvedThesaurusNodes(array $resolvedNode
                 $this->resolvedNodes,
             );
         }
-    });
+    }, app(LandingPageTemplateResolverService::class));
 }
 
 // =========================================================================
@@ -660,9 +663,91 @@ describe('transformForPortal', function () {
 
         expect($result)
             ->toBeArray()
-            ->toHaveKeys(['id', 'doi', 'title', 'creators', 'year', 'resourceType', 'isIgsn', 'geoLocations', 'landingPageUrl'])
+            ->toHaveKeys([
+                'id',
+                'doi',
+                'title',
+                'creators',
+                'year',
+                'resourceType',
+                'isIgsn',
+                'geoLocations',
+                'landingPageUrl',
+                'citationAuthorDisplayLimit',
+            ])
             ->and($result['title'])->toBe('My Seismic Data')
             ->and($result['isIgsn'])->toBeFalse();
+    });
+
+    it('uses the explicit landing-page template citation limit ahead of datacenter inheritance', function () {
+        $explicitTemplate = LandingPageTemplate::factory()->create(['citation_author_display_limit' => 7]);
+        $datacenterTemplate = LandingPageTemplate::factory()->create(['citation_author_display_limit' => 11]);
+        $datacenter = Datacenter::factory()->create(['landing_page_template_id' => $datacenterTemplate->id]);
+        $resourceType = ResourceType::factory()->create(['name' => 'Dataset', 'slug' => 'dataset']);
+        $resource = createPublishedResourceForSearch('Explicit Template Dataset', $this->titleType, $resourceType);
+        $resource->update(['datacenter_id' => $datacenter->id]);
+        $resource->landingPage()->update(['landing_page_template_id' => $explicitTemplate->id]);
+
+        $searchResult = $this->service->search()->getCollection()->firstWhere('id', $resource->id);
+
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        $result = $this->service->transformForPortal($searchResult);
+
+        expect($result['citationAuthorDisplayLimit'])->toBe(7)
+            ->and(DB::getQueryLog())->toBeEmpty();
+    });
+
+    it('uses the datacenter citation limit for automatic resource landing pages', function () {
+        $template = LandingPageTemplate::factory()->create(['citation_author_display_limit' => 13]);
+        $datacenter = Datacenter::factory()->create(['landing_page_template_id' => $template->id]);
+        $resourceType = ResourceType::factory()->create(['name' => 'Dataset', 'slug' => 'dataset']);
+        $resource = createPublishedResourceForSearch('Inherited Resource Template', $this->titleType, $resourceType);
+        $resource->update(['datacenter_id' => $datacenter->id]);
+
+        $searchResult = $this->service->search()->getCollection()->firstWhere('id', $resource->id);
+        $result = $this->service->transformForPortal($searchResult);
+
+        expect($result['citationAuthorDisplayLimit'])->toBe(13);
+    });
+
+    it('uses the independent IGSN datacenter citation limit for physical objects', function () {
+        $resourceTemplate = LandingPageTemplate::factory()->create(['citation_author_display_limit' => 17]);
+        $igsnTemplate = LandingPageTemplate::factory()->igsn()->create(['citation_author_display_limit' => 19]);
+        $datacenter = Datacenter::factory()->create([
+            'landing_page_template_id' => $resourceTemplate->id,
+            'igsn_landing_page_template_id' => $igsnTemplate->id,
+        ]);
+        $resourceType = ResourceType::factory()->create(['name' => 'Physical Object', 'slug' => 'physical-object']);
+        $resource = createPublishedResourceForSearch('Inherited IGSN Template', $this->titleType, $resourceType);
+        $resource->update(['datacenter_id' => $datacenter->id]);
+
+        $searchResult = $this->service->search()->getCollection()->firstWhere('id', $resource->id);
+        $result = $this->service->transformForPortal($searchResult);
+
+        expect($result['citationAuthorDisplayLimit'])->toBe(19);
+    });
+
+    it('selects the matching system default and resolves it at most once per template type', function () {
+        $defaults = LandingPageTemplate::ensureSystemTemplatesExist();
+        $defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->update(['citation_author_display_limit' => 23]);
+        $defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]->update(['citation_author_display_limit' => 29]);
+        $datasetType = ResourceType::factory()->create(['name' => 'Dataset', 'slug' => 'dataset']);
+        $igsnType = ResourceType::factory()->create(['name' => 'Physical Object', 'slug' => 'physical-object']);
+
+        createPublishedResourceForSearch('Default Resource One', $this->titleType, $datasetType);
+        createPublishedResourceForSearch('Default Resource Two', $this->titleType, $datasetType);
+        createPublishedResourceForSearch('Default IGSN One', $this->titleType, $igsnType);
+        createPublishedResourceForSearch('Default IGSN Two', $this->titleType, $igsnType);
+
+        $resources = $this->service->search(['per_page' => 50])->getCollection();
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        $transformed = $resources->map(fn (Resource $resource): array => $this->service->transformForPortal($resource));
+
+        expect($transformed->where('isIgsn', false)->pluck('citationAuthorDisplayLimit')->unique()->all())->toBe([23])
+            ->and($transformed->where('isIgsn', true)->pluck('citationAuthorDisplayLimit')->unique()->all())->toBe([29])
+            ->and(DB::getQueryLog())->toHaveCount(2);
     });
 
     it('returns "Untitled" when no titles exist', function () {

@@ -22,12 +22,19 @@ final class LandingPageTemplateResolverService
 
     public const SOURCE_DEFAULT = 'default';
 
+    /** @var array<string, LandingPageTemplate> */
+    private array $resolvedDefaults = [];
+
     /**
      * @return array{template: LandingPageTemplate, source: 'explicit'|'datacenter'|'default'}
      */
     public function forLandingPage(Resource $resource, LandingPage $landingPage): array
     {
-        return $this->resolve($resource, $landingPage->landing_page_template_id);
+        $explicitTemplate = $landingPage->relationLoaded('landingPageTemplate')
+            ? $landingPage->landingPageTemplate
+            : $landingPage->landing_page_template_id;
+
+        return $this->resolve($resource, $explicitTemplate);
     }
 
     /**
@@ -63,8 +70,9 @@ final class LandingPageTemplateResolverService
             return ['template' => $inherited, 'source' => self::SOURCE_DATACENTER];
         }
 
-        $defaultTemplate = LandingPageTemplate::existingDefaultForType($expectedType)
-            ?? LandingPageTemplate::defaultForType($expectedType);
+        $defaultTemplate = $this->resolvedDefaults[$expectedType]
+            ??= LandingPageTemplate::existingDefaultForType($expectedType)
+                ?? LandingPageTemplate::defaultForType($expectedType);
 
         return [
             'template' => $defaultTemplate,

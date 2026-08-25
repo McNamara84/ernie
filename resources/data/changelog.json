@@ -7,6 +7,18 @@
             {
                 "title": "Show location text in map marker popups",
                 "description": "Map marker popups now display the location text, providing more context to users."
+            },
+            {
+                "title": "Expandable Authors in Landing-Page Citations",
+                "description": "Abbreviated citations in landing-page headers now make et al. interactive, allowing readers to reveal every creator inline and collapse the list again. Copy citation always copies the currently visible compact or expanded citation."
+            },
+            {
+                "title": "Persistent Resources Datacenter Filter",
+                "description": "The Resources list now remembers the selected Datacenter or Without Datacenter option in the current browser and safely restores it when the clean Resources page is opened again. Other filters remain URL-only, and unavailable stored Datacenters are discarded automatically."
+            },
+            {
+                "title": "Template-Aware Portal Creator Previews",
+                "description": "Portal result previews now respect the effective landing-page template's citation author limit, including explicit, Datacenter-inherited, and resource-type default templates. Longer creator lists end with et al., and relevant template or Datacenter-assignment changes refresh cached Portal data."
             }
         ],
         "fixes": [
