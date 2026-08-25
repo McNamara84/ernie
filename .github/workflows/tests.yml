@@ -108,9 +108,12 @@ jobs:
           XDEBUG_MODE: coverage
         run: |
           # Run serial tests first (tests that modify shared resources like log files)
-          ./vendor/bin/pest --group=serial --coverage-clover=coverage-serial.xml
-          # Run remaining tests in parallel (excluding serial group)
-          ./vendor/bin/pest --parallel --exclude-group=serial --coverage-clover=coverage-parallel.xml
+          ./vendor/bin/pest --group=serial --exclude-testsuite=Arch --coverage-clover=coverage-serial.xml
+          # Architecture tests parse the complete application and do not produce meaningful runtime coverage.
+          # Keep them out of persistent ParaTest workers to avoid exhausting their 1 GiB memory limit.
+          XDEBUG_MODE=off ./vendor/bin/pest --testsuite=Arch --no-coverage
+          # Run remaining tests in parallel (excluding serial and architecture tests)
+          ./vendor/bin/pest --parallel --exclude-group=serial --exclude-testsuite=Arch --coverage-clover=coverage-parallel.xml
 
       - name: Upload coverage to Codecov
         if: always()
