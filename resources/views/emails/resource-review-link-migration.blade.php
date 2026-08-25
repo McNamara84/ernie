@@ -21,7 +21,9 @@
 
         <p>The old review link is no longer valid. Therefore, if your work is currently under review by a journal, we kindly ask you to resend the updated review link to the reviewers to grant them access before your dataset is published.</p>
 
-        <p>The DOI link is not affected by this change and can be cited as usual.</p>
+        @if($resourceDoi)
+            <p>The DOI link is not affected by this change and can be cited as usual.</p>
+        @endif
 
         <p>We expect to be able to process data publication requests again starting September 3. Until then, we appreciate your patience.</p>
 

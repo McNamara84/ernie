@@ -52,6 +52,7 @@ describe('content', function (): void {
 
         $html = $mailable->render();
         $text = view('emails.resource-review-link-migration-text', $mailable->content()->with)->render();
+        $doiCopy = 'The DOI link is not affected by this change and can be cited as usual.';
 
         $expectedCopy = [
             'Dear Ada Reviewer,',
@@ -61,7 +62,6 @@ describe('content', function (): void {
             'Your new review link:',
             'https://example.test/10.5880/test.review.001/seismic?preview=secret-token',
             'The old review link is no longer valid. Therefore, if your work is currently under review by a journal, we kindly ask you to resend the updated review link to the reviewers to grant them access before your dataset is published.',
-            'The DOI link is not affected by this change and can be cited as usual.',
             'We expect to be able to process data publication requests again starting September 3. Until then, we appreciate your patience.',
             "This is an automated mail. Please do not reply to the sender's address.",
             'If you have any questions, please contact us via:',
@@ -90,10 +90,14 @@ describe('content', function (): void {
 
         if ($doi === null) {
             expect($html)->not->toContain('<strong>DOI:</strong>')
-                ->and($text)->not->toContain('DOI:');
+                ->not->toContain($doiCopy)
+                ->and($text)->not->toContain('DOI:')
+                ->not->toContain($doiCopy);
         } else {
             expect($html)->toContain("<strong>DOI:</strong> {$doi}")
-                ->and($text)->toContain("DOI: {$doi}");
+                ->toContain($doiCopy)
+                ->and($text)->toContain("DOI: {$doi}")
+                ->toContain($doiCopy);
         }
     })->with([
         'with DOI' => '10.5880/test.review.001',
