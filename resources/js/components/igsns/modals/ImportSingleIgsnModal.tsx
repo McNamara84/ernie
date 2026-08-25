@@ -35,6 +35,8 @@ interface ImportProgress extends ImportDataCiteSyncProgress {
     started_at?: string;
     completed_at?: string;
     error?: string;
+    error_code?: string;
+    error_source?: string | null;
 }
 
 interface SingleIgsnImportErrorResponse {
@@ -52,6 +54,19 @@ interface ImportSingleIgsnModalProps {
 }
 
 type ModalState = 'confirm' | 'running' | 'completed' | 'cancelled' | 'failed';
+
+const failureMessagesByCode: Record<string, string> = {
+    legacy_source_unavailable: 'The legacy IGSN metadata service is currently unavailable. No IGSNs were imported. Please try again later.',
+    legacy_invalid_payload: 'The legacy IGSN metadata service returned invalid data. No IGSNs were imported. Please try again later.',
+    legacy_source_not_configured: 'Legacy IGSN metadata enrichment is not configured. No IGSNs were imported.',
+    parent_relationship_conflict: 'DataCite and legacy metadata disagree about the IGSN family. No IGSNs were imported.',
+};
+
+const failureMessage = (progress: ImportProgress): string =>
+    (progress.error_code ? failureMessagesByCode[progress.error_code] : undefined) ||
+    progress.error ||
+    progress.failed_dois?.[0]?.error ||
+    'Import failed';
 
 export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510', onClose, onSuccess }: ImportSingleIgsnModalProps) {
     const [igsnInput, setIgsnInput] = useState('');
@@ -128,7 +143,7 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
 
                 if (response.data.status === 'failed') {
                     setModalState('failed');
-                    setError(response.data.error || response.data.failed_dois?.[0]?.error || 'Import failed');
+                    setError(failureMessage(response.data));
                     return;
                 }
 
@@ -490,10 +505,22 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                         </Button>
                     )}
 
-                    {(modalState === 'completed' || modalState === 'cancelled' || modalState === 'failed') && (
+                    {(modalState === 'completed' || modalState === 'cancelled') && (
                         <Button variant="outline" onClick={handleClose}>
                             Close
                         </Button>
+                    )}
+
+                    {modalState === 'failed' && (
+                        <>
+                            <Button variant="outline" onClick={handleClose}>
+                                Close
+                            </Button>
+                            <LoadingButton onClick={startImport} loading={isStarting}>
+                                {!isStarting && <Download className="size-4" />}
+                                {isStarting ? 'Retrying...' : 'Try Again'}
+                            </LoadingButton>
+                        </>
                     )}
                 </DialogFooter>
             </DialogContent>

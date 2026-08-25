@@ -1,10 +1,14 @@
 <?php
 
+use App\Exceptions\LegacyIgsnPortalException;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
+use App\Services\Igsn\IgsnDifMetadataExtractor;
+use App\Services\IgsnDifXmlParser;
 use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnLegacyDbEnrichmentService;
 use App\Services\IgsnSolrEnrichmentService;
+use App\Services\LegacyIgsnPortalService;
 use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
@@ -12,13 +16,20 @@ beforeEach(function () {
     config()->set('datacite.solr.user', 'configured');
     config()->set('datacite.solr.password', 'secret');
     config()->set('database.connections.igsn_legacy.configured', true);
+    config()->set('datacite.legacy_igsn_portal.proxy_url', null);
 
     $this->solrService = Mockery::mock(IgsnSolrEnrichmentService::class);
     $this->dbService = Mockery::mock(IgsnLegacyDbEnrichmentService::class);
+    $this->portalService = Mockery::mock(LegacyIgsnPortalService::class);
+    $this->difParser = Mockery::mock(IgsnDifXmlParser::class);
+    $this->difExtractor = Mockery::mock(IgsnDifMetadataExtractor::class);
 
     $this->enrichmentService = new IgsnEnrichmentService(
         $this->solrService,
         $this->dbService,
+        $this->portalService,
+        $this->difParser,
+        $this->difExtractor,
     );
 });
 
@@ -132,7 +143,7 @@ describe('IgsnEnrichmentService', function () {
             ->once()
             ->withArgs(fn (string $message, array $context): bool => $message === 'IGSN enrichment sources are unavailable; imports will contain DataCite metadata only'
                 && $context['status'] === 'sources_unavailable'
-                && $context['configuration'] === ['solr' => false, 'legacy_db' => false]);
+                && $context['configuration'] === ['solr' => false, 'legacy_db' => false, 'portal' => false]);
     });
 
     it('returns false when resource has no DOI', function () {
@@ -192,6 +203,78 @@ describe('IgsnEnrichmentService', function () {
         expect($this->enrichmentService->configurationStatus())->toBe([
             'solr' => true,
             'legacy_db' => false,
+            'portal' => false,
         ]);
+    });
+
+    it('preloads validates and applies portal DIF metadata for a strict import', function () {
+        $difXml = '<DIF><sample><parent_igsn>GFPARENT001</parent_igsn></sample></DIF>';
+        $this->portalService->shouldReceive('difForHandles')
+            ->once()
+            ->with(['GFCHILD001'])
+            ->andReturn(['GFCHILD001' => $difXml]);
+        $this->difExtractor->shouldReceive('extract')
+            ->once()
+            ->with($difXml)
+            ->andReturn(['parent_igsn' => 'gfparent001']);
+
+        $this->enrichmentService->prepareStrict(['GFCHILD001']);
+
+        expect($this->enrichmentService->preparedParentHandles())->toBe([
+            'GFCHILD001' => 'GFPARENT001',
+        ]);
+
+        $resource = Resource::factory()->create(['doi' => '10.60510/gfchild001']);
+        $igsnMetadata = IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+        ]);
+        $this->difParser->shouldReceive('enrichFromDifXml')
+            ->once()
+            ->with($difXml, $resource, $igsnMetadata)
+            ->andReturn(true);
+        $this->solrService->shouldReceive('enrich')->never();
+        $this->dbService->shouldReceive('enrich')->never();
+
+        expect($this->enrichmentService->enrich($resource, $igsnMetadata))->toBeTrue()
+            ->and($this->enrichmentService->lastResult())->toBe([
+                'status' => 'enriched',
+                'source' => 'portal',
+            ]);
+
+        $this->enrichmentService->clearStrictPreparation();
+        expect($this->enrichmentService->preparedParentHandles())->toBe([]);
+    });
+
+    it('treats an authoritative missing portal DIF as a valid strict result', function () {
+        $this->portalService->shouldReceive('difForHandles')
+            ->once()
+            ->andReturn(['GFNODIF001' => null]);
+        $this->difExtractor->shouldReceive('extract')->never();
+        $this->difParser->shouldReceive('enrichFromDifXml')->never();
+
+        $this->enrichmentService->prepareStrict(['GFNODIF001']);
+
+        $resource = Resource::factory()->create(['doi' => '10.60510/gfnodif001']);
+        $igsnMetadata = IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+        ]);
+
+        expect($this->enrichmentService->enrich($resource, $igsnMetadata))->toBeFalse()
+            ->and($this->enrichmentService->lastResult())->toBe([
+                'status' => 'no_dif_found',
+                'source' => 'portal',
+            ]);
+    });
+
+    it('rejects malformed DIF during strict preparation', function () {
+        $this->portalService->shouldReceive('difForHandles')
+            ->once()
+            ->andReturn(['GFBADXML001' => '<not-dif>']);
+        $this->difExtractor->shouldReceive('extract')->once()->andReturn(null);
+
+        expect(fn () => $this->enrichmentService->prepareStrict(['GFBADXML001']))
+            ->toThrow(LegacyIgsnPortalException::class, 'invalid DIF XML');
     });
 });

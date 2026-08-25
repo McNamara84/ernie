@@ -38,11 +38,11 @@ function createUrlMigrationResource(
     string $doi,
     bool $published = true,
     bool $external = false,
-    bool $forcePublishedStatus = true,
+    bool $forceReviewStatus = true,
 ): Resource {
     $resource = Resource::factory()->create([
         'doi' => $doi,
-        'force_review_status' => $forcePublishedStatus,
+        'force_review_status' => $forceReviewStatus,
     ]);
 
     $factory = LandingPage::factory()
@@ -160,7 +160,9 @@ test('resource preview shows at most ten eligible internal published landing pag
 
     createUrlMigrationResource('10.5880/external', true, true);
     createUrlMigrationResource('10.5880/review', false);
-    createUrlMigrationResource('10.5880/incomplete-draft', true, false, false);
+    // A published landing page takes precedence over incomplete metadata when
+    // determining the public status, so this remains a migration candidate.
+    createUrlMigrationResource('10.5880/incomplete-published', true, false, false);
     createUrlMigrationIgsn('10.60510/IGSN-EXCLUDED');
     fakeUrlMigrationPreviewRequests();
 
@@ -168,7 +170,7 @@ test('resource preview shows at most ten eligible internal published landing pag
         ->getJson(route('datacite.url-updates.preview', ['scope' => 'resources']))
         ->assertOk()
         ->assertJsonPath('scope', 'resources')
-        ->assertJsonPath('total', 11)
+        ->assertJsonPath('total', 12)
         ->assertJsonPath('sample_count', 10)
         ->assertJsonPath('can_start', true)
         ->assertJsonCount(10, 'items');

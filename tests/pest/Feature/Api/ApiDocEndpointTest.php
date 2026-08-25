@@ -119,7 +119,7 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./igsns/import/start-datacenter.post.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('paths./igsns/import/start-single.post.tags.0', 'IGSN Imports')
         ->assertJsonPath('paths./igsns/import/start-single.post.requestBody.content.application/json.schema.$ref', '#/components/schemas/SingleIgsnImportRequest')
-        ->assertJsonPath('paths./igsns/import/start-single.post.responses.200.content.application/json.schema.$ref', '#/components/schemas/IgsnImportStartResponse')
+        ->assertJsonPath('paths./igsns/import/start-single.post.responses.202.content.application/json.schema.$ref', '#/components/schemas/IgsnImportStartResponse')
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.403.$ref', '#/components/responses/ForbiddenError')
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')

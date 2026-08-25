@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\LegacyIgsnPortalException;
 use App\Models\Datacenter;
 use App\Services\LegacyIgsnPortalService;
 use App\Support\LegacyIgsnDatacenterCatalog;
@@ -22,6 +23,7 @@ beforeEach(function (): void {
         'timeout_seconds' => 5,
         'retry_times' => 1,
         'retry_sleep_ms' => 0,
+        'retry_jitter_ms' => 0,
         'page_size' => 2,
         'datacenter_cache_ttl_seconds' => 600,
     ]);
@@ -255,4 +257,127 @@ it('hides connection details when the legacy portal is unreachable', function ()
 
     expect(fn () => app(LegacyIgsnPortalService::class)->listDatacenters())
         ->toThrow(RuntimeException::class, 'could not be reached');
+});
+
+it('retries a successful HTTP response containing invalid JSON', function (): void {
+    Config::set('datacite.legacy_igsn_portal.datacenter_cache_ttl_seconds', 0);
+    Config::set('datacite.legacy_igsn_portal.retry_times', 2);
+    Config::set('datacite.legacy_igsn_portal.retry_sleep_ms', 0);
+    Log::spy();
+
+    Http::fakeSequence('igsn-portal.example.test/*')
+        ->push('temporary proxy output', 200, ['Content-Type' => 'text/html'])
+        ->push(legacyIgsnFacetResponse([
+            'IGSNDB.GFZ - GFZ Potsdam' => 1,
+        ]));
+
+    expect(app(LegacyIgsnPortalService::class)->listDatacenters())
+        ->toHaveCount(1)
+        ->and(Http::recorded())->toHaveCount(2);
+
+    Log::shouldHaveReceived('warning')
+        ->once()
+        ->with('Retrying legacy IGSN portal request', [
+            'attempt' => 1,
+            'max_attempts' => 2,
+            'failure_code' => LegacyIgsnPortalException::INVALID_PAYLOAD,
+        ]);
+});
+
+it('retries an incomplete Solr response before accepting a valid document list', function (): void {
+    Config::set('datacite.legacy_igsn_portal.retry_times', 2);
+
+    Http::fakeSequence('igsn-portal.example.test/*')
+        ->push(['response' => ['numFound' => 1]])
+        ->push([
+            'response' => [
+                'numFound' => 1,
+                'docs' => [[
+                    'igsn' => 'GFRETRIED001',
+                    'has_dif' => false,
+                ]],
+            ],
+        ]);
+
+    expect(app(LegacyIgsnPortalService::class)->difForHandles(['GFRETRIED001']))
+        ->toBe(['GFRETRIED001' => null])
+        ->and(Http::recorded())->toHaveCount(2);
+});
+
+it('classifies persistent invalid JSON and unexpected content types as invalid payloads', function (string $body, string $contentType): void {
+    Config::set('datacite.legacy_igsn_portal.datacenter_cache_ttl_seconds', 0);
+    Config::set('datacite.legacy_igsn_portal.retry_times', 2);
+
+    Http::fake([
+        'igsn-portal.example.test/*' => Http::response($body, 200, ['Content-Type' => $contentType]),
+    ]);
+
+    try {
+        app(LegacyIgsnPortalService::class)->listDatacenters();
+        throw new RuntimeException('Expected the invalid portal response to fail.');
+    } catch (LegacyIgsnPortalException $exception) {
+        expect($exception->failureCode)->toBe(LegacyIgsnPortalException::INVALID_PAYLOAD)
+            ->and($exception->retryable)->toBeTrue()
+            ->and(Http::recorded())->toHaveCount(2);
+    }
+})->with([
+    'invalid JSON' => ['not-json', 'text/html; charset=UTF-8'],
+    'unexpected content type' => ['<xml/>', 'application/xml'],
+]);
+
+it('loads decoded DIF metadata and reports authoritative missing DIF values', function (): void {
+    $difXml = '<DIF><sample><sample_type>Rock</sample_type></sample></DIF>';
+
+    Http::fake([
+        'igsn-portal.example.test/*' => Http::response([
+            'response' => [
+                'numFound' => 2,
+                'docs' => [
+                    [
+                        'igsn' => 'GFWITHDIF001',
+                        'has_dif' => true,
+                        'dif' => base64_encode($difXml),
+                    ],
+                    [
+                        'igsn' => 'GFNODIF001',
+                        'has_dif' => false,
+                    ],
+                ],
+            ],
+        ]),
+    ]);
+
+    expect(app(LegacyIgsnPortalService::class)->difForHandles([
+        'gfwithdif001',
+        'GFNODIF001',
+        'invalid handle',
+    ]))->toBe([
+        'GFWITHDIF001' => $difXml,
+        'GFNODIF001' => null,
+    ]);
+
+    Http::assertSent(function (Request $request): bool {
+        parse_str((string) $request->data()['query'], $query);
+
+        return ($query['wt'] ?? null) === 'json'
+            && ($query['fl'] ?? null) === 'igsn,dif,has_dif';
+    });
+});
+
+it('rejects a portal document with an invalid encoded DIF payload', function (): void {
+    Http::fake([
+        'igsn-portal.example.test/*' => Http::response([
+            'response' => [
+                'numFound' => 1,
+                'docs' => [[
+                    'igsn' => 'GFBADDIF001',
+                    'has_dif' => true,
+                    'dif' => 'not valid base64 %%%',
+                ]],
+            ],
+        ]),
+    ]);
+
+    expect(fn () => app(LegacyIgsnPortalService::class)->difForHandles(['GFBADDIF001']))
+        ->toThrow(LegacyIgsnPortalException::class, 'invalid DIF metadata');
 });

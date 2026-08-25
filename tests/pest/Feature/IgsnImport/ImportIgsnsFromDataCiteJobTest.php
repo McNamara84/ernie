@@ -2,6 +2,8 @@
 
 use App\Enums\CacheKey;
 use App\Enums\UserRole;
+use App\Exceptions\IgsnParentRelationshipException;
+use App\Exceptions\LegacyIgsnPortalException;
 use App\Jobs\ImportIgsnsFromDataCiteJob;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
@@ -36,6 +38,16 @@ beforeEach(function () {
     $this->app->instance(DataCiteToIgsnTransformer::class, $this->transformer);
 
     $this->enrichmentService = Mockery::mock(IgsnEnrichmentService::class);
+    $this->enrichmentService
+        ->shouldReceive('prepareStrict')
+        ->byDefault();
+    $this->enrichmentService
+        ->shouldReceive('preparedParentHandles')
+        ->byDefault()
+        ->andReturn([]);
+    $this->enrichmentService
+        ->shouldReceive('clearStrictPreparation')
+        ->byDefault();
     $this->app->instance(IgsnEnrichmentService::class, $this->enrichmentService);
 
     $this->legacyPortalService = Mockery::mock(LegacyIgsnPortalService::class);
@@ -55,6 +67,16 @@ afterEach(function () {
 });
 
 describe('ImportIgsnsFromDataCiteJob', function () {
+    it('uses the dedicated imports queue', function (): void {
+        $job = new ImportIgsnsFromDataCiteJob(
+            $this->user->id,
+            Str::uuid()->toString(),
+            'GFQUEUE001',
+        );
+
+        expect($job->queue)->toBe('imports');
+    });
+
     it('updates cache with progress during import', function () {
         $this->importService
             ->shouldReceive('getTotalIgsnCount')
@@ -769,7 +791,7 @@ describe('ImportIgsnsFromDataCiteJob', function () {
             ->and($status['error'])->toBe('Single IGSN import requested without a valid IGSN DOI.');
     });
 
-    it('continues a single import when an imported resource has no IGSN metadata relation', function () {
+    it('rolls back a single import when the transformer omits IGSN metadata', function () {
         $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
 
         $this->importService
@@ -801,12 +823,18 @@ describe('ImportIgsnsFromDataCiteJob', function () {
 
         $importId = Str::uuid()->toString();
         $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId, 'ICDPNOMETADATA001');
-        $job->handle($this->importService, $this->transformer, $this->enrichmentService, $childDiscoveryService);
+        expect(fn () => $job->handle(
+            $this->importService,
+            $this->transformer,
+            $this->enrichmentService,
+            $childDiscoveryService,
+        ))->toThrow(RuntimeException::class, 'did not create IGSN metadata');
 
         $status = Cache::get("igsn_import:{$importId}");
-        expect($status['status'])->toBe('completed')
-            ->and($status['imported'])->toBe(1)
-            ->and($status['enriched'])->toBe(0);
+        expect($status['status'])->toBe('failed')
+            ->and($status['imported'])->toBe(0)
+            ->and($status['enriched'])->toBe(0)
+            ->and(Resource::query()->where('doi', '10.60510/icdpnometadata001')->exists())->toBeFalse();
     });
 
     it('imports a parent IGSN and discovered child IGSNs', function () {
@@ -1049,6 +1077,190 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         expect($uncle->igsnMetadata->parent_resource_id)->toBe($grandparent->id);
     });
 
+    it('uses DataCite IsPartOf for the family tree without a legacy parent field', function () {
+        $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
+        $parentRecord = [
+            'id' => '10.60510/GFPARENTDATACITE',
+            'attributes' => [
+                'doi' => '10.60510/GFPARENTDATACITE',
+                'titles' => [['title' => 'DataCite Parent']],
+            ],
+        ];
+        $childRecord = [
+            'id' => '10.60510/GFCHILDDATACITE',
+            'attributes' => [
+                'doi' => '10.60510/GFCHILDDATACITE',
+                'titles' => [['title' => 'DataCite Child']],
+                'relatedIdentifiers' => [[
+                    'relationType' => 'IsPartOf',
+                    'relatedIdentifierType' => 'DOI',
+                    'relatedIdentifier' => '10.60510/GFPARENTDATACITE',
+                ]],
+            ],
+        ];
+
+        $this->importService->shouldReceive('fetchSingleIgsn')
+            ->once()
+            ->with('10.60510/gfparentdatacite')
+            ->andReturn($parentRecord);
+        $this->importService->shouldReceive('fetchSingleIgsn')
+            ->once()
+            ->with('10.60510/gfchilddatacite')
+            ->andReturn($childRecord);
+        $this->importService->shouldReceive('extractParentDois')
+            ->andReturnUsing(fn (array $record): array => str_ends_with(
+                strtolower((string) ($record['attributes']['doi'] ?? '')),
+                'gfchilddatacite',
+            ) ? ['10.60510/gfparentdatacite'] : []);
+        $childDiscoveryService->shouldReceive('discoverDirectChildHandles')
+            ->once()
+            ->with('GFPARENTDATACITE')
+            ->andReturn(['GFCHILDDATACITE']);
+        $this->transformer->shouldReceive('transform')
+            ->twice()
+            ->andReturnUsing(fn (array $record): Resource => createMockResourceWithIgsn(
+                strtolower((string) $record['attributes']['doi']),
+            ));
+        $this->enrichmentService->shouldReceive('enrich')->twice()->andReturn(false);
+
+        $importId = Str::uuid()->toString();
+        (new ImportIgsnsFromDataCiteJob(
+            $this->user->id,
+            $importId,
+            'GFPARENTDATACITE',
+        ))->handle(
+            $this->importService,
+            $this->transformer,
+            $this->enrichmentService,
+            $childDiscoveryService,
+        );
+
+        $parent = Resource::where('doi', '10.60510/gfparentdatacite')->firstOrFail();
+        $child = Resource::where('doi', '10.60510/gfchilddatacite')->firstOrFail();
+
+        expect($child->igsnMetadata->parent_resource_id)->toBe($parent->id)
+            ->and($child->igsnMetadata->description_json)->toBeNull();
+    });
+
+    it('rejects conflicting DataCite and legacy parents before writing any family member', function () {
+        $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
+        $records = [
+            '10.60510/gfconflictparent' => [
+                'id' => '10.60510/GFCONFLICTPARENT',
+                'attributes' => ['doi' => '10.60510/GFCONFLICTPARENT'],
+            ],
+            '10.60510/gfconflictchild' => [
+                'id' => '10.60510/GFCONFLICTCHILD',
+                'attributes' => ['doi' => '10.60510/GFCONFLICTCHILD'],
+            ],
+        ];
+
+        $this->importService->shouldReceive('fetchSingleIgsn')
+            ->withArgs(fn (string $doi): bool => isset($records[$doi]))
+            ->twice()
+            ->andReturnUsing(fn (string $doi): array => $records[$doi]);
+        $this->importService->shouldReceive('extractParentDois')
+            ->andReturnUsing(fn (array $record): array => str_ends_with(
+                strtolower((string) ($record['attributes']['doi'] ?? '')),
+                'gfconflictchild',
+            ) ? ['10.60510/gfconflictparent'] : []);
+        $childDiscoveryService->shouldReceive('discoverDirectChildHandles')
+            ->once()
+            ->with('GFCONFLICTPARENT')
+            ->andReturn(['GFCONFLICTCHILD']);
+        $this->enrichmentService->shouldReceive('preparedParentHandles')
+            ->andReturn(['GFCONFLICTCHILD' => 'GFOTHERPARENT']);
+        $this->transformer->shouldReceive('transform')->never();
+        $this->enrichmentService->shouldReceive('enrich')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportIgsnsFromDataCiteJob(
+            $this->user->id,
+            $importId,
+            'GFCONFLICTPARENT',
+        );
+
+        expect(fn () => $job->handle(
+            $this->importService,
+            $this->transformer,
+            $this->enrichmentService,
+            $childDiscoveryService,
+        ))->toThrow(IgsnParentRelationshipException::class, 'disagree about the parent');
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect(Resource::query()->whereIn('doi', array_keys($records))->count())->toBe(0)
+            ->and($status['status'])->toBe('failed')
+            ->and($status['error_code'])->toBe(IgsnParentRelationshipException::FAILURE_CODE)
+            ->and($status['error_source'])->toBe('datacite_legacy_metadata')
+            ->and($status['imported'])->toBe(0);
+    });
+
+    it('rolls back the complete new family when strict enrichment fails', function () {
+        $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
+        $records = [
+            '10.60510/gfatomicparent' => [
+                'id' => '10.60510/GFATOMICPARENT',
+                'attributes' => [
+                    'doi' => '10.60510/GFATOMICPARENT',
+                    'titles' => [['title' => 'Atomic Parent']],
+                ],
+            ],
+            '10.60510/gfatomicchild' => [
+                'id' => '10.60510/GFATOMICCHILD',
+                'attributes' => [
+                    'doi' => '10.60510/GFATOMICCHILD',
+                    'titles' => [['title' => 'Atomic Child']],
+                ],
+            ],
+        ];
+
+        $this->importService->shouldReceive('fetchSingleIgsn')
+            ->withArgs(fn (string $doi): bool => isset($records[$doi]))
+            ->twice()
+            ->andReturnUsing(fn (string $doi): array => $records[$doi]);
+        $childDiscoveryService->shouldReceive('discoverDirectChildHandles')
+            ->once()
+            ->andReturn(['GFATOMICCHILD']);
+        $this->transformer->shouldReceive('transform')
+            ->twice()
+            ->andReturnUsing(fn (array $record): Resource => createMockResourceWithIgsn(
+                strtolower((string) $record['attributes']['doi']),
+            ));
+
+        $enrichmentCalls = 0;
+        $this->enrichmentService->shouldReceive('enrich')
+            ->twice()
+            ->andReturnUsing(function () use (&$enrichmentCalls): bool {
+                $enrichmentCalls++;
+                if ($enrichmentCalls === 2) {
+                    throw LegacyIgsnPortalException::unavailable('Legacy enrichment became unavailable.');
+                }
+
+                return true;
+            });
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportIgsnsFromDataCiteJob(
+            $this->user->id,
+            $importId,
+            'GFATOMICPARENT',
+        );
+
+        expect(fn () => $job->handle(
+            $this->importService,
+            $this->transformer,
+            $this->enrichmentService,
+            $childDiscoveryService,
+        ))->toThrow(LegacyIgsnPortalException::class, 'became unavailable');
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect(Resource::query()->whereIn('doi', array_keys($records))->count())->toBe(0)
+            ->and(LandingPage::query()->count())->toBe(0)
+            ->and($status['status'])->toBe('failed')
+            ->and($status['error_code'])->toBe(LegacyIgsnPortalException::UNAVAILABLE)
+            ->and($status['imported'])->toBe(0);
+    });
+
     it('skips an existing single IGSN', function () {
         Resource::factory()->create(['doi' => '10.60510/icdpexisting001']);
         $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
@@ -1081,7 +1293,7 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         expect($status['skipped_dois'])->toBe(['10.60510/icdpexisting001']);
     });
 
-    it('continues when a discovered child IGSN is missing at DataCite', function () {
+    it('aborts without writes when a discovered child IGSN is missing at DataCite', function () {
         $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
 
         $this->importService
@@ -1110,25 +1322,24 @@ describe('ImportIgsnsFromDataCiteJob', function () {
             ->with('ICDPPARENTMISSINGCHILD')
             ->andReturn(['ICDPMISSINGCHILD']);
 
-        $this->transformer
-            ->shouldReceive('transform')
-            ->once()
-            ->andReturnUsing(fn (array $record) => createMockResourceWithIgsn($record['attributes']['doi']));
-
-        $this->enrichmentService
-            ->shouldReceive('enrich')
-            ->once()
-            ->andReturn(false);
+        $this->transformer->shouldReceive('transform')->never();
+        $this->enrichmentService->shouldReceive('enrich')->never();
 
         $importId = Str::uuid()->toString();
         $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId, 'ICDPPARENTMISSINGCHILD');
-        $job->handle($this->importService, $this->transformer, $this->enrichmentService, $childDiscoveryService);
+        expect(fn () => $job->handle(
+            $this->importService,
+            $this->transformer,
+            $this->enrichmentService,
+            $childDiscoveryService,
+        ))->toThrow(RuntimeException::class, 'was not found at DataCite');
 
         $status = Cache::get("igsn_import:{$importId}");
-        expect($status['status'])->toBe('completed');
-        expect($status['imported'])->toBe(1);
+        expect($status['status'])->toBe('failed');
+        expect($status['imported'])->toBe(0);
         expect($status['failed'])->toBe(1);
         expect($status['failed_dois'][0]['doi'])->toBe('10.60510/icdpmissingchild');
+        expect(Resource::query()->where('doi', '10.60510/icdpparentmissingchild')->exists())->toBeFalse();
     });
 
     it('marks a single import as cancelled when cancellation happens during processing', function () {
@@ -1150,8 +1361,17 @@ describe('ImportIgsnsFromDataCiteJob', function () {
 
         $this->importService
             ->shouldReceive('fetchSingleIgsn')
+            ->once()
             ->with('10.60510/icdpchildcancelled')
-            ->never();
+            ->andReturn([
+                'id' => '10.60510/ICDPCHILDCANCELLED',
+                'attributes' => [
+                    'doi' => '10.60510/ICDPCHILDCANCELLED',
+                    'titles' => [['title' => 'Child IGSN']],
+                    'publicationYear' => 2024,
+                    'types' => ['resourceTypeGeneral' => 'PhysicalObject'],
+                ],
+            ]);
 
         $childDiscoveryService
             ->shouldReceive('discoverDirectChildHandles')
@@ -1181,9 +1401,10 @@ describe('ImportIgsnsFromDataCiteJob', function () {
 
         $status = Cache::get($cacheKey);
         expect($status['status'])->toBe('cancelled')
-            ->and($status['processed'])->toBe(1)
+            ->and($status['processed'])->toBe(0)
             ->and($status['total'])->toBe(2)
-            ->and($status['imported'])->toBe(1);
+            ->and($status['imported'])->toBe(0)
+            ->and(Resource::query()->where('doi', '10.60510/icdpcancelmidrun')->exists())->toBeFalse();
     });
 
     it('stores failure status from the queue failed callback', function () {

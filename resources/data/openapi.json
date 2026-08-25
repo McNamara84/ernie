@@ -1639,7 +1639,7 @@
                     }
                 },
                 "responses": {
-                    "200": {
+                    "202": {
                         "description": "Single IGSN import job was queued successfully.",
                         "content": {
                             "application/json": {
