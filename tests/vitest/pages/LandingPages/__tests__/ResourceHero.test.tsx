@@ -232,16 +232,22 @@ describe('ResourceHero', () => {
             expect(expandButton).toHaveTextContent('et al.');
             expect(expandButton).toHaveAttribute('aria-expanded', 'false');
             expect(screen.queryByText(/Miller, A\./)).not.toBeInTheDocument();
+            expandButton.focus();
 
             fireEvent.click(expandButton);
 
             expect(screen.getByText(/Doe, J\.; Smith, J\.; Miller, A\./)).toBeInTheDocument();
-            const collapseButton = screen.getByRole('button', { name: 'Show fewer authors' });
+            const collapseButton = screen.getByRole('button', { name: 'Show fewer citation authors' });
+            expect(collapseButton).toBe(expandButton);
+            expect(collapseButton).toHaveFocus();
+            expect(collapseButton).toHaveTextContent('Show fewer authors');
             expect(collapseButton).toHaveAttribute('aria-expanded', 'true');
 
             fireEvent.click(collapseButton);
 
-            expect(screen.getByRole('button', { name: 'Show all citation authors' })).toBeInTheDocument();
+            const restoredExpandButton = screen.getByRole('button', { name: 'Show all citation authors' });
+            expect(restoredExpandButton).toBe(expandButton);
+            expect(restoredExpandButton).toHaveFocus();
             expect(screen.queryByText(/Miller, A\./)).not.toBeInTheDocument();
         });
 
@@ -249,7 +255,7 @@ describe('ResourceHero', () => {
             render(<ResourceHero {...defaultProps} />);
 
             expect(screen.queryByRole('button', { name: 'Show all citation authors' })).not.toBeInTheDocument();
-            expect(screen.queryByRole('button', { name: 'Show fewer authors' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Show fewer citation authors' })).not.toBeInTheDocument();
         });
     });
 

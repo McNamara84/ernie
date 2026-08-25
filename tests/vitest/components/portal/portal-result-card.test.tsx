@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render, screen, within } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { PortalResultCard } from '@/components/portal/PortalResultCard';

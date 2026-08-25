@@ -97,37 +97,23 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
                 {statusConfig.reviewLabel && <p className={`mb-2 text-sm font-semibold ${statusConfig.textColor}`}>{statusConfig.reviewLabel}</p>}
                 <div className="flex items-start gap-3">
                     <p className="flex-1 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
-                        {expandableCitation && !isCitationExpanded ? (
+                        {expandableCitation ? (
                             <>
-                                {expandableCitation.compactPrefix}
-                                <button
+                                {isCitationExpanded ? `${expandableCitation.expanded} ` : expandableCitation.compactPrefix}
+                                <Button
                                     type="button"
-                                    className="rounded-sm underline decoration-dotted underline-offset-2 hover:text-gray-950 focus-visible:outline-2 focus-visible:outline-offset-2 dark:hover:text-white"
-                                    aria-expanded="false"
-                                    aria-label="Show all citation authors"
-                                    onClick={() => setIsCitationExpanded(true)}
+                                    variant="link"
+                                    className="inline h-auto min-h-0 rounded-sm p-0 align-baseline text-sm font-normal text-inherit decoration-dotted underline-offset-2 hover:text-gray-950 dark:hover:text-white"
+                                    aria-expanded={isCitationExpanded}
+                                    aria-label={isCitationExpanded ? 'Show fewer citation authors' : 'Show all citation authors'}
+                                    onClick={() => setIsCitationExpanded((isExpanded) => !isExpanded)}
                                 >
-                                    et al.
-                                </button>
-                                {expandableCitation.compactSuffix}
+                                    {isCitationExpanded ? 'Show fewer authors' : 'et al.'}
+                                </Button>
+                                {!isCitationExpanded && expandableCitation.compactSuffix}
                             </>
                         ) : (
-                            <>
-                                {visibleCitation}
-                                {expandableCitation && (
-                                    <>
-                                        {' '}
-                                        <button
-                                            type="button"
-                                            className="rounded-sm underline decoration-dotted underline-offset-2 hover:text-gray-950 focus-visible:outline-2 focus-visible:outline-offset-2 dark:hover:text-white"
-                                            aria-expanded="true"
-                                            onClick={() => setIsCitationExpanded(false)}
-                                        >
-                                            Show fewer authors
-                                        </button>
-                                    </>
-                                )}
-                            </>
+                            citation
                         )}
                     </p>
                     <Button
