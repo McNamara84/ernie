@@ -849,7 +849,7 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $subjects
-     * @return array{gcmd: array<int, array<string, string>>, free: array<int, string>, msl: array<int, array<string, string>>, gemet: array<int, array<string, string>>}
+     * @return array{gcmd: array<int, array<string, string|bool>>, free: array<int, string>, msl: array<int, array<string, string>>, gemet: array<int, array<string, string>>}
      */
     private function extractKeywords(array $subjects): array
     {

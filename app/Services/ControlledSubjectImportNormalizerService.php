@@ -17,7 +17,17 @@ final readonly class ControlledSubjectImportNormalizerService
      * Normalize CGI Simple Lithology metadata. A null return means the supplied
      * scheme is not a recognized Simple Lithology scheme.
      *
-     * @return array<string, mixed>|null
+     * @return array{
+     *     uuid: string,
+     *     id: string,
+     *     text: string,
+     *     path: string,
+     *     scheme: string,
+     *     schemeURI: string,
+     *     language: string,
+     *     classificationCode?: string,
+     *     isLegacy?: true
+     * }|null
      */
     public function simpleLithology(
         ?string $scheme,
@@ -49,7 +59,7 @@ final readonly class ControlledSubjectImportNormalizerService
             ?? $canonicalClassificationCode
             ?? 'legacy:'.hash('sha256', mb_strtolower(PortalSubjectNormalizer::SCHEME_SIMPLE_LITHOLOGY.'|'.$canonicalPath));
 
-        return [
+        $keyword = [
             'uuid' => '',
             'id' => $id,
             'text' => $this->filled($resolved['text'] ?? null)
@@ -59,9 +69,17 @@ final readonly class ControlledSubjectImportNormalizerService
             'scheme' => PortalSubjectNormalizer::SCHEME_SIMPLE_LITHOLOGY,
             'schemeURI' => (string) config('simple_lithology.scheme_uri'),
             'language' => $this->filled($language) ?? 'en',
-            ...($canonicalClassificationCode !== null ? ['classificationCode' => $canonicalClassificationCode] : []),
-            ...($isLegacy ? ['isLegacy' => true] : []),
         ];
+
+        if ($canonicalClassificationCode !== null) {
+            $keyword['classificationCode'] = $canonicalClassificationCode;
+        }
+
+        if ($isLegacy) {
+            $keyword['isLegacy'] = true;
+        }
+
+        return $keyword;
     }
 
     private function canonicalConceptUri(?string $uri): ?string

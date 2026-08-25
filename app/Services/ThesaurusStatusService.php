@@ -55,11 +55,16 @@ class ThesaurusStatusService
                 $payload = null;
             }
 
+            $source = [];
+            if ($payload !== null && isset($payload['source']) && is_array($payload['source'])) {
+                $source = $payload['source'];
+            }
+
             return [
                 'exists' => $payload !== null,
                 'conceptCount' => (int) ($payload['total'] ?? 0),
                 'lastUpdated' => is_string($payload['lastUpdated'] ?? null) ? $payload['lastUpdated'] : null,
-                'sourceSha' => is_string($payload['source']['sha256'] ?? null) ? $payload['source']['sha256'] : null,
+                'sourceSha' => is_string($source['sha256'] ?? null) ? $source['sha256'] : null,
             ];
         }
 

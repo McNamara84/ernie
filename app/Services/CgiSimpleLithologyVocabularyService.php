@@ -78,6 +78,10 @@ SPARQL;
         }
 
         $contents = Storage::disk('local')->get($file);
+        if (! is_string($contents) || $contents === '') {
+            throw new RuntimeException('The local CGI Simple Lithology vocabulary cannot be read.');
+        }
+
         $payload = json_decode($contents, true);
         if (! is_array($payload)) {
             throw new RuntimeException('The local CGI Simple Lithology vocabulary is invalid.');
@@ -129,7 +133,12 @@ SPARQL;
     {
         $local = $this->localPayload();
         $remote = $this->fetchRemotePayload();
-        $localSha = is_string($local['source']['sha256'] ?? null) ? $local['source']['sha256'] : null;
+        $localSource = [];
+        if ($local !== null && isset($local['source']) && is_array($local['source'])) {
+            $localSource = $local['source'];
+        }
+
+        $localSha = is_string($localSource['sha256'] ?? null) ? $localSource['sha256'] : null;
         $remoteSha = (string) $remote['source']['sha256'];
         $updateAvailable = $localSha === null || ! hash_equals($localSha, $remoteSha);
 

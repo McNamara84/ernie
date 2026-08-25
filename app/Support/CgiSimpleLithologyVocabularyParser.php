@@ -465,11 +465,15 @@ final class CgiSimpleLithologyVocabularyParser
         return is_string($language) ? mb_strtolower(trim($language)) : '';
     }
 
-    /** @param list<array<string, mixed>> $nodes */
+    /** @param array<array-key, mixed> $nodes */
     private function countNodes(array $nodes): int
     {
         $count = 0;
         foreach ($nodes as $node) {
+            if (! is_array($node)) {
+                continue;
+            }
+
             $count++;
             $children = $node['children'] ?? [];
             if (is_array($children)) {

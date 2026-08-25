@@ -32,6 +32,8 @@ final readonly class GcmdKeywordSectionParser
      *     scheme: string,
      *     schemeURI?: string,
      *     classificationCode?: string,
+     *     language?: string,
+     *     isLegacy?: bool,
      * }>
      */
     public function parse(XmlReader $reader): array
