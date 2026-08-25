@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@tests/vitest/utils/render';
 import L from 'leaflet';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
