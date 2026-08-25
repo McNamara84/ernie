@@ -29,6 +29,10 @@
             {
                 "title": "Corrected Review-Link Migration Emails",
                 "description": "Review-link emails now explain the server migration, identify the new tokenized link, clarify that old review links are invalid while DOI links remain unaffected, and direct questions to GFZ Data Services."
+            },
+            {
+                "title": "Fixed legacy IGSN import for missing parent-child relationships",
+                "description": "Legacy IGSN imports now correctly establish parent-child relationships, ensuring the integrity of hierarchical data."
             }
         ]
     },
