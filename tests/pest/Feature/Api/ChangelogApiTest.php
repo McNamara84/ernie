@@ -8,6 +8,16 @@ it('returns changelog data grouped by release', function () {
     getJson('/api/changelog')
         ->assertOk()
         ->assertJsonFragment([
+            'version' => '1.0.1',
+            'date' => '2026-08-25',
+        ])
+        ->assertJsonFragment([
+            'title' => 'Preserved License Drafts in the Data Editor',
+        ])
+        ->assertJsonFragment([
+            'title' => 'Short Abstracts Accepted in the Data Editor',
+        ])
+        ->assertJsonFragment([
             'version' => '0.1.0',
         ])
         ->assertJsonFragment([
