@@ -30,7 +30,7 @@ it('builds every path of a deterministic polyhierarchical vocabulary', function 
         simpleLithologyBinding('igneous', 'Igneous material', 'rock'),
     ];
 
-    $payload = app(CgiSimpleLithologyVocabularyParser::class)->buildPayload($bindings, '2025-06-04', 1, 10, 10);
+    $payload = app(CgiSimpleLithologyVocabularyParser::class)->buildPayload($bindings, '2025-06-04', 1, 10, 10, 100);
 
     expect($payload['total'])->toBe(3)
         ->and($payload['pathCount'])->toBe(4)
@@ -49,8 +49,8 @@ it('produces the same source hash when SPARQL binding order changes', function (
     ];
     $parser = app(CgiSimpleLithologyVocabularyParser::class);
 
-    $first = $parser->buildPayload($bindings, null, 1, 10, 10);
-    $second = $parser->buildPayload(array_reverse($bindings), null, 1, 10, 10);
+    $first = $parser->buildPayload($bindings, null, 1, 10, 10, 100);
+    $second = $parser->buildPayload(array_reverse($bindings), null, 1, 10, 10, 100);
 
     expect($first['source']['sha256'])->toBe($second['source']['sha256']);
 });
@@ -59,7 +59,7 @@ it('accepts regional English labels returned by LANGMATCHES', function (): void 
     $binding = simpleLithologyBinding('material', 'Material');
     $binding['prefLabel']['xml:lang'] = 'en-AU';
 
-    $payload = app(CgiSimpleLithologyVocabularyParser::class)->buildPayload([$binding], null, 1, 10, 10);
+    $payload = app(CgiSimpleLithologyVocabularyParser::class)->buildPayload([$binding], null, 1, 10, 10, 100);
 
     expect($payload['data'][0]['text'])->toBe('Material');
 });
@@ -69,10 +69,10 @@ it('rejects tampered or incomplete local payloads', function (Closure $tamper, s
     $payload = $parser->buildPayload([
         simpleLithologyBinding('material', 'Material'),
         simpleLithologyBinding('basalt', 'Basalt', 'material'),
-    ], null, 1, 10, 10);
+    ], null, 1, 10, 10, 100);
     $tamper($payload);
 
-    expect(fn () => $parser->validatePayload($payload, 1, 10, 10))
+    expect(fn () => $parser->validatePayload($payload, 1, 10, 10, 100))
         ->toThrow(RuntimeException::class, $message);
 })->with([
     'changed label' => [
@@ -96,7 +96,7 @@ it('rejects tampered or incomplete local payloads', function (Closure $tamper, s
 ]);
 
 it('rejects cycles, foreign concept URIs, and implausible counts', function (array $bindings, string $message): void {
-    expect(fn () => app(CgiSimpleLithologyVocabularyParser::class)->buildPayload($bindings, null, 1, 10, 10))
+    expect(fn () => app(CgiSimpleLithologyVocabularyParser::class)->buildPayload($bindings, null, 1, 10, 10, 100))
         ->toThrow(RuntimeException::class, $message);
 })->with([
     'cycle' => [[
@@ -120,5 +120,36 @@ it('rejects a concept count outside the configured range', function (): void {
         2,
         10,
         10,
+        100,
     ))->toThrow(RuntimeException::class, 'outside the allowed range');
+});
+
+it('rejects concepts whose broader parent is missing from the response', function (): void {
+    expect(fn () => app(CgiSimpleLithologyVocabularyParser::class)->buildPayload(
+        [simpleLithologyBinding('basalt', 'Basalt', 'missing-rock-parent')],
+        null,
+        1,
+        10,
+        10,
+        100,
+    ))->toThrow(RuntimeException::class, 'references a missing parent');
+});
+
+it('rejects excessive polyhierarchical paths before expanding the tree', function (): void {
+    $bindings = [
+        simpleLithologyBinding('material', 'Material'),
+        simpleLithologyBinding('rock', 'Rock', 'material'),
+        simpleLithologyBinding('sediment', 'Sediment', 'material'),
+        simpleLithologyBinding('shared', 'Shared child', 'rock'),
+        simpleLithologyBinding('shared', 'Shared child', 'sediment'),
+    ];
+
+    expect(fn () => app(CgiSimpleLithologyVocabularyParser::class)->buildPayload(
+        $bindings,
+        null,
+        1,
+        10,
+        10,
+        4,
+    ))->toThrow(RuntimeException::class, 'exceeds the maximum expanded path count of 4');
 });

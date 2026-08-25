@@ -19,6 +19,7 @@ final class CgiSimpleLithologyVocabularyParser
         int $minimumConcepts,
         int $maximumConcepts,
         int $maximumDepth,
+        int $maximumPaths,
     ): void {
         $schemeName = (string) config('simple_lithology.scheme_name');
         $schemeUri = (string) config('simple_lithology.scheme_uri');
@@ -57,6 +58,7 @@ final class CgiSimpleLithologyVocabularyParser
             &$concepts,
             &$pathCount,
             $maximumDepth,
+            $maximumPaths,
             $conceptPrefix,
             $schemeName,
             $schemeUri,
@@ -89,6 +91,9 @@ final class CgiSimpleLithologyVocabularyParser
             }
             $ancestors[$id] = true;
             $pathCount++;
+            if ($pathCount > $maximumPaths) {
+                throw new RuntimeException("Simple Lithology exceeds the maximum expanded path count of {$maximumPaths}.");
+            }
 
             $normalizedText = trim($text);
             $normalizedDescription = trim($description);
@@ -182,6 +187,7 @@ final class CgiSimpleLithologyVocabularyParser
         int $minimumConcepts,
         int $maximumConcepts,
         int $maximumDepth,
+        int $maximumPaths,
     ): array {
         $schemeName = (string) config('simple_lithology.scheme_name');
         $schemeUri = (string) config('simple_lithology.scheme_uri');
@@ -244,10 +250,7 @@ final class CgiSimpleLithologyVocabularyParser
                 throw new RuntimeException("Simple Lithology concept {$id} has no English or language-neutral preferred label.");
             }
 
-            $parents = array_values(array_filter(
-                array_keys($concept['parents']),
-                static fn (string $parent): bool => isset($concepts[$parent]),
-            ));
+            $parents = array_keys($concept['parents']);
             sort($parents, SORT_STRING);
 
             $normalized[$id] = [
@@ -262,12 +265,12 @@ final class CgiSimpleLithologyVocabularyParser
         [$children, $roots] = $this->hierarchy($normalized);
 
         $this->assertAcyclicAndReachable($normalized, $children, $roots, $maximumDepth);
+        $pathCount = $this->countExpandedPaths($children, $roots, $maximumPaths);
 
         $tree = array_map(
             fn (string $root): array => $this->buildNode($root, $normalized, $children, $schemeName, $schemeUri, 1, $maximumDepth),
             $roots,
         );
-        $pathCount = $this->countNodes($tree);
 
         $canonical = [];
         foreach ($normalized as $concept) {
@@ -297,7 +300,7 @@ final class CgiSimpleLithologyVocabularyParser
             'data' => $tree,
         ];
 
-        $this->validatePayload($payload, $minimumConcepts, $maximumConcepts, $maximumDepth);
+        $this->validatePayload($payload, $minimumConcepts, $maximumConcepts, $maximumDepth, $maximumPaths);
 
         return $payload;
     }
@@ -465,22 +468,50 @@ final class CgiSimpleLithologyVocabularyParser
         return is_string($language) ? mb_strtolower(trim($language)) : '';
     }
 
-    /** @param array<array-key, mixed> $nodes */
-    private function countNodes(array $nodes): int
+    /**
+     * Count the nodes that will exist after expanding every polyhierarchical
+     * path. Subtree totals are memoized and additions are bounded, so an
+     * exponential upstream graph is rejected before the tree is materialized.
+     *
+     * @param  array<string, list<string>>  $children
+     * @param  list<string>  $roots
+     */
+    private function countExpandedPaths(array $children, array $roots, int $maximumPaths): int
     {
-        $count = 0;
-        foreach ($nodes as $node) {
-            if (! is_array($node)) {
-                continue;
-            }
-
-            $count++;
-            $children = $node['children'] ?? [];
-            if (is_array($children)) {
-                $count += $this->countNodes($children);
-            }
+        if ($maximumPaths < 1) {
+            throw new RuntimeException('Simple Lithology maximum expanded path count must be positive.');
         }
 
-        return $count;
+        /** @var array<string, int> $subtreeCounts */
+        $subtreeCounts = [];
+        $countSubtree = function (string $id) use (&$countSubtree, &$subtreeCounts, $children, $maximumPaths): int {
+            if (isset($subtreeCounts[$id])) {
+                return $subtreeCounts[$id];
+            }
+
+            $count = 1;
+            foreach ($children[$id] ?? [] as $child) {
+                $childCount = $countSubtree($child);
+                if ($count > $maximumPaths - $childCount) {
+                    throw new RuntimeException("Simple Lithology exceeds the maximum expanded path count of {$maximumPaths}.");
+                }
+
+                $count += $childCount;
+            }
+
+            return $subtreeCounts[$id] = $count;
+        };
+
+        $pathCount = 0;
+        foreach ($roots as $root) {
+            $rootCount = $countSubtree($root);
+            if ($pathCount > $maximumPaths - $rootCount) {
+                throw new RuntimeException("Simple Lithology exceeds the maximum expanded path count of {$maximumPaths}.");
+            }
+
+            $pathCount += $rootCount;
+        }
+
+        return $pathCount;
     }
 }

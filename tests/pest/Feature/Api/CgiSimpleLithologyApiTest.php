@@ -28,7 +28,7 @@ function storeSimpleLithologyApiFixture(): void
             'value' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
         ],
         'prefLabel' => ['type' => 'literal', 'xml:lang' => 'en', 'value' => 'Basalt'],
-    ]], null, 1, 10, 10);
+    ]], null, 1, 10, 10, 100);
 
     Storage::disk('local')->put(
         'cgi-simple-lithology.json',

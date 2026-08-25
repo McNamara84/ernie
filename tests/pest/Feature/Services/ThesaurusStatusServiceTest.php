@@ -232,7 +232,7 @@ describe('getLocalStatus', function () {
                 'value' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
             ],
             'prefLabel' => ['type' => 'literal', 'xml:lang' => 'en', 'value' => 'Basalt'],
-        ]], null, 1, 10, 10);
+        ]], null, 1, 10, 10, 100);
         Storage::put('cgi-simple-lithology.json', json_encode($payload, JSON_THROW_ON_ERROR));
         $thesaurus = ThesaurusSetting::query()->where(
             'type',
@@ -493,7 +493,7 @@ describe('compareWithRemote', function () {
                 'value' => 'http://resource.geosciml.org/classifier/cgi/lithology/rock',
             ],
             'prefLabel' => ['type' => 'literal', 'xml:lang' => 'en', 'value' => 'Rock'],
-        ]], null, 1, 10, 10);
+        ]], null, 1, 10, 10, 100);
         Storage::put('cgi-simple-lithology.json', json_encode($localPayload, JSON_THROW_ON_ERROR));
         Http::fake(function (Request $request) {
             if (str_contains((string) $request['query'], 'dateModified')) {

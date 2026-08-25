@@ -192,12 +192,17 @@ it('preserves unresolved URI-less legacy CGI Simple Lithology paths without expo
         'description' => null,
     ]);
 
-    expect($this->service->dataCiteSubjects($this->dataset))->toBe([[
-        'subject' => 'Rock > Historical rock label',
-        'subjectScheme' => 'CGI Simple Lithology',
-        'lang' => 'en',
-        'schemeUri' => 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
-    ]]);
+    $controlledKeywords = $this->service->controlledKeywords($this->dataset);
+
+    expect($controlledKeywords)->toHaveCount(1)
+        ->and($controlledKeywords[0]['text'])->toBe('Historical rock label')
+        ->and($controlledKeywords[0]['path'])->toBe('Rock > Historical rock label')
+        ->and($this->service->dataCiteSubjects($this->dataset))->toBe([[
+            'subject' => 'Rock > Historical rock label',
+            'subjectScheme' => 'CGI Simple Lithology',
+            'lang' => 'en',
+            'schemeUri' => 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+        ]]);
 });
 
 it('splits, trims, and filters comma-separated free keywords', function (): void {

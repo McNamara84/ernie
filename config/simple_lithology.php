@@ -14,5 +14,6 @@ return [
     'max_response_bytes' => 10 * 1024 * 1024,
     'min_concepts' => 200,
     'max_concepts' => 2000,
+    'max_paths' => 10000,
     'max_depth' => 32,
 ];

@@ -23,7 +23,9 @@ it('runs architecture tests outside the parallel coverage workers', function ():
         ->toBeString()
         ->toContain('./vendor/bin/pest --group=serial --exclude-testsuite=Arch')
         ->toContain('XDEBUG_MODE=off ./vendor/bin/pest --testsuite=Arch --no-coverage')
-        ->toContain('php -d memory_limit=4G ./vendor/bin/pest --parallel --exclude-group=serial --exclude-testsuite=Arch');
+        ->toContain('php -d memory_limit=4G ./vendor/bin/pest --parallel')
+        ->toContain('--passthru-php="\'-d\' \'memory_limit=1G\'"')
+        ->toContain('--exclude-group=serial --exclude-testsuite=Arch');
 
     $architecturePosition = strpos($commands, '--testsuite=Arch --no-coverage');
     $parallelPosition = strpos($commands, 'php -d memory_limit=4G ./vendor/bin/pest --parallel');

@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Support\GcmdUriHelper;
 use App\Support\GemetVocabularyParser;
 use App\Support\PortalSubjectNormalizer;
+use App\Support\SubjectBreadcrumbPath;
 
 class OldDatasetKeywordTransformer
 {
@@ -115,6 +116,7 @@ class OldDatasetKeywordTransformer
 
         if ($newUri === null && $scheme === PortalSubjectNormalizer::SCHEME_SIMPLE_LITHOLOGY && $normalizedKeyword !== '') {
             $newUri = 'legacy:'.hash('sha256', mb_strtolower($scheme.'|'.$normalizedKeyword));
+            $outputText = SubjectBreadcrumbPath::leaf($outputPath, $normalizedKeyword) ?? $normalizedKeyword;
         }
 
         if ($newUri === null) {

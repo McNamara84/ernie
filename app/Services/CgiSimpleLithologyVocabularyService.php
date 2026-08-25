@@ -66,6 +66,7 @@ SPARQL;
             (int) config('simple_lithology.min_concepts'),
             (int) config('simple_lithology.max_concepts'),
             (int) config('simple_lithology.max_depth'),
+            (int) config('simple_lithology.max_paths'),
         );
     }
 
@@ -92,6 +93,7 @@ SPARQL;
             (int) config('simple_lithology.min_concepts'),
             (int) config('simple_lithology.max_concepts'),
             (int) config('simple_lithology.max_depth'),
+            (int) config('simple_lithology.max_paths'),
         );
 
         return $payload;

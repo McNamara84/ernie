@@ -187,7 +187,9 @@ describe('transform', function () {
 
         expect($result['id'])->toStartWith('legacy:')
             ->and($result['isLegacy'])->toBeTrue()
-            ->and($result['scheme'])->toBe('CGI Simple Lithology');
+            ->and($result['scheme'])->toBe('CGI Simple Lithology')
+            ->and($result['text'])->toBe('Historical rock')
+            ->and($result['path'])->toBe('Material > Historical rock');
     });
 });
 
