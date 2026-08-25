@@ -19,6 +19,16 @@ final class ResourceReviewLinkController extends Controller
 
     public function store(SendResourceReviewLinksRequest $request): JsonResponse
     {
+        return $this->queueEmails($request, migration: false);
+    }
+
+    public function storeMigration(SendResourceReviewLinksRequest $request): JsonResponse
+    {
+        return $this->queueEmails($request, migration: true);
+    }
+
+    private function queueEmails(SendResourceReviewLinksRequest $request, bool $migration): JsonResponse
+    {
         $contactAddress = trim((string) config('mail.landing_page_contact_cc'));
 
         if ($contactAddress === '' || filter_var($contactAddress, FILTER_VALIDATE_EMAIL) === false) {
@@ -33,16 +43,23 @@ final class ResourceReviewLinkController extends Controller
         $validated = $request->validated();
         $resourceIds = array_values(array_unique($validated['ids']));
 
-        /** @var User $initiator */
-        $initiator = $request->user();
-        $result = $this->reviewLinkService->queue($resourceIds, $initiator, $contactAddress);
+        if ($migration) {
+            $result = $this->reviewLinkService->queueMigration($resourceIds, $contactAddress);
+        } else {
+            /** @var User $initiator */
+            $initiator = $request->user();
+            $result = $this->reviewLinkService->queue($resourceIds, $initiator, $contactAddress);
+        }
 
         $isPartial = $result['failed_resources'] !== [] || $result['skipped_recipients_count'] > 0;
 
         return response()->json([
-            'message' => $isPartial
-                ? 'Review emails were queued with some skipped recipients or resources.'
-                : 'Review emails queued for delivery.',
+            'message' => match (true) {
+                $migration && $isPartial => 'Review-link migration emails were queued with some skipped recipients or resources.',
+                $migration => 'Review-link migration emails queued for delivery.',
+                $isPartial => 'Review emails were queued with some skipped recipients or resources.',
+                default => 'Review emails queued for delivery.',
+            },
             ...$result,
         ], $isPartial ? HttpResponse::HTTP_MULTI_STATUS : HttpResponse::HTTP_OK);
     }

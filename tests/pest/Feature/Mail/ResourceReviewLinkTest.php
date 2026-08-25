@@ -40,7 +40,7 @@ describe('content', function (): void {
 
         expect($content->view)->toBe('emails.resource-review-link')
             ->and($content->text)->toBe('emails.resource-review-link-text')
-            ->and($content->with)->toMatchArray([
+            ->and($content->with)->toBe([
                 'resourceTitle' => 'Seismic Review Dataset',
                 'resourceDoi' => '10.5880/test.review.001',
                 'reviewUrl' => 'https://example.test/10.5880/test.review.001/seismic?preview=secret-token',
@@ -50,26 +50,46 @@ describe('content', function (): void {
             ]);
     });
 
-    it('renders the personalized HTML and text bodies with and without a DOI', function (?string $doi): void {
+    it('renders the normal invitation without migration claims in HTML and text', function (?string $doi): void {
         $mailable = makeResourceReviewLinkMail($doi);
 
         $html = $mailable->render();
         $text = view('emails.resource-review-link-text', $mailable->content()->with)->render();
 
-        expect($html)->toContain('Dear Ada Reviewer')
-            ->toContain('Seismic Review Dataset')
-            ->toContain('preview=secret-token')
-            ->toContain('Ernie Curator')
-            ->toContain('curator@example.test')
-            ->and($text)->toContain('Dear Ada Reviewer')
-            ->toContain('preview=secret-token');
+        $expectedCopy = [
+            'Dear Ada Reviewer,',
+            'Please review the following resource before publication:',
+            'Title:',
+            'Seismic Review Dataset',
+            'Review link:',
+            'https://example.test/10.5880/test.review.001/seismic?preview=secret-token',
+            'If you have questions or feedback, please contact:',
+            'Ernie Curator',
+            'curator@example.test',
+            'This review link provides access to a non-public preview. Please do not forward it beyond the intended review group.',
+        ];
+
+        foreach ($expectedCopy as $copy) {
+            expect($html)->toContain($copy)
+                ->and($text)->toContain($copy);
+        }
+
+        expect($html)->toContain('href="https://example.test/10.5880/test.review.001/seismic?preview=secret-token"')
+            ->toContain('href="mailto:curator@example.test"')
+            ->not->toContain('Your review link has changed')
+            ->not->toContain('server migration')
+            ->not->toContain('The old review link is no longer valid')
+            ->and($text)->toContain('GFZ DATA SERVICES - RESOURCE REVIEW LINK')
+            ->not->toContain('Your review link has changed')
+            ->not->toContain('server migration')
+            ->not->toContain('The old review link is no longer valid');
 
         if ($doi === null) {
             expect($html)->not->toContain('<strong>DOI:</strong>')
                 ->and($text)->not->toContain('DOI:');
         } else {
-            expect($html)->toContain($doi)
-                ->and($text)->toContain($doi);
+            expect($html)->toContain("<strong>DOI:</strong> {$doi}")
+                ->and($text)->toContain("DOI: {$doi}");
         }
     })->with([
         'with DOI' => '10.5880/test.review.001',
