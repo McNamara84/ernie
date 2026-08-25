@@ -88,7 +88,8 @@ describe('Resources page bulk actions (smoke)', function (): void {
             ->assertNoSmoke()
             ->click('[data-testid="resources-row-checkbox-'.$resource->id.'"]')
             ->click('[data-testid="resources-actions-menu-trigger"]')
-            ->assertVisible('[data-testid="resources-action-send-review-link"]');
+            ->assertVisible('[data-testid="resources-action-send-review-link"]')
+            ->assertVisible('[data-testid="resources-action-send-review-link-migration"]');
     });
 
     it('hides review-link sending from beginners', function (): void {
@@ -106,6 +107,7 @@ describe('Resources page bulk actions (smoke)', function (): void {
             ->assertNoSmoke()
             ->click('[data-testid="resources-row-checkbox-'.$resource->id.'"]')
             ->click('[data-testid="resources-actions-menu-trigger"]')
-            ->assertNotPresent('[data-testid="resources-action-send-review-link"]');
+            ->assertNotPresent('[data-testid="resources-action-send-review-link"]')
+            ->assertNotPresent('[data-testid="resources-action-send-review-link-migration"]');
     });
 });

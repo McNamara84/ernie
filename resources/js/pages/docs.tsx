@@ -2306,21 +2306,29 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <h4>Send Review Links (Curator and above)</h4>
                                 <p>
                                     Open the <strong>Actions</strong> menu and choose <strong>Send review link</strong> to invite contributors to
-                                    review resources before publication. The action is available only when every selected resource has the{' '}
+                                    review resources before publication. This is the normal invitation workflow and does not tell recipients that a
+                                    previous link has changed. The action is available only when every selected resource has the{' '}
                                     <strong>Review</strong> status and a usable preview link. A mixed selection containing a draft, curation, or
                                     published resource is rejected before any email is queued.
                                 </p>
                                 <p>
+                                    Choose <strong>Notify changed review link</strong> only for contacts who already received a review link that
+                                    became invalid during the server migration. This separate action sends the migration notice, identifies the old
+                                    link as invalid, and supplies the current replacement link. Its confirmation dialog repeats this restriction
+                                    before any email is queued.
+                                </p>
+                                <p>
                                     After confirmation, every resource contributor with the <strong>ContactPerson</strong> role and a valid email
-                                    address receives one separate invitation per selected resource. Duplicate addresses within the same resource are
-                                    contacted only once. Creator contact flags and contributors without the ContactPerson role are not used. The GFZ
-                                    Data Services contact address is included as Cc and Reply-To on every invitation.
+                                    address receives one separate email per selected resource, using either the invitation or migration notice
+                                    selected above. Duplicate addresses within the same resource are contacted only once. Creator contact flags and
+                                    contributors without the ContactPerson role are not used. The GFZ Data Services contact address is included as Cc
+                                    and Reply-To on every message.
                                 </p>
                                 <p>
                                     Missing or invalid ContactPerson addresses are skipped. If a resource has no valid recipient, that resource is
                                     reported as failed while eligible recipients and other resources continue to be processed. The result notification
                                     distinguishes fully queued batches from partial results and reports queued messages, skipped recipients, and
-                                    resources without a queued invitation.
+                                    resources without a queued email.
                                 </p>
                                 <p className="text-sm text-muted-foreground">
                                     Limit: up to 100 resources per batch and up to 10 send requests per user per minute.
