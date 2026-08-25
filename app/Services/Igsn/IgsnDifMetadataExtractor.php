@@ -11,7 +11,7 @@ class IgsnDifMetadataExtractor
 {
     public function __construct(
         private readonly IgsnVocabularyNormalizerService $vocabularyNormalizer = new IgsnVocabularyNormalizerService,
-        private readonly IgsnDescriptionNormalizer $descriptionNormalizer = new IgsnDescriptionNormalizer,
+        private readonly IgsnDescriptionNormalizerService $descriptionNormalizer = new IgsnDescriptionNormalizerService,
     ) {}
 
     /**

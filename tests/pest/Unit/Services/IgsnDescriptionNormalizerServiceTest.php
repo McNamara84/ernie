@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Services\Igsn\IgsnDescriptionNormalizer;
+use App\Services\Igsn\IgsnDescriptionNormalizerService;
 
-covers(IgsnDescriptionNormalizer::class);
+covers(IgsnDescriptionNormalizerService::class);
 
 it('normalizes every supported CSV description shape without splitting values', function (mixed $payload, array $expected): void {
-    expect((new IgsnDescriptionNormalizer)->normalizeCsvPayload($payload))->toBe($expected);
+    expect((new IgsnDescriptionNormalizerService)->normalizeCsvPayload($payload))->toBe($expected);
 })->with([
     'single object' => [
         ['descriptions' => [
@@ -34,7 +34,7 @@ it('normalizes every supported CSV description shape without splitting values', 
 ]);
 
 it('discards malformed empty and placeholder entries while keeping duplicates across groups', function (): void {
-    $groups = (new IgsnDescriptionNormalizer)->normalizeCsvPayload([
+    $groups = (new IgsnDescriptionNormalizerService)->normalizeCsvPayload([
         ['descriptions' => [['description' => 'same'], ['description' => 'N/A'], ['description' => ' ']]],
         ['descriptions' => [['description' => 'same'], 'invalid']],
     ]);
@@ -42,5 +42,5 @@ it('discards malformed empty and placeholder entries while keeping duplicates ac
     expect($groups)->toBe([
         ['entries' => [['value' => 'same', 'scheme' => null]]],
         ['entries' => [['value' => 'same', 'scheme' => null]]],
-    ])->and((new IgsnDescriptionNormalizer)->legacyValues($groups))->toBe(['same']);
+    ])->and((new IgsnDescriptionNormalizerService)->legacyValues($groups))->toBe(['same']);
 });

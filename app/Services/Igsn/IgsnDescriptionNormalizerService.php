@@ -7,7 +7,7 @@ namespace App\Services\Igsn;
 /**
  * Normalizes legacy IGSN description payloads without changing their order.
  */
-class IgsnDescriptionNormalizer
+class IgsnDescriptionNormalizerService
 {
     /**
      * @param  array<mixed>  $groups

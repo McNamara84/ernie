@@ -28,7 +28,7 @@ use App\Models\ResourceDate;
 use App\Models\Right;
 use App\Models\Subject;
 use App\Models\Title;
-use App\Services\Igsn\IgsnDescriptionNormalizer;
+use App\Services\Igsn\IgsnDescriptionNormalizerService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Support\IgsnIdentifier;
 use App\Support\PortalSubjectNormalizer;
@@ -39,14 +39,14 @@ final class LandingPageResourceTransformer
 {
     private readonly IgsnSampleFamilyService $sampleFamilyService;
 
-    private readonly IgsnDescriptionNormalizer $igsnDescriptionNormalizer;
+    private readonly IgsnDescriptionNormalizerService $igsnDescriptionNormalizer;
 
     public function __construct(
         ?IgsnSampleFamilyService $sampleFamilyService = null,
-        ?IgsnDescriptionNormalizer $igsnDescriptionNormalizer = null,
+        ?IgsnDescriptionNormalizerService $igsnDescriptionNormalizer = null,
     ) {
         $this->sampleFamilyService = $sampleFamilyService ?? new IgsnSampleFamilyService;
-        $this->igsnDescriptionNormalizer = $igsnDescriptionNormalizer ?? new IgsnDescriptionNormalizer;
+        $this->igsnDescriptionNormalizer = $igsnDescriptionNormalizer ?? new IgsnDescriptionNormalizerService;
     }
 
     /**
