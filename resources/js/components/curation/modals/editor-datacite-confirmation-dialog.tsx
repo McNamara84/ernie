@@ -13,6 +13,11 @@ import { type DataCitePrefixConfig, describeOrcidReason, type OrcidPreflightIssu
 
 export type EditorDataCiteAction = 'register' | 'update';
 export type EditorDataCiteSubmittingAction = 'submit' | 'retry' | 'override' | null;
+export interface EditorDataCiteSubmission {
+    prefix: string;
+    force: boolean;
+    submittingAction: Exclude<EditorDataCiteSubmittingAction, null>;
+}
 
 interface EditorDataCiteConfirmationDialogProps {
     open: boolean;
@@ -27,7 +32,7 @@ interface EditorDataCiteConfirmationDialogProps {
     orcidBlockers: OrcidPreflightIssue[];
     orcidWarnings: OrcidPreflightIssue[];
     onClose: () => void;
-    onConfirm: (prefix: string, force: boolean, submittingAction: Exclude<EditorDataCiteSubmittingAction, null>) => void;
+    onConfirm: (submission: EditorDataCiteSubmission) => void;
 }
 
 export function EditorDataCiteConfirmationDialog({
@@ -246,7 +251,7 @@ export function EditorDataCiteConfirmationDialog({
                                 variant="secondary"
                                 loading={submittingAction === 'retry'}
                                 disabled={!canSubmit}
-                                onClick={() => onConfirm(selectedPrefix, false, 'retry')}
+                                onClick={() => onConfirm({ prefix: selectedPrefix, force: false, submittingAction: 'retry' })}
                                 data-testid="editor-orcid-preflight-retry"
                             >
                                 Retry verification
@@ -255,7 +260,7 @@ export function EditorDataCiteConfirmationDialog({
                                 type="button"
                                 loading={submittingAction === 'override'}
                                 disabled={!canSubmit}
-                                onClick={() => onConfirm(selectedPrefix, true, 'override')}
+                                onClick={() => onConfirm({ prefix: selectedPrefix, force: true, submittingAction: 'override' })}
                                 data-testid="editor-orcid-preflight-override"
                             >
                                 {isUpdate ? 'Update anyway' : 'Register anyway'}
@@ -266,7 +271,7 @@ export function EditorDataCiteConfirmationDialog({
                             type="button"
                             loading={submittingAction === 'submit'}
                             disabled={!canSubmit}
-                            onClick={() => onConfirm(selectedPrefix, false, 'submit')}
+                            onClick={() => onConfirm({ prefix: selectedPrefix, force: false, submittingAction: 'submit' })}
                             data-testid="confirm-editor-datacite-action"
                         >
                             {primaryLabel}

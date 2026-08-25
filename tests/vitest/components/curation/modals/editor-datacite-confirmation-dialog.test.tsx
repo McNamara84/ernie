@@ -48,7 +48,7 @@ describe('EditorDataCiteConfirmationDialog', () => {
         await waitFor(() => expect(confirmButton).toBeEnabled());
         await user.click(confirmButton);
 
-        expect(onConfirm).toHaveBeenCalledWith('10.83279', false, 'submit');
+        expect(onConfirm).toHaveBeenCalledWith({ prefix: '10.83279', force: false, submittingAction: 'submit' });
     });
 
     it('closes without confirming and explains the landing-page continuation', async () => {
@@ -79,7 +79,7 @@ describe('EditorDataCiteConfirmationDialog', () => {
         await waitFor(() => expect(confirmButton).toBeEnabled());
         await user.click(confirmButton);
 
-        expect(onConfirm).toHaveBeenCalledWith('', false, 'submit');
+        expect(onConfirm).toHaveBeenCalledWith({ prefix: '', force: false, submittingAction: 'submit' });
     });
 
     it('keeps a prefix configuration failure blocking for a new DOI registration', async () => {
@@ -109,7 +109,7 @@ describe('EditorDataCiteConfirmationDialog', () => {
         await user.click(screen.getByTestId('editor-orcid-preflight-retry'));
         await user.click(screen.getByTestId('editor-orcid-preflight-override'));
 
-        expect(onConfirm).toHaveBeenNthCalledWith(1, '10.83279', false, 'retry');
-        expect(onConfirm).toHaveBeenNthCalledWith(2, '10.83279', true, 'override');
+        expect(onConfirm).toHaveBeenNthCalledWith(1, { prefix: '10.83279', force: false, submittingAction: 'retry' });
+        expect(onConfirm).toHaveBeenNthCalledWith(2, { prefix: '10.83279', force: true, submittingAction: 'override' });
     });
 });

@@ -10,6 +10,7 @@ import { DoiRegistrationSuccessDialog } from '@/components/curation/modals/doi-r
 import {
     type EditorDataCiteAction,
     EditorDataCiteConfirmationDialog,
+    type EditorDataCiteSubmission,
     type EditorDataCiteSubmittingAction,
 } from '@/components/curation/modals/editor-datacite-confirmation-dialog';
 import {
@@ -2374,7 +2375,11 @@ export default function DataCiteForm({
     const [orcidWarnings, setOrcidWarnings] = useState<OrcidPreflightIssue[]>([]);
     const [pendingDataCitePayload, setPendingDataCitePayload] = useState<ReturnType<typeof buildPayload> | null>(null);
     const [pendingDataCiteResourceId, setPendingDataCiteResourceId] = useState<number | null>(null);
-    const [pendingDataCitePrefix, setPendingDataCitePrefix] = useState('');
+    const [pendingDataCiteSubmission, setPendingDataCiteSubmission] = useState<EditorDataCiteSubmission>({
+        prefix: '',
+        force: false,
+        submittingAction: 'submit',
+    });
     const [registrationSuccess, setRegistrationSuccess] = useState<{ doi: string; counts: PublishedRecordCounts } | null>(null);
 
     const updateDraftAutosaveSignature = useCallback((payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
@@ -2698,7 +2703,7 @@ export default function DataCiteForm({
         setOrcidWarnings([]);
         setPendingDataCitePayload(null);
         setPendingDataCiteResourceId(null);
-        setPendingDataCitePrefix('');
+        setPendingDataCiteSubmission({ prefix: '', force: false, submittingAction: 'submit' });
     };
 
     const handleRequestDataCiteAction = async () => {
@@ -2778,8 +2783,8 @@ export default function DataCiteForm({
         }
     };
 
-    const handleConfirmDataCiteAction = async (prefix: string, force: boolean, submittingAction: Exclude<EditorDataCiteSubmittingAction, null>) => {
-        setPendingDataCitePrefix(prefix);
+    const handleConfirmDataCiteAction = async (submission: EditorDataCiteSubmission) => {
+        setPendingDataCiteSubmission(submission);
 
         let resourceId = pendingDataCiteResourceId;
         if (resourceId === null) {
@@ -2789,7 +2794,7 @@ export default function DataCiteForm({
             }
 
             setIsSubmittingDataCite(true);
-            setDataCiteSubmittingAction(submittingAction);
+            setDataCiteSubmittingAction(submission.submittingAction);
             const saved = await persistValidatedResource(pendingDataCitePayload);
             setIsSubmittingDataCite(false);
             setDataCiteSubmittingAction(null);
@@ -2811,7 +2816,7 @@ export default function DataCiteForm({
             return;
         }
 
-        await executeDataCiteWrite(resourceId, prefix, force, submittingAction);
+        await executeDataCiteWrite(resourceId, submission.prefix, submission.force, submission.submittingAction);
     };
 
     // Save draft with relaxed validation - only requires Main Title (Issue #548)
@@ -3051,7 +3056,12 @@ export default function DataCiteForm({
             }
 
             setIsDataCiteConfirmationOpen(true);
-            await executeDataCiteWrite(pendingDataCiteResourceId, pendingDataCitePrefix, false, 'submit');
+            await executeDataCiteWrite(
+                pendingDataCiteResourceId,
+                pendingDataCiteSubmission.prefix,
+                pendingDataCiteSubmission.force,
+                pendingDataCiteSubmission.submittingAction,
+            );
             return;
         }
 
@@ -3873,14 +3883,14 @@ export default function DataCiteForm({
                 title={mainTitleForLandingPage}
                 doi={form.doi}
                 hasLandingPage={landingPageForPreview !== null}
-                initialPrefix={pendingDataCitePrefix}
+                initialPrefix={pendingDataCiteSubmission.prefix}
                 isSubmitting={isSubmittingDataCite}
                 submittingAction={dataCiteSubmittingAction}
                 error={dataCiteError}
                 orcidBlockers={orcidBlockers}
                 orcidWarnings={orcidWarnings}
                 onClose={resetDataCiteWorkflow}
-                onConfirm={(prefix, force, action) => void handleConfirmDataCiteAction(prefix, force, action)}
+                onConfirm={(submission) => void handleConfirmDataCiteAction(submission)}
             />
             {registrationSuccess && (
                 <DoiRegistrationSuccessDialog
