@@ -2,7 +2,12 @@
     {
         "version": "1.0.1",
         "date": "2026-08-25",
-        "features": [],
+        "features": [
+            {
+                "title": "CGI Simple Lithology Vocabulary",
+                "description": "Administrators and Group Leaders can now enable CGI Simple Lithology independently for ERNIE and ELMO and safely update its validated local copy from the official CGI vocabulary SPARQL API. When enabled, the Data Editor adds a Simple Lithology tab under Thesaurus Keywords; current and URI-less historical terms are supported across legacy resource imports and DataCite XML/JSON dashboard uploads. DataCite JSON/XML and ISO 19115-3 exports preserve canonical scheme and concept URIs, while unresolved legacy paths remain available without exposing synthetic identifiers."
+            }
+        ],
         "improvements": [
             {
                 "title": "Show location text in map marker popups",

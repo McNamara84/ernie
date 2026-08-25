@@ -21,6 +21,8 @@ export interface EditorSettings {
         analyticalMethods: boolean;
         /** Is European Science Vocabulary (EuroSciVoc) thesaurus active? */
         euroSciVoc: boolean;
+        /** Is CGI Simple Lithology active? */
+        simpleLithology: boolean;
     };
     /**
      * Feature availability flags
@@ -38,6 +40,8 @@ export interface EditorSettings {
         hasActiveAnalyticalMethods: boolean;
         /** Is European Science Vocabulary (EuroSciVoc) thesaurus active? */
         hasActiveEuroSciVoc: boolean;
+        /** Is CGI Simple Lithology active? */
+        hasActiveSimpleLithology: boolean;
         /** Is at least one license active? */
         hasActiveLicenses: boolean;
         /** Is at least one resource type active? */

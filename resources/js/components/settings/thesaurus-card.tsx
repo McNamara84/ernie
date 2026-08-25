@@ -34,6 +34,7 @@ export interface ThesaurusData {
     exists: boolean;
     conceptCount: number;
     lastUpdated: string | null;
+    sourceSha?: string | null;
 }
 
 interface UpdateCheckResult {
@@ -44,6 +45,8 @@ interface UpdateCheckResult {
     localVersion?: string | null;
     remoteVersion?: string | null;
     reason?: string | null;
+    localSha?: string | null;
+    remoteSha?: string | null;
 }
 
 interface JobStatus {
@@ -293,6 +296,12 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                                     <Calendar className="h-3.5 w-3.5" />
                                     {formatDate(thesaurus.lastUpdated)}
                                 </span>
+                                {thesaurus.sourceSha && (
+                                    <>
+                                        <span className="text-muted-foreground/50">•</span>
+                                        <span title={thesaurus.sourceSha}>SHA-256 {thesaurus.sourceSha.slice(0, 12)}…</span>
+                                    </>
+                                )}
                             </>
                         ) : (
                             <Badge variant="outline" className="text-amber-600">
@@ -437,8 +446,13 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                                         {updateInfo.localVersion ? ` (v${updateInfo.localVersion})` : ''}, but {thesaurus.displayName} contains{' '}
                                         {updateInfo.remoteCount.toLocaleString()} {itemLabel}
                                         {updateInfo.remoteVersion ? ` (v${updateInfo.remoteVersion})` : ''}. Would you like to update the thesaurus?
-                                        {isMslLaboratories && updateInfo.reason && (
+                                        {updateInfo.reason && (
                                             <span className="mt-1 block">Update reason: {updateInfo.reason.replaceAll('_', ' ')}</span>
+                                        )}
+                                        {updateInfo.localSha && updateInfo.remoteSha && (
+                                            <span className="mt-1 block" title={`Local: ${updateInfo.localSha}\nRemote: ${updateInfo.remoteSha}`}>
+                                                Content hash: {updateInfo.localSha.slice(0, 12)}… → {updateInfo.remoteSha.slice(0, 12)}…
+                                            </span>
                                         )}
                                     </span>
                                 </>

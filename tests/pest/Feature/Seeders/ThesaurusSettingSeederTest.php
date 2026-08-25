@@ -35,3 +35,14 @@ it('does not reset existing ERNIE or ELMO activation choices', function (): void
     expect($setting->is_active)->toBeFalse()
         ->and($setting->is_elmo_active)->toBeFalse();
 });
+
+it('seeds CGI Simple Lithology disabled for both ERNIE and ELMO by default', function (): void {
+    $this->seed(ThesaurusSettingSeeder::class);
+
+    $setting = ThesaurusSetting::query()
+        ->where('type', ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY)
+        ->firstOrFail();
+
+    expect($setting->is_active)->toBeFalse()
+        ->and($setting->is_elmo_active)->toBeFalse();
+});

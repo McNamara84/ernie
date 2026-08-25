@@ -121,13 +121,13 @@ describe('SelectedKeyword Type', () => {
 
 describe('VocabularyType', () => {
     it('should only allow valid vocabulary types', () => {
-        const validTypes: VocabularyType[] = ['science', 'platforms', 'instruments', 'msl', 'chronostratigraphy', 'gemet', 'analytical_methods', 'euroscivoc'];
+        const validTypes: VocabularyType[] = ['science', 'platforms', 'instruments', 'msl', 'chronostratigraphy', 'gemet', 'analytical_methods', 'euroscivoc', 'simple_lithology'];
 
         validTypes.forEach((type) => {
-            expect(['science', 'platforms', 'instruments', 'msl', 'chronostratigraphy', 'gemet', 'analytical_methods', 'euroscivoc']).toContain(type);
+            expect(['science', 'platforms', 'instruments', 'msl', 'chronostratigraphy', 'gemet', 'analytical_methods', 'euroscivoc', 'simple_lithology']).toContain(type);
         });
 
-        expect(validTypes).toHaveLength(8);
+        expect(validTypes).toHaveLength(9);
     });
 
     it('should convert scheme to vocabulary type', () => {
@@ -139,6 +139,7 @@ describe('VocabularyType', () => {
         expect(getVocabularyTypeFromScheme('GEMET - GEneral Multilingual Environmental Thesaurus')).toBe('gemet');
         expect(getVocabularyTypeFromScheme('Analytical Methods for Geochemistry and Cosmochemistry')).toBe('analytical_methods');
         expect(getVocabularyTypeFromScheme('European Science Vocabulary (EuroSciVoc)')).toBe('euroscivoc');
+        expect(getVocabularyTypeFromScheme('CGI Simple Lithology')).toBe('simple_lithology');
     });
 
     it('should convert vocabulary type to scheme', () => {
@@ -150,6 +151,7 @@ describe('VocabularyType', () => {
         expect(getSchemeFromVocabularyType('gemet')).toBe('GEMET - GEneral Multilingual Environmental Thesaurus');
         expect(getSchemeFromVocabularyType('analytical_methods')).toBe('Analytical Methods for Geochemistry and Cosmochemistry');
         expect(getSchemeFromVocabularyType('euroscivoc')).toBe('European Science Vocabulary (EuroSciVoc)');
+        expect(getSchemeFromVocabularyType('simple_lithology')).toBe('CGI Simple Lithology');
     });
 });
 
@@ -277,6 +279,7 @@ describe('Vocabulary Type Grouping', () => {
             gemet: [],
             analytical_methods: [],
             euroscivoc: [],
+            simple_lithology: [],
         };
 
         keywords.forEach((keyword) => {

@@ -10,6 +10,7 @@ use App\Exceptions\JsonLdConversionException;
 use App\Http\Requests\UploadJsonRequest;
 use App\Models\ResourceType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\ControlledSubjectImportNormalizerService;
 use App\Services\DataCiteJsonImportNormalizerService;
 use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\JsonSchemaValidator;
@@ -92,6 +93,7 @@ class UploadJsonController extends Controller
         private readonly UploadedResourceDraftService $uploadedResourceDraftService,
         private readonly MslLaboratoryService $mslLaboratoryService,
         private readonly RorLookupService $rorLookupService,
+        private readonly ControlledSubjectImportNormalizerService $controlledSubjectNormalizer,
     ) {}
 
     public function __invoke(UploadJsonRequest $request): JsonResponse
@@ -847,7 +849,7 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $subjects
-     * @return array{gcmd: array<int, array<string, string>>, free: array<int, string>, msl: array<int, array<string, string>>, gemet: array<int, array<string, string>>}
+     * @return array{gcmd: array<int, array<string, string|bool>>, free: array<int, string>, msl: array<int, array<string, string>>, gemet: array<int, array<string, string>>}
      */
     private function extractKeywords(array $subjects): array
     {
@@ -868,6 +870,20 @@ class UploadJsonController extends Controller
             }
 
             $text = trim($text);
+
+            $simpleLithology = $this->controlledSubjectNormalizer->simpleLithology(
+                is_string($scheme) ? $scheme : null,
+                $text,
+                is_string($schemeUri) ? $schemeUri : null,
+                is_string($valueUri) ? $valueUri : null,
+                is_string($classificationCode) || is_numeric($classificationCode) ? (string) $classificationCode : null,
+                is_string($subject['lang'] ?? null) ? $subject['lang'] : null,
+            );
+            if ($simpleLithology !== null) {
+                $gcmd[] = $simpleLithology;
+
+                continue;
+            }
 
             // No scheme attributes → free keyword
             if ($scheme === null && $schemeUri === null && $valueUri === null) {

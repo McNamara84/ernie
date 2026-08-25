@@ -159,6 +159,38 @@ describe('transform', function () {
             ->and($result['scheme'])->toBe('Science Keywords')
             ->and($result['schemeURI'])->toBe('https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords');
     });
+
+    it('imports CGI Simple Lithology URIs without applying GCMD UUID conversion', function () {
+        $result = OldDatasetKeywordTransformer::transform((object) [
+            'keyword' => 'Material > Rock > Basalt',
+            'thesaurus' => 'CGI Simple Lithology',
+            'uri' => 'https://resource.geosciml.org/classifier/cgi/lithology/basalt',
+            'description' => 'A volcanic rock.',
+        ]);
+
+        expect($result)->toMatchArray([
+            'id' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
+            'scheme' => 'CGI Simple Lithology',
+            'schemeURI' => 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+            'uuid' => null,
+        ]);
+    });
+
+    it('preserves unresolved CGI Simple Lithology paths with a synthetic UI id', function () {
+        Storage::fake('local');
+        $result = OldDatasetKeywordTransformer::transform((object) [
+            'keyword' => 'Material &gt; Historical rock',
+            'thesaurus' => 'CGI Simple Lithology',
+            'uri' => null,
+            'description' => null,
+        ]);
+
+        expect($result['id'])->toStartWith('legacy:')
+            ->and($result['isLegacy'])->toBeTrue()
+            ->and($result['scheme'])->toBe('CGI Simple Lithology')
+            ->and($result['text'])->toBe('Historical rock')
+            ->and($result['path'])->toBe('Material > Historical rock');
+    });
 });
 
 // =========================================================================
@@ -176,6 +208,7 @@ describe('mapScheme', function () {
         ['NASA/GCMD Instruments', 'Instruments'],
         ['GCMD Instruments', 'Instruments'],
         ['GEMET - INSPIRE themes, version 1.0', 'GEMET - GEneral Multilingual Environmental Thesaurus'],
+        ['CGI Simple Lithology', 'CGI Simple Lithology'],
     ]);
 
     it('returns null for unknown thesaurus', function () {
@@ -227,13 +260,14 @@ describe('transformMany', function () {
 // =========================================================================
 
 describe('getSupportedThesauri', function () {
-    it('returns all 7 supported thesaurus names', function () {
+    it('returns all supported thesaurus names', function () {
         $thesauri = OldDatasetKeywordTransformer::getSupportedThesauri();
 
-        expect($thesauri)->toHaveCount(7)
+        expect($thesauri)->toHaveCount(8)
             ->and($thesauri)->toContain('NASA/GCMD Earth Science Keywords')
             ->and($thesauri)->toContain('GCMD Instruments')
-            ->and($thesauri)->toContain('GEMET - INSPIRE themes, version 1.0');
+            ->and($thesauri)->toContain('GEMET - INSPIRE themes, version 1.0')
+            ->and($thesauri)->toContain('CGI Simple Lithology');
     });
 });
 

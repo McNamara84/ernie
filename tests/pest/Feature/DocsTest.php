@@ -89,6 +89,8 @@ test('docs page includes editor settings for dynamic content', function () {
         ->has('editorSettings.features')
         ->has('editorSettings.features.hasActiveGcmd')
         ->has('editorSettings.features.hasActiveMsl')
+        ->has('editorSettings.thesauri.simpleLithology')
+        ->has('editorSettings.features.hasActiveSimpleLithology')
         ->has('editorSettings.features.hasActiveLicenses')
         ->has('editorSettings.features.hasActiveResourceTypes')
         ->has('editorSettings.features.hasActiveTitleTypes')

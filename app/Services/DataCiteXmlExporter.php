@@ -446,7 +446,7 @@ class DataCiteXmlExporter
         $subjects = $this->dom->createElement('subjects');
 
         foreach ($resource->subjects as $subjectModel) {
-            $subject = $this->dom->createElement('subject', htmlspecialchars($subjectModel->value));
+            $subject = $this->dom->createElement('subject', htmlspecialchars($this->dataCiteSubjectValue($subjectModel)));
 
             $subject->setAttributeNS(self::XML_NAMESPACE, 'xml:lang', 'en');
 

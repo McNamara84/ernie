@@ -636,14 +636,19 @@ class EditorDataTransformer
                 && $subject->subject_scheme !== GemetVocabularyParser::SCHEME_TITLE)
             ->map(function ($subject): array {
                 $path = SubjectBreadcrumbPath::preferredPath($subject->breadcrumb_path, $subject->value) ?? $subject->value;
+                $isLegacy = $subject->value_uri === null && $subject->classification_code === null;
+                $id = $subject->value_uri
+                    ?? $subject->classification_code
+                    ?? 'legacy:'.hash('sha256', mb_strtolower(($subject->subject_scheme ?? '').'|'.$path));
 
                 return [
-                    'id' => $subject->value_uri ?? $subject->classification_code ?? '',
+                    'id' => $id,
                     'text' => SubjectBreadcrumbPath::leaf($path, $subject->value) ?? $subject->value,
                     'path' => $path,
                     'scheme' => $subject->subject_scheme ?? '',
                     'schemeURI' => $subject->scheme_uri ?? '',
                     'language' => 'en',
+                    ...($isLegacy ? ['isLegacy' => true] : []),
                     ...($subject->classification_code !== null ? ['classificationCode' => $subject->classification_code] : []),
                 ];
             })->values()->toArray();

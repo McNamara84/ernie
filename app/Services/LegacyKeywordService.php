@@ -13,7 +13,7 @@ final class LegacyKeywordService
     /**
      * Load controlled vocabulary keywords for a legacy SUMARIOPMD resource.
      *
-     * @return list<array<string, string|null>>
+     * @return list<array<string, string|bool|null>>
      */
     public function controlledKeywords(OldDataset $dataset): array
     {
@@ -103,9 +103,12 @@ final class LegacyKeywordService
             $controlledSubject = [
                 'subject' => $subject,
                 'subjectScheme' => $subjectScheme,
-                'valueUri' => $valueUri,
                 'lang' => 'en',
             ];
+
+            if (filter_var($valueUri, FILTER_VALIDATE_URL)) {
+                $controlledSubject['valueUri'] = $valueUri;
+            }
 
             if ($schemeUri !== '') {
                 $controlledSubject['schemeUri'] = $schemeUri;

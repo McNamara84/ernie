@@ -32,6 +32,7 @@ enum CacheKey: string
     case GEMET_THESAURUS = 'vocabularies:gemet:thesaurus';
     case ANALYTICAL_METHODS = 'vocabularies:analytical_methods';
     case EUROSCIVOC = 'vocabularies:euroscivoc';
+    case CGI_SIMPLE_LITHOLOGY = 'vocabularies:cgi:simple_lithology';
 
     // ROR affiliation cache keys
     case ROR_AFFILIATION = 'ror:affiliation';
@@ -123,6 +124,7 @@ enum CacheKey: string
             self::GEMET_THESAURUS,
             self::ANALYTICAL_METHODS,
             self::EUROSCIVOC => 86400,
+            self::CGI_SIMPLE_LITHOLOGY => 86400,
 
             // ROR affiliations are relatively stable - 7 days
             self::ROR_AFFILIATION => 604800,
@@ -197,6 +199,7 @@ enum CacheKey: string
             self::GEMET_THESAURUS,
             self::ANALYTICAL_METHODS,
             self::EUROSCIVOC => ['vocabularies'],
+            self::CGI_SIMPLE_LITHOLOGY => ['vocabularies'],
 
             self::ROR_AFFILIATION => ['ror', 'affiliations'],
 
@@ -279,6 +282,7 @@ enum CacheKey: string
             self::GEMET_THESAURUS,
             self::ANALYTICAL_METHODS,
             self::EUROSCIVOC,
+            self::CGI_SIMPLE_LITHOLOGY,
         ];
     }
 }

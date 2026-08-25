@@ -958,6 +958,49 @@
                 }
             }
         },
+        "/api/v1/vocabularies/cgi-simple-lithology": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get CGI Simple Lithology vocabulary",
+                "description": "Returns the CGI Simple Lithology vocabulary as a validated hierarchical JSON structure. ERNIE downloads the vocabulary from the official CGI vocabulary SPARQL API, preserves all paths of polyhierarchical concepts, and serves only the last successfully validated local copy. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "CGI Simple Lithology vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CgiSimpleLithologyVocabulary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or no validated local vocabulary is installed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-cgi-simple-lithology"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/vocabularies/pid4inst-instruments": {
             "get": {
                 "tags": ["Vocabularies"],
@@ -1260,7 +1303,10 @@
                                         "source": { "type": "string", "example": "crossref" },
                                         "identifier": { "type": "string" },
                                         "identifier_type": { "type": "string", "example": "DOI" },
-                                        "message": { "type": "string", "example": "Upstream metadata provider is temporarily unavailable. Please try again." },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Upstream metadata provider is temporarily unavailable. Please try again."
+                                        },
                                         "error": { "type": "string", "example": "HTTP 503" }
                                     }
                                 }
@@ -2196,15 +2242,7 @@
                         "example": "Germany"
                     }
                 },
-                "required": [
-                    "identifier",
-                    "name",
-                    "display_name",
-                    "affiliation_name",
-                    "affiliation_ror",
-                    "scientific_domain",
-                    "country"
-                ]
+                "required": ["identifier", "name", "display_name", "affiliation_name", "affiliation_ror", "scientific_domain", "country"]
             },
             "ChronostratTimescale": {
                 "type": "object",
@@ -2379,6 +2417,74 @@
                     }
                 },
                 "required": ["id", "text", "language", "scheme", "schemeURI", "description", "children"]
+            },
+            "CgiSimpleLithologyVocabulary": {
+                "type": "object",
+                "description": "Validated local representation of the official CGI Simple Lithology vocabulary",
+                "required": ["schemaVersion", "lastUpdated", "total", "pathCount", "source", "data"],
+                "properties": {
+                    "schemaVersion": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "lastUpdated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when ERNIE last downloaded and validated the vocabulary"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "description": "Number of unique concepts",
+                        "example": 265
+                    },
+                    "pathCount": {
+                        "type": "integer",
+                        "description": "Number of nodes after expanding every valid polyhierarchical path",
+                        "example": 760
+                    },
+                    "source": {
+                        "type": "object",
+                        "required": ["provider", "endpoint", "schemeURI", "collectionURI", "sha256"],
+                        "properties": {
+                            "provider": { "type": "string" },
+                            "endpoint": { "type": "string", "format": "uri" },
+                            "schemeURI": { "type": "string", "format": "uri" },
+                            "collectionURI": { "type": "string", "format": "uri" },
+                            "dateModified": { "type": ["string", "null"] },
+                            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+                        }
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CgiSimpleLithologyConcept"
+                        }
+                    }
+                }
+            },
+            "CgiSimpleLithologyConcept": {
+                "type": "object",
+                "required": ["id", "text", "language", "scheme", "schemeURI", "description", "children"],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uri",
+                        "example": "http://resource.geosciml.org/classifier/cgi/lithology/basalt"
+                    },
+                    "text": { "type": "string", "example": "Basalt" },
+                    "language": { "type": "string", "example": "en" },
+                    "scheme": { "type": "string", "example": "CGI Simple Lithology" },
+                    "schemeURI": {
+                        "type": "string",
+                        "format": "uri",
+                        "example": "http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology"
+                    },
+                    "description": { "type": "string" },
+                    "children": {
+                        "type": "array",
+                        "items": { "$ref": "#/components/schemas/CgiSimpleLithologyConcept" }
+                    }
+                }
             },
             "GcmdKeywordConcept": {
                 "type": "object",
@@ -2713,7 +2819,20 @@
                         }
                     }
                 },
-                "required": ["id", "doi", "raidId", "title", "description", "url", "dates", "contributors", "organisations", "relatedIdentifiers", "subjects", "searchTerms"]
+                "required": [
+                    "id",
+                    "doi",
+                    "raidId",
+                    "title",
+                    "description",
+                    "url",
+                    "dates",
+                    "contributors",
+                    "organisations",
+                    "relatedIdentifiers",
+                    "subjects",
+                    "searchTerms"
+                ]
             },
             "RorAffiliations": {
                 "type": "object",

@@ -168,6 +168,7 @@ class UpdateThesaurusJob implements ShouldQueue
             ThesaurusSetting::TYPE_GEMET => 'Fetching data from GEMET REST API...',
             ThesaurusSetting::TYPE_EUROSCIVOC => 'Fetching data from EU Publications Office SPARQL endpoint...',
             ThesaurusSetting::TYPE_MSL_LABORATORIES => 'Discovering the latest MSL Laboratories release on GitHub...',
+            ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY => 'Fetching CGI Simple Lithology from the official CGI vocabulary API...',
             default => 'Fetching data from NASA KMS API...',
         };
     }

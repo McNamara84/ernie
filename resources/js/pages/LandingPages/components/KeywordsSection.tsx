@@ -1,4 +1,4 @@
-import { BookOpen, Clock, FlaskConical, Globe, Leaf, type LucideIcon, Microscope, Satellite, Search } from 'lucide-react';
+import { BookOpen, Clock, FlaskConical, Globe, Leaf, type LucideIcon, Microscope, Mountain, Satellite, Search } from 'lucide-react';
 
 import {
     normalizeKeywordScheme,
@@ -10,6 +10,7 @@ import {
     SCHEME_GEMET,
     SCHEME_ICS_CHRONOSTRAT,
     SCHEME_MSL,
+    SCHEME_SIMPLE_LITHOLOGY,
 } from '@/lib/keyword-schemes';
 import { buildPortalFilterUrl } from '@/lib/portal-filter-url';
 import type { LandingPageSubject } from '@/types/landing-page';
@@ -27,6 +28,7 @@ const THESAURUS_DEFINITIONS: { scheme: string; icon: LucideIcon }[] = [
     { scheme: SCHEME_ICS_CHRONOSTRAT, icon: Clock },
     { scheme: SCHEME_ANALYTICAL_METHODS, icon: FlaskConical },
     { scheme: SCHEME_EUROSCIVOC, icon: BookOpen },
+    { scheme: SCHEME_SIMPLE_LITHOLOGY, icon: Mountain },
 ];
 
 const THESAURUS_SCHEMES = new Set(THESAURUS_DEFINITIONS.map((d) => d.scheme));
@@ -40,7 +42,8 @@ const LINKED_KEYWORD_STYLE = {
 const FREE_KEYWORD_STYLE = {
     bg: 'bg-sky-100 dark:bg-sky-900/40',
     text: 'text-sky-900 dark:text-sky-100',
-    actionTone: 'text-sky-900/75 hover:text-sky-900 focus-visible:text-sky-900 dark:text-sky-100/80 dark:hover:text-sky-100 dark:focus-visible:text-sky-100',
+    actionTone:
+        'text-sky-900/75 hover:text-sky-900 focus-visible:text-sky-900 dark:text-sky-100/80 dark:hover:text-sky-100 dark:focus-visible:text-sky-100',
 };
 const EMPTY_PORTAL_FILTERS: PortalFilters = {
     query: null,
@@ -68,7 +71,10 @@ function getDisplayLabel(subject: LandingPageSubject): string {
         return subject.subject;
     }
 
-    const segments = fullPath.split(' > ').map((segment) => segment.trim()).filter((segment) => segment !== '');
+    const segments = fullPath
+        .split(' > ')
+        .map((segment) => segment.trim())
+        .filter((segment) => segment !== '');
 
     if (segments.length <= 3) {
         return segments.join(' > ');
@@ -143,18 +149,11 @@ function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style: 
     );
 
     const label = portalUrl ? (
-        <a
-            href={portalUrl}
-            className={labelClass}
-            title={fullPath ?? undefined}
-        >
+        <a href={portalUrl} className={labelClass} title={fullPath ?? undefined}>
             {badgeContent}
         </a>
     ) : (
-        <span
-            className={labelClass}
-            title={fullPath ?? undefined}
-        >
+        <span className={labelClass} title={fullPath ?? undefined}>
             {badgeContent}
         </span>
     );
@@ -166,13 +165,7 @@ function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style: 
     return (
         <span className={linkedBadgeClass} data-slot="keyword-badge">
             {label}
-            <a
-                href={portalUrl}
-                className={actionClass}
-                title={searchPrompt}
-                aria-label={searchPrompt}
-                data-slot="keyword-badge-action"
-            >
+            <a href={portalUrl} className={actionClass} title={searchPrompt} aria-label={searchPrompt} data-slot="keyword-badge-action">
                 <Search className="h-3 w-3" aria-hidden="true" />
             </a>
         </span>
@@ -221,7 +214,9 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
 
     return (
         <section className="mt-6" data-testid="subjects-section" aria-labelledby="heading-keywords">
-            <h3 id="heading-keywords" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Keywords</h3>
+            <h3 id="heading-keywords" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Keywords
+            </h3>
             <CollapsibleList
                 items={allKeywords}
                 itemLabel="keywords"

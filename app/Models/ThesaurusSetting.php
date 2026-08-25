@@ -40,6 +40,8 @@ class ThesaurusSetting extends Model
 
     public const TYPE_MSL_LABORATORIES = 'msl_laboratories';
 
+    public const TYPE_SIMPLE_LITHOLOGY = 'simple_lithology';
+
     /**
      * @return array<string, string>
      */
@@ -65,6 +67,7 @@ class ThesaurusSetting extends Model
             self::TYPE_ANALYTICAL_METHODS => 'analytical-methods.json',
             self::TYPE_EUROSCIVOC => 'euroscivoc.json',
             self::TYPE_MSL_LABORATORIES => 'msl-laboratories.json',
+            self::TYPE_SIMPLE_LITHOLOGY => 'cgi-simple-lithology.json',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -83,6 +86,7 @@ class ThesaurusSetting extends Model
             self::TYPE_ANALYTICAL_METHODS => 'get-analytical-methods',
             self::TYPE_EUROSCIVOC => 'get-euroscivoc',
             self::TYPE_MSL_LABORATORIES => 'get-msl-laboratories',
+            self::TYPE_SIMPLE_LITHOLOGY => 'get-cgi-simple-lithology',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -117,6 +121,7 @@ class ThesaurusSetting extends Model
             self::TYPE_ANALYTICAL_METHODS => CacheKey::ANALYTICAL_METHODS,
             self::TYPE_EUROSCIVOC => CacheKey::EUROSCIVOC,
             self::TYPE_MSL_LABORATORIES => CacheKey::MSL_LABORATORIES,
+            self::TYPE_SIMPLE_LITHOLOGY => CacheKey::CGI_SIMPLE_LITHOLOGY,
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -159,7 +164,13 @@ class ThesaurusSetting extends Model
             self::TYPE_ANALYTICAL_METHODS => 'Analytical Methods for Geochemistry',
             self::TYPE_EUROSCIVOC => 'European Science Vocabulary (EuroSciVoc)',
             self::TYPE_MSL_LABORATORIES => 'MSL Laboratories',
+            self::TYPE_SIMPLE_LITHOLOGY => 'CGI Simple Lithology',
         ];
+    }
+
+    public static function isEnabledByDefault(string $type): bool
+    {
+        return $type !== self::TYPE_SIMPLE_LITHOLOGY;
     }
 
     /**

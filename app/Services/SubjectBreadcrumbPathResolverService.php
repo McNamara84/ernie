@@ -53,6 +53,11 @@ final class SubjectBreadcrumbPathResolverService
             'fallback_scheme' => 'European Science Vocabulary (EuroSciVoc)',
             'fallback_scheme_uri_config' => 'euroscivoc.concept_scheme_uri',
         ],
+        PortalSubjectNormalizer::SCHEME_SIMPLE_LITHOLOGY => [
+            'file' => 'cgi-simple-lithology.json',
+            'fallback_scheme' => PortalSubjectNormalizer::SCHEME_SIMPLE_LITHOLOGY,
+            'fallback_scheme_uri_config' => 'simple_lithology.scheme_uri',
+        ],
     ];
 
     /** @var array<string, array<string, string>> */

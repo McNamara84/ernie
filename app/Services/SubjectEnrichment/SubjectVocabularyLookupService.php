@@ -77,6 +77,13 @@ final class SubjectVocabularyLookupService
             'source_registry_url_config' => 'euroscivoc.download_url',
             'generated_by' => 'get-euroscivoc',
         ],
+        PortalSubjectNormalizer::SCHEME_SIMPLE_LITHOLOGY => [
+            'file' => 'cgi-simple-lithology.json',
+            'scheme_uri_config' => 'simple_lithology.scheme_uri',
+            'source' => 'cgi_vocabs_sparql',
+            'source_registry_url_config' => 'simple_lithology.endpoint',
+            'generated_by' => 'get-cgi-simple-lithology',
+        ],
     ];
 
     /** @var array<string, true> */

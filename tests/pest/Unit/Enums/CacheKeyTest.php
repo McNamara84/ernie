@@ -120,7 +120,7 @@ it('all cache keys have unique values', function () {
 it('returns all vocabulary keys', function () {
     $vocabularyKeys = CacheKey::vocabularyKeys();
 
-    expect($vocabularyKeys)->toHaveCount(12)
+    expect($vocabularyKeys)->toHaveCount(13)
         ->each->toBeInstanceOf(CacheKey::class);
 
     $expectedKeys = [
@@ -136,6 +136,7 @@ it('returns all vocabulary keys', function () {
         CacheKey::GEMET_THESAURUS,
         CacheKey::ANALYTICAL_METHODS,
         CacheKey::EUROSCIVOC,
+        CacheKey::CGI_SIMPLE_LITHOLOGY,
     ];
 
     expect($vocabularyKeys)->toEqual($expectedKeys);

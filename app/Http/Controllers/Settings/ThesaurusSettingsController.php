@@ -49,6 +49,7 @@ class ThesaurusSettingsController extends Controller
                 'exists' => $localStatus['exists'],
                 'conceptCount' => $localStatus['conceptCount'],
                 'lastUpdated' => $localStatus['lastUpdated'],
+                'sourceSha' => $localStatus['sourceSha'] ?? null,
             ];
         });
 
@@ -84,10 +85,15 @@ class ThesaurusSettingsController extends Controller
                 'lastUpdated' => $comparison['lastUpdated'],
             ];
 
-            if ($type === ThesaurusSetting::TYPE_MSL_LABORATORIES) {
+            if (in_array($type, [
+                ThesaurusSetting::TYPE_MSL_LABORATORIES,
+                ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY,
+            ], true)) {
                 $response['localVersion'] = $comparison['localVersion'] ?? null;
                 $response['remoteVersion'] = $comparison['remoteVersion'] ?? null;
                 $response['reason'] = $comparison['updateReason'] ?? null;
+                $response['localSha'] = $comparison['localSha'] ?? null;
+                $response['remoteSha'] = $comparison['remoteSha'] ?? null;
             }
 
             return response()->json($response);

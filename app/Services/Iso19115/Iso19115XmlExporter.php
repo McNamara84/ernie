@@ -9,6 +9,7 @@ use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
 use DOMDocument;
 use DOMElement;
@@ -847,6 +848,8 @@ class Iso19115XmlExporter
                 (string) $subject->value,
                 $subject->subject_scheme,
                 $subject->scheme_uri,
+                $subject->value_uri,
+                $subject->breadcrumb_path,
             );
         }
 
@@ -870,15 +873,32 @@ class Iso19115XmlExporter
         string $rawValue,
         ?string $scheme = null,
         ?string $schemeUri = null,
+        ?string $valueUri = null,
+        ?string $breadcrumbPath = null,
     ): void {
         $value = trim($rawValue);
+        if (is_string($scheme)
+            && trim($scheme) !== ''
+            && (! is_string($valueUri) || trim($valueUri) === '')
+        ) {
+            $value = SubjectBreadcrumbPath::normalize($breadcrumbPath) ?? $value;
+        }
         if ($value === '') {
             return;
         }
 
         $property = $this->append($identification, self::MRI_NAMESPACE, 'mri:descriptiveKeywords');
         $keywords = $this->append($property, self::MRI_NAMESPACE, 'mri:MD_Keywords');
-        $this->characterString($keywords, self::MRI_NAMESPACE, 'mri:keyword', $value);
+        $keywordProperty = $this->append($keywords, self::MRI_NAMESPACE, 'mri:keyword');
+        if (is_string($valueUri) && trim($valueUri) !== '' && $this->isSafeHttpUrl($valueUri)) {
+            $anchor = $this->append($keywordProperty, self::GCX_NAMESPACE, 'gcx:Anchor');
+            $anchor->setAttributeNS(self::XLINK_NAMESPACE, 'xlink:href', trim($valueUri));
+            $anchor->setAttributeNS(self::XLINK_NAMESPACE, 'xlink:type', 'simple');
+            $anchor->appendChild($this->dom->createTextNode($value));
+        } else {
+            $characterString = $this->append($keywordProperty, self::GCO_NAMESPACE, 'gco:CharacterString');
+            $characterString->appendChild($this->dom->createTextNode($value));
+        }
 
         if (is_string($scheme) && trim($scheme) !== '') {
             $thesaurusProperty = $this->append($keywords, self::MRI_NAMESPACE, 'mri:thesaurusName');

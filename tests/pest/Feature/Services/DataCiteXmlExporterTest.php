@@ -718,6 +718,44 @@ describe('DataCiteXmlExporter - Subjects', function () {
             expect($element->getAttribute('xml:lang'))->toBe('en');
         }
     });
+
+    test('exports resolved CGI Simple Lithology subjects with canonical scheme and concept URIs', function () {
+        $resource = Resource::factory()->create();
+        Subject::create([
+            'resource_id' => $resource->id,
+            'value' => 'Basalt',
+            'subject_scheme' => 'CGI Simple Lithology',
+            'scheme_uri' => 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+            'value_uri' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
+            'breadcrumb_path' => 'Rock > Igneous material > Igneous rock > Basalt',
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('subjectScheme="CGI Simple Lithology"')
+            ->toContain('schemeURI="http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology"')
+            ->toContain('valueURI="http://resource.geosciml.org/classifier/cgi/lithology/basalt"')
+            ->toContain('>Basalt</subject>');
+    });
+
+    test('preserves the full breadcrumb for unresolved legacy CGI Simple Lithology subjects', function () {
+        $resource = Resource::factory()->create();
+        Subject::create([
+            'resource_id' => $resource->id,
+            'value' => 'Historical rock label',
+            'subject_scheme' => 'CGI Simple Lithology',
+            'scheme_uri' => 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+            'value_uri' => null,
+            'classification_code' => null,
+            'breadcrumb_path' => 'Rock > Historical rock label',
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('subjectScheme="CGI Simple Lithology"')
+            ->toContain('>Rock &gt; Historical rock label</subject>')
+            ->not->toContain('valueURI=');
+    });
 });
 
 describe('DataCiteXmlExporter - Rights', function () {

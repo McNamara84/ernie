@@ -20,7 +20,6 @@ uses(RefreshDatabase::class);
 
 /**
  * @param  array<int, string>  $tags
- * @param  mixed  $value
  */
 function putCacheValue(array $tags, string $key, mixed $value): void
 {
@@ -222,7 +221,7 @@ it('builds pruned thesaurus facets from published controlled keywords', function
         ]],
     ], JSON_THROW_ON_ERROR));
 
-    Storage::disk('local')->put('msl-vocabulary.json', json_encode([[ 
+    Storage::disk('local')->put('msl-vocabulary.json', json_encode([[
         'id' => 'msl-root',
         'text' => 'Material',
         'language' => 'en',
@@ -253,6 +252,39 @@ it('builds pruned thesaurus facets from published controlled keywords', function
         ->and($facets[0]['roots'][0]['children'][0]['children'][0]['text'])->toBe('GNSS')
         ->and($facets[1]['scheme'])->toBe('EPOS MSL vocabulary')
         ->and($facets[1]['roots'][0]['children'][0]['text'])->toBe('Rock');
+});
+
+it('builds a CGI Simple Lithology portal facet when the thesaurus is enabled', function () {
+    Storage::fake('local');
+    ThesaurusSetting::query()
+        ->where('type', ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY)
+        ->update(['is_active' => true]);
+    Storage::disk('local')->put('cgi-simple-lithology.json', json_encode([
+        'data' => [[
+            'id' => 'http://resource.geosciml.org/classifier/cgi/lithology/rock',
+            'text' => 'Rock',
+            'scheme' => 'CGI Simple Lithology',
+            'schemeURI' => config('simple_lithology.scheme_uri'),
+            'children' => [[
+                'id' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
+                'text' => 'Basalt',
+                'scheme' => 'CGI Simple Lithology',
+                'schemeURI' => config('simple_lithology.scheme_uri'),
+                'children' => [],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+    createResourceWithSubjects($this->datasetType, [[
+        'value' => 'Basalt',
+        'subject_scheme' => 'CGI Simple Lithology',
+        'value_uri' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
+    ]]);
+
+    $facets = $this->service->getThesaurusFacets();
+
+    expect($facets)->toHaveCount(1)
+        ->and($facets[0]['scheme'])->toBe('CGI Simple Lithology')
+        ->and($facets[0]['roots'][0]['children'][0]['text'])->toBe('Basalt');
 });
 
 it('skips disabled thesaurus sources when building portal facets', function () {
