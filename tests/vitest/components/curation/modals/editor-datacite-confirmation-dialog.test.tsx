@@ -65,6 +65,32 @@ describe('EditorDataCiteConfirmationDialog', () => {
         expect(onConfirm).not.toHaveBeenCalled();
     });
 
+    it('allows an existing DOI update when prefix configuration cannot be loaded', async () => {
+        const user = userEvent.setup();
+        const onConfirm = vi.fn();
+        vi.mocked(axios.get).mockRejectedValueOnce(new Error('Configuration unavailable'));
+
+        render(<EditorDataCiteConfirmationDialog {...defaultProps} action="update" doi="10.5880/existing" onConfirm={onConfirm} />);
+
+        expect(await screen.findByText('DOI prefix configuration unavailable')).toBeInTheDocument();
+        expect(screen.getByText(/Prefix configuration is not required to update an existing DOI/)).toBeInTheDocument();
+
+        const confirmButton = screen.getByTestId('confirm-editor-datacite-action');
+        await waitFor(() => expect(confirmButton).toBeEnabled());
+        await user.click(confirmButton);
+
+        expect(onConfirm).toHaveBeenCalledWith('', false, 'submit');
+    });
+
+    it('keeps a prefix configuration failure blocking for a new DOI registration', async () => {
+        vi.mocked(axios.get).mockRejectedValueOnce(new Error('Configuration unavailable'));
+
+        render(<EditorDataCiteConfirmationDialog {...defaultProps} />);
+
+        expect(await screen.findByText('DataCite action unavailable')).toBeInTheDocument();
+        expect(screen.getByTestId('confirm-editor-datacite-action')).toBeDisabled();
+    });
+
     it('offers retry and override actions for transient ORCID warnings', async () => {
         const user = userEvent.setup();
         const onConfirm = vi.fn();

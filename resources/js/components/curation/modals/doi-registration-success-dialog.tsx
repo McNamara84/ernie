@@ -96,7 +96,7 @@ export function DoiRegistrationSuccessDialog({ open, doi, counts, onContinue, re
                 </DialogHeader>
 
                 <div className="relative py-5 text-center">
-                    <p className="text-sm font-medium tracking-wide text-muted-foreground uppercase">Published records registered through us</p>
+                    <p className="text-sm font-medium tracking-wide text-muted-foreground uppercase">Canonically published records in ERNIE</p>
                     <motion.p
                         className="mt-1 text-7xl font-black tracking-tight text-primary tabular-nums sm:text-8xl"
                         initial={prefersReducedMotion ? false : { scale: 0.75, opacity: 0 }}

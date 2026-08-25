@@ -7426,6 +7426,35 @@ describe('DataCiteForm', () => {
             expect(screen.queryByTestId('save-resource-button')).not.toBeInTheDocument();
         });
 
+        it('opens a published landing page without saving invalid editor changes', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialDoi: '10.5880/example',
+                initialPublicStatus: 'published',
+                initialTitles: [{ title: '', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 7,
+                    is_published: true,
+                    status: 'published',
+                    public_url: 'https://example.test/landing-page',
+                    preview_url: null,
+                    external_url: null,
+                },
+            });
+
+            const showLandingPageButton = screen.getByRole('button', { name: 'Show LP' });
+            expect(showLandingPageButton).toBeEnabled();
+
+            await user.click(showLandingPageButton);
+
+            expect(openSpy).toHaveBeenCalledWith('https://example.test/landing-page', '_blank', 'noopener,noreferrer');
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+        });
+
         it('confirms, saves, and updates DataCite metadata for a published record', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };

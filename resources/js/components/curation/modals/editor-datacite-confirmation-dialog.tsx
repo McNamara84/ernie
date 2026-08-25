@@ -92,7 +92,11 @@ export function EditorDataCiteConfirmationDialog({
     }, [hasExistingDoi, initialPrefix, open]);
 
     const canSubmit =
-        !isSubmitting && !isLoadingConfig && !configurationError && orcidBlockers.length === 0 && (hasExistingDoi || selectedPrefix !== '');
+        !isSubmitting &&
+        !isLoadingConfig &&
+        (!configurationError || hasExistingDoi) &&
+        orcidBlockers.length === 0 &&
+        (hasExistingDoi || selectedPrefix !== '');
 
     return (
         <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && !isSubmitting && onClose()}>
@@ -211,11 +215,22 @@ export function EditorDataCiteConfirmationDialog({
                         </Alert>
                     )}
 
-                    {(configurationError || error) && (
+                    {configurationError && (
+                        <Alert variant={hasExistingDoi ? 'default' : 'destructive'}>
+                            <AlertCircle className="size-4" />
+                            <AlertTitle>{hasExistingDoi ? 'DOI prefix configuration unavailable' : 'DataCite action unavailable'}</AlertTitle>
+                            <AlertDescription>
+                                {configurationError}
+                                {hasExistingDoi && ' Prefix configuration is not required to update an existing DOI.'}
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
+                    {error && (
                         <Alert variant="destructive">
                             <AlertCircle className="size-4" />
                             <AlertTitle>DataCite action failed</AlertTitle>
-                            <AlertDescription>{configurationError || error}</AlertDescription>
+                            <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
                 </div>

@@ -10,8 +10,8 @@ use App\Models\Resource;
 use App\Services\DataCiteModeResolverService;
 use App\Services\DataCiteRegistrationService;
 use App\Services\Orcid\OrcidPreflightValidator;
-use App\Services\ResourceStorageService;
 use App\Services\ResourceCacheService;
+use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -117,21 +117,30 @@ class ResourceDoiRegistrationController extends Controller
             $resource->save();
             app(ResourceStorageService::class)->ensureSystemDate($resource, 'Issued');
 
-            $publishedRecordCounts = app(ResourceCacheService::class)->getPublishedResourceCounts();
-
             Log::info('DOI saved to resource', [
                 'resource_id' => $resource->id,
                 'doi' => $doi,
             ]);
 
-            return response()->json([
+            $registrationResponse = [
                 'success' => true,
                 'message' => 'DOI registered successfully',
                 'doi' => $doi,
                 'mode' => $service->isTestMode() ? 'test' : 'production',
                 'updated' => false,
-                'publishedRecordCounts' => $publishedRecordCounts,
-            ]);
+            ];
+
+            try {
+                $registrationResponse['publishedRecordCounts'] = app(ResourceCacheService::class)->getPublishedResourceCounts();
+            } catch (\Throwable $e) {
+                Log::warning('Unable to retrieve published record counts after DOI registration', [
+                    'resource_id' => $resource->id,
+                    'doi' => $doi,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            return response()->json($registrationResponse);
         } catch (\InvalidArgumentException $e) {
             Log::warning('Invalid DOI registration request', [
                 'resource_id' => $resource->id,

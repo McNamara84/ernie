@@ -3010,6 +3010,20 @@ export default function DataCiteForm({
         setIsLandingPageSetupOpen(true);
     }, [buildLandingPageSetupResource, landingPageForPreview, openLandingPagePreview, saveDraftForLandingPagePreview]);
 
+    const handleLandingPageAction = useCallback(() => {
+        if (currentPublicStatus === 'published') {
+            if (!landingPageForPreview) {
+                toast.error('Unable to open landing page. No published landing page is configured.');
+                return;
+            }
+
+            openLandingPagePreview(landingPageForPreview);
+            return;
+        }
+
+        void handleShowLandingPagePreview();
+    }, [currentPublicStatus, handleShowLandingPagePreview, landingPageForPreview, openLandingPagePreview]);
+
     const handleCloseLandingPageSetup = () => {
         if (landingPageSetupPurpose === 'datacite-registration') {
             toast.info('DataCite registration cancelled. Your validated resource has been saved.');
@@ -3113,7 +3127,7 @@ export default function DataCiteForm({
     const isPublishedResource = currentPublicStatus === 'published';
     const canRegisterDoi = auth?.user?.can_register_doi ?? false;
     const showSaveDraftDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
-    const showLandingPagePreviewDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
+    const showLandingPagePreviewDisabledTooltip = !isPublishedResource && !isDraftSaveable && !isEditorActionInFlight;
     const showSaveValidateDisabledTooltip = hasLegacyKeywords && !isEditorActionInFlight;
 
     const renderEditorActions = () => (
@@ -3201,9 +3215,9 @@ export default function DataCiteForm({
                             variant="outline"
                             className={editorActionButtonClassName}
                             data-testid="show-lp-preview-button"
-                            disabled={!isDraftSaveable || isEditorActionInFlight}
+                            disabled={isEditorActionInFlight || (!isPublishedResource && !isDraftSaveable)}
                             aria-busy={isPreparingLandingPagePreview}
-                            onClick={() => void handleShowLandingPagePreview()}
+                            onClick={handleLandingPageAction}
                         >
                             <Eye className="mr-2 h-4 w-4" />
                             {isPreparingLandingPagePreview ? 'Preparing...' : isPublishedResource ? 'Show LP' : 'Preview LP'}

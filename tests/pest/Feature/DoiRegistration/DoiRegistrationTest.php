@@ -175,6 +175,45 @@ test('new doi registration returns a freshly invalidated published inventory cou
     ]);
 });
 
+test('new doi registration remains successful when the optional published inventory count fails', function () {
+    actingAs($this->user);
+
+    LandingPage::factory()->for($this->resource)->published()->withoutDoi()->create();
+
+    Http::fake([
+        '*datacite.org/*' => Http::response([
+            'data' => [
+                'id' => '10.83279/count-failure',
+                'type' => 'dois',
+                'attributes' => [
+                    'doi' => '10.83279/count-failure',
+                    'state' => 'findable',
+                ],
+            ],
+        ], 201),
+    ]);
+
+    $cacheService = Mockery::mock(ResourceCacheService::class)->shouldIgnoreMissing();
+    $cacheService->shouldReceive('getPublishedResourceCounts')
+        ->once()
+        ->andThrow(new RuntimeException('Published count unavailable'));
+    $this->app->instance(ResourceCacheService::class, $cacheService);
+
+    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+        'prefix' => '10.83279',
+    ]);
+
+    $response->assertOk()
+        ->assertJson([
+            'success' => true,
+            'doi' => '10.83279/count-failure',
+            'updated' => false,
+        ])
+        ->assertJsonMissingPath('publishedRecordCounts');
+
+    expect($this->resource->refresh()->doi)->toBe('10.83279/count-failure');
+});
+
 test('doi registration updates metadata for existing doi', function () {
     actingAs($this->user);
 

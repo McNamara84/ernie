@@ -20,6 +20,7 @@ describe('DoiRegistrationSuccessDialog', () => {
             <DoiRegistrationSuccessDialog open doi="10.83279/example" counts={{ resources: 1200, igsns: 34, total: 1234 }} onContinue={onContinue} />,
         );
 
+        expect(screen.getByText('Canonically published records in ERNIE')).toBeInTheDocument();
         expect(screen.getByTestId('published-record-total')).toHaveTextContent('1,234');
         expect(screen.getByText('1,200 Resources + 34 IGSNs')).toBeInTheDocument();
         expect(screen.getByTestId('doi-success-confetti')).toBeInTheDocument();
