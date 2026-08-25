@@ -1,5 +1,17 @@
 [
     {
+        "version": "1.0.2",
+        "date": "2026-08-26",
+        "features": [],
+        "improvements": [
+            {
+                "title": "Safer Data Editor and DataCite Actions",
+                "description": "The Data Editor now presents separate actions for saving drafts, validating metadata, registering or updating DataCite records, and previewing or opening landing pages according to publication status. Every DataCite write requires explicit confirmation, published landing pages open without saving pending editor changes, and successful new DOI registrations celebrate the canonically published Resource and IGSN inventory in ERNIE."
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.0.1",
         "date": "2026-08-25",
         "features": [
