@@ -103,13 +103,12 @@ final class LegacyKeywordService
             $controlledSubject = [
                 'subject' => $subject,
                 'subjectScheme' => $subjectScheme,
+                'lang' => 'en',
             ];
 
             if (filter_var($valueUri, FILTER_VALIDATE_URL)) {
                 $controlledSubject['valueUri'] = $valueUri;
             }
-
-            $controlledSubject['lang'] = 'en';
 
             if ($schemeUri !== '') {
                 $controlledSubject['schemeUri'] = $schemeUri;
