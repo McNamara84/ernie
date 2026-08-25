@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Resource\SendResourceReviewLinksRequest;
-use App\Models\User;
 use App\Services\Resources\ResourceReviewLinkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -33,9 +32,7 @@ final class ResourceReviewLinkController extends Controller
         $validated = $request->validated();
         $resourceIds = array_values(array_unique($validated['ids']));
 
-        /** @var User $initiator */
-        $initiator = $request->user();
-        $result = $this->reviewLinkService->queue($resourceIds, $initiator, $contactAddress);
+        $result = $this->reviewLinkService->queue($resourceIds, $contactAddress);
 
         $isPartial = $result['failed_resources'] !== [] || $result['skipped_recipients_count'] > 0;
 

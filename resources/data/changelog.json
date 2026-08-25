@@ -3,7 +3,12 @@
         "version": "1.0.1",
         "date": "2026-08-25",
         "features": [],
-        "improvements": [],
+        "improvements": [
+            {
+                "title": "Show location text in map marker popups",
+                "description": "Map marker popups now display the location text, providing more context to users."
+            }
+        ],
         "fixes": [
             {
                 "title": "Responsive Custom Landing Page Logos",
@@ -20,6 +25,10 @@
             {
                 "title": "Portal Datacenter Filter Scroll Reset",
                 "description": "Applying a Datacenter filter from the bottom of the public Portal now returns the viewport to the top of the refreshed results, while other filter interactions retain their existing scroll behavior."
+            },
+            {
+                "title": "Corrected Review-Link Migration Emails",
+                "description": "Review-link emails now explain the server migration, identify the new tokenized link, clarify that old review links are invalid while DOI links remain unaffected, and direct questions to GFZ Data Services."
             }
         ]
     },

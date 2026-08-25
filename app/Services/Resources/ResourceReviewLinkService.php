@@ -9,7 +9,6 @@ use App\Models\ContributorType;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
-use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
@@ -45,7 +44,7 @@ final readonly class ResourceReviewLinkService
      *     skipped_recipients_count:int
      * }
      */
-    public function queue(array $resourceIds, User $initiator, string $contactAddress): array
+    public function queue(array $resourceIds, string $contactAddress): array
     {
         $resources = Resource::query()
             ->with(self::RELATIONS)
@@ -148,8 +147,6 @@ final readonly class ResourceReviewLinkService
                         resourceDoi: $resource->doi,
                         reviewUrl: $reviewUrl,
                         recipientName: $recipient['name'],
-                        initiatorName: $initiator->name,
-                        initiatorEmail: $initiator->email,
                         contactAddress: $contactAddress,
                     ));
 

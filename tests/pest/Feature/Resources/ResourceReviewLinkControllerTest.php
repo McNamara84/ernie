@@ -287,15 +287,12 @@ describe('atomic review selection preflight', function (): void {
 });
 
 describe('recipient resolution and batch results', function (): void {
-    it('queues one personalized message with configured Reply-To and Cc', function (): void {
+    it('queues one personalized migration notice with the configured contact address', function (): void {
         $resource = createReviewMailResource('Seismic Dataset');
-        $contributor = addReviewMailContributor($resource, 'ada@example.test');
-        $initiator = User::factory()->curator()->create([
-            'name' => 'Casey Curator',
-            'email' => 'casey@example.test',
-        ]);
+        addReviewMailContributor($resource, 'ada@example.test');
+        $curator = User::factory()->curator()->create();
 
-        postReviewMailRequest($initiator, [$resource->id])
+        postReviewMailRequest($curator, [$resource->id])
             ->assertOk()
             ->assertJson([
                 'queued_messages' => 1,
@@ -307,17 +304,31 @@ describe('recipient resolution and batch results', function (): void {
                 'skipped_recipients_count' => 0,
             ]);
 
-        Mail::assertQueued(ResourceReviewLink::class, function (ResourceReviewLink $mail) use ($resource, $contributor): bool {
+        Mail::assertQueued(ResourceReviewLink::class, function (ResourceReviewLink $mail) use ($resource): bool {
             return $mail->hasTo('ada@example.test')
                 && $mail->hasReplyTo('datapub@example.test')
                 && $mail->hasCc('datapub@example.test')
                 && $mail->resourceId === $resource->id
+                && $mail->resourceTitle === 'Seismic Dataset'
+                && $mail->resourceDoi === $resource->doi
                 && $mail->recipientName === 'Ada Reviewer'
-                && $mail->initiatorName === 'Casey Curator'
-                && $mail->initiatorEmail === 'casey@example.test'
                 && $mail->reviewUrl === $resource->landingPage?->preview_url
-                && $contributor->id > 0;
+                && $mail->contactAddress === 'datapub@example.test';
         });
+    });
+
+    it('keeps a review resource without a DOI eligible for delivery', function (): void {
+        $resource = createReviewMailResource('Dataset Awaiting DOI', ['doi' => null]);
+        addReviewMailContributor($resource, 'ada@example.test');
+
+        postReviewMailRequest(User::factory()->curator()->create(), [$resource->id])
+            ->assertOk()
+            ->assertJsonPath('queued_messages', 1);
+
+        Mail::assertQueued(ResourceReviewLink::class, fn (ResourceReviewLink $mail): bool => $mail->resourceId === $resource->id
+            && $mail->resourceDoi === null
+            && $mail->resourceTitle === 'Dataset Awaiting DOI'
+            && $mail->reviewUrl === $resource->landingPage?->preview_url);
     });
 
     it('skips missing addresses and ignores non-ContactPerson contributors and contact creators', function (): void {
