@@ -8,6 +8,7 @@ import { Fragment, type ReactNode } from 'react';
  * metadata is missing.
  */
 export interface MetadataRow {
+    key?: string;
     label: string;
     value: ReactNode | null | undefined;
 }
@@ -65,7 +66,7 @@ export function MetadataList({ rows }: MetadataListProps): ReactNode {
             className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm"
         >
             {visible.map((row) => (
-                <Fragment key={row.label}>
+                <Fragment key={row.key ?? row.label}>
                     <dt className="font-medium text-gray-600 dark:text-gray-400">{row.label}</dt>
                     <dd className="min-w-0 wrap-break-word text-gray-900 dark:text-gray-100">{row.value}</dd>
                 </Fragment>

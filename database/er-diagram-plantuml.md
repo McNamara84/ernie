@@ -392,6 +392,7 @@ entity "geo_locations" as geo_locations {
     place : TEXT
     location_type : VARCHAR(100)
     location_description : TEXT
+    locality_description : TEXT
     country : VARCHAR(255)
     province : VARCHAR(255)
     county : VARCHAR(255)

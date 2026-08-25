@@ -353,6 +353,7 @@ erDiagram
         text place
         varchar location_type "100, nullable"
         text location_description
+        text locality_description
         varchar country "255, nullable"
         varchar province "255, nullable"
         varchar county "255, nullable"

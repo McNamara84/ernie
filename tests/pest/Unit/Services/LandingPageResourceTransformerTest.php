@@ -8,6 +8,7 @@ use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
+use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnMetadata;
@@ -991,7 +992,13 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
         'sample_purpose' => 'Tectonic study',
         'collection_method' => 'Drilling',
         'collection_method_description' => null,
+        'platform_type' => 'Drill Rig',
+        'platform_name' => 'MSR Punto',
+        'platform_description' => 'UDR',
         'description_json' => [
+            'description_groups' => [['entries' => [
+                ['value' => 'Fine-grained basalt', 'scheme' => 'Rock Type'],
+            ]]],
             'material_descriptions' => ['Fine-grained basalt'],
             'comments' => ['Stored frozen'],
         ],
@@ -1043,8 +1050,14 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
             'cruise_field_program' => 'Alpine 2023',
             'sample_purpose' => 'Tectonic study',
             'collection_method' => 'Drilling',
+            'description_groups' => [['entries' => [
+                ['value' => 'Fine-grained basalt', 'scheme' => 'Rock Type'],
+            ]]],
             'material_descriptions' => ['Fine-grained basalt'],
             'comments' => ['Stored frozen'],
+            'platform_type' => 'Drill Rig',
+            'platform_name' => 'MSR Punto',
+            'platform_description' => 'UDR',
         ])
         ->and($data['igsn_metadata']['parent'])->toMatchArray([
             'doi' => '10.60510/igsn-parent',
@@ -1059,6 +1072,47 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
         ->and($data['igsn_classifications'][0]['value'])->toBe('Igneous')
         ->and($data['igsn_classifications'][0]['classification_type'])->toBe('rock')
         ->and($data['igsn_classifications'][1]['value'])->toBe('Plutonic');
+});
+
+test('provides an unschemed description group for legacy flat IGSN descriptions', function () {
+    $transformer = new LandingPageResourceTransformer;
+    $resource = new Resource;
+    $resource->forceFill(['id' => 1, 'doi' => '10.60510/legacy-description']);
+    $igsn = new IgsnMetadata;
+    $igsn->forceFill([
+        'description_json' => ['material_descriptions' => ['Legacy value']],
+    ]);
+    $igsn->setRelation('parentResource', null);
+
+    foreach (['titles', 'creators', 'contributors', 'relatedIdentifiers', 'descriptions', 'fundingReferences', 'subjects', 'geoLocations', 'rights', 'dates', 'igsnClassifications', 'igsnGeologicalUnits', 'alternateIdentifiers', 'sizes'] as $relation) {
+        $resource->setRelation($relation, new EloquentCollection);
+    }
+    $resource->setRelation('igsnMetadata', $igsn);
+
+    expect($transformer->transform($resource)['igsn_metadata']['description_groups'])->toBe([
+        ['entries' => [['value' => 'Legacy value', 'scheme' => null]]],
+    ]);
+});
+
+test('exposes locality description separately from location description', function () {
+    $transformer = new LandingPageResourceTransformer;
+    $resource = new Resource;
+    $geo = new GeoLocation;
+    $geo->forceFill([
+        'id' => 1,
+        'location_description' => 'General location',
+        'locality_description' => 'Detailed locality',
+    ]);
+
+    foreach (['titles', 'creators', 'contributors', 'relatedIdentifiers', 'descriptions', 'fundingReferences', 'subjects', 'rights'] as $relation) {
+        $resource->setRelation($relation, new EloquentCollection);
+    }
+    $resource->setRelation('geoLocations', new EloquentCollection([$geo]));
+
+    expect($transformer->transform($resource)['geo_locations'][0])->toMatchArray([
+        'location_description' => 'General location',
+        'locality_description' => 'Detailed locality',
+    ]);
 });
 
 test('omits parent landing_page when parent is unpublished', function () {

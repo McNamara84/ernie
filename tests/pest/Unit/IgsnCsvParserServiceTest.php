@@ -8,6 +8,29 @@ beforeEach(function () {
     $this->parser = new IgsnCsvParserService;
 });
 
+describe('Description JSON Parsing', function () {
+    it('canonicalizes grouped descriptions schemes and embedded semicolons', function (): void {
+        $json = <<<'JSON'
+        [{"descriptions":[{"description":"Core Oriented? 0; RQD Abundance: 0;"},{"description":"Quartzite","descriptionScheme":"Rock Type"}]},{"descriptions":[{"description":"Second group"}]}]
+        JSON;
+
+        expect($this->parser->parseDescriptionJson($json))->toBe([
+            'description_groups' => [
+                ['entries' => [
+                    ['value' => 'Core Oriented? 0; RQD Abundance: 0;', 'scheme' => null],
+                    ['value' => 'Quartzite', 'scheme' => 'Rock Type'],
+                ]],
+                ['entries' => [['value' => 'Second group', 'scheme' => null]]],
+            ],
+            'material_descriptions' => ['Core Oriented? 0; RQD Abundance: 0;', 'Quartzite', 'Second group'],
+        ]);
+    });
+
+    it('returns null for invalid unsupported or empty description JSON', function (string $value): void {
+        expect($this->parser->parseDescriptionJson($value))->toBeNull();
+    })->with(['', 'not-json', '{}', '{"descriptions":[]}']);
+});
+
 describe('CSV Header Parsing', function () {
     it('parses valid CSV headers', function () {
         $csv = "igsn|title|name\n10.58052/IGSN.1234|Test Title|Sample Name";

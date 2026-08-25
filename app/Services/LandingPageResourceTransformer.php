@@ -28,6 +28,7 @@ use App\Models\ResourceDate;
 use App\Models\Right;
 use App\Models\Subject;
 use App\Models\Title;
+use App\Services\Igsn\IgsnDescriptionNormalizer;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Support\IgsnIdentifier;
 use App\Support\PortalSubjectNormalizer;
@@ -38,9 +39,14 @@ final class LandingPageResourceTransformer
 {
     private readonly IgsnSampleFamilyService $sampleFamilyService;
 
-    public function __construct(?IgsnSampleFamilyService $sampleFamilyService = null)
-    {
+    private readonly IgsnDescriptionNormalizer $igsnDescriptionNormalizer;
+
+    public function __construct(
+        ?IgsnSampleFamilyService $sampleFamilyService = null,
+        ?IgsnDescriptionNormalizer $igsnDescriptionNormalizer = null,
+    ) {
         $this->sampleFamilyService = $sampleFamilyService ?? new IgsnSampleFamilyService;
+        $this->igsnDescriptionNormalizer = $igsnDescriptionNormalizer ?? new IgsnDescriptionNormalizer;
     }
 
     /**
@@ -339,6 +345,7 @@ final class LandingPageResourceTransformer
                 'elevation_unit' => $geo->elevation_unit,
                 'location_type' => $geo->location_type,
                 'location_description' => $geo->location_description,
+                'locality_description' => $geo->locality_description,
                 'country' => $geo->country,
                 'province' => $geo->province,
                 'county' => $geo->county,
@@ -498,6 +505,19 @@ final class LandingPageResourceTransformer
             $parent = $meta->parentResource;
             $parentLandingPage = $parent?->landingPage;
             $descriptionJson = $meta->description_json ?? [];
+            $descriptionGroups = $this->igsnDescriptionNormalizer->normalizeCsvPayload($descriptionJson);
+            $legacyDescriptions = array_values(array_filter(
+                is_array($descriptionJson['material_descriptions'] ?? null) ? $descriptionJson['material_descriptions'] : [],
+                static fn (mixed $description): bool => is_string($description) && trim($description) !== '',
+            ));
+            if ($descriptionGroups === [] && $legacyDescriptions !== []) {
+                $descriptionGroups = [[
+                    'entries' => array_map(
+                        static fn (string $description): array => ['value' => trim($description), 'scheme' => null],
+                        $legacyDescriptions,
+                    ),
+                ]];
+            }
             $igsn = $resource->doi !== null ? IgsnIdentifier::handleFromDoi($resource->doi) : null;
             $parentDoi = $parent?->doi;
             $parentIgsn = $parentDoi !== null ? IgsnIdentifier::handleFromDoi($parentDoi) : null;
@@ -547,10 +567,8 @@ final class LandingPageResourceTransformer
                 'collection_date_precision' => $meta->collection_date_precision,
                 'coordinate_system' => $meta->coordinate_system,
                 'sample_access' => $meta->sample_access,
-                'material_descriptions' => array_values(array_filter(
-                    is_array($descriptionJson['material_descriptions'] ?? null) ? $descriptionJson['material_descriptions'] : [],
-                    static fn (mixed $description): bool => is_string($description) && trim($description) !== '',
-                )),
+                'description_groups' => $descriptionGroups,
+                'material_descriptions' => $legacyDescriptions,
                 'comments' => array_values(array_filter(
                     is_array($descriptionJson['comments'] ?? null) ? $descriptionJson['comments'] : [],
                     static fn (mixed $comment): bool => is_string($comment) && trim($comment) !== '',
@@ -559,6 +577,9 @@ final class LandingPageResourceTransformer
                 'current_archive_contact' => $meta->current_archive_contact,
                 'original_archive' => $meta->original_archive ?? ($descriptionJson['original_archive'] ?? null),
                 'original_archive_contact' => $meta->original_archive_contact ?? ($descriptionJson['original_archive_contact'] ?? null),
+                'platform_type' => $meta->platform_type,
+                'platform_name' => $meta->platform_name,
+                'platform_description' => $meta->platform_description,
                 'sizes' => $sizes->map(static fn ($size): array => [
                     'id' => $size->id,
                     'numeric_value' => $size->numeric_value,

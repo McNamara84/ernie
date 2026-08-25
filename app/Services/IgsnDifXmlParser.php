@@ -79,8 +79,12 @@ class IgsnDifXmlParser
                 $this->persistValueRelations($metadata, $resource);
                 $this->persistSizes($metadata['sizes'], $resource);
 
-                $igsnMetadata->save();
-                $resource->save();
+                if ($igsnMetadata->isDirty()) {
+                    $igsnMetadata->save();
+                }
+                if ($resource->isDirty()) {
+                    $resource->save();
+                }
             });
 
             return true;
@@ -108,6 +112,7 @@ class IgsnDifXmlParser
             $description['parent_igsn_handle'] = strtoupper($metadata['parent_igsn']);
         }
         $this->replaceDescriptionValues($description, 'material_descriptions', $metadata['material_descriptions']);
+        $this->replaceDescriptionGroups($description, $metadata['description_groups']);
         $this->replaceDescriptionValues($description, 'comments', $metadata['comments']);
         $igsnMetadata->description_json = $description !== [] ? $description : null;
 
@@ -175,6 +180,7 @@ class IgsnDifXmlParser
             'place' => $location['place'] ?? $this->fallbackPlace($location),
             'location_type' => $location['location_type'],
             'location_description' => $location['location_description'],
+            'locality_description' => $location['locality_description'],
             'country' => $location['country'],
             'province' => $location['province'],
             'county' => $location['county'],
@@ -482,6 +488,21 @@ class IgsnDifXmlParser
         }
 
         $description[$key] = $this->mergeUnique([], $values);
+    }
+
+    /**
+     * @param  array<mixed>  $description
+     * @param  list<array{entries: list<array{value: string, scheme: string|null}>}>  $groups
+     */
+    private function replaceDescriptionGroups(array &$description, array $groups): void
+    {
+        if ($groups === []) {
+            unset($description['description_groups']);
+
+            return;
+        }
+
+        $description['description_groups'] = $groups;
     }
 
     private function normalizeText(string $value): string
