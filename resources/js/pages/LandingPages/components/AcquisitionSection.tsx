@@ -10,8 +10,8 @@ import type {
 } from '@/types/landing-page';
 
 import { findDateByType } from '../lib/dateHelpers';
-import { LandingPageCard } from './LandingPageCard';
 import { IgsnDescriptionGroups } from './IgsnDescriptionGroups';
+import { LandingPageCard } from './LandingPageCard';
 import { hasVisibleMetadataRows, MetadataList, type MetadataRow } from './MetadataList';
 
 interface AcquisitionSectionProps {

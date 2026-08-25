@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Services\Igsn\IgsnVocabularyNormalizerService;
 use App\Services\Igsn\IgsnDescriptionNormalizer;
+use App\Services\Igsn\IgsnVocabularyNormalizerService;
 use App\Support\FunderIdentifierTypeDetector;
 use Illuminate\Support\Str;
 

@@ -119,6 +119,7 @@ it('uses direct sample and root descriptions only as deduplicated fallback sourc
       <sample>
         <description>Same &amp; decoded</description>
         <description descriptionScheme="Kind">Sample only</description>
+        <description descriptionScheme="Kind">Root only</description>
       </sample>
     </resource>
     XML);
@@ -126,7 +127,7 @@ it('uses direct sample and root descriptions only as deduplicated fallback sourc
     expect($metadata['description_groups'])->toBe([['entries' => [
         ['value' => 'Same & decoded', 'scheme' => null],
         ['value' => 'Sample only', 'scheme' => 'Kind'],
-        ['value' => 'Root only', 'scheme' => null],
+        ['value' => 'Root only', 'scheme' => 'Kind'],
     ]]]);
 });
 

@@ -201,11 +201,11 @@ class IgsnDifMetadataExtractor
         $entries = $this->descriptionEntries(is_array($sampleNodes) ? $sampleNodes : []);
         $seen = [];
         foreach ($entries as $entry) {
-            $seen[$this->descriptionEntryKey($entry)] = true;
+            $seen[$this->descriptionValueKey($entry['value'])] = true;
         }
 
         foreach ($this->descriptionEntries(is_array($rootNodes) ? $rootNodes : []) as $entry) {
-            $key = $this->descriptionEntryKey($entry);
+            $key = $this->descriptionValueKey($entry['value']);
             if (! isset($seen[$key])) {
                 $seen[$key] = true;
                 $entries[] = $entry;
@@ -235,10 +235,9 @@ class IgsnDifMetadataExtractor
         return $entries;
     }
 
-    /** @param array{value: string, scheme: string|null} $entry */
-    private function descriptionEntryKey(array $entry): string
+    private function descriptionValueKey(string $value): string
     {
-        return mb_strtolower(trim($entry['value']))."\0".mb_strtolower(trim($entry['scheme'] ?? ''));
+        return mb_strtolower(trim($value));
     }
 
     /** @param list<string> $names */

@@ -210,7 +210,10 @@ final class IgsnDescriptionBackfillService
         ];
     }
 
-    /** @param list<string> $dois @return list<string> */
+    /**
+     * @param  list<string>  $dois
+     * @return list<string>
+     */
     private function normalizeDoiFilter(array $dois): array
     {
         $normalized = [];
