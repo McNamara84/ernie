@@ -150,8 +150,8 @@ describe('LegacyResourceLookupService', function () {
                 [
                     'subject' => 'EARTH SCIENCE > SOLID EARTH > TECTONICS',
                     'subjectScheme' => 'Science Keywords',
-                    'valueUri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/11111111-1111-4111-8111-111111111111',
                     'lang' => 'en',
+                    'valueUri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/11111111-1111-4111-8111-111111111111',
                     'schemeUri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
                 ],
                 ['subject' => 'GNSS'],
