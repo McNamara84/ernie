@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 covers(LegacyKeywordService::class);
 
@@ -138,6 +139,67 @@ it('loads all three Issue 1115 GEMET keywords from the legacy database', functio
         ]);
 });
 
+it('resolves URI-less legacy CGI Simple Lithology paths against the current vocabulary', function (): void {
+    Storage::fake('local');
+    Storage::disk('local')->put('cgi-simple-lithology.json', json_encode([
+        'data' => [[
+            'id' => 'http://resource.geosciml.org/classifier/cgi/lithology/rock',
+            'text' => 'Rock',
+            'scheme' => 'CGI Simple Lithology',
+            'schemeURI' => 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+            'children' => [[
+                'id' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
+                'text' => 'Basalt',
+                'scheme' => 'CGI Simple Lithology',
+                'schemeURI' => 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+                'children' => [],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    DB::connection('metaworks')->table('thesauruskeyword')->insert([
+        'resource_id' => 9663,
+        'keyword' => 'Rock > Basalt',
+        'thesaurus' => 'CGI Simple Lithology',
+    ]);
+    DB::connection('metaworks')->table('thesaurusvalue')->insert([
+        'keyword' => 'Rock > Basalt',
+        'thesaurus' => 'CGI Simple Lithology',
+        'uri' => null,
+        'description' => 'A volcanic rock.',
+    ]);
+
+    expect($this->service->dataCiteSubjects($this->dataset))->toBe([[
+        'subject' => 'Rock > Basalt',
+        'subjectScheme' => 'CGI Simple Lithology',
+        'lang' => 'en',
+        'valueUri' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
+        'schemeUri' => 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+    ]]);
+});
+
+it('preserves unresolved URI-less legacy CGI Simple Lithology paths without exporting a synthetic URI', function (): void {
+    Storage::fake('local');
+    DB::connection('metaworks')->table('thesauruskeyword')->insert([
+        'resource_id' => 9663,
+        'keyword' => 'Rock &gt; Historical rock label',
+        'thesaurus' => 'CGI Simple Lithology',
+    ]);
+    DB::connection('metaworks')->table('thesaurusvalue')->insert([
+        'keyword' => 'Rock &gt; Historical rock label',
+        'thesaurus' => 'CGI Simple Lithology',
+        'uri' => null,
+        'description' => null,
+    ]);
+
+    expect($this->service->dataCiteSubjects($this->dataset))->toBe([[
+        'subject' => 'Rock > Historical rock label',
+        'subjectScheme' => 'CGI Simple Lithology',
+        'lang' => 'en',
+        'schemeUri' => 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+    ]]);
+});
+
 it('splits, trims, and filters comma-separated free keywords', function (): void {
     $this->dataset->keywords = '  GNSS, , Crustal deformation ,,Seismology  ';
 
@@ -178,8 +240,8 @@ it('converts controlled and free keywords to canonical DataCite subjects', funct
         [
             'subject' => $keyword,
             'subjectScheme' => 'Science Keywords',
-            'valueUri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/11111111-1111-4111-8111-111111111111',
             'lang' => 'en',
+            'valueUri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/11111111-1111-4111-8111-111111111111',
             'schemeUri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
         ],
         ['subject' => 'GNSS'],

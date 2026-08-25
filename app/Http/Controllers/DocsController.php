@@ -69,7 +69,8 @@ class DocsController extends Controller
      *         chronostratigraphy: bool,
      *         gemet: bool,
      *         analyticalMethods: bool,
-     *         euroSciVoc: bool
+     *         euroSciVoc: bool,
+     *         simpleLithology: bool
      *     },
      *     features: array{
      *         hasActiveGcmd: bool,
@@ -78,6 +79,7 @@ class DocsController extends Controller
      *         hasActiveGemet: bool,
      *         hasActiveAnalyticalMethods: bool,
      *         hasActiveEuroSciVoc: bool,
+     *         hasActiveSimpleLithology: bool,
      *         hasActiveLicenses: bool,
      *         hasActiveResourceTypes: bool,
      *         hasActiveTitleTypes: bool,
@@ -103,6 +105,7 @@ class DocsController extends Controller
                 $gemetSetting = $thesauri->get(ThesaurusSetting::TYPE_GEMET);
                 $analyticalMethodsSetting = $thesauri->get(ThesaurusSetting::TYPE_ANALYTICAL_METHODS);
                 $euroSciVocSetting = $thesauri->get(ThesaurusSetting::TYPE_EUROSCIVOC);
+                $simpleLithologySetting = $thesauri->get(ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY);
 
                 $scienceKeywordsActive = $scienceKeywordsSetting !== null ? $scienceKeywordsSetting->is_active : false;
                 $platformsActive = $platformsSetting !== null ? $platformsSetting->is_active : false;
@@ -111,6 +114,7 @@ class DocsController extends Controller
                 $gemetActive = $gemetSetting !== null ? $gemetSetting->is_active : false;
                 $analyticalMethodsActive = $analyticalMethodsSetting !== null ? $analyticalMethodsSetting->is_active : false;
                 $euroSciVocActive = $euroSciVocSetting !== null ? $euroSciVocSetting->is_active : false;
+                $simpleLithologyActive = $simpleLithologySetting !== null ? $simpleLithologySetting->is_active : false;
 
                 // Check if MSL vocabulary file exists (indicates MSL is available)
                 $hasMslVocabulary = Storage::exists('msl-vocabulary.json');
@@ -124,6 +128,7 @@ class DocsController extends Controller
                         'gemet' => $gemetActive,
                         'analyticalMethods' => $analyticalMethodsActive,
                         'euroSciVoc' => $euroSciVocActive,
+                        'simpleLithology' => $simpleLithologyActive,
                     ],
                     'features' => [
                         'hasActiveGcmd' => $scienceKeywordsActive || $platformsActive || $instrumentsActive,
@@ -132,6 +137,7 @@ class DocsController extends Controller
                         'hasActiveGemet' => $gemetActive,
                         'hasActiveAnalyticalMethods' => $analyticalMethodsActive,
                         'hasActiveEuroSciVoc' => $euroSciVocActive,
+                        'hasActiveSimpleLithology' => $simpleLithologyActive,
                         'hasActiveLicenses' => Right::where('is_active', true)->exists(),
                         'hasActiveResourceTypes' => ResourceType::where('is_active', true)->exists(),
                         'hasActiveTitleTypes' => TitleType::where('is_active', true)->exists(),

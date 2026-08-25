@@ -34,6 +34,11 @@ describe('getVocabularyTypeFromScheme', () => {
         expect(getVocabularyTypeFromScheme('Analytical Methods for Geochemistry and Cosmochemistry')).toBe('analytical_methods');
     });
 
+    it('returns "simple_lithology" for the canonical and legacy CGI scheme names', () => {
+        expect(getVocabularyTypeFromScheme('CGI Simple Lithology')).toBe('simple_lithology');
+        expect(getVocabularyTypeFromScheme('CGI Simple Lithology Vocabulary')).toBe('simple_lithology');
+    });
+
     it('is case-insensitive', () => {
         expect(getVocabularyTypeFromScheme('SCIENCE KEYWORDS')).toBe('science');
         expect(getVocabularyTypeFromScheme('PLATFORMS')).toBe('platforms');
@@ -42,6 +47,7 @@ describe('getVocabularyTypeFromScheme', () => {
         expect(getVocabularyTypeFromScheme('INTERNATIONAL CHRONOSTRATIGRAPHIC CHART')).toBe('chronostratigraphy');
         expect(getVocabularyTypeFromScheme('GEMET - GENERAL MULTILINGUAL ENVIRONMENTAL THESAURUS')).toBe('gemet');
         expect(getVocabularyTypeFromScheme('ANALYTICAL METHODS FOR GEOCHEMISTRY')).toBe('analytical_methods');
+        expect(getVocabularyTypeFromScheme('CGI SIMPLE LITHOLOGY')).toBe('simple_lithology');
     });
 
     it('handles partial matches', () => {
@@ -88,6 +94,10 @@ describe('getSchemeFromVocabularyType', () => {
 
     it('returns "Analytical Methods for Geochemistry and Cosmochemistry" for analytical_methods type', () => {
         expect(getSchemeFromVocabularyType('analytical_methods')).toBe('Analytical Methods for Geochemistry and Cosmochemistry');
+    });
+
+    it('returns "CGI Simple Lithology" for simple_lithology type', () => {
+        expect(getSchemeFromVocabularyType('simple_lithology')).toBe('CGI Simple Lithology');
     });
 
     it('returns "Science Keywords" as default for unknown types', () => {

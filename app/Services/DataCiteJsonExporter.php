@@ -635,7 +635,7 @@ class DataCiteJsonExporter
 
         foreach ($resource->subjects as $subject) {
             $subjectData = [
-                'subject' => $subject->value,
+                'subject' => $this->dataCiteSubjectValue($subject),
                 'lang' => 'en',
             ];
 

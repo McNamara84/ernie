@@ -12,6 +12,7 @@ import {
     SCHEME_ICS_CHRONOSTRAT,
     SCHEME_LABELS,
     SCHEME_MSL,
+    SCHEME_SIMPLE_LITHOLOGY,
 } from '@/lib/keyword-schemes';
 
 describe('keyword-schemes constants', () => {
@@ -22,6 +23,7 @@ describe('keyword-schemes constants', () => {
         expect(SCHEME_MSL).toBe('EPOS MSL vocabulary');
         expect(SCHEME_GEMET).toBe('GEMET - GEneral Multilingual Environmental Thesaurus');
         expect(SCHEME_ICS_CHRONOSTRAT).toBe('International Chronostratigraphic Chart');
+        expect(SCHEME_SIMPLE_LITHOLOGY).toBe('CGI Simple Lithology');
     });
 
     it('exports SCHEME_LABELS with all expected entries', () => {
@@ -32,6 +34,7 @@ describe('keyword-schemes constants', () => {
         expect(SCHEME_LABELS[SCHEME_MSL]).toBe('MSL Vocabularies');
         expect(SCHEME_LABELS[SCHEME_GEMET]).toBe('GEMET Thesaurus');
         expect(SCHEME_LABELS[SCHEME_ICS_CHRONOSTRAT]).toBe('ICS Chronostratigraphy');
+        expect(SCHEME_LABELS[SCHEME_SIMPLE_LITHOLOGY]).toBe('Simple Lithology');
     });
 });
 
@@ -62,6 +65,7 @@ describe('normalizeKeywordScheme', () => {
         expect(normalizeKeywordScheme('MSL Vocabulary')).toBe(SCHEME_MSL);
         expect(normalizeKeywordScheme('Analytical Method Vocabulary')).toBe(SCHEME_ANALYTICAL_METHODS);
         expect(normalizeKeywordScheme('EuroSciVoc')).toBe(SCHEME_EUROSCIVOC);
+        expect(normalizeKeywordScheme('CGI Simple Lithology Vocabulary')).toBe(SCHEME_SIMPLE_LITHOLOGY);
     });
 
     it('returns null for blank schemes and preserves unknown schemes', () => {

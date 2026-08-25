@@ -12,9 +12,11 @@ use App\Models\Person;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\Subject;
 use App\Services\DataCite\Mapping\DataCiteDescriptionMappingService;
 use App\Services\DataCite\Mapping\DataCiteFundingReferenceMappingService;
 use App\Services\DataCite\Mapping\DataCitePartyMappingService;
+use App\Support\SubjectBreadcrumbPath;
 
 /**
  * Shared helper methods for DataCite XML and JSON exporters.
@@ -24,6 +26,20 @@ use App\Services\DataCite\Mapping\DataCitePartyMappingService;
  */
 trait DataCiteExporterHelpers
 {
+    protected function dataCiteSubjectValue(Subject $subject): string
+    {
+        $isUnresolvedControlledSubject = trim((string) $subject->subject_scheme) !== ''
+            && trim((string) $subject->value_uri) === ''
+            && trim((string) $subject->classification_code) === '';
+
+        if ($isUnresolvedControlledSubject) {
+            return SubjectBreadcrumbPath::normalize($subject->breadcrumb_path)
+                ?? (string) $subject->value;
+        }
+
+        return (string) $subject->value;
+    }
+
     protected function dataCiteDescriptionMapper(): DataCiteDescriptionMappingService
     {
         return app(DataCiteDescriptionMappingService::class);

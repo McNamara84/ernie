@@ -71,6 +71,8 @@ function parseIso19115(string $xml): array
         'gml' => Iso19115XmlExporter::GML_NAMESPACE,
         'lan' => Iso19115XmlExporter::LAN_NAMESPACE,
         'gco' => Iso19115XmlExporter::GCO_NAMESPACE,
+        'gcx' => Iso19115XmlExporter::GCX_NAMESPACE,
+        'xlink' => Iso19115XmlExporter::XLINK_NAMESPACE,
         'xsi' => Iso19115XmlExporter::XSI_NAMESPACE,
     ] as $prefix => $namespace) {
         $xpath->registerNamespace($prefix, $namespace);
@@ -427,7 +429,7 @@ test('exports alternate titles, methods, controlled keywords, rights and boundin
 
     expect($xpath->evaluate('string(//cit:alternateTitle/gco:CharacterString)'))->toBe('Alternative title')
         ->and($xpath->evaluate('string(//mri:purpose/gco:CharacterString)'))->toBe('Collected using calibrated sensors.')
-        ->and($xpath->evaluate('string(//mri:descriptiveKeywords//mri:keyword/gco:CharacterString)'))
+        ->and($xpath->evaluate('string(//mri:descriptiveKeywords//mri:keyword/*[self::gco:CharacterString or self::gcx:Anchor])'))
         ->toContain('EARTH SCIENCE')
         ->and($xpath->evaluate('string(//mri:descriptiveKeywords//mri:thesaurusName//cit:title/gco:CharacterString)'))
         ->toBe('GCMD Science Keywords')
@@ -438,6 +440,56 @@ test('exports alternate titles, methods, controlled keywords, rights and boundin
         ->toBe('Creative Commons Attribution 4.0 International')
         ->and($xpath->evaluate('string(//mco:reference//cit:linkage/gco:CharacterString)'))
         ->toBe('https://creativecommons.org/licenses/by/4.0/');
+});
+
+test('exports resolved CGI Simple Lithology keywords as linked ISO anchors', function () {
+    [$resource, $exporter] = iso19115Resource();
+    Subject::create([
+        'resource_id' => $resource->id,
+        'value' => 'Basalt',
+        'subject_scheme' => 'CGI Simple Lithology',
+        'scheme_uri' => 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+        'value_uri' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
+        'breadcrumb_path' => 'Rock > Igneous material > Igneous rock > Basalt',
+    ]);
+
+    $xml = $exporter->export($resource->fresh());
+    [, $xpath] = parseIso19115($xml);
+    $validation = app(Iso19115XmlValidator::class)->validate($xml);
+
+    expect($xpath->evaluate(
+        'string(//mri:MD_Keywords[mri:thesaurusName//cit:title/gco:CharacterString="CGI Simple Lithology"]/mri:keyword/gcx:Anchor)',
+    ))->toBe('Basalt')
+        ->and($xpath->evaluate(
+            'string(//mri:MD_Keywords[mri:thesaurusName//cit:title/gco:CharacterString="CGI Simple Lithology"]/mri:keyword/gcx:Anchor/@xlink:href)',
+        ))->toBe('http://resource.geosciml.org/classifier/cgi/lithology/basalt')
+        ->and($xpath->evaluate(
+            'string(//mri:MD_Keywords[mri:thesaurusName//cit:title/gco:CharacterString="CGI Simple Lithology"]//cit:onlineResource//cit:linkage/gco:CharacterString)',
+        ))->toBe('http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology')
+        ->and($validation->isValid())->toBeTrue();
+});
+
+test('preserves unresolved legacy CGI Simple Lithology breadcrumbs as ISO character strings', function () {
+    [$resource, $exporter] = iso19115Resource();
+    Subject::create([
+        'resource_id' => $resource->id,
+        'value' => 'Historical rock label',
+        'subject_scheme' => 'CGI Simple Lithology',
+        'scheme_uri' => 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+        'value_uri' => null,
+        'breadcrumb_path' => 'Rock > Historical rock label',
+    ]);
+
+    $xml = $exporter->export($resource->fresh());
+    [, $xpath] = parseIso19115($xml);
+
+    expect($xpath->evaluate(
+        'string(//mri:MD_Keywords[mri:thesaurusName//cit:title/gco:CharacterString="CGI Simple Lithology"]/mri:keyword/gco:CharacterString)',
+    ))->toBe('Rock > Historical rock label')
+        ->and((float) $xpath->evaluate(
+            'count(//mri:MD_Keywords[mri:thesaurusName//cit:title/gco:CharacterString="CGI Simple Lithology"]/mri:keyword/gcx:Anchor)',
+        ))->toBe(0.0)
+        ->and(app(Iso19115XmlValidator::class)->validate($xml)->isValid())->toBeTrue();
 });
 
 test('preserves series, formats, explicit associations, place geometry and temporal ranges', function () {

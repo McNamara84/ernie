@@ -27,7 +27,8 @@ class ThesaurusStatusService
     private const NASA_KMS_BASE_URL = 'https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/';
 
     public function __construct(
-        private readonly ?MslLaboratoryVocabularyService $mslLaboratories = null
+        private readonly ?MslLaboratoryVocabularyService $mslLaboratories = null,
+        private readonly ?CgiSimpleLithologyVocabularyService $simpleLithology = null,
     ) {}
 
     /**
@@ -45,6 +46,21 @@ class ThesaurusStatusService
     {
         if ($thesaurus->type === ThesaurusSetting::TYPE_MSL_LABORATORIES) {
             return $this->getMslLaboratoriesLocalStatus();
+        }
+
+        if ($thesaurus->type === ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY) {
+            try {
+                $payload = $this->simpleLithology()->localPayload();
+            } catch (\RuntimeException) {
+                $payload = null;
+            }
+
+            return [
+                'exists' => $payload !== null,
+                'conceptCount' => (int) ($payload['total'] ?? 0),
+                'lastUpdated' => is_string($payload['lastUpdated'] ?? null) ? $payload['lastUpdated'] : null,
+                'sourceSha' => is_string($payload['source']['sha256'] ?? null) ? $payload['source']['sha256'] : null,
+            ];
         }
 
         $filePath = $thesaurus->getFilePath();
@@ -100,6 +116,10 @@ class ThesaurusStatusService
     {
         if ($thesaurus->type === ThesaurusSetting::TYPE_MSL_LABORATORIES) {
             return (int) $this->mslLaboratories()->fetchLatest()['total'];
+        }
+
+        if ($thesaurus->type === ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY) {
+            return (int) $this->simpleLithology()->fetchRemotePayload()['total'];
         }
 
         if ($thesaurus->isGcmd()) {
@@ -218,6 +238,10 @@ class ThesaurusStatusService
             return $this->compareMslLaboratoriesWithRemote();
         }
 
+        if ($thesaurus->type === ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY) {
+            return $this->simpleLithology()->compareWithRemote();
+        }
+
         $localStatus = $this->getLocalStatus($thesaurus);
         $remoteCount = $this->getRemoteConceptCount($thesaurus);
 
@@ -310,6 +334,11 @@ class ThesaurusStatusService
     private function mslLaboratories(): MslLaboratoryVocabularyService
     {
         return $this->mslLaboratories ?? app(MslLaboratoryVocabularyService::class);
+    }
+
+    private function simpleLithology(): CgiSimpleLithologyVocabularyService
+    {
+        return $this->simpleLithology ?? app(CgiSimpleLithologyVocabularyService::class);
     }
 
     /**

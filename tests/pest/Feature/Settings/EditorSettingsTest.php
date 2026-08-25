@@ -168,11 +168,12 @@ test('thesaurus settings are auto-created when missing', function () {
     Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
     // Verify only migration-seeded settings exist initially.
-    expect(ThesaurusSetting::count())->toBe(5);
+    expect(ThesaurusSetting::count())->toBe(6);
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_CHRONOSTRAT)->exists())->toBeTrue();
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_GEMET)->exists())->toBeTrue();
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_ANALYTICAL_METHODS)->exists())->toBeTrue();
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_MSL_LABORATORIES)->exists())->toBeTrue();
+    expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY)->exists())->toBeTrue();
 
     $this->actingAs($user);
     withoutVite();
@@ -181,7 +182,7 @@ test('thesaurus settings are auto-created when missing', function () {
     $response = $this->get(route('settings'))->assertOk();
 
     // Verify every centralized thesaurus definition now exists.
-    expect(ThesaurusSetting::count())->toBe(8);
+    expect(ThesaurusSetting::count())->toBe(9);
 
     $this->assertDatabaseHas('thesaurus_settings', [
         'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
@@ -201,11 +202,17 @@ test('thesaurus settings are auto-created when missing', function () {
         'is_active' => true,
         'is_elmo_active' => true,
     ]);
+    $this->assertDatabaseHas('thesaurus_settings', [
+        'type' => ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY,
+        'display_name' => 'CGI Simple Lithology',
+        'is_active' => false,
+        'is_elmo_active' => false,
+    ]);
 
     // Verify all thesauri are returned in the response.
     $response->assertInertia(fn (Assert $page) => $page
         ->component('settings/index')
-        ->has('thesauri', 8)
+        ->has('thesauri', 9)
         ->where('thesauri', fn ($thesauri) => $thesauri->contains('type', ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_PLATFORMS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_INSTRUMENTS)
@@ -213,7 +220,8 @@ test('thesaurus settings are auto-created when missing', function () {
             && $thesauri->contains('type', ThesaurusSetting::TYPE_GEMET)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_ANALYTICAL_METHODS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_EUROSCIVOC)
-            && $thesauri->contains('type', ThesaurusSetting::TYPE_MSL_LABORATORIES))
+            && $thesauri->contains('type', ThesaurusSetting::TYPE_MSL_LABORATORIES)
+            && $thesauri->contains('type', ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY))
     );
 });
 

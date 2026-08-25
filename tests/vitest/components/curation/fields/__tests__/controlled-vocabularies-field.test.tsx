@@ -322,6 +322,7 @@ describe('ControlledVocabulariesField - Initial selected keywords', () => {
                     gemet: true,
                     analytical_methods: true,
                     euroscivoc: true,
+                    simple_lithology: true,
                 }}
             />,
         );
@@ -398,7 +399,7 @@ describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
                 selectedKeywords={[]}
                 onChange={mockOnChange}
                 showEuroSciVocTab={true}
-                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true }}
+                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true, simple_lithology: true }}
             />,
         );
 
@@ -426,7 +427,7 @@ describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
                 selectedKeywords={selectedEuroSciVocKeywords}
                 onChange={mockOnChange}
                 showEuroSciVocTab={true}
-                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true }}
+                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true, simple_lithology: true }}
             />,
         );
 
@@ -455,7 +456,7 @@ describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
                 selectedKeywords={selectedEuroSciVocKeywords}
                 onChange={mockOnChange}
                 showEuroSciVocTab={true}
-                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true }}
+                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true, simple_lithology: true }}
             />,
         );
 
@@ -477,7 +478,7 @@ describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
                 selectedKeywords={[]}
                 onChange={mockOnChange}
                 showEuroSciVocTab={true}
-                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true }}
+                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true, simple_lithology: true }}
             />,
         );
 
@@ -485,5 +486,76 @@ describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
         await user.click(euroSciVocTab);
 
         expect(euroSciVocTab).toHaveAttribute('aria-selected', 'true');
+    });
+});
+
+describe('ControlledVocabulariesField - CGI Simple Lithology Tab', () => {
+    const simpleLithologyVocabulary: VocabularyKeyword[] = [{
+        id: 'http://resource.geosciml.org/classifier/cgi/lithology/rock',
+        text: 'Rock',
+        language: 'en',
+        scheme: 'CGI Simple Lithology',
+        schemeURI: 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+        description: '',
+        children: [],
+    }];
+
+    it('shows the tab only when the vocabulary is enabled and available', () => {
+        const props = {
+            scienceKeywords: [] as VocabularyKeyword[],
+            platforms: [] as VocabularyKeyword[],
+            instruments: [] as VocabularyKeyword[],
+            simpleLithologyVocabulary,
+            selectedKeywords: [] as SelectedKeyword[],
+            onChange: vi.fn(),
+            enabledThesauri: {
+                science_keywords: true,
+                platforms: true,
+                instruments: true,
+                chronostratigraphy: true,
+                gemet: true,
+                analytical_methods: true,
+                euroscivoc: true,
+                simple_lithology: true,
+            },
+        };
+        const { rerender } = render(
+            <ControlledVocabulariesField {...props} showSimpleLithologyTab={false} />,
+        );
+
+        expect(screen.queryByRole('tab', { name: /Simple Lithology/i })).not.toBeInTheDocument();
+
+        rerender(
+            <ControlledVocabulariesField {...props} showSimpleLithologyTab={true} />,
+        );
+
+        expect(screen.getByRole('tab', { name: /Simple Lithology/i })).toBeInTheDocument();
+    });
+
+    it('keeps selected legacy keywords visible even when the tab is disabled', () => {
+        const selectedKeyword: SelectedKeyword = {
+            id: 'legacy:historical-rock',
+            text: 'Historical rock',
+            path: 'Rock > Historical rock',
+            language: 'en',
+            scheme: 'CGI Simple Lithology',
+            schemeURI: 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+            isLegacy: true,
+        };
+
+        render(
+            <ControlledVocabulariesField
+                scienceKeywords={[]}
+                platforms={[]}
+                instruments={[]}
+                simpleLithologyVocabulary={simpleLithologyVocabulary}
+                selectedKeywords={[selectedKeyword]}
+                onChange={vi.fn()}
+                showSimpleLithologyTab={false}
+            />,
+        );
+
+        expect(screen.getByText('Rock > Historical rock')).toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /Simple Lithology/i })).not.toBeInTheDocument();
     });
 });

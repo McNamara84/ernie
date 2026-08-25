@@ -46,6 +46,7 @@ const defaultEditorSettings: EditorSettings = {
         gemet: true,
         analyticalMethods: true,
         euroSciVoc: true,
+        simpleLithology: true,
     },
     features: {
         hasActiveGcmd: true,
@@ -54,6 +55,7 @@ const defaultEditorSettings: EditorSettings = {
         hasActiveGemet: true,
         hasActiveAnalyticalMethods: true,
         hasActiveEuroSciVoc: true,
+        hasActiveSimpleLithology: true,
         hasActiveLicenses: true,
         hasActiveResourceTypes: true,
         hasActiveTitleTypes: true,
@@ -530,6 +532,7 @@ describe('Docs page', () => {
                     hasActiveGemet: false,
                     hasActiveAnalyticalMethods: false,
                     hasActiveEuroSciVoc: false,
+                    hasActiveSimpleLithology: false,
                 },
             }),
         );
@@ -551,6 +554,7 @@ describe('Docs page', () => {
                     gemet: false,
                     analyticalMethods: false,
                     euroSciVoc: true,
+                    simpleLithology: false,
                 },
                 features: {
                     hasActiveGcmd: false,
@@ -559,6 +563,7 @@ describe('Docs page', () => {
                     hasActiveGemet: false,
                     hasActiveAnalyticalMethods: false,
                     hasActiveEuroSciVoc: true,
+                    hasActiveSimpleLithology: false,
                 },
             }),
         );

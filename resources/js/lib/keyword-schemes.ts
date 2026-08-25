@@ -29,6 +29,9 @@ export const SCHEME_ANALYTICAL_METHODS = 'Analytical Methods for Geochemistry an
 /** EuroSciVoc scheme identifier */
 export const SCHEME_EUROSCIVOC = 'European Science Vocabulary (EuroSciVoc)';
 
+/** CGI Simple Lithology scheme identifier */
+export const SCHEME_SIMPLE_LITHOLOGY = 'CGI Simple Lithology';
+
 /** User-friendly display labels for each scheme */
 export const SCHEME_LABELS: Record<string, string> = {
     '': 'Free Keywords',
@@ -40,6 +43,7 @@ export const SCHEME_LABELS: Record<string, string> = {
     [SCHEME_ICS_CHRONOSTRAT]: 'ICS Chronostratigraphy',
     [SCHEME_ANALYTICAL_METHODS]: 'Analytical Methods',
     [SCHEME_EUROSCIVOC]: 'EuroSciVoc',
+    [SCHEME_SIMPLE_LITHOLOGY]: 'Simple Lithology',
 };
 
 /**
@@ -83,6 +87,10 @@ export function normalizeKeywordScheme(scheme: string | null): string | null {
 
     if (normalized.includes('euroscivoc') || normalized.includes('european science vocabulary')) {
         return SCHEME_EUROSCIVOC;
+    }
+
+    if (normalized === 'cgi simple lithology' || normalized === 'cgi simple lithology vocabulary') {
+        return SCHEME_SIMPLE_LITHOLOGY;
     }
 
     return trimmed;

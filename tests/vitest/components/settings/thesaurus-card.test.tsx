@@ -527,6 +527,44 @@ describe('ThesaurusCard', () => {
             expect(updateMessage).toHaveTextContent('118 laboratories (v1.2)');
             expect(updateMessage).toHaveTextContent('Update reason: new version');
         });
+
+        it('shows CGI Simple Lithology source and remote content hashes', async () => {
+            const user = userEvent.setup();
+            const localSha = 'a'.repeat(64);
+            const remoteSha = 'b'.repeat(64);
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({
+                    localCount: 265,
+                    remoteCount: 265,
+                    updateAvailable: true,
+                    lastUpdated: '2026-08-25T12:00:00Z',
+                    reason: 'Labels, definitions, or hierarchy relationships changed.',
+                    localSha,
+                    remoteSha,
+                }),
+            });
+            const thesaurus: ThesaurusData = {
+                type: 'simple_lithology',
+                displayName: 'CGI Simple Lithology',
+                isActive: true,
+                isElmoActive: true,
+                exists: true,
+                conceptCount: 265,
+                lastUpdated: '2026-08-25T12:00:00Z',
+                sourceSha: localSha,
+            };
+
+            render(
+                <ThesaurusCard thesauri={[thesaurus]} onActiveChange={mockOnActiveChange} onElmoActiveChange={mockOnElmoActiveChange} />,
+            );
+            expect(screen.getByText('SHA-256 aaaaaaaaaaaa…')).toBeInTheDocument();
+
+            await user.click(screen.getByRole('button', { name: /check for updates/i }));
+
+            expect(await screen.findByText(/Update reason: Labels, definitions/)).toBeInTheDocument();
+            expect(screen.getByText(/Content hash: aaaaaaaaaaaa… → bbbbbbbbbbbb…/)).toBeInTheDocument();
+        });
     });
 
     describe('Empty state', () => {

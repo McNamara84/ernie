@@ -41,6 +41,7 @@ const defaultEditorSettings: EditorSettings = {
         gemet: true,
         analyticalMethods: true,
         euroSciVoc: true,
+        simpleLithology: true,
     },
     features: {
         hasActiveGcmd: true,
@@ -49,6 +50,7 @@ const defaultEditorSettings: EditorSettings = {
         hasActiveGemet: true,
         hasActiveAnalyticalMethods: true,
         hasActiveEuroSciVoc: true,
+        hasActiveSimpleLithology: true,
         hasActiveLicenses: true,
         hasActiveResourceTypes: true,
         hasActiveTitleTypes: true,

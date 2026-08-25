@@ -16,8 +16,8 @@ class ThesaurusSettingSeeder extends Seeder
                 ['type' => $type],
                 [
                     'display_name' => $displayName,
-                    'is_active' => true,
-                    'is_elmo_active' => true,
+                    'is_active' => ThesaurusSetting::isEnabledByDefault($type),
+                    'is_elmo_active' => ThesaurusSetting::isEnabledByDefault($type),
                 ]
             );
         }

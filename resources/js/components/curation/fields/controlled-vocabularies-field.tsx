@@ -32,6 +32,7 @@ interface ThesauriAvailability {
     gemet: boolean;
     analytical_methods: boolean;
     euroscivoc: boolean;
+    simple_lithology: boolean;
 }
 
 interface ControlledVocabulariesFieldProps {
@@ -43,6 +44,7 @@ interface ControlledVocabulariesFieldProps {
     gemetVocabulary?: VocabularyKeyword[]; // Optional GEMET vocabulary
     analyticalMethodsVocabulary?: VocabularyKeyword[]; // Optional Analytical Methods vocabulary
     euroscivocVocabulary?: VocabularyKeyword[]; // Optional EuroSciVoc vocabulary
+    simpleLithologyVocabulary?: VocabularyKeyword[]; // Optional CGI Simple Lithology vocabulary
     selectedKeywords: SelectedKeyword[];
     onChange: (keywords: SelectedKeyword[]) => void;
     showMslTab?: boolean; // Control MSL tab visibility
@@ -50,6 +52,7 @@ interface ControlledVocabulariesFieldProps {
     showGemetTab?: boolean; // Control GEMET tab visibility
     showAnalyticalMethodsTab?: boolean; // Control Analytical Methods tab visibility
     showEuroSciVocTab?: boolean; // Control EuroSciVoc tab visibility
+    showSimpleLithologyTab?: boolean; // Control CGI Simple Lithology tab visibility
     autoSwitchToMsl?: boolean; // Auto-switch to MSL tab when it becomes available
     enabledThesauri?: ThesauriAvailability; // Which thesauri are enabled in settings
 }
@@ -96,6 +99,7 @@ export default function ControlledVocabulariesField({
     gemetVocabulary = [],
     analyticalMethodsVocabulary = [],
     euroscivocVocabulary = [],
+    simpleLithologyVocabulary = [],
     selectedKeywords,
     onChange,
     showMslTab = false,
@@ -103,8 +107,18 @@ export default function ControlledVocabulariesField({
     showGemetTab = false,
     showAnalyticalMethodsTab = false,
     showEuroSciVocTab = false,
+    showSimpleLithologyTab = false,
     autoSwitchToMsl = false,
-    enabledThesauri = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true },
+    enabledThesauri = {
+        science_keywords: true,
+        platforms: true,
+        instruments: true,
+        chronostratigraphy: true,
+        gemet: true,
+        analytical_methods: true,
+        euroscivoc: true,
+        simple_lithology: false,
+    },
 }: ControlledVocabulariesFieldProps) {
     // Determine which tabs are available based on enabled thesauri
     const showScienceTab = enabledThesauri.science_keywords;
@@ -114,6 +128,7 @@ export default function ControlledVocabulariesField({
     const showGemet = showGemetTab && enabledThesauri.gemet;
     const showAnalyticalMethods = showAnalyticalMethodsTab && enabledThesauri.analytical_methods;
     const showEuroSciVoc = showEuroSciVocTab && enabledThesauri.euroscivoc;
+    const showSimpleLithology = showSimpleLithologyTab && enabledThesauri.simple_lithology;
 
     const visibleVocabularyTypes = useMemo(
         () =>
@@ -126,8 +141,19 @@ export default function ControlledVocabulariesField({
                 ...(showGemet ? ['gemet' as const] : []),
                 ...(showAnalyticalMethods ? ['analytical_methods' as const] : []),
                 ...(showEuroSciVoc ? ['euroscivoc' as const] : []),
+                ...(showSimpleLithology ? ['simple_lithology' as const] : []),
             ] as VocabularyType[],
-        [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet, showAnalyticalMethods, showEuroSciVoc],
+        [
+            showScienceTab,
+            showPlatformsTab,
+            showInstrumentsTab,
+            showMslTab,
+            showChronostrat,
+            showGemet,
+            showAnalyticalMethods,
+            showEuroSciVoc,
+            showSimpleLithology,
+        ],
     );
 
     // Group selected keywords by vocabulary type (based on scheme)
@@ -141,6 +167,7 @@ export default function ControlledVocabulariesField({
             gemet: [],
             analytical_methods: [],
             euroscivoc: [],
+            simple_lithology: [],
         };
 
         for (const keyword of selectedKeywords) {
@@ -151,7 +178,8 @@ export default function ControlledVocabulariesField({
         return grouped;
     }, [selectedKeywords]);
 
-    const preferredInitialTab = visibleVocabularyTypes.find((type) => keywordsByVocabulary[type].length > 0) ?? visibleVocabularyTypes[0] ?? 'science';
+    const preferredInitialTab =
+        visibleVocabularyTypes.find((type) => keywordsByVocabulary[type].length > 0) ?? visibleVocabularyTypes[0] ?? 'science';
 
     const [activeTab, setActiveTab] = useState<VocabularyType>(preferredInitialTab);
     const [searchQuery, setSearchQuery] = useState('');
@@ -208,10 +236,23 @@ export default function ControlledVocabulariesField({
                 return analyticalMethodsVocabulary;
             case 'euroscivoc':
                 return euroscivocVocabulary;
+            case 'simple_lithology':
+                return simpleLithologyVocabulary;
             default:
                 return [];
         }
-    }, [activeTab, scienceKeywords, platforms, instruments, mslVocabulary, chronostratVocabulary, gemetVocabulary, analyticalMethodsVocabulary, euroscivocVocabulary]);
+    }, [
+        activeTab,
+        scienceKeywords,
+        platforms,
+        instruments,
+        mslVocabulary,
+        chronostratVocabulary,
+        gemetVocabulary,
+        analyticalMethodsVocabulary,
+        euroscivocVocabulary,
+        simpleLithologyVocabulary,
+    ]);
 
     // Filter keywords based on search query
     // Only search if query is at least MIN_SEARCH_LENGTH characters
@@ -282,7 +323,7 @@ export default function ControlledVocabulariesField({
             {/* Selected Keywords Display */}
             {selectedKeywords.length > 0 && (
                 <div className="space-y-3">
-                    {visibleVocabularyTypes.map((type) => {
+                    {(Object.keys(keywordsByVocabulary) as VocabularyType[]).map((type) => {
                         const keywords = keywordsByVocabulary[type];
                         if (keywords.length === 0) return null;
 
@@ -295,6 +336,7 @@ export default function ControlledVocabulariesField({
                             gemet: 'GEMET',
                             analytical_methods: 'Analytical Methods',
                             euroscivoc: 'EuroSciVoc',
+                            simple_lithology: 'Simple Lithology',
                         };
 
                         // Check if there are any legacy keywords
@@ -326,7 +368,7 @@ export default function ControlledVocabulariesField({
                                             )}
                                             title={
                                                 keyword.isLegacy
-                                                    ? `⚠️ Legacy keyword from old database: "${keyword.path}"\nThis keyword doesn't exist in the current vocabulary.\nPlease remove and select a replacement from the current MSL vocabulary.`
+                                                    ? `⚠️ Legacy controlled keyword: "${keyword.path}"\nThis keyword could not be resolved in the current vocabulary.\nPlease review and select a current replacement if appropriate.`
                                                     : keyword.path
                                             }
                                         >
@@ -408,6 +450,8 @@ export default function ControlledVocabulariesField({
                                             return 'grid-cols-7';
                                         case 8:
                                             return 'grid-cols-8';
+                                        case 9:
+                                            return 'grid-cols-9';
                                         default:
                                             return 'grid-cols-3';
                                     }
@@ -502,6 +546,18 @@ export default function ControlledVocabulariesField({
                                 <TabsTrigger value="euroscivoc" className="relative">
                                     EuroSciVoc
                                     {hasKeywords('euroscivoc') && (
+                                        <span
+                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                            aria-label="Has keywords"
+                                            title="This vocabulary has selected keywords"
+                                        />
+                                    )}
+                                </TabsTrigger>
+                            )}
+                            {showSimpleLithology && (
+                                <TabsTrigger value="simple_lithology" className="relative">
+                                    Simple Lithology
+                                    {hasKeywords('simple_lithology') && (
                                         <span
                                             className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
                                             aria-label="Has keywords"

@@ -60,12 +60,18 @@ describe('ThesaurusSettingsController', function () {
         $this->actingAs($admin)
             ->getJson('/thesauri')
             ->assertOk()
-            ->assertJsonCount(8)
+            ->assertJsonCount(9)
             ->assertJsonFragment([
                 'type' => 'science_keywords',
                 'displayName' => 'Science Keywords',
                 'isActive' => true,
                 'isElmoActive' => true,
+            ])
+            ->assertJsonFragment([
+                'type' => ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY,
+                'displayName' => 'CGI Simple Lithology',
+                'isActive' => false,
+                'isElmoActive' => false,
             ]);
     });
 
@@ -251,13 +257,14 @@ describe('EditorSettings with Thesauri', function () {
         $response = $this->get(route('settings'));
 
         $response->assertInertia(fn ($assert) => $assert
-            ->has('thesauri', 8)
+            ->has('thesauri', 9)
             ->where('thesauri', fn ($thesauri) => $thesauri->contains('type', 'science_keywords')
                 && $thesauri->contains('type', 'chronostratigraphy')
                 && $thesauri->contains('type', 'gemet')
                 && $thesauri->contains('type', 'analytical_methods')
                 && $thesauri->contains('type', 'euroscivoc')
-                && $thesauri->contains('type', 'msl_laboratories'))
+                && $thesauri->contains('type', 'msl_laboratories')
+                && $thesauri->contains('type', 'simple_lithology'))
         );
     });
 

@@ -10,6 +10,7 @@ use App\Exceptions\VocabularyNotFoundException;
 use App\Exceptions\VocabularyReadException;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
+use App\Services\CgiSimpleLithologyVocabularyService;
 use App\Services\MslLaboratoryVocabularyService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +23,8 @@ class VocabularyController extends Controller
      */
     public function __construct(
         private readonly VocabularyCacheService $cacheService,
-        private readonly MslLaboratoryVocabularyService $mslLaboratoryVocabularyService
+        private readonly MslLaboratoryVocabularyService $mslLaboratoryVocabularyService,
+        private readonly CgiSimpleLithologyVocabularyService $simpleLithologyVocabularyService,
     ) {}
 
     /**
@@ -181,6 +183,14 @@ class VocabularyController extends Controller
                 }
             }
 
+            if ($available && $setting->type === ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY) {
+                try {
+                    $available = $this->simpleLithologyVocabularyService->localPayload() !== null;
+                } catch (\RuntimeException) {
+                    $available = false;
+                }
+            }
+
             return [
                 $setting->type => [
                     'available' => $available,
@@ -286,6 +296,36 @@ class VocabularyController extends Controller
             'euroscivoc.json',
             'php artisan get-euroscivoc'
         );
+    }
+
+    /**
+     * Return CGI Simple Lithology.
+     */
+    public function cgiSimpleLithology(): JsonResponse
+    {
+        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
+        try {
+            $payload = $this->cacheService->cacheVocabulary(
+                CacheKey::CGI_SIMPLE_LITHOLOGY,
+                function (): array {
+                    $payload = $this->simpleLithologyVocabularyService->localPayload();
+                    if ($payload === null) {
+                        throw new VocabularyNotFoundException('php artisan get-cgi-simple-lithology');
+                    }
+
+                    return $payload;
+                },
+            );
+
+            return response()->json($payload);
+        } catch (VocabularyNotFoundException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 404);
+        } catch (\RuntimeException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 500);
+        }
     }
 
     /**

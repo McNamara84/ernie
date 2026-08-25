@@ -756,6 +756,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('vocabularies.analytical-methods');
     Route::get('vocabularies/euroscivoc', [VocabularyController::class, 'euroSciVoc'])
         ->name('vocabularies.euroscivoc');
+    Route::get('vocabularies/cgi-simple-lithology', [VocabularyController::class, 'cgiSimpleLithology'])
+        ->name('vocabularies.cgi-simple-lithology');
     Route::get('vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability'])
         ->name('vocabularies.pid-availability');
     // User Management routes (Admin & Group Leader only - Issue #379)

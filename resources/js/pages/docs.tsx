@@ -466,6 +466,13 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             taxonomy of fields of science based on the OECD Frascati Manual. Can also be triggered from Editor Settings.
                         </p>
 
+                        <h4>Update CGI Simple Lithology (CLI)</h4>
+                        <DocsCodeBlock code="php artisan get-cgi-simple-lithology" />
+                        <p className="text-sm text-muted-foreground">
+                            Downloads and validates CGI Simple Lithology from the official CGI vocabulary SPARQL API. The previous local copy remains
+                            available if a download or validation fails. Can also be triggered from Editor Settings.
+                        </p>
+
                         <h4>Update PID4INST Instruments (CLI)</h4>
                         <DocsCodeBlock code="php artisan get-pid4inst-instruments" />
                         <p className="text-sm text-muted-foreground">
@@ -932,6 +939,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <code>/api/v1/vocabularies/gemet</code> – GEMET environmental thesaurus
                             </li>
                             <li>
+                                <code>/api/v1/vocabularies/cgi-simple-lithology</code> – CGI Simple Lithology vocabulary
+                            </li>
+                            <li>
                                 <code>/api/v1/elmo/vocabularies/thesauri-availability</code> – ELMO-specific thesaurus availability (returns
                                 is_elmo_active)
                             </li>
@@ -1330,7 +1340,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     settings.features.hasActiveChronostrat ||
                     settings.features.hasActiveGemet ||
                     settings.features.hasActiveAnalyticalMethods ||
-                    settings.features.hasActiveEuroSciVoc,
+                    settings.features.hasActiveEuroSciVoc ||
+                    settings.features.hasActiveSimpleLithology,
                 content: (
                     <>
                         <h3>Controlled Vocabularies</h3>
@@ -1398,6 +1409,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     categories extracted from CORDIS content. The vocabulary covers six top-level domains: Natural Sciences,
                                     Engineering and Technology, Medical and Health Sciences, Agricultural Sciences, Social Sciences, and Humanities.
                                     Keywords are mapped to DataCite with subjectScheme &quot;European Science Vocabulary (EuroSciVoc)&quot;.
+                                </p>
+                            </>
+                        )}
+
+                        {editorSettings.features.hasActiveSimpleLithology && (
+                            <>
+                                <h4>CGI Simple Lithology</h4>
+                                <p>
+                                    The official CGI Simple Lithology vocabulary provides stable identifiers and hierarchical paths for rock,
+                                    sediment, and other geologic material terms. ERNIE preserves all valid paths for concepts with multiple parents.
                                 </p>
                             </>
                         )}

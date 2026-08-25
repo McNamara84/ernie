@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use App\Models\ThesaurusSetting;
 use App\Services\ThesaurusStatusService;
-use App\Support\GcmdVocabularyParser;
+use App\Support\CgiSimpleLithologyVocabularyParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -221,6 +223,31 @@ describe('getLocalStatus', function () {
             'lastUpdated' => '2026-04-16T10:00:00+00:00',
         ]);
     });
+
+    test('returns validated local status and source hash for CGI Simple Lithology', function () {
+        config(['simple_lithology.min_concepts' => 1]);
+        $payload = app(CgiSimpleLithologyVocabularyParser::class)->buildPayload([[
+            'concept' => [
+                'type' => 'uri',
+                'value' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
+            ],
+            'prefLabel' => ['type' => 'literal', 'xml:lang' => 'en', 'value' => 'Basalt'],
+        ]], null, 1, 10, 10);
+        Storage::put('cgi-simple-lithology.json', json_encode($payload, JSON_THROW_ON_ERROR));
+        $thesaurus = ThesaurusSetting::query()->where(
+            'type',
+            ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY,
+        )->firstOrFail();
+
+        $status = (new ThesaurusStatusService)->getLocalStatus($thesaurus);
+
+        expect($status)->toBe([
+            'exists' => true,
+            'conceptCount' => 1,
+            'lastUpdated' => $payload['lastUpdated'],
+            'sourceSha' => $payload['source']['sha256'],
+        ]);
+    });
 });
 
 describe('getRemoteConceptCount', function () {
@@ -285,13 +312,13 @@ describe('getRemoteConceptCount', function () {
         ]);
 
         Http::fake([
-            'cmr.earthdata.nasa.gov/*' => fn () => throw new \Illuminate\Http\Client\ConnectionException('Connection timed out'),
+            'cmr.earthdata.nasa.gov/*' => fn () => throw new ConnectionException('Connection timed out'),
         ]);
 
         $service = new ThesaurusStatusService;
 
         expect(fn () => $service->getRemoteConceptCount($thesaurus))
-            ->toThrow(\Illuminate\Http\Client\ConnectionException::class);
+            ->toThrow(ConnectionException::class);
     });
 
     test('throws exception on invalid ARDC response format', function () {
@@ -455,6 +482,52 @@ describe('getRemoteConceptCount', function () {
 });
 
 describe('compareWithRemote', function () {
+    test('delegates CGI Simple Lithology comparisons to content hashes instead of counts alone', function () {
+        config([
+            'simple_lithology.min_concepts' => 1,
+            'simple_lithology.max_concepts' => 10,
+        ]);
+        $localPayload = app(CgiSimpleLithologyVocabularyParser::class)->buildPayload([[
+            'concept' => [
+                'type' => 'uri',
+                'value' => 'http://resource.geosciml.org/classifier/cgi/lithology/rock',
+            ],
+            'prefLabel' => ['type' => 'literal', 'xml:lang' => 'en', 'value' => 'Rock'],
+        ]], null, 1, 10, 10);
+        Storage::put('cgi-simple-lithology.json', json_encode($localPayload, JSON_THROW_ON_ERROR));
+        Http::fake(function (Request $request) {
+            if (str_contains((string) $request['query'], 'dateModified')) {
+                return Http::response(
+                    ['results' => ['bindings' => []]],
+                    200,
+                    ['Content-Type' => 'application/sparql-results+json'],
+                );
+            }
+
+            return Http::response([
+                'results' => ['bindings' => [[
+                    'concept' => [
+                        'type' => 'uri',
+                        'value' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
+                    ],
+                    'prefLabel' => ['type' => 'literal', 'xml:lang' => 'en', 'value' => 'Basalt'],
+                ]]],
+            ], 200, ['Content-Type' => 'application/sparql-results+json']);
+        });
+        $thesaurus = ThesaurusSetting::query()->where(
+            'type',
+            ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY,
+        )->firstOrFail();
+
+        $result = (new ThesaurusStatusService)->compareWithRemote($thesaurus);
+
+        expect($result['localCount'])->toBe(1)
+            ->and($result['remoteCount'])->toBe(1)
+            ->and($result['updateAvailable'])->toBeTrue()
+            ->and($result['localSha'])->toBe($localPayload['source']['sha256'])
+            ->and($result['remoteSha'])->not->toBe($result['localSha']);
+    });
+
     test('identifies update available when remote has more concepts', function () {
         Storage::put('gcmd-science-keywords.json', json_encode([
             'lastUpdated' => '2025-01-01T00:00:00Z',
@@ -662,7 +735,7 @@ describe('GEMET thesaurus', function () {
             ],
         );
 
-        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+        Http::fake(function (Request $request) {
             $url = $request->url();
             $params = $request->data();
             $thesaurusUri = $params['thesaurus_uri'] ?? '';
@@ -721,7 +794,7 @@ describe('GEMET thesaurus', function () {
             ],
         );
 
-        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+        Http::fake(function (Request $request) {
             $url = $request->url();
             $params = $request->data();
             $thesaurusUri = $params['thesaurus_uri'] ?? '';

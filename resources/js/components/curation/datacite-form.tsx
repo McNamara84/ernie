@@ -808,6 +808,7 @@ export default function DataCiteForm({
         gemet: VocabularyKeyword[];
         analytical_methods: VocabularyKeyword[];
         euroscivoc: VocabularyKeyword[];
+        simple_lithology: VocabularyKeyword[];
     }>({
         science: [],
         platforms: [],
@@ -817,6 +818,7 @@ export default function DataCiteForm({
         gemet: [],
         analytical_methods: [],
         euroscivoc: [],
+        simple_lithology: [],
     });
     const [isLoadingVocabularies, setIsLoadingVocabularies] = useState(true);
 
@@ -830,6 +832,7 @@ export default function DataCiteForm({
         analytical_methods: boolean;
         euroscivoc: boolean;
         msl_laboratories: boolean;
+        simple_lithology: boolean;
     }>({
         science_keywords: true,
         platforms: true,
@@ -839,6 +842,7 @@ export default function DataCiteForm({
         analytical_methods: true,
         euroscivoc: true,
         msl_laboratories: true,
+        simple_lithology: false,
     });
     const [pid4instAvailability, setPid4instAvailability] = useState<'checking' | 'available' | 'unavailable'>('checking');
 
@@ -896,6 +900,7 @@ export default function DataCiteForm({
                     analytical_methods: true,
                     euroscivoc: true,
                     msl_laboratories: true,
+                    simple_lithology: false,
                 };
                 try {
                     const availabilityRes = await fetch('/api/v1/vocabularies/thesauri-availability');
@@ -910,6 +915,7 @@ export default function DataCiteForm({
                             analytical_methods: availabilityData.analytical_methods?.available ?? true,
                             euroscivoc: availabilityData.euroscivoc?.available ?? true,
                             msl_laboratories: availabilityData.msl_laboratories?.available ?? true,
+                            simple_lithology: availabilityData.simple_lithology?.available ?? false,
                         };
                         setThesauriAvailability(availability);
                     }
@@ -920,8 +926,16 @@ export default function DataCiteForm({
 
                 // Only fetch vocabularies that are enabled
                 const fetchPromises: Promise<Response>[] = [];
-                const fetchOrder: ('science' | 'platforms' | 'instruments' | 'chronostratigraphy' | 'gemet' | 'analytical_methods' | 'euroscivoc')[] =
-                    [];
+                const fetchOrder: (
+                    | 'science'
+                    | 'platforms'
+                    | 'instruments'
+                    | 'chronostratigraphy'
+                    | 'gemet'
+                    | 'analytical_methods'
+                    | 'euroscivoc'
+                    | 'simple_lithology'
+                )[] = [];
 
                 if (availability.science_keywords) {
                     fetchPromises.push(fetch('/vocabularies/gcmd-science-keywords'));
@@ -951,6 +965,10 @@ export default function DataCiteForm({
                     fetchPromises.push(fetch('/vocabularies/euroscivoc'));
                     fetchOrder.push('euroscivoc');
                 }
+                if (availability.simple_lithology) {
+                    fetchPromises.push(fetch('/vocabularies/cgi-simple-lithology'));
+                    fetchOrder.push('simple_lithology');
+                }
 
                 if (fetchPromises.length === 0) {
                     // No thesauri enabled
@@ -970,6 +988,7 @@ export default function DataCiteForm({
                     gemet: [],
                     analytical_methods: [],
                     euroscivoc: [],
+                    simple_lithology: [],
                 };
 
                 // Process each response with its corresponding key
@@ -997,6 +1016,7 @@ export default function DataCiteForm({
                         gemet: vocabularies.gemet.length,
                         analytical_methods: vocabularies.analytical_methods.length,
                         euroscivoc: vocabularies.euroscivoc.length,
+                        simple_lithology: vocabularies.simple_lithology.length,
                         availability,
                     });
                 }
@@ -3378,6 +3398,7 @@ export default function DataCiteForm({
                                 gemetVocabulary={gcmdVocabularies.gemet}
                                 analyticalMethodsVocabulary={gcmdVocabularies.analytical_methods}
                                 euroscivocVocabulary={gcmdVocabularies.euroscivoc}
+                                simpleLithologyVocabulary={gcmdVocabularies.simple_lithology}
                                 selectedKeywords={gcmdKeywords}
                                 onChange={setGcmdKeywords}
                                 showMslTab={hasMslTrigger}
@@ -3385,6 +3406,7 @@ export default function DataCiteForm({
                                 showGemetTab={thesauriAvailability.gemet}
                                 showAnalyticalMethodsTab={thesauriAvailability.analytical_methods}
                                 showEuroSciVocTab={thesauriAvailability.euroscivoc}
+                                showSimpleLithologyTab={thesauriAvailability.simple_lithology}
                                 autoSwitchToMsl={shouldAutoSwitchToMsl}
                                 enabledThesauri={thesauriAvailability}
                             />

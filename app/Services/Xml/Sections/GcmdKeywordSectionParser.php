@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Xml\Sections;
 
+use App\Services\ControlledSubjectImportNormalizerService;
 use App\Support\GcmdUriHelper;
 use App\Support\Xml\XmlElementHelpers;
 use App\Support\XmlKeywordExtractor;
@@ -18,6 +19,10 @@ use Saloon\XmlWrangler\XmlReader;
  */
 final readonly class GcmdKeywordSectionParser
 {
+    public function __construct(
+        private ControlledSubjectImportNormalizerService $controlledSubjectNormalizer,
+    ) {}
+
     /**
      * @return array<int, array{
      *     uuid: string,
@@ -44,6 +49,20 @@ final readonly class GcmdKeywordSectionParser
             $content = XmlElementHelpers::stringValue($element);
 
             if ($scheme === '' || ! is_string($content) || $content === '') {
+                continue;
+            }
+
+            $simpleLithology = $this->controlledSubjectNormalizer->simpleLithology(
+                $scheme,
+                $content,
+                trim((string) $element->getAttribute('schemeURI')),
+                $valueUri,
+                $classificationCode,
+                trim((string) $element->getAttribute('xml:lang')),
+            );
+            if ($simpleLithology !== null) {
+                $keywords[] = $simpleLithology;
+
                 continue;
             }
 

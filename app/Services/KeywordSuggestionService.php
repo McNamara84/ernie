@@ -38,6 +38,7 @@ class KeywordSuggestionService
         ['file' => 'gemet-thesaurus.json', 'fallback_scheme' => GemetVocabularyParser::SCHEME_TITLE, 'setting_type' => ThesaurusSetting::TYPE_GEMET],
         ['file' => 'analytical-methods.json', 'fallback_scheme' => PortalSubjectNormalizer::SCHEME_ANALYTICAL_METHODS, 'setting_type' => ThesaurusSetting::TYPE_ANALYTICAL_METHODS],
         ['file' => 'euroscivoc.json', 'fallback_scheme' => 'European Science Vocabulary (EuroSciVoc)', 'setting_type' => ThesaurusSetting::TYPE_EUROSCIVOC],
+        ['file' => 'cgi-simple-lithology.json', 'fallback_scheme' => PortalSubjectNormalizer::SCHEME_SIMPLE_LITHOLOGY, 'setting_type' => ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY],
     ];
 
     /**

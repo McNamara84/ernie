@@ -10,6 +10,7 @@ use App\Services\ResourceStorageService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -458,6 +459,47 @@ describe('JSON Upload - DataCite JSON format', function () {
         $data = getJsonUploadData($response);
 
         expect($data['freeKeywords'])->toBe(['seismology', 'geophysics']);
+    });
+
+    test('resolves and preserves path-only CGI Simple Lithology subjects', function () {
+        $this->actingAs(User::factory()->create());
+        Storage::fake('local');
+        Storage::disk('local')->put('cgi-simple-lithology.json', json_encode([
+            'data' => [[
+                'id' => 'http://resource.geosciml.org/classifier/cgi/lithology/material',
+                'text' => 'Material',
+                'scheme' => 'CGI Simple Lithology',
+                'schemeURI' => config('simple_lithology.scheme_uri'),
+                'children' => [[
+                    'id' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
+                    'text' => 'Basalt',
+                    'scheme' => 'CGI Simple Lithology',
+                    'schemeURI' => config('simple_lithology.scheme_uri'),
+                    'children' => [],
+                ]],
+            ]],
+        ], JSON_THROW_ON_ERROR));
+
+        $json = dataCiteJson(minimalAttributes([
+            'subjects' => [
+                ['subject' => 'Material &gt; Basalt', 'subjectScheme' => 'CGI Simple Lithology'],
+                ['subject' => 'Material > Historical rock', 'subjectScheme' => 'CGI Simple Lithology'],
+            ],
+        ]));
+        $response = $this->postJson('/dashboard/upload-json', [
+            'file' => UploadedFile::fake()->createWithContent('simple-lithology.json', $json),
+        ])->assertOk();
+
+        $data = getJsonUploadData($response);
+        expect($data['gcmdKeywords'])->toHaveCount(2)
+            ->and($data['gcmdKeywords'][0])->toMatchArray([
+                'id' => 'http://resource.geosciml.org/classifier/cgi/lithology/basalt',
+                'text' => 'Basalt',
+                'path' => 'Material > Basalt',
+                'scheme' => 'CGI Simple Lithology',
+            ])
+            ->and($data['gcmdKeywords'][1]['id'])->toStartWith('legacy:')
+            ->and($data['gcmdKeywords'][1]['isLegacy'])->toBeTrue();
     });
 
     test('extracts related identifiers and instruments', function () {

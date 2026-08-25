@@ -243,6 +243,10 @@ final class UploadedResourceDraftService
                     'scheme' => $scheme,
                     'schemeURI' => $this->stringOrNull($keyword['schemeURI'] ?? $keyword['schemeUri'] ?? null),
                     'language' => $this->stringOrNull($keyword['language'] ?? null),
+                    ...($this->stringOrNull($keyword['classificationCode'] ?? null) !== null
+                        ? ['classificationCode' => $this->stringOrNull($keyword['classificationCode'])]
+                        : []),
+                    ...(($keyword['isLegacy'] ?? false) === true ? ['isLegacy' => true] : []),
                 ];
             }
         }

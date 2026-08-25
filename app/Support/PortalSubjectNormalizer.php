@@ -16,6 +16,8 @@ final class PortalSubjectNormalizer
 
     public const SCHEME_ANALYTICAL_METHODS = 'Analytical Methods for Geochemistry and Cosmochemistry';
 
+    public const SCHEME_SIMPLE_LITHOLOGY = 'CGI Simple Lithology';
+
     public static function normalizeControlledSubjectValue(?string $value): ?string
     {
         $trimmed = trim((string) $value);
@@ -51,6 +53,8 @@ final class PortalSubjectNormalizer
             str_contains($normalized, 'analytical') && str_contains($normalized, 'method') => self::SCHEME_ANALYTICAL_METHODS,
             str_contains($normalized, 'euroscivoc'),
             str_contains($normalized, 'european science vocabulary') => 'European Science Vocabulary (EuroSciVoc)',
+            $normalized === 'cgi simple lithology',
+            $normalized === 'cgi simple lithology vocabulary' => self::SCHEME_SIMPLE_LITHOLOGY,
             default => $trimmed,
         };
     }
@@ -91,6 +95,7 @@ CASE
     WHEN %1$s LIKE '%%gemet%%' THEN 'gemet - general multilingual environmental thesaurus'
     WHEN %1$s LIKE '%%analytical%%' AND %1$s LIKE '%%method%%' THEN 'analytical methods for geochemistry and cosmochemistry'
     WHEN %1$s LIKE '%%euroscivoc%%' OR %1$s LIKE '%%european science vocabulary%%' THEN 'european science vocabulary (euroscivoc)'
+    WHEN %1$s = 'cgi simple lithology' OR %1$s = 'cgi simple lithology vocabulary' THEN 'cgi simple lithology'
     ELSE LOWER(%2$s)
 END
 SQL, $lowered, $trimmed);

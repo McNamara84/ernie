@@ -25,6 +25,7 @@ describe('constructor validation', function () {
             ThesaurusSetting::TYPE_ANALYTICAL_METHODS,
             ThesaurusSetting::TYPE_EUROSCIVOC,
             ThesaurusSetting::TYPE_MSL_LABORATORIES,
+            ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY,
         ];
 
         foreach ($validTypes as $type) {
@@ -190,6 +191,7 @@ describe('handle', function () {
             ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'get-analytical-methods',
             ThesaurusSetting::TYPE_EUROSCIVOC => 'get-euroscivoc',
             ThesaurusSetting::TYPE_MSL_LABORATORIES => 'get-msl-laboratories',
+            ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY => 'get-cgi-simple-lithology',
         ];
 
         foreach ($mapping as $type => $expectedCommand) {
@@ -242,6 +244,26 @@ describe('handle', function () {
         (new UpdateThesaurusJob(
             ThesaurusSetting::TYPE_MSL_LABORATORIES,
             $uuid
+        ))->handle();
+    });
+
+    it('uses the official CGI vocabulary API progress message for Simple Lithology', function () {
+        $uuid = (string) Str::uuid();
+        $cacheKey = UpdateThesaurusJob::getCacheKey($uuid);
+
+        Artisan::shouldReceive('call')
+            ->with('get-cgi-simple-lithology')
+            ->once()
+            ->andReturnUsing(function () use ($cacheKey) {
+                expect(Cache::get($cacheKey)['progress'])
+                    ->toBe('Fetching CGI Simple Lithology from the official CGI vocabulary API...');
+
+                return 0;
+            });
+
+        (new UpdateThesaurusJob(
+            ThesaurusSetting::TYPE_SIMPLE_LITHOLOGY,
+            $uuid,
         ))->handle();
     });
 
