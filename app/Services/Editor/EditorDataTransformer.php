@@ -97,6 +97,7 @@ class EditorDataTransformer
             'resourceType' => (string) $resource->resource_type_id,
             'initialAccessLevel' => $accessLevel instanceof AccessLevel ? $accessLevel->value : '',
             'resourceId' => (string) $resource->id,
+            'publicStatus' => $resource->publicStatus(),
             'titles' => $titles,
             'initialLicenses' => $initialLicenses,
             'initialRawRights' => $initialRawRights,

@@ -11,6 +11,7 @@ use App\Services\DataCiteModeResolverService;
 use App\Services\DataCiteRegistrationService;
 use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\ResourceStorageService;
+use App\Services\ResourceCacheService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -116,6 +117,8 @@ class ResourceDoiRegistrationController extends Controller
             $resource->save();
             app(ResourceStorageService::class)->ensureSystemDate($resource, 'Issued');
 
+            $publishedRecordCounts = app(ResourceCacheService::class)->getPublishedResourceCounts();
+
             Log::info('DOI saved to resource', [
                 'resource_id' => $resource->id,
                 'doi' => $doi,
@@ -127,6 +130,7 @@ class ResourceDoiRegistrationController extends Controller
                 'doi' => $doi,
                 'mode' => $service->isTestMode() ? 'test' : 'production',
                 'updated' => false,
+                'publishedRecordCounts' => $publishedRecordCounts,
             ]);
         } catch (\InvalidArgumentException $e) {
             Log::warning('Invalid DOI registration request', [

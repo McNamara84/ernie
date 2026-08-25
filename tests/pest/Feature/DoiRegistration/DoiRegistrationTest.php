@@ -118,6 +118,11 @@ test('doi registration succeeds with valid data for new doi', function () {
     $response->assertJson([
         'success' => true,
         'doi' => '10.83279/test-12345',
+        'publishedRecordCounts' => [
+            'resources' => 0,
+            'igsns' => 0,
+            'total' => 0,
+        ],
     ]);
 
     // Verify DOI was saved to database
@@ -165,6 +170,7 @@ test('doi registration updates metadata for existing doi', function () {
         'success' => true,
         'updated' => true,
     ]);
+    $response->assertJsonMissing(['publishedRecordCounts']);
     $issuedDate = $this->resource->dates()->whereHas('dateType', function ($q) {
         $q->whereRaw('LOWER(slug) = ?', ['issued']);
     })->first();
