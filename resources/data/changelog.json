@@ -8,7 +8,12 @@
                 "description": "Administrators and Group Leaders can now enable CGI Simple Lithology independently for ERNIE and ELMO and safely update its validated local copy from the official CGI vocabulary SPARQL API. When enabled, the Data Editor adds a Simple Lithology tab under Thesaurus Keywords; current and URI-less historical terms are supported across legacy resource imports and DataCite XML/JSON dashboard uploads. DataCite JSON/XML and ISO 19115-3 exports preserve canonical scheme and concept URIs, while unresolved legacy paths remain available without exposing synthetic identifiers."
             }
         ],
-        "improvements": [],
+        "improvements": [
+            {
+                "title": "Show location text in map marker popups",
+                "description": "Map marker popups now display the location text, providing more context to users."
+            }
+        ],
         "fixes": [
             {
                 "title": "Responsive Custom Landing Page Logos",
@@ -25,6 +30,14 @@
             {
                 "title": "Portal Datacenter Filter Scroll Reset",
                 "description": "Applying a Datacenter filter from the bottom of the public Portal now returns the viewport to the top of the refreshed results, while other filter interactions retain their existing scroll behavior."
+            },
+            {
+                "title": "Corrected Review-Link Migration Emails",
+                "description": "Review-link emails now explain the server migration, identify the new tokenized link, clarify that old review links are invalid while DOI links remain unaffected, and direct questions to GFZ Data Services."
+            },
+            {
+                "title": "Fixed legacy IGSN import for missing parent-child relationships",
+                "description": "Legacy IGSN imports now correctly establish parent-child relationships, ensuring the integrity of hierarchical data."
             }
         ]
     },

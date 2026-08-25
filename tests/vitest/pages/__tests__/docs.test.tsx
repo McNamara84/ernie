@@ -738,7 +738,7 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
-    it('documents review-link batch requirements, recipients, and partial results for curators', async () => {
+    it('documents both review-link workflows, their recipients, and partial results for curators', async () => {
         const { user } = renderDocsPage('curator');
 
         await openDatasetsTab(user);
@@ -761,8 +761,32 @@ describe('Docs page', () => {
 
                 return (
                     element?.tagName === 'P' &&
-                    text.includes('ContactPerson role and a valid email address receives one separate invitation per selected resource') &&
-                    text.includes('included as Cc and Reply-To on every invitation')
+                    text.includes('Send review link to invite contributors to review resources before publication') &&
+                    text.includes('normal invitation workflow') &&
+                    text.includes('does not tell recipients that a previous link has changed')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    element?.tagName === 'P' &&
+                    text.includes('Notify changed review link only for contacts who already received a review link') &&
+                    text.includes('This separate action sends the migration notice')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    element?.tagName === 'P' &&
+                    text.includes('ContactPerson role and a valid email address receives one separate email per selected resource') &&
+                    text.includes('using either the invitation or migration notice') &&
+                    text.includes('included as Cc and Reply-To on every message')
                 );
             }),
         ).toBeInTheDocument();

@@ -442,6 +442,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('resources/send-review-links', [ResourceReviewLinkController::class, 'store'])
         ->middleware('throttle:resource-review-links')
         ->name('resources.send-review-links');
+    Route::post('resources/send-review-link-migrations', [ResourceReviewLinkController::class, 'storeMigration'])
+        ->middleware('throttle:resource-review-links')
+        ->name('resources.send-review-link-migrations');
 
     // DataCite prefix configuration endpoint
     Route::get('api/datacite/prefixes', [ResourceDoiRegistrationController::class, 'getDataCitePrefixes'])

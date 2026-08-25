@@ -17,6 +17,7 @@ export type ResourcesActionKey =
     | 'register-doi'
     | 'update-metadata'
     | 'send-review-link'
+    | 'send-review-link-migration'
     | 'delete';
 
 export interface ResourcesActionState {
@@ -84,6 +85,11 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
     {
         key: 'send-review-link',
         label: 'Send review link',
+        icon: <Mail aria-hidden="true" className="size-4" />,
+    },
+    {
+        key: 'send-review-link-migration',
+        label: 'Notify changed review link',
         icon: <Mail aria-hidden="true" className="size-4" />,
     },
     {

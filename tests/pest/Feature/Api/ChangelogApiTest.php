@@ -18,6 +18,9 @@ it('returns changelog data grouped by release', function () {
             'title' => 'Short Abstracts Accepted in the Data Editor',
         ])
         ->assertJsonFragment([
+            'title' => 'Corrected Review-Link Migration Emails',
+        ])
+        ->assertJsonFragment([
             'version' => '0.1.0',
         ])
         ->assertJsonFragment([
