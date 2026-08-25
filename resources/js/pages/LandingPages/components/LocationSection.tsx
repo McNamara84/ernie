@@ -6,7 +6,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CircleMarker, MapContainer, Marker, Polygon, Polyline, Rectangle, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Polygon, Polyline, Popup, Rectangle, TileLayer, Tooltip, useMap } from 'react-leaflet';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -336,10 +336,20 @@ function FullscreenControl() {
  * Renders the appropriate geometry for a single GeoLocation
  */
 function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
+    const hasDescription = typeof geoLocation.place === 'string' && geoLocation.place.trim() !== '';
+
     return (
         <>
             {/* Point as Marker */}
-            {hasPoint(geoLocation) && <Marker position={[geoLocation.point_latitude!, geoLocation.point_longitude!]} />}
+            {hasPoint(geoLocation) && (
+                <Marker position={[geoLocation.point_latitude!, geoLocation.point_longitude!]}>
+                    {hasDescription && (
+                        <Popup>
+                            <div className="max-w-xs text-sm break-words whitespace-normal">{geoLocation.place}</div>
+                        </Popup>
+                    )}
+                </Marker>
+            )}
 
             {/* Bounding Box as Rectangle */}
             {hasBox(geoLocation) && (
