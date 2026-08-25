@@ -521,7 +521,7 @@ describe('IGSN Data Storage', function () {
         expect($ages->first()->value)->toBe('Quaternary');
     });
 
-    it('stores description JSON from CSV', function () {
+    it('stores canonical description JSON from CSV', function () {
         $csvContent = file_get_contents(getDoveCsvPath());
         $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
 
@@ -531,12 +531,20 @@ describe('IGSN Data Storage', function () {
         $resource = Resource::whereHas('igsnMetadata')->first();
         $metadata = $resource->igsnMetadata;
 
-        // Description is a nested JSON with array structure
-        expect($metadata->description_json)->not->toBeNull();
-        expect($metadata->description_json)->toBeArray();
-        // The DOVE description has an outer array containing an object with 'descriptions'
-        $firstItem = $metadata->description_json[0] ?? $metadata->description_json;
-        expect($firstItem)->toHaveKey('descriptions');
+        $descriptionJson = $metadata->description_json;
+
+        expect($descriptionJson)->toHaveKeys(['description_groups', 'material_descriptions']);
+
+        $groups = $descriptionJson['description_groups'];
+        $entries = $groups[0]['entries'];
+
+        expect($groups)->toHaveCount(1)
+            ->and($entries)->toHaveCount(3)
+            ->and($entries[0])->toBe(['value' => 'N', 'scheme' => 'direction'])
+            ->and($entries[1]['value'])->toContain('first plunges south-eastwards')
+            ->and($entries[1]['scheme'])->toBe('inclination')
+            ->and($entries[2])->toBe(['value' => 'material: cuttings', 'scheme' => null])
+            ->and($descriptionJson['material_descriptions'])->toBe(array_column($entries, 'value'));
     });
 });
 

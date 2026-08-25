@@ -1982,10 +1982,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     <strong>Acquisition</strong> (Material, material-specific Classification, structured Description fields labelled
                                     by their scheme, Geological Unit, Comments, Minimum/Maximum Depth, Depth Scale, Sizes, Collection Method and
                                     Collection Method Description, Platform Type, Platform Name, Platform Description, Funding Agency, Chief
-                                    Scientist, Start/End Date), and{' '}
-                                    <strong>Repositories</strong> (current and original repository, their contacts, and sample access). Draft family
-                                    members remain visible without a link, while empty fields and empty modules are hidden automatically on the
-                                    rendered page.
+                                    Scientist, Start/End Date), and <strong>Repositories</strong> (current and original repository, their contacts,
+                                    and sample access). Draft family members remain visible without a link, while empty fields and empty modules are
+                                    hidden automatically on the rendered page.
                                 </p>
                                 <p>
                                     The right-column <strong>Location / Map</strong> module becomes <strong>Sampling Location</strong> for IGSNs. It
