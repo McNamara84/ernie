@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@tests/vitest/utils/render';
 import L from 'leaflet';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -18,7 +18,12 @@ vi.mock('react-leaflet', () => ({
         </div>
     )),
     TileLayer: vi.fn(({ noWrap, url }) => <div data-testid="tile-layer" data-no-wrap={String(noWrap)} data-url={url} />),
-    Marker: vi.fn(({ position }) => <div data-testid="marker" data-position={JSON.stringify(position)} />),
+    Marker: vi.fn(({ position, children }) => (
+        <div data-testid="marker" data-position={JSON.stringify(position)}>
+            {children}
+        </div>
+    )),
+    Popup: vi.fn(({ children }) => <div data-testid="popup">{children}</div>),
     Rectangle: vi.fn(({ bounds }) => <div data-testid="rectangle" data-bounds={JSON.stringify(bounds)} />),
     Polygon: vi.fn(({ positions }) => <div data-testid="polygon" data-positions={JSON.stringify(positions)} />),
     Polyline: vi.fn(({ positions }) => <div data-testid="polyline" data-positions={JSON.stringify(positions)} />),
@@ -241,6 +246,104 @@ describe('LocationSection', () => {
 
             const markers = screen.getAllByTestId('marker');
             expect(markers).toHaveLength(2);
+        });
+
+        it('should render the location description in the point marker popup', () => {
+            render(
+                <LocationSection
+                    geoLocations={[
+                        {
+                            id: 1,
+                            place: 'KOU Kourou maintained by: Bureau Central de Magnétisme Terrestre, BCMT',
+                            point_longitude: -52.73,
+                            point_latitude: 5.21,
+                            west_bound_longitude: null,
+                            east_bound_longitude: null,
+                            south_bound_latitude: null,
+                            north_bound_latitude: null,
+                            polygon_points: null,
+                            geo_type: 'point',
+                        },
+                    ]}
+                />,
+            );
+
+            expect(screen.getByTestId('popup')).toHaveTextContent('KOU Kourou maintained by: Bureau Central de Magnétisme Terrestre, BCMT');
+        });
+
+        it('should keep each description associated with its point marker', () => {
+            render(
+                <LocationSection
+                    geoLocations={[
+                        {
+                            id: 1,
+                            place: 'KOU Kourou',
+                            point_longitude: -52.73,
+                            point_latitude: 5.21,
+                            west_bound_longitude: null,
+                            east_bound_longitude: null,
+                            south_bound_latitude: null,
+                            north_bound_latitude: null,
+                            polygon_points: null,
+                            geo_type: 'point',
+                        },
+                        {
+                            id: 2,
+                            place: 'NGK Niemegk',
+                            point_longitude: 12.68,
+                            point_latitude: 52.07,
+                            west_bound_longitude: null,
+                            east_bound_longitude: null,
+                            south_bound_latitude: null,
+                            north_bound_latitude: null,
+                            polygon_points: null,
+                            geo_type: 'point',
+                        },
+                    ]}
+                />,
+            );
+
+            const markers = screen.getAllByTestId('marker');
+            expect(within(markers[0]).getByTestId('popup')).toHaveTextContent('KOU Kourou');
+            expect(within(markers[0]).queryByText('NGK Niemegk')).not.toBeInTheDocument();
+            expect(within(markers[1]).getByTestId('popup')).toHaveTextContent('NGK Niemegk');
+            expect(within(markers[1]).queryByText('KOU Kourou')).not.toBeInTheDocument();
+        });
+
+        it('should not render empty popups for point markers without descriptions', () => {
+            render(
+                <LocationSection
+                    geoLocations={[
+                        {
+                            id: 1,
+                            place: null,
+                            point_longitude: 10.0,
+                            point_latitude: 50.0,
+                            west_bound_longitude: null,
+                            east_bound_longitude: null,
+                            south_bound_latitude: null,
+                            north_bound_latitude: null,
+                            polygon_points: null,
+                            geo_type: 'point',
+                        },
+                        {
+                            id: 2,
+                            place: '   ',
+                            point_longitude: 12.0,
+                            point_latitude: 52.0,
+                            west_bound_longitude: null,
+                            east_bound_longitude: null,
+                            south_bound_latitude: null,
+                            north_bound_latitude: null,
+                            polygon_points: null,
+                            geo_type: 'point',
+                        },
+                    ]}
+                />,
+            );
+
+            expect(screen.getAllByTestId('marker')).toHaveLength(2);
+            expect(screen.queryByTestId('popup')).not.toBeInTheDocument();
         });
     });
 

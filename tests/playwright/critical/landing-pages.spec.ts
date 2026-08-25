@@ -164,6 +164,12 @@ test.describe('Landing Page - GeoLocations', () => {
     const markers = page.locator('.leaflet-marker-icon');
     const markerCount = await markers.count();
     expect(markerCount).toBeGreaterThan(0);
+
+    // Clicking a point marker should expose its imported coverage description.
+    await markers.first().click();
+    const popup = page.locator('.leaflet-popup-content');
+    await expect(popup).toBeVisible();
+    await expect(popup).toContainText('GFZ Potsdam');
   });
 
   test('displays map with bounding boxes', async ({ page }) => {
