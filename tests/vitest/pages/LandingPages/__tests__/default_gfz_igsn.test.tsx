@@ -457,7 +457,8 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(acquisition.getByText('Basalt')).toBeInTheDocument();
             expect(acquisition.getByText('Basalt Classification')).toBeInTheDocument();
             expect(acquisition.getByText('Igneous, Volcanic')).toBeInTheDocument();
-            expect(acquisition.getByText('Basalt Description')).toBeInTheDocument();
+            expect(acquisition.getByText('Description')).toBeInTheDocument();
+            expect(acquisition.queryByText('Basalt Description')).not.toBeInTheDocument();
             expect(acquisition.getByText('Fine-grained volcanic rock')).toBeInTheDocument();
             expect(acquisition.getByText('Hand sampling')).toBeInTheDocument();
             expect(acquisition.getByText('Collection Method Description')).toBeInTheDocument();

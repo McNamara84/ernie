@@ -67,8 +67,83 @@ it('separates deduplicated material descriptions from explicit sample comments',
     </resource>
     XML);
 
-    expect($metadata['material_descriptions'])->toBe(['Smell: None, sediment type: sandy'])
+    expect($metadata['description_groups'])->toBe([['entries' => [[
+        'value' => 'Smell: None, sediment type: sandy',
+        'scheme' => null,
+    ]]]])
+        ->and($metadata['material_descriptions'])->toBe(['Smell: None, sediment type: sandy'])
         ->and($metadata['comments'])->toBe(['Stored frozen after collection']);
+});
+
+it('preserves description schemes groups order and semicolons from DIF XML', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(<<<'XML'
+    <resource>
+      <description>Flattened summary that must not be rendered</description>
+      <sample>
+        <material>Rock</material>
+        <descriptions>
+          <description>Core Oriented? 0; RQD Abundance: 0;</description>
+          <description descriptionScheme="Rock Type">Musc-bio schist</description>
+        </descriptions>
+        <descriptions>
+          <description>white</description>
+          <description descriptionScheme="Rock Type">Quartzite</description>
+        </descriptions>
+        <locality_description>Near the northern drill site</locality_description>
+      </sample>
+    </resource>
+    XML);
+
+    expect($metadata['description_groups'])->toBe([
+        ['entries' => [
+            ['value' => 'Core Oriented? 0; RQD Abundance: 0;', 'scheme' => null],
+            ['value' => 'Musc-bio schist', 'scheme' => 'Rock Type'],
+        ]],
+        ['entries' => [
+            ['value' => 'white', 'scheme' => null],
+            ['value' => 'Quartzite', 'scheme' => 'Rock Type'],
+        ]],
+    ])->and($metadata['material_descriptions'])->toBe([
+        'Core Oriented? 0; RQD Abundance: 0;',
+        'Musc-bio schist',
+        'white',
+        'Quartzite',
+    ])->and($metadata['location']['locality_description'])->toBe('Near the northern drill site');
+});
+
+it('uses direct sample and root descriptions only as deduplicated fallback sources', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(<<<'XML'
+    <resource>
+      <description>Same &amp; decoded</description>
+      <description>Root only</description>
+      <sample>
+        <description>Same &amp; decoded</description>
+        <description descriptionScheme="Kind">Sample only</description>
+        <description descriptionScheme="Kind">Root only</description>
+      </sample>
+    </resource>
+    XML);
+
+    expect($metadata['description_groups'])->toBe([['entries' => [
+        ['value' => 'Same & decoded', 'scheme' => null],
+        ['value' => 'Sample only', 'scheme' => 'Kind'],
+        ['value' => 'Root only', 'scheme' => 'Kind'],
+    ]]]);
+});
+
+it('keeps equivalent entries when they belong to different source groups', function (): void {
+    $fields = (new IgsnDifMetadataExtractor)->extractDescriptionFields(<<<'XML'
+    <resource><sample>
+      <material>unsupported but irrelevant to the targeted extraction</material>
+      <descriptions><description>same</description></descriptions>
+      <descriptions><description>same</description></descriptions>
+    </sample></resource>
+    XML);
+
+    expect($fields['description_groups'])->toBe([
+        ['entries' => [['value' => 'same', 'scheme' => null]]],
+        ['entries' => [['value' => 'same', 'scheme' => null]]],
+    ]);
 });
 
 it('canonicalizes the legacy not-applicable material spelling', function (): void {

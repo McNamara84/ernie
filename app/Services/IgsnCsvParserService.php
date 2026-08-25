@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\Igsn\IgsnDescriptionNormalizerService;
 use App\Services\Igsn\IgsnVocabularyNormalizerService;
 use App\Support\FunderIdentifierTypeDetector;
 use Illuminate\Support\Str;
@@ -19,6 +20,7 @@ class IgsnCsvParserService
 {
     public function __construct(
         private readonly IgsnVocabularyNormalizerService $vocabularyNormalizer = new IgsnVocabularyNormalizerService,
+        private readonly IgsnDescriptionNormalizerService $descriptionNormalizer = new IgsnDescriptionNormalizerService,
     ) {}
 
     /**
@@ -688,7 +690,7 @@ class IgsnCsvParserService
     /**
      * Parse description JSON field.
      *
-     * @return array<mixed>|null
+     * @return array{description_groups: list<array{entries: list<array{value: string, scheme: string|null}>}>, material_descriptions: list<string>}|null
      */
     public function parseDescriptionJson(string $json): ?array
     {
@@ -698,8 +700,12 @@ class IgsnCsvParserService
 
         try {
             $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+            $groups = $this->descriptionNormalizer->normalizeCsvPayload($decoded);
 
-            return is_array($decoded) ? $decoded : null;
+            return $groups !== [] ? [
+                'description_groups' => $groups,
+                'material_descriptions' => $this->descriptionNormalizer->legacyValues($groups),
+            ] : null;
         } catch (\JsonException) {
             return null;
         }

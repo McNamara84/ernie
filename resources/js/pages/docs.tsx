@@ -1979,8 +1979,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     For IGSN landing pages, the left column also includes <strong>General</strong> (Project, Campaign, Type, Name,
                                     IGSN, Parent IGSN, Purpose, Release Date), <strong>Sample Family</strong> (the complete locally known hierarchy
                                     from the highest ancestor to all descendants, with links to published family members),{' '}
-                                    <strong>Acquisition</strong> (Material, Rock Classification, Geological Unit, Comments, Minimum/Maximum Depth,
-                                    Depth Scale, Sizes, Collection Method, Funding Agency, Chief Scientist, Start/End Date), and{' '}
+                                    <strong>Acquisition</strong> (Material, material-specific Classification, structured Description fields labelled
+                                    by their scheme, Geological Unit, Comments, Minimum/Maximum Depth, Depth Scale, Sizes, Collection Method and
+                                    Collection Method Description, Platform Type, Platform Name, Platform Description, Funding Agency, Chief
+                                    Scientist, Start/End Date), and{' '}
                                     <strong>Repositories</strong> (current and original repository, their contacts, and sample access). Draft family
                                     members remain visible without a link, while empty fields and empty modules are hidden automatically on the
                                     rendered page.
@@ -1988,8 +1990,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>
                                     The right-column <strong>Location / Map</strong> module becomes <strong>Sampling Location</strong> for IGSNs. It
                                     can display latitude and longitude, bounding coordinates, coordinate system, elevation, location type and name,
-                                    location description, country, province, county, and city. One coordinate pair is rendered as a point, two pairs
-                                    as a box, and three or more pairs as a polygon.
+                                    Location Description, Locality Description, country, province, county, and city. One coordinate pair is rendered
+                                    as a point, two pairs as a box, and three or more pairs as a polygon.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Upload Custom Logo (Optional)">

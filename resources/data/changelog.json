@@ -1,5 +1,22 @@
 [
     {
+        "version": "1.0.2",
+        "date": "2026-08-26",
+        "features": [],
+        "improvements": [
+            {
+                "title": "Safer Data Editor and DataCite Actions",
+                "description": "The Data Editor now presents separate actions for saving drafts, validating metadata, registering or updating DataCite records, and previewing or opening landing pages according to publication status. Every DataCite write requires explicit confirmation, published landing pages open without saving pending editor changes, and successful new DOI registrations celebrate the canonically published Resource and IGSN inventory in ERNIE."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "Correct IGSN Description Labels",
+                "description": "IGSN landing pages now label legacy descriptions from their actual description scheme instead of the sample material, while preserving source groups, entry order, and semicolon-containing values. Locality and platform descriptions also appear in their proper sections, and a dry-run-first backfill command can safely refresh existing legacy IGSNs without overwriting curated metadata."
+            }
+        ]
+    },
+    {
         "version": "1.0.1",
         "date": "2026-08-25",
         "features": [

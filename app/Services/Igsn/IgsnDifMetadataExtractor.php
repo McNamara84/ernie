@@ -11,7 +11,35 @@ class IgsnDifMetadataExtractor
 {
     public function __construct(
         private readonly IgsnVocabularyNormalizerService $vocabularyNormalizer = new IgsnVocabularyNormalizerService,
+        private readonly IgsnDescriptionNormalizerService $descriptionNormalizer = new IgsnDescriptionNormalizerService,
     ) {}
+
+    /**
+     * Extract only the fields covered by Issue #1167. This deliberately avoids
+     * validating unrelated controlled vocabularies during the targeted backfill.
+     *
+     * @return array{description_groups: list<array{entries: list<array{value: string, scheme: string|null}>}>, material_descriptions: list<string>, locality_description: string|null}|null
+     */
+    public function extractDescriptionFields(string $difXml): ?array
+    {
+        $root = @simplexml_load_string($difXml, \SimpleXMLElement::class, LIBXML_NONET);
+        if ($root === false) {
+            return null;
+        }
+
+        $samples = $root->xpath('//*[local-name()="sample"]');
+        if (! is_array($samples) || $samples === []) {
+            return null;
+        }
+
+        $groups = $this->descriptionGroups($root, $samples[0]);
+
+        return [
+            'description_groups' => $groups,
+            'material_descriptions' => $this->descriptionNormalizer->legacyValues($groups),
+            'locality_description' => $this->first($samples[0], ['locality_description']),
+        ];
+    }
 
     /**
      * @return array<string, mixed>|null
@@ -39,11 +67,7 @@ class IgsnDifMetadataExtractor
             $pairs[] = ['latitude' => $endLatitude, 'longitude' => $endLongitude];
         }
 
-        $rootDescriptions = $this->directValues($root, 'description');
-        $sampleDescriptions = array_merge(
-            $this->directValues($sample, 'description'),
-            $this->descendantValues($sample, 'descriptions', 'description'),
-        );
+        $descriptionGroups = $this->descriptionGroups($root, $sample);
         $comments = array_merge(
             $this->directValues($root, 'sample_comment'),
             $this->directValues($root, 'comment'),
@@ -87,13 +111,15 @@ class IgsnDifMetadataExtractor
             )),
             'parent_igsn' => $this->first($sample, ['parent_igsn']),
             'sample_access' => $this->first($root, ['sampleAccess']) ?? $this->first($sample, ['sample_access']),
-            'material_descriptions' => $this->uniqueValues(array_merge($rootDescriptions, $sampleDescriptions)),
+            'description_groups' => $descriptionGroups,
+            'material_descriptions' => $this->descriptionNormalizer->legacyValues($descriptionGroups),
             'comments' => $this->uniqueValues($comments),
             'location' => [
                 'pairs' => $pairs,
                 'place' => $this->first($sample, ['primary_location_name', 'locality']),
                 'location_type' => $this->first($sample, ['primary_location_type', 'location_type']),
                 'location_description' => $this->first($sample, ['location_description']),
+                'locality_description' => $this->first($sample, ['locality_description']),
                 'country' => $this->first($sample, ['country']),
                 'province' => $this->first($sample, ['province']),
                 'county' => $this->first($sample, ['county']),
@@ -146,6 +172,72 @@ class IgsnDifMetadataExtractor
         $nodes = $parent->xpath('./*[local-name()="'.$container.'"]/*[local-name()="'.$name.'"]');
 
         return is_array($nodes) ? $this->normalizeNodes($nodes) : [];
+    }
+
+    /**
+     * @return list<array{entries: list<array{value: string, scheme: string|null}>}>
+     */
+    private function descriptionGroups(\SimpleXMLElement $root, \SimpleXMLElement $sample): array
+    {
+        $containers = $sample->xpath('./*[local-name()="descriptions"]');
+        $groups = [];
+
+        if (is_array($containers)) {
+            foreach ($containers as $container) {
+                $nodes = $container->xpath('./*[local-name()="description"]');
+                if (is_array($nodes)) {
+                    $groups[] = ['entries' => $this->descriptionEntries($nodes)];
+                }
+            }
+        }
+
+        $groups = $this->descriptionNormalizer->normalizeGroups($groups);
+        if ($groups !== []) {
+            return $groups;
+        }
+
+        $sampleNodes = $sample->xpath('./*[local-name()="description"]');
+        $rootNodes = $root->xpath('./*[local-name()="description"]');
+        $entries = $this->descriptionEntries(is_array($sampleNodes) ? $sampleNodes : []);
+        $seen = [];
+        foreach ($entries as $entry) {
+            $seen[$this->descriptionValueKey($entry['value'])] = true;
+        }
+
+        foreach ($this->descriptionEntries(is_array($rootNodes) ? $rootNodes : []) as $entry) {
+            $key = $this->descriptionValueKey($entry['value']);
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $entries[] = $entry;
+            }
+        }
+
+        return $this->descriptionNormalizer->normalizeGroups([['entries' => $entries]]);
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $nodes
+     * @return list<array{value: string, scheme: string|null}>
+     */
+    private function descriptionEntries(array $nodes): array
+    {
+        $entries = [];
+
+        foreach ($nodes as $node) {
+            $schemeNodes = $node->xpath('./@*[local-name()="descriptionScheme"]');
+            $scheme = is_array($schemeNodes) && isset($schemeNodes[0]) ? trim((string) $schemeNodes[0]) : null;
+            $entries[] = [
+                'value' => trim((string) $node),
+                'scheme' => $scheme !== '' ? $scheme : null,
+            ];
+        }
+
+        return $entries;
+    }
+
+    private function descriptionValueKey(string $value): string
+    {
+        return mb_strtolower(trim($value));
     }
 
     /** @param list<string> $names */
