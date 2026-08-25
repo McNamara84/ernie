@@ -38,7 +38,7 @@ const { mockRouterPut, mockRouterVisit, mockSetupLandingPageModal, mockUsePagePr
         options?.onSuccess?.();
     }),
     mockSetupLandingPageModal: vi.fn(),
-    mockUsePageProps: vi.fn(() => ({
+    mockUsePageProps: vi.fn((): Record<string, unknown> => ({
         curationAccordionOpenItems: null as string[] | null,
         curationAccordionRevision: null as number | null,
     })),
@@ -463,6 +463,7 @@ describe('DataCiteForm', () => {
         // Mock axios.post for form submission - return axios response format
         // Note: Vocabularies are loaded via fetch, not axios
         const mockedAxios = axios as unknown as {
+            get: ReturnType<typeof vi.fn>;
             post: ReturnType<typeof vi.fn>;
             put: ReturnType<typeof vi.fn>;
             isAxiosError: (error: unknown) => boolean;
@@ -475,6 +476,10 @@ describe('DataCiteForm', () => {
             statusText: 'OK',
             headers: {},
             config: {},
+        });
+        mockedAxios.get = vi.fn().mockResolvedValue({
+            data: { test: ['10.83279'], production: ['10.5880'], test_mode: true },
+            status: 200,
         });
         mockedAxios.put = vi.fn().mockResolvedValue({
             data: undefined,
@@ -1351,7 +1356,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        const saveButton = screen.getByRole('button', { name: 'Save & Validate' });
+        const saveButton = screen.getByRole('button', { name: 'Validate' });
 
         // Save button should always be enabled, even when required fields are empty
         expect(saveButton).toBeEnabled();
@@ -2191,7 +2196,7 @@ describe('DataCiteForm', () => {
 
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        const saveButton = screen.getByRole('button', { name: 'Save & Validate' });
+        const saveButton = screen.getByRole('button', { name: 'Validate' });
 
         const titleInput = screen.getByRole('textbox', { name: /Title/ });
         await user.type(titleInput, 'Contact Title');
@@ -3154,7 +3159,7 @@ describe('DataCiteForm', () => {
         ];
     };
 
-    it('submits data and redirects to resources on success (Issue #624)', { timeout: 60000 }, async () => {
+    it('submits data and stays in the editor after local validation', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Resource stored!' };
@@ -3182,7 +3187,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        const saveButton = screen.getByRole('button', { name: /save & validate/i });
+        const saveButton = screen.getByRole('button', { name: /^validate$/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
@@ -3243,18 +3248,8 @@ describe('DataCiteForm', () => {
             },
         ]);
 
-        // Should redirect to resources list instead of showing modal (Issue #624)
-        await waitFor(() => {
-            expect(mockRouterVisit).toHaveBeenCalledWith(
-                '/resources',
-                expect.objectContaining({
-                    onError: expect.any(Function),
-                }),
-            );
-        });
-
-        const { toast } = await import('sonner');
-        expect(toast.success).toHaveBeenCalledWith('Resource stored!');
+        await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Resource stored!'));
+        expect(mockRouterVisit).not.toHaveBeenCalled();
     });
 
     it('submits more than twenty historical MSL laboratories while the vocabulary is disabled', { timeout: 60000 }, async () => {
@@ -3314,7 +3309,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
         const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
@@ -3364,7 +3359,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredAbstract(user);
 
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
         const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
@@ -3420,7 +3415,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredAbstract(user);
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
         const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
@@ -3497,7 +3492,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredAbstract(user);
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
         const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
@@ -3551,7 +3546,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredAbstract(user);
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
         const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
@@ -3612,7 +3607,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredAbstract(user);
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
         const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
@@ -3656,7 +3651,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        const saveButton = screen.getByRole('button', { name: /save & validate/i });
+        const saveButton = screen.getByRole('button', { name: /^validate$/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
@@ -3686,18 +3681,8 @@ describe('DataCiteForm', () => {
             }),
         ]);
 
-        // Should redirect to resources list instead of showing modal (Issue #624)
-        await waitFor(() => {
-            expect(mockRouterVisit).toHaveBeenCalledWith(
-                '/resources',
-                expect.objectContaining({
-                    onError: expect.any(Function),
-                }),
-            );
-        });
-
-        const { toast } = await import('sonner');
-        expect(toast.success).toHaveBeenCalledWith('Resource updated!');
+        await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Resource updated!'));
+        expect(mockRouterVisit).not.toHaveBeenCalled();
     });
 
     it('serializes person and institution authors in the save payload', { timeout: 60000 }, async () => {
@@ -3754,7 +3739,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        const saveButton = screen.getByRole('button', { name: /save & validate/i });
+        const saveButton = screen.getByRole('button', { name: /^validate$/i });
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
 
@@ -3841,7 +3826,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        const saveButton = screen.getByRole('button', { name: /save & validate/i });
+        const saveButton = screen.getByRole('button', { name: /^validate$/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
@@ -3950,7 +3935,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredAbstract(user);
 
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /^Selected datacenter is invalid\.$/i })).toBeInTheDocument();
@@ -4005,7 +3990,7 @@ describe('DataCiteForm', () => {
         const datacenterSelect = screen.getByTestId('datacenter-select');
         const datacenterScrollSpy = vi.spyOn(datacenterSelect, 'scrollIntoView');
 
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /^A datacenter is required\.$/i })).toBeInTheDocument();
@@ -4057,7 +4042,7 @@ describe('DataCiteForm', () => {
 
         const datacenterSelect = screen.getByTestId('datacenter-select');
 
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
         await waitFor(() => {
             expect(datacenterSelect).toHaveAttribute('aria-invalid', 'true');
@@ -4105,7 +4090,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAbstract(user, 'This is a sufficiently long abstract for author navigation coverage.');
 
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /^At least one author is required\.$/i })).toBeInTheDocument();
@@ -4178,7 +4163,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredAbstract(user, 'This is a sufficiently long abstract for funding validation coverage.');
 
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
         await waitFor(() => {
             expect(
@@ -4256,7 +4241,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        const saveButton = screen.getByRole('button', { name: /save & validate/i });
+        const saveButton = screen.getByRole('button', { name: /^validate$/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
@@ -4320,7 +4305,7 @@ describe('DataCiteForm', () => {
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             // Save button should be enabled even without Abstract
             expect(saveButton).toBeEnabled();
 
@@ -4452,7 +4437,7 @@ describe('DataCiteForm', () => {
             const methodsTextarea = screen.getByPlaceholderText(/Describe the methods/i);
             const abstractTextarea = screen.getByPlaceholderText(/Enter a brief summary/i);
 
-            await user.click(screen.getByRole('button', { name: /save & validate/i }));
+            await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
             await waitFor(() => {
                 expect(abstractTextarea).toHaveAttribute('aria-invalid', 'true');
@@ -4512,7 +4497,7 @@ describe('DataCiteForm', () => {
             const abstractTextarea = screen.getByPlaceholderText(/Enter a brief summary/i);
             const methodsTextarea = screen.getByPlaceholderText(/Describe the methods/i);
 
-            await user.click(screen.getByRole('button', { name: /save & validate/i }));
+            await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
             await waitFor(() => {
                 expect(methodsTextarea).toHaveAttribute('aria-invalid', 'true');
@@ -4553,7 +4538,7 @@ describe('DataCiteForm', () => {
             const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
             await user.type(abstractTextarea, 'This is a sufficiently long abstract for save button coverage.');
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await waitFor(() => expect(saveButton).toBeEnabled());
         });
 
@@ -4589,7 +4574,7 @@ describe('DataCiteForm', () => {
             const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
             await user.type(abstractTextarea, 'Short abstract');
 
-            await user.click(screen.getByRole('button', { name: /save & validate/i }));
+            await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
             await waitFor(() => {
                 expect(getSaveAxiosCall()).toBeDefined();
@@ -4678,7 +4663,7 @@ describe('DataCiteForm', () => {
                 />,
             );
 
-            await user.click(screen.getByRole('button', { name: /save & validate/i }));
+            await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
             await waitFor(() => {
                 expect(screen.getByRole('button', { name: /Abstract must not exceed 17500 characters \(current: 17501\)/i })).toBeInTheDocument();
@@ -4746,7 +4731,7 @@ describe('DataCiteForm', () => {
             expect(within(methodsGroup!).getByRole('tab', { name: 'English (en)' })).toBeInTheDocument();
             expect(within(methodsGroup!).getByRole('tab', { name: 'German (de)' })).toBeInTheDocument();
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await waitFor(() => expect(saveButton).toBeEnabled());
             await user.click(saveButton);
 
@@ -4828,7 +4813,7 @@ describe('DataCiteForm', () => {
             const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
             await user.type(abstractTextarea, 'This is a sufficiently long abstract for payload submission tests.');
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await waitFor(() => expect(saveButton).toBeEnabled());
             await user.click(saveButton);
 
@@ -4884,7 +4869,7 @@ describe('DataCiteForm', () => {
             const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
             await user.type(abstractTextarea, '   This is a sufficiently long abstract with spaces for trimming tests.   ');
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await waitFor(() => expect(saveButton).toBeEnabled());
             await user.click(saveButton);
 
@@ -5886,7 +5871,7 @@ describe('DataCiteForm', () => {
             await waitFor(() => {
                 expect(mockedAxios.post).toHaveBeenCalledWith(
                     '/editor/resources/draft',
-                    expect.objectContaining({ resourceId: 42 }),
+                    expect.objectContaining({ resourceId: 42, intent: 'landing-page-preview' }),
                     expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/json' }) }),
                 );
             });
@@ -6181,7 +6166,7 @@ describe('DataCiteForm', () => {
             await waitFor(() => {
                 expect(mockedAxios.post).toHaveBeenCalledWith(
                     '/editor/resources/draft',
-                    expect.objectContaining({ resourceId: 44 }),
+                    expect.objectContaining({ resourceId: 44, intent: 'landing-page-preview' }),
                     expect.any(Object),
                 );
             });
@@ -6555,6 +6540,7 @@ describe('DataCiteForm', () => {
 
             const [url, data] = mockedAxios.post.mock.calls[0];
             expect(url).toBe('/editor/resources/draft');
+            expect(data.intent).toBe('save-draft');
             expect(data.titles).toEqual([{ title: 'Draft Dataset', titleType: 'main-title', language: null }]);
         });
 
@@ -6865,6 +6851,7 @@ describe('DataCiteForm', () => {
                     '/editor/resources/draft',
                     expect.objectContaining({
                         resourceId: 42,
+                        intent: 'autosave',
                         titles: [{ title: 'Changed Draft', titleType: 'main-title', language: null }],
                     }),
                     expect.objectContaining({
@@ -6917,7 +6904,7 @@ describe('DataCiteForm', () => {
         });
     });
 
-    describe('Redirect after saving (Issue #624)', () => {
+    describe('Local validation actions (Issues #1162 and #1163)', () => {
         const renderFormWithDefaults = (overrides = {}) =>
             render(
                 <DataCiteForm
@@ -6941,7 +6928,7 @@ describe('DataCiteForm', () => {
                 />,
             );
 
-        it('shows DataCite sync success toast on redirect', { timeout: 60000 }, async () => {
+        it('does not synchronize with DataCite or redirect after local validation', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
@@ -6964,24 +6951,16 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
-            await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.any(Object));
-            });
+            await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Resource saved!'));
 
-            const { toast } = await import('sonner');
-            expect(toast.success).toHaveBeenCalledWith('Resource saved!');
-            expect(toast.success).toHaveBeenCalledWith(
-                'DataCite metadata synchronized',
-                expect.objectContaining({
-                    description: 'DOI 10.5880/test.2024.001 has been updated.',
-                }),
-            );
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+            expect(toast.success).not.toHaveBeenCalledWith('DataCite metadata synchronized', expect.anything());
         });
 
-        it('shows DataCite sync warning toast on redirect', { timeout: 60000 }, async () => {
+        it('ignores obsolete DataCite warning fields in a local-save response', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
@@ -7004,24 +6983,16 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
-            await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.any(Object));
-            });
+            await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Resource saved!'));
 
-            const { toast } = await import('sonner');
-            expect(toast.success).toHaveBeenCalledWith('Resource saved!');
-            expect(toast.warning).toHaveBeenCalledWith(
-                'DataCite update failed',
-                expect.objectContaining({
-                    description: 'API timeout',
-                }),
-            );
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+            expect(toast.warning).not.toHaveBeenCalledWith('DataCite update failed', expect.anything());
         });
 
-        it('handles null DOI in DataCite sync toast gracefully', { timeout: 60000 }, async () => {
+        it('does not show DataCite feedback during local validation', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
@@ -7044,24 +7015,16 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
-            await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.any(Object));
-            });
+            await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Resource saved!'));
 
-            const { toast } = await import('sonner');
-            // Should use fallback description when DOI is null
-            expect(toast.success).toHaveBeenCalledWith(
-                'DataCite metadata synchronized',
-                expect.objectContaining({
-                    description: 'Metadata has been updated.',
-                }),
-            );
+            expect(toast.success).not.toHaveBeenCalledWith('DataCite metadata synchronized', expect.anything());
+            expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it('shows warning toast when navigation fails after successful save', { timeout: 60000 }, async () => {
+        it('stays in the editor after successful validation', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             // Make router.visit call onError instead of onSuccess
@@ -7080,21 +7043,14 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
-            await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalled();
-            });
-
-            const { toast } = await import('sonner');
-            // Success toast should still be shown (fired before redirect)
-            expect(toast.success).toHaveBeenCalledWith('Resource saved!');
-            // Navigation error warning should also be shown
-            expect(toast.warning).toHaveBeenCalledWith('Could not navigate to the resources list. Your data has been saved.');
+            await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Resource saved!'));
+            expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it('persists resource ID when navigation fails so second save updates instead of duplicating', { timeout: 60000 }, async () => {
+        it('persists the resource ID so a second local validation updates instead of duplicating', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             // First save: backend returns resource ID, but navigation fails
@@ -7114,12 +7070,10 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
-            await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalled();
-            });
+            await waitFor(() => expect(mockPost).toHaveBeenCalledOnce());
 
             // Reset mocks for second save — navigation succeeds this time
             mockPost.mockClear();
@@ -7128,9 +7082,6 @@ describe('DataCiteForm', () => {
                 status: 200,
             });
             mockRouterVisit.mockClear();
-            mockRouterVisit.mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
-                options?.onSuccess?.();
-            });
 
             // Second save
             await user.click(saveButton);
@@ -7223,7 +7174,7 @@ describe('DataCiteForm', () => {
             );
 
             // Submit without filling required fields
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
             // Should stay on editor — no redirect
@@ -7252,7 +7203,7 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
             // Should NOT redirect on backend error
@@ -7274,7 +7225,7 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
             // Should NOT redirect on network error
@@ -7298,7 +7249,7 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
             // Should NOT redirect on CSRF error
@@ -7308,7 +7259,7 @@ describe('DataCiteForm', () => {
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it('uses default success message when backend returns none', { timeout: 60000 }, async () => {
+        it('uses the local-validation default success message when the backend returns none', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
@@ -7322,15 +7273,11 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
-            await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.any(Object));
-            });
-
-            const { toast } = await import('sonner');
-            expect(toast.success).toHaveBeenCalledWith('Successfully saved resource.');
+            await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Resource is valid and has been saved.'));
+            expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
         it('no success modal is rendered in the DOM', { timeout: 60000 }, async () => {
@@ -7347,15 +7294,201 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
-            await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalled();
-            });
+            await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Saved!'));
 
             // No success dialog should ever appear
             expect(screen.queryByRole('dialog', { name: /successfully saved resource/i })).not.toBeInTheDocument();
+        });
+    });
+
+    describe('Editor DataCite actions (Issues #1162 and #1163)', () => {
+        beforeEach(() => {
+            mockUsePageProps.mockReturnValue({
+                auth: { user: { can_register_doi: true } },
+                curationAccordionOpenItems: null,
+                curationAccordionRevision: null,
+            });
+        });
+
+        it('does nothing on confirmation cancel, then saves, sets up a landing page, registers, and celebrates', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+
+            mockedAxios.post.mockImplementation((url: string) => {
+                if (url === '/editor/resources') {
+                    return Promise.resolve({
+                        data: { message: 'Validated', resource: { id: 42, publicStatus: 'review' } },
+                        status: 200,
+                    });
+                }
+
+                if (url === '/resources/42/register-doi') {
+                    return Promise.resolve({
+                        data: {
+                            success: true,
+                            message: 'DOI registered successfully',
+                            doi: '10.83279/example',
+                            mode: 'test',
+                            updated: false,
+                            publishedRecordCounts: { resources: 120, igsns: 5, total: 125 },
+                        },
+                        status: 200,
+                    });
+                }
+
+                throw new Error(`Unexpected POST ${url}`);
+            });
+
+            renderDataCiteForm({
+                initialYear: '2024',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Registration Dataset', titleType: 'main-title' }],
+                initialLicenses: ['MIT'],
+                availableDatacenters,
+                initialDatacenterId: 1,
+            });
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+
+            await user.click(screen.getByTestId('datacite-action-button'));
+            expect(await screen.findByTestId('editor-datacite-confirmation-dialog')).toBeInTheDocument();
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+
+            await user.click(screen.getByRole('button', { name: 'Cancel' }));
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+
+            await user.click(screen.getByTestId('datacite-action-button'));
+            const confirmButton = await screen.findByTestId('confirm-editor-datacite-action');
+            await waitFor(() => expect(confirmButton).toBeEnabled());
+            await user.click(confirmButton);
+
+            await waitFor(() => expect(screen.getByTestId('setup-landing-page-modal')).toBeInTheDocument());
+            expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+            expect(mockedAxios.post.mock.calls[0][0]).toBe('/editor/resources');
+
+            let modalProps = mockSetupLandingPageModal.mock.lastCall?.[0] as MockSetupLandingPageModalProps;
+            act(() => modalProps.onClose?.());
+            expect(toast.info).toHaveBeenCalledWith('DataCite registration cancelled. Your validated resource has been saved.');
+            expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+
+            await user.click(screen.getByTestId('datacite-action-button'));
+            const secondConfirmButton = await screen.findByTestId('confirm-editor-datacite-action');
+            await waitFor(() => expect(secondConfirmButton).toBeEnabled());
+            await user.click(secondConfirmButton);
+            await waitFor(() => expect(screen.getByTestId('setup-landing-page-modal')).toBeInTheDocument());
+            expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+
+            modalProps = mockSetupLandingPageModal.mock.lastCall?.[0] as MockSetupLandingPageModalProps;
+            await act(async () => {
+                await modalProps.onSuccess?.({
+                    id: 7,
+                    resource_id: 42,
+                    template: 'default_gfz',
+                    status: 'published',
+                    view_count: 0,
+                    created_at: '2026-08-25T00:00:00Z',
+                    updated_at: '2026-08-25T00:00:00Z',
+                    public_url: 'https://example.test/landing-page',
+                    preview_url: 'https://example.test/landing-page/preview',
+                });
+            });
+
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(3));
+            expect(mockedAxios.post.mock.calls[2]).toEqual(['/resources/42/register-doi', { prefix: '10.83279', force: false }]);
+            expect(await screen.findByTestId('doi-registration-success-dialog')).toBeInTheDocument();
+            expect(screen.getByTestId('published-record-total')).toHaveTextContent('125');
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('shows only Update Metadata and Show LP for a published record', () => {
+            renderDataCiteForm({
+                initialDoi: '10.5880/example',
+                initialPublicStatus: 'published',
+                initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 7,
+                    is_published: true,
+                    status: 'published',
+                    public_url: 'https://example.test/landing-page',
+                    preview_url: null,
+                    external_url: null,
+                },
+            });
+
+            expect(screen.getByRole('button', { name: 'Update Metadata' })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Show LP' })).toBeInTheDocument();
+            expect(screen.queryByTestId('save-draft-button')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('save-resource-button')).not.toBeInTheDocument();
+        });
+
+        it('confirms, saves, and updates DataCite metadata for a published record', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+
+            mockedAxios.post.mockImplementation((url: string) => {
+                if (url === '/editor/resources') {
+                    return Promise.resolve({
+                        data: { message: 'Validated', resource: { id: 42, publicStatus: 'published' } },
+                        status: 200,
+                    });
+                }
+
+                if (url === '/resources/42/register-doi') {
+                    return Promise.resolve({
+                        data: {
+                            success: true,
+                            message: 'DOI metadata updated successfully',
+                            doi: '10.5880/example',
+                            mode: 'production',
+                            updated: true,
+                        },
+                        status: 200,
+                    });
+                }
+
+                throw new Error(`Unexpected POST ${url}`);
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialDoi: '10.5880/example',
+                initialPublicStatus: 'published',
+                initialYear: '2024',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
+                initialLicenses: ['MIT'],
+                availableDatacenters,
+                initialDatacenterId: 1,
+                initialLandingPage: {
+                    id: 7,
+                    is_published: true,
+                    status: 'published',
+                    public_url: 'https://example.test/landing-page',
+                    preview_url: null,
+                    external_url: null,
+                },
+            });
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+            await user.click(screen.getByRole('button', { name: 'Update Metadata' }));
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+
+            const confirmButton = await screen.findByTestId('confirm-editor-datacite-action');
+            await waitFor(() => expect(confirmButton).toBeEnabled());
+            await user.click(confirmButton);
+
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(2));
+            expect(mockedAxios.post.mock.calls[0][0]).toBe('/editor/resources');
+            expect(mockedAxios.post.mock.calls[1]).toEqual(['/resources/42/register-doi', { prefix: '', force: false }]);
+            expect(mockRouterVisit).toHaveBeenCalledWith('/resources');
+            expect(screen.queryByTestId('doi-registration-success-dialog')).not.toBeInTheDocument();
         });
     });
 
@@ -7411,7 +7544,7 @@ describe('DataCiteForm', () => {
             });
 
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
 
             // Fill abstract so author is the only missing field in that section
             await fillRequiredAbstract(user);
@@ -7425,7 +7558,7 @@ describe('DataCiteForm', () => {
             });
         });
 
-        it('redirects after successful save instead of staying on editor (Issue #624)', { timeout: 60000 }, async () => {
+        it('stays on the editor after successful local validation', { timeout: 60000 }, async () => {
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
                 data: { message: 'Saved!' },
                 status: 200,
@@ -7446,18 +7579,11 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
-            // Should redirect to resources list (Issue #624)
-            await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith(
-                    '/resources',
-                    expect.objectContaining({
-                        onError: expect.any(Function),
-                    }),
-                );
-            });
+            await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Saved!'));
+            expect(mockRouterVisit).not.toHaveBeenCalled();
 
             // Should NOT show success modal
             expect(screen.queryByRole('dialog', { name: /successfully saved resource/i })).not.toBeInTheDocument();
@@ -7550,7 +7676,7 @@ describe('DataCiteForm', () => {
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            const saveButton = screen.getByRole('button', { name: /^validate$/i });
             await user.click(saveButton);
 
             const saveCall = getSaveAxiosCall();

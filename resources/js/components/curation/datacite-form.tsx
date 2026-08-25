@@ -1,11 +1,17 @@
 import { router, usePage } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertCircle, Calendar, CheckCircle, ChevronsDown, ChevronsUp, Circle, Eye, Save } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, ChevronsDown, ChevronsUp, Circle, CloudUpload, Eye, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
 import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
+import { DoiRegistrationSuccessDialog } from '@/components/curation/modals/doi-registration-success-dialog';
+import {
+    type EditorDataCiteAction,
+    EditorDataCiteConfirmationDialog,
+    type EditorDataCiteSubmittingAction,
+} from '@/components/curation/modals/editor-datacite-confirmation-dialog';
 import {
     RELATED_ITEMS_SECTION_DESCRIPTION,
     RELATED_ITEMS_SECTION_HELP,
@@ -27,6 +33,7 @@ import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validat
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { CURATION_ACCORDION_ITEM_VALUES, DEFAULT_OPEN_ACCORDION_ITEMS, isCurationAccordionItemValue } from '@/lib/curation-accordion';
+import { type DoiRegistrationResponse, isOrcidPreflightPayload, type OrcidPreflightIssue } from '@/lib/datacite-registration';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
 import { feedback } from '@/lib/feedback';
 import { resources } from '@/routes';
@@ -74,7 +81,9 @@ import {
     type EditorLandingPageSummary,
     type LicenseEntry,
     MAIN_TITLE_SLUG,
+    type PublishedRecordCounts,
     type RawRightsInput,
+    type ResourcePublicStatus,
     type SerializedAuthor,
     type SerializedContributor,
     type TitleEntry,
@@ -123,8 +132,15 @@ function parseCurationAccordionRevision(value: unknown): number | null {
 
 type DraftSaveResponse = {
     message?: string;
-    resource?: { id: number };
+    resource?: { id: number; publicStatus?: ResourcePublicStatus };
 };
+
+type ValidatedSaveResponse = {
+    message?: string;
+    resource?: { id: number; publicStatus?: ResourcePublicStatus };
+};
+
+type LandingPageSetupPurpose = 'preview' | 'datacite-registration';
 
 type LandingPagePreviewTarget = {
     status?: LandingPageConfig['status'];
@@ -264,6 +280,7 @@ export default function DataCiteForm({
     initialLicenses = [],
     initialRawRights = [],
     initialResourceId,
+    initialPublicStatus = 'draft',
     initialLandingPage = null,
     initialAuthors = [],
     initialContributors = [],
@@ -284,7 +301,7 @@ export default function DataCiteForm({
     activeRelationTypes,
     activeIdentifierTypes,
 }: DataCiteFormProps) {
-    const { curationAccordionOpenItems, curationAccordionRevision } = usePage<SharedData>().props;
+    const { auth, curationAccordionOpenItems, curationAccordionRevision } = usePage<SharedData>().props;
     // Date types shown in the Dates section. Accepted/Issued/Updated are system-managed;
     // Coverage is edited exclusively in Spatial and Temporal Coverage.
     const dateTypeOptions = useMemo(
@@ -2011,11 +2028,13 @@ export default function DataCiteForm({
 
         return Number.isFinite(parsed) ? parsed : null;
     });
+    const [currentPublicStatus, setCurrentPublicStatus] = useState<ResourcePublicStatus>(initialPublicStatus);
 
     const [landingPageForPreview, setLandingPageForPreview] = useState<EditorLandingPageSummary | null>(initialLandingPage);
     const [isPreparingLandingPagePreview, setIsPreparingLandingPagePreview] = useState(false);
     const [pendingLandingPageSetupResource, setPendingLandingPageSetupResource] = useState<LandingPagePreviewSetupResource | null>(null);
     const [isLandingPageSetupOpen, setIsLandingPageSetupOpen] = useState(false);
+    const [landingPageSetupPurpose, setLandingPageSetupPurpose] = useState<LandingPageSetupPurpose | null>(null);
 
     const saveUrl = useMemo(() => store.url(), []);
     const draftSaveUrl = useMemo(() => storeDraft.url(), []);
@@ -2346,6 +2365,18 @@ export default function DataCiteForm({
         titles,
     ]);
 
+    const [dataCiteAction, setDataCiteAction] = useState<EditorDataCiteAction>('register');
+    const [isDataCiteConfirmationOpen, setIsDataCiteConfirmationOpen] = useState(false);
+    const [isSubmittingDataCite, setIsSubmittingDataCite] = useState(false);
+    const [dataCiteSubmittingAction, setDataCiteSubmittingAction] = useState<EditorDataCiteSubmittingAction>(null);
+    const [dataCiteError, setDataCiteError] = useState<string | null>(null);
+    const [orcidBlockers, setOrcidBlockers] = useState<OrcidPreflightIssue[]>([]);
+    const [orcidWarnings, setOrcidWarnings] = useState<OrcidPreflightIssue[]>([]);
+    const [pendingDataCitePayload, setPendingDataCitePayload] = useState<ReturnType<typeof buildPayload> | null>(null);
+    const [pendingDataCiteResourceId, setPendingDataCiteResourceId] = useState<number | null>(null);
+    const [pendingDataCitePrefix, setPendingDataCitePrefix] = useState('');
+    const [registrationSuccess, setRegistrationSuccess] = useState<{ doi: string; counts: PublishedRecordCounts } | null>(null);
+
     const updateDraftAutosaveSignature = useCallback((payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
         const savedPayload = resourceId ? { ...payload, resourceId } : payload;
 
@@ -2386,6 +2417,10 @@ export default function DataCiteForm({
             isSaving ||
             isSavingDraft ||
             isPreparingLandingPagePreview ||
+            isDataCiteConfirmationOpen ||
+            isLandingPageSetupOpen ||
+            isSubmittingDataCite ||
+            registrationSuccess !== null ||
             draftAutosaveInFlightRef.current
         ) {
             return;
@@ -2411,12 +2446,16 @@ export default function DataCiteForm({
         setDraftAutosaveStatus('saving');
 
         try {
-            const response = await axios.post(draftSaveUrl, payload, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
+            const response = await axios.post(
+                draftSaveUrl,
+                { ...payload, intent: 'autosave' },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
                 },
-            });
+            );
 
             const data = response.data as DraftSaveResponse | null;
             const savedResourceId = data?.resource?.id;
@@ -2437,10 +2476,14 @@ export default function DataCiteForm({
         dateValidationIssues.length,
         draftSaveUrl,
         isDraftSaveable,
+        isDataCiteConfirmationOpen,
+        isLandingPageSetupOpen,
         isPreparingLandingPagePreview,
         isSaving,
         isSavingDraft,
+        isSubmittingDataCite,
         markDraftAutosaveSaved,
+        registrationSuccess,
     ]);
 
     useEffect(() => {
@@ -2536,23 +2579,17 @@ export default function DataCiteForm({
         [revealValidationErrors, submittedDescriptionIds],
     );
 
-    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-
+    const prepareValidatedPayload = async (): Promise<ReturnType<typeof buildPayload> | null> => {
         setHasAttemptedSubmit(true);
-        setIsSaving(true);
         setErrorMessage(null);
         setMappedValidationErrors([]);
         clearBackendErrors();
 
-        // Check client-side submit blockers before sending the request.
         if (Object.keys(clientSubmitValidationErrors).length > 0) {
             revealValidationErrors(clientSubmitValidationErrors, 'Please complete all required fields before saving.');
-            setIsSaving(false);
-            return;
+            return null;
         }
 
-        // Client-side validation for funding references
         if (!validateAllFundingReferences(fundingReferences)) {
             revealValidationErrors(
                 {
@@ -2560,23 +2597,21 @@ export default function DataCiteForm({
                 },
                 'Please review the highlighted funding reference issues before saving.',
             );
-            setIsSaving(false);
-            return;
+            return null;
         }
 
-        // Pre-submit DOI duplicate check: verify the DOI is still available before saving
         const doiValue = form.doi?.trim();
         if (doiValue) {
             const conflict = await checkDoiBeforeSave(doiValue);
             if (conflict) {
-                // DOI already exists — show conflict modal instead of saving
-                setIsSaving(false);
-                return;
+                return null;
             }
         }
 
-        const payload = buildPayload();
+        return buildPayload();
+    };
 
+    const persistValidatedResource = async (payload: ReturnType<typeof buildPayload>): Promise<ValidatedSaveResponse | null> => {
         try {
             const response = await axios.post(saveUrl, payload, {
                 headers: {
@@ -2584,54 +2619,19 @@ export default function DataCiteForm({
                     Accept: 'application/json',
                 },
             });
+            const data = response.data as ValidatedSaveResponse | null;
 
-            // Extended response type for DataCite sync (Issue #383)
-            interface SaveResponse {
-                message?: string;
-                resource?: { id: number };
-                dataCiteSync?: {
-                    attempted: boolean;
-                    success: boolean;
-                    errorMessage: string | null;
-                    doi: string | null;
-                };
-                warning?: string;
-            }
-
-            const data = response.data as SaveResponse | null;
-            const successMsg = data?.message || 'Successfully saved resource.';
-
-            // Persist the resource ID so subsequent saves update rather than duplicate (PR #639 review)
             if (data?.resource?.id) {
                 setResolvedResourceId(data.resource.id);
             }
-
-            setHasAttemptedSubmit(false);
-
-            // Show toasts before redirect so feedback is visible even if navigation fails
-            toast.success(successMsg);
-
-            // DataCite sync feedback via toast notifications
-            if (data?.dataCiteSync?.attempted) {
-                if (data.dataCiteSync.success) {
-                    toast.success('DataCite metadata synchronized', {
-                        description: data.dataCiteSync.doi ? `DOI ${data.dataCiteSync.doi} has been updated.` : 'Metadata has been updated.',
-                        duration: 4000,
-                    });
-                } else {
-                    toast.warning('DataCite update failed', {
-                        description: data.dataCiteSync.errorMessage || 'Please try manually later.',
-                        duration: 8000,
-                    });
-                }
+            if (data?.resource?.publicStatus) {
+                setCurrentPublicStatus(data.resource.publicStatus);
             }
 
-            // Redirect to resources list (Issue #624)
-            router.visit(resourcesUrl, {
-                onError: () => {
-                    toast.warning('Could not navigate to the resources list. Your data has been saved.');
-                },
-            });
+            setHasAttemptedSubmit(false);
+            updateDraftAutosaveSignature(payload, data?.resource?.id);
+
+            return data;
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const response = error.response;
@@ -2639,8 +2639,7 @@ export default function DataCiteForm({
                 if (response?.status === 419) {
                     console.error('CSRF token mismatch detected');
                     setErrorMessage('Your session has expired. Please refresh the page and try again.');
-                    // The axios interceptor in app.tsx will handle the page reload
-                    return;
+                    return null;
                 }
 
                 if (response) {
@@ -2653,10 +2652,8 @@ export default function DataCiteForm({
                     if (response.status === 422 && parsed?.errors?.doi && form.doi) {
                         const conflict = await checkDoiBeforeSave(form.doi);
                         if (conflict) {
-                            // Conflict modal is now shown by checkDoiBeforeSave — skip generic error rendering
-                            return;
+                            return null;
                         }
-                        // Not a duplicate — fall through to normal validation error rendering
                     }
 
                     if (parsed?.errors) {
@@ -2665,15 +2662,156 @@ export default function DataCiteForm({
                         setErrorMessage(parsed?.message || defaultError);
                     }
 
-                    return;
+                    return null;
                 }
             }
 
             console.error('Failed to save resource', error);
             setErrorMessage('A network error prevented saving the resource. Please try again.');
+            return null;
+        }
+    };
+
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setIsSaving(true);
+
+        try {
+            const payload = await prepareValidatedPayload();
+            if (!payload) return;
+
+            const data = await persistValidatedResource(payload);
+            if (!data) return;
+
+            toast.success(data.message || 'Resource is valid and has been saved.');
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const resetDataCiteWorkflow = () => {
+        setIsDataCiteConfirmationOpen(false);
+        setIsSubmittingDataCite(false);
+        setDataCiteSubmittingAction(null);
+        setDataCiteError(null);
+        setOrcidBlockers([]);
+        setOrcidWarnings([]);
+        setPendingDataCitePayload(null);
+        setPendingDataCiteResourceId(null);
+        setPendingDataCitePrefix('');
+    };
+
+    const handleRequestDataCiteAction = async () => {
+        setIsSaving(true);
+
+        try {
+            const payload = await prepareValidatedPayload();
+            if (!payload) return;
+
+            setDataCiteAction(currentPublicStatus === 'published' ? 'update' : 'register');
+            setPendingDataCitePayload(payload);
+            setPendingDataCiteResourceId(null);
+            setDataCiteError(null);
+            setOrcidBlockers([]);
+            setOrcidWarnings([]);
+            setIsDataCiteConfirmationOpen(true);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const executeDataCiteWrite = async (
+        resourceId: number,
+        prefix: string,
+        force: boolean,
+        submittingAction: Exclude<EditorDataCiteSubmittingAction, null>,
+    ) => {
+        setIsSubmittingDataCite(true);
+        setDataCiteSubmittingAction(submittingAction);
+        setDataCiteError(null);
+
+        try {
+            const response = await axios.post<DoiRegistrationResponse>(`/resources/${resourceId}/register-doi`, {
+                prefix,
+                force,
+            });
+            const { doi, mode, publishedRecordCounts, updated } = response.data;
+            const modeLabel = mode === 'test' ? 'Test' : 'Production';
+
+            setForm((current) => ({ ...current, doi }));
+            setOrcidBlockers([]);
+            setOrcidWarnings([]);
+
+            if (updated) {
+                toast.success('DataCite metadata updated successfully', {
+                    description: `${modeLabel} DOI: ${doi}`,
+                });
+                resetDataCiteWorkflow();
+                router.visit(resourcesUrl);
+                return;
+            }
+
+            resetDataCiteWorkflow();
+            if (publishedRecordCounts) {
+                setRegistrationSuccess({ doi, counts: publishedRecordCounts });
+            } else {
+                toast.success('DOI registered successfully', { description: `${modeLabel} DOI: ${doi}` });
+                router.visit(resourcesUrl);
+            }
+        } catch (error) {
+            if (axios.isAxiosError(error) && error.response && isOrcidPreflightPayload(error.response.data)) {
+                const payload = error.response.data;
+                setOrcidBlockers(Array.isArray(payload.invalid) ? payload.invalid : []);
+                setOrcidWarnings(Array.isArray(payload.warnings) ? payload.warnings : []);
+                setDataCiteError(null);
+                setIsDataCiteConfirmationOpen(true);
+                return;
+            }
+
+            console.error('Editor DataCite action failed', error);
+            const responseData = axios.isAxiosError(error) ? (error.response?.data as { message?: string } | undefined) : undefined;
+            setDataCiteError(responseData?.message || 'The DataCite action failed. Please try again.');
+            setIsDataCiteConfirmationOpen(true);
+        } finally {
+            setIsSubmittingDataCite(false);
+            setDataCiteSubmittingAction(null);
+        }
+    };
+
+    const handleConfirmDataCiteAction = async (prefix: string, force: boolean, submittingAction: Exclude<EditorDataCiteSubmittingAction, null>) => {
+        setPendingDataCitePrefix(prefix);
+
+        let resourceId = pendingDataCiteResourceId;
+        if (resourceId === null) {
+            if (!pendingDataCitePayload) {
+                setDataCiteError('The validated editor data is no longer available. Please cancel and try again.');
+                return;
+            }
+
+            setIsSubmittingDataCite(true);
+            setDataCiteSubmittingAction(submittingAction);
+            const saved = await persistValidatedResource(pendingDataCitePayload);
+            setIsSubmittingDataCite(false);
+            setDataCiteSubmittingAction(null);
+
+            resourceId = saved ? (saved.resource?.id ?? resolvedResourceId) : null;
+            if (!resourceId) {
+                setIsDataCiteConfirmationOpen(false);
+                return;
+            }
+
+            setPendingDataCiteResourceId(resourceId);
+        }
+
+        if (!landingPageForPreview) {
+            setIsDataCiteConfirmationOpen(false);
+            setLandingPageSetupPurpose('datacite-registration');
+            setPendingLandingPageSetupResource(buildLandingPageSetupResource(resourceId));
+            setIsLandingPageSetupOpen(true);
+            return;
+        }
+
+        await executeDataCiteWrite(resourceId, prefix, force, submittingAction);
     };
 
     // Save draft with relaxed validation - only requires Main Title (Issue #548)
@@ -2695,12 +2833,16 @@ export default function DataCiteForm({
         const payload = buildPayload();
 
         try {
-            const response = await axios.post(draftSaveUrl, payload, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
+            const response = await axios.post(
+                draftSaveUrl,
+                { ...payload, intent: 'save-draft' },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
                 },
-            });
+            );
 
             const data = response.data as DraftSaveResponse | null;
             const successMsg = data?.message || 'Draft saved successfully.';
@@ -2774,12 +2916,16 @@ export default function DataCiteForm({
         const payload = buildPayload();
 
         try {
-            const response = await axios.post(draftSaveUrl, payload, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
+            const response = await axios.post(
+                draftSaveUrl,
+                { ...payload, intent: 'landing-page-preview' },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
                 },
-            });
+            );
 
             const data = response.data as DraftSaveResponse | null;
             const savedResourceId = data?.resource?.id ?? resolvedResourceId;
@@ -2859,31 +3005,49 @@ export default function DataCiteForm({
             return;
         }
 
+        setLandingPageSetupPurpose('preview');
         setPendingLandingPageSetupResource(buildLandingPageSetupResource(result.resourceId));
         setIsLandingPageSetupOpen(true);
     }, [buildLandingPageSetupResource, landingPageForPreview, openLandingPagePreview, saveDraftForLandingPagePreview]);
 
-    const handleCloseLandingPageSetup = useCallback(() => {
+    const handleCloseLandingPageSetup = () => {
+        if (landingPageSetupPurpose === 'datacite-registration') {
+            toast.info('DataCite registration cancelled. Your validated resource has been saved.');
+            resetDataCiteWorkflow();
+        }
+
         setIsLandingPageSetupOpen(false);
         setPendingLandingPageSetupResource(null);
-    }, []);
+        setLandingPageSetupPurpose(null);
+    };
 
-    const handleLandingPageSetupSuccess = useCallback(
-        (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => {
-            if (landingPage) {
-                const summary = toEditorLandingPageSummary(landingPage);
-                setLandingPageForPreview(summary);
-                openLandingPagePreview(summary, preopenedPreviewWindow);
-            } else {
-                preopenedPreviewWindow?.close();
-                setLandingPageForPreview(null);
+    const handleLandingPageSetupSuccess = async (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => {
+        const summary = landingPage ? toEditorLandingPageSummary(landingPage) : null;
+        setLandingPageForPreview(summary);
+        setIsLandingPageSetupOpen(false);
+        setPendingLandingPageSetupResource(null);
+
+        if (landingPageSetupPurpose === 'datacite-registration') {
+            setLandingPageSetupPurpose(null);
+
+            if (!summary || !pendingDataCiteResourceId) {
+                setDataCiteError('The landing page setup did not return a usable configuration. Please try the DataCite action again.');
+                setIsDataCiteConfirmationOpen(true);
+                return;
             }
 
-            setIsLandingPageSetupOpen(false);
-            setPendingLandingPageSetupResource(null);
-        },
-        [openLandingPagePreview],
-    );
+            setIsDataCiteConfirmationOpen(true);
+            await executeDataCiteWrite(pendingDataCiteResourceId, pendingDataCitePrefix, false, 'submit');
+            return;
+        }
+
+        setLandingPageSetupPurpose(null);
+        if (summary) {
+            openLandingPagePreview(summary, preopenedPreviewWindow);
+        } else {
+            preopenedPreviewWindow?.close();
+        }
+    };
 
     // ===================================================================
     // Status Badge Rendering Helper
@@ -2945,39 +3109,90 @@ export default function DataCiteForm({
     );
 
     const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
-    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview;
+    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview || isSubmittingDataCite;
+    const isPublishedResource = currentPublicStatus === 'published';
+    const canRegisterDoi = auth?.user?.can_register_doi ?? false;
     const showSaveDraftDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
     const showLandingPagePreviewDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
     const showSaveValidateDisabledTooltip = hasLegacyKeywords && !isEditorActionInFlight;
 
     const renderEditorActions = () => (
         <>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <span tabIndex={showSaveDraftDisabledTooltip ? 0 : undefined}>
-                        {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
-                            Drafts are partial saves; legacy keyword replacement is only
-                            required for full validation (Save & Validate). */}
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className={editorActionButtonClassName}
-                            data-testid="save-draft-button"
-                            disabled={!isDraftSaveable || isSavingDraft || isSaving || isPreparingLandingPagePreview}
-                            aria-busy={isSavingDraft}
-                            onClick={handleSaveDraft}
-                        >
-                            <Save className="mr-2 h-4 w-4" />
-                            {isSavingDraft ? 'Saving...' : 'Save Draft'}
-                        </Button>
-                    </span>
-                </TooltipTrigger>
-                {showSaveDraftDisabledTooltip && (
-                    <TooltipContent side="top" align="end" className="max-w-sm">
-                        <p className="text-sm">Enter a Main Title to save as draft.</p>
-                    </TooltipContent>
-                )}
-            </Tooltip>
+            {!isPublishedResource && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span tabIndex={showSaveDraftDisabledTooltip ? 0 : undefined}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className={editorActionButtonClassName}
+                                data-testid="save-draft-button"
+                                disabled={!isDraftSaveable || isEditorActionInFlight}
+                                aria-busy={isSavingDraft}
+                                onClick={handleSaveDraft}
+                            >
+                                <Save className="mr-2 h-4 w-4" />
+                                {isSavingDraft ? 'Saving...' : 'Save Draft'}
+                            </Button>
+                        </span>
+                    </TooltipTrigger>
+                    {showSaveDraftDisabledTooltip && (
+                        <TooltipContent side="top" align="end" className="max-w-sm">
+                            <p className="text-sm">Enter a Main Title to save as draft.</p>
+                        </TooltipContent>
+                    )}
+                </Tooltip>
+            )}
+            {!isPublishedResource && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span tabIndex={showSaveValidateDisabledTooltip ? 0 : undefined}>
+                            <Button
+                                type="submit"
+                                variant="secondary"
+                                className={editorActionButtonClassName}
+                                data-testid="save-resource-button"
+                                disabled={isEditorActionInFlight || hasLegacyKeywords}
+                                aria-busy={isSaving}
+                                aria-disabled={isEditorActionInFlight || hasLegacyKeywords}
+                            >
+                                {isSaving ? 'Validating...' : 'Validate'}
+                            </Button>
+                        </span>
+                    </TooltipTrigger>
+                    {showSaveValidateDisabledTooltip && (
+                        <TooltipContent side="top" align="end" className="max-w-sm">
+                            <div className="space-y-2">
+                                <p className="text-sm font-semibold">Cannot validate: Legacy keywords detected</p>
+                                <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
+                            </div>
+                        </TooltipContent>
+                    )}
+                </Tooltip>
+            )}
+            {canRegisterDoi && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span tabIndex={showSaveValidateDisabledTooltip ? 0 : undefined}>
+                            <Button
+                                type="button"
+                                className={editorActionButtonClassName}
+                                data-testid="datacite-action-button"
+                                disabled={isEditorActionInFlight || hasLegacyKeywords}
+                                onClick={() => void handleRequestDataCiteAction()}
+                            >
+                                <CloudUpload className="mr-2 h-4 w-4" />
+                                {isPublishedResource ? 'Update Metadata' : 'Register'}
+                            </Button>
+                        </span>
+                    </TooltipTrigger>
+                    {showSaveValidateDisabledTooltip && (
+                        <TooltipContent side="top" align="end" className="max-w-sm">
+                            <p className="text-xs">Replace all legacy MSL keywords before sending metadata to DataCite.</p>
+                        </TooltipContent>
+                    )}
+                </Tooltip>
+            )}
             <Tooltip>
                 <TooltipTrigger asChild>
                     <span tabIndex={showLandingPagePreviewDisabledTooltip ? 0 : undefined}>
@@ -2986,42 +3201,18 @@ export default function DataCiteForm({
                             variant="outline"
                             className={editorActionButtonClassName}
                             data-testid="show-lp-preview-button"
-                            disabled={!isDraftSaveable || isSavingDraft || isSaving || isPreparingLandingPagePreview}
+                            disabled={!isDraftSaveable || isEditorActionInFlight}
                             aria-busy={isPreparingLandingPagePreview}
                             onClick={() => void handleShowLandingPagePreview()}
                         >
                             <Eye className="mr-2 h-4 w-4" />
-                            {isPreparingLandingPagePreview ? 'Preparing...' : 'Show LP Preview'}
+                            {isPreparingLandingPagePreview ? 'Preparing...' : isPublishedResource ? 'Show LP' : 'Preview LP'}
                         </Button>
                     </span>
                 </TooltipTrigger>
                 {showLandingPagePreviewDisabledTooltip && (
                     <TooltipContent side="top" align="end" className="max-w-sm">
                         <p className="text-sm">Enter a Main Title to preview the landing page.</p>
-                    </TooltipContent>
-                )}
-            </Tooltip>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <span tabIndex={showSaveValidateDisabledTooltip ? 0 : undefined}>
-                        <Button
-                            type="submit"
-                            className={editorActionButtonClassName}
-                            data-testid="save-resource-button"
-                            disabled={isSaving || isSavingDraft || isPreparingLandingPagePreview || hasLegacyKeywords}
-                            aria-busy={isSaving}
-                            aria-disabled={isSaving || isSavingDraft || isPreparingLandingPagePreview || hasLegacyKeywords}
-                        >
-                            {isSaving ? 'Saving...' : 'Save & Validate'}
-                        </Button>
-                    </span>
-                </TooltipTrigger>
-                {showSaveValidateDisabledTooltip && (
-                    <TooltipContent side="top" align="end" className="max-w-sm">
-                        <div className="space-y-2">
-                            <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
-                            <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
-                        </div>
                     </TooltipContent>
                 )}
             </Tooltip>
@@ -3659,7 +3850,33 @@ export default function DataCiteForm({
                     isOpen={isLandingPageSetupOpen}
                     onClose={handleCloseLandingPageSetup}
                     onSuccess={handleLandingPageSetupSuccess}
-                    openPreviewOnSuccess={true}
+                    openPreviewOnSuccess={landingPageSetupPurpose === 'preview'}
+                />
+            )}
+            <EditorDataCiteConfirmationDialog
+                open={isDataCiteConfirmationOpen}
+                action={dataCiteAction}
+                title={mainTitleForLandingPage}
+                doi={form.doi}
+                hasLandingPage={landingPageForPreview !== null}
+                initialPrefix={pendingDataCitePrefix}
+                isSubmitting={isSubmittingDataCite}
+                submittingAction={dataCiteSubmittingAction}
+                error={dataCiteError}
+                orcidBlockers={orcidBlockers}
+                orcidWarnings={orcidWarnings}
+                onClose={resetDataCiteWorkflow}
+                onConfirm={(prefix, force, action) => void handleConfirmDataCiteAction(prefix, force, action)}
+            />
+            {registrationSuccess && (
+                <DoiRegistrationSuccessDialog
+                    open
+                    doi={registrationSuccess.doi}
+                    counts={registrationSuccess.counts}
+                    onContinue={() => {
+                        setRegistrationSuccess(null);
+                        router.visit(resourcesUrl);
+                    }}
                 />
             )}
             {/* DOI Conflict Modal */}
