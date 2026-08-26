@@ -1,4 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import { render } from '@tests/vitest/utils/render';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -835,6 +836,28 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(abstractCard).not.toBeNull();
             expect(creatorsCard).not.toBeNull();
             expect(abstractCard).not.toBe(creatorsCard);
+        });
+
+        it('does not render cards for independently placed metadata modules without content', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...fullyVisibleResource,
+                        creators: [],
+                        contributors: [],
+                        descriptions: [],
+                        funding_references: [],
+                        subjects: [],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getAllByTestId('metadata-section')).toHaveLength(1);
+            expect(screen.getByRole('heading', { name: 'Download Metadata' })).toBeInTheDocument();
         });
     });
 });

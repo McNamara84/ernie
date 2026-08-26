@@ -7,6 +7,7 @@ use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\Igsn\IgsnSampleImageBackfillService;
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -132,11 +133,65 @@ it('isolates download failures and supports filters resume limit force and CSV r
             ->assertExitCode(Command::FAILURE);
 
         expect($first->igsnMetadata()->first()->sample_image_source_url)->toBeNull()
-            ->and($second->igsnMetadata()->first()->sample_image_source_url)->toContain('two.jpg')
+            ->and($second->igsnMetadata()->first()->sample_image_source_url)->toBeNull()
             ->and(File::get($report))->toContain('resource_id,doi,handle,status,message')
             ->toContain('GFSO273FAIL2')
             ->toContain('failed');
     } finally {
         File::delete($report);
     }
+});
+
+it('restores the previous descriptor after a failed replacement so the next run retries it', function (): void {
+    $resource = issue1168BackfillResource('GFSO273RETRY');
+    $metadata = $resource->igsnMetadata()->firstOrFail();
+    $oldPath = 'igsn-sample-images/gfso273retry/old.jpg';
+    $oldSource = 'https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/old.jpg';
+    $metadata->update([
+        'sample_image_source_url' => $oldSource,
+        'sample_image_storage_path' => $oldPath,
+        'sample_image_mime_type' => 'image/jpeg',
+        'sample_image_size' => strlen(issue1168BackfillJpeg()),
+    ]);
+    Storage::disk('public')->put($oldPath, issue1168BackfillJpeg());
+    $dif = '<resource><sample><sample_image>replacement.jpg</sample_image><sample_image_path>https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/</sample_image_path></sample></resource>';
+
+    $imageAttempts = 0;
+    Http::fake(function (Request $request) use ($dif, &$imageAttempts) {
+        if (str_contains($request->url(), 'igsn-portal.example.test')) {
+            return Http::response([
+                'response' => [
+                    'numFound' => 1,
+                    'docs' => [[
+                        'igsn' => 'GFSO273RETRY',
+                        'has_dif' => true,
+                        'dif' => base64_encode($dif),
+                    ]],
+                ],
+            ]);
+        }
+
+        $imageAttempts++;
+
+        return $imageAttempts === 1
+            ? Http::response('', 503)
+            : Http::response(issue1168BackfillJpeg(), 200, ['Content-Type' => 'image/jpeg']);
+    });
+
+    $failed = app(IgsnSampleImageBackfillService::class)->run(apply: true, dois: ['GFSO273RETRY']);
+    $metadata->refresh();
+
+    expect($failed['failed'])->toBe(1)
+        ->and($metadata->sample_image_source_url)->toBe($oldSource)
+        ->and($metadata->sample_image_storage_path)->toBe($oldPath);
+    Storage::disk('public')->assertExists($oldPath);
+
+    $retried = app(IgsnSampleImageBackfillService::class)->run(apply: true, dois: ['GFSO273RETRY']);
+    $metadata->refresh();
+
+    expect($retried['stored'])->toBe(1)
+        ->and($metadata->sample_image_source_url)->toContain('replacement.jpg')
+        ->and($metadata->sample_image_storage_path)->not->toBe($oldPath);
+    Storage::disk('public')->assertMissing($oldPath);
+    Storage::disk('public')->assertExists((string) $metadata->sample_image_storage_path);
 });

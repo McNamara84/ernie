@@ -205,7 +205,10 @@ class ResourceObserver
 
             $imagePath = $resource->igsnMetadata->sample_image_storage_path;
             if (is_string($imagePath) && $imagePath !== '') {
-                Storage::disk((string) config('igsn_images.disk', 'public'))->delete($imagePath);
+                $imageDisk = (string) config('igsn_images.disk', 'public');
+                DB::afterCommit(static function () use ($imageDisk, $imagePath): void {
+                    Storage::disk($imageDisk)->delete($imagePath);
+                });
             }
         }
 

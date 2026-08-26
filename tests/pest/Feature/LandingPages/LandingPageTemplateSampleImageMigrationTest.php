@@ -36,7 +36,7 @@ it('adds the sample image before location and completes only IGSN layouts', func
         ->and($resource->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS);
 });
 
-it('deduplicates known IGSN modules and rollback removes only sample image', function (): void {
+it('deduplicates known IGSN modules and rollback restores pre-migration column ownership', function (): void {
     $template = LandingPageTemplate::factory()->igsn()->create([
         'left_column_order' => ['general', 'location', 'general'],
         'right_column_order' => ['location', 'sample_image', 'abstract', 'unknown'],
@@ -51,11 +51,30 @@ it('deduplicates known IGSN modules and rollback removes only sample image', fun
     ))->toBeTrue()
         ->and(collect([...$template->left_column_order, ...$template->right_column_order])->duplicates()->all())->toBe([]);
 
-    $leftBeforeRollback = $template->left_column_order;
-    $rightBeforeRollback = $template->right_column_order;
+    $template->update([
+        'left_column_order' => [
+            'abstract',
+            ...array_values(array_filter(
+                $template->left_column_order,
+                static fn (string $key): bool => $key !== 'general',
+            )),
+        ],
+        'right_column_order' => [
+            'general',
+            ...array_values(array_filter(
+                $template->right_column_order,
+                static fn (string $key): bool => $key !== 'abstract',
+            )),
+        ],
+    ]);
+
     $migration->down();
     $template->refresh();
 
-    expect($template->left_column_order)->toBe(array_values(array_filter($leftBeforeRollback, static fn (string $key): bool => $key !== 'sample_image')))
-        ->and($template->right_column_order)->toBe(array_values(array_filter($rightBeforeRollback, static fn (string $key): bool => $key !== 'sample_image')));
+    expect($template->left_column_order)->toHaveCount(count(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS))
+        ->and(array_diff(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS, $template->left_column_order))->toBe([])
+        ->and($template->left_column_order)->not->toContain('abstract', 'sample_image')
+        ->and($template->right_column_order)->toHaveCount(count(LandingPageTemplate::RIGHT_COLUMN_SECTIONS))
+        ->and(array_diff(LandingPageTemplate::RIGHT_COLUMN_SECTIONS, $template->right_column_order))->toBe([])
+        ->and($template->right_column_order)->not->toContain('general', 'sample_image');
 });

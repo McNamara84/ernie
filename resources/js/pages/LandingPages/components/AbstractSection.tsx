@@ -8,13 +8,13 @@ import type {
     LandingPageSubject,
 } from '@/types/landing-page';
 
-import { expandMetadataOrder, isDescriptionSectionKey, type MetadataSectionKey } from '../lib/metadata-sections';
+import { expandMetadataOrder, filterDescriptionsBySection, isDescriptionSectionKey, type MetadataSectionKey } from '../lib/metadata-sections';
 import { ContributorsSection } from './ContributorsSection';
 import { CreatorsSection } from './CreatorsSection';
 import { DescriptionSection } from './DescriptionSection';
 import { DownloadMetadataSection } from './DownloadMetadataSection';
 import { FundersSection } from './FundersSection';
-import { KeywordsSection } from './KeywordsSection';
+import { hasVisibleKeywords, KeywordsSection } from './KeywordsSection';
 import { LandingPageCard } from './LandingPageCard';
 
 interface AbstractSectionProps {
@@ -54,18 +54,24 @@ export function AbstractSection({
     const renderedSections = expandedSectionOrder
         .map((sectionKey) => {
             if (isDescriptionSectionKey(sectionKey)) {
+                if (filterDescriptionsBySection(descriptions, sectionKey).length === 0) {
+                    return null;
+                }
+
                 return <DescriptionSection key={sectionKey} descriptions={descriptions} sectionKey={sectionKey} />;
             }
 
             switch (sectionKey) {
                 case 'creators':
-                    return <CreatorsSection key="creators" creators={creators} displayLimit={displayLimits.creators} />;
+                    return creators.length > 0 ? <CreatorsSection key="creators" creators={creators} displayLimit={displayLimits.creators} /> : null;
                 case 'contributors':
-                    return <ContributorsSection key="contributors" contributors={contributors} displayLimit={displayLimits.contributors} />;
+                    return contributors.length > 0 ? (
+                        <ContributorsSection key="contributors" contributors={contributors} displayLimit={displayLimits.contributors} />
+                    ) : null;
                 case 'funders':
-                    return <FundersSection key="funders" fundingReferences={fundingReferences} />;
+                    return fundingReferences.length > 0 ? <FundersSection key="funders" fundingReferences={fundingReferences} /> : null;
                 case 'keywords':
-                    return <KeywordsSection key="keywords" subjects={subjects} />;
+                    return hasVisibleKeywords(subjects) ? <KeywordsSection key="keywords" subjects={subjects} /> : null;
                 case 'metadata_download':
                     return (
                         <DownloadMetadataSection

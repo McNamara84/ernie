@@ -851,6 +851,11 @@ erDiagram
         varchar coordinate_system
         varchar user_code
         json description_json
+        varchar sample_image_source_url "2048"
+        varchar sample_image_external_url "2048"
+        varchar sample_image_storage_path "2048"
+        varchar sample_image_mime_type "100"
+        bigint sample_image_size "unsigned"
         varchar upload_status
         text upload_error_message
         varchar csv_filename

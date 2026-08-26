@@ -926,6 +926,11 @@ entity "igsn_metadata" as igsn_metadata {
     coordinate_system : VARCHAR(50)
     user_code : VARCHAR(50)
     description_json : JSON
+    sample_image_source_url : VARCHAR(2048)
+    sample_image_external_url : VARCHAR(2048)
+    sample_image_storage_path : VARCHAR(2048)
+    sample_image_mime_type : VARCHAR(100)
+    sample_image_size : BIGINT <<unsigned>>
     * upload_status : VARCHAR(50) = 'pending'
     upload_error_message : TEXT
     csv_filename : VARCHAR(255)

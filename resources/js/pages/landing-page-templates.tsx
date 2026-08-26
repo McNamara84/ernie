@@ -231,8 +231,9 @@ function IgsnSectionOrderEditor({
             return;
         }
 
+        const initialOrders = snapshot.current ?? { left, right };
         snapshot.current = null;
-        onChange(moveIgsnSection(left, right, String(event.active.id), String(event.over.id)));
+        onChange(moveIgsnSection(initialOrders.left, initialOrders.right, String(event.active.id), String(event.over.id)));
     };
 
     return (

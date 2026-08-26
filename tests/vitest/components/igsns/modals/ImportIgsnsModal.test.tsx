@@ -167,6 +167,36 @@ describe('ImportIgsnsModal', () => {
         });
     });
 
+    it('uses the image worklist total for image-phase progress', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'test-image-progress-123', message: 'Import started' },
+        });
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'running',
+                phase: 'images',
+                total: 100,
+                processed: 100,
+                imported: 100,
+                skipped: 0,
+                failed: 0,
+                enriched: 100,
+                skipped_dois: [],
+                failed_dois: [],
+                images_total: 2,
+                images_processed: 2,
+                started_at: new Date().toISOString(),
+            },
+        });
+
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText('2 / 2 images')).toBeInTheDocument();
+    });
+
     it('displays enriched counter during import', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 

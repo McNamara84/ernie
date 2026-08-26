@@ -1496,6 +1496,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
         $resourceIds = array_values(array_unique($this->resourceIdsForImageSync));
         $counts = [
+            'images_total' => count($resourceIds),
             'images_processed' => 0,
             'images_stored' => 0,
             'images_external' => 0,
@@ -1513,6 +1514,10 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
             $metadata = IgsnMetadata::query()->with('resource')->where('resource_id', $resourceId)->first();
             if (! $metadata instanceof IgsnMetadata) {
+                $counts['images_processed']++;
+                $counts['images_skipped']++;
+                $this->publishImageProgress($counts, $warnings);
+
                 continue;
             }
 
@@ -1533,9 +1538,20 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 ];
             }
 
-            if ($counts['images_processed'] === 1 || $counts['images_processed'] % 25 === 0 || $counts['images_processed'] === count($resourceIds)) {
-                $this->updateProgressKeys([...$counts, 'image_warnings' => $warnings]);
-            }
+            $this->publishImageProgress($counts, $warnings);
+        }
+    }
+
+    /**
+     * @param  array{images_total: int, images_processed: int, images_stored: int, images_external: int, images_skipped: int, images_failed: int}  $counts
+     * @param  list<array{doi: string, error: string}>  $warnings
+     */
+    private function publishImageProgress(array $counts, array $warnings): void
+    {
+        if ($counts['images_processed'] === 1
+            || $counts['images_processed'] % 25 === 0
+            || $counts['images_processed'] === $counts['images_total']) {
+            $this->updateProgressKeys([...$counts, 'image_warnings' => $warnings]);
         }
     }
 

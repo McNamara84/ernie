@@ -75,7 +75,7 @@ it('rejects invalid content without publishing a broken image path', function (s
     'oversize' => [issue1168Jpeg(), ['Content-Type' => 'image/jpeg'], 10],
 ]);
 
-it('keeps a previously stored image when a forced replacement fails', function (): void {
+it('does not treat a stored path for another source as current and keeps it when replacement fails', function (): void {
     $metadata = issue1168Metadata('https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/replacement.jpg');
     $metadata->update([
         'sample_image_storage_path' => 'igsn-sample-images/gfso273n39/existing.jpg',
@@ -85,7 +85,7 @@ it('keeps a previously stored image when a forced replacement fails', function (
     Storage::disk('public')->put('igsn-sample-images/gfso273n39/existing.jpg', issue1168Jpeg());
     Http::fake(['dataservices.gfz-potsdam.de/*' => Http::response('', 503)]);
 
-    expect(app(IgsnSampleImageStorageService::class)->sync($metadata, force: true)['status'])->toBe('failed')
+    expect(app(IgsnSampleImageStorageService::class)->sync($metadata)['status'])->toBe('failed')
         ->and($metadata->fresh()->sample_image_storage_path)->toBe('igsn-sample-images/gfso273n39/existing.jpg');
     Storage::disk('public')->assertExists('igsn-sample-images/gfso273n39/existing.jpg');
 });

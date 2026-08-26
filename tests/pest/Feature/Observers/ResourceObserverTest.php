@@ -17,6 +17,7 @@ use App\Services\PortalKeywordCacheInvalidationService;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 covers(ResourceObserver::class);
@@ -195,7 +196,7 @@ describe('updated', function () {
 // =========================================================================
 
 describe('deleted', function () {
-    it('removes a managed IGSN sample image before database cascades delete its metadata', function () {
+    it('keeps a managed IGSN sample image when the enclosing transaction rolls back', function () {
         Storage::fake('public');
         Config::set('igsn_images.disk', 'public');
         $resource = Resource::factory()->create(['doi' => '10.60510/gfso273n39']);
@@ -209,9 +210,16 @@ describe('deleted', function () {
             ->once()
             ->with([(int) $resource->id]);
 
-        $this->observer->deleting($resource);
+        DB::beginTransaction();
+        try {
+            $this->observer->deleting($resource);
 
-        Storage::disk('public')->assertMissing('igsn-sample-images/gfso273n39/sample.jpg');
+            Storage::disk('public')->assertExists('igsn-sample-images/gfso273n39/sample.jpg');
+        } finally {
+            DB::rollBack();
+        }
+
+        Storage::disk('public')->assertExists('igsn-sample-images/gfso273n39/sample.jpg');
     });
 
     it('invalidates all resource caches', function () {

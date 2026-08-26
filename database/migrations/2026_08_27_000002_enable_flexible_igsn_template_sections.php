@@ -31,13 +31,17 @@ return new class extends Migration
             ->select(['id', 'left_column_order', 'right_column_order'])
             ->orderBy('id')
             ->each(function (object $row): void {
+                $allSections = array_values(array_unique([
+                    ...$this->decodeOrder($row->left_column_order),
+                    ...$this->decodeOrder($row->right_column_order),
+                ]));
                 $left = array_values(array_filter(
-                    $this->decodeOrder($row->left_column_order),
-                    static fn (string $key): bool => $key !== 'sample_image',
+                    $allSections,
+                    static fn (string $key): bool => in_array($key, LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS, true),
                 ));
                 $right = array_values(array_filter(
-                    $this->decodeOrder($row->right_column_order),
-                    static fn (string $key): bool => $key !== 'sample_image',
+                    $allSections,
+                    static fn (string $key): bool => in_array($key, LandingPageTemplate::RIGHT_COLUMN_SECTIONS, true),
                 ));
 
                 $this->updateOrders((int) $row->id, $left, $right);

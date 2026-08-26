@@ -26,8 +26,9 @@ final class IgsnSampleImageUrlService
             return $this->result(self::STATUS_MISSING, reason: 'missing_image_metadata');
         }
 
-        $decodedFileName = rawurldecode($fileName);
-        if ($decodedFileName === ''
+        $decodedFileName = $this->decodePathValue($fileName);
+        if ($decodedFileName === null
+            || $decodedFileName === ''
             || str_contains($decodedFileName, '/')
             || str_contains($decodedFileName, '\\')
             || $decodedFileName === '.'
@@ -53,10 +54,16 @@ final class IgsnSampleImageUrlService
             return $this->result(self::STATUS_UNSUPPORTED, reason: 'unsupported_url');
         }
 
-        $basePath = '/'.ltrim((string) ($parts['path'] ?? '/'), '/');
+        $decodedBasePath = $this->decodePathValue((string) ($parts['path'] ?? '/'), rejectDotSegments: true);
+        if ($decodedBasePath === null) {
+            return $this->result(self::STATUS_UNSUPPORTED, reason: 'invalid_base_path');
+        }
+
+        $basePath = '/'.ltrim($decodedBasePath, '/');
         $basePath = rtrim($basePath, '/').'/';
+        $encodedBasePath = implode('/', array_map('rawurlencode', explode('/', $basePath)));
         $encodedFileName = rawurlencode($decodedFileName);
-        $sourceUrl = $scheme.'://'.$host.$basePath.$encodedFileName;
+        $sourceUrl = $scheme.'://'.$host.$encodedBasePath.$encodedFileName;
 
         $gfzHost = strtolower((string) config('igsn_images.gfz.host'));
         $gfzPrefix = (string) config('igsn_images.gfz.path_prefix', '/extern/IGSN/');
@@ -68,7 +75,7 @@ final class IgsnSampleImageUrlService
         $canonicalIcdpHost = strtolower((string) config('igsn_images.icdp.canonical_host'));
         if (in_array($host, [$legacyIcdpHost, $canonicalIcdpHost], true)
             && $this->hasAllowedIcdpPrefix($basePath)) {
-            $externalUrl = 'https://'.$canonicalIcdpHost.$basePath.$encodedFileName;
+            $externalUrl = 'https://'.$canonicalIcdpHost.$encodedBasePath.$encodedFileName;
 
             return $this->result(self::STATUS_EXTERNAL, $sourceUrl, $externalUrl);
         }
@@ -103,6 +110,40 @@ final class IgsnSampleImageUrlService
     private function isMissingValue(string $value): bool
     {
         return $value === '' || in_array(strtoupper($value), ['N/A', 'NA', 'NN'], true);
+    }
+
+    private function decodePathValue(string $value, bool $rejectDotSegments = false): ?string
+    {
+        $candidate = $value;
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            if (str_contains($candidate, "\0")
+                || str_contains($candidate, '\\')
+                || preg_match('/%(?:00|2f|5c)/i', $candidate) === 1
+                || ($rejectDotSegments && $this->containsDotSegment($candidate))) {
+                return null;
+            }
+
+            $decoded = rawurldecode($candidate);
+            if ($decoded === $candidate) {
+                return $decoded;
+            }
+
+            $candidate = $decoded;
+        }
+
+        return null;
+    }
+
+    private function containsDotSegment(string $path): bool
+    {
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '.' || $segment === '..') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function hasAllowedIcdpPrefix(string $path): bool

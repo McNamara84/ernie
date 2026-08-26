@@ -55,6 +55,14 @@ const EMPTY_PORTAL_FILTERS: PortalFilters = {
 };
 const THESAURUS_NOTATION_DELIMITER = '::';
 
+export function hasVisibleKeywords(subjects: LandingPageSubject[]): boolean {
+    return subjects.some((subject) => {
+        const normalizedScheme = normalizeKeywordScheme(subject.subject_scheme);
+
+        return normalizedScheme === null || THESAURUS_SCHEMES.has(normalizedScheme);
+    });
+}
+
 function getFullPath(subject: LandingPageSubject): string | null {
     if (!subject.subject_scheme || subject.subject_scheme === '') {
         return null;

@@ -103,6 +103,7 @@ describe('ImportIgsnsFromDataCiteJob', function () {
 
         $status = Cache::get("igsn_import:{$importId}");
         expect($status)->toMatchArray([
+            'images_total' => 1,
             'images_processed' => 1,
             'images_stored' => 1,
             'images_external' => 0,

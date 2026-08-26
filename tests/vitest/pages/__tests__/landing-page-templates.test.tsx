@@ -835,8 +835,8 @@ describe('LandingPageTemplatesPage', () => {
                             'sample_family',
                             'acquisition',
                             'repositories',
-                            'citation',
                             'dates',
+                            'citation',
                         ],
                     }),
                 );
@@ -875,6 +875,44 @@ describe('LandingPageTemplatesPage', () => {
                     }),
                 );
             });
+        });
+
+        it('applies a cross-column IGSN drop exactly once at the hovered module', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [
+                {
+                    ...defaultIgsnTemplate,
+                    id: 7,
+                    is_default: false,
+                    name: 'Cross-column IGSN Template',
+                    created_by: 1,
+                    creator: { id: 1, name: 'Admin User' },
+                    landing_pages_count: 0,
+                },
+            ];
+
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+            await user.click(screen.getByRole('button', { name: /Edit/i }));
+
+            act(() => dndContextMock.startHandlers.at(-1)?.({ active: { id: 'general' } }));
+            act(() => dndContextMock.overHandlers.at(-1)?.({ active: { id: 'general' }, over: { id: 'abstract' } }));
+            act(() => dndContextMock.handlers.at(-1)?.({ active: { id: 'general' }, over: { id: 'abstract' } }));
+
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    '/landing-pages/7',
+                    expect.objectContaining({
+                        left_column_order: expect.not.arrayContaining(['general']),
+                        right_column_order: expect.arrayContaining(['general', 'abstract']),
+                    }),
+                );
+            });
+
+            const payload = mockedAxiosPut.mock.calls.at(-1)?.[1] as { right_column_order: string[] };
+            expect(payload.right_column_order.indexOf('general')).toBe(payload.right_column_order.indexOf('abstract') - 1);
         });
 
         it('normalizes middle location to the end before saving', async () => {

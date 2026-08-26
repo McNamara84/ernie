@@ -82,6 +82,10 @@ final class IgsnSampleImageStorageService
         if (! $force
             && is_string($metadata->sample_image_storage_path)
             && $metadata->sample_image_storage_path !== ''
+            && hash_equals(
+                hash('sha256', $sourceUrl),
+                pathinfo($metadata->sample_image_storage_path, PATHINFO_FILENAME),
+            )
             && $disk->exists($metadata->sample_image_storage_path)) {
             return ['status' => 'unchanged', 'message' => 'Managed image is already stored.'];
         }

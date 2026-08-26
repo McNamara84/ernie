@@ -54,11 +54,29 @@ it('rejects placeholders traversal credentials query strings ports and unknown h
     'placeholder' => ['https://dataservices.gfz-potsdam.de/extern/IGSN/A/', 'NN', 'missing'],
     'traversal' => ['https://dataservices.gfz-potsdam.de/extern/IGSN/A/', '../secret.jpg', 'unsupported'],
     'encoded traversal' => ['https://dataservices.gfz-potsdam.de/extern/IGSN/A/', '..%2Fsecret.jpg', 'unsupported'],
+    'base traversal' => ['https://dataservices.gfz-potsdam.de/extern/IGSN/a/../../private/', 'sample.jpg', 'unsupported'],
+    'encoded base traversal' => ['https://dataservices.gfz-potsdam.de/extern/IGSN/a/%2e%2e/%2e%2e/private/', 'sample.jpg', 'unsupported'],
+    'double encoded base traversal' => ['https://dataservices.gfz-potsdam.de/extern/IGSN/a/%252e%252e/private/', 'sample.jpg', 'unsupported'],
+    'encoded base separator' => ['https://dataservices.gfz-potsdam.de/extern/IGSN/a%2fprivate/', 'sample.jpg', 'unsupported'],
+    'encoded base backslash' => ['https://dataservices.gfz-potsdam.de/extern/IGSN/a%5cprivate/', 'sample.jpg', 'unsupported'],
+    'encoded base nul' => ['https://dataservices.gfz-potsdam.de/extern/IGSN/a%00private/', 'sample.jpg', 'unsupported'],
     'credentials' => ['https://user:pass@dataservices.gfz-potsdam.de/extern/IGSN/A/', 'sample.jpg', 'unsupported'],
     'query' => ['https://dataservices.gfz-potsdam.de/extern/IGSN/A/?download=1', 'sample.jpg', 'unsupported'],
     'port' => ['https://dataservices.gfz-potsdam.de:8443/extern/IGSN/A/', 'sample.jpg', 'unsupported'],
     'host' => ['https://example.org/extern/IGSN/A/', 'sample.jpg', 'unsupported'],
 ]);
+
+it('reports unsafe configured-host base paths explicitly', function (): void {
+    $result = app(IgsnSampleImageUrlService::class)->resolve(
+        'https://dataservices.gfz-potsdam.de/extern/IGSN/a/%2e%2e/private/',
+        'sample.jpg',
+    );
+
+    expect($result)->toMatchArray([
+        'status' => 'unsupported',
+        'reason' => 'invalid_base_path',
+    ]);
+});
 
 it('reclassifies stored source URLs without broad host rewriting', function (): void {
     $service = app(IgsnSampleImageUrlService::class);

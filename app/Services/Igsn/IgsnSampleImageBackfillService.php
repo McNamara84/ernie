@@ -197,6 +197,14 @@ final class IgsnSampleImageBackfillService
             }
         }
 
+        $previousDescriptor = [
+            'sample_image_source_url' => $metadata->sample_image_source_url,
+            'sample_image_external_url' => $metadata->sample_image_external_url,
+            'sample_image_storage_path' => $metadata->sample_image_storage_path,
+            'sample_image_mime_type' => $metadata->sample_image_mime_type,
+            'sample_image_size' => $metadata->sample_image_size,
+        ];
+
         $metadata->sample_image_source_url = $resolved['source_url'];
         if ($resolved['status'] === IgsnSampleImageUrlService::STATUS_EXTERNAL) {
             $metadata->sample_image_external_url = $resolved['external_url'];
@@ -204,6 +212,10 @@ final class IgsnSampleImageBackfillService
         $metadata->save();
 
         $result = $this->storageService->sync($metadata, $force || $sourceChanged);
+        if (! in_array($result['status'], ['stored', 'external', 'unchanged'], true)) {
+            $metadata->forceFill($previousDescriptor)->save();
+        }
+
         $status = match ($result['status']) {
             'stored' => 'stored',
             'external' => 'linked_external',

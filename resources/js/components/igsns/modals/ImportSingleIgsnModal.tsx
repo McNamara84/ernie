@@ -32,6 +32,7 @@ interface ImportProgress extends ImportDataCiteSyncProgress {
     unassigned?: number;
     unassigned_dois?: string[];
     warnings?: string[];
+    images_total?: number;
     images_processed?: number;
     images_stored?: number;
     images_external?: number;
@@ -282,11 +283,7 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
         : isProcessingImages
           ? (progress?.images_processed ?? 0)
           : (progress?.processed ?? 0);
-    const progressTotal = isSyncing
-        ? (progress?.sync_total ?? 0)
-        : isProcessingImages
-          ? Math.max(progress?.images_processed ?? 0, progress?.imported ?? 0)
-          : (progress?.total ?? 0);
+    const progressTotal = isSyncing ? (progress?.sync_total ?? 0) : isProcessingImages ? (progress?.images_total ?? 0) : (progress?.total ?? 0);
     const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
     const relatedIgsnCount = progress?.discovered_children?.length ?? 0;
     const isAlreadyImported = progress?.imported === 0 && progress?.skipped === progress?.total && progress?.failed === 0;
