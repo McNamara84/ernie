@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CitationLabelResolutionMode;
 use App\Models\DateType;
 use App\Models\DescriptionType;
 use App\Models\FunderIdentifierType;
@@ -578,6 +579,7 @@ describe('ResourceStorageService', function () {
         $resourceType = ResourceType::first();
 
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldNotReceive('resolve');
         $mock->shouldReceive('resolveBestEffort')
             ->once()
             ->with('10.5880/test.related', 'DOI', Mockery::type('float'))
@@ -639,6 +641,90 @@ describe('ResourceStorageService', function () {
             ->and($related->relation_type_information)->toBe('Supplemental context')
             ->and($related->citation_label)->toBe('Doe, J. (2026): Auto-resolved citation.')
             ->and($related->position)->toBe(0);
+    });
+
+    it('resolves related identifier citation labels exhaustively when requested', function () {
+        $resourceType = ResourceType::first();
+
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldNotReceive('resolveBestEffort');
+        $mock->shouldNotReceive('resolve');
+        $mock->shouldReceive('resolveExhaustiveForStorage')
+            ->once()
+            ->with(Mockery::on(static fn (array $relatedIdentifiers): bool => array_column(
+                $relatedIdentifiers,
+                'identifier',
+            ) === [
+                '10.5880/test.exhaustive.one',
+                '10.5880/test.exhaustive.two',
+                'https://example.org/manual',
+            ]))
+            ->andReturnUsing(static function (array $relatedIdentifiers): array {
+                $relatedIdentifiers[0]['citationLabel'] = 'Doe, J. (2026): First exhaustive citation.';
+                $relatedIdentifiers[1]['citationLabel'] = 'Doe, J. (2026): Second exhaustive citation.';
+
+                return $relatedIdentifiers;
+            });
+        $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
+        $service = app(ResourceStorageService::class);
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Test Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'John',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Test abstract.',
+                ],
+            ],
+            'relatedIdentifiers' => [
+                [
+                    'identifier' => '10.5880/test.exhaustive.one',
+                    'identifierType' => 'DOI',
+                    'relationType' => 'Cites',
+                ],
+                [
+                    'identifier' => '10.5880/test.exhaustive.two',
+                    'identifierType' => 'DOI',
+                    'relationType' => 'References',
+                ],
+                [
+                    'identifier' => 'https://example.org/manual',
+                    'identifierType' => 'URL',
+                    'relationType' => 'References',
+                    'citationLabel' => 'Manually supplied citation.',
+                ],
+            ],
+        ];
+
+        [$resource] = $service->store(
+            $data,
+            $this->user->id,
+            CitationLabelResolutionMode::EXHAUSTIVE,
+        );
+
+        expect($resource->fresh()->relatedIdentifiers()->orderBy('position')->pluck('citation_label')->all())
+            ->toBe([
+                'Doe, J. (2026): First exhaustive citation.',
+                'Doe, J. (2026): Second exhaustive citation.',
+                'Manually supplied citation.',
+            ]);
     });
 
     it('preserves manual related identifier citation labels without calling the resolver', function () {

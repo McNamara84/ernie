@@ -569,7 +569,11 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $recordOutcome($normalizedDoi, $outcome);
             } else {
                 try {
-                    $pendingResult = $pendingImportService->importPendingByDoi($doi, $this->userId);
+                    $pendingResult = $pendingImportService->importPendingByDoi(
+                        $doi,
+                        $this->userId,
+                        CitationLabelResolutionMode::BEST_EFFORT,
+                    );
 
                     if ($pendingResult['status'] === 'imported') {
                         if ($portalDatacenterNames !== [] && $pendingResult['resource'] !== null) {
@@ -857,7 +861,11 @@ class ImportFromDataCiteJob implements ShouldQueue
     {
         try {
             $result = app(SumarioPendingResourceImportService::class)
-                ->importPendingByDoi($doi, $this->userId);
+                ->importPendingByDoi(
+                    $doi,
+                    $this->userId,
+                    CitationLabelResolutionMode::EXHAUSTIVE,
+                );
         } catch (\Throwable $exception) {
             Log::warning('SUMARIO pending lookup failed during single DOI fallback', [
                 'doi' => $doi,

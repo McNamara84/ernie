@@ -84,22 +84,14 @@ function getRelatedIdentifierLinkClassName(rel: LandingPageRelatedIdentifier): s
  * Related Work Section
  *
  * Displays all Related Identifiers grouped by RelationType.
- * The first IsSupplementTo relation is excluded (shown in Model Description).
+ * IsSupplementTo relations are excluded because the description section owns them.
  */
 export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], resource, useIgsnHandles = false }: RelatedWorkSectionProps) {
     const [browserOpen, setBrowserOpen] = useState(false);
     const [expanded, setExpanded] = useState(false);
 
-    // Exclude the first IsSupplementTo relation (memoized for referential stability)
-    const filteredRelations = useMemo(() => {
-        const firstSupplementToIndex = relatedIdentifiers.findIndex((rel) => rel.relation_type === 'IsSupplementTo');
-        return relatedIdentifiers.filter((rel, index) => {
-            if (rel.relation_type === 'IsSupplementTo' && index === firstSupplementToIndex) {
-                return false;
-            }
-            return true;
-        });
-    }, [relatedIdentifiers]);
+    // Exclude all description-owned relations (memoized for referential stability).
+    const filteredRelations = useMemo(() => relatedIdentifiers.filter((rel) => rel.relation_type !== 'IsSupplementTo'), [relatedIdentifiers]);
 
     const initialRelations = useMemo(() => filteredRelations.filter((rel) => !isRepositoryCurationRelatedIdentifier(rel)), [filteredRelations]);
 

@@ -155,7 +155,7 @@ describe('RelatedWorkSection', () => {
         expect(container.firstChild).toBeNull();
     });
 
-    it('excludes the first IsSupplementTo relation from the list', () => {
+    it('excludes every IsSupplementTo relation from the list', () => {
         render(
             <RelatedWorkSection
                 resource={mockResource}
@@ -165,14 +165,16 @@ describe('RelatedWorkSection', () => {
                         id: 2,
                         relation_type: 'IsSupplementTo',
                         identifier: '10.5880/second',
-                        citation_label: 'Visible supplement',
+                        citation_label: 'Hidden second supplement',
                     }),
+                    makeRelatedIdentifier({ id: 3, relation_type: 'References', identifier: '10.5880/visible', citation_label: 'Visible reference' }),
                 ]}
             />,
         );
 
         expect(screen.queryByText('Hidden first supplement')).not.toBeInTheDocument();
-        expect(screen.getByText('Visible supplement')).toBeInTheDocument();
+        expect(screen.queryByText('Hidden second supplement')).not.toBeInTheDocument();
+        expect(screen.getByText('Visible reference')).toBeInTheDocument();
     });
 
     it('renders headings as region, h2, and alphabetically sorted h3 groups', () => {

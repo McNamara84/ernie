@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Services\Citations\LegacyCitationCacheService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteApiService;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 covers(RelatedIdentifierCitationLabelService::class);
@@ -352,6 +354,117 @@ it('queries DOI metadata only for exhaustive legacy cache misses', function () {
 
     expect($resolved[0]['citationLabel'])->toBe('Legacy citation')
         ->and($resolved[1]['citationLabel'])->toBe('Metadata citation');
+});
+
+it('resolves a complete storage payload through one exhaustive metadata batch', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class)->makePartial();
+    $dataCite->shouldReceive('getMetadataBatch')
+        ->once()
+        ->with(['10.1234/storage-one', '10.1234/storage-two'])
+        ->andReturn([
+            '10.1234/storage-one' => [
+                'status' => 'resolved',
+                'metadata' => ['title' => 'Storage one'],
+            ],
+            '10.1234/storage-two' => [
+                'status' => 'resolved',
+                'metadata' => ['title' => 'Storage two'],
+            ],
+        ]);
+    $dataCite->shouldReceive('buildCitationFromMetadata')
+        ->once()
+        ->with(['title' => 'Storage one'])
+        ->andReturn('First storage citation');
+    $dataCite->shouldReceive('buildCitationFromMetadata')
+        ->once()
+        ->with(['title' => 'Storage two'])
+        ->andReturn('Second storage citation');
+
+    $resolved = relatedIdentifierCitationLabelService($dataCite)->resolveExhaustiveForStorage([
+        [
+            'identifier' => ' 10.1234/STORAGE-ONE ',
+            'identifierType' => 'DOI',
+            'relationType' => 'Cites',
+        ],
+        [
+            'identifier' => 'https://doi.org/10.1234/storage-two',
+            'identifierType' => 'URL',
+            'relationType' => 'References',
+        ],
+        [
+            'identifier' => '10.1234/manual',
+            'identifierType' => 'DOI',
+            'relationType' => 'Cites',
+            'citationLabel' => ' Manual citation ',
+        ],
+        [
+            'identifier' => 'hdl:1234/5678',
+            'identifierType' => 'Handle',
+            'relationType' => 'References',
+        ],
+    ]);
+
+    expect($resolved[0])->toMatchArray([
+        'identifier' => '10.1234/STORAGE-ONE',
+        'identifierType' => 'DOI',
+        'relationType' => 'Cites',
+        'citationLabel' => 'First storage citation',
+    ])->and($resolved[1]['citationLabel'])->toBe('Second storage citation')
+        ->and($resolved[2]['citationLabel'])->toBe('Manual citation')
+        ->and($resolved[3])->not->toHaveKey('citationLabel')
+        ->and($resolved[0])->not->toHaveKey('relatedIdentifier')
+        ->and($resolved[0])->not->toHaveKey('relatedIdentifierType');
+});
+
+it('bypasses a cached transient failure during exhaustive storage resolution', function () {
+    Cache::flush();
+
+    Http::fake([
+        'https://doi.org/10.5880/transient-storage' => Http::sequence()
+            ->push('Unavailable', 503)
+            ->push([
+                'author' => [['family' => 'Recovered', 'given' => 'Retry']],
+                'issued' => ['date-parts' => [[2026]]],
+                'title' => 'Recovered after transient failure',
+                'publisher' => 'GFZ',
+                'DOI' => '10.5880/transient-storage',
+            ]),
+        'https://doi.org/10.5880/second-storage' => Http::response([
+            'author' => [['family' => 'Batch', 'given' => 'Second']],
+            'issued' => ['date-parts' => [[2026]]],
+            'title' => 'Resolved in the same batch',
+            'publisher' => 'GFZ',
+            'DOI' => '10.5880/second-storage',
+        ]),
+    ]);
+
+    $dataCite = new DataCiteApiService;
+
+    expect($dataCite->getMetadata('10.5880/transient-storage'))->toBeNull();
+
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('findMany')
+        ->once()
+        ->with(['10.5880/transient-storage', '10.5880/second-storage'])
+        ->andReturn([]);
+
+    $resolved = relatedIdentifierCitationLabelService($dataCite, $legacy)->resolveExhaustiveForStorage([
+        [
+            'identifier' => '10.5880/transient-storage',
+            'identifierType' => 'DOI',
+        ],
+        [
+            'identifier' => '10.5880/second-storage',
+            'identifierType' => 'DOI',
+        ],
+    ]);
+
+    expect($resolved[0]['citationLabel'])
+        ->toBe('Recovered, R. (2026): Recovered after transient failure. GFZ. https://doi.org/10.5880/transient-storage')
+        ->and($resolved[1]['citationLabel'])
+        ->toBe('Batch, S. (2026): Resolved in the same batch. GFZ. https://doi.org/10.5880/second-storage');
+
+    Http::assertSentCount(3);
 });
 
 it('tolerates a malformed explicit DOI without making a batch request', function () {
