@@ -68,6 +68,7 @@ class LandingPageTemplateFactory extends Factory
             'slug' => LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG,
             'is_default' => true,
             'template_type' => LandingPageTemplate::TEMPLATE_TYPE_IGSN,
+            'right_column_order' => LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
             'left_column_order' => LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
             'created_by' => null,
         ]);
@@ -80,6 +81,7 @@ class LandingPageTemplateFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'template_type' => LandingPageTemplate::TEMPLATE_TYPE_IGSN,
+            'right_column_order' => LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
             'left_column_order' => LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
         ]);
     }

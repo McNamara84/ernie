@@ -1,5 +1,5 @@
-import type { DragEndEvent } from '@dnd-kit/core';
-import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import type { DragEndEvent, DragOverEvent, DragStartEvent } from '@dnd-kit/core';
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Head, router, usePage } from '@inertiajs/react';
@@ -31,12 +31,14 @@ import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import {
     LEFT_SECTION_LABELS,
+    normalizeIgsnColumnOrders,
     normalizeLeftColumnOrder,
     normalizeRightColumnOrder,
     RIGHT_SECTION_LABELS,
+    SECTION_LABELS,
 } from '@/pages/LandingPages/lib/section-catalog';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import type { LandingPageTemplateConfig, LandingPageTemplateDatacenter, LeftColumnSection, RightColumnSection } from '@/types/landing-page';
+import type { IgsnSection, LandingPageTemplateConfig, LandingPageTemplateDatacenter, TemplateSection } from '@/types/landing-page';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Pages', href: '/landing-pages' }];
 const DISPLAY_LIMIT_MIN = 1;
@@ -131,6 +133,121 @@ function SectionOrderEditor({
                         ))}
                     </div>
                 </SortableContext>
+            </DndContext>
+        </div>
+    );
+}
+
+type IgsnColumnId = 'igsn-left-column' | 'igsn-right-column';
+
+function findIgsnColumn(id: string, left: readonly IgsnSection[], right: readonly IgsnSection[]): IgsnColumnId | null {
+    if (id === 'igsn-left-column' || left.includes(id as IgsnSection)) return 'igsn-left-column';
+    if (id === 'igsn-right-column' || right.includes(id as IgsnSection)) return 'igsn-right-column';
+
+    return null;
+}
+
+export function moveIgsnSection(
+    left: readonly IgsnSection[],
+    right: readonly IgsnSection[],
+    activeId: string,
+    overId: string,
+): { left: IgsnSection[]; right: IgsnSection[] } {
+    const sourceColumn = findIgsnColumn(activeId, left, right);
+    const targetColumn = findIgsnColumn(overId, left, right);
+    if (sourceColumn === null || targetColumn === null || activeId === overId) return { left: [...left], right: [...right] };
+
+    const next = { left: [...left], right: [...right] };
+    const source = sourceColumn === 'igsn-left-column' ? next.left : next.right;
+    const target = targetColumn === 'igsn-left-column' ? next.left : next.right;
+    const oldIndex = source.indexOf(activeId as IgsnSection);
+    if (oldIndex === -1) return next;
+
+    if (sourceColumn === targetColumn) {
+        const overIndex = overId === targetColumn ? target.length - 1 : target.indexOf(overId as IgsnSection);
+        return overIndex < 0
+            ? next
+            : sourceColumn === 'igsn-left-column'
+              ? { left: arrayMove(next.left, oldIndex, overIndex), right: next.right }
+              : { left: next.left, right: arrayMove(next.right, oldIndex, overIndex) };
+    }
+
+    const [moved] = source.splice(oldIndex, 1);
+    const overIndex = overId === targetColumn ? target.length : target.indexOf(overId as IgsnSection);
+    target.splice(overIndex < 0 ? target.length : overIndex, 0, moved);
+
+    return next;
+}
+
+function IgsnColumn({ id, title, items }: { id: IgsnColumnId; title: string; items: IgsnSection[] }) {
+    const { setNodeRef, isOver } = useDroppable({ id });
+
+    return (
+        <div className="space-y-2">
+            <Label className="text-sm font-medium">{title}</Label>
+            <SortableContext items={items} strategy={verticalListSortingStrategy}>
+                <div
+                    ref={setNodeRef}
+                    data-testid={id}
+                    className={`min-h-20 space-y-1.5 rounded-md border border-dashed p-2 ${isOver ? 'border-primary bg-primary/5' : ''}`}
+                >
+                    {items.map((key) => (
+                        <SortableSectionItem key={key} id={key} label={SECTION_LABELS[key]} />
+                    ))}
+                    {items.length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">Drop modules here</p>}
+                </div>
+            </SortableContext>
+        </div>
+    );
+}
+
+function IgsnSectionOrderEditor({
+    left,
+    right,
+    onChange,
+}: {
+    left: IgsnSection[];
+    right: IgsnSection[];
+    onChange: (orders: { left: IgsnSection[]; right: IgsnSection[] }) => void;
+}) {
+    const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+    const snapshot = useRef<{ left: IgsnSection[]; right: IgsnSection[] } | null>(null);
+
+    const handleDragStart = (event: DragStartEvent) => {
+        if (findIgsnColumn(String(event.active.id), left, right) !== null) snapshot.current = { left: [...left], right: [...right] };
+    };
+    const handleDragOver = (event: DragOverEvent) => {
+        if (!event.over) return;
+        const activeId = String(event.active.id);
+        const overId = String(event.over.id);
+        if (findIgsnColumn(activeId, left, right) !== findIgsnColumn(overId, left, right)) {
+            onChange(moveIgsnSection(left, right, activeId, overId));
+        }
+    };
+    const handleDragEnd = (event: DragEndEvent) => {
+        snapshot.current = null;
+        if (!event.over) return;
+        onChange(moveIgsnSection(left, right, String(event.active.id), String(event.over.id)));
+    };
+
+    return (
+        <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Every IGSN module can be reordered or moved between either column.</p>
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+                onDragCancel={() => {
+                    if (snapshot.current) onChange(snapshot.current);
+                    snapshot.current = null;
+                }}
+            >
+                <div className="grid gap-6 md:grid-cols-2">
+                    <IgsnColumn id="igsn-left-column" title="Left Column (sidebar)" items={left} />
+                    <IgsnColumn id="igsn-right-column" title="Right Column (main content)" items={right} />
+                </div>
             </DndContext>
         </div>
     );
@@ -233,8 +350,8 @@ export default function LandingPageTemplatesPage() {
     const [editOpen, setEditOpen] = useState(false);
     const [editTemplate, setEditTemplate] = useState<LandingPageTemplateConfig | null>(null);
     const [editName, setEditName] = useState('');
-    const [editRightOrder, setEditRightOrder] = useState<RightColumnSection[]>([]);
-    const [editLeftOrder, setEditLeftOrder] = useState<LeftColumnSection[]>([]);
+    const [editRightOrder, setEditRightOrder] = useState<TemplateSection[]>([]);
+    const [editLeftOrder, setEditLeftOrder] = useState<TemplateSection[]>([]);
     const [editCreatorDisplayLimit, setEditCreatorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [editContributorDisplayLimit, setEditContributorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [editCitationAuthorDisplayLimit, setEditCitationAuthorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
@@ -287,8 +404,14 @@ export default function LandingPageTemplatesPage() {
     const openEdit = (tmpl: LandingPageTemplateConfig) => {
         setEditTemplate(tmpl);
         setEditName(tmpl.name);
-        setEditRightOrder(normalizeRightColumnOrder(tmpl.right_column_order));
-        setEditLeftOrder(normalizeLeftColumnOrder(tmpl.left_column_order, tmpl.template_type));
+        if (tmpl.template_type === 'igsn') {
+            const orders = normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order);
+            setEditLeftOrder(orders.left);
+            setEditRightOrder(orders.right);
+        } else {
+            setEditRightOrder(normalizeRightColumnOrder(tmpl.right_column_order));
+            setEditLeftOrder(normalizeLeftColumnOrder(tmpl.left_column_order, tmpl.template_type));
+        }
         setEditCreatorDisplayLimit(String(tmpl.creator_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditContributorDisplayLimit(String(tmpl.contributor_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditCitationAuthorDisplayLimit(String(tmpl.citation_author_display_limit ?? DISPLAY_LIMIT_DEFAULT));
@@ -322,8 +445,9 @@ export default function LandingPageTemplatesPage() {
                   }
                 : {
                       name: editName.trim(),
-                      right_column_order: normalizeRightColumnOrder(editRightOrder),
-                      left_column_order: normalizeLeftColumnOrder(editLeftOrder, editTemplate.template_type),
+                      right_column_order: editTemplate.template_type === 'igsn' ? editRightOrder : normalizeRightColumnOrder(editRightOrder),
+                      left_column_order:
+                          editTemplate.template_type === 'igsn' ? editLeftOrder : normalizeLeftColumnOrder(editLeftOrder, editTemplate.template_type),
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
                       citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
@@ -532,16 +656,22 @@ export default function LandingPageTemplatesPage() {
                                     <div>
                                         <span className="font-medium text-foreground">Left Column:</span>
                                         <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
-                                            {normalizeLeftColumnOrder(tmpl.left_column_order, tmpl.template_type).map((key) => (
-                                                <li key={key}>{LEFT_SECTION_LABELS[key] ?? key}</li>
+                                            {(tmpl.template_type === 'igsn'
+                                                ? normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order).left
+                                                : normalizeLeftColumnOrder(tmpl.left_column_order, tmpl.template_type)
+                                            ).map((key) => (
+                                                <li key={key}>{SECTION_LABELS[key] ?? key}</li>
                                             ))}
                                         </ol>
                                     </div>
                                     <div>
                                         <span className="font-medium text-foreground">Right Column:</span>
                                         <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
-                                            {normalizeRightColumnOrder(tmpl.right_column_order).map((key) => (
-                                                <li key={key}>{RIGHT_SECTION_LABELS[key] ?? key}</li>
+                                            {(tmpl.template_type === 'igsn'
+                                                ? normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order).right
+                                                : normalizeRightColumnOrder(tmpl.right_column_order)
+                                            ).map((key) => (
+                                                <li key={key}>{SECTION_LABELS[key] ?? key}</li>
                                             ))}
                                         </ol>
                                     </div>
@@ -747,26 +877,33 @@ export default function LandingPageTemplatesPage() {
                             <>
                                 <Separator />
 
-                                <div className="grid gap-6 md:grid-cols-2">
-                                    <SectionOrderEditor
-                                        title="Left Column (sidebar)"
-                                        items={editLeftOrder}
-                                        labels={LEFT_SECTION_LABELS}
-                                        description={
-                                            editTemplate?.template_type === 'igsn'
-                                                ? 'IGSN templates use the General and Acquisition modules instead of Files & Downloads.'
-                                                : 'Resource templates render files, contact details, and related material in the sidebar.'
-                                        }
-                                        onReorder={(items) => setEditLeftOrder(items as LeftColumnSection[])}
+                                {editTemplate?.template_type === 'igsn' ? (
+                                    <IgsnSectionOrderEditor
+                                        left={editLeftOrder as IgsnSection[]}
+                                        right={editRightOrder as IgsnSection[]}
+                                        onChange={(orders) => {
+                                            setEditLeftOrder(orders.left);
+                                            setEditRightOrder(orders.right);
+                                        }}
                                     />
-                                    <SectionOrderEditor
-                                        title="Right Column (main content)"
-                                        items={editRightOrder}
-                                        labels={RIGHT_SECTION_LABELS}
-                                        description="Description modules render inside one shared metadata card. Location / Map stays outside that card and snaps to the top or bottom position."
-                                        onReorder={(items) => setEditRightOrder(normalizeRightColumnOrder(items as RightColumnSection[]))}
-                                    />
-                                </div>
+                                ) : (
+                                    <div className="grid gap-6 md:grid-cols-2">
+                                        <SectionOrderEditor
+                                            title="Left Column (sidebar)"
+                                            items={editLeftOrder}
+                                            labels={LEFT_SECTION_LABELS}
+                                            description="Resource templates render files, contact details, and related material in the sidebar."
+                                            onReorder={(items) => setEditLeftOrder(items as TemplateSection[])}
+                                        />
+                                        <SectionOrderEditor
+                                            title="Right Column (main content)"
+                                            items={editRightOrder}
+                                            labels={RIGHT_SECTION_LABELS}
+                                            description="Description modules render inside one shared metadata card. Location / Map stays outside that card and snaps to the top or bottom position."
+                                            onReorder={(items) => setEditRightOrder(normalizeRightColumnOrder(items as TemplateSection[]))}
+                                        />
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>

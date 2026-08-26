@@ -13,6 +13,7 @@ use App\Jobs\UpdatePidJob;
 use App\Jobs\UpdateThesaurusJob;
 use App\Listeners\MarkContactMessageAsSent;
 use App\Models\Format;
+use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
@@ -23,6 +24,7 @@ use App\Models\Size;
 use App\Models\Subject;
 use App\Models\User;
 use App\Observers\FormatObserver;
+use App\Observers\IgsnMetadataObserver;
 use App\Observers\LandingPageFileObserver;
 use App\Observers\LandingPageLinkObserver;
 use App\Observers\LandingPageObserver;
@@ -77,6 +79,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Register model observers
         Resource::observe(ResourceObserver::class);
+        IgsnMetadata::observe(IgsnMetadataObserver::class);
         ResourceAssessment::observe(ResourceAssessmentObserver::class);
         ResourceType::observe(ResourceTypeObserver::class);
         LandingPage::observe(LandingPageObserver::class);

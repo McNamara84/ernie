@@ -12,6 +12,7 @@ use App\Models\Resource;
 use App\Services\AutomaticIgsnLandingPageService;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\DataCiteToIgsnTransformer;
+use App\Services\Igsn\IgsnSampleImageStorageService;
 use App\Services\IgsnChildDiscoveryService;
 use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnImportService;
@@ -52,6 +53,9 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
     /** @var list<int> */
     private array $resourceIdsForDataCiteSync = [];
 
+    /** @var list<int> */
+    private array $resourceIdsForImageSync = [];
+
     /**
      * @param  int  $userId  The user who initiated the import
      * @param  string  $importId  UUID for progress tracking
@@ -87,8 +91,10 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         IgsnEnrichmentService $enrichmentService,
         ?IgsnChildDiscoveryService $childDiscoveryService = null,
         ?LegacyIgsnPortalService $legacyPortalService = null,
+        ?IgsnSampleImageStorageService $imageStorageService = null,
     ): void {
         $legacyPortalService ??= app(LegacyIgsnPortalService::class);
+        $imageStorageService ??= app(IgsnSampleImageStorageService::class);
 
         Log::info('Starting IGSN import job', [
             'import_id' => $this->importId,
@@ -112,6 +118,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                     transformer: $transformer,
                     enrichmentService: $enrichmentService,
                     legacyPortalService: $legacyPortalService,
+                    imageStorageService: $imageStorageService,
                     startedAt: $startTime->toIso8601String(),
                 );
 
@@ -125,6 +132,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                     enrichmentService: $enrichmentService,
                     childDiscoveryService: $childDiscoveryService ?? app(IgsnChildDiscoveryService::class),
                     legacyPortalService: $legacyPortalService,
+                    imageStorageService: $imageStorageService,
                     startedAt: $startTime->toIso8601String(),
                 );
 
@@ -299,6 +307,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             ]);
 
             if ($finalStatus !== 'cancelled') {
+                $this->finishImageSyncPhase($imageStorageService);
+                $this->updateProgressKeys(['phase' => 'syncing']);
                 $this->finishDataCiteSyncPhase();
             }
 
@@ -337,6 +347,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         DataCiteToIgsnTransformer $transformer,
         IgsnEnrichmentService $enrichmentService,
         LegacyIgsnPortalService $legacyPortalService,
+        IgsnSampleImageStorageService $imageStorageService,
         string $startedAt,
     ): void {
         if ($this->isCancelled()) {
@@ -525,6 +536,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         ]);
 
         if ($finalStatus !== 'cancelled') {
+            $this->finishImageSyncPhase($imageStorageService);
+            $this->updateProgressKeys(['phase' => 'syncing']);
             $this->finishDataCiteSyncPhase();
         }
     }
@@ -535,6 +548,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         IgsnEnrichmentService $enrichmentService,
         IgsnChildDiscoveryService $childDiscoveryService,
         LegacyIgsnPortalService $legacyPortalService,
+        IgsnSampleImageStorageService $imageStorageService,
         string $startedAt,
     ): void {
         $requestedDoi = IgsnIdentifier::normalizeDoi((string) $this->singleDoi);
@@ -669,6 +683,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         )));
 
         $syncIdCountBeforeTransaction = count($this->resourceIdsForDataCiteSync);
+        $imageSyncIdCountBeforeTransaction = count($this->resourceIdsForImageSync);
 
         try {
             $assignments = $legacyPortalService->assignmentsForHandles($newHandles);
@@ -757,6 +772,11 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 0,
                 $syncIdCountBeforeTransaction,
             );
+            $this->resourceIdsForImageSync = array_slice(
+                $this->resourceIdsForImageSync,
+                0,
+                $imageSyncIdCountBeforeTransaction,
+            );
 
             if ($this->isCancelled()) {
                 $this->markSingleImportCancelled($total, $requestedHandle, $childHandles, $startedAt);
@@ -801,6 +821,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             'completed_at' => null,
         ]);
 
+        $this->finishImageSyncPhase($imageStorageService);
+        $this->updateProgressKeys(['phase' => 'syncing']);
         $this->finishDataCiteSyncPhase();
 
         Log::info('Single IGSN import completed', [
@@ -1095,6 +1117,10 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                         'error' => $e->getMessage(),
                     ]);
                 }
+            }
+
+            if (is_string($igsnMetadata->sample_image_source_url) && $igsnMetadata->sample_image_source_url !== '') {
+                $this->resourceIdsForImageSync[] = (int) $importedResource->id;
             }
         } elseif ($strictEnrichment) {
             throw new RuntimeException(
@@ -1460,6 +1486,57 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             $this->importId,
             $this->resourceIdsForDataCiteSync,
         );
+    }
+
+    private function finishImageSyncPhase(IgsnSampleImageStorageService $imageStorageService): void
+    {
+        if ($this->isCancelled()) {
+            return;
+        }
+
+        $resourceIds = array_values(array_unique($this->resourceIdsForImageSync));
+        $counts = [
+            'images_processed' => 0,
+            'images_stored' => 0,
+            'images_external' => 0,
+            'images_skipped' => 0,
+            'images_failed' => 0,
+        ];
+        $warnings = [];
+
+        $this->updateProgressKeys(['phase' => 'images', ...$counts, 'image_warnings' => []]);
+
+        foreach ($resourceIds as $resourceId) {
+            if ($this->isCancelled()) {
+                return;
+            }
+
+            $metadata = IgsnMetadata::query()->with('resource')->where('resource_id', $resourceId)->first();
+            if (! $metadata instanceof IgsnMetadata) {
+                continue;
+            }
+
+            $result = $imageStorageService->sync($metadata);
+            $counts['images_processed']++;
+
+            match ($result['status']) {
+                'stored' => $counts['images_stored']++,
+                'external' => $counts['images_external']++,
+                'failed' => $counts['images_failed']++,
+                default => $counts['images_skipped']++,
+            };
+
+            if ($result['status'] === 'failed' && count($warnings) < 100) {
+                $warnings[] = [
+                    'doi' => (string) $metadata->resource->doi,
+                    'error' => $result['message'],
+                ];
+            }
+
+            if ($counts['images_processed'] === 1 || $counts['images_processed'] % 25 === 0 || $counts['images_processed'] === count($resourceIds)) {
+                $this->updateProgressKeys([...$counts, 'image_warnings' => $warnings]);
+            }
+        }
     }
 
     public function failed(?Throwable $exception): void

@@ -119,6 +119,7 @@ vi.mock('@dnd-kit/core', () => ({
     PointerSensor: vi.fn(),
     useSensor: vi.fn(),
     useSensors: vi.fn(() => []),
+    useDroppable: vi.fn(() => ({ setNodeRef: vi.fn(), isOver: false })),
 }));
 
 vi.mock('@dnd-kit/sortable', () => ({
@@ -808,6 +809,7 @@ describe('LandingPageTemplatesPage', () => {
             expect(within(dialog).getByText('Sample Family')).toBeInTheDocument();
             expect(within(dialog).getByText('Acquisition')).toBeInTheDocument();
             expect(within(dialog).getByText('Cite this Resource')).toBeInTheDocument();
+            expect(within(dialog).getByText('Sample Image')).toBeInTheDocument();
 
             await user.click(screen.getByRole('button', { name: /Save Changes/i }));
 
@@ -823,8 +825,8 @@ describe('LandingPageTemplatesPage', () => {
                             'sample_family',
                             'acquisition',
                             'repositories',
-                            'dates',
                             'citation',
+                            'dates',
                         ],
                     }),
                 );

@@ -567,6 +567,8 @@ final class LandingPageResourceTransformer
                 is_string($originalArchive) ? $originalArchive : null,
             );
             $repositoryContacts = array_values(array_filter([$currentRepositoryContact, $originalRepositoryContact]));
+            $sampleImageUrl = $meta->sampleImageUrl();
+            $sampleImageHosting = $meta->sampleImageHosting();
 
             $resourceData['igsn_metadata'] = [
                 'igsn' => $igsn,
@@ -595,6 +597,10 @@ final class LandingPageResourceTransformer
                 'original_archive' => $originalArchive,
                 'original_archive_contact' => $originalRepositoryContact['label'] ?? null,
                 'repository_contacts' => $repositoryContacts,
+                'sample_image' => $sampleImageUrl !== null && $sampleImageHosting !== null ? [
+                    'url' => $sampleImageUrl,
+                    'hosting' => $sampleImageHosting,
+                ] : null,
                 'platform_type' => $meta->platform_type,
                 'platform_name' => $meta->platform_name,
                 'platform_description' => $meta->platform_description,

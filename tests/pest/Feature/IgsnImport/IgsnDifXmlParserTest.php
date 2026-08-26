@@ -34,6 +34,33 @@ beforeEach(function () {
 });
 
 describe('IgsnDifXmlParser', function () {
+    it('persists safe managed and external sample image descriptors without downloading', function () {
+        $managed = <<<'XML'
+        <resource><sample>
+          <sample_image>SO273-31D-18_wet.jpg</sample_image>
+          <sample_image_path>https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/</sample_image_path>
+        </sample></resource>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($managed, $this->resource, $this->igsnMetadata))->toBeTrue();
+        $this->igsnMetadata->refresh();
+        expect($this->igsnMetadata->sample_image_source_url)
+            ->toBe('https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/SO273-31D-18_wet.jpg')
+            ->and($this->igsnMetadata->sample_image_external_url)->toBeNull()
+            ->and($this->igsnMetadata->sample_image_storage_path)->toBeNull();
+
+        $external = <<<'XML'
+        <resource><sample>
+          <sample_image>CS_5054.jpg</sample_image>
+          <sample_image_path>http://www-icdp.icdp-online.org/sites/cosc/news/cores/</sample_image_path>
+        </sample></resource>
+        XML;
+        expect($this->parser->enrichFromDifXml($external, $this->resource, $this->igsnMetadata))->toBeTrue();
+        $this->igsnMetadata->refresh();
+        expect($this->igsnMetadata->sample_image_external_url)
+            ->toBe('https://data.icdp-online.org/sites/cosc/news/cores/CS_5054.jpg');
+    });
+
     it('parses scalar fields from DIF XML with namespace', function () {
         $xml = <<<'XML'
         <?xml version="1.0" encoding="UTF-8"?>

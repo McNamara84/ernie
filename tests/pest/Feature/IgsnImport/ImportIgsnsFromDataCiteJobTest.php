@@ -18,6 +18,9 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 beforeEach(function () {
@@ -67,6 +70,47 @@ afterEach(function () {
 });
 
 describe('ImportIgsnsFromDataCiteJob', function () {
+    it('downloads managed images after metadata transactions and reports image progress independently', function (): void {
+        Storage::fake('public');
+        Config::set('igsn_images.disk', 'public');
+        $this->importService->shouldReceive('getTotalIgsnCount')->once()->andReturn(1);
+        $this->importService->shouldReceive('fetchAllIgsns')->once()->andReturn((function () {
+            yield ['id' => '10.60510/GFSO273N39', 'attributes' => ['doi' => '10.60510/GFSO273N39']];
+        })());
+        $this->transformer->shouldReceive('transform')->once()->andReturnUsing(function (): Resource {
+            $resource = createMockResourceWithIgsn('10.60510/gfso273n39');
+            $resource->igsnMetadata->update([
+                'sample_image_source_url' => 'https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/SO273.jpg',
+            ]);
+
+            return $resource;
+        });
+        $this->enrichmentService->shouldReceive('enrich')->once()->andReturn(true);
+        $baselineTransactionLevel = DB::transactionLevel();
+
+        Http::fake(function () use ($baselineTransactionLevel) {
+            expect(DB::transactionLevel())->toBe($baselineTransactionLevel);
+
+            return Http::response(issue1168ImportJpeg(), 200, ['Content-Type' => 'image/jpeg']);
+        });
+
+        $importId = Str::uuid()->toString();
+        (new ImportIgsnsFromDataCiteJob($this->user->id, $importId))->handle(
+            $this->importService,
+            $this->transformer,
+            $this->enrichmentService,
+        );
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status)->toMatchArray([
+            'images_processed' => 1,
+            'images_stored' => 1,
+            'images_external' => 0,
+            'images_failed' => 0,
+            'image_warnings' => [],
+        ])->and(Resource::where('doi', '10.60510/gfso273n39')->firstOrFail()->igsnMetadata->sample_image_storage_path)->not->toBeNull();
+    });
+
     it('uses the dedicated imports queue', function (): void {
         $job = new ImportIgsnsFromDataCiteJob(
             $this->user->id,
@@ -1455,4 +1499,9 @@ function createMockResourceWithIgsn(?string $doi = null, ?string $parentHandle =
     $resource->load('igsnMetadata');
 
     return $resource;
+}
+
+function issue1168ImportJpeg(): string
+{
+    return (string) base64_decode('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9oADAMBAAIAAwAAABAf/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPxB//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPxB//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxB//9k=', true);
 }

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 
 export interface ImportDataCiteSyncProgress {
-    phase?: 'importing' | 'syncing' | 'completed';
+    phase?: 'preflight' | 'importing' | 'images' | 'syncing' | 'completed';
     sync_total?: number;
     sync_processed?: number;
     sync_succeeded?: number;

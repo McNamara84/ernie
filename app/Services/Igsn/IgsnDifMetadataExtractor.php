@@ -42,6 +42,27 @@ class IgsnDifMetadataExtractor
     }
 
     /**
+     * Extract only the first sample's image descriptor without validating any
+     * unrelated controlled vocabulary.
+     *
+     * @return array{file_name: string|null, base_url: string|null}|null
+     */
+    public function extractImageFields(string $difXml): ?array
+    {
+        $root = @simplexml_load_string($difXml, \SimpleXMLElement::class, LIBXML_NONET);
+        if ($root === false) {
+            return null;
+        }
+
+        $samples = $root->xpath('//*[local-name()="sample"]');
+        if (! is_array($samples) || $samples === []) {
+            return null;
+        }
+
+        return $this->imageFields($samples[0]);
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public function extract(string $difXml): ?array
@@ -111,6 +132,7 @@ class IgsnDifMetadataExtractor
             )),
             'parent_igsn' => $this->first($sample, ['parent_igsn']),
             'sample_access' => $this->first($root, ['sampleAccess']) ?? $this->first($sample, ['sample_access']),
+            'sample_image' => $this->imageFields($sample),
             'description_groups' => $descriptionGroups,
             'material_descriptions' => $this->descriptionNormalizer->legacyValues($descriptionGroups),
             'comments' => $this->uniqueValues($comments),
@@ -141,6 +163,15 @@ class IgsnDifMetadataExtractor
                 $this->splitValues($this->directRawValues($sample, 'size'), false),
                 $this->splitValues($this->directRawValues($sample, 'size_unit'), false),
             ),
+        ];
+    }
+
+    /** @return array{file_name: string|null, base_url: string|null} */
+    private function imageFields(\SimpleXMLElement $sample): array
+    {
+        return [
+            'file_name' => $this->first($sample, ['sample_image']),
+            'base_url' => $this->first($sample, ['sample_image_path']),
         ];
     }
 

@@ -183,13 +183,21 @@ class LandingPagePreviewController extends Controller
         $resolvedTemplate = $templateResolver->resolve($resource, $landingPageTemplateId);
         $templateConfig = $resolvedTemplate['template'];
 
-        $sectionOrder = [
-            'rightColumn' => $templateConfig->right_column_order,
-            'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder(
+        if ($templateConfig->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
+            $igsnOrders = LandingPageTemplate::normalizeIgsnSectionOrders(
                 $templateConfig->left_column_order,
-                $templateConfig->template_type,
-            ),
-        ];
+                $templateConfig->right_column_order,
+            );
+            $sectionOrder = ['rightColumn' => $igsnOrders['right'], 'leftColumn' => $igsnOrders['left']];
+        } else {
+            $sectionOrder = [
+                'rightColumn' => $templateConfig->right_column_order,
+                'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder(
+                    $templateConfig->left_column_order,
+                    $templateConfig->template_type,
+                ),
+            ];
+        }
         $customLogoUrl = $templateConfig->logo_url;
 
         $downloadsUnavailable = LandingPageController::templateSupportsDownloadsUnavailable($template)
