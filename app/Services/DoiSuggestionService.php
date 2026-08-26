@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Resource;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Service for DOI validation and suggestion.
@@ -19,6 +20,7 @@ class DoiSuggestionService
      * This prevents infinite loops when searching for the next available DOI number.
      */
     private const MAX_DOI_SUGGESTION_ATTEMPTS = 100;
+
     /**
      * Check if a DOI already exists in the database.
      *
@@ -240,7 +242,7 @@ class DoiSuggestionService
         $sampleSuffix = $suffixGenerator(0);
         // Extract the base pattern (everything before the final number)
         $basePattern = preg_replace('/\d+$/', '', $sampleSuffix);
-        $likePattern = $prefix . '/' . $basePattern . '%';
+        $likePattern = $prefix.'/'.$basePattern.'%';
 
         // Fetch all existing DOIs matching the pattern in a single query
         $existingDois = Resource::where('doi', 'LIKE', $likePattern)
@@ -254,18 +256,18 @@ class DoiSuggestionService
         // Find the first available DOI starting from startNumber + 1
         $number = $startNumber + 1;
         for ($i = 0; $i < $maxAttempts; $i++) {
-            $candidateDoi = strtolower($prefix . '/' . $suffixGenerator($number));
+            $candidateDoi = strtolower($prefix.'/'.$suffixGenerator($number));
 
             if (! isset($existingDoiSet[$candidateDoi])) {
                 // Return with original case from generator
-                return $prefix . '/' . $suffixGenerator($number);
+                return $prefix.'/'.$suffixGenerator($number);
             }
 
             $number++;
         }
 
         // Log warning and throw exception if no available DOI found
-        \Log::warning('Could not find available DOI after maximum attempts', [
+        Log::warning('Could not find available DOI after maximum attempts', [
             'prefix' => $prefix,
             'start_number' => $startNumber,
             'max_attempts' => $maxAttempts,

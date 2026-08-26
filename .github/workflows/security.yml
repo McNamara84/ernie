@@ -66,7 +66,7 @@ jobs:
             -e TRIVY_DISABLE_VEX_NOTICE \
             -v "${{ github.workspace }}:/work" \
             -w /work \
-            aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e image \
+            aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image \
             --input /work/ernie-security-scan.tar \
             --cache-dir /work/.trivy-cache \
             --scanners vuln \
@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload Trivy scan results
         if: ${{ always() && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
         with:
           sarif_file: trivy-results.sarif
           category: trivy-app-image
@@ -100,7 +100,7 @@ jobs:
             -e TRIVY_DISABLE_VEX_NOTICE \
             -v "${{ github.workspace }}:/work" \
             -w /work \
-            aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e image \
+            aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image \
             --input /work/ernie-security-scan.tar \
             --cache-dir /work/.trivy-cache \
             --scanners vuln \
