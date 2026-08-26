@@ -135,7 +135,7 @@ export default function DefaultGfzIgsnTemplate() {
                     dates={resource.dates || []}
                 />
             ),
-            repositories: <RepositoriesSection key="repositories" igsn={resource.igsn_metadata} />,
+            repositories: <RepositoriesSection key="repositories" igsn={resource.igsn_metadata} datasetTitle={mainTitle} />,
             citation: (
                 <CiteThisResourceSection
                     key="citation"

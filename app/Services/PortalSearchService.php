@@ -354,9 +354,11 @@ class PortalSearchService
             return;
         }
 
-        $searchTerm = '%'.trim($searchQuery).'%';
+        $trimmedQuery = trim($searchQuery);
+        $searchTerm = '%'.$trimmedQuery.'%';
+        $identifierVariants = $this->identifierSearchVariants($trimmedQuery);
 
-        $query->where(function (Builder $q) use ($searchTerm): void {
+        $query->where(function (Builder $q) use ($identifierVariants, $searchTerm): void {
             // Search in DOI
             $q->where('doi', 'like', $searchTerm)
                 // Search in titles
@@ -392,7 +394,68 @@ class PortalSearchService
                 ->orWhereHas('subjects', function (Builder $subjectQuery) use ($searchTerm): void {
                     $subjectQuery->where('value', 'like', $searchTerm);
                 });
+
+            if ($identifierVariants !== []) {
+                // Alternate identifiers are aliases of the resource itself.
+                $q->orWhereHas('alternateIdentifiers', function (Builder $alternateQuery) use ($identifierVariants): void {
+                    $alternateQuery->whereIn(DB::raw('LOWER(value)'), $identifierVariants);
+                })
+                    // Related identifiers participate in identity lookup only when
+                    // DataCite explicitly marks them as IsIdenticalTo. Citations and
+                    // other related works must not make a resource discoverable as
+                    // though the foreign identifier belonged to it.
+                    ->orWhereHas('relatedIdentifiers', function (Builder $relatedQuery) use ($identifierVariants): void {
+                        $relatedQuery
+                            ->whereIn(DB::raw('LOWER(identifier)'), $identifierVariants)
+                            ->whereHas('relationType', fn (Builder $relationQuery) => $relationQuery->where('slug', 'IsIdenticalTo'));
+                    });
+            }
         });
+    }
+
+    /**
+     * Produce exact identity aliases for common IGSN representations.
+     *
+     * @return list<string> Lower-case variants suitable for exact comparisons.
+     */
+    private function identifierSearchVariants(string $query): array
+    {
+        $identifier = preg_replace(
+            '#^https?://(?:(?:www\.)?igsn\.org|hdl\.handle\.net|(?:dx\.)?doi\.org)/?#i',
+            '',
+            trim($query),
+        );
+
+        if (! is_string($identifier)) {
+            return [];
+        }
+
+        $identifier = preg_replace('/^doi:\s*/i', '', $identifier);
+
+        if (! is_string($identifier) || $identifier === '') {
+            return [];
+        }
+
+        $variants = [$identifier];
+
+        // Whitespace cannot occur in an IGSN alias, but it is valid in an
+        // exact alternate identifier such as a local sample name.
+        if (preg_match('/\s/', $identifier) === 1) {
+            return array_map(strtolower(...), $variants);
+        }
+
+        if (preg_match('#^10273/([A-Za-z0-9][A-Za-z0-9._-]*)$#i', $identifier, $matches) === 1) {
+            $variants[] = $matches[1];
+            $variants[] = '10.60510/'.$matches[1];
+        } elseif (preg_match('#^10\.60510/([A-Za-z0-9][A-Za-z0-9._-]*)$#i', $identifier, $matches) === 1) {
+            $variants[] = $matches[1];
+            $variants[] = '10273/'.$matches[1];
+        } elseif (preg_match('/^(?=[A-Za-z0-9._-]*\d)[A-Za-z0-9][A-Za-z0-9._-]{4,}$/', $identifier) === 1) {
+            $variants[] = '10273/'.$identifier;
+            $variants[] = '10.60510/'.$identifier;
+        }
+
+        return array_values(array_unique(array_map(strtolower(...), $variants)));
     }
 
     /**

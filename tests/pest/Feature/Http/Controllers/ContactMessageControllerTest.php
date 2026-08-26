@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Mail\ContactPersonMessage;
 use App\Models\ContactMessage;
 use App\Models\ContributorType;
+use App\Models\IgsnMetadata;
 use App\Models\Institution;
 use App\Models\LandingPage;
 use App\Models\Person;
@@ -14,6 +15,7 @@ use App\Models\ResourceCreator;
 use App\Models\Title;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 
 uses(RefreshDatabase::class);
@@ -49,7 +51,7 @@ function failingPendingMail(string $message): object
 
         public function queue(ContactPersonMessage $mailable): void
         {
-            throw new \RuntimeException($this->message);
+            throw new RuntimeException($this->message);
         }
     };
 }
@@ -109,7 +111,7 @@ describe('ContactMessageController', function (): void {
 
             $contactMessage = ContactMessage::query()->latest('id')->firstOrFail();
 
-            expect($contactMessage->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+            expect($contactMessage->queued_at)->toBeInstanceOf(Carbon::class)
                 ->and($contactMessage->recipient_count)->toBe(1)
                 ->and($contactMessage->delivered_recipient_count)->toBe(0)
                 ->and($contactMessage->sent_at)->toBeNull()
@@ -145,7 +147,7 @@ describe('ContactMessageController', function (): void {
                 ->once()
                 ->with('john.doe@example.com')
                 ->andReturn(successfulPendingMail(function (ContactPersonMessage $mailable): void {
-                    expect($mailable->contactMessage->fresh()?->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+                    expect($mailable->contactMessage->fresh()?->queued_at)->toBeInstanceOf(Carbon::class)
                         ->and($mailable->contactMessage->fresh()?->failed_at)->toBeNull();
                 }));
 
@@ -193,12 +195,12 @@ describe('ContactMessageController', function (): void {
                 'sender_email' => 'jane@example.com',
                 'message' => 'This is a test message for the contact form.',
                 'send_to_all' => true,
-            ]))->toThrow(\RuntimeException::class, 'Queue unavailable');
+            ]))->toThrow(RuntimeException::class, 'Queue unavailable');
 
             $contactMessage = ContactMessage::query()->latest('id')->firstOrFail();
 
-            expect($contactMessage->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
-                ->and($contactMessage->failed_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+            expect($contactMessage->queued_at)->toBeInstanceOf(Carbon::class)
+                ->and($contactMessage->failed_at)->toBeInstanceOf(Carbon::class)
                 ->and($contactMessage->failure_reason)->toBe('Queue unavailable');
         });
 
@@ -395,7 +397,7 @@ describe('ContactMessageController', function (): void {
 
             $contactMessage = ContactMessage::query()->latest('id')->firstOrFail();
 
-            expect($contactMessage->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+            expect($contactMessage->queued_at)->toBeInstanceOf(Carbon::class)
                 ->and($contactMessage->failed_at)->toBeNull()
                 ->and($contactMessage->failure_reason)->toBeNull();
         });
@@ -442,6 +444,129 @@ describe('ContactMessageController', function (): void {
 
             // Only one email sent
             Mail::assertQueued(ContactPersonMessage::class, 1);
+        });
+
+        it('routes a protected current repository request using only server-side metadata', function (): void {
+            Mail::fake();
+            $resource = Resource::factory()->create();
+            IgsnMetadata::query()->create([
+                'resource_id' => $resource->id,
+                'current_archive' => 'BGR Berlin',
+                'current_archive_contact' => 'Tina Kollaske <TINA.KOLLASKE@BGR.DE>; tina.kollaske@bgr.de',
+            ]);
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.60510/gfbno7002exz3001',
+                'slug' => 'protected-repository-contact',
+            ]);
+
+            $this->postJson('/10.60510/gfbno7002exz3001/protected-repository-contact/contact', [
+                'sender_name' => 'Sample User',
+                'sender_email' => 'sender@example.org',
+                'message' => 'Please provide information about this sample.',
+                'send_to_all' => false,
+                'repository_contact_type' => 'current',
+                'recipient_email' => 'attacker@example.org',
+            ])->assertOk()->assertJson(['recipients_count' => 1]);
+
+            Mail::assertQueued(ContactPersonMessage::class, 1);
+            Mail::assertQueued(ContactPersonMessage::class, fn ($mail): bool => $mail->hasTo('tina.kollaske@bgr.de'));
+            Mail::assertNotQueued(ContactPersonMessage::class, fn ($mail): bool => $mail->hasTo('attacker@example.org'));
+            $this->assertDatabaseHas('contact_messages', [
+                'resource_id' => $resource->id,
+                'repository_contact_type' => 'current',
+                'resource_creator_id' => null,
+                'resource_contributor_id' => null,
+                'send_to_all' => false,
+            ]);
+        });
+
+        it('routes original and current repository contacts independently', function (): void {
+            Mail::fake();
+            $resource = Resource::factory()->create();
+            IgsnMetadata::query()->create([
+                'resource_id' => $resource->id,
+                'current_archive_contact' => 'current@example.org',
+                'original_archive_contact' => 'original@example.org',
+            ]);
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.60510/separate-repositories',
+                'slug' => 'separate-repository-contacts',
+            ]);
+
+            $this->postJson('/10.60510/separate-repositories/separate-repository-contacts/contact', [
+                'sender_name' => 'Sample User',
+                'sender_email' => 'sender@example.org',
+                'message' => 'Please contact only the original repository.',
+                'send_to_all' => false,
+                'repository_contact_type' => 'original',
+            ])->assertOk();
+
+            Mail::assertQueued(ContactPersonMessage::class, fn ($mail): bool => $mail->hasTo('original@example.org'));
+            Mail::assertNotQueued(ContactPersonMessage::class, fn ($mail): bool => $mail->hasTo('current@example.org'));
+        });
+
+        it('rejects a repository selector when the stored contact has no valid address', function (): void {
+            Mail::fake();
+            $resource = Resource::factory()->create();
+            IgsnMetadata::query()->create([
+                'resource_id' => $resource->id,
+                'current_archive_contact' => 'Repository help desk',
+            ]);
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.60510/repository-without-email',
+                'slug' => 'repository-without-email',
+            ]);
+
+            $this->postJson('/10.60510/repository-without-email/repository-without-email/contact', [
+                'sender_name' => 'Sample User',
+                'sender_email' => 'sender@example.org',
+                'message' => 'This request cannot be routed without an address.',
+                'send_to_all' => false,
+                'repository_contact_type' => 'current',
+            ])->assertUnprocessable()->assertJsonValidationErrors(['recipients']);
+
+            Mail::assertNothingQueued();
+        });
+
+        it('rejects invalid or ambiguous repository recipient selectors', function (): void {
+            $resource = Resource::factory()->create();
+            $person = Person::factory()->create();
+            $creator = ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'email' => 'creator@example.org',
+                'is_contact' => true,
+            ]);
+            IgsnMetadata::query()->create([
+                'resource_id' => $resource->id,
+                'current_archive_contact' => 'repository@example.org',
+            ]);
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.60510/selector-validation',
+                'slug' => 'selector-validation',
+            ]);
+            $payload = [
+                'sender_name' => 'Sample User',
+                'sender_email' => 'sender@example.org',
+                'message' => 'This message has an invalid recipient selector.',
+                'send_to_all' => false,
+            ];
+
+            $this->postJson('/10.60510/selector-validation/selector-validation/contact', [
+                ...$payload,
+                'repository_contact_type' => 'attacker-controlled',
+            ])->assertUnprocessable()->assertJsonValidationErrors(['repository_contact_type']);
+
+            $this->postJson('/10.60510/selector-validation/selector-validation/contact', [
+                ...$payload,
+                'repository_contact_type' => 'current',
+                'resource_creator_id' => $creator->id,
+            ])->assertUnprocessable()->assertJsonValidationErrors(['recipients']);
         });
 
         it('handles institutional creators', function (): void {

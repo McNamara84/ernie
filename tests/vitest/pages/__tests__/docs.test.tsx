@@ -144,6 +144,21 @@ describe('Docs page', () => {
         expect(screen.getAllByText('API Documentation').length).toBeGreaterThan(0);
     });
 
+    it('documents the legacy IGSN Handle audit command only for admins', () => {
+        const { unmount } = render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByText('php artisan igsn:audit-legacy-handles')).toBeInTheDocument();
+        expect(screen.getByText(/--batch=20 --output=\/path\/to\/report\.json/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/missing Handles, transient or unknown responses, and report write errors produce a failure exit code/i),
+        ).toBeInTheDocument();
+
+        unmount();
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.queryByText('php artisan igsn:audit-legacy-handles')).not.toBeInTheDocument();
+    });
+
     it('shows the complete DataCite landing-page URL migration workflow only to admins', async () => {
         const { user } = renderDocsPage('admin');
         await openDatasetsTab(user);
@@ -1036,6 +1051,18 @@ describe('Docs page', () => {
         await openPhysicalSamplesTab(user);
 
         expect(screen.getByText(/DataCite Schema 4\.7 before download/i)).toBeInTheDocument();
+    });
+
+    it('documents protected current and original IGSN repository contacts for beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openPhysicalSamplesTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Contacting an IGSN Repository' })).toBeInTheDocument();
+        expect(screen.getByText(/Contact current repository/)).toBeInTheDocument();
+        expect(screen.getByText(/Contact original repository/)).toBeInTheDocument();
+        expect(screen.getByText(/keeps the repository email address on the server and never exposes it/i)).toBeInTheDocument();
+        expect(screen.getByText(/shown only when the corresponding metadata contains a complete, valid email address/i)).toBeInTheDocument();
     });
 
     it('shows IGSN administration for admins', async () => {

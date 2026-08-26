@@ -6,8 +6,11 @@ use App\Enums\AccessLevel;
 use App\Enums\UserRole;
 use App\Models\Datacenter;
 use App\Models\Description;
+use App\Models\IdentifierType;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
+use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
@@ -41,6 +44,10 @@ class PlaywrightTestSeeder extends Seeder
     private const PLAYWRIGHT_PUBLISHED_RESOURCE_DOI = '10.1234/playwright-published';
 
     private const PLAYWRIGHT_IGSN_PREVIEW_DOI = '10.1234/playwright-igsn-preview';
+
+    private const PLAYWRIGHT_LEGACY_IGSN_DOI = '10.60510/gfbno7002exz3001';
+
+    private const PLAYWRIGHT_LEGACY_IGSN_HANDLE = '10273/GFBNO7002EXZ3001';
 
     // Review fixture must have a DOI + an unpublished landing page to surface as publicstatus=review.
     // Avoid "review" substring in DOI to prevent Playwright :text() selectors from matching
@@ -281,6 +288,69 @@ class PlaywrightTestSeeder extends Seeder
         $igsnLandingPage->save();
 
         $this->ensureCompleteFixture($igsnResource);
+
+        // 2b) Published legacy IGSN identity fixture for issues #1164 and #1165.
+        $legacyIgsnResource = Resource::query()->where('doi', self::PLAYWRIGHT_LEGACY_IGSN_DOI)->first();
+        if (! $legacyIgsnResource) {
+            $legacyIgsnResource = Resource::factory()->create(array_merge($resourceAttributes, [
+                'doi' => self::PLAYWRIGHT_LEGACY_IGSN_DOI,
+                'identifier_type' => 'IGSN',
+                'resource_type_id' => $physicalObjectType->id,
+            ]));
+        }
+        $legacyIgsnResource->update([
+            'identifier_type' => 'IGSN',
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+        $legacyIgsnTitle = Title::query()->where('resource_id', $legacyIgsnResource->id)->first();
+        if ($legacyIgsnTitle) {
+            $legacyIgsnTitle->update(['value' => 'Playwright: Legacy IGSN Identity and Repository Contact']);
+        } else {
+            Title::factory()->create([
+                'resource_id' => $legacyIgsnResource->id,
+                'value' => 'Playwright: Legacy IGSN Identity and Repository Contact',
+            ]);
+        }
+        if (! $legacyIgsnResource->creators()->exists()) {
+            ResourceCreator::factory()->create([
+                'resource_id' => $legacyIgsnResource->id,
+                'position' => 1,
+            ]);
+        }
+        IgsnMetadata::query()->updateOrCreate(
+            ['resource_id' => $legacyIgsnResource->id],
+            [
+                'sample_type' => 'Rock core',
+                'material' => 'Granite',
+                'current_archive' => 'BGR Berlin',
+                'current_archive_contact' => 'Tina Kollaske <playwright-current-repository@example.org>',
+                'original_archive' => 'Playwright Legacy Archive',
+                'original_archive_contact' => 'playwright-original-repository@example.org',
+                'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+            ],
+        );
+        RelatedIdentifier::query()->updateOrCreate(
+            [
+                'resource_id' => $legacyIgsnResource->id,
+                'identifier' => self::PLAYWRIGHT_LEGACY_IGSN_HANDLE,
+            ],
+            [
+                'identifier_type_id' => IdentifierType::query()->where('slug', 'IGSN')->firstOrFail()->id,
+                'relation_type_id' => RelationType::query()->where('slug', 'IsIdenticalTo')->firstOrFail()->id,
+                'position' => 1,
+            ],
+        );
+        LandingPage::query()->updateOrCreate(
+            ['slug' => 'playwright-legacy-igsn'],
+            [
+                'resource_id' => $legacyIgsnResource->id,
+                'template' => 'default_gfz_igsn',
+                'is_published' => true,
+                'published_at' => now(),
+                'doi_prefix' => self::PLAYWRIGHT_LEGACY_IGSN_DOI,
+            ],
+        );
+        $this->ensureCompleteFixture($legacyIgsnResource);
 
         // 3) Review resource (shown with "Review" status)
         // Backend semantics: review requires BOTH DOI + landing page (is_published=false).

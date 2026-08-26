@@ -13,10 +13,12 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Services\IgsnRepositoryContactService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -28,6 +30,10 @@ use Throwable;
  */
 class ContactMessageController extends Controller
 {
+    public function __construct(
+        private readonly IgsnRepositoryContactService $repositoryContactService,
+    ) {}
+
     /**
      * Maximum messages allowed per IP per hour
      */
@@ -113,15 +119,26 @@ class ContactMessageController extends Controller
             'message' => 'required|string|min:10|max:5000',
             'send_to_all' => 'boolean',
             'copy_to_sender' => 'boolean',
-            // When sending to all: IDs are stripped (excluded). Frontend may send null.
-            // When not sending to all: exactly one of the two IDs is required.
-            'resource_creator_id' => $sendToAll
+            'resource_creator_id' => $sendToAll ? ['exclude'] : ['nullable', 'integer', 'exists:resource_creators,id'],
+            'resource_contributor_id' => $sendToAll ? ['exclude'] : ['nullable', 'integer', 'exists:resource_contributors,id'],
+            'repository_contact_type' => $sendToAll
                 ? ['exclude']
-                : ['required_without:resource_contributor_id', 'integer', 'exists:resource_creators,id', 'prohibits:resource_contributor_id'],
-            'resource_contributor_id' => $sendToAll
-                ? ['exclude']
-                : ['required_without:resource_creator_id', 'integer', 'exists:resource_contributors,id', 'prohibits:resource_creator_id'],
+                : ['nullable', 'string', Rule::in([IgsnRepositoryContactService::TYPE_CURRENT, IgsnRepositoryContactService::TYPE_ORIGINAL])],
         ]);
+
+        if (! $sendToAll) {
+            $selectors = array_filter([
+                $validated['resource_creator_id'] ?? null,
+                $validated['resource_contributor_id'] ?? null,
+                $validated['repository_contact_type'] ?? null,
+            ], static fn (mixed $value): bool => $value !== null);
+
+            if (count($selectors) !== 1) {
+                throw ValidationException::withMessages([
+                    'recipients' => ['Select exactly one contact recipient.'],
+                ]);
+            }
+        }
 
         // Load resource with creators and contributors
         $resource = Resource::with([
@@ -130,6 +147,7 @@ class ContactMessageController extends Controller
             'contributors.contributorable',
             'contributors.contributorTypes',
             'titles',
+            'igsnMetadata',
         ])->findOrFail($resourceId);
 
         // Determine recipients
@@ -138,6 +156,7 @@ class ContactMessageController extends Controller
             $validated['send_to_all'] ?? false,
             $validated['resource_creator_id'] ?? null,
             $validated['resource_contributor_id'] ?? null,
+            $validated['repository_contact_type'] ?? null,
         );
 
         if (empty($recipients)) {
@@ -151,6 +170,7 @@ class ContactMessageController extends Controller
             'resource_id' => $resourceId,
             'resource_creator_id' => $validated['resource_creator_id'] ?? null,
             'resource_contributor_id' => $validated['resource_contributor_id'] ?? null,
+            'repository_contact_type' => $validated['repository_contact_type'] ?? null,
             'send_to_all' => $validated['send_to_all'] ?? false,
             'sender_name' => $validated['sender_name'],
             'sender_email' => $validated['sender_email'],
@@ -248,8 +268,39 @@ class ContactMessageController extends Controller
      *
      * @return array<int, array{email: string, name: string}>
      */
-    private function getRecipients(Resource $resource, bool $sendToAll, ?int $resourceCreatorId, ?int $resourceContributorId): array
-    {
+    private function getRecipients(
+        Resource $resource,
+        bool $sendToAll,
+        ?int $resourceCreatorId,
+        ?int $resourceContributorId,
+        ?string $repositoryContactType,
+    ): array {
+        if ($repositoryContactType !== null) {
+            $metadata = $resource->igsnMetadata;
+
+            if ($metadata === null) {
+                return [];
+            }
+
+            if ($repositoryContactType === IgsnRepositoryContactService::TYPE_CURRENT) {
+                return $this->repositoryContactService->recipients(
+                    $repositoryContactType,
+                    $metadata->current_archive_contact,
+                    $metadata->current_archive,
+                );
+            }
+
+            $description = $metadata->description_json ?? [];
+            $contact = $metadata->original_archive_contact ?? ($description['original_archive_contact'] ?? null);
+            $archive = $metadata->original_archive ?? ($description['original_archive'] ?? null);
+
+            return $this->repositoryContactService->recipients(
+                $repositoryContactType,
+                is_string($contact) ? $contact : null,
+                is_string($archive) ? $archive : null,
+            );
+        }
+
         $recipients = [];
 
         // Get creator contact persons (is_contact flag + has email)
@@ -285,7 +336,7 @@ class ContactMessageController extends Controller
         if ($sendToAll) {
             // Send to all creator contact persons
             foreach ($creatorContacts as $creator) {
-                /** @var \App\Models\Person|\App\Models\Institution $creatorable */
+                /** @var Person|Institution $creatorable */
                 $creatorable = $creator->creatorable;
                 $recipients[] = [
                     'email' => (string) $creator->email,
@@ -295,7 +346,7 @@ class ContactMessageController extends Controller
 
             // Send to all contributor contact persons
             foreach ($contributorContacts as $contributor) {
-                /** @var \App\Models\Person|\App\Models\Institution $contributorable */
+                /** @var Person|Institution $contributorable */
                 $contributorable = $contributor->contributorable;
                 $recipients[] = [
                     'email' => (string) $contributor->email,
@@ -306,7 +357,7 @@ class ContactMessageController extends Controller
             // Send to specific creator
             $creator = $creatorContacts->firstWhere('id', $resourceCreatorId);
             if ($creator !== null && $creator->email !== null) {
-                /** @var \App\Models\Person|\App\Models\Institution $creatorable */
+                /** @var Person|Institution $creatorable */
                 $creatorable = $creator->creatorable;
                 $recipients[] = [
                     'email' => $creator->email,
@@ -317,7 +368,7 @@ class ContactMessageController extends Controller
             // Send to specific contributor
             $contributor = $contributorContacts->firstWhere('id', $resourceContributorId);
             if ($contributor !== null && $contributor->email !== null) {
-                /** @var \App\Models\Person|\App\Models\Institution $contributorable */
+                /** @var Person|Institution $contributorable */
                 $contributorable = $contributor->contributorable;
                 $recipients[] = [
                     'email' => $contributor->email,
@@ -334,7 +385,7 @@ class ContactMessageController extends Controller
      */
     private function getEntityName(Person|Institution $entity): string
     {
-        if ($entity instanceof \App\Models\Person) {
+        if ($entity instanceof Person) {
             return trim(implode(' ', array_filter([$entity->given_name, $entity->family_name]))) ?: 'Contact Person';
         }
 

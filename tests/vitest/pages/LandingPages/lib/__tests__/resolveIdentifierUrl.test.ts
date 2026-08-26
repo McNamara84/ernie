@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeDoiKey, resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
+import { normalizeDoiKey, resolveIdentifierUrl, resolveIgsnUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
 
 describe('resolveIdentifierUrl', () => {
     it('resolves DOI to doi.org', () => {
-        expect(resolveIdentifierUrl('10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
-            'https://doi.org/10.5880/GFZ.1.1.2024.002',
-        );
+        expect(resolveIdentifierUrl('10.5880/GFZ.1.1.2024.002', 'DOI')).toBe('https://doi.org/10.5880/GFZ.1.1.2024.002');
     });
 
     it('returns URL identifier directly', () => {
@@ -14,9 +12,7 @@ describe('resolveIdentifierUrl', () => {
     });
 
     it('resolves Handle to hdl.handle.net', () => {
-        expect(resolveIdentifierUrl('10013/epic.12345', 'Handle')).toBe(
-            'https://hdl.handle.net/10013/epic.12345',
-        );
+        expect(resolveIdentifierUrl('10013/epic.12345', 'Handle')).toBe('https://hdl.handle.net/10013/epic.12345');
     });
 
     it('resolves arXiv to arxiv.org', () => {
@@ -27,28 +23,38 @@ describe('resolveIdentifierUrl', () => {
         expect(resolveIdentifierUrl('ICDP5054EHW1001', 'IGSN')).toBe('https://igsn.org/ICDP5054EHW1001');
     });
 
+    it('resolves legacy Handle IGSNs directly without duplicating the Handle prefix', () => {
+        expect(resolveIdentifierUrl('10273/GFBNO7002EXZ3001', 'IGSN')).toBe('https://hdl.handle.net/10273/GFBNO7002EXZ3001');
+        expect(resolveIdentifierUrl('https://hdl.handle.net/10273/GFBNO7002EXZ3001', 'IGSN')).toBe('https://hdl.handle.net/10273/GFBNO7002EXZ3001');
+        expect(resolveIdentifierUrl('https://igsn.org/10273/GFBNO7002EXZ3001', 'IGSN')).toBe('https://hdl.handle.net/10273/GFBNO7002EXZ3001');
+    });
+
+    it('resolves DOI-shaped IGSNs through doi.org', () => {
+        expect(resolveIdentifierUrl('10.60510/GFBNO7002EXZ3001', 'IGSN')).toBe('https://doi.org/10.60510/GFBNO7002EXZ3001');
+        expect(resolveIdentifierUrl('https://doi.org/10.60510/GFBNO7002EXZ3001', 'IGSN')).toBe('https://doi.org/10.60510/GFBNO7002EXZ3001');
+    });
+
+    it.each(['10273/', '10273/GFBNO7002EXZ3001/extra', 'https://attacker.example/GFBNO7002EXZ3001', 'javascript:alert(1)', '../GFBNO7002EXZ3001'])(
+        'does not create a link for malformed or unsafe IGSNs: %s',
+        (identifier) => {
+            expect(resolveIdentifierUrl(identifier, 'IGSN')).toBeNull();
+        },
+    );
+
     it('resolves ISBN to worldcat', () => {
-        expect(resolveIdentifierUrl('978-3-16-148410-0', 'ISBN')).toBe(
-            'https://search.worldcat.org/isbn/978-3-16-148410-0',
-        );
+        expect(resolveIdentifierUrl('978-3-16-148410-0', 'ISBN')).toBe('https://search.worldcat.org/isbn/978-3-16-148410-0');
     });
 
     it('resolves ISSN to issn.org', () => {
-        expect(resolveIdentifierUrl('0378-5955', 'ISSN')).toBe(
-            'https://portal.issn.org/resource/ISSN/0378-5955',
-        );
+        expect(resolveIdentifierUrl('0378-5955', 'ISSN')).toBe('https://portal.issn.org/resource/ISSN/0378-5955');
     });
 
     it('resolves URN to nbn-resolving.org', () => {
-        expect(resolveIdentifierUrl('urn:nbn:de:kobv:b4-200905193913', 'URN')).toBe(
-            'https://nbn-resolving.org/urn:nbn:de:kobv:b4-200905193913',
-        );
+        expect(resolveIdentifierUrl('urn:nbn:de:kobv:b4-200905193913', 'URN')).toBe('https://nbn-resolving.org/urn:nbn:de:kobv:b4-200905193913');
     });
 
     it('resolves RAiD to raid.org', () => {
-        expect(resolveIdentifierUrl('10.25518/raid.12345', 'RAiD')).toBe(
-            'https://raid.org/10.25518/raid.12345',
-        );
+        expect(resolveIdentifierUrl('10.25518/raid.12345', 'RAiD')).toBe('https://raid.org/10.25518/raid.12345');
     });
 
     it('returns null for unsupported identifier types', () => {
@@ -96,33 +102,23 @@ describe('resolveIdentifierUrl', () => {
 
     describe('DOI URL normalization', () => {
         it('strips doi: prefix from DOI', () => {
-            expect(resolveIdentifierUrl('doi:10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
-                'https://doi.org/10.5880/GFZ.1.1.2024.002',
-            );
+            expect(resolveIdentifierUrl('doi:10.5880/GFZ.1.1.2024.002', 'DOI')).toBe('https://doi.org/10.5880/GFZ.1.1.2024.002');
         });
 
         it('strips https://doi.org/ prefix from DOI', () => {
-            expect(resolveIdentifierUrl('https://doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
-                'https://doi.org/10.5880/GFZ.1.1.2024.002',
-            );
+            expect(resolveIdentifierUrl('https://doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe('https://doi.org/10.5880/GFZ.1.1.2024.002');
         });
 
         it('strips http://doi.org/ prefix from DOI', () => {
-            expect(resolveIdentifierUrl('http://doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
-                'https://doi.org/10.5880/GFZ.1.1.2024.002',
-            );
+            expect(resolveIdentifierUrl('http://doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe('https://doi.org/10.5880/GFZ.1.1.2024.002');
         });
 
         it('strips https://dx.doi.org/ prefix from DOI', () => {
-            expect(resolveIdentifierUrl('https://dx.doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
-                'https://doi.org/10.5880/GFZ.1.1.2024.002',
-            );
+            expect(resolveIdentifierUrl('https://dx.doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe('https://doi.org/10.5880/GFZ.1.1.2024.002');
         });
 
         it('strips http://dx.doi.org/ prefix from DOI', () => {
-            expect(resolveIdentifierUrl('http://dx.doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
-                'https://doi.org/10.5880/GFZ.1.1.2024.002',
-            );
+            expect(resolveIdentifierUrl('http://dx.doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe('https://doi.org/10.5880/GFZ.1.1.2024.002');
         });
 
         it('returns null when DOI is just a resolver prefix', () => {
@@ -139,15 +135,11 @@ describe('resolveIdentifierUrl', () => {
 
     describe('Handle URL normalization', () => {
         it('strips https://hdl.handle.net/ prefix from Handle', () => {
-            expect(resolveIdentifierUrl('https://hdl.handle.net/10013/epic.12345', 'Handle')).toBe(
-                'https://hdl.handle.net/10013/epic.12345',
-            );
+            expect(resolveIdentifierUrl('https://hdl.handle.net/10013/epic.12345', 'Handle')).toBe('https://hdl.handle.net/10013/epic.12345');
         });
 
         it('strips http://hdl.handle.net/ prefix from Handle', () => {
-            expect(resolveIdentifierUrl('http://hdl.handle.net/10013/epic.12345', 'Handle')).toBe(
-                'https://hdl.handle.net/10013/epic.12345',
-            );
+            expect(resolveIdentifierUrl('http://hdl.handle.net/10013/epic.12345', 'Handle')).toBe('https://hdl.handle.net/10013/epic.12345');
         });
 
         it('returns null when Handle is just a resolver prefix', () => {
@@ -199,5 +191,15 @@ describe('normalizeDoiKey', () => {
     it('returns empty string for resolver-only input without trailing slash', () => {
         expect(normalizeDoiKey('https://doi.org')).toBe('');
         expect(normalizeDoiKey('https://dx.doi.org')).toBe('');
+    });
+});
+
+describe('resolveIgsnUrl', () => {
+    it('trims the value before selecting a resolver', () => {
+        expect(resolveIgsnUrl('  10273/GFLMU0002  ')).toBe('https://hdl.handle.net/10273/GFLMU0002');
+    });
+
+    it('returns null for an empty value', () => {
+        expect(resolveIgsnUrl('   ')).toBeNull();
     });
 });

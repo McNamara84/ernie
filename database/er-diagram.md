@@ -679,6 +679,7 @@ erDiagram
         bigint resource_id FK
         bigint resource_creator_id FK
         bigint resource_contributor_id FK
+        varchar repository_contact_type "16, nullable"
         boolean send_to_all
         varchar sender_name
         varchar sender_email

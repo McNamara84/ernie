@@ -15,6 +15,14 @@
                 "description": "IGSN landing pages now label legacy descriptions from their actual description scheme instead of the sample material, while preserving source groups, entry order, and semicolon-containing values. Locality and platform descriptions also appear in their proper sections, and a dry-run-first backfill command can safely refresh existing legacy IGSNs without overwriting curated metadata."
             },
             {
+                "title": "Reliable Legacy IGSN Links and Identity Search",
+                "description": "Legacy 10273 IGSNs now link directly through the Handle resolver instead of producing duplicated, broken resolver paths. DOI-shaped and bare IGSNs continue to use their appropriate resolvers, malformed values remain visible without a misleading link, and Portal searches now recognize exact alternate identifiers and IsIdenticalTo aliases without treating citations as resource identities. A read-only audit command reports any published legacy Handles that no longer resolve."
+            },
+            {
+                "title": "Private IGSN Repository Contact Forms",
+                "description": "IGSN landing pages no longer expose repository email addresses in rendered content or page data. Current and original repositories now provide separate protected contact forms when a server-side address is available; submissions carry only the selected repository role, while ERNIE resolves, validates, and deduplicates recipients on the server."
+            },
+            {
                 "title": "Formatted Related Work in Legacy Resource Previews",
                 "description": "New pending SUMARIO resource imports now resolve valid related DOIs into formatted citation labels instead of persisting the identifier as its own label. Unresolvable DOIs and regular URLs remain safe links, while invalid DOI placeholders are omitted without blocking the import."
             },

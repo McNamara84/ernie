@@ -653,6 +653,15 @@ export interface LandingPageContactPerson {
     email?: string;
 }
 
+/** Safe public descriptor for a server-side IGSN repository contact. */
+export interface LandingPageRepositoryContact {
+    type: 'current' | 'original';
+    /** Display label with all email addresses removed. */
+    label: string;
+    /** Whether the backend can route a protected contact request. */
+    has_email: boolean;
+}
+
 /**
  * Resource date entry for landing pages.
  */
@@ -702,6 +711,7 @@ export interface LandingPageIgsnMetadata {
     current_archive_contact: string | null;
     original_archive: string | null;
     original_archive_contact: string | null;
+    repository_contacts?: LandingPageRepositoryContact[];
     platform_type?: string | null;
     platform_name?: string | null;
     platform_description?: string | null;

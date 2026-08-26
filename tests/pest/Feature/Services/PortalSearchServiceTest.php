@@ -2,14 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Models\AlternateIdentifier;
 use App\Models\Datacenter;
 use App\Models\Description;
 use App\Models\GeoLocation;
+use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Language;
 use App\Models\Person;
+use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
@@ -149,6 +153,92 @@ describe('full-text search', function () {
 
         expect($results->total())->toBe(1)
             ->and($results->items()[0]->id)->toBe($resource->id);
+    });
+
+    it('finds an IGSN by each identity Handle alias', function (string $query) {
+        $resource = createPublishedResourceForSearch('Unrelated sample title', $this->titleType);
+        $resource->update(['doi' => '10.60510/unrelated-resource']);
+        $identifierType = IdentifierType::query()->create(['slug' => 'IGSN', 'name' => 'IGSN']);
+        $relationType = RelationType::query()->create(['slug' => 'IsIdenticalTo', 'name' => 'Is Identical To']);
+        RelatedIdentifier::query()->create([
+            'resource_id' => $resource->id,
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationType->id,
+            'identifier' => '10273/GFBNO7002EXZ3001',
+        ]);
+
+        $results = $this->service->search(['query' => $query]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($resource->id);
+    })->with([
+        'legacy Handle' => '10273/GFBNO7002EXZ3001',
+        'bare IGSN' => 'GFBNO7002EXZ3001',
+        'IGSN DOI' => '10.60510/GFBNO7002EXZ3001',
+        'Handle resolver URL' => 'https://hdl.handle.net/10273/GFBNO7002EXZ3001',
+        'IGSN resolver URL' => 'https://igsn.org/GFBNO7002EXZ3001',
+    ]);
+
+    it('finds resources by an exact alternate identifier', function () {
+        $resource = createPublishedResourceForSearch('Unrelated sample title', $this->titleType);
+        $resource->update(['doi' => '10.60510/unrelated-resource']);
+        AlternateIdentifier::query()->create([
+            'resource_id' => $resource->id,
+            'value' => 'LOCAL-SAMPLE-7002-1-A-083',
+            'type' => 'Local sample name',
+            'position' => 1,
+        ]);
+
+        $results = $this->service->search(['query' => 'local-sample-7002-1-a-083']);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($resource->id);
+    });
+
+    it('finds an exact alternate identifier containing whitespace', function () {
+        $resource = createPublishedResourceForSearch('Unrelated sample title', $this->titleType);
+        $resource->update(['doi' => '10.60510/unrelated-resource']);
+        AlternateIdentifier::query()->create([
+            'resource_id' => $resource->id,
+            'value' => 'Local Sample 7002 A 083',
+            'type' => 'Local sample name',
+            'position' => 1,
+        ]);
+
+        $results = $this->service->search(['query' => 'local sample 7002 a 083']);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($resource->id);
+    });
+
+    it('does not treat identifiers from non-identity relations as resource aliases', function () {
+        $resource = createPublishedResourceForSearch('Unrelated publication title', $this->titleType);
+        $resource->update(['doi' => '10.5880/unrelated-resource']);
+        $identifierType = IdentifierType::query()->create(['slug' => 'IGSN', 'name' => 'IGSN']);
+        $relationType = RelationType::query()->create(['slug' => 'References', 'name' => 'References']);
+        RelatedIdentifier::query()->create([
+            'resource_id' => $resource->id,
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationType->id,
+            'identifier' => '10273/GFBCITEDONLY',
+        ]);
+
+        expect($this->service->search(['query' => 'GFBCITEDONLY'])->total())->toBe(0);
+    });
+
+    it('does not expand an ordinary alphabetic search term into IGSN aliases', function () {
+        $resource = createPublishedResourceForSearch('Unrelated publication title', $this->titleType);
+        $resource->update(['doi' => '10.5880/unrelated-resource']);
+        $identifierType = IdentifierType::query()->create(['slug' => 'IGSN', 'name' => 'IGSN']);
+        $relationType = RelationType::query()->create(['slug' => 'IsIdenticalTo', 'name' => 'Is Identical To']);
+        RelatedIdentifier::query()->create([
+            'resource_id' => $resource->id,
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationType->id,
+            'identifier' => '10273/OCEAN',
+        ]);
+
+        expect($this->service->search(['query' => 'ocean'])->total())->toBe(0);
     });
 
     it('finds resources by title', function () {

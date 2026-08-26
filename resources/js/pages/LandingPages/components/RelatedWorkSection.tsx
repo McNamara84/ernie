@@ -72,11 +72,23 @@ function hasResolvableIdentifier(rel: LandingPageRelatedIdentifier): boolean {
     return resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null;
 }
 
+function hasDisplayableIdentifier(rel: LandingPageRelatedIdentifier): boolean {
+    return hasResolvableIdentifier(rel) || (rel.identifier_type === 'IGSN' && rel.identifier.trim() !== '');
+}
+
 function getRelatedIdentifierLinkClassName(rel: LandingPageRelatedIdentifier): string {
     return cn(
         'group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700/50',
         isRepositoryCurationRelatedIdentifier(rel) &&
             'border-cyan-200 bg-cyan-50/70 text-cyan-950 hover:border-cyan-300 hover:bg-cyan-100/80 dark:border-cyan-800 dark:bg-cyan-950/20 dark:text-cyan-100 dark:hover:border-cyan-700 dark:hover:bg-cyan-950/40',
+    );
+}
+
+function getRelatedIdentifierPlainClassName(rel: LandingPageRelatedIdentifier): string {
+    return cn(
+        'flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-300',
+        isRepositoryCurationRelatedIdentifier(rel) &&
+            'border-cyan-200 bg-cyan-50/70 text-cyan-950 dark:border-cyan-800 dark:bg-cyan-950/20 dark:text-cyan-100',
     );
 }
 
@@ -105,7 +117,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
     const sortedRepositoryCurationTypes = useMemo(() => Object.keys(groupedRepositoryCurationByType).sort(), [groupedRepositoryCurationByType]);
 
     const hasRenderableRepositoryCurationRelations = useMemo(
-        () => repositoryCurationRelations.some(hasResolvableIdentifier),
+        () => repositoryCurationRelations.some(hasDisplayableIdentifier),
         [repositoryCurationRelations],
     );
 
@@ -127,11 +139,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
         return map;
     }, [filteredRelations]);
 
-    // Only render if at least one relation has a resolvable URL
-    const renderableRelations = useMemo(
-        () => filteredRelations.filter((rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null),
-        [filteredRelations],
-    );
+    const displayableRelations = useMemo(() => filteredRelations.filter(hasDisplayableIdentifier), [filteredRelations]);
 
     // IDs of items that should be hidden on mobile when collapsed (beyond threshold).
     // Computed in rendered order: initial metadata groups first, then repository-curated groups.
@@ -145,7 +153,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
             for (const relationType of relationTypes) {
                 const items = groups[relationType];
                 for (const rel of items) {
-                    if (hasResolvableIdentifier(rel)) {
+                    if (hasDisplayableIdentifier(rel)) {
                         orderedIds.push(rel.id);
                     }
                 }
@@ -160,11 +168,11 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
         }
         return new Set(orderedIds.slice(COLLAPSE_THRESHOLD));
     }, [sortedTypes, groupedByType, sortedRepositoryCurationTypes, groupedRepositoryCurationByType, expanded]);
-    if (renderableRelations.length === 0 && relatedItems.length === 0) {
+    if (displayableRelations.length === 0 && relatedItems.length === 0) {
         return null;
     }
 
-    const shouldCollapse = renderableRelations.length > COLLAPSE_THRESHOLD;
+    const shouldCollapse = displayableRelations.length > COLLAPSE_THRESHOLD;
 
     return (
         <LandingPageCard aria-labelledby="heading-related-work" data-testid="related-works-section">
@@ -188,16 +196,15 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
 
             <div id="related-work-list" className="space-y-6" data-testid="related-works-list" aria-live="polite">
                 {sortedTypes.map((relationType) => {
-                    // Skip groups where no item resolves to a valid URL
                     const items = groupedByType[relationType];
-                    const hasRenderableItems = items.some(hasResolvableIdentifier);
+                    const hasRenderableItems = items.some(hasDisplayableIdentifier);
 
                     if (!hasRenderableItems) {
                         return null;
                     }
 
                     // If all renderable items in this group are hidden, hide the group heading on mobile too
-                    const allItemsHidden = items.every((rel) => !hasResolvableIdentifier(rel) || hiddenItemIds.has(rel.id));
+                    const allItemsHidden = items.every((rel) => !hasDisplayableIdentifier(rel) || hiddenItemIds.has(rel.id));
 
                     return (
                         <div key={relationType} className={allItemsHidden ? 'hidden md:block' : ''}>
@@ -206,7 +213,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                                 {items.map((rel) => {
                                     const url = resolveIdentifierUrl(rel.identifier, rel.identifier_type);
 
-                                    if (!url) {
+                                    if (!hasDisplayableIdentifier(rel)) {
                                         return null;
                                     }
 
@@ -214,18 +221,27 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
 
                                     return (
                                         <li key={rel.id} className={isHiddenOnMobile ? 'collapsible-print-only hidden md:list-item' : ''}>
-                                            <a
-                                                href={url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className={getRelatedIdentifierLinkClassName(rel)}
-                                            >
-                                                <ExternalLink
-                                                    className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"
-                                                    aria-hidden="true"
-                                                />
-                                                <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
-                                            </a>
+                                            {url ? (
+                                                <a
+                                                    href={url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className={getRelatedIdentifierLinkClassName(rel)}
+                                                >
+                                                    <ExternalLink
+                                                        className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"
+                                                        aria-hidden="true"
+                                                    />
+                                                    <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
+                                                </a>
+                                            ) : (
+                                                <div
+                                                    className={getRelatedIdentifierPlainClassName(rel)}
+                                                    data-testid={`unresolved-related-identifier-${rel.id}`}
+                                                >
+                                                    <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
+                                                </div>
+                                            )}
                                         </li>
                                     );
                                 })}
@@ -240,13 +256,13 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                         <div className="space-y-4">
                             {sortedRepositoryCurationTypes.map((relationType) => {
                                 const items = groupedRepositoryCurationByType[relationType];
-                                const hasRenderableItems = items.some(hasResolvableIdentifier);
+                                const hasRenderableItems = items.some(hasDisplayableIdentifier);
 
                                 if (!hasRenderableItems) {
                                     return null;
                                 }
 
-                                const allItemsHidden = items.every((rel) => !hasResolvableIdentifier(rel) || hiddenItemIds.has(rel.id));
+                                const allItemsHidden = items.every((rel) => !hasDisplayableIdentifier(rel) || hiddenItemIds.has(rel.id));
 
                                 return (
                                     <div key={`repository-curation-${relationType}`} className={allItemsHidden ? 'hidden md:block' : ''}>
@@ -257,7 +273,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                                             {items.map((rel) => {
                                                 const url = resolveIdentifierUrl(rel.identifier, rel.identifier_type);
 
-                                                if (!url) {
+                                                if (!hasDisplayableIdentifier(rel)) {
                                                     return null;
                                                 }
 
@@ -265,18 +281,27 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
 
                                                 return (
                                                     <li key={rel.id} className={isHiddenOnMobile ? 'collapsible-print-only hidden md:list-item' : ''}>
-                                                        <a
-                                                            href={url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className={getRelatedIdentifierLinkClassName(rel)}
-                                                        >
-                                                            <ExternalLink
-                                                                className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500 transition-colors group-hover:text-cyan-700 dark:text-cyan-300 dark:group-hover:text-cyan-100"
-                                                                aria-hidden="true"
-                                                            />
-                                                            <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
-                                                        </a>
+                                                        {url ? (
+                                                            <a
+                                                                href={url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className={getRelatedIdentifierLinkClassName(rel)}
+                                                            >
+                                                                <ExternalLink
+                                                                    className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500 transition-colors group-hover:text-cyan-700 dark:text-cyan-300 dark:group-hover:text-cyan-100"
+                                                                    aria-hidden="true"
+                                                                />
+                                                                <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
+                                                            </a>
+                                                        ) : (
+                                                            <div
+                                                                className={getRelatedIdentifierPlainClassName(rel)}
+                                                                data-testid={`unresolved-related-identifier-${rel.id}`}
+                                                            >
+                                                                <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
+                                                            </div>
+                                                        )}
                                                     </li>
                                                 );
                                             })}
@@ -378,7 +403,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                         ) : (
                             <>
                                 <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                                Show all ({renderableRelations.length})
+                                Show all ({displayableRelations.length})
                             </>
                         )}
                     </Button>

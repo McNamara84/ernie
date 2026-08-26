@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Models\ContactMessage;
 use App\Models\Resource;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\ContactMessage>
+ * @extends Factory<ContactMessage>
  */
 class ContactMessageFactory extends Factory
 {
@@ -23,6 +24,7 @@ class ContactMessageFactory extends Factory
             'resource_id' => Resource::factory(),
             'resource_creator_id' => null,
             'resource_contributor_id' => null,
+            'repository_contact_type' => null,
             'send_to_all' => fake()->boolean(70),
             'sender_name' => fake()->name(),
             'sender_email' => fake()->safeEmail(),
