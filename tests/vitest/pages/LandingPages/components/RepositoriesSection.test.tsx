@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { RepositoriesSection } from '@/pages/LandingPages/components/RepositoriesSection';
