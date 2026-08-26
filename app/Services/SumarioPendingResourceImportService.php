@@ -35,7 +35,7 @@ class SumarioPendingResourceImportService
     /**
      * @return array{status: 'imported'|'skipped'|'missing'|'failed', resource: Resource|null, doi: string, error: string|null}
      */
-    public function importPendingByDoi(
+    public function importReviewFallbackByDoi(
         string $doi,
         int $userId,
         CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
@@ -51,7 +51,7 @@ class SumarioPendingResourceImportService
             ];
         }
 
-        $oldDataset = $this->findPendingDatasetByDoi($normalisedDoi);
+        $oldDataset = $this->findReviewFallbackDatasetByDoi($normalisedDoi);
 
         if ($oldDataset === null) {
             return [
@@ -83,7 +83,7 @@ class SumarioPendingResourceImportService
                 'error' => null,
             ];
         } catch (\Throwable $exception) {
-            Log::warning('Failed to import SUMARIO pending resource', [
+            Log::warning('Failed to import SUMARIO legacy fallback resource', [
                 'doi' => $normalisedDoi,
                 'old_resource_id' => $oldDataset->id,
                 'error' => $exception->getMessage(),
@@ -223,10 +223,10 @@ class SumarioPendingResourceImportService
         return $summary;
     }
 
-    private function findPendingDatasetByDoi(string $doi): ?OldDataset
+    private function findReviewFallbackDatasetByDoi(string $doi): ?OldDataset
     {
         return OldDataset::query()
-            ->where('publicstatus', 'pending')
+            ->whereIn('publicstatus', ['pending', 'released'])
             ->where('identifier', $doi)
             ->first();
     }
@@ -258,7 +258,7 @@ class SumarioPendingResourceImportService
             try {
                 $fileResult = $this->downloadUrlService->lookupFileEntries($doi);
             } catch (\Throwable $exception) {
-                Log::warning('SUMARIO pending import could not load legacy file URLs', [
+                Log::warning('SUMARIO legacy import could not load legacy file URLs', [
                     'doi' => $doi,
                     'old_resource_id' => $oldDataset->id,
                     'error' => $exception->getMessage(),

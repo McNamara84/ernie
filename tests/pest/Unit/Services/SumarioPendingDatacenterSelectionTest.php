@@ -64,7 +64,7 @@ it('selects pending DOIs using legacy database and DOI-rule datacenter resolutio
         ],
         [
             'id' => 3,
-            'publicstatus' => 'published',
+            'publicstatus' => 'released',
             'identifier' => '10.5880/not.pending',
         ],
         [

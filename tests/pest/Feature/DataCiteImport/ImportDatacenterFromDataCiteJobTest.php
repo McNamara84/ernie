@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\CitationLabelResolutionMode;
+use App\Enums\ResourceWorkflowStatus;
 use App\Enums\UserRole;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Datacenter;
@@ -198,7 +199,7 @@ describe('datacenter-scoped DataCite import job', function () {
 
         $domeDatacenter = Datacenter::query()->create(['name' => $datacenterName]);
         $this->pendingImportService
-            ->shouldReceive('importPendingByDoi')
+            ->shouldReceive('importReviewFallbackByDoi')
             ->times(3)
             ->withArgs(fn (string $doi, int $userId, CitationLabelResolutionMode $mode): bool => in_array($doi, $pendingDois, true)
                 && $userId === $this->user->id
@@ -532,7 +533,7 @@ describe('datacenter-scoped DataCite import job', function () {
             ->with(LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER)
             ->andReturn(['10.5880/pending-gfz']);
         $this->pendingImportService
-            ->shouldReceive('importPendingByDoi')
+            ->shouldReceive('importReviewFallbackByDoi')
             ->once()
             ->with(
                 '10.5880/pending-gfz',
@@ -604,7 +605,7 @@ describe('datacenter-scoped DataCite import job', function () {
             ->with('ArboDat 2016')
             ->andReturn(['10.5880/shared']);
         $this->pendingImportService
-            ->shouldReceive('importPendingByDoi')
+            ->shouldReceive('importReviewFallbackByDoi')
             ->once()
             ->with(
                 '10.5880/shared',
@@ -708,7 +709,7 @@ describe('datacenter-scoped DataCite import job', function () {
             ->once()
             ->with('Riesgos')
             ->andReturn([]);
-        $this->pendingImportService->shouldNotReceive('importPendingByDoi');
+        $this->pendingImportService->shouldNotReceive('importReviewFallbackByDoi');
         $this->importService
             ->shouldReceive('fetchAllDois')
             ->once()
@@ -748,7 +749,96 @@ describe('datacenter-scoped DataCite import job', function () {
             ->toBe('Riesgos');
     });
 
-    it('records a failure when a portal DOI exists in neither DataCite nor pending SUMARIO data', function () {
+    it('imports released SUMARIO resources as review when a portal DOI is missing from DataCite', function () {
+        $datacenterName = 'ICGEM International Centre for Global Earth Models';
+
+        $this->portalService
+            ->shouldReceive('resourcesForDatacenter')
+            ->once()
+            ->with('DOIDB.ICGEM')
+            ->andReturn([
+                'datacenter' => [
+                    'id' => 'DOIDB.ICGEM',
+                    'name' => $datacenterName,
+                    'resource_count' => 1,
+                ],
+                'resources' => [
+                    '10.5880/icgem.2026.001' => [$datacenterName],
+                ],
+            ]);
+        $this->pendingImportService
+            ->shouldReceive('importablePendingDoisForDatacenter')
+            ->once()
+            ->with($datacenterName)
+            ->andReturn([]);
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                if (false) {
+                    yield [];
+                }
+            })());
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with('10.5880/icgem.2026.001')
+            ->andReturnNull();
+        $this->pendingImportService
+            ->shouldReceive('importReviewFallbackByDoi')
+            ->once()
+            ->with(
+                '10.5880/icgem.2026.001',
+                $this->user->id,
+                CitationLabelResolutionMode::BEST_EFFORT,
+            )
+            ->andReturnUsing(function (): array {
+                $resource = Resource::factory()->create([
+                    'doi' => '10.5880/icgem.2026.001',
+                    'access_level' => null,
+                    'legacy_source' => 'sumario-pmd',
+                    'legacy_source_status' => 'released',
+                    'force_review_status' => true,
+                    'workflow_status_override' => ResourceWorkflowStatus::REVIEW,
+                ]);
+                LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+
+                return [
+                    'status' => 'imported',
+                    'resource' => $resource,
+                    'doi' => '10.5880/icgem.2026.001',
+                    'error' => null,
+                ];
+            });
+        $this->transformer->shouldReceive('transform')->never();
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, null, 'DOIDB.ICGEM'))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        $resource = Resource::query()
+            ->where('doi', '10.5880/icgem.2026.001')
+            ->with('landingPage')
+            ->firstOrFail();
+
+        expect($status)->toMatchArray([
+            'status' => 'completed',
+            'total' => 1,
+            'processed' => 1,
+            'imported' => 1,
+            'skipped' => 0,
+            'failed' => 0,
+            'sync_total' => 0,
+        ])
+            ->and($resource->datacenter?->name)->toBe($datacenterName)
+            ->and($resource->legacy_source_status)->toBe('released')
+            ->and($resource->publicStatus())->toBe('review')
+            ->and($resource->landingPage)->not->toBeNull()
+            ->and($resource->landingPage->is_published)->toBeFalse();
+    });
+
+    it('records a failure when a portal DOI exists in neither DataCite nor eligible SUMARIO data', function () {
         $this->portalService
             ->shouldReceive('resourcesForDatacenter')
             ->once()
@@ -768,7 +858,7 @@ describe('datacenter-scoped DataCite import job', function () {
             ->with('Riesgos')
             ->andReturn([]);
         $this->pendingImportService
-            ->shouldReceive('importPendingByDoi')
+            ->shouldReceive('importReviewFallbackByDoi')
             ->once()
             ->with(
                 '10.5880/missing-everywhere',
@@ -811,7 +901,7 @@ describe('datacenter-scoped DataCite import job', function () {
                 'failed' => 1,
                 'failed_dois' => [[
                     'doi' => '10.5880/missing-everywhere',
-                    'error' => 'The DOI was not found in DataCite or SUMARIO pending resources.',
+                    'error' => 'The DOI was not found in DataCite or eligible SUMARIO legacy resources.',
                 ]],
             ]);
     });
@@ -845,7 +935,7 @@ describe('datacenter-scoped DataCite import job', function () {
                 yield datacenterDoiRecord('10.5880/riesgos-target');
             });
         $this->importService->shouldNotReceive('fetchSingleDoi');
-        $this->pendingImportService->shouldNotReceive('importPendingByDoi');
+        $this->pendingImportService->shouldNotReceive('importReviewFallbackByDoi');
         $this->transformer->shouldReceive('transform')->never();
 
         $this->importId = Str::uuid()->toString();

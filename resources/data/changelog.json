@@ -6,6 +6,10 @@
         "improvements": [],
         "fixes": [
             {
+                "title": "Complete Legacy Datacenter DOI Imports",
+                "description": "Datacenter and single-DOI imports now recover eligible legacy resources from SUMARIO when their DOI is missing from DataCite, including records already marked as released. These fallback resources enter ERNIE in Review with an unpublished landing page, retain their legacy source status and datacenter assignment, and remain idempotent on repeated imports."
+            },
+            {
                 "title": "Correctly Rendered Comparison Symbols in Descriptions",
                 "description": "New DataCite imports now store encoded less-than and greater-than entities as their intended comparison symbols without broadly decoding other HTML entities. A dry-run-first repair command can safely update affected existing descriptions with DOI filtering, resumable processing, bounded runs, and an optional CSV report."
             },

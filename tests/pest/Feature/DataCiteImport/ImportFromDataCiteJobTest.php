@@ -2,6 +2,7 @@
 
 use App\Enums\CacheKey;
 use App\Enums\CitationLabelResolutionMode;
+use App\Enums\ResourceWorkflowStatus;
 use App\Enums\UserRole;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Datacenter;
@@ -99,7 +100,7 @@ beforeEach(function () {
         ])
         ->byDefault();
     $this->pendingImportService
-        ->shouldReceive('importPendingByDoi')
+        ->shouldReceive('importReviewFallbackByDoi')
         ->zeroOrMoreTimes()
         ->andReturnUsing(fn (string $doi, mixed ...$_): array => [
             'status' => 'missing',
@@ -1539,7 +1540,7 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['imported'])->toBe(0)
             ->and($status['failed'])->toBe(1)
             ->and($status['failed_dois'])->toBe([
-                ['doi' => '10.5880/missing.single', 'error' => 'The DOI was not found in DataCite or SUMARIO pending resources.'],
+                ['doi' => '10.5880/missing.single', 'error' => 'The DOI was not found in DataCite or eligible SUMARIO legacy resources.'],
             ]);
     });
 
@@ -1551,7 +1552,7 @@ describe('ImportFromDataCiteJob', function () {
             ->andReturnNull();
 
         $this->pendingImportService
-            ->shouldReceive('importPendingByDoi')
+            ->shouldReceive('importReviewFallbackByDoi')
             ->once()
             ->with(
                 '10.5880/pending.unavailable',
@@ -1572,9 +1573,9 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['processed'])->toBe(1)
             ->and($status['imported'])->toBe(0)
             ->and($status['failed'])->toBe(1)
-            ->and($status['error'])->toBe('SUMARIO pending lookup is unavailable.')
+            ->and($status['error'])->toBe('SUMARIO legacy lookup is unavailable.')
             ->and($status['failed_dois'])->toBe([
-                ['doi' => '10.5880/pending.unavailable', 'error' => 'SUMARIO pending lookup is unavailable.'],
+                ['doi' => '10.5880/pending.unavailable', 'error' => 'SUMARIO legacy lookup is unavailable.'],
             ]);
     });
 
@@ -1586,7 +1587,7 @@ describe('ImportFromDataCiteJob', function () {
             ->andReturnNull();
 
         $this->pendingImportService
-            ->shouldReceive('importPendingByDoi')
+            ->shouldReceive('importReviewFallbackByDoi')
             ->once()
             ->with(
                 '10.5880/pending.single',
@@ -1617,6 +1618,64 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['failed'])->toBe(0);
     });
 
+    it('imports a single released SUMARIO resource as review when DataCite has no DOI record', function () {
+        $doi = '10.5880/icgem.2026.001';
+
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with($doi)
+            ->andReturnNull();
+
+        $this->pendingImportService
+            ->shouldReceive('importReviewFallbackByDoi')
+            ->once()
+            ->with(
+                $doi,
+                $this->user->id,
+                CitationLabelResolutionMode::EXHAUSTIVE,
+            )
+            ->andReturnUsing(function () use ($doi): array {
+                $resource = Resource::factory()->create([
+                    'doi' => $doi,
+                    'access_level' => null,
+                    'legacy_source' => 'sumario-pmd',
+                    'legacy_source_status' => 'released',
+                    'force_review_status' => true,
+                    'workflow_status_override' => ResourceWorkflowStatus::REVIEW,
+                ]);
+                LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
+
+                return [
+                    'status' => 'imported',
+                    'resource' => $resource,
+                    'doi' => $doi,
+                    'error' => null,
+                ];
+            });
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, $doi))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        $resource = Resource::query()->where('doi', $doi)->with('landingPage')->firstOrFail();
+
+        expect($status)->toMatchArray([
+            'status' => 'completed',
+            'processed' => 1,
+            'imported' => 1,
+            'failed' => 0,
+            'sync_total' => 0,
+        ])
+            ->and($resource->legacy_source_status)->toBe('released')
+            ->and($resource->publicStatus())->toBe('review')
+            ->and($resource->landingPage)->not->toBeNull()
+            ->and($resource->landingPage->is_published)->toBeFalse();
+    });
+
     it('marks a single SUMARIO pending fallback as skipped when the resource already exists', function () {
         $this->importService
             ->shouldReceive('fetchSingleDoi')
@@ -1625,7 +1684,7 @@ describe('ImportFromDataCiteJob', function () {
             ->andReturnNull();
 
         $this->pendingImportService
-            ->shouldReceive('importPendingByDoi')
+            ->shouldReceive('importReviewFallbackByDoi')
             ->once()
             ->with(
                 '10.5880/pending.skip',
