@@ -556,6 +556,12 @@ describe('SetupLandingPageModal', () => {
                         label: 'Old label',
                         position: 0,
                     },
+                    {
+                        id: 8,
+                        url: 'https://legacy.gfz.de/download/documentation.pdf',
+                        label: 'Documentation',
+                        position: 1,
+                    },
                 ],
             };
             mockModalGetRequests({ landingPage: config });
@@ -565,7 +571,8 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />);
 
-            const labelInput = await screen.findByLabelText(/^Button label$/i);
+            const labelInput = await screen.findByLabelText(/model\.zip/i);
+            expect(screen.getByLabelText(/documentation\.pdf/i)).toHaveValue('Documentation');
             expect(labelInput).toHaveValue('Old label');
             await user.clear(labelInput);
             await user.type(labelInput, 'Download model data');
@@ -577,6 +584,12 @@ describe('SetupLandingPageModal', () => {
                 {
                     id: 7,
                     label: 'Download model data',
+                    format_id: null,
+                    size_id: null,
+                },
+                {
+                    id: 8,
+                    label: 'Documentation',
                     format_id: null,
                     size_id: null,
                 },

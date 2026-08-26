@@ -1519,7 +1519,9 @@ export default function SetupLandingPageModal({
                                                 >
                                                     {file.url}
                                                 </a>
-                                                <Label htmlFor={`imported-file-label-${file.id}`}>Button label</Label>
+                                                <Label htmlFor={`imported-file-label-${file.id}`}>
+                                                    Button label<span className="sr-only"> for {file.url}</span>
+                                                </Label>
                                                 <Input
                                                     id={`imported-file-label-${file.id}`}
                                                     type="text"

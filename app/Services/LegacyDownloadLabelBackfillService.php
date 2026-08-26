@@ -68,7 +68,11 @@ final class LegacyDownloadLabelBackfillService
 
         $legacyUnavailable = false;
 
-        $query->with(['resource:id,doi', 'files', 'links'])
+        $relations = $apply
+            ? ['resource:id,doi']
+            : ['resource:id,doi', 'files', 'links'];
+
+        $query->with($relations)
             ->orderBy('id')
             ->chunkById(100, function ($landingPages) use ($apply, &$legacyUnavailable, &$result): bool {
                 foreach ($landingPages as $landingPage) {
@@ -111,9 +115,17 @@ final class LegacyDownloadLabelBackfillService
                     $changes = $apply
                         ? DB::transaction(function () use ($landingPage, $entriesByUrl): array {
                             $lockedLandingPage = LandingPage::query()
-                                ->with(['files', 'links'])
                                 ->lockForUpdate()
                                 ->findOrFail($landingPage->id);
+
+                            $lockedLandingPage->setRelation(
+                                'files',
+                                $lockedLandingPage->files()->lockForUpdate()->get(),
+                            );
+                            $lockedLandingPage->setRelation(
+                                'links',
+                                $lockedLandingPage->links()->lockForUpdate()->get(),
+                            );
 
                             return $this->updateLandingPage($lockedLandingPage, $entriesByUrl, true);
                         })

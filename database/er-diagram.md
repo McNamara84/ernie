@@ -612,6 +612,7 @@ erDiagram
         varchar template
         bigint landing_page_template_id FK "nullable"
         varchar ftp_url
+        varchar primary_download_label "255, nullable"
         bigint ftp_format_id FK "nullable"
         bigint ftp_size_id FK "nullable"
         boolean downloads_unavailable
@@ -630,6 +631,7 @@ erDiagram
         bigint id PK
         bigint landing_page_id FK
         varchar url "2048"
+        varchar label "255, nullable"
         bigint format_id FK "nullable"
         bigint size_id FK "nullable"
         smallint position "default 0"

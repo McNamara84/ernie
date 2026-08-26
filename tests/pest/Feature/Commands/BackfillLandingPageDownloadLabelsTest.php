@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use App\Models\LandingPage;
+use App\Models\LandingPageFile;
+use App\Models\LandingPageLink;
 use App\Models\Resource;
 use App\Services\LegacyDownloadLabelBackfillService;
 use App\Services\MetaworksDownloadUrlService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 
@@ -167,6 +170,66 @@ it('honours resume, limit, and DOI filters while reporting unmatched URLs in dry
         ->and($result['records'][0]['status'])->toBe('would_update')
         ->and($file->fresh()->label)->toBeNull()
         ->and($generatedLink->fresh()->label)->toBe('Download (2)');
+});
+
+it('locks imported files and links before applying backfilled labels', function () {
+    $doi = '10.5880/download.labels.child-locks';
+    $resource = Resource::factory()->create(['doi' => $doi]);
+    $landingPage = LandingPage::factory()->published()->create([
+        'resource_id' => $resource->id,
+        'template' => 'default_gfz',
+    ]);
+    $file = $landingPage->files()->create([
+        'url' => 'https://downloads.example.org/locked-file',
+        'position' => 0,
+    ]);
+    $link = $landingPage->links()->create([
+        'url' => 'https://services.example.org/locked-link',
+        'label' => 'https://services.example.org/locked-link',
+        'position' => 0,
+    ]);
+
+    $legacyFiles = Mockery::mock(MetaworksDownloadUrlService::class);
+    $legacyFiles->shouldReceive('lookupFileEntries')->once()->with($doi)->andReturn([
+        'files' => [
+            [
+                'url' => $file->url,
+                'label' => 'Locked file label',
+                'source_name' => $file->url,
+                'visible' => 'public',
+            ],
+            [
+                'url' => $link->url,
+                'label' => 'Locked link label',
+                'source_name' => $link->url,
+                'visible' => 'public',
+            ],
+        ],
+        'allPublic' => true,
+        'resourceFound' => true,
+        'hasFileRows' => true,
+        'resourcePublicStatus' => 'published',
+    ]);
+
+    $fileQueryLocks = [];
+    $linkQueryLocks = [];
+    LandingPageFile::addGlobalScope('record_backfill_locks', function (Builder $builder) use (&$fileQueryLocks): void {
+        $fileQueryLocks[] = $builder->getQuery()->lock;
+    });
+    LandingPageLink::addGlobalScope('record_backfill_locks', function (Builder $builder) use (&$linkQueryLocks): void {
+        $linkQueryLocks[] = $builder->getQuery()->lock;
+    });
+
+    try {
+        (new LegacyDownloadLabelBackfillService($legacyFiles))->run(apply: true, dois: [$doi]);
+    } finally {
+        LandingPageFile::clearBootedModels();
+    }
+
+    expect($fileQueryLocks)->toBe([true])
+        ->and($linkQueryLocks)->toBe([true])
+        ->and($file->fresh()->label)->toBe('Locked file label')
+        ->and($link->fresh()->label)->toBe('Locked link label');
 });
 
 it('fails safely when the legacy database is unavailable', function () {
