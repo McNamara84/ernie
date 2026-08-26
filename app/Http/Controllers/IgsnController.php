@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Enums\DataCiteUrlUpdateScope;
 use App\Enums\UserRole;
 use App\Exceptions\JsonValidationException;
+use App\Http\Requests\IndexIgsnsRequest;
+use App\Models\Datacenter;
 use App\Models\DataCiteUrlUpdateRun;
 use App\Models\DateType;
 use App\Models\GeoLocation;
@@ -77,7 +79,7 @@ class IgsnController extends Controller
     /**
      * Display a listing of IGSNs (Physical Sample resources).
      */
-    public function index(Request $request): Response
+    public function index(IndexIgsnsRequest $request): Response
     {
         $page = max(1, (int) $request->query('page', 1));
         $perPage = (int) $request->query('per_page', self::DEFAULT_PER_PAGE);
@@ -93,6 +95,8 @@ class IgsnController extends Controller
         // Extract filter parameters
         $prefix = trim((string) $request->query('prefix', ''));
         $status = trim((string) $request->query('status', ''));
+        $datacenterId = $request->datacenterId();
+        $withoutDatacenter = $request->withoutDatacenter();
 
         // Validate status against known values
         if ($status !== '' && ! in_array($status, IgsnMetadata::getValidStatuses(), true)) {
@@ -105,10 +109,10 @@ class IgsnController extends Controller
         $query = $this->buildQueryFrom($base);
 
         // Get total count before applying any filters/search (for "Showing X of Y" display)
-        $hasFilters = $search !== '' || $prefix !== '' || $status !== '';
+        $hasFilters = $search !== '' || $prefix !== '' || $status !== '' || $datacenterId !== null || $withoutDatacenter;
         $totalCount = $hasFilters ? $query->count() : null;
 
-        $this->applyFilters($query, $prefix, $status);
+        $this->applyFilters($query, $prefix, $status, $datacenterId, $withoutDatacenter);
         $this->applySearch($query, $search);
         $this->applySorting($query, $sortKey, $sortDirection);
 
@@ -153,10 +157,12 @@ class IgsnController extends Controller
             'canUpdateDataCiteLandingPageUrls' => $canUpdateDataCiteLandingPageUrls,
             'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),
             'igsnPrefix' => (string) config('datacite.production.igsn_prefix', '10.60510'),
-            'filters' => [
+            'filters' => array_filter([
                 'prefix' => $prefix,
                 'status' => $status,
-            ],
+                'datacenter_id' => $datacenterId,
+                'without_datacenter' => $withoutDatacenter ?: null,
+            ], static fn (mixed $value): bool => $value !== null),
             'filterOptions' => $this->getFilterOptionsData($base),
         ]);
     }
@@ -164,8 +170,8 @@ class IgsnController extends Controller
     /**
      * Return available filter options for the IGSN list.
      *
-     * Provides distinct IGSN prefixes (DOI part before the slash) and
-     * distinct upload statuses currently in use.
+     * Provides distinct IGSN prefixes (DOI part before the slash), distinct
+     * upload statuses, and Datacenters currently assigned to IGSNs.
      */
     public function filterOptions(): JsonResponse
     {
@@ -173,12 +179,12 @@ class IgsnController extends Controller
     }
 
     /**
-     * Compute the available filter options (prefixes + statuses) from a base query.
+     * Compute the available filter options from a base query.
      *
      * Shared between the JSON endpoint and the Inertia page props.
      *
      * @param  Builder<\App\Models\Resource>  $base
-     * @return array{prefixes: list<string>, statuses: list<string>}
+     * @return array{prefixes: list<string>, statuses: list<string>, datacenters: list<array{id: int, name: string}>}
      */
     private function getFilterOptionsData(Builder $base): array
     {
@@ -186,6 +192,8 @@ class IgsnController extends Controller
         $prefixes = [];
         /** @var list<string> $statuses */
         $statuses = [];
+        /** @var list<array{id: int, name: string}> $datacenters */
+        $datacenters = [];
 
         try {
             $driver = DB::getDriverName();
@@ -228,9 +236,30 @@ class IgsnController extends Controller
             ]);
         }
 
+        try {
+            /** @var list<array{id: int, name: string}> $datacenters */
+            $datacenters = Datacenter::query()
+                ->whereIn('id', (clone $base)
+                    ->whereNotNull('datacenter_id')
+                    ->select('datacenter_id'))
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(static fn (Datacenter $datacenter): array => [
+                    'id' => $datacenter->id,
+                    'name' => $datacenter->name,
+                ])
+                ->all();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to load IGSN datacenter filter options', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
         return [
             'prefixes' => $prefixes,
             'statuses' => $statuses,
+            'datacenters' => $datacenters,
         ];
     }
 
@@ -667,12 +696,17 @@ class IgsnController extends Controller
     }
 
     /**
-     * Apply prefix and status filters to the query.
+     * Apply prefix, status, and Datacenter filters to the query.
      *
      * @param  Builder<Resource>  $query
      */
-    private function applyFilters(Builder $query, string $prefix, string $status): void
-    {
+    private function applyFilters(
+        Builder $query,
+        string $prefix,
+        string $status,
+        ?int $datacenterId,
+        bool $withoutDatacenter,
+    ): void {
         if ($prefix !== '') {
             // Escape SQL LIKE meta-characters in the prefix
             $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $prefix);
@@ -683,6 +717,12 @@ class IgsnController extends Controller
             $query->whereHas('igsnMetadata', function (Builder $q) use ($status): void {
                 $q->where('upload_status', $status);
             });
+        }
+
+        if ($withoutDatacenter) {
+            $query->whereNull('datacenter_id');
+        } elseif ($datacenterId !== null) {
+            $query->where('datacenter_id', $datacenterId);
         }
     }
 

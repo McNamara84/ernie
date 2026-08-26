@@ -51,6 +51,10 @@ describe('IgsnFilters Component', () => {
     const defaultFilterOptions: IgsnFilterOptions = {
         prefixes: ['10.58052', '10.58095', '10.60516'],
         statuses: ['pending', 'registered', 'error'],
+        datacenters: [
+            { id: 7, name: 'Alpha Samples' },
+            { id: 11, name: 'Beta Samples' },
+        ],
     };
 
     const defaultProps = {
@@ -71,6 +75,7 @@ describe('IgsnFilters Component', () => {
 
         expect(screen.getByPlaceholderText(/search igsn or title/i)).toBeInTheDocument();
         expect(screen.getByLabelText('Filter by IGSN prefix')).toBeInTheDocument();
+        expect(screen.getByLabelText('Filter by datacenter')).toBeInTheDocument();
         expect(screen.getByLabelText('Filter by upload status')).toBeInTheDocument();
     });
 
@@ -102,6 +107,19 @@ describe('IgsnFilters Component', () => {
         expect(options[3]).toHaveTextContent('Error');
     });
 
+    it('shows only the provided datacenter options after the all and unassigned choices', () => {
+        render(<IgsnFilters {...defaultProps} />);
+
+        const datacenterSelect = screen.getByLabelText('Filter by datacenter');
+        const options = datacenterSelect.querySelectorAll('option');
+
+        expect(options).toHaveLength(4);
+        expect(options[0]).toHaveTextContent('All Datacenters');
+        expect(options[1]).toHaveTextContent('Without Datacenter');
+        expect(options[2]).toHaveTextContent('Alpha Samples');
+        expect(options[3]).toHaveTextContent('Beta Samples');
+    });
+
     it('calls onFilterChange when prefix is selected', async () => {
         const user = userEvent.setup();
         render(<IgsnFilters {...defaultProps} />);
@@ -110,9 +128,7 @@ describe('IgsnFilters Component', () => {
         await user.selectOptions(prefixSelect, '10.60516');
 
         expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
-        expect(mockOnFilterChange).toHaveBeenCalledWith(
-            expect.objectContaining({ prefix: '10.60516' }),
-        );
+        expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ prefix: '10.60516' }));
     });
 
     it('calls onFilterChange when status is selected', async () => {
@@ -123,9 +139,28 @@ describe('IgsnFilters Component', () => {
         await user.selectOptions(statusSelect, 'registered');
 
         expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
-        expect(mockOnFilterChange).toHaveBeenCalledWith(
-            expect.objectContaining({ status: 'registered' }),
-        );
+        expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ status: 'registered' }));
+    });
+
+    it('selects concrete and unassigned datacenters mutually exclusively', () => {
+        const { rerender } = render(<IgsnFilters {...defaultProps} filters={{ without_datacenter: true }} />);
+
+        fireEvent.change(screen.getByLabelText('Filter by datacenter'), { target: { value: '7' } });
+
+        expect(mockOnFilterChange).toHaveBeenLastCalledWith({ datacenter_id: 7 });
+
+        rerender(<IgsnFilters {...defaultProps} filters={{ datacenter_id: 7 }} />);
+        fireEvent.change(screen.getByLabelText('Filter by datacenter'), { target: { value: 'without' } });
+
+        expect(mockOnFilterChange).toHaveBeenLastCalledWith({ without_datacenter: true });
+    });
+
+    it('clears the datacenter filter when All Datacenters is selected', () => {
+        render(<IgsnFilters {...defaultProps} filters={{ datacenter_id: 7, status: 'pending' }} />);
+
+        fireEvent.change(screen.getByLabelText('Filter by datacenter'), { target: { value: 'all' } });
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ status: 'pending' });
     });
 
     it('clears prefix when "All Prefixes" is selected', async () => {
@@ -156,6 +191,16 @@ describe('IgsnFilters Component', () => {
         expect(screen.getByText('Prefix: 10.60516')).toBeInTheDocument();
         expect(screen.getByText('Status: Pending')).toBeInTheDocument();
         expect(screen.getByText('Active filters:')).toBeInTheDocument();
+    });
+
+    it('shows human-readable concrete and unassigned datacenter badges', () => {
+        const { rerender } = render(<IgsnFilters {...defaultProps} filters={{ datacenter_id: 7 }} resultCount={12} />);
+
+        expect(screen.getByText('Datacenter: Alpha Samples')).toBeInTheDocument();
+
+        rerender(<IgsnFilters {...defaultProps} filters={{ without_datacenter: true }} resultCount={12} />);
+
+        expect(screen.getByText('Datacenter: Without Datacenter')).toBeInTheDocument();
     });
 
     it('shows result count when filtering changes the total', () => {
@@ -226,6 +271,7 @@ describe('IgsnFilters Component', () => {
 
         expect(screen.getByPlaceholderText(/search igsn or title/i)).toBeDisabled();
         expect(screen.getByLabelText('Filter by IGSN prefix')).toBeDisabled();
+        expect(screen.getByLabelText('Filter by datacenter')).toBeDisabled();
         expect(screen.getByLabelText('Filter by upload status')).toBeDisabled();
     });
 
@@ -245,9 +291,7 @@ describe('IgsnFilters Component', () => {
         });
 
         expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
-        expect(mockOnFilterChange).toHaveBeenCalledWith(
-            expect.objectContaining({ search: 'test' }),
-        );
+        expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ search: 'test' }));
 
         vi.useRealTimers();
     });
@@ -280,9 +324,7 @@ describe('IgsnFilters Component', () => {
         await user.type(searchInput, 'ab');
 
         // Should immediately clear the search filter since an active filter existed
-        expect(mockOnFilterChange).toHaveBeenCalledWith(
-            expect.not.objectContaining({ search: expect.anything() }),
-        );
+        expect(mockOnFilterChange).toHaveBeenCalledWith(expect.not.objectContaining({ search: expect.anything() }));
 
         vi.useRealTimers();
     });
@@ -301,9 +343,7 @@ describe('IgsnFilters Component', () => {
 
         // The search term should be flushed (included) alongside the prefix
         expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
-        expect(mockOnFilterChange).toHaveBeenCalledWith(
-            expect.objectContaining({ prefix: '10.58052', search: 'rock' }),
-        );
+        expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ prefix: '10.58052', search: 'rock' }));
 
         vi.useRealTimers();
     });
@@ -319,9 +359,24 @@ describe('IgsnFilters Component', () => {
         fireEvent.change(statusSelect, { target: { value: 'pending' } });
 
         expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
-        expect(mockOnFilterChange).toHaveBeenCalledWith(
-            expect.objectContaining({ status: 'pending', search: 'sample' }),
-        );
+        expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ status: 'pending', search: 'sample' }));
+
+        vi.useRealTimers();
+    });
+
+    it('flushes pending search when datacenter is changed during debounce', () => {
+        vi.useFakeTimers();
+        render(<IgsnFilters {...defaultProps} filters={{ prefix: '10.60516' }} />);
+
+        fireEvent.change(screen.getByPlaceholderText(/search igsn or title/i), { target: { value: 'sample' } });
+        fireEvent.change(screen.getByLabelText('Filter by datacenter'), { target: { value: '7' } });
+
+        expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
+        expect(mockOnFilterChange).toHaveBeenCalledWith({
+            prefix: '10.60516',
+            datacenter_id: 7,
+            search: 'sample',
+        });
 
         vi.useRealTimers();
     });
@@ -361,11 +416,21 @@ describe('IgsnFilters Component', () => {
         expect(statusSelect.value).toBe('all');
     });
 
+    it('removes either datacenter badge and resets the shared select', async () => {
+        const user = userEvent.setup();
+        render(<IgsnFilters {...defaultProps} filters={{ without_datacenter: true, status: 'pending' }} resultCount={12} />);
+
+        await user.click(screen.getByLabelText('Remove without_datacenter filter'));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ status: 'pending' });
+        expect(screen.getByLabelText('Filter by datacenter')).toHaveValue('all');
+    });
+
     it('resets all select values when clearing all filters', async () => {
         const user = userEvent.setup();
         const props = {
             ...defaultProps,
-            filters: { prefix: '10.60516', status: 'pending', search: 'rock' } as IgsnFilterState,
+            filters: { prefix: '10.60516', status: 'pending', search: 'rock', datacenter_id: 7 } as IgsnFilterState,
             resultCount: 5,
             totalCount: 50,
         };
@@ -375,8 +440,10 @@ describe('IgsnFilters Component', () => {
         await user.click(clearAllButton);
 
         const prefixSelect = screen.getByLabelText('Filter by IGSN prefix') as HTMLSelectElement;
+        const datacenterSelect = screen.getByLabelText('Filter by datacenter') as HTMLSelectElement;
         const statusSelect = screen.getByLabelText('Filter by upload status') as HTMLSelectElement;
         expect(prefixSelect.value).toBe('all');
+        expect(datacenterSelect.value).toBe('all');
         expect(statusSelect.value).toBe('all');
     });
 });

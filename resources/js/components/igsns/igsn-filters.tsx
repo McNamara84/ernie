@@ -25,12 +25,15 @@ const SEARCH_DEBOUNCE_MS = 1000;
 export interface IgsnFilterOptions {
     prefixes: string[];
     statuses: string[];
+    datacenters: Array<{ id: number; name: string }>;
 }
 
 export interface IgsnFilterState {
     prefix?: string;
     status?: string;
     search?: string;
+    datacenter_id?: number;
+    without_datacenter?: boolean;
 }
 
 interface IgsnFiltersProps {
@@ -66,13 +69,17 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
     // Local states for Select components to ensure proper synchronization
     const [prefixValue, setPrefixValue] = useState(filters.prefix || 'all');
+    const [datacenterValue, setDatacenterValue] = useState(
+        filters.without_datacenter ? 'without' : filters.datacenter_id ? String(filters.datacenter_id) : 'all',
+    );
     const [statusValue, setStatusValue] = useState(filters.status || 'all');
 
     // Sync Select values when filters change externally
     useEffect(() => {
         setPrefixValue(filters.prefix || 'all');
+        setDatacenterValue(filters.without_datacenter ? 'without' : filters.datacenter_id ? String(filters.datacenter_id) : 'all');
         setStatusValue(filters.status || 'all');
-    }, [filters.prefix, filters.status]);
+    }, [filters.prefix, filters.datacenter_id, filters.without_datacenter, filters.status]);
 
     // Sync search input with filters when filters change externally
     useEffect(() => {
@@ -189,6 +196,35 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
         [onFilterChange],
     );
 
+    const handleDatacenterChange = useCallback(
+        (value: string) => {
+            // Flush any pending debounced search instead of dropping it
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+                searchTimeoutRef.current = undefined;
+            }
+            setDatacenterValue(value);
+            const newFilters = { ...filtersRef.current };
+            delete newFilters.datacenter_id;
+            delete newFilters.without_datacenter;
+
+            if (value === 'without') {
+                newFilters.without_datacenter = true;
+            } else if (value && value !== 'all') {
+                newFilters.datacenter_id = Number(value);
+            }
+
+            // Include pending search term if it meets minimum length
+            const pendingSearch = searchInputRef.current?.value.trim() ?? '';
+            if (pendingSearch.length >= MIN_SEARCH_LENGTH) {
+                newFilters.search = pendingSearch;
+            }
+            filtersRef.current = newFilters;
+            onFilterChange(newFilters);
+        },
+        [onFilterChange],
+    );
+
     const removeFilter = useCallback(
         (key: keyof IgsnFilterState) => {
             const newFilters = { ...filtersRef.current };
@@ -206,6 +242,11 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
             if (key === 'status') {
                 setStatusValue('all');
             }
+            if (key === 'datacenter_id' || key === 'without_datacenter') {
+                delete newFilters.datacenter_id;
+                delete newFilters.without_datacenter;
+                setDatacenterValue('all');
+            }
             filtersRef.current = newFilters;
             onFilterChange(newFilters);
         },
@@ -215,6 +256,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
     const clearAllFilters = useCallback(() => {
         setSearchInput('');
         setPrefixValue('all');
+        setDatacenterValue('all');
         setStatusValue('all');
         if (searchTimeoutRef.current) {
             clearTimeout(searchTimeoutRef.current);
@@ -233,21 +275,34 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
     const hasActiveFilters = activeFilterCount > 0;
     const isFiltered = resultCount !== totalCount;
 
-    const formatFilterLabel = useCallback((key: keyof IgsnFilterState, value: unknown): string => {
-        const labelMap: Record<string, string> = {
-            prefix: 'Prefix',
-            status: 'Status',
-            search: 'Search',
-        };
+    const formatFilterLabel = useCallback(
+        (key: keyof IgsnFilterState, value: unknown): string => {
+            const labelMap: Record<string, string> = {
+                prefix: 'Prefix',
+                status: 'Status',
+                search: 'Search',
+                datacenter_id: 'Datacenter',
+            };
 
-        const label = labelMap[key] || key;
+            const label = labelMap[key] || key;
 
-        if (key === 'status' && typeof value === 'string') {
-            return `${label}: ${value.charAt(0).toUpperCase() + value.slice(1)}`;
-        }
+            if (key === 'status' && typeof value === 'string') {
+                return `${label}: ${value.charAt(0).toUpperCase() + value.slice(1)}`;
+            }
 
-        return `${label}: ${String(value)}`;
-    }, []);
+            if (key === 'datacenter_id' && filterOptions?.datacenters) {
+                const datacenter = filterOptions.datacenters.find((option) => option.id === value);
+                return `${label}: ${datacenter?.name ?? String(value)}`;
+            }
+
+            if (key === 'without_datacenter') {
+                return 'Datacenter: Without Datacenter';
+            }
+
+            return `${label}: ${String(value)}`;
+        },
+        [filterOptions],
+    );
 
     return (
         <div className="space-y-3">
@@ -278,6 +333,22 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
                         {filterOptions?.prefixes?.map((prefix) => (
                             <SelectItem key={prefix} value={prefix}>
                                 {prefix}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                {/* Datacenter Select */}
+                <Select value={datacenterValue} onValueChange={handleDatacenterChange} disabled={isLoading || !filterOptions}>
+                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by datacenter">
+                        <SelectValue placeholder="Datacenter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Datacenters</SelectItem>
+                        <SelectItem value="without">Without Datacenter</SelectItem>
+                        {filterOptions?.datacenters?.map((datacenter) => (
+                            <SelectItem key={datacenter.id} value={String(datacenter.id)}>
+                                {datacenter.name}
                             </SelectItem>
                         ))}
                     </SelectContent>
