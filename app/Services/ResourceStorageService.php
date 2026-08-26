@@ -177,6 +177,13 @@ class ResourceStorageService
             return $this->ensureAuthorContactPersonContributors($data);
         }
 
+        if ($citationLabelResolutionMode === CitationLabelResolutionMode::EXHAUSTIVE) {
+            $data['relatedIdentifiers'] = $this->relatedIdentifierCitationLabelService
+                ->resolveExhaustiveForStorage($relatedIdentifiers);
+
+            return $this->ensureAuthorContactPersonContributors($data);
+        }
+
         $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
 
         foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
@@ -206,16 +213,11 @@ class ResourceStorageService
                 continue;
             }
 
-            $resolvedCitationLabel = $citationLabelResolutionMode === CitationLabelResolutionMode::EXHAUSTIVE
-                ? $this->relatedIdentifierCitationLabelService->resolve(
-                    $identifier,
-                    (string) ($relatedIdentifier['identifierType'] ?? ''),
-                )
-                : $this->relatedIdentifierCitationLabelService->resolveBestEffort(
-                    $identifier,
-                    (string) ($relatedIdentifier['identifierType'] ?? ''),
-                    $citationResolutionDeadline,
-                );
+            $resolvedCitationLabel = $this->relatedIdentifierCitationLabelService->resolveBestEffort(
+                $identifier,
+                (string) ($relatedIdentifier['identifierType'] ?? ''),
+                $citationResolutionDeadline,
+            );
 
             if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {
                 $relatedIdentifiers[$index]['citationLabel'] = trim($resolvedCitationLabel);
