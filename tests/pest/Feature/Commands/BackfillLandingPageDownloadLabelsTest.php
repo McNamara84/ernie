@@ -9,6 +9,7 @@ use App\Models\Resource;
 use App\Services\LegacyDownloadLabelBackfillService;
 use App\Services\MetaworksDownloadUrlService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 
@@ -213,6 +214,7 @@ it('locks imported files and links before applying backfilled labels', function 
 
     $fileQueryLocks = [];
     $linkQueryLocks = [];
+    $originalGlobalScopes = Model::getAllGlobalScopes();
     LandingPageFile::addGlobalScope('record_backfill_locks', function (Builder $builder) use (&$fileQueryLocks): void {
         $fileQueryLocks[] = $builder->getQuery()->lock;
     });
@@ -223,10 +225,11 @@ it('locks imported files and links before applying backfilled labels', function 
     try {
         (new LegacyDownloadLabelBackfillService($legacyFiles))->run(apply: true, dois: [$doi]);
     } finally {
-        LandingPageFile::clearBootedModels();
+        Model::setAllGlobalScopes($originalGlobalScopes);
     }
 
-    expect($fileQueryLocks)->toBe([true])
+    expect(Model::getAllGlobalScopes())->toBe($originalGlobalScopes)
+        ->and($fileQueryLocks)->toBe([true])
         ->and($linkQueryLocks)->toBe([true])
         ->and($file->fresh()->label)->toBe('Locked file label')
         ->and($link->fresh()->label)->toBe('Locked link label');
