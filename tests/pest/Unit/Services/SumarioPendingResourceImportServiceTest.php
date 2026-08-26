@@ -158,7 +158,7 @@ describe('SumarioPendingResourceImportService', function () {
             doiSuggestionService: app(DoiSuggestionService::class),
         );
 
-        $result = $service->importPendingByDoi(
+        $result = $service->importReviewFallbackByDoi(
             'https://doi.org/10.5880/PENDING.ONE',
             $user->id,
             CitationLabelResolutionMode::EXHAUSTIVE,
@@ -176,6 +176,134 @@ describe('SumarioPendingResourceImportService', function () {
             ->and($resource->landingPage)->not->toBeNull()
             ->and($resource->landingPage->is_published)->toBeFalse()
             ->and($resource->landingPage->ftp_url)->toBe('https://datapub.gfz.de/pending-one.zip');
+    });
+
+    it('imports released SUMARIO fallback resources as review resources idempotently', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 56,
+            'publicstatus' => 'released',
+            'identifier' => '10.5880/icgem.2026.001',
+            'publicationyear' => 2026,
+            'title' => 'HUST-Grace2026s',
+            'resourcetypegeneral' => 'Dataset',
+        ]);
+
+        $user = User::factory()->create();
+        $datasetTypeId = ResourceType::query()->where('slug', 'dataset')->value('id');
+
+        $editorLoader = Mockery::mock(OldDatasetEditorLoader::class);
+        $editorLoader
+            ->shouldReceive('loadForEditor')
+            ->once()
+            ->with(56)
+            ->andReturn([
+                'doi' => '10.5880/ICGEM.2026.001',
+                'year' => '2026',
+                'titles' => [
+                    ['title' => 'HUST-Grace2026s', 'titleType' => 'main-title'],
+                ],
+                'initialRights' => [],
+                'authors' => [],
+                'contributors' => [],
+                'descriptions' => [],
+                'dates' => [],
+                'gcmdKeywords' => [],
+                'freeKeywords' => [],
+                'geoLocations' => [],
+                'relatedWorks' => [],
+                'fundingReferences' => [],
+                'mslLaboratories' => [],
+            ]);
+
+        $resourceStorage = Mockery::mock(ResourceStorageService::class);
+        $resourceStorage
+            ->shouldReceive('store')
+            ->once()
+            ->andReturnUsing(function (array $payload) use ($datasetTypeId): array {
+                expect($payload['doi'])->toBe('10.5880/icgem.2026.001')
+                    ->and($payload['resourceType'])->toBe($datasetTypeId);
+
+                return [
+                    Resource::factory()->create([
+                        'doi' => $payload['doi'],
+                        'resource_type_id' => $datasetTypeId,
+                    ]),
+                    false,
+                ];
+            });
+
+        $datacenterLookup = Mockery::mock(LegacyMetaworksDatacenterLookupService::class);
+        $datacenterLookup
+            ->shouldReceive('resolveDatacenterIds')
+            ->once()
+            ->with('10.5880/icgem.2026.001')
+            ->andReturn([]);
+
+        $downloadUrlService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $downloadUrlService
+            ->shouldReceive('lookupFileEntries')
+            ->once()
+            ->with('10.5880/icgem.2026.001')
+            ->andReturn(['files' => [], 'allPublic' => false]);
+
+        $service = new SumarioPendingResourceImportService(
+            editorLoader: $editorLoader,
+            resourceStorage: $resourceStorage,
+            datacenterLookup: $datacenterLookup,
+            downloadUrlService: $downloadUrlService,
+            landingPageImport: new LegacyLandingPageImportService,
+            doiSuggestionService: app(DoiSuggestionService::class),
+        );
+
+        $firstResult = $service->importReviewFallbackByDoi(
+            'https://doi.org/10.5880/ICGEM.2026.001',
+            $user->id,
+        );
+        $secondResult = $service->importReviewFallbackByDoi(
+            '10.5880/icgem.2026.001',
+            $user->id,
+        );
+        $resource = $firstResult['resource']?->fresh(['landingPage']);
+
+        expect($firstResult['status'])->toBe('imported')
+            ->and($secondResult['status'])->toBe('skipped')
+            ->and($resource)->not->toBeNull()
+            ->and($resource->legacy_source)->toBe('sumario-pmd')
+            ->and($resource->legacy_source_id)->toBe(56)
+            ->and($resource->legacy_source_status)->toBe('released')
+            ->and($resource->workflow_status_override)->toBe(ResourceWorkflowStatus::REVIEW)
+            ->and($resource->publicStatus())->toBe('review')
+            ->and($resource->landingPage)->not->toBeNull()
+            ->and($resource->landingPage->is_published)->toBeFalse()
+            ->and(Resource::query()->where('doi', '10.5880/icgem.2026.001')->count())->toBe(1);
+    });
+
+    it('does not import unsupported SUMARIO statuses through the review fallback', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 57,
+            'publicstatus' => 'archived',
+            'identifier' => '10.5880/archived.one',
+            'resourcetypegeneral' => 'Dataset',
+        ]);
+
+        $editorLoader = Mockery::mock(OldDatasetEditorLoader::class);
+        $editorLoader->shouldNotReceive('loadForEditor');
+        $resourceStorage = Mockery::mock(ResourceStorageService::class);
+        $resourceStorage->shouldNotReceive('store');
+
+        $service = new SumarioPendingResourceImportService(
+            editorLoader: $editorLoader,
+            resourceStorage: $resourceStorage,
+            datacenterLookup: Mockery::mock(LegacyMetaworksDatacenterLookupService::class),
+            downloadUrlService: Mockery::mock(MetaworksDownloadUrlService::class),
+            landingPageImport: new LegacyLandingPageImportService,
+            doiSuggestionService: app(DoiSuggestionService::class),
+        );
+
+        $result = $service->importReviewFallbackByDoi('10.5880/archived.one', 1);
+
+        expect($result['status'])->toBe('missing')
+            ->and(Resource::query()->where('doi', '10.5880/archived.one')->exists())->toBeFalse();
     });
 
     it('normalises related identifiers without synthesising citation labels and skips invalid DOI placeholders', function () {
@@ -336,7 +464,7 @@ describe('SumarioPendingResourceImportService', function () {
             doiSuggestionService: app(DoiSuggestionService::class),
         );
 
-        $result = $service->importPendingByDoi('10.5880/legacy.high-cardinality', $user->id);
+        $result = $service->importReviewFallbackByDoi('10.5880/legacy.high-cardinality', $user->id);
 
         expect($result['status'])->toBe('imported');
     });
@@ -433,7 +561,7 @@ describe('SumarioPendingResourceImportService', function () {
             doiSuggestionService: app(DoiSuggestionService::class),
         );
 
-        $result = $service->importPendingByDoi('10.5880/hA-ArboDat_AK1', $user->id);
+        $result = $service->importReviewFallbackByDoi('10.5880/hA-ArboDat_AK1', $user->id);
 
         expect($result['status'])->toBe('imported');
     });
@@ -534,7 +662,7 @@ describe('SumarioPendingResourceImportService', function () {
             doiSuggestionService: app(DoiSuggestionService::class),
         );
 
-        $result = $service->importPendingByDoi($requestedDoi, $user->id);
+        $result = $service->importReviewFallbackByDoi($requestedDoi, $user->id);
         $resource = $result['resource'];
 
         if (! $resource instanceof Resource) {
@@ -585,7 +713,7 @@ describe('SumarioPendingResourceImportService', function () {
             doiSuggestionService: app(DoiSuggestionService::class),
         );
 
-        $result = $service->importPendingByDoi('10.5880/pending.existing', $user->id);
+        $result = $service->importReviewFallbackByDoi('10.5880/pending.existing', $user->id);
         $repairedResource = $resource->fresh();
 
         expect($result['status'])->toBe('skipped')
@@ -618,7 +746,7 @@ describe('SumarioPendingResourceImportService', function () {
             doiSuggestionService: app(DoiSuggestionService::class),
         );
 
-        $result = $service->importPendingByDoi('10.5880/fidgeo.test.to.be.deleted', 1);
+        $result = $service->importReviewFallbackByDoi('10.5880/fidgeo.test.to.be.deleted', 1);
 
         expect($result['status'])->toBe('skipped')
             ->and($result['doi'])->toBe('10.5880/fidgeo.test.to.be.deleted')
@@ -627,12 +755,22 @@ describe('SumarioPendingResourceImportService', function () {
 
     it('imports DOI-less pending records once as explicit drafts keyed by their legacy id', function () {
         DB::connection('metaworks')->table('resource')->insert([
-            'id' => 91,
-            'publicstatus' => 'pending',
-            'identifier' => null,
-            'publicationyear' => 2024,
-            'title' => 'Local legacy draft',
-            'resourcetypegeneral' => 'Dataset',
+            [
+                'id' => 91,
+                'publicstatus' => 'pending',
+                'identifier' => null,
+                'publicationyear' => 2024,
+                'title' => 'Local legacy draft',
+                'resourcetypegeneral' => 'Dataset',
+            ],
+            [
+                'id' => 92,
+                'publicstatus' => 'released',
+                'identifier' => '10.5880/released.not-bulk-imported',
+                'publicationyear' => 2024,
+                'title' => 'Released legacy resource',
+                'resourcetypegeneral' => 'Dataset',
+            ],
         ]);
 
         $user = User::factory()->create();

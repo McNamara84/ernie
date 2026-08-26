@@ -570,16 +570,16 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $recordOutcome($normalizedDoi, $outcome);
             } else {
                 try {
-                    $pendingResult = $pendingImportService->importPendingByDoi(
+                    $fallbackResult = $pendingImportService->importReviewFallbackByDoi(
                         $doi,
                         $this->userId,
                         CitationLabelResolutionMode::BEST_EFFORT,
                     );
 
-                    if ($pendingResult['status'] === 'imported') {
-                        if ($portalDatacenterNames !== [] && $pendingResult['resource'] !== null) {
+                    if ($fallbackResult['status'] === 'imported') {
+                        if ($portalDatacenterNames !== [] && $fallbackResult['resource'] !== null) {
                             $this->syncPortalDatacenters(
-                                $pendingResult['resource'],
+                                $fallbackResult['resource'],
                                 $portalDatacenterNames,
                             );
                         }
@@ -590,7 +590,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                             'metaworks_unavailable' => false,
                             'error' => null,
                         ]);
-                    } elseif ($pendingResult['status'] === 'skipped') {
+                    } elseif ($fallbackResult['status'] === 'skipped') {
                         $recordOutcome($doi, [
                             'status' => 'skipped',
                             'enriched' => false,
@@ -602,8 +602,8 @@ class ImportFromDataCiteJob implements ShouldQueue
                             'status' => 'failed',
                             'enriched' => false,
                             'metaworks_unavailable' => false,
-                            'error' => $pendingResult['error']
-                                ?? 'The DOI was not found in DataCite or SUMARIO pending resources.',
+                            'error' => $fallbackResult['error']
+                                ?? 'The DOI was not found in DataCite or eligible SUMARIO legacy resources.',
                         ]);
                     }
                 } catch (\Throwable $exception) {
@@ -617,7 +617,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                         'status' => 'failed',
                         'enriched' => false,
                         'metaworks_unavailable' => false,
-                        'error' => 'SUMARIO pending lookup is unavailable.',
+                        'error' => 'SUMARIO legacy lookup is unavailable.',
                     ]);
                 }
             }
@@ -758,7 +758,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         $doiRecord = $importService->fetchSingleDoi($doi);
 
         if ($doiRecord === null) {
-            $this->handleSinglePendingFallback($doi, $startedAt);
+            $this->handleSingleLegacyFallback($doi, $startedAt);
 
             return;
         }
@@ -858,22 +858,22 @@ class ImportFromDataCiteJob implements ShouldQueue
         ]);
     }
 
-    private function handleSinglePendingFallback(string $doi, string $startedAt): void
+    private function handleSingleLegacyFallback(string $doi, string $startedAt): void
     {
         try {
             $result = app(SumarioPendingResourceImportService::class)
-                ->importPendingByDoi(
+                ->importReviewFallbackByDoi(
                     $doi,
                     $this->userId,
                     CitationLabelResolutionMode::EXHAUSTIVE,
                 );
         } catch (\Throwable $exception) {
-            Log::warning('SUMARIO pending lookup failed during single DOI fallback', [
+            Log::warning('SUMARIO legacy lookup failed during single DOI fallback', [
                 'doi' => $doi,
                 'error' => $exception->getMessage(),
             ]);
 
-            $this->markSingleImportAsFailed($doi, 'SUMARIO pending lookup is unavailable.', $startedAt);
+            $this->markSingleImportAsFailed($doi, 'SUMARIO legacy lookup is unavailable.', $startedAt);
 
             return;
         }
@@ -931,7 +931,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         }
 
         $error = $result['error']
-            ?? 'The DOI was not found in DataCite or SUMARIO pending resources.';
+            ?? 'The DOI was not found in DataCite or eligible SUMARIO legacy resources.';
 
         $this->markSingleImportAsFailed($result['doi'], $error, $startedAt);
     }
