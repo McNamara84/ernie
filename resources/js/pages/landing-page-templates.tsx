@@ -225,8 +225,13 @@ function IgsnSectionOrderEditor({
         }
     };
     const handleDragEnd = (event: DragEndEvent) => {
+        if (!event.over) {
+            if (snapshot.current) onChange(snapshot.current);
+            snapshot.current = null;
+            return;
+        }
+
         snapshot.current = null;
-        if (!event.over) return;
         onChange(moveIgsnSection(left, right, String(event.active.id), String(event.over.id)));
     };
 

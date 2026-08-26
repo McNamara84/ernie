@@ -18,6 +18,7 @@ use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Observer for Resource model to handle cache invalidation.
@@ -201,6 +202,11 @@ class ResourceObserver
 
         if ($resource->igsnMetadata !== null) {
             $this->landingPageRenderDataCache->forgetForIgsnFamilies([(int) $resource->id]);
+
+            $imagePath = $resource->igsnMetadata->sample_image_storage_path;
+            if (is_string($imagePath) && $imagePath !== '') {
+                Storage::disk((string) config('igsn_images.disk', 'public'))->delete($imagePath);
+            }
         }
 
         if ($resource->doi !== null && $resource->doi !== '') {
