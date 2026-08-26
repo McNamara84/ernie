@@ -6,7 +6,9 @@ use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\Igsn\IgsnSampleImageStorageService;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 covers(IgsnSampleImageStorageService::class);
@@ -56,9 +58,11 @@ it('stores canonical ICDP URLs without downloading the external image', function
     Http::preventStrayRequests();
     $metadata = issue1168Metadata('http://www-icdp.icdp-online.org/sites/cosc/news/cores/CS_5054.jpg');
 
-    expect(app(IgsnSampleImageStorageService::class)->sync($metadata)['status'])->toBe('external')
-        ->and($metadata->fresh()->sample_image_external_url)->toBe('https://data.icdp-online.org/sites/cosc/news/cores/CS_5054.jpg')
-        ->and($metadata->fresh()->sample_image_storage_path)->toBeNull();
+    expect(app(IgsnSampleImageStorageService::class)->sync($metadata)['status'])->toBe('external');
+    $metadata->refresh();
+
+    expect($metadata->sample_image_external_url)->toBe('https://data.icdp-online.org/sites/cosc/news/cores/CS_5054.jpg')
+        ->and($metadata->sample_image_storage_path)->toBeNull();
     Http::assertNothingSent();
 });
 
@@ -67,9 +71,11 @@ it('rejects invalid content without publishing a broken image path', function (s
     Http::fake(['dataservices.gfz-potsdam.de/*' => Http::response($body, 200, $headers)]);
     $metadata = issue1168Metadata('https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/invalid.jpg');
 
-    expect(app(IgsnSampleImageStorageService::class)->sync($metadata)['status'])->toBe('failed')
-        ->and($metadata->fresh()->sample_image_storage_path)->toBeNull()
-        ->and($metadata->fresh()->sampleImageUrl())->toBeNull();
+    expect(app(IgsnSampleImageStorageService::class)->sync($metadata)['status'])->toBe('failed');
+    $metadata->refresh();
+
+    expect($metadata->sample_image_storage_path)->toBeNull()
+        ->and($metadata->sampleImageUrl())->toBeNull();
 })->with([
     'wrong MIME' => ['plain text', ['Content-Type' => 'text/plain'], 1024],
     'oversize' => [issue1168Jpeg(), ['Content-Type' => 'image/jpeg'], 10],
@@ -85,7 +91,130 @@ it('does not treat a stored path for another source as current and keeps it when
     Storage::disk('public')->put('igsn-sample-images/gfso273n39/existing.jpg', issue1168Jpeg());
     Http::fake(['dataservices.gfz-potsdam.de/*' => Http::response('', 503)]);
 
-    expect(app(IgsnSampleImageStorageService::class)->sync($metadata)['status'])->toBe('failed')
-        ->and($metadata->fresh()->sample_image_storage_path)->toBe('igsn-sample-images/gfso273n39/existing.jpg');
+    expect(app(IgsnSampleImageStorageService::class)->sync($metadata)['status'])->toBe('failed');
+    $metadata->refresh();
+
+    expect($metadata->sample_image_storage_path)->toBe('igsn-sample-images/gfso273n39/existing.jpg');
     Storage::disk('public')->assertExists('igsn-sample-images/gfso273n39/existing.jpg');
+});
+
+it('keeps the old managed image and removes the replacement when the transaction rolls back', function (): void {
+    $metadata = issue1168Metadata('https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/replacement.jpg');
+    $oldPath = 'igsn-sample-images/gfso273n39/existing.jpg';
+    $metadata->forceFill([
+        'sample_image_storage_path' => $oldPath,
+        'sample_image_mime_type' => 'image/jpeg',
+        'sample_image_size' => strlen(issue1168Jpeg()),
+    ])->save();
+    Storage::disk('public')->put($oldPath, issue1168Jpeg());
+    Http::fake(['dataservices.gfz-potsdam.de/*' => Http::response(issue1168Jpeg(), 200)]);
+
+    $replacementPath = null;
+    $startingTransactionLevel = DB::transactionLevel();
+    DB::beginTransaction();
+    try {
+        $result = app(IgsnSampleImageStorageService::class)->sync($metadata, true);
+        $replacementPath = $metadata->sample_image_storage_path;
+
+        expect($result['status'])->toBe('stored')
+            ->and($replacementPath)->toBeString()->not->toBe($oldPath);
+        Storage::disk('public')->assertExists($oldPath);
+        Storage::disk('public')->assertExists((string) $replacementPath);
+
+        DB::rollBack();
+    } finally {
+        while (DB::transactionLevel() > $startingTransactionLevel) {
+            DB::rollBack();
+        }
+    }
+
+    expect($metadata->refresh()->sample_image_storage_path)->toBe($oldPath);
+    Storage::disk('public')->assertExists($oldPath);
+    Storage::disk('public')->assertMissing((string) $replacementPath);
+});
+
+it('deletes the old managed image only after the replacement transaction commits', function (): void {
+    $metadata = issue1168Metadata('https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/replacement.jpg');
+    $oldPath = 'igsn-sample-images/gfso273n39/existing.jpg';
+    $metadata->forceFill([
+        'sample_image_storage_path' => $oldPath,
+        'sample_image_mime_type' => 'image/jpeg',
+        'sample_image_size' => strlen(issue1168Jpeg()),
+    ])->save();
+    Storage::disk('public')->put($oldPath, issue1168Jpeg());
+    Http::fake(['dataservices.gfz-potsdam.de/*' => Http::response(issue1168Jpeg(), 200)]);
+
+    $replacementPath = null;
+    $startingTransactionLevel = DB::transactionLevel();
+    DB::beginTransaction();
+    try {
+        $result = app(IgsnSampleImageStorageService::class)->sync($metadata, true);
+        $replacementPath = $metadata->sample_image_storage_path;
+
+        expect($result['status'])->toBe('stored');
+        Storage::disk('public')->assertExists($oldPath);
+        Storage::disk('public')->assertExists((string) $replacementPath);
+
+        DB::commit();
+    } finally {
+        while (DB::transactionLevel() > $startingTransactionLevel) {
+            DB::rollBack();
+        }
+    }
+
+    expect($metadata->refresh()->sample_image_storage_path)->toBe($replacementPath);
+    Storage::disk('public')->assertMissing($oldPath);
+    Storage::disk('public')->assertExists((string) $replacementPath);
+});
+
+it('restores a managed image descriptor when switching to an external image rolls back', function (): void {
+    $metadata = issue1168Metadata('http://www-icdp.icdp-online.org/sites/cosc/news/cores/CS_5054.jpg');
+    $oldPath = 'igsn-sample-images/gfso273n39/existing.jpg';
+    $metadata->forceFill([
+        'sample_image_storage_path' => $oldPath,
+        'sample_image_mime_type' => 'image/jpeg',
+        'sample_image_size' => strlen(issue1168Jpeg()),
+    ])->save();
+    Storage::disk('public')->put($oldPath, issue1168Jpeg());
+
+    $startingTransactionLevel = DB::transactionLevel();
+    DB::beginTransaction();
+    try {
+        $result = app(IgsnSampleImageStorageService::class)->sync($metadata);
+
+        expect($result['status'])->toBe('external')
+            ->and($metadata->sample_image_storage_path)->toBeNull();
+        Storage::disk('public')->assertExists($oldPath);
+
+        DB::rollBack();
+    } finally {
+        while (DB::transactionLevel() > $startingTransactionLevel) {
+            DB::rollBack();
+        }
+    }
+
+    expect($metadata->refresh()->sample_image_storage_path)->toBe($oldPath)
+        ->and($metadata->sample_image_external_url)->toBeNull();
+    Storage::disk('public')->assertExists($oldPath);
+});
+
+it('logs synchronization failures safely when the resource relationship is missing', function (): void {
+    Http::fake(['dataservices.gfz-potsdam.de/*' => Http::response('', 503)]);
+    $log = Log::spy();
+
+    $metadata = new IgsnMetadata;
+    $metadata->forceFill([
+        'resource_id' => 999999,
+        'sample_image_source_url' => 'https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/missing.jpg',
+    ]);
+
+    $result = app(IgsnSampleImageStorageService::class)->sync($metadata);
+
+    expect($result['status'])->toBe('failed');
+    $log->shouldHaveReceived('warning')
+        ->once()
+        ->with(
+            'IGSN sample image synchronization failed',
+            Mockery::on(static fn (array $context): bool => $context['resource_id'] === 999999 && $context['doi'] === null),
+        );
 });

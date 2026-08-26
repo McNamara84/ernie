@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Services\Igsn;
 
 use App\Models\IgsnMetadata;
+use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Support\IgsnIdentifier;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -65,9 +67,7 @@ final class IgsnSampleImageStorageService
             'sample_image_size' => null,
         ])->save();
 
-        if (is_string($oldPath) && $oldPath !== '') {
-            Storage::disk($this->disk())->delete($oldPath);
-        }
+        $this->deleteAfterCommit($oldPath);
         $this->forgetLandingPage($metadata);
 
         return ['status' => 'external', 'message' => 'External image URL stored.'];
@@ -134,8 +134,9 @@ final class IgsnSampleImageStorageService
             }
 
             $metadata->loadMissing('resource');
-            $handle = is_string($metadata->resource->doi)
-                ? IgsnIdentifier::handleFromDoi($metadata->resource->doi)
+            $resource = $metadata->getRelation('resource');
+            $handle = $resource instanceof Resource && is_string($resource->doi)
+                ? IgsnIdentifier::handleFromDoi($resource->doi)
                 : null;
             if ($handle === null) {
                 throw new RuntimeException('The sample image belongs to an invalid IGSN DOI.');
@@ -173,8 +174,9 @@ final class IgsnSampleImageStorageService
                 throw $exception;
             }
 
-            if (is_string($oldPath) && $oldPath !== '' && $oldPath !== $targetPath) {
-                $disk->delete($oldPath);
+            if ($oldPath !== $targetPath) {
+                $this->deleteAfterCommit($oldPath);
+                $this->deleteAfterRollback($targetPath);
             }
             $this->forgetLandingPage($metadata);
 
@@ -193,7 +195,7 @@ final class IgsnSampleImageStorageService
     {
         Log::warning('IGSN sample image synchronization failed', [
             'resource_id' => $metadata->resource_id,
-            'doi' => $metadata->resource->doi,
+            'doi' => $this->resourceDoiForLogging($metadata),
             'source_classification' => 'managed',
             'error_class' => $message,
             'exception_type' => $exception::class,
@@ -205,9 +207,58 @@ final class IgsnSampleImageStorageService
     private function forgetLandingPage(IgsnMetadata $metadata): void
     {
         $metadata->loadMissing('resource.landingPage');
-        $landingPage = $metadata->resource->landingPage;
+        $resource = $metadata->getRelation('resource');
+        if (! $resource instanceof Resource) {
+            return;
+        }
+
+        $landingPage = $resource->landingPage;
         if ($landingPage !== null && $landingPage->isPublished()) {
             $this->landingPageCache->forgetById((int) $landingPage->id);
+        }
+    }
+
+    private function deleteAfterCommit(mixed $path): void
+    {
+        if (! is_string($path) || $path === '') {
+            return;
+        }
+
+        $disk = $this->disk();
+        DB::afterCommit(static function () use ($disk, $path): void {
+            Storage::disk($disk)->delete($path);
+        });
+    }
+
+    private function deleteAfterRollback(string $path): void
+    {
+        $connection = DB::connection();
+        if ($connection->transactionLevel() === 0) {
+            return;
+        }
+
+        $disk = $this->disk();
+        $connection->afterRollBack(static function () use ($disk, $path): void {
+            Storage::disk($disk)->delete($path);
+        });
+    }
+
+    private function resourceDoiForLogging(IgsnMetadata $metadata): ?string
+    {
+        $resource = $metadata->relationLoaded('resource')
+            ? $metadata->getRelation('resource')
+            : null;
+
+        if ($resource instanceof Resource) {
+            return is_string($resource->doi) ? $resource->doi : null;
+        }
+
+        try {
+            $doi = $metadata->resource()->value('doi');
+
+            return is_string($doi) ? $doi : null;
+        } catch (Throwable) {
+            return null;
         }
     }
 

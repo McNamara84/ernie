@@ -6,6 +6,7 @@ namespace App\Observers;
 
 use App\Models\IgsnMetadata;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 final class IgsnMetadataObserver
@@ -34,8 +35,13 @@ final class IgsnMetadataObserver
 
     public function deleted(IgsnMetadata $metadata): void
     {
-        if (is_string($metadata->sample_image_storage_path) && $metadata->sample_image_storage_path !== '') {
-            Storage::disk((string) config('igsn_images.disk', 'public'))->delete($metadata->sample_image_storage_path);
+        $path = $metadata->sample_image_storage_path;
+        if (is_string($path) && $path !== '') {
+            $disk = (string) config('igsn_images.disk', 'public');
+
+            DB::afterCommit(static function () use ($disk, $path): void {
+                Storage::disk($disk)->delete($path);
+            });
         }
     }
 }
