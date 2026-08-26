@@ -261,8 +261,8 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'a
         : isProcessingImages
           ? (progress?.images_processed ?? 0)
           : (progress?.processed ?? 0);
-    const progressTotal = isSyncing ? (progress?.sync_total ?? 0) : isProcessingImages ? (progress?.images_total ?? 0) : (progress?.total ?? 0);
-    const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
+    const progressTotal = isSyncing ? progress?.sync_total : isProcessingImages ? progress?.images_total : progress?.total;
+    const progressPercent = progressTotal !== undefined && progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
 
     const formatDuration = (startedAt?: string, completedAt?: string): string => {
         if (!startedAt) return '';
@@ -405,7 +405,7 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'a
                                               : 'Processing...'}
                                     </span>
                                     <span className="text-muted-foreground">
-                                        {progressCurrent} / {progressTotal || '?'} {isSyncing ? 'updates' : isProcessingImages ? 'images' : 'IGSNs'}
+                                        {progressCurrent} / {progressTotal ?? '?'} {isSyncing ? 'updates' : isProcessingImages ? 'images' : 'IGSNs'}
                                     </span>
                                 </div>
                                 <Progress value={progressPercent} className="h-2" />

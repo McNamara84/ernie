@@ -283,8 +283,8 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
         : isProcessingImages
           ? (progress?.images_processed ?? 0)
           : (progress?.processed ?? 0);
-    const progressTotal = isSyncing ? (progress?.sync_total ?? 0) : isProcessingImages ? (progress?.images_total ?? 0) : (progress?.total ?? 0);
-    const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
+    const progressTotal = isSyncing ? progress?.sync_total : isProcessingImages ? progress?.images_total : progress?.total;
+    const progressPercent = progressTotal !== undefined && progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
     const relatedIgsnCount = progress?.discovered_children?.length ?? 0;
     const isAlreadyImported = progress?.imported === 0 && progress?.skipped === progress?.total && progress?.failed === 0;
 
@@ -349,7 +349,7 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                                               : 'Processing...'}
                                     </span>
                                     <span className="text-muted-foreground">
-                                        {progressCurrent} / {progressTotal || '?'} {isSyncing ? 'updates' : isProcessingImages ? 'images' : 'IGSNs'}
+                                        {progressCurrent} / {progressTotal ?? '?'} {isSyncing ? 'updates' : isProcessingImages ? 'images' : 'IGSNs'}
                                     </span>
                                 </div>
                                 <Progress value={progressPercent} className="h-2" />

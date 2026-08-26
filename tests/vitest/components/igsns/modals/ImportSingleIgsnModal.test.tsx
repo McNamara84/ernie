@@ -133,6 +133,38 @@ describe('ImportSingleIgsnModal', () => {
         expect(await screen.findByText('2 / 2 images')).toBeInTheDocument();
     });
 
+    it('shows a known empty image worklist as zero', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'single-empty-image-progress-123', message: 'Import started' },
+        });
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'running',
+                phase: 'images',
+                total: 100,
+                processed: 100,
+                imported: 100,
+                skipped: 0,
+                failed: 0,
+                enriched: 100,
+                skipped_dois: [],
+                failed_dois: [],
+                requested_igsn: 'ICDP5052EUYY001',
+                discovered_children: [],
+                images_total: 0,
+                images_processed: 0,
+            },
+        });
+
+        render(<ImportSingleIgsnModal isOpen={true} onClose={mockOnClose} />);
+        await user.type(screen.getByLabelText('IGSN'), 'ICDP5052EUYY001');
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText('0 / 0 images')).toBeInTheDocument();
+    });
+
     it('uses the configured IGSN prefix for client-side DOI validation', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 

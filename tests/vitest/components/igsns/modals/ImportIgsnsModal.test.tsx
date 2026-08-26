@@ -197,6 +197,36 @@ describe('ImportIgsnsModal', () => {
         expect(await screen.findByText('2 / 2 images')).toBeInTheDocument();
     });
 
+    it('shows a known empty image worklist as zero', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'test-empty-image-progress-123', message: 'Import started' },
+        });
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'running',
+                phase: 'images',
+                total: 100,
+                processed: 100,
+                imported: 100,
+                skipped: 0,
+                failed: 0,
+                enriched: 100,
+                skipped_dois: [],
+                failed_dois: [],
+                images_total: 0,
+                images_processed: 0,
+                started_at: new Date().toISOString(),
+            },
+        });
+
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText('0 / 0 images')).toBeInTheDocument();
+    });
+
     it('displays enriched counter during import', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
