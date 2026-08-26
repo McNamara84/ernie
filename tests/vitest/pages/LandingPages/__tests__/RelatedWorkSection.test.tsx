@@ -280,6 +280,47 @@ describe('RelatedWorkSection', () => {
         expect(global.fetch).not.toHaveBeenCalled();
     });
 
+    it('uses the direct Handle resolver for a legacy IGSN', () => {
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[
+                    makeRelatedIdentifier({
+                        id: 1164,
+                        identifier_type: 'IGSN',
+                        identifier: '10273/GFBNO7002EXZ3001',
+                        relation_type: 'IsIdenticalTo',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByRole('link', { name: /10273\/GFBNO7002EXZ3001/ })).toHaveAttribute(
+            'href',
+            'https://hdl.handle.net/10273/GFBNO7002EXZ3001',
+        );
+    });
+
+    it('renders a malformed IGSN as plain text instead of a misleading link', () => {
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[
+                    makeRelatedIdentifier({
+                        id: 9,
+                        identifier_type: 'IGSN',
+                        identifier: '10273/BROKEN/EXTRA',
+                        relation_type: 'IsIdenticalTo',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('10273/BROKEN/EXTRA')).toBeInTheDocument();
+        expect(screen.getByTestId('unresolved-related-identifier-9')).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /10273\/BROKEN\/EXTRA/ })).not.toBeInTheDocument();
+    });
+
     it('renders mixed DOI and non-DOI items within the same relation group', () => {
         render(
             <RelatedWorkSection

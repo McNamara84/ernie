@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 import { RepositoriesSection } from '@/pages/LandingPages/components/RepositoriesSection';
@@ -33,7 +34,7 @@ const metadata = (overrides: Partial<LandingPageIgsnMetadata> = {}): LandingPage
 
 describe('RepositoriesSection', () => {
     it('collapses when every repository value is empty', () => {
-        const { container } = render(<RepositoriesSection igsn={metadata()} />);
+        const { container } = render(<RepositoriesSection igsn={metadata()} datasetTitle="Sample" />);
 
         expect(container.firstChild).toBeNull();
     });
@@ -48,6 +49,7 @@ describe('RepositoriesSection', () => {
                     original_archive_contact: 'Guido Blöcher',
                     sample_access: 'Private',
                 })}
+                datasetTitle="Sample"
             />,
         );
 
@@ -55,5 +57,34 @@ describe('RepositoriesSection', () => {
         expect(screen.getByText('Lena Muhl')).toBeInTheDocument();
         expect(screen.getByText('Guido Blöcher')).toBeInTheDocument();
         expect(screen.getByText('Private')).toBeInTheDocument();
+    });
+
+    it('opens independent protected forms without rendering an email address', async () => {
+        const user = userEvent.setup();
+        render(
+            <RepositoriesSection
+                datasetTitle="Sensitive sample"
+                igsn={metadata({
+                    current_archive: 'BGR Berlin',
+                    current_archive_contact: 'Tina Kollaske',
+                    original_archive: 'Legacy Archive',
+                    original_archive_contact: 'Legacy Archive contact',
+                    repository_contacts: [
+                        { type: 'current', label: 'Tina Kollaske', has_email: true },
+                        { type: 'original', label: 'Legacy Archive contact', has_email: true },
+                    ],
+                })}
+            />,
+        );
+
+        expect(document.body).not.toHaveTextContent('Tina.Kollaske@bgr.de');
+        expect(screen.getByRole('button', { name: 'Contact current repository' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Contact original repository' })).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Contact current repository' }));
+
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByText('Sensitive sample')).toBeInTheDocument();
+        expect(screen.getAllByText('Tina Kollaske')).toHaveLength(2);
     });
 });

@@ -116,13 +116,7 @@ describe('ContactModal', () => {
         });
 
         it('shows single recipient when only one contact person', () => {
-            render(
-                <ContactModal
-                    {...defaultProps}
-                    contactPersons={[defaultContactPerson]}
-                    selectedPerson={defaultContactPerson}
-                />,
-            );
+            render(<ContactModal {...defaultProps} contactPersons={[defaultContactPerson]} selectedPerson={defaultContactPerson} />);
 
             expect(screen.getByText(/to:/i)).toBeInTheDocument();
             expect(screen.getByText('Dr. John Smith')).toBeInTheDocument();
@@ -414,13 +408,7 @@ describe('ContactModal', () => {
                 has_email: true,
             };
 
-            render(
-                <ContactModal
-                    {...defaultProps}
-                    selectedPerson={contributorPerson}
-                    contactPersons={[defaultContactPerson, contributorPerson]}
-                />,
-            );
+            render(<ContactModal {...defaultProps} selectedPerson={contributorPerson} contactPersons={[defaultContactPerson, contributorPerson]} />);
 
             await user.type(screen.getByLabelText(/your name/i), 'Test User');
             await user.type(screen.getByLabelText(/your email/i), 'test@example.com');
@@ -436,6 +424,38 @@ describe('ContactModal', () => {
                         resource_contributor_id: 5,
                     }),
                 );
+            });
+        });
+
+        it('sends only the repository contact type for a protected repository recipient', async () => {
+            const user = userEvent.setup();
+            mockFetch.mockResolvedValueOnce({ ok: true });
+
+            render(
+                <ContactModal
+                    {...defaultProps}
+                    selectedPerson={null}
+                    contactPersons={[]}
+                    repositoryContact={{ type: 'current', label: 'BGR repository contact', has_email: true }}
+                />,
+            );
+
+            await user.type(screen.getByLabelText(/your name/i), 'Test User');
+            await user.type(screen.getByLabelText(/your email/i), 'test@example.com');
+            await user.type(screen.getByRole('textbox', { name: /message/i }), 'This is a valid repository message');
+            await user.click(screen.getByRole('button', { name: /send message/i }));
+
+            await waitFor(() => {
+                const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+                expect(callBody).toEqual(
+                    expect.objectContaining({
+                        send_to_all: false,
+                        resource_creator_id: null,
+                        resource_contributor_id: null,
+                        repository_contact_type: 'current',
+                    }),
+                );
+                expect(callBody).not.toHaveProperty('recipient_email');
             });
         });
 

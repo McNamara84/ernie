@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Models\ContactMessage;
 use App\Models\Resource;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 covers(ContactMessage::class);
 
@@ -15,6 +17,7 @@ describe('fillable', function () {
             'resource_id',
             'resource_creator_id',
             'resource_contributor_id',
+            'repository_contact_type',
             'send_to_all',
             'sender_name',
             'sender_email',
@@ -59,19 +62,19 @@ describe('casts', function () {
     it('casts queued_at to datetime', function () {
         $model = new ContactMessage(['queued_at' => '2025-01-15 10:00:00']);
 
-        expect($model->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+        expect($model->queued_at)->toBeInstanceOf(Carbon::class);
     });
 
     it('casts sent_at to datetime', function () {
         $model = new ContactMessage(['sent_at' => '2025-01-15 10:30:00']);
 
-        expect($model->sent_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+        expect($model->sent_at)->toBeInstanceOf(Carbon::class);
     });
 
     it('casts failed_at to datetime', function () {
         $model = new ContactMessage(['failed_at' => '2025-01-15 11:00:00']);
 
-        expect($model->failed_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+        expect($model->failed_at)->toBeInstanceOf(Carbon::class);
     });
 });
 
@@ -79,13 +82,13 @@ describe('relationships', function () {
     it('defines resource relationship', function () {
         $model = new ContactMessage;
 
-        expect($model->resource())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->resource())->toBeInstanceOf(BelongsTo::class);
     });
 
     it('defines resourceCreator relationship', function () {
         $model = new ContactMessage;
 
-        expect($model->resourceCreator())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->resourceCreator())->toBeInstanceOf(BelongsTo::class);
     });
 });
 
@@ -117,7 +120,7 @@ describe('markAsSent', function () {
         $contactMessage->refresh();
 
         expect($contactMessage->isSent())->toBeTrue()
-            ->and($contactMessage->sent_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+            ->and($contactMessage->sent_at)->toBeInstanceOf(Carbon::class);
     });
 
     it('does not overwrite an existing sent_at timestamp', function () {
@@ -145,7 +148,7 @@ describe('markAsQueued', function () {
         $contactMessage->markAsQueued();
         $contactMessage->refresh();
 
-        expect($contactMessage->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+        expect($contactMessage->queued_at)->toBeInstanceOf(Carbon::class);
     });
 
     it('does not overwrite an existing queued_at timestamp', function () {
@@ -174,7 +177,7 @@ describe('markAsFailed', function () {
         $contactMessage->markAsFailed('SMTP unavailable');
         $contactMessage->refresh();
 
-        expect($contactMessage->failed_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+        expect($contactMessage->failed_at)->toBeInstanceOf(Carbon::class)
             ->and($contactMessage->failure_reason)->toBe('SMTP unavailable');
     });
 
@@ -245,7 +248,7 @@ describe('markRecipientDelivered', function () {
         $contactMessage->refresh();
 
         expect($contactMessage->delivered_recipient_count)->toBe(2)
-            ->and($contactMessage->sent_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+            ->and($contactMessage->sent_at)->toBeInstanceOf(Carbon::class);
     });
 
     it('ignores recipient deliveries after the message has already failed', function () {

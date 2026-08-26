@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import type { LandingPageRepositoryContact } from '@/types/landing-page';
 
 interface ContactPerson {
     id: number;
@@ -26,6 +27,7 @@ interface ContactModalProps {
     selectedPerson: ContactPerson | null;
     contactPersons: ContactPerson[];
     datasetTitle: string;
+    repositoryContact?: LandingPageRepositoryContact | null;
 }
 
 type FormStatus = 'idle' | 'submitting' | 'success' | 'error';
@@ -40,7 +42,7 @@ type FormStatus = 'idle' | 'submitting' | 'success' | 'error';
  * This works because landing pages follow the pattern /{doi}/{slug} and the contact
  * endpoint is at /{doi}/{slug}/contact.
  */
-export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, datasetTitle }: ContactModalProps) {
+export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, datasetTitle, repositoryContact = null }: ContactModalProps) {
     const [formStatus, setFormStatus] = useState<FormStatus>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -52,22 +54,22 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
     const [senderName, setSenderName] = useState('');
     const [senderEmail, setSenderEmail] = useState('');
     const [message, setMessage] = useState('');
-    const [sendToAll, setSendToAll] = useState(selectedPerson === null);
+    const [sendToAll, setSendToAll] = useState(repositoryContact === null && selectedPerson === null);
     const [copyToSender, setCopyToSender] = useState(false);
     const [honeypot, setHoneypot] = useState(''); // Should remain empty
 
     // Keep sendToAll in sync when the modal opens or selectedPerson changes
     useEffect(() => {
         if (isOpen) {
-            setSendToAll(selectedPerson === null);
+            setSendToAll(repositoryContact === null && selectedPerson === null);
         }
-    }, [isOpen, selectedPerson]);
+    }, [isOpen, repositoryContact, selectedPerson]);
 
     const resetForm = () => {
         setSenderName('');
         setSenderEmail('');
         setMessage('');
-        setSendToAll(selectedPerson === null);
+        setSendToAll(repositoryContact === null && selectedPerson === null);
         setCopyToSender(false);
         setHoneypot('');
         setFormStatus('idle');
@@ -113,10 +115,11 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                     sender_email: senderEmail.trim(),
                     message: message.trim(),
                     // Guard: if no person selected, always send to all
-                    send_to_all: sendToAll || selectedPerson === null,
+                    send_to_all: repositoryContact === null && (sendToAll || selectedPerson === null),
                     copy_to_sender: copyToSender,
                     resource_creator_id: !sendToAll && selectedPerson?.source === 'creator' ? selectedPerson.id : null,
                     resource_contributor_id: !sendToAll && selectedPerson?.source === 'contributor' ? selectedPerson.id : null,
+                    repository_contact_type: repositoryContact?.type ?? null,
                     // Honeypot field - bots will fill this
                     website_url: honeypot,
                 }),
@@ -139,7 +142,8 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
         }
     };
 
-    const recipientLabel = sendToAll ? `All contact persons (${contactPersons.length})` : selectedPerson?.name || 'Selected contact';
+    const recipientLabel =
+        repositoryContact?.label ?? (sendToAll ? `All contact persons (${contactPersons.length})` : selectedPerson?.name || 'Selected contact');
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -162,7 +166,7 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                 ) : (
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {/* Recipient selection - only show if multiple persons and not pre-selected for all */}
-                        {contactPersons.length > 1 && selectedPerson !== null && (
+                        {repositoryContact === null && contactPersons.length > 1 && selectedPerson !== null && (
                             <div className="space-y-2">
                                 <Label>Send to</Label>
                                 <RadioGroup value={sendToAll ? 'all' : 'single'} onValueChange={(v: string) => setSendToAll(v === 'all')}>
@@ -183,7 +187,7 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                         )}
 
                         {/* Recipient display for single selection or "all" */}
-                        {(contactPersons.length === 1 || selectedPerson === null) && (
+                        {(repositoryContact !== null || contactPersons.length === 1 || selectedPerson === null) && (
                             <div className="rounded-lg bg-gray-50 p-3 text-sm dark:bg-gray-800">
                                 <span className="text-gray-500 dark:text-gray-400">To: </span>
                                 <span className="font-medium">{recipientLabel}</span>

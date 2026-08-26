@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\ContactMessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,6 +22,7 @@ use Illuminate\Support\Facades\DB;
  * @property int $resource_id
  * @property int|null $resource_creator_id
  * @property int|null $resource_contributor_id
+ * @property string|null $repository_contact_type
  * @property bool $send_to_all
  * @property string $sender_name
  * @property string $sender_email
@@ -28,20 +31,20 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $ip_address
  * @property int $recipient_count
  * @property int $delivered_recipient_count
- * @property \Illuminate\Support\Carbon|null $queued_at
- * @property \Illuminate\Support\Carbon|null $sent_at
- * @property \Illuminate\Support\Carbon|null $failed_at
+ * @property Carbon|null $queued_at
+ * @property Carbon|null $sent_at
+ * @property Carbon|null $failed_at
  * @property string|null $failure_reason
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  * @property-read ResourceCreator|null $resourceCreator
  * @property-read ResourceContributor|null $resourceContributor
  */
-#[Fillable(['resource_id', 'resource_creator_id', 'resource_contributor_id', 'send_to_all', 'sender_name', 'sender_email', 'message', 'copy_to_sender', 'ip_address', 'recipient_count', 'delivered_recipient_count', 'queued_at', 'sent_at', 'failed_at', 'failure_reason'])]
+#[Fillable(['resource_id', 'resource_creator_id', 'resource_contributor_id', 'repository_contact_type', 'send_to_all', 'sender_name', 'sender_email', 'message', 'copy_to_sender', 'ip_address', 'recipient_count', 'delivered_recipient_count', 'queued_at', 'sent_at', 'failed_at', 'failure_reason'])]
 class ContactMessage extends Model
 {
-    /** @use HasFactory<\Database\Factories\ContactMessageFactory> */
+    /** @use HasFactory<ContactMessageFactory> */
     use HasFactory;
 
     /**

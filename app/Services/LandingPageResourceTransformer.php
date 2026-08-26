@@ -41,12 +41,16 @@ final class LandingPageResourceTransformer
 
     private readonly IgsnDescriptionNormalizerService $igsnDescriptionNormalizer;
 
+    private readonly IgsnRepositoryContactService $repositoryContactService;
+
     public function __construct(
         ?IgsnSampleFamilyService $sampleFamilyService = null,
         ?IgsnDescriptionNormalizerService $igsnDescriptionNormalizer = null,
+        ?IgsnRepositoryContactService $repositoryContactService = null,
     ) {
         $this->sampleFamilyService = $sampleFamilyService ?? new IgsnSampleFamilyService;
         $this->igsnDescriptionNormalizer = $igsnDescriptionNormalizer ?? new IgsnDescriptionNormalizerService;
+        $this->repositoryContactService = $repositoryContactService ?? new IgsnRepositoryContactService;
     }
 
     /**
@@ -550,6 +554,19 @@ final class LandingPageResourceTransformer
                 ->sortBy('position')
                 ->first(static fn ($identifier): bool => strcasecmp($identifier->type, 'Local accession number') === 0)
                 ?->value;
+            $originalArchive = $meta->original_archive ?? ($descriptionJson['original_archive'] ?? null);
+            $originalArchiveContact = $meta->original_archive_contact ?? ($descriptionJson['original_archive_contact'] ?? null);
+            $currentRepositoryContact = $this->repositoryContactService->publicDescriptor(
+                IgsnRepositoryContactService::TYPE_CURRENT,
+                $meta->current_archive_contact,
+                $meta->current_archive,
+            );
+            $originalRepositoryContact = $this->repositoryContactService->publicDescriptor(
+                IgsnRepositoryContactService::TYPE_ORIGINAL,
+                is_string($originalArchiveContact) ? $originalArchiveContact : null,
+                is_string($originalArchive) ? $originalArchive : null,
+            );
+            $repositoryContacts = array_values(array_filter([$currentRepositoryContact, $originalRepositoryContact]));
 
             $resourceData['igsn_metadata'] = [
                 'igsn' => $igsn,
@@ -574,9 +591,10 @@ final class LandingPageResourceTransformer
                     static fn (mixed $comment): bool => is_string($comment) && trim($comment) !== '',
                 )),
                 'current_archive' => $meta->current_archive,
-                'current_archive_contact' => $meta->current_archive_contact,
-                'original_archive' => $meta->original_archive ?? ($descriptionJson['original_archive'] ?? null),
-                'original_archive_contact' => $meta->original_archive_contact ?? ($descriptionJson['original_archive_contact'] ?? null),
+                'current_archive_contact' => $currentRepositoryContact['label'] ?? null,
+                'original_archive' => $originalArchive,
+                'original_archive_contact' => $originalRepositoryContact['label'] ?? null,
+                'repository_contacts' => $repositoryContacts,
                 'platform_type' => $meta->platform_type,
                 'platform_name' => $meta->platform_name,
                 'platform_description' => $meta->platform_description,

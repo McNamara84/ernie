@@ -4,8 +4,8 @@ import { validateDOIFormat } from '@/lib/doi-validation';
  * Resolves an identifier to its full URL based on the identifier type.
  *
  * Supports the most common DataCite identifier types used in geosciences.
- * Returns null for unsupported types or invalid/empty identifiers —
- * callers skip rendering those items entirely.
+ * Returns null for unsupported types or invalid/empty identifiers. Callers may
+ * still render the original value as plain text, but must not make it clickable.
  *
  * DOI and Handle identifiers are normalized: if the stored value is already
  * a full resolver URL (e.g. https://doi.org/10..., https://dx.doi.org/10...,
@@ -33,7 +33,7 @@ export function resolveIdentifierUrl(identifier: string, identifierType: string)
         case 'arXiv':
             return `https://arxiv.org/abs/${id}`;
         case 'IGSN':
-            return `https://igsn.org/${id}`;
+            return resolveIgsnUrl(id);
         case 'ISBN':
             return `https://search.worldcat.org/isbn/${id}`;
         case 'ISSN':
@@ -45,6 +45,40 @@ export function resolveIdentifierUrl(identifier: string, identifierType: string)
         default:
             return null;
     }
+}
+
+/**
+ * Resolve the three IGSN representations stored in legacy and current records.
+ *
+ * Legacy Handle IGSNs must use the Handle resolver directly. Prefixing those
+ * values with igsn.org produces a broken double Handle path such as
+ * `10273/10273/...`. Modern DOI-shaped IGSNs use doi.org, while bare IGSN codes
+ * continue to use igsn.org.
+ */
+export function resolveIgsnUrl(value: string): string | null {
+    const id = value
+        .trim()
+        .replace(/^https?:\/\/(?:www\.)?igsn\.org\/?/i, '')
+        .replace(/^https?:\/\/hdl\.handle\.net\/?/i, '');
+
+    if (!id) {
+        return null;
+    }
+
+    const doi = normalizeDoiKey(id);
+    if (validateDOIFormat(doi).isValid) {
+        return `https://doi.org/${doi}`;
+    }
+
+    if (/^10273\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id)) {
+        return `https://hdl.handle.net/${id}`;
+    }
+
+    if (/^[A-Za-z0-9][A-Za-z0-9._-]{2,}$/.test(id)) {
+        return `https://igsn.org/${id}`;
+    }
+
+    return null;
 }
 
 /**
@@ -61,8 +95,7 @@ export function normalizeDoiKey(value: string): string {
 
 /** Strips the Handle resolver URL prefix, returning the bare handle. */
 function stripHandlePrefix(value: string): string {
-    return value
-        .replace(/^https?:\/\/hdl\.handle\.net\/?/i, '');
+    return value.replace(/^https?:\/\/hdl\.handle\.net\/?/i, '');
 }
 
 /**

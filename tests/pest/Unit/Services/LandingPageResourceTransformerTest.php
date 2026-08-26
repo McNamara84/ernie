@@ -995,12 +995,16 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
         'platform_type' => 'Drill Rig',
         'platform_name' => 'MSR Punto',
         'platform_description' => 'UDR',
+        'current_archive' => 'BGR Berlin',
+        'current_archive_contact' => 'Tina Kollaske <Tina.Kollaske@bgr.de>',
         'description_json' => [
             'description_groups' => [['entries' => [
                 ['value' => 'Fine-grained basalt', 'scheme' => 'Rock Type'],
             ]]],
             'material_descriptions' => ['Fine-grained basalt'],
             'comments' => ['Stored frozen'],
+            'original_archive' => 'Legacy Core Archive',
+            'original_archive_contact' => 'archive@example.org',
         ],
     ]);
     $igsn->setRelation('parentResource', $parent);
@@ -1058,13 +1062,21 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
             'platform_type' => 'Drill Rig',
             'platform_name' => 'MSR Punto',
             'platform_description' => 'UDR',
+            'current_archive_contact' => 'Tina Kollaske',
+            'original_archive_contact' => 'Legacy Core Archive contact',
+            'repository_contacts' => [
+                ['type' => 'current', 'label' => 'Tina Kollaske', 'has_email' => true],
+                ['type' => 'original', 'label' => 'Legacy Core Archive contact', 'has_email' => true],
+            ],
         ])
         ->and($data['igsn_metadata']['parent'])->toMatchArray([
             'doi' => '10.60510/igsn-parent',
             'igsn' => 'IGSN-PARENT',
         ])
         ->and($data['igsn_metadata']['parent']['landing_page'])->toBeArray()
-        ->and($data['igsn_metadata']['parent']['landing_page'])->toHaveKey('public_url');
+        ->and($data['igsn_metadata']['parent']['landing_page'])->toHaveKey('public_url')
+        ->and(json_encode($data['igsn_metadata']))->not->toContain('Tina.Kollaske@bgr.de')
+        ->not->toContain('archive@example.org');
 
     // sorted by position ascending
     expect($data)->toHaveKey('igsn_classifications')
