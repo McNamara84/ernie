@@ -494,12 +494,24 @@ class LandingPageTemplate extends Model
             }
         }
 
+        $hasStoredCitation = isset($seen['citation']);
+
         foreach (self::IGSN_LEFT_COLUMN_SECTIONS as $key) {
+            if ($key === 'citation' && ! $hasStoredCitation) {
+                continue;
+            }
+
             if (! isset($seen[$key])) {
                 $seen[$key] = true;
                 $normalizedLeft[] = $key;
             }
         }
+
+        if (! $hasStoredCitation) {
+            $seen['citation'] = true;
+            $normalizedLeft[] = 'citation';
+        }
+
         foreach (self::IGSN_RIGHT_COLUMN_SECTIONS as $key) {
             if (! isset($seen[$key])) {
                 $seen[$key] = true;

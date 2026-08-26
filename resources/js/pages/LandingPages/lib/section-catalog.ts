@@ -221,7 +221,12 @@ export function normalizeIgsnColumnOrders(
 
     appendKnown(left, storedLeft);
     appendKnown(right, storedRight);
-    appendKnown(left, IGSN_LEFT_COLUMN_SECTIONS);
+    const hasStoredCitation = seen.has('citation');
+    appendKnown(left, hasStoredCitation ? IGSN_LEFT_COLUMN_SECTIONS : IGSN_LEFT_COLUMN_SECTIONS.filter((section) => section !== 'citation'));
+    if (!hasStoredCitation) {
+        seen.add('citation');
+        left.push('citation');
+    }
     for (const section of IGSN_RIGHT_COLUMN_SECTIONS) {
         if (seen.has(section)) continue;
         seen.add(section);

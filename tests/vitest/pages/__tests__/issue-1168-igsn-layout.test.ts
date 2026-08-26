@@ -15,7 +15,15 @@ describe('Issue 1168 IGSN template layout', () => {
 
         expect([...orders.left, ...orders.right]).toHaveLength(IGSN_SECTIONS.length);
         expect(new Set([...orders.left, ...orders.right]).size).toBe(IGSN_SECTIONS.length);
+        expect(orders.left.at(-1)).toBe('citation');
         expect(orders.right.indexOf('sample_image')).toBe(orders.right.indexOf('location') - 1);
+    });
+
+    it('preserves an explicitly stored citation position across columns', () => {
+        const orders = normalizeIgsnColumnOrders(['general'], ['citation', 'location']);
+
+        expect(orders.left).not.toContain('citation');
+        expect(orders.right[0]).toBe('citation');
     });
 
     it('moves modules between columns and into an empty column without losing order', () => {

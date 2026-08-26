@@ -938,8 +938,8 @@ describe('API List', function (): void {
                 'sample_family',
                 'acquisition',
                 'repositories',
-                'citation',
                 'dates',
+                'citation',
             ])
             ->and($template->fresh()?->left_column_order)->toBe($storedOrder);
     });
@@ -1023,6 +1023,29 @@ describe('Model', function (): void {
             'model_description',
             'related_work',
         ]);
+    });
+
+    it('preserves the legacy citation fallback when normalizing flexible IGSN layouts', function (): void {
+        $normalized = LandingPageTemplate::normalizeIgsnSectionOrders(
+            ['contact', 'general', 'unknown'],
+            ['abstract', 'location'],
+        );
+
+        expect($normalized['left'])->toBe([
+            'contact',
+            'general',
+            'sample_family',
+            'acquisition',
+            'repositories',
+            'dates',
+            'model_description',
+            'related_work',
+            'citation',
+        ])->and($normalized['right'])->toContain('sample_image')
+            ->and(LandingPageTemplate::normalizeIgsnSectionOrders(
+                ['general'],
+                ['citation', 'location'],
+            )['right'][0])->toBe('citation');
     });
 
     it('restores citation at the canonical position in legacy system defaults', function (): void {
