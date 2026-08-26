@@ -1,7 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { Braces, CloudUpload, Download, FileJson, Globe, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { DataCiteUrlUpdateModal, type DataCiteUrlUpdateRun } from '@/components/datacite-url-update-modal';
@@ -33,6 +33,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
+import {
+    clearStoredIgsnDatacenterFilter,
+    persistIgsnDatacenterFilter,
+    readStoredIgsnDatacenterFilter,
+    storedIgsnDatacenterFilterToState,
+} from '@/lib/igsns-datacenter-filter-storage';
 import { type BreadcrumbItem } from '@/types';
 
 // ============================================================================
@@ -82,6 +88,8 @@ interface IgsnsPageProps {
     filters: {
         prefix: string;
         status: string;
+        datacenter_id?: number;
+        without_datacenter?: boolean;
     };
     filterOptions: IgsnFilterOptions;
 }
@@ -182,9 +190,12 @@ function IgsnsPage({
         search: initialSearch || undefined,
         prefix: initialFilters?.prefix || undefined,
         status: initialFilters?.status || undefined,
+        datacenter_id: initialFilters?.datacenter_id,
+        without_datacenter: initialFilters?.without_datacenter || undefined,
     });
     // Filter options are delivered as Inertia props to avoid extra network requests on remount
     const [filterOptions, setFilterOptions] = useState<IgsnFilterOptions>(initialFilterOptions);
+    const attemptedDatacenterFilterRestoreRef = useRef(false);
 
     // Selection state for bulk actions
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -199,6 +210,8 @@ function IgsnsPage({
             search: initialSearch || undefined,
             prefix: initialFilters?.prefix || undefined,
             status: initialFilters?.status || undefined,
+            datacenter_id: initialFilters?.datacenter_id,
+            without_datacenter: initialFilters?.without_datacenter || undefined,
         });
         setFilterOptions(initialFilterOptions);
         // Clear selection when data changes (e.g., after pagination or sorting)
@@ -337,6 +350,11 @@ function IgsnsPage({
             if (currentFilters.status) {
                 params.set('status', currentFilters.status);
             }
+            if (currentFilters.without_datacenter) {
+                params.set('without_datacenter', '1');
+            } else if (currentFilters.datacenter_id) {
+                params.set('datacenter_id', String(currentFilters.datacenter_id));
+            }
             if (overrides.page && overrides.page > 1) {
                 params.set('page', String(overrides.page));
             }
@@ -346,6 +364,43 @@ function IgsnsPage({
         },
         [sortState, searchQuery, activeFilters, pagination.per_page],
     );
+
+    useEffect(() => {
+        if (attemptedDatacenterFilterRestoreRef.current || typeof window === 'undefined') {
+            return;
+        }
+
+        attemptedDatacenterFilterRestoreRef.current = true;
+
+        if (window.location.pathname !== '/igsns' || window.location.search !== '') {
+            return;
+        }
+
+        const storedFilter = readStoredIgsnDatacenterFilter();
+        if (!storedFilter) {
+            return;
+        }
+
+        if (
+            storedFilter.type === 'datacenter' &&
+            !(filterOptions.datacenters ?? []).some((datacenter) => datacenter.id === storedFilter.datacenterId)
+        ) {
+            clearStoredIgsnDatacenterFilter();
+
+            return;
+        }
+
+        const restoredFilters: IgsnFilterState = storedIgsnDatacenterFilterToState(storedFilter);
+        setActiveFilters(restoredFilters);
+
+        const params = buildParams({ filters: restoredFilters, search: '' });
+        setIsNavigating(true);
+        router.visit(`/igsns?${params.toString()}`, {
+            preserveState: false,
+            replace: true,
+            onFinish: () => setIsNavigating(false),
+        });
+    }, [buildParams, filterOptions.datacenters]);
 
     const handleSortChange = useCallback(
         (key: SortKey) => {
@@ -368,6 +423,7 @@ function IgsnsPage({
         (newFilters: IgsnFilterState) => {
             setActiveFilters(newFilters);
             setSearchQuery(newFilters.search || '');
+            persistIgsnDatacenterFilter(newFilters);
 
             const params = buildParams({ filters: newFilters, search: newFilters.search || '' });
             setIsNavigating(true);

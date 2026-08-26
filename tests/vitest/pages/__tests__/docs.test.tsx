@@ -347,6 +347,39 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('documents persistent IGSN datacenter filtering for all physical-sample users', async () => {
+        const { user } = renderDocsPage('beginner');
+        await openPhysicalSamplesTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Filtering by Datacenter', level: 4 })).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('dropdown lists only Datacenters assigned to at least one IGSN') &&
+                    text.includes('Without Datacenter') &&
+                    text.includes('search, IGSN prefix, upload status, sorting, and pagination')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('remembers the selected Datacenter or Without Datacenter in this browser') &&
+                    text.includes('A Datacenter supplied in the URL takes precedence') &&
+                    text.includes('clearing all filters removes the saved selection')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('documents composable DOI and Datacenter Assessment filters for curators', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 

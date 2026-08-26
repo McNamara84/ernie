@@ -9,6 +9,7 @@ declare(strict_types=1);
  * Prefix filters on the DOI part before the slash, status filters on upload_status.
  */
 
+use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Models\ResourceType;
@@ -40,6 +41,7 @@ function createFilterableIgsn(
     string $status = 'pending',
     string $sampleType = 'rock core',
     string $material = 'granite',
+    ?int $datacenterId = null,
 ): Resource {
     $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
     $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
@@ -49,6 +51,7 @@ function createFilterableIgsn(
         'publication_year' => '2025',
         'version' => '1.0',
         'resource_type_id' => $physicalObjectType->id,
+        'datacenter_id' => $datacenterId,
     ]);
 
     $resource->titles()->create([
@@ -83,6 +86,7 @@ describe('IGSN Filter Options', function () {
         $response->assertJsonFragment(['prefixes' => ['10.58052', '10.60516']]);
         $response->assertJsonCount(2, 'statuses');
         $response->assertJson(['statuses' => ['pending', 'registered']]);
+        $response->assertJson(['datacenters' => []]);
     });
 
     it('returns empty arrays when no IGSNs exist', function () {
@@ -92,6 +96,7 @@ describe('IGSN Filter Options', function () {
         $response->assertJson([
             'prefixes' => [],
             'statuses' => [],
+            'datacenters' => [],
         ]);
     });
 
@@ -116,6 +121,30 @@ describe('IGSN Filter Options', function () {
         $response->assertStatus(200);
         $prefixes = $response->json('prefixes');
         expect($prefixes)->toBe(['10.58052', '10.58095', '10.60516']);
+    });
+
+    it('returns only sorted datacenters assigned to IGSNs', function () {
+        $alphaDatacenter = Datacenter::factory()->create(['name' => 'Alpha Samples']);
+        $betaDatacenter = Datacenter::factory()->create(['name' => 'Beta Samples']);
+        $regularResourceDatacenter = Datacenter::factory()->create(['name' => 'Regular Resources']);
+        Datacenter::factory()->create(['name' => 'Unused Datacenter']);
+
+        createFilterableIgsn('10.60516/AU1101', 'Beta Sample', datacenterId: $betaDatacenter->id);
+        createFilterableIgsn('10.60516/AU1102', 'Alpha Sample', datacenterId: $alphaDatacenter->id);
+
+        $datasetType = ResourceType::where('slug', 'dataset')->firstOrFail();
+        Resource::factory()->create([
+            'resource_type_id' => $datasetType->id,
+            'datacenter_id' => $regularResourceDatacenter->id,
+        ]);
+
+        $this->actingAs($this->user)
+            ->get('/igsns/filter-options')
+            ->assertOk()
+            ->assertJsonPath('datacenters', [
+                ['id' => $alphaDatacenter->id, 'name' => 'Alpha Samples'],
+                ['id' => $betaDatacenter->id, 'name' => 'Beta Samples'],
+            ]);
     });
 
     it('requires authentication', function () {
@@ -218,6 +247,99 @@ describe('IGSN Status Filter', function () {
             ->has('igsns', 2)
             ->where('filters.status', '')
         );
+    });
+});
+
+// ============================================================================
+// Datacenter Filter
+// ============================================================================
+
+describe('IGSN Datacenter Filter', function () {
+    it('filters IGSNs by one datacenter', function () {
+        $selectedDatacenter = Datacenter::factory()->create();
+        $otherDatacenter = Datacenter::factory()->create();
+
+        $selectedIgsn = createFilterableIgsn('10.60516/AU1101', 'Selected Sample', datacenterId: $selectedDatacenter->id);
+        createFilterableIgsn('10.60516/AU1102', 'Other Sample', datacenterId: $otherDatacenter->id);
+        createFilterableIgsn('10.60516/AU1103', 'Unassigned Sample');
+
+        $this->actingAs($this->user)
+            ->get('/igsns?datacenter_id='.$selectedDatacenter->id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('igsns/index')
+                ->has('igsns', 1)
+                ->where('igsns.0.id', $selectedIgsn->id)
+                ->where('filters.datacenter_id', $selectedDatacenter->id)
+                ->missing('filters.without_datacenter')
+                ->where('pagination.total', 1)
+                ->where('totalCount', 3)
+            );
+    });
+
+    it('filters IGSNs without a datacenter', function () {
+        $datacenter = Datacenter::factory()->create();
+
+        createFilterableIgsn('10.60516/AU1101', 'Assigned Sample', datacenterId: $datacenter->id);
+        $unassignedIgsn = createFilterableIgsn('10.60516/AU1102', 'Unassigned Sample');
+
+        $this->actingAs($this->user)
+            ->get('/igsns?without_datacenter=1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('igsns/index')
+                ->has('igsns', 1)
+                ->where('igsns.0.id', $unassignedIgsn->id)
+                ->where('filters.without_datacenter', true)
+                ->missing('filters.datacenter_id')
+                ->where('pagination.total', 1)
+                ->where('totalCount', 2)
+            );
+    });
+
+    it('combines datacenter, prefix, status, and search filters', function () {
+        $selectedDatacenter = Datacenter::factory()->create();
+        $otherDatacenter = Datacenter::factory()->create();
+
+        $match = createFilterableIgsn(
+            '10.60516/AU1101',
+            'Granite Match',
+            'pending',
+            datacenterId: $selectedDatacenter->id,
+        );
+        createFilterableIgsn('10.60516/AU1102', 'Basalt', 'pending', datacenterId: $selectedDatacenter->id);
+        createFilterableIgsn('10.60516/AU1103', 'Granite Registered', 'registered', datacenterId: $selectedDatacenter->id);
+        createFilterableIgsn('10.58052/SSH001', 'Granite Other Prefix', 'pending', datacenterId: $selectedDatacenter->id);
+        createFilterableIgsn('10.60516/AU1104', 'Granite Other Datacenter', 'pending', datacenterId: $otherDatacenter->id);
+
+        $this->actingAs($this->user)
+            ->get('/igsns?datacenter_id='.$selectedDatacenter->id.'&prefix=10.60516&status=pending&search=Granite')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('igsns/index')
+                ->has('igsns', 1)
+                ->where('igsns.0.id', $match->id)
+                ->where('filters.datacenter_id', $selectedDatacenter->id)
+                ->where('filters.prefix', '10.60516')
+                ->where('filters.status', 'pending')
+                ->where('search', 'Granite')
+                ->where('pagination.total', 1)
+                ->where('totalCount', 5)
+            );
+    });
+
+    it('rejects unknown and mutually exclusive datacenter filters', function () {
+        $datacenter = Datacenter::factory()->create();
+
+        $this->actingAs($this->user)
+            ->getJson('/igsns?datacenter_id=999999')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['datacenter_id']);
+
+        $this->actingAs($this->user)
+            ->getJson('/igsns?datacenter_id='.$datacenter->id.'&without_datacenter=1')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['datacenter_id']);
     });
 });
 
