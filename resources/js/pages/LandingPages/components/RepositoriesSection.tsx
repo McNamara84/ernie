@@ -13,15 +13,18 @@ interface RepositoriesSectionProps {
     datasetTitle: string;
 }
 
+// Keep the address token and boundary rules aligned with IgsnRepositoryContactService.
+const LEGACY_EMAIL_PATTERN = /(?:^|[^A-Z0-9._%+@-])[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}(?=$|[^A-Z0-9._%+@-])/i;
+
 function legacyContactDescriptor(type: 'current' | 'original', value: string | null | undefined): LandingPageRepositoryContact | null {
     const contact = value?.trim();
     if (!contact) return null;
 
-    const containsAddress = contact.includes('@');
+    const containsAddressLikeValue = contact.includes('@');
     return {
         type,
-        label: containsAddress ? `${type === 'current' ? 'Current' : 'Original'} repository contact` : contact,
-        has_email: containsAddress,
+        label: containsAddressLikeValue ? `${type === 'current' ? 'Current' : 'Original'} repository contact` : contact,
+        has_email: LEGACY_EMAIL_PATTERN.test(contact),
     };
 }
 

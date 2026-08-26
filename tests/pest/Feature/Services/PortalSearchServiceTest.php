@@ -226,6 +226,21 @@ describe('full-text search', function () {
         expect($this->service->search(['query' => 'GFBCITEDONLY'])->total())->toBe(0);
     });
 
+    it('does not expand an ordinary alphabetic search term into IGSN aliases', function () {
+        $resource = createPublishedResourceForSearch('Unrelated publication title', $this->titleType);
+        $resource->update(['doi' => '10.5880/unrelated-resource']);
+        $identifierType = IdentifierType::query()->create(['slug' => 'IGSN', 'name' => 'IGSN']);
+        $relationType = RelationType::query()->create(['slug' => 'IsIdenticalTo', 'name' => 'Is Identical To']);
+        RelatedIdentifier::query()->create([
+            'resource_id' => $resource->id,
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationType->id,
+            'identifier' => '10273/OCEAN',
+        ]);
+
+        expect($this->service->search(['query' => 'ocean'])->total())->toBe(0);
+    });
+
     it('finds resources by title', function () {
         createPublishedResourceForSearch('Seismic Activity Analysis', $this->titleType);
         createPublishedResourceForSearch('Ocean Temperature Data', $this->titleType);

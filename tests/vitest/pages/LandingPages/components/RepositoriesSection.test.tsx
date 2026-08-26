@@ -87,4 +87,20 @@ describe('RepositoriesSection', () => {
         expect(screen.getByText('Sensitive sample')).toBeInTheDocument();
         expect(screen.getAllByText('Tina Kollaske')).toHaveLength(2);
     });
+
+    it('enables a protected legacy contact only for a complete email address', () => {
+        render(<RepositoriesSection igsn={metadata({ current_archive_contact: 'Archive Team <archive@example.org>' })} datasetTitle="Sample" />);
+
+        expect(screen.getByText('Current repository contact')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Contact current repository' })).toBeInTheDocument();
+        expect(document.body).not.toHaveTextContent('archive@example.org');
+    });
+
+    it.each(['broken@address', 'victim@example.org@attacker.com'])('does not expose or enable malformed legacy contact %s', (contact) => {
+        render(<RepositoriesSection igsn={metadata({ current_archive_contact: contact })} datasetTitle="Sample" />);
+
+        expect(screen.getByText('Current repository contact')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Contact current repository' })).not.toBeInTheDocument();
+        expect(document.body).not.toHaveTextContent(contact);
+    });
 });
