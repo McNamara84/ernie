@@ -18,7 +18,7 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion';
  * Uses a callback ref so the observer reattaches when the target element
  * changes (e.g. conditional rendering like SSR skeleton → mounted map).
  *
- * @param options.threshold Intersection ratio to trigger visibility (default 0.1).
+ * @param options.threshold Intersection ratio to trigger visibility (default 0).
  *   Must be stable for the lifetime of the component — changing it after mount
  *   has no effect because the observer is created once per element.
  * @returns Callback ref to attach to the target element
@@ -43,7 +43,7 @@ export function useFadeInOnScroll(options?: { threshold?: number }): (element: H
     );
 
     // Capture threshold once — intentionally not reactive (see JSDoc above)
-    const thresholdRef = useRef(options?.threshold ?? 0.1);
+    const thresholdRef = useRef(options?.threshold ?? 0);
 
     useEffect(() => {
         if (!node) {

@@ -365,6 +365,22 @@ describe('RelatedWorkSection', () => {
         expect(screen.getByRole('button', { name: /Show less/i })).toHaveAttribute('aria-expanded', 'true');
     });
 
+    it('renders an issue-sized relation set in a visible card without truncating desktop content', () => {
+        const relatedIdentifiers = Array.from({ length: 896 }, (_, index) =>
+            makeRelatedIdentifier({
+                id: index + 1,
+                identifier_type: 'URL',
+                identifier: `https://example.com/related/${index + 1}`,
+            }),
+        );
+
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
+
+        expect(screen.getByTestId('related-works-section')).toHaveClass('is-visible');
+        expect(screen.getAllByRole('link')).toHaveLength(896);
+        expect(screen.getByRole('button', { name: /Show all \(896\)/i })).toBeInTheDocument();
+    });
+
     it('opens the relation browser modal from the action button', async () => {
         const user = userEvent.setup();
 

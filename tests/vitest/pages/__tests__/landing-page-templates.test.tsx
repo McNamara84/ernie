@@ -1142,7 +1142,7 @@ describe('LandingPageTemplatesPage', () => {
             expect(screen.getAllByText('Technical Information').length).toBeGreaterThanOrEqual(1);
             expect(screen.getAllByText('Series Information').length).toBeGreaterThanOrEqual(1);
             expect(screen.getAllByText('Table of Contents').length).toBeGreaterThanOrEqual(1);
-            expect(screen.getAllByText('Other').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Additional Information').length).toBeGreaterThanOrEqual(1);
             expect(screen.getAllByText('Creators / Authors').length).toBeGreaterThanOrEqual(1);
             expect(screen.getAllByText('Contributors').length).toBeGreaterThanOrEqual(1);
             expect(screen.getAllByText('Funding References').length).toBeGreaterThanOrEqual(1);

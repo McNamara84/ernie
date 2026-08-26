@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    DESCRIPTION_SECTION_CONFIG,
     DESCRIPTION_SECTION_KEYS,
     expandMetadataOrder,
     filterDescriptionsBySection,
@@ -13,6 +14,7 @@ import {
     normalizeRightColumnOrder,
     RESOURCE_LEFT_COLUMN_SECTIONS,
     RIGHT_COLUMN_SECTIONS,
+    RIGHT_SECTION_LABELS,
 } from '@/pages/LandingPages/lib/section-catalog';
 
 describe('metadata-sections helpers', () => {
@@ -32,6 +34,11 @@ describe('metadata-sections helpers', () => {
 
         expect(filterDescriptionsBySection(descriptions, 'technical_info')).toEqual([descriptions[0], descriptions[1]]);
         expect(filterDescriptionsBySection(descriptions, 'methods')).toEqual([]);
+    });
+
+    it('uses the public Additional Information label while retaining the Other key', () => {
+        expect(DESCRIPTION_SECTION_CONFIG.other).toEqual({ heading: 'Additional Information', matches: ['other'] });
+        expect(RIGHT_SECTION_LABELS.other).toBe('Additional Information');
     });
 
     it('identifies description section keys correctly', () => {

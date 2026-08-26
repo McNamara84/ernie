@@ -41,6 +41,26 @@ beforeEach(function (): void {
 });
 
 describe('DataCiteToResourceTransformer - description languages', function (): void {
+    it('normalizes encoded angle brackets without decoding unrelated entities', function (): void {
+        $user = User::factory()->create();
+
+        $resource = (new DataCiteToResourceTransformer)->transform([
+            'attributes' => [
+                'doi' => '10.5880/test.description-entities',
+                'publicationYear' => 2026,
+                'titles' => [['title' => 'Description entity import']],
+                'creators' => [['name' => 'Tester, Ada', 'nameType' => 'Personal']],
+                'descriptions' => [[
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Concentrations &gt;500 and &lt;0.5; keep &amp;gt; and &quot;.',
+                ]],
+            ],
+        ], $user->id);
+
+        expect($resource->descriptions()->sole()->value)
+            ->toBe('Concentrations >500 and <0.5; keep &amp;gt; and &quot;.');
+    });
+
     it('preserves repeated types and normalizes each explicit language independently', function (): void {
         $user = User::factory()->create();
 

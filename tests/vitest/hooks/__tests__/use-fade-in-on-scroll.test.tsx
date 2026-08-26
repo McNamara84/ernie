@@ -36,6 +36,7 @@ describe('useFadeInOnScroll', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.unstubAllGlobals();
         document.documentElement.classList.remove('js-fade-ready');
     });
 
@@ -59,6 +60,32 @@ describe('useFadeInOnScroll', () => {
         // triggers isIntersecting: true, so is-visible class should be added
         render(<TestComponent />);
         expect(screen.getByTestId('target')).toHaveClass('is-visible');
+    });
+
+    it('observes with a zero threshold by default so very tall cards can intersect', () => {
+        let observerOptions: IntersectionObserverInit | undefined;
+
+        class CapturingIntersectionObserver {
+            constructor(_callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+                observerOptions = options;
+            }
+
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+            takeRecords(): IntersectionObserverEntry[] {
+                return [];
+            }
+
+            readonly root = null;
+            readonly rootMargin = '0px';
+            readonly thresholds = [0];
+        }
+
+        vi.stubGlobal('IntersectionObserver', CapturingIntersectionObserver);
+        render(<TestComponent />);
+
+        expect(observerOptions).toEqual({ threshold: 0 });
     });
 
     it('respects reduced motion by adding is-visible immediately', () => {
