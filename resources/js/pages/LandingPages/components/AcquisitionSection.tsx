@@ -10,6 +10,7 @@ import type {
 } from '@/types/landing-page';
 
 import { findDateByType } from '../lib/dateHelpers';
+import { IgsnDescriptionGroups } from './IgsnDescriptionGroups';
 import { LandingPageCard } from './LandingPageCard';
 import { hasVisibleMetadataRows, MetadataList, type MetadataRow } from './MetadataList';
 
@@ -76,8 +77,12 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
 
     const commentsText = mergeUniqueText(igsn?.comments ?? []).join('; ') || null;
     const comments = commentsText ? <span className="whitespace-pre-line">{commentsText}</span> : null;
-    const materialDescriptionsText = mergeUniqueText(igsn?.material_descriptions ?? []).join('; ') || null;
-    const materialDescriptions = materialDescriptionsText ? <span className="whitespace-pre-line">{materialDescriptionsText}</span> : null;
+    const descriptionGroups =
+        igsn?.description_groups && igsn.description_groups.length > 0
+            ? igsn.description_groups
+            : igsn?.material_descriptions?.length
+              ? [{ entries: mergeUniqueText(igsn.material_descriptions).map((value) => ({ value, scheme: null })) }]
+              : [];
 
     const geologicalUnits = dedup((igsn?.geological_units ?? []).map((unit) => unit.value.trim()).filter(Boolean)).join(', ');
 
@@ -112,7 +117,6 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
     const rows: MetadataRow[] = [
         { label: 'Material', value: valueOrMissing(material) },
         { label: `${materialLabel} Classification`, value: valueOrMissing(classification || null) },
-        { label: `${materialLabel} Description`, value: valueOrMissing(materialDescriptions) },
         { label: 'Geological Unit', value: valueOrMissing(geologicalUnits || null) },
         { label: 'Comments', value: valueOrMissing(comments) },
         { label: 'Minimum Depth', value: valueOrMissing(igsn?.depth_min ?? null) },
@@ -121,6 +125,9 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
         { label: 'Sizes', value: valueOrMissing(sizes || null) },
         { label: 'Collection Method', value: valueOrMissing(collectionMethod) },
         { label: 'Collection Method Description', value: valueOrMissing(collectionMethodDescription) },
+        { label: 'Platform Type', value: valueOrMissing(igsn?.platform_type ?? null) },
+        { label: 'Platform Name', value: valueOrMissing(igsn?.platform_name ?? null) },
+        { label: 'Platform Description', value: valueOrMissing(igsn?.platform_description ?? null) },
         { label: 'Funding Agency', value: valueOrMissing(fundingAgency || null) },
         { label: 'Chief Scientist', value: valueOrMissing(chiefScientists || null) },
         { label: 'Start Date', value: valueOrMissing(startDate) },
@@ -138,7 +145,11 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
             <h2 id="heading-acquisition" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Acquisition
             </h2>
-            <MetadataList rows={rows} />
+            <div className="space-y-3">
+                <MetadataList rows={rows.slice(0, 2)} />
+                <IgsnDescriptionGroups groups={descriptionGroups} />
+                <MetadataList rows={rows.slice(2)} />
+            </div>
         </LandingPageCard>
     );
 }

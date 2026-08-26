@@ -29,6 +29,7 @@ const baseIgsn = (overrides: Partial<LandingPageIgsnMetadata> = {}): LandingPage
     depth_scale: null,
     coordinate_system: null,
     sample_access: null,
+    description_groups: [],
     comments: [],
     current_archive: null,
     current_archive_contact: null,
@@ -87,8 +88,11 @@ describe('AcquisitionSection', () => {
         expect(container.firstChild).toBeNull();
     });
 
-    it('renders material-specific classification and description labels', () => {
-        const igsn = baseIgsn({ material: 'Granite' });
+    it('renders material-specific classification but never derives description labels from material', () => {
+        const igsn = baseIgsn({
+            material: 'Granite',
+            description_groups: [{ entries: [{ value: 'Unschemed description', scheme: null }] }],
+        });
         const classifications: LandingPageIgsnClassification[] = [
             { id: 1, value: 'Igneous' },
             { id: 2, value: 'Plutonic' },
@@ -108,11 +112,12 @@ describe('AcquisitionSection', () => {
 
         expect(screen.getByText('Granite')).toBeInTheDocument();
         expect(screen.getByText('Granite Classification')).toBeInTheDocument();
-        expect(screen.getByText('Granite Description')).toBeInTheDocument();
+        expect(screen.getByText('Description')).toBeInTheDocument();
+        expect(screen.queryByText('Granite Description')).not.toBeInTheDocument();
         expect(screen.getByText('Igneous, Plutonic')).toBeInTheDocument();
     });
 
-    it.each(['Rock', 'Mineral', 'Biology', 'Sediment'])('derives the classification and description labels for %s', (material) => {
+    it.each(['Rock', 'Mineral', 'Biology', 'Sediment'])('derives only the classification label for %s', (material) => {
         render(
             <AcquisitionSection
                 igsn={baseIgsn({ material })}
@@ -125,7 +130,7 @@ describe('AcquisitionSection', () => {
         );
 
         expect(screen.getByText(`${material} Classification`)).toBeInTheDocument();
-        expect(screen.getByText(`${material} Description`)).toBeInTheDocument();
+        expect(screen.queryByText(`${material} Description`)).not.toBeInTheDocument();
     });
 
     it('renders Collection Method without description as plain text', () => {
@@ -258,7 +263,6 @@ describe('AcquisitionSection', () => {
         [
             'Material',
             'Material Classification',
-            'Material Description',
             'Geological Unit',
             'Comments',
             'Minimum Depth',
@@ -267,6 +271,9 @@ describe('AcquisitionSection', () => {
             'Sizes',
             'Collection Method',
             'Collection Method Description',
+            'Platform Type',
+            'Platform Name',
+            'Platform Description',
             'Funding Agency',
             'Chief Scientist',
             'Start Date',
@@ -290,7 +297,7 @@ describe('AcquisitionSection', () => {
 
         expect(screen.getByText('Not applicable')).toBeInTheDocument();
         expect(screen.getByText('Not applicable Classification')).toBeInTheDocument();
-        expect(screen.getByText('Not applicable Description')).toBeInTheDocument();
+        expect(screen.queryByText('Not applicable Description')).not.toBeInTheDocument();
     });
 
     it('matches Chief Scientist by Data Collector and DataCollector (case-insensitive)', () => {
@@ -387,9 +394,52 @@ describe('AcquisitionSection', () => {
 
         expect(screen.getByText('Weschnitz Pluton')).toBeInTheDocument();
         expect(screen.getByText('Granodiorite')).toBeInTheDocument();
-        expect(screen.getByText('Rock Description').nextElementSibling).toHaveTextContent('Granodiorite');
+        expect(screen.getByText('Description').nextElementSibling).toHaveTextContent('Granodiorite');
+        expect(screen.queryByText('Rock Description')).not.toBeInTheDocument();
         expect(screen.getByText('Comments').nextElementSibling).toHaveTextContent('N/A');
         expect(screen.getByText('Diameter: 50 mm; Length: 100 mm')).toBeInTheDocument();
         expect(screen.getByText('Guido Blöcher')).toBeInTheDocument();
+    });
+
+    it('preserves description groups entry order schemes and semicolons and renders platform fields', () => {
+        const { container } = render(
+            <AcquisitionSection
+                igsn={baseIgsn({
+                    material: 'Rock',
+                    description_groups: [
+                        {
+                            entries: [
+                                { value: 'Core Oriented? 0; RQD Abundance: 0;', scheme: null },
+                                { value: 'Musc-bio schist', scheme: 'Rock Type' },
+                            ],
+                        },
+                        {
+                            entries: [
+                                { value: 'white', scheme: 'locality_description' },
+                                { value: 'Quartzite', scheme: 'Existing Description' },
+                            ],
+                        },
+                    ],
+                    platform_type: 'Drill Rig',
+                    platform_name: 'MSR Punto',
+                    platform_description: 'UDR',
+                })}
+                classifications={[]}
+                descriptions={[]}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={[]}
+            />,
+        );
+
+        expect(container.querySelectorAll('[data-slot="igsn-description-group"]')).toHaveLength(2);
+        expect(screen.getByText('Description').nextElementSibling).toHaveTextContent('Core Oriented? 0; RQD Abundance: 0;');
+        expect(screen.getByText('Rock Type Description').nextElementSibling).toHaveTextContent('Musc-bio schist');
+        expect(screen.getByText('Locality Description').nextElementSibling).toHaveTextContent('white');
+        expect(screen.getByText('Existing Description').nextElementSibling).toHaveTextContent('Quartzite');
+        expect(screen.queryByText('Existing Description Description')).not.toBeInTheDocument();
+        expect(screen.getByText('Platform Type').nextElementSibling).toHaveTextContent('Drill Rig');
+        expect(screen.getByText('Platform Name').nextElementSibling).toHaveTextContent('MSR Punto');
+        expect(screen.getByText('Platform Description').nextElementSibling).toHaveTextContent('UDR');
     });
 });

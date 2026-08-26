@@ -411,6 +411,33 @@ describe('LocationSection', () => {
             expect(screen.getByTestId('rectangle')).toBeInTheDocument();
             expect(screen.queryByTestId('polyline')).not.toBeInTheDocument();
         });
+
+        it('renders location and locality descriptions as separate sampling-location rows', () => {
+            render(
+                <LocationSection
+                    samplingLocation
+                    geoLocations={[
+                        {
+                            id: 21,
+                            place: 'Field site',
+                            point_longitude: null,
+                            point_latitude: null,
+                            west_bound_longitude: null,
+                            east_bound_longitude: null,
+                            south_bound_latitude: null,
+                            north_bound_latitude: null,
+                            polygon_points: null,
+                            geo_type: null,
+                            location_description: 'General location',
+                            locality_description: 'Detailed locality',
+                        },
+                    ]}
+                />,
+            );
+
+            expect(screen.getByText('Location Description').nextElementSibling).toHaveTextContent('General location');
+            expect(screen.getByText('Locality Description').nextElementSibling).toHaveTextContent('Detailed locality');
+        });
     });
 
     describe('polygon locations', () => {

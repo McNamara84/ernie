@@ -44,6 +44,7 @@ interface GeoLocation {
     elevation_unit?: string | null;
     location_type?: string | null;
     location_description?: string | null;
+    locality_description?: string | null;
     country?: string | null;
     province?: string | null;
     county?: string | null;
@@ -474,6 +475,7 @@ export function LocationSection({ geoLocations, isDark = false, samplingLocation
                   { label: 'Location Type', value: primary.location_type ?? null },
                   { label: 'Location Name', value: primary.place ?? null },
                   { label: 'Location Description', value: primary.location_description ?? null },
+                  { label: 'Locality Description', value: primary.locality_description ?? null },
                   { label: 'Country', value: primary.country ?? null },
                   { label: 'Province', value: primary.province ?? null },
                   { label: 'County', value: primary.county ?? null },

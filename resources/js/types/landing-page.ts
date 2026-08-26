@@ -605,6 +605,7 @@ export interface LandingPageGeoLocation {
     elevation_unit: string | null;
     location_type: string | null;
     location_description: string | null;
+    locality_description: string | null;
     country: string | null;
     province: string | null;
     county: string | null;
@@ -693,12 +694,17 @@ export interface LandingPageIgsnMetadata {
     depth_scale: string | null;
     coordinate_system: string | null;
     sample_access: string | null;
+    description_groups?: LandingPageIgsnDescriptionGroup[];
+    /** Transitional flat representation for older cached payloads. */
     material_descriptions?: string[];
     comments: string[];
     current_archive: string | null;
     current_archive_contact: string | null;
     original_archive: string | null;
     original_archive_contact: string | null;
+    platform_type?: string | null;
+    platform_name?: string | null;
+    platform_description?: string | null;
     sizes: Array<{
         id: number;
         numeric_value: string | null;
@@ -714,6 +720,15 @@ export interface LandingPageIgsnMetadata {
         /** Parent's published landing page URL (null when not published) */
         landing_page: { public_url: string } | null;
     } | null;
+}
+
+export interface LandingPageIgsnDescriptionEntry {
+    value: string;
+    scheme: string | null;
+}
+
+export interface LandingPageIgsnDescriptionGroup {
+    entries: LandingPageIgsnDescriptionEntry[];
 }
 
 /** One node in the complete locally known IGSN sample hierarchy. */
