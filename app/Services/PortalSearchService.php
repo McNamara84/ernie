@@ -432,11 +432,17 @@ class PortalSearchService
 
         $identifier = preg_replace('/^doi:\s*/i', '', $identifier);
 
-        if (! is_string($identifier) || $identifier === '' || preg_match('/\s/', $identifier) === 1) {
+        if (! is_string($identifier) || $identifier === '') {
             return [];
         }
 
         $variants = [$identifier];
+
+        // Whitespace cannot occur in an IGSN alias, but it is valid in an
+        // exact alternate identifier such as a local sample name.
+        if (preg_match('/\s/', $identifier) === 1) {
+            return array_map(strtolower(...), $variants);
+        }
 
         if (preg_match('#^10273/([A-Za-z0-9][A-Za-z0-9._-]*)$#i', $identifier, $matches) === 1) {
             $variants[] = $matches[1];

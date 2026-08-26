@@ -195,6 +195,22 @@ describe('full-text search', function () {
             ->and($results->items()[0]->id)->toBe($resource->id);
     });
 
+    it('finds an exact alternate identifier containing whitespace', function () {
+        $resource = createPublishedResourceForSearch('Unrelated sample title', $this->titleType);
+        $resource->update(['doi' => '10.60510/unrelated-resource']);
+        AlternateIdentifier::query()->create([
+            'resource_id' => $resource->id,
+            'value' => 'Local Sample 7002 A 083',
+            'type' => 'Local sample name',
+            'position' => 1,
+        ]);
+
+        $results = $this->service->search(['query' => 'local sample 7002 a 083']);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($resource->id);
+    });
+
     it('does not treat identifiers from non-identity relations as resource aliases', function () {
         $resource = createPublishedResourceForSearch('Unrelated publication title', $this->titleType);
         $resource->update(['doi' => '10.5880/unrelated-resource']);

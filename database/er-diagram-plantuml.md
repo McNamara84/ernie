@@ -760,6 +760,7 @@ entity "contact_messages" as contact_messages {
     * resource_id : BIGINT <<FK>>
     resource_creator_id : BIGINT <<FK>>
     resource_contributor_id : BIGINT <<FK>>
+    repository_contact_type : VARCHAR(16) <<nullable>>
     * send_to_all : BOOLEAN = false
     * sender_name : VARCHAR
     * sender_email : VARCHAR

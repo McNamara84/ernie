@@ -514,6 +514,17 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             Use <code>--limit</code> to process large installations in smaller batches during low-traffic maintenance windows.
                         </p>
 
+                        <h4>Audit Legacy IGSN Handles</h4>
+                        <DocsCodeBlock code="php artisan igsn:audit-legacy-handles" />
+                        <DocsCodeBlock code="php artisan igsn:audit-legacy-handles --batch=20 --output=/path/to/report.json" />
+                        <p className="text-sm text-muted-foreground">
+                            This read-only command checks published legacy IGSN identity Handles against the official Handle API. Use{' '}
+                            <code>--batch</code> to control concurrent requests per batch (values are constrained to 1–50) and <code>--output</code>{' '}
+                            to write a JSON report containing counts and failure details. It exits successfully only when every Handle resolves and
+                            the optional report can be written; missing Handles, transient or unknown responses, and report write errors produce a
+                            failure exit code.
+                        </p>
+
                         <h4>DataCite Configuration</h4>
                         <p>
                             Configure DataCite API credentials in your <code>.env</code> file:
@@ -1988,9 +1999,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     <strong>Acquisition</strong> (Material, material-specific Classification, structured Description fields labelled
                                     by their scheme, Geological Unit, Comments, Minimum/Maximum Depth, Depth Scale, Sizes, Collection Method and
                                     Collection Method Description, Platform Type, Platform Name, Platform Description, Funding Agency, Chief
-                                    Scientist, Start/End Date), and <strong>Repositories</strong> (current and original repository, their contacts,
-                                    and sample access). Draft family members remain visible without a link, while empty fields and empty modules are
-                                    hidden automatically on the rendered page.
+                                    Scientist, Start/End Date), and <strong>Repositories</strong> (current and original repository, their protected
+                                    contact actions, and sample access). Draft family members remain visible without a link, while empty fields and
+                                    empty modules are hidden automatically on the rendered page.
                                 </p>
                                 <p>
                                     The right-column <strong>Location / Map</strong> module becomes <strong>Sampling Location</strong> for IGSNs. It
@@ -2544,6 +2555,27 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Note:</strong> IGSNs are managed separately from datasets. They appear only on the <code>/igsns</code> page.
                             </p>
                         </div>
+                    </>
+                ),
+            },
+            {
+                id: 'igsn-repository-contacts',
+                title: 'Repository Contacts',
+                icon: Users,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Contacting an IGSN Repository</h3>
+                        <p>
+                            A published IGSN landing page can show separate <strong>Contact current repository</strong> and{' '}
+                            <strong>Contact original repository</strong> actions in its Repositories section. Each action opens a protected contact
+                            form for exactly that repository role; enter your name, reply address, and message, then optionally request a copy.
+                        </p>
+                        <p>
+                            ERNIE keeps the repository email address on the server and never exposes it in the page or sends it from the browser. An
+                            action is shown only when the corresponding metadata contains a complete, valid email address. If an archive has only a
+                            label or malformed contact metadata, its information can still be displayed without an active contact button.
+                        </p>
                     </>
                 ),
             },

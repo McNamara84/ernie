@@ -10,6 +10,8 @@ final class IgsnRepositoryContactService
 
     public const TYPE_ORIGINAL = 'original';
 
+    private const EMAIL_PATTERN = '/(?<![A-Z0-9._%+\-@])[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}(?![A-Z0-9._%+\-@])/i';
+
     /**
      * @return array{type: string, label: string, has_email: bool}|null
      */
@@ -59,7 +61,7 @@ final class IgsnRepositoryContactService
             return null;
         }
 
-        preg_match_all('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $value, $matches);
+        preg_match_all(self::EMAIL_PATTERN, $value, $matches);
 
         $emails = [];
         foreach ($matches[0] as $candidate) {
@@ -69,7 +71,7 @@ final class IgsnRepositoryContactService
             }
         }
 
-        $label = preg_replace('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', ' ', $value) ?? '';
+        $label = preg_replace(self::EMAIL_PATTERN, ' ', $value) ?? '';
         $label = preg_replace('/[<>\[\]();,]+/', ' ', $label) ?? '';
         $label = trim(preg_replace('/\s+/', ' ', $label) ?? '', " \t\n\r\0\x0B-–—:|");
 

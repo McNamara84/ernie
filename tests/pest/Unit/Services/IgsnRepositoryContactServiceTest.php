@@ -63,3 +63,15 @@ it('redacts malformed address-like values and handles empty contacts', function 
         ])
         ->and($this->service->publicDescriptor('current', '  ', 'Archive'))->toBeNull();
 });
+
+it('rejects a valid-looking email substring inside a malformed address token', function (): void {
+    $malformedContact = 'victim@example.org@attacker.com';
+
+    expect($this->service->publicDescriptor('current', $malformedContact, null))
+        ->toBe([
+            'type' => 'current',
+            'label' => 'Current repository contact',
+            'has_email' => false,
+        ])
+        ->and($this->service->recipients('current', $malformedContact, null))->toBe([]);
+});
