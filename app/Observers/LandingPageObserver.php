@@ -9,6 +9,7 @@ use App\Models\OaiPmhDeletedRecord;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\OaiPmh\OaiPmhSetService;
+use App\Services\ResourceCacheService;
 
 /**
  * Observer for LandingPage model to track publish/depublish events
@@ -20,10 +21,12 @@ class LandingPageObserver
         private readonly OaiPmhSetService $oaiPmhSetService,
         private readonly LandingPageRenderDataCacheService $renderDataCache,
         private readonly PortalPageCacheService $portalPageCache,
+        private readonly ResourceCacheService $resourceCacheService,
     ) {}
 
     public function created(LandingPage $landingPage): void
     {
+        $this->resourceCacheService->invalidatePublishedResourceCounts();
         $this->invalidateIgsnFamily($landingPage);
         $this->portalPageCache->flush();
     }
@@ -43,6 +46,8 @@ class LandingPageObserver
         if (! $landingPage->wasChanged('is_published')) {
             return;
         }
+
+        $this->resourceCacheService->invalidatePublishedResourceCounts();
 
         $resource = $landingPage->resource;
 
@@ -73,6 +78,7 @@ class LandingPageObserver
 
     public function deleted(LandingPage $landingPage): void
     {
+        $this->resourceCacheService->invalidatePublishedResourceCounts();
         $this->renderDataCache->forget($landingPage);
         $this->invalidateIgsnFamily($landingPage);
         $this->portalPageCache->flush();

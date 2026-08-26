@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\DataCiteUrlUpdateScope;
+use App\Enums\EditorDraftSaveIntent;
 use App\Http\Requests\Resource\DestroyAllResourcesRequest;
 use App\Http\Requests\Resource\DestroyResourceRequest;
 use App\Http\Requests\Resource\DestroyResourcesRequest;
@@ -15,11 +16,10 @@ use App\Http\Resources\ResourceListItemResource;
 use App\Models\DataCiteUrlUpdateRun;
 use App\Models\Resource;
 use App\Models\User;
-use App\Services\DataCiteSyncService;
 use App\Services\DataCiteUrlUpdateRunPresenter;
+use App\Services\Editor\EditorResourceSaveService;
 use App\Services\Resources\DeleteAllResourcesService;
 use App\Services\Resources\ResourceQueryBuilder;
-use App\Services\ResourceStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,8 +35,7 @@ class ResourceController extends Controller
 {
     public function __construct(
         private readonly ResourceQueryBuilder $queryBuilder,
-        private readonly ResourceStorageService $storageService,
-        private readonly DataCiteSyncService $syncService,
+        private readonly EditorResourceSaveService $editorResourceSaveService,
         private readonly DeleteAllResourcesService $deleteAllResourcesService,
         private readonly DataCiteUrlUpdateRunPresenter $dataCiteUrlUpdateRunPresenter,
     ) {}
@@ -82,13 +81,11 @@ class ResourceController extends Controller
         ]);
     }
 
-    /**
-     * Persist a fully validated resource and sync it with DataCite if it has a DOI.
-     */
+    /** Persist a fully validated resource without an implicit external write. */
     public function store(StoreResourceRequest $request): JsonResponse
     {
         try {
-            [$resource, $isUpdate] = $this->storageService->store(
+            [$resource, $isUpdate] = $this->editorResourceSaveService->saveValidated(
                 $request->validated(),
                 $request->user()?->id
             );
@@ -113,26 +110,18 @@ class ResourceController extends Controller
             ], 500);
         }
 
-        // Automatic DataCite synchronization (Issue #383).
-        $syncResult = $this->syncService->syncIfRegistered($resource);
-
-        $message = $isUpdate ? 'Successfully updated resource.' : 'Successfully saved resource.';
+        $message = $isUpdate
+            ? 'Resource validated and updated successfully.'
+            : 'Resource validated and saved successfully.';
         $status = $isUpdate ? 200 : 201;
 
-        $response = [
+        return response()->json([
             'message' => $message,
             'resource' => [
                 'id' => $resource->id,
+                'publicStatus' => $resource->publicStatus(),
             ],
-            'dataCiteSync' => $syncResult->toArray(),
-        ];
-
-        if ($syncResult->hasFailed()) {
-            $response['message'] = $message.' However, DataCite update failed.';
-            $response['warning'] = $syncResult->errorMessage;
-        }
-
-        return response()->json($response, $status);
+        ], $status);
     }
 
     /**
@@ -144,9 +133,13 @@ class ResourceController extends Controller
     public function storeDraft(StoreDraftResourceRequest $request): JsonResponse
     {
         try {
-            [$resource, $isUpdate] = $this->storageService->store(
-                $request->validated(),
-                $request->user()?->id
+            $validated = $request->validated();
+            $intent = EditorDraftSaveIntent::from($validated['intent']);
+
+            [$resource, $isUpdate] = $this->editorResourceSaveService->saveRelaxed(
+                $validated,
+                $request->user()?->id,
+                $intent,
             );
         } catch (ValidationException $exception) {
             return response()->json([
@@ -169,13 +162,18 @@ class ResourceController extends Controller
             ], 500);
         }
 
-        $message = $isUpdate ? 'Draft updated successfully.' : 'Draft saved successfully.';
+        $message = match ($intent) {
+            EditorDraftSaveIntent::SAVE_DRAFT => $isUpdate ? 'Draft updated successfully.' : 'Draft saved successfully.',
+            EditorDraftSaveIntent::AUTOSAVE => 'Draft autosaved successfully.',
+            EditorDraftSaveIntent::LANDING_PAGE_PREVIEW => 'Resource saved for landing page preview.',
+        };
         $status = $isUpdate ? 200 : 201;
 
         return response()->json([
             'message' => $message,
             'resource' => [
                 'id' => $resource->id,
+                'publicStatus' => $resource->publicStatus(),
             ],
         ], $status);
     }

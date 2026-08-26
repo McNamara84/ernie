@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CacheKey;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Services\ResourceCacheService;
@@ -104,6 +105,43 @@ describe('ResourceCacheService - Resource Count Caching', function () {
 
         expect($countForTypeA)->toBe(2)
             ->and($countForTypeB)->toBe(1);
+    });
+
+    test('counts only canonically published resources and IGSNs', function () {
+        $datasetType = ResourceType::firstOrCreate(['slug' => 'dataset'], ['name' => 'Dataset']);
+        $physicalObjectType = ResourceType::create(['name' => 'Physical Object', 'slug' => 'physical-object']);
+
+        $publishedDataset = Resource::factory()->create(['resource_type_id' => $datasetType->id]);
+        LandingPage::factory()->for($publishedDataset)->published()->withDoi((string) $publishedDataset->doi)->create();
+
+        $publishedIgsn = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        LandingPage::factory()->for($publishedIgsn)->published()->withDoi((string) $publishedIgsn->doi)->create();
+
+        $reviewDataset = Resource::factory()->create(['resource_type_id' => $datasetType->id]);
+        $reviewLandingPage = LandingPage::factory()->for($reviewDataset)->draft()->withDoi((string) $reviewDataset->doi)->create();
+
+        $doiLessDataset = Resource::factory()->create([
+            'doi' => null,
+            'resource_type_id' => $datasetType->id,
+        ]);
+        LandingPage::factory()->for($doiLessDataset)->published()->withoutDoi()->create();
+
+        expect($this->cacheService->getPublishedResourceCounts($physicalObjectType->id))->toBe([
+            'resources' => 1,
+            'igsns' => 1,
+            'total' => 2,
+        ]);
+
+        $reviewLandingPage->update([
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        expect($this->cacheService->getPublishedResourceCounts($physicalObjectType->id))->toBe([
+            'resources' => 2,
+            'igsns' => 1,
+            'total' => 3,
+        ]);
     });
 
     test('caches the physical object type id after the first lookup', function () {

@@ -10,11 +10,11 @@ ERNIE uses a Docker-first local workflow.
 
 Host-side frontend commands require local `node_modules` in the repository checkout. Run `npm install` once after cloning and again whenever frontend dependencies change.
 
-| Mode | Purpose | Command |
-| --- | --- | --- |
-| Fast Mode | Start the core development stack only | `npm run docker:dev:up` |
-| Assessment profile | Start the stack with the F-UJI container for assessment work; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use it | `npm run docker:dev:assessment` |
-| Parity profile | Start the stack with the parity profile, which currently adds the F-UJI container; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use it | `npm run docker:dev:parity` |
+| Mode               | Purpose                                                                                                                                                   | Command                         |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| Fast Mode          | Start the core development stack only                                                                                                                     | `npm run docker:dev:up`         |
+| Assessment profile | Start the stack with the F-UJI container for assessment work; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use it                      | `npm run docker:dev:assessment` |
+| Parity profile     | Start the stack with the parity profile, which currently adds the F-UJI container; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use it | `npm run docker:dev:parity`     |
 
 Fast Mode is the default because it keeps the profile-gated F-UJI service out of the normal startup path.
 
@@ -42,60 +42,60 @@ If the repository stays under `D:\` or another NTFS path:
 
 1. Generate certificates.
 
-   Windows PowerShell:
+    Windows PowerShell:
 
-   ```powershell
-   .\docker\generate-certs.ps1
-   ```
+    ```powershell
+    .\docker\generate-certs.ps1
+    ```
 
-   WSL, Git Bash, or another POSIX shell:
+    WSL, Git Bash, or another POSIX shell:
 
-   ```bash
-   ./docker/generate-certs.sh
-   ```
+    ```bash
+    ./docker/generate-certs.sh
+    ```
 
 2. Create the Docker environment file.
 
-   Windows PowerShell:
+    Windows PowerShell:
 
-   ```powershell
-   Copy-Item .env.docker.example .env.docker
-   ```
+    ```powershell
+    Copy-Item .env.docker.example .env.docker
+    ```
 
-   WSL, Git Bash, or another POSIX shell:
+    WSL, Git Bash, or another POSIX shell:
 
-   ```bash
-   cp .env.docker.example .env.docker
-   ```
+    ```bash
+    cp .env.docker.example .env.docker
+    ```
 
 3. Install host-side Node dependencies for frontend validation.
 
-   ```bash
-   npm install
-   ```
+    ```bash
+    npm install
+    ```
 
-   This installs the local `node_modules` required by ESLint, TypeScript, Vitest, OpenAPI linting, and Playwright.
+    This installs the local `node_modules` required by ESLint, TypeScript, Vitest, OpenAPI linting, and Playwright.
 
 4. Start Fast Mode.
 
-   ```bash
-   npm run docker:dev:up
-   ```
+    ```bash
+    npm run docker:dev:up
+    ```
 
 5. Trust `docker\traefik\certs\localhost.crt` on Windows if your browser warns about the local TLS certificate.
 
 6. Open the application.
 
-   - Main URL: `https://ernie.localhost:3333`
-   - Localhost fallback after switching `ERNIE_DEV_HOST` and `ERNIE_DEV_SESSION_DOMAIN`: `https://localhost:3333`
+    - Main URL: `https://ernie.localhost:3333`
+    - Localhost fallback after switching `ERNIE_DEV_HOST` and `ERNIE_DEV_SESSION_DOMAIN`: `https://localhost:3333`
 
-   If `ernie.localhost` does not resolve, add `127.0.0.1 ernie.localhost` to your hosts file.
+    If `ernie.localhost` does not resolve, add `127.0.0.1 ernie.localhost` to your hosts file.
 
 7. Create the first administrator account.
 
-   ```bash
-   npm run artisan -- add-user "Admin Name" admin@example.com SecurePassword
-   ```
+    ```bash
+    npm run artisan -- add-user "Admin Name" admin@example.com SecurePassword
+    ```
 
 The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm install` step above.
 
@@ -132,28 +132,28 @@ npm run docker:dev:parity
 
 ## Command Reference
 
-| Task | Recommended place | Command |
-| --- | --- | --- |
-| Start the core stack | Host shell | `npm run docker:dev:up` |
-| Install host-side frontend dependencies | Host shell | `npm install` |
-| Start the backend services needed for PHP checks | Host shell | `npm run docker:dev:backend:d` |
-| Stop the stack | Host shell | `npm run docker:dev:down` |
-| Reset Docker volumes | Host shell | `npm run docker:dev:reset` |
-| Laravel Artisan | npm wrapper into app container | `npm run artisan -- <command>` |
-| Example controller generator | npm wrapper into app container | `npm run artisan -- make:controller TestController` |
-| Composer | npm wrapper into app container | `npm run composer:app -- <command>` |
-| Pest | Host shell via npm wrapper | `npm run test:php` |
-| Pest deprecation details | Host shell via npm wrapper | `npm run test:php:deprecations` |
-| MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive` |
-| PHPStan | Host shell via npm wrapper | `npm run phpstan:check` |
-| Vitest | Host shell | `npm run test:run` |
-| ESLint check | Host shell | `npm run lint:check` |
-| ESLint auto-fix | Host shell | `npm run lint` |
-| TypeScript | Host shell | `npm run types` |
-| Playwright against the dev stack | Host shell | `npm run test:e2e:devstack` |
-| Canonical backend validation | Host shell | `npm run check:backend` |
-| Canonical frontend validation | Host shell | `npm run check:frontend` |
-| Canonical parity validation | Host shell | `npm run check:parity` |
+| Task                                             | Recommended place              | Command                                             |
+| ------------------------------------------------ | ------------------------------ | --------------------------------------------------- |
+| Start the core stack                             | Host shell                     | `npm run docker:dev:up`                             |
+| Install host-side frontend dependencies          | Host shell                     | `npm install`                                       |
+| Start the backend services needed for PHP checks | Host shell                     | `npm run docker:dev:backend:d`                      |
+| Stop the stack                                   | Host shell                     | `npm run docker:dev:down`                           |
+| Reset Docker volumes                             | Host shell                     | `npm run docker:dev:reset`                          |
+| Laravel Artisan                                  | npm wrapper into app container | `npm run artisan -- <command>`                      |
+| Example controller generator                     | npm wrapper into app container | `npm run artisan -- make:controller TestController` |
+| Composer                                         | npm wrapper into app container | `npm run composer:app -- <command>`                 |
+| Pest                                             | Host shell via npm wrapper     | `npm run test:php`                                  |
+| Pest deprecation details                         | Host shell via npm wrapper     | `npm run test:php:deprecations`                     |
+| MySQL-sensitive Pest slice                       | Host shell via npm wrapper     | `npm run test:php:mysql-sensitive`                  |
+| PHPStan                                          | Host shell via npm wrapper     | `npm run phpstan:check`                             |
+| Vitest                                           | Host shell                     | `npm run test:run`                                  |
+| ESLint check                                     | Host shell                     | `npm run lint:check`                                |
+| ESLint auto-fix                                  | Host shell                     | `npm run lint`                                      |
+| TypeScript                                       | Host shell                     | `npm run types`                                     |
+| Playwright against the dev stack                 | Host shell                     | `npm run test:e2e:devstack`                         |
+| Canonical backend validation                     | Host shell                     | `npm run check:backend`                             |
+| Canonical frontend validation                    | Host shell                     | `npm run check:frontend`                            |
+| Canonical parity validation                      | Host shell                     | `npm run check:parity`                              |
 
 ## Environment Files
 
@@ -170,6 +170,12 @@ Keep `DATACITE_TEST_MODE=true` for local development and Stage. Eligible importe
 With `DATACITE_TEST_MODE=false` on Production, the same local landing pages are created and the newly imported, published records enter a separate DataCite synchronization phase. That phase exports the complete ERNIE metadata and changes the DOI target URL to the new landing page. Failed updates do not roll back the import or landing page and can be retried from the completed import dialog.
 
 Production uses separate DataCite Repository accounts for ordinary GFZ DOIs and legacy IGSNs. Configure `DATACITE_USERNAME` / `DATACITE_PASSWORD` for the ordinary DOI repository and `DATACITE_IGSN_USERNAME` / `DATACITE_IGSN_PASSWORD` for the `GFZ.IGSN` repository that owns prefix `10.60510`. ERNIE selects the IGSN credentials automatically for that prefix; using the ordinary DOI credentials results in a DataCite HTTP 403 response.
+
+### Testing Data Editor registration safely
+
+Keep `DATACITE_TEST_MODE=true` and use test Repository credentials when exercising the Data Editor's `Register` or `Update Metadata` actions locally. `Validate`, `Save Draft`, autosave, `Preview LP`, and `Show LP` are local-only actions and must not produce a DataCite request. The two DataCite write actions run complete client validation, show an explicit confirmation before their action-specific save, and automatically continue through landing-page setup when a page is missing.
+
+After a new test DOI is registered, the success dialog displays the number of locally published Resources plus published IGSNs. This is deliberately smaller than or equal to the combined sidebar badges: a record counts only when it has a non-empty DOI and a published landing page. Draft, curation, and review records are excluded. The dialog redirects to `/resources` after five seconds; operating-system reduced-motion settings suppress confetti without changing the result or countdown.
 
 There is no separate post-import sync flag: `DATACITE_TEST_MODE` is the only switch. The queue worker must consume the `imports` queue so the bounded synchronization jobs can complete.
 

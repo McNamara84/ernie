@@ -1031,8 +1031,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <WorkflowSteps.Step number={4} title="Complete Coverage">
                                 <p>Fill in spatial and temporal coverage using the interactive tools.</p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={5} title="Save">
-                                <p>Choose one of these actions from the bottom-right editor action bar:</p>
+                            <WorkflowSteps.Step number={5} title="Save or publish">
+                                <p>For an unpublished record, choose one of these actions from the bottom-right editor action bar:</p>
                                 <p className="mt-2">
                                     The action bar stays available while you move through the form. On smaller pointer-based screens it fades back
                                     until you hover near the bottom-right corner or focus a button; on touch screens it remains visible and compact.
@@ -1043,19 +1043,25 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                         complete it. Drafts are shown with an amber badge in the resource list and on the dashboard.
                                     </li>
                                     <li>
-                                        <strong>"Show LP Preview"</strong> – Save the current editor values as a draft first, then open the landing
-                                        page preview. If no landing page exists yet, ERNIE opens the setup modal. After creating the preview there,
-                                        the landing page opens in a new browser tab.
+                                        <strong>"Validate"</strong> – Validate and save the complete dataset locally without contacting DataCite or
+                                        leaving the editor. All mandatory fields (title, year, resource type, datacenter, license, authors, abstract)
+                                        must be filled. Language of Data is optional.
                                     </li>
                                     <li>
-                                        <strong>"Save &amp; Validate"</strong> – Save and validate the complete dataset. All mandatory fields (title,
-                                        year, resource type, datacenter, license, authors, abstract) must be filled. Language of Data is optional and
-                                        can be left unset or cleared when the metadata does not specify a language.
+                                        <strong>"Register"</strong> – Validate the complete dataset, ask for explicit confirmation, save it, and
+                                        register or synchronize it with DataCite. If no landing page exists, its setup opens before registration
+                                        continues.
+                                    </li>
+                                    <li>
+                                        <strong>"Preview LP"</strong> – Preserve the record's workflow state while saving the current editor values,
+                                        then open its landing-page preview. If no landing page exists, ERNIE opens the setup modal first.
                                     </li>
                                 </ul>
                                 <p className="mt-3">
-                                    After <strong>"Save &amp; Validate"</strong>, ERNIE shows blocking validation issues in a clickable summary above
-                                    the form. Select any entry to reopen the relevant accordion section and jump directly to the affected field.
+                                    For a published record the action bar instead shows <strong>"Update Metadata"</strong> and{' '}
+                                    <strong>"Show LP"</strong>. Updating DataCite always requires confirmation; cancelling that confirmation performs
+                                    neither the action-specific save nor an external write. Blocking validation issues appear in a clickable summary
+                                    above the form.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
@@ -1823,10 +1829,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             license text when a URL is available, and its tooltip shows the SPDX identifier.
                         </p>
                         <p>
-                            From the Data Editor, click <strong>Show LP Preview</strong> in the bottom-right action bar next to{' '}
-                            <strong>Save Draft</strong> and <strong>Save &amp; Validate</strong> to save the current metadata as a draft and open the
-                            landing page flow immediately. Existing landing pages open in a new browser tab. If the resource has no landing page yet,
-                            ERNIE opens the setup modal and automatically opens the preview after you create it.
+                            From an unpublished record in the Data Editor, click <strong>Preview LP</strong> in the bottom-right action bar to save
+                            the current metadata while preserving its workflow state and open the landing-page flow. Published records use{' '}
+                            <strong>Show LP</strong> to open the public or external page. If an unpublished resource has no landing page, ERNIE opens
+                            the setup modal and automatically opens the preview after you create it.
                         </p>
 
                         <WorkflowSteps>
@@ -1838,7 +1844,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <WorkflowSteps.Step number={2} title="Create Landing Page">
                                 <p>
                                     Select the resource and click the <strong>Set up landing page</strong> quick action in the bulk toolbar, or use{' '}
-                                    <strong>Show LP Preview</strong> directly in the Data Editor.
+                                    <strong>Preview LP</strong> directly in the Data Editor.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Preview">
@@ -1982,10 +1988,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     <strong>Acquisition</strong> (Material, material-specific Classification, structured Description fields labelled
                                     by their scheme, Geological Unit, Comments, Minimum/Maximum Depth, Depth Scale, Sizes, Collection Method and
                                     Collection Method Description, Platform Type, Platform Name, Platform Description, Funding Agency, Chief
-                                    Scientist, Start/End Date), and{' '}
-                                    <strong>Repositories</strong> (current and original repository, their contacts, and sample access). Draft family
-                                    members remain visible without a link, while empty fields and empty modules are hidden automatically on the
-                                    rendered page.
+                                    Scientist, Start/End Date), and <strong>Repositories</strong> (current and original repository, their contacts,
+                                    and sample access). Draft family members remain visible without a link, while empty fields and empty modules are
+                                    hidden automatically on the rendered page.
                                 </p>
                                 <p>
                                     The right-column <strong>Location / Map</strong> module becomes <strong>Sampling Location</strong> for IGSNs. It
@@ -2029,6 +2034,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             Once your landing page is public, you can register a DOI through DataCite. Beginner users follow the same workflow, but
                             ERNIE forces their requests to the DataCite test API.
+                        </p>
+                        <p>
+                            In the Data Editor, <strong>Register</strong> and <strong>Update Metadata</strong> first run local completeness checks and
+                            then show a confirmation dialog. Nothing is saved for that action and nothing is sent to DataCite until you confirm. If
+                            registration still needs a landing page, ERNIE saves the validated resource, opens landing-page setup, and resumes the
+                            confirmed registration only after setup succeeds.
+                        </p>
+                        <p>
+                            A newly registered DOI shows a five-second success celebration with the total number of canonically published Resources
+                            and IGSNs in ERNIE. Draft, curation, and review records are excluded. Metadata updates use a normal success message
+                            without the celebration.
                         </p>
 
                         <h4>DOI Duplicate Detection</h4>

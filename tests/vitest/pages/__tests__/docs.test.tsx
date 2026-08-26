@@ -660,7 +660,8 @@ describe('Docs page', () => {
 
         await openDatasetsTab(user);
 
-        expect(screen.getAllByText('Show LP Preview').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Preview LP').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Show LP').length).toBeGreaterThan(0);
         expect(
             screen.getByText((_, element) => {
                 if (element?.tagName !== 'P') {
@@ -684,9 +685,8 @@ describe('Docs page', () => {
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
                 return (
-                    text.includes(
-                        'From the Data Editor, click Show LP Preview in the bottom-right action bar next to Save Draft and Save & Validate',
-                    ) && text.includes('automatically opens the preview after you create it.')
+                    text.includes('From an unpublished record in the Data Editor, click Preview LP in the bottom-right action bar') &&
+                    text.includes('automatically opens the preview after you create it.')
                 );
             }),
         ).toBeInTheDocument();

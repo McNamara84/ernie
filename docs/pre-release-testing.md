@@ -374,8 +374,23 @@ Run as curator using a new test resource.
 - [ ] A draft with incomplete data can be saved and reopened later when the UI
       offers that action.
 
-- [ ] Complete required data enables `Save to database`; success is confirmed and
-      exactly one resource is created.
+- [ ] An unpublished record shows exactly `Save Draft`, `Validate`, `Register`,
+      and `Preview LP`; a published record shows exactly `Update Metadata` and
+      `Show LP`.
+
+- [ ] `Validate` saves complete required data locally, keeps the editor open, and
+      does not send a DataCite request.
+
+- [ ] Cancelling the `Register` or `Update Metadata` confirmation performs no
+      action-specific save and no DataCite write.
+
+- [ ] Confirmed registration without a landing page saves once, opens landing-page
+      setup, and sends the DataCite request only after setup succeeds. Cancelling
+      setup leaves the validated local save and sends nothing to DataCite.
+
+- [ ] A new test DOI registration shows the DOI and the published Resource + IGSN
+      total, redirects after five seconds, and suppresses confetti when reduced
+      motion is enabled. A metadata update does not show this celebration.
 
 - [ ] Double-clicking or confirming again while saving does not create a
       duplicate.
@@ -889,8 +904,8 @@ count.
 
 ### 4.2 Resources
 
-- [ ] Sign in as an administrator, open `/resources`, and select `Update
-    DataCite landing-page URLs`.
+- [ ] Sign in as an administrator, open `/resources`, and select
+      `Update DataCite landing-page URLs`.
 - [ ] Confirm the `DataCite Production` badge, production endpoint, target base,
       eligible total, and all ten current/new URL samples.
 - [ ] Confirm that no sampled external landing page is present and that every

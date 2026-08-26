@@ -86,6 +86,24 @@ class Resource extends Model
     ];
 
     /**
+     * Limit a query to resources that are canonically public in ERNIE.
+     *
+     * This mirrors the first, highest-priority branch of publicStatus().
+     * Published records always have a DOI and a published landing page,
+     * regardless of metadata completeness or workflow overrides.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopePublished(Builder $query): Builder
+    {
+        return $query
+            ->whereNotNull('doi')
+            ->where('doi', '!=', '')
+            ->whereHas('landingPage', fn (Builder $landingPageQuery): Builder => $landingPageQuery->where('is_published', true));
+    }
+
+    /**
      * Relations that must be eager-loaded for DataCite export/registration.
      *
      * Shared by BatchResourceExportController and BatchResourceRegistrationController

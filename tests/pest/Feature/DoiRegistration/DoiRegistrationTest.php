@@ -3,7 +3,9 @@
 use App\Enums\UserRole;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Models\ResourceType;
 use App\Models\User;
+use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Http;
 
 use function Pest\Laravel\actingAs;
@@ -118,6 +120,11 @@ test('doi registration succeeds with valid data for new doi', function () {
     $response->assertJson([
         'success' => true,
         'doi' => '10.83279/test-12345',
+        'publishedRecordCounts' => [
+            'resources' => 0,
+            'igsns' => 0,
+            'total' => 0,
+        ],
     ]);
 
     // Verify DOI was saved to database
@@ -129,6 +136,82 @@ test('doi registration succeeds with valid data for new doi', function () {
     expect($this->resource->doi)->toBe('10.83279/test-12345')
         ->and($issuedDate)->not->toBeNull()
         ->and($issuedDate->date_value)->toBe($issuedDate->created_at->toDateString());
+});
+
+test('new doi registration returns a freshly invalidated published inventory count', function () {
+    actingAs($this->user);
+
+    $datasetType = ResourceType::firstOrCreate(['slug' => 'dataset'], ['name' => 'Dataset']);
+    $this->resource->update(['resource_type_id' => $datasetType->id]);
+    LandingPage::factory()->for($this->resource)->published()->withoutDoi()->create();
+
+    expect(app(ResourceCacheService::class)->getPublishedResourceCounts())->toBe([
+        'resources' => 0,
+        'igsns' => 0,
+        'total' => 0,
+    ]);
+
+    Http::fake([
+        '*datacite.org/*' => Http::response([
+            'data' => [
+                'id' => '10.83279/published-test',
+                'type' => 'dois',
+                'attributes' => [
+                    'doi' => '10.83279/published-test',
+                    'state' => 'findable',
+                ],
+            ],
+        ], 201),
+    ]);
+
+    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+        'prefix' => '10.83279',
+    ]);
+
+    $response->assertOk()->assertJsonPath('publishedRecordCounts', [
+        'resources' => 1,
+        'igsns' => 0,
+        'total' => 1,
+    ]);
+});
+
+test('new doi registration remains successful when the optional published inventory count fails', function () {
+    actingAs($this->user);
+
+    LandingPage::factory()->for($this->resource)->published()->withoutDoi()->create();
+
+    Http::fake([
+        '*datacite.org/*' => Http::response([
+            'data' => [
+                'id' => '10.83279/count-failure',
+                'type' => 'dois',
+                'attributes' => [
+                    'doi' => '10.83279/count-failure',
+                    'state' => 'findable',
+                ],
+            ],
+        ], 201),
+    ]);
+
+    $cacheService = Mockery::mock(ResourceCacheService::class)->shouldIgnoreMissing();
+    $cacheService->shouldReceive('getPublishedResourceCounts')
+        ->once()
+        ->andThrow(new RuntimeException('Published count unavailable'));
+    $this->app->instance(ResourceCacheService::class, $cacheService);
+
+    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+        'prefix' => '10.83279',
+    ]);
+
+    $response->assertOk()
+        ->assertJson([
+            'success' => true,
+            'doi' => '10.83279/count-failure',
+            'updated' => false,
+        ])
+        ->assertJsonMissingPath('publishedRecordCounts');
+
+    expect($this->resource->refresh()->doi)->toBe('10.83279/count-failure');
 });
 
 test('doi registration updates metadata for existing doi', function () {
@@ -165,6 +248,7 @@ test('doi registration updates metadata for existing doi', function () {
         'success' => true,
         'updated' => true,
     ]);
+    $response->assertJsonMissing(['publishedRecordCounts']);
     $issuedDate = $this->resource->dates()->whereHas('dateType', function ($q) {
         $q->whereRaw('LOWER(slug) = ?', ['issued']);
     })->first();

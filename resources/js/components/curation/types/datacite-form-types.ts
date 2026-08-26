@@ -232,6 +232,7 @@ export interface DataCiteFormProps {
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];
     initialResourceId?: string;
+    initialPublicStatus?: ResourcePublicStatus;
     initialLandingPage?: EditorLandingPageSummary | null;
     initialAuthors?: InitialAuthor[];
     initialContributors?: InitialContributor[];
@@ -278,6 +279,16 @@ export interface DataCiteFormProps {
     activeRelationTypes?: string[];
     /** Active identifier type slugs from the backend (only these are shown in the editor) */
     activeIdentifierTypes?: string[];
+}
+
+export type ResourcePublicStatus = 'draft' | 'curation' | 'review' | 'published';
+
+export type EditorDraftSaveIntent = 'save-draft' | 'autosave' | 'landing-page-preview';
+
+export interface PublishedRecordCounts {
+    resources: number;
+    igsns: number;
+    total: number;
 }
 
 // ============================================================================
