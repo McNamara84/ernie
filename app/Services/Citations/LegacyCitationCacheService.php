@@ -41,6 +41,79 @@ class LegacyCitationCacheService
         return $this->findMany([$normalizedDoi])[$normalizedDoi] ?? null;
     }
 
+    public function findUrl(string $url): ?string
+    {
+        $url = trim($url);
+
+        if ($url === '') {
+            return null;
+        }
+
+        return $this->findManyUrls([$url])[$url] ?? null;
+    }
+
+    /**
+     * Look up citations stored under literal non-DOI URL keys.
+     *
+     * URL paths and query strings may be case-sensitive, so this lookup does
+     * not lowercase or otherwise canonicalize its inputs.
+     *
+     * @param  list<string>  $urls
+     * @return array<string, string>
+     */
+    public function findManyUrls(array $urls): array
+    {
+        if ($this->legacyDatabaseUnavailable) {
+            return [];
+        }
+
+        /** @var array<string, true> $requestedUrls */
+        $requestedUrls = [];
+
+        foreach ($urls as $url) {
+            $url = trim($url);
+
+            if ($url !== '') {
+                $requestedUrls[$url] = true;
+            }
+        }
+
+        if ($requestedUrls === []) {
+            return [];
+        }
+
+        try {
+            $rows = $this->queryRows(array_keys($requestedUrls), false);
+            $citations = [];
+
+            foreach ($rows as $row) {
+                if (! isset($requestedUrls[$row['url']])) {
+                    continue;
+                }
+
+                $citation = $this->normalizeCitation($row['citation']);
+
+                if ($citation !== null) {
+                    $citations[$row['url']] = $citation;
+                }
+            }
+
+            $orderedCitations = [];
+
+            foreach (array_keys($requestedUrls) as $url) {
+                if (isset($citations[$url])) {
+                    $orderedCitations[$url] = $citations[$url];
+                }
+            }
+
+            return $orderedCitations;
+        } catch (\Throwable $exception) {
+            $this->markLegacyDatabaseUnavailable(count($requestedUrls), $exception);
+
+            return [];
+        }
+    }
+
     /**
      * @param  list<string>  $dois
      * @return array<string, string>
@@ -99,12 +172,7 @@ class LegacyCitationCacheService
 
             return $orderedCitations;
         } catch (\Throwable $exception) {
-            $this->legacyDatabaseUnavailable = true;
-
-            Log::warning('Legacy citation cache lookup failed; falling back to DOI metadata.', [
-                'doi_count' => count($normalizedDois),
-                'error' => $exception->getMessage(),
-            ]);
+            $this->markLegacyDatabaseUnavailable(count($normalizedDois), $exception);
 
             return [];
         }
@@ -284,5 +352,15 @@ class LegacyCitationCacheService
         }
 
         return count(self::DOI_URL_PREFIXES);
+    }
+
+    private function markLegacyDatabaseUnavailable(int $identifierCount, \Throwable $exception): void
+    {
+        $this->legacyDatabaseUnavailable = true;
+
+        Log::warning('Legacy citation cache lookup failed; continuing without cached citation labels.', [
+            'identifier_count' => $identifierCount,
+            'error' => $exception->getMessage(),
+        ]);
     }
 }

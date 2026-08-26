@@ -580,10 +580,19 @@ describe('ResourceStorageService', function () {
 
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
         $mock->shouldNotReceive('resolve');
-        $mock->shouldReceive('resolveBestEffort')
+        $mock->shouldReceive('resolveBestEffortBatchForStorage')
             ->once()
-            ->with('10.5880/test.related', 'DOI', Mockery::type('float'))
-            ->andReturn('Doe, J. (2026): Auto-resolved citation.');
+            ->with(
+                Mockery::on(static fn (array $relatedIdentifiers): bool => count($relatedIdentifiers) === 2
+                    && trim((string) $relatedIdentifiers[0]['identifier']) === '10.5880/test.related'
+                    && trim((string) $relatedIdentifiers[1]['identifier']) === ''),
+                Mockery::type('float'),
+            )
+            ->andReturnUsing(static function (array $relatedIdentifiers): array {
+                $relatedIdentifiers[0]['citationLabel'] = 'Doe, J. (2026): Auto-resolved citation.';
+
+                return $relatedIdentifiers;
+            });
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
         $service = app(ResourceStorageService::class);
@@ -647,7 +656,7 @@ describe('ResourceStorageService', function () {
         $resourceType = ResourceType::first();
 
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $mock->shouldNotReceive('resolveBestEffort');
+        $mock->shouldNotReceive('resolveBestEffortBatchForStorage');
         $mock->shouldNotReceive('resolve');
         $mock->shouldReceive('resolveExhaustiveForStorage')
             ->once()
@@ -727,11 +736,14 @@ describe('ResourceStorageService', function () {
             ]);
     });
 
-    it('preserves manual related identifier citation labels without calling the resolver', function () {
+    it('preserves manual related identifier citation labels during batch resolution', function () {
         $resourceType = ResourceType::first();
 
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $mock->shouldNotReceive('resolveBestEffort');
+        $mock->shouldReceive('resolveBestEffortBatchForStorage')
+            ->once()
+            ->with(Mockery::type('array'), Mockery::type('float'))
+            ->andReturnUsing(static fn (array $relatedIdentifiers): array => $relatedIdentifiers);
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
         $service = app(ResourceStorageService::class);
@@ -895,7 +907,7 @@ describe('ResourceStorageService', function () {
         $resourceType = ResourceType::first();
 
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $mock->shouldNotReceive('resolveBestEffort');
+        $mock->shouldNotReceive('resolveBestEffortBatchForStorage');
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
         $service = app(ResourceStorageService::class);
