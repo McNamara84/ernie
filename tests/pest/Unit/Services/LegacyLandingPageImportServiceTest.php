@@ -60,13 +60,18 @@ describe('LegacyLandingPageImportService', function () {
         ]);
         $automatic = $landingPage->links()->create([
             'url' => 'https://example.org/automatic',
-            'label' => 'https://example.org/automatic',
+            'label' => 'Download 2',
             'position' => 0,
+        ]);
+        $parenthesizedAutomatic = $landingPage->links()->create([
+            'url' => 'https://example.org/parenthesized-automatic',
+            'label' => 'Download (3)',
+            'position' => 1,
         ]);
         $custom = $landingPage->links()->create([
             'url' => 'https://example.org/custom',
             'label' => 'Curated service label',
-            'position' => 1,
+            'position' => 2,
         ]);
 
         $result = (new LegacyLandingPageImportService)->syncMissingFileEntries(
@@ -83,6 +88,11 @@ describe('LegacyLandingPageImportService', function () {
                     'source_name' => 'https://example.org/automatic',
                 ],
                 [
+                    'url' => 'https://example.org/parenthesized-automatic',
+                    'label' => 'Parenthesized automatic service',
+                    'source_name' => 'https://example.org/parenthesized-automatic',
+                ],
+                [
                     'url' => 'https://example.org/custom',
                     'label' => 'Legacy replacement',
                     'source_name' => 'https://example.org/custom',
@@ -92,9 +102,10 @@ describe('LegacyLandingPageImportService', function () {
         );
 
         expect($result['changed'])->toBeTrue()
-            ->and($result['labels_updated'])->toBe(2)
+            ->and($result['labels_updated'])->toBe(3)
             ->and($landingPage->fresh()->primary_download_label)->toBe('Download via GFZ Data Services')
             ->and($automatic->fresh()->label)->toBe('Automatic service')
+            ->and($parenthesizedAutomatic->fresh()->label)->toBe('Parenthesized automatic service')
             ->and($custom->fresh()->label)->toBe('Curated service label');
     });
 

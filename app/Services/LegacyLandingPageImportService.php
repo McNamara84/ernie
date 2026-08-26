@@ -304,7 +304,7 @@ class LegacyLandingPageImportService
         return $currentLabel === ''
             || $currentLabel === trim($url)
             || ($sourceName !== null && $currentLabel === trim($sourceName))
-            || preg_match('/\ADownload \d+\z/', $currentLabel) === 1;
+            || preg_match('/\ADownload (?:\(\d+\)|\d+)\z/', $currentLabel) === 1;
     }
 
     /**
