@@ -43,6 +43,7 @@ use App\Services\Rights\ResourceRightsStorageService;
 use App\Services\Xml\OriginalDataCiteRelatedIdentifierExtractionService;
 use App\Services\Xml\Sections\RightsSectionParser;
 use App\Support\DataCiteDateNormalizer;
+use App\Support\DescriptionTextNormalizer;
 use App\Support\GemetVocabularyParser;
 use App\Support\LanguageTag;
 use App\Support\OrcidNormalizer;
@@ -76,6 +77,7 @@ class DataCiteToResourceTransformer
         private ?DataCiteJsonImportNormalizerService $jsonImportNormalizer = null,
         private ?OriginalDataCiteRelatedIdentifierExtractionService $xmlRelatedIdentifierExtractor = null,
         private ?RelatedIdentifierImportMergeService $relatedIdentifierImportMergeService = null,
+        private ?DescriptionTextNormalizer $descriptionTextNormalizer = null,
     ) {}
 
     /**
@@ -1260,6 +1262,9 @@ class DataCiteToResourceTransformer
             if ($description === null || trim((string) $description) === '') {
                 continue;
             }
+
+            $description = ($this->descriptionTextNormalizer ??= new DescriptionTextNormalizer)
+                ->normalize((string) $description)['value'];
 
             $descriptionTypeId = null;
             if (isset($descriptionData['descriptionType'])) {

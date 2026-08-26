@@ -2,14 +2,7 @@ import type { LandingPageDescription, RightColumnSection } from '@/types/landing
 
 export const LEGACY_DESCRIPTIONS_SECTION_KEY = 'descriptions' as const;
 
-export const DESCRIPTION_SECTION_KEYS = [
-    'abstract',
-    'methods',
-    'technical_info',
-    'series_information',
-    'table_of_contents',
-    'other',
-] as const;
+export const DESCRIPTION_SECTION_KEYS = ['abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other'] as const;
 
 export type DescriptionSectionKey = (typeof DESCRIPTION_SECTION_KEYS)[number];
 
@@ -23,17 +16,14 @@ export const DESCRIPTION_SECTION_CONFIG: Record<DescriptionSectionKey, { heading
     technical_info: { heading: 'Technical Information', matches: ['technicalinfo', 'technicalinformation'] },
     series_information: { heading: 'Series Information', matches: ['seriesinformation'] },
     table_of_contents: { heading: 'Table of Contents', matches: ['tableofcontents'] },
-    other: { heading: 'Other', matches: ['other'] },
+    other: { heading: 'Additional Information', matches: ['other'] },
 };
 
 export function normalizeDescriptionType(value: string | null | undefined): string {
     return (value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
-export function filterDescriptionsBySection(
-    descriptions: LandingPageDescription[],
-    sectionKey: DescriptionSectionKey,
-): LandingPageDescription[] {
+export function filterDescriptionsBySection(descriptions: LandingPageDescription[], sectionKey: DescriptionSectionKey): LandingPageDescription[] {
     const { matches } = DESCRIPTION_SECTION_CONFIG[sectionKey];
 
     return descriptions.filter((description) => matches.includes(normalizeDescriptionType(description.description_type)));
@@ -48,9 +38,7 @@ export function expandMetadataOrder(sectionOrder: readonly MetadataSectionKey[])
     const seen = new Set<ExpandedMetadataSectionKey>();
 
     for (const key of sectionOrder) {
-        const keysToInsert = key === LEGACY_DESCRIPTIONS_SECTION_KEY
-            ? [...DESCRIPTION_SECTION_KEYS]
-            : [key as ExpandedMetadataSectionKey];
+        const keysToInsert = key === LEGACY_DESCRIPTIONS_SECTION_KEY ? [...DESCRIPTION_SECTION_KEYS] : [key as ExpandedMetadataSectionKey];
 
         for (const expandedKey of keysToInsert) {
             if (seen.has(expandedKey)) {

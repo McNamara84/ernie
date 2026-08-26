@@ -13,6 +13,15 @@ describe('DescriptionSection', () => {
         expect(screen.getByTestId('abstract-text')).toHaveTextContent('This is the abstract text.');
     });
 
+    it('renders normalized comparison symbols as text', () => {
+        const descriptions = [{ id: 1, value: 'Concentrations >500 and <0.5.', description_type: 'Abstract' }];
+
+        render(<DescriptionSection descriptions={descriptions} sectionKey="abstract" />);
+
+        expect(screen.getByTestId('abstract-text')).toHaveTextContent('Concentrations >500 and <0.5.');
+        expect(screen.getByTestId('abstract-text')).not.toHaveTextContent('&gt;500');
+    });
+
     it('returns null when no matching description type exists', () => {
         const descriptions = [{ id: 1, value: 'Some methods.', description_type: 'Methods' }];
         const { container } = render(<DescriptionSection descriptions={descriptions} sectionKey="abstract" />);
@@ -26,6 +35,47 @@ describe('DescriptionSection', () => {
         ];
         render(<DescriptionSection descriptions={descriptions} sectionKey="methods" />);
         expect(screen.getByTestId('methods-text')).toHaveTextContent('Methods description.');
+    });
+
+    it('renders DataCite Other descriptions as Additional Information', () => {
+        const descriptions = [{ id: 1, value: 'Supplementary context.', description_type: 'Other' }];
+
+        render(<DescriptionSection descriptions={descriptions} sectionKey="other" />);
+
+        expect(screen.getByRole('heading', { level: 3, name: 'Additional Information' })).toBeInTheDocument();
+        expect(screen.getByTestId('other-text')).toHaveTextContent('Supplementary context.');
+    });
+
+    it('linkifies HTTPS URLs in plain text but leaves HTTP URLs as text', () => {
+        const descriptions = [
+            {
+                id: 1,
+                value: 'Current: https://example.org/data?q=1, legacy: http://legacy.example.org/data.',
+                description_type: 'Abstract',
+            },
+        ];
+
+        render(<DescriptionSection descriptions={descriptions} sectionKey="abstract" />);
+
+        const link = screen.getByRole('link', { name: 'https://example.org/data?q=1' });
+        expect(link).toHaveAttribute('href', 'https://example.org/data?q=1');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(screen.getByTestId('abstract-text')).toHaveTextContent(
+            'Current: https://example.org/data?q=1, legacy: http://legacy.example.org/data.',
+        );
+        expect(screen.queryByRole('link', { name: 'http://legacy.example.org/data' })).not.toBeInTheDocument();
+    });
+
+    it('renders HTML-looking plain text safely', () => {
+        const descriptions = [{ id: 1, value: '<script>alert("unsafe")</script> https://example.org', description_type: 'Abstract' }];
+
+        render(<DescriptionSection descriptions={descriptions} sectionKey="abstract" />);
+
+        const block = screen.getByTestId('abstract-text');
+        expect(block).toHaveTextContent('<script>alert("unsafe")</script> https://example.org');
+        expect(block.querySelector('script')).toBeNull();
+        expect(screen.getByRole('link', { name: 'https://example.org' })).toBeInTheDocument();
     });
 
     it('renders multiple descriptions of the same type in data order', () => {
@@ -86,6 +136,7 @@ describe('DescriptionSection', () => {
         const block = screen.getByTestId('abstract-text');
         expect(block.querySelector('strong')).toHaveTextContent('abstract');
         expect(block.querySelector('a')).toHaveAttribute('href', 'https://example.org');
+        expect(block.querySelectorAll('a')).toHaveLength(1);
         expect(block).toHaveTextContent('Formatted abstract with link.');
         expect(block).not.toHaveTextContent('Plain text fallback');
     });

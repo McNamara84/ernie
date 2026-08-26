@@ -1,5 +1,29 @@
 [
     {
+        "version": "1.0.3",
+        "date": "2026-08-27",
+        "features": [],
+        "improvements": [],
+        "fixes": [
+            {
+                "title": "Correctly Rendered Comparison Symbols in Descriptions",
+                "description": "New DataCite imports now store encoded less-than and greater-than entities as their intended comparison symbols without broadly decoding other HTML entities. A dry-run-first repair command can safely update affected existing descriptions with DOI filtering, resumable processing, bounded runs, and an optional CSV report."
+            },
+            {
+                "title": "Clickable HTTPS Links in Plain Descriptions",
+                "description": "Full HTTPS URLs in plain landing-page descriptions are now rendered as safe external links while preserving line breaks and surrounding punctuation. HTTP URLs intentionally remain plain text, and curated landing-page HTML continues to use its existing sanitized rendering path."
+            },
+            {
+                "title": "Additional Information Description Labels",
+                "description": "Resource and IGSN landing pages now present DataCite Other descriptions under the clearer Additional Information heading. The underlying DataCite description type and stored template section key remain unchanged for export and configuration compatibility."
+            },
+            {
+                "title": "Visible Large Related Work Collections",
+                "description": "Related Work cards now become visible as soon as they intersect the viewport, including unusually tall collections that could never satisfy the previous visibility ratio. Desktop pages continue to show every relation, while mobile pages retain the expandable nine-entry preview."
+            }
+        ]
+    },
+    {
         "version": "1.0.2",
         "date": "2026-08-26",
         "features": [],

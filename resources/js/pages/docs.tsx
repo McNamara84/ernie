@@ -1992,10 +1992,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>
                                     The right column exposes separate description modules for <strong>Abstract</strong>, <strong>Methods</strong>,
                                     <strong>Technical Information</strong>, <strong>Series Information</strong>, <strong>Table of Contents</strong>,
-                                    and <strong>Other</strong>, followed by Creators, Contributors, Funding References, Keywords, Metadata Download,
-                                    and Location / Map. Description modules are reordered individually, but they still render together inside one
-                                    shared metadata card on the public landing page. The <strong>Location / Map</strong> section remains a separate
-                                    card above or below that metadata card.
+                                    and <strong>Additional Information</strong>, followed by Creators, Contributors, Funding References, Keywords,
+                                    Metadata Download, and Location / Map. Description modules are reordered individually, but they still render
+                                    together inside one shared metadata card on the public landing page. The <strong>Location / Map</strong> section
+                                    remains a separate card above or below that metadata card.
                                 </p>
                                 <p>
                                     For IGSN landing pages, the left column also includes <strong>General</strong> (Project, Campaign, Type, Name,

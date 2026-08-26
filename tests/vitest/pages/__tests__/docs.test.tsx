@@ -898,6 +898,7 @@ describe('Docs page', () => {
         const groupLeaderPage = renderDocsPage('group_leader');
         await openDatasetsTab(groupLeaderPage.user);
         expect(screen.getByText('Custom Landing Page Templates')).toBeInTheDocument();
+        expect(screen.getByText('Additional Information')).toBeInTheDocument();
     });
 
     it('hides landing page templates for curators', async () => {

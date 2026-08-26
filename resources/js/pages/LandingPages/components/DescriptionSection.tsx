@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import type { LandingPageDescription } from '@/types/landing-page';
 
+import { splitHttpsLinks } from '../lib/https-links';
 import { DESCRIPTION_SECTION_CONFIG, type DescriptionSectionKey, filterDescriptionsBySection } from '../lib/metadata-sections';
 
 interface DescriptionSectionProps {
@@ -16,6 +17,18 @@ const languageLabel = (code: string): string => {
 
     return normalized;
 };
+
+function PlainDescriptionText({ value }: { value: string }) {
+    return splitHttpsLinks(value).map((segment, index) =>
+        segment.type === 'link' ? (
+            <a key={index} href={segment.value} target="_blank" rel="noopener noreferrer" className="break-words underline">
+                {segment.value}
+            </a>
+        ) : (
+            <span key={index}>{segment.value}</span>
+        ),
+    );
+}
 
 /**
  * Renders all descriptions belonging to a single DataCite description type.
@@ -53,7 +66,7 @@ export function DescriptionSection({ descriptions, sectionKey }: DescriptionSect
                                 />
                             ) : (
                                 <p className="mt-0 whitespace-pre-wrap" data-testid={testId}>
-                                    {description.value}
+                                    <PlainDescriptionText value={description.value} />
                                 </p>
                             )}
                         </article>

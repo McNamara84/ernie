@@ -9,7 +9,7 @@ export const RIGHT_SECTION_LABELS: Record<RightColumnSection, string> = {
     technical_info: 'Technical Information',
     series_information: 'Series Information',
     table_of_contents: 'Table of Contents',
-    other: 'Other',
+    other: 'Additional Information',
     creators: 'Creators / Authors',
     contributors: 'Contributors',
     funders: 'Funding References',
