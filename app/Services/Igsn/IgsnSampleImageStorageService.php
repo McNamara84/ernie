@@ -6,7 +6,6 @@ namespace App\Services\Igsn;
 
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
-use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Support\IgsnIdentifier;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +19,6 @@ final class IgsnSampleImageStorageService
 {
     public function __construct(
         private readonly IgsnSampleImageUrlService $urlService,
-        private readonly LandingPageRenderDataCacheService $landingPageCache,
     ) {}
 
     /**
@@ -66,9 +64,6 @@ final class IgsnSampleImageStorageService
             'sample_image_mime_type' => null,
             'sample_image_size' => null,
         ])->save();
-
-        $this->deleteAfterCommit($oldPath);
-        $this->forgetLandingPage($metadata);
 
         return ['status' => 'external', 'message' => 'External image URL stored.'];
     }
@@ -175,10 +170,8 @@ final class IgsnSampleImageStorageService
             }
 
             if ($oldPath !== $targetPath) {
-                $this->deleteAfterCommit($oldPath);
                 $this->deleteAfterRollback($targetPath);
             }
-            $this->forgetLandingPage($metadata);
 
             return ['status' => 'stored', 'message' => 'Managed image stored.'];
         } catch (ConnectionException $exception) {
@@ -202,32 +195,6 @@ final class IgsnSampleImageStorageService
         ]);
 
         return ['status' => 'failed', 'message' => $message];
-    }
-
-    private function forgetLandingPage(IgsnMetadata $metadata): void
-    {
-        $metadata->loadMissing('resource.landingPage');
-        $resource = $metadata->getRelation('resource');
-        if (! $resource instanceof Resource) {
-            return;
-        }
-
-        $landingPage = $resource->landingPage;
-        if ($landingPage !== null && $landingPage->isPublished()) {
-            $this->landingPageCache->forgetById((int) $landingPage->id);
-        }
-    }
-
-    private function deleteAfterCommit(mixed $path): void
-    {
-        if (! is_string($path) || $path === '') {
-            return;
-        }
-
-        $disk = $this->disk();
-        DB::afterCommit(static function () use ($disk, $path): void {
-            Storage::disk($disk)->delete($path);
-        });
     }
 
     private function deleteAfterRollback(string $path): void

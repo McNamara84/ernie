@@ -107,8 +107,14 @@ class IgsnDifXmlParser
         $resolved = $this->sampleImageUrlService->resolve($image['base_url'], $image['file_name']);
 
         if ($resolved['status'] === IgsnSampleImageUrlService::STATUS_MANAGED) {
+            $sourceChanged = $igsnMetadata->sample_image_source_url !== $resolved['source_url'];
             $igsnMetadata->sample_image_source_url = $resolved['source_url'];
             $igsnMetadata->sample_image_external_url = null;
+            if ($sourceChanged) {
+                $igsnMetadata->sample_image_storage_path = null;
+                $igsnMetadata->sample_image_mime_type = null;
+                $igsnMetadata->sample_image_size = null;
+            }
 
             return;
         }

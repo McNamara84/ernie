@@ -26,6 +26,13 @@ final class IgsnMetadataObserver
             return;
         }
 
+        if ($metadata->wasChanged('sample_image_storage_path')) {
+            $oldPath = $metadata->getOriginal('sample_image_storage_path');
+            if ($oldPath !== $metadata->sample_image_storage_path) {
+                $this->deleteAfterCommit($oldPath);
+            }
+        }
+
         $metadata->loadMissing('resource.landingPage');
         $landingPage = $metadata->resource->landingPage;
         if ($landingPage !== null && $landingPage->isPublished()) {
@@ -35,7 +42,11 @@ final class IgsnMetadataObserver
 
     public function deleted(IgsnMetadata $metadata): void
     {
-        $path = $metadata->sample_image_storage_path;
+        $this->deleteAfterCommit($metadata->sample_image_storage_path);
+    }
+
+    private function deleteAfterCommit(mixed $path): void
+    {
         if (is_string($path) && $path !== '') {
             $disk = (string) config('igsn_images.disk', 'public');
 

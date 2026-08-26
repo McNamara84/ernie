@@ -205,6 +205,8 @@ class ResourceObserver
 
             $imagePath = $resource->igsnMetadata->sample_image_storage_path;
             if (is_string($imagePath) && $imagePath !== '') {
+                // The database cascade removes igsn_metadata rows without dispatching
+                // Eloquent model events, so IgsnMetadataObserver cannot clean up this file.
                 $imageDisk = (string) config('igsn_images.disk', 'public');
                 DB::afterCommit(static function () use ($imageDisk, $imagePath): void {
                     Storage::disk($imageDisk)->delete($imagePath);
