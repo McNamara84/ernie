@@ -46,6 +46,7 @@ interface EditorProps {
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];
     resourceId?: string;
+    publicStatus?: 'draft' | 'curation' | 'review' | 'published';
     landingPage?: EditorLandingPageSummary | null;
     authors?: InitialAuthor[];
     contributors?: InitialContributor[];
@@ -93,6 +94,7 @@ export default function Editor({
     initialLicenses = [],
     initialRawRights = [],
     resourceId,
+    publicStatus,
     landingPage = null,
     authors = [],
     contributors = [],
@@ -322,6 +324,7 @@ export default function Editor({
                         initialLicenses={initialLicenses}
                         initialRawRights={initialRawRights}
                         initialResourceId={resourceId}
+                        initialPublicStatus={publicStatus}
                         initialLandingPage={landingPage}
                         initialAuthors={authors}
                         initialContributors={contributors}

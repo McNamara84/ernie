@@ -11,100 +11,21 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    type DataCitePrefixConfig,
+    describeOrcidReason,
+    type DoiRegistrationResponse,
+    isOrcidPreflightPayload,
+    type OrcidPreflightIssue,
+} from '@/lib/datacite-registration';
 import { type User as AuthUser } from '@/types';
-import { type ResourceDoiActionItem as Resource,shouldUseUpdateMetadataLabel } from '@/types/resources';
+import { type ResourceDoiActionItem as Resource, shouldUseUpdateMetadataLabel } from '@/types/resources';
 
 interface RegisterDoiModalProps {
     resource: Resource;
     isOpen: boolean;
     onClose: () => void;
     onSuccess?: (doi: string) => void;
-}
-
-interface DoiRegistrationResponse {
-    success: boolean;
-    message: string;
-    doi: string;
-    mode: 'test' | 'production';
-    updated: boolean;
-    error?: string;
-    details?: unknown;
-}
-
-/**
- * Reason codes emitted by {@see \App\Services\Orcid\OrcidPreflightValidator}.
- *
- * `blocking` reasons (not_found / checksum / format) prevent registration.
- * Warning reasons (network / timeout / api_error / unknown) can be overridden
- * by the curator via "Register anyway", which re-posts with `force: true`.
- */
-type OrcidPreflightReason = 'not_found' | 'checksum' | 'format' | 'network' | 'timeout' | 'api_error' | 'unknown';
-
-interface OrcidPreflightIssue {
-    severity: 'blocking' | 'warning';
-    reason: OrcidPreflightReason;
-    role: 'creator' | 'contributor';
-    position: number;
-    orcid: string;
-    displayName: string;
-}
-
-interface OrcidPreflightPayload {
-    error: 'orcid_validation_failed' | 'orcid_validation_warning';
-    message?: string;
-    // Kept optional because some proxies strip empty arrays from JSON error
-    // responses. The guard and consumers must treat missing values as `[]`.
-    invalid?: OrcidPreflightIssue[];
-    warnings?: OrcidPreflightIssue[];
-}
-
-interface PrefixConfig {
-    test: string[];
-    production: string[];
-    test_mode: boolean;
-}
-
-const ORCID_REASON_LABELS: Record<OrcidPreflightReason, string> = {
-    not_found: 'not found in ORCID registry',
-    checksum: 'invalid ORCID checksum',
-    format: 'malformed ORCID identifier',
-    network: 'ORCID service unreachable',
-    timeout: 'ORCID service timed out',
-    api_error: 'ORCID service reported an error',
-    unknown: 'ORCID verification failed for an unknown reason',
-};
-
-const KNOWN_ORCID_REASONS: ReadonlySet<string> = new Set(Object.keys(ORCID_REASON_LABELS));
-
-function describeOrcidReason(reason: string | undefined): string {
-    if (reason !== undefined && KNOWN_ORCID_REASONS.has(reason)) {
-        return ORCID_REASON_LABELS[reason as OrcidPreflightReason];
-    }
-    return ORCID_REASON_LABELS.unknown;
-}
-
-function isOrcidPreflightPayload(data: unknown): data is OrcidPreflightPayload {
-    if (!data || typeof data !== 'object') {
-        return false;
-    }
-    const { error, invalid, warnings } = data as {
-        error?: unknown;
-        invalid?: unknown;
-        warnings?: unknown;
-    };
-    if (error !== 'orcid_validation_failed' && error !== 'orcid_validation_warning') {
-        return false;
-    }
-    // Both fields are always emitted by the backend, but some proxies strip
-    // empty arrays. Accept missing fields, but reject anything that is present
-    // and not an array to avoid storing non-iterable values in state.
-    if (invalid !== undefined && !Array.isArray(invalid)) {
-        return false;
-    }
-    if (warnings !== undefined && !Array.isArray(warnings)) {
-        return false;
-    }
-    return true;
 }
 
 export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess }: RegisterDoiModalProps) {
@@ -133,8 +54,8 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
     const existingDoiDescription = shouldUseUpdateLabel
         ? `Update metadata for registered DOI: ${resource.doi}`
         : hasExistingDoi
-            ? `This resource already has DOI ${resource.doi}. Continue to sync the record with DataCite.`
-            : 'Register a new DOI for this resource with DataCite.';
+          ? `This resource already has DOI ${resource.doi}. Continue to sync the record with DataCite.`
+          : 'Register a new DOI for this resource with DataCite.';
 
     // Load available prefixes from backend config
     useEffect(() => {
@@ -156,7 +77,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
         setIsLoadingConfig(true);
         try {
             // Get prefix configuration from backend
-            const response = await axios.get<PrefixConfig>('/api/datacite/prefixes');
+            const response = await axios.get<DataCitePrefixConfig>('/api/datacite/prefixes');
 
             // Use test mode from backend configuration
             const testMode = response.data.test_mode;
@@ -341,7 +262,9 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                             <AlertDescription>
                                 This resource already has a DOI: <strong>{resource.doi}</strong>
                                 <br />
-                                {shouldUseUpdateLabel ? 'Submitting will update the metadata at DataCite.' : 'Submitting will sync this DOI record with DataCite.'}
+                                {shouldUseUpdateLabel
+                                    ? 'Submitting will update the metadata at DataCite.'
+                                    : 'Submitting will sync this DOI record with DataCite.'}
                             </AlertDescription>
                         </Alert>
                     )}
@@ -384,19 +307,17 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                         <Alert variant="destructive" data-testid="orcid-preflight-blockers">
                             <AlertCircle className="size-4" />
                             <AlertTitle>
-                                ORCID validation failed ({orcidBlockers.length}{' '}
-                                {orcidBlockers.length === 1 ? 'identifier' : 'identifiers'})
+                                ORCID validation failed ({orcidBlockers.length} {orcidBlockers.length === 1 ? 'identifier' : 'identifiers'})
                             </AlertTitle>
                             <AlertDescription>
                                 <p className="mb-2">
-                                    The following ORCID identifiers could not be verified. Please correct them in the editor before registering
-                                    the DOI.
+                                    The following ORCID identifiers could not be verified. Please correct them in the editor before registering the
+                                    DOI.
                                 </p>
                                 <ul className="list-disc space-y-1 pl-5">
                                     {orcidBlockers.map((issue) => (
                                         <li key={`${issue.role}-${issue.position}-${issue.orcid}`}>
-                                            <strong>{issue.displayName}</strong>{' '}
-                                            <span className="text-xs text-muted-foreground">({issue.role})</span>
+                                            <strong>{issue.displayName}</strong> <span className="text-xs text-muted-foreground">({issue.role})</span>
                                             <br />
                                             <code className="text-xs">{issue.orcid}</code> – {describeOrcidReason(issue.reason)}
                                         </li>
@@ -411,19 +332,17 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                         <Alert data-testid="orcid-preflight-warnings">
                             <AlertTriangle className="size-4" />
                             <AlertTitle>
-                                ORCID verification unavailable ({orcidWarnings.length}{' '}
-                                {orcidWarnings.length === 1 ? 'identifier' : 'identifiers'})
+                                ORCID verification unavailable ({orcidWarnings.length} {orcidWarnings.length === 1 ? 'identifier' : 'identifiers'})
                             </AlertTitle>
                             <AlertDescription>
                                 <p className="mb-2">
-                                    The ORCID service is temporarily unreachable for the following identifiers. You can retry or register anyway
-                                    if you are confident the ORCIDs are correct.
+                                    The ORCID service is temporarily unreachable for the following identifiers. You can retry or register anyway if
+                                    you are confident the ORCIDs are correct.
                                 </p>
                                 <ul className="list-disc space-y-1 pl-5">
                                     {orcidWarnings.map((issue) => (
                                         <li key={`${issue.role}-${issue.position}-${issue.orcid}`}>
-                                            <strong>{issue.displayName}</strong>{' '}
-                                            <span className="text-xs text-muted-foreground">({issue.role})</span>
+                                            <strong>{issue.displayName}</strong> <span className="text-xs text-muted-foreground">({issue.role})</span>
                                             <br />
                                             <code className="text-xs">{issue.orcid}</code> – {describeOrcidReason(issue.reason)}
                                         </li>
@@ -478,11 +397,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                             loading={submittingAction === 'submit'}
                             onClick={() => handleSubmit()}
                             disabled={
-                                isSubmitting ||
-                                !hasLandingPage ||
-                                (!hasExistingDoi && !selectedPrefix) ||
-                                isLoadingConfig ||
-                                orcidBlockers.length > 0
+                                isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig || orcidBlockers.length > 0
                             }
                         >
                             {primaryActionLabel}

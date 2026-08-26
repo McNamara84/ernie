@@ -3,16 +3,20 @@
 declare(strict_types=1);
 
 use App\Enums\AccessLevel;
+use App\Enums\EditorDraftSaveIntent;
+use App\Enums\ResourceWorkflowStatus;
 use App\Http\Controllers\ResourceController;
 use App\Models\Datacenter;
 use App\Models\DescriptionType;
 use App\Models\Language;
+use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
+use Illuminate\Support\Facades\Http;
 
 covers(ResourceController::class);
 
@@ -41,6 +45,31 @@ beforeEach(function () {
         'name' => 'Abstract',
         'slug' => 'Abstract',
     ]);
+
+    $this->validEditorPayload = fn (array $overrides = []): array => array_merge([
+        'doi' => null,
+        'year' => 2025,
+        'resourceType' => $this->resourceType->id,
+        'accessLevel' => AccessLevel::OPEN->value,
+        'titles' => [
+            ['title' => 'Validated Dataset', 'titleType' => 'main-title'],
+        ],
+        'licenses' => [$this->right->identifier],
+        'authors' => [
+            [
+                'type' => 'person',
+                'firstName' => 'Jane',
+                'lastName' => 'Doe',
+                'isContact' => false,
+                'position' => 0,
+                'affiliations' => [],
+            ],
+        ],
+        'descriptions' => [
+            ['descriptionType' => 'abstract', 'description' => 'A complete abstract.'],
+        ],
+        'datacenter_id' => $this->datacenter->id,
+    ], $overrides);
 });
 
 describe('Draft save (Issue #548)', function () {
@@ -62,7 +91,8 @@ describe('Draft save (Issue #548)', function () {
             ->and($resource->publication_year)->toBeNull()
             ->and($resource->resource_type_id)->toBeNull()
             ->and($resource->created_by_user_id)->toBe($this->user->id)
-            ->and($resource->datacenter_id)->toBeNull();
+            ->and($resource->datacenter_id)->toBeNull()
+            ->and($resource->workflow_status_override)->toBe(ResourceWorkflowStatus::DRAFT);
     });
 
     it('saves a draft with partial data', function () {
@@ -273,6 +303,83 @@ describe('Draft save (Issue #548)', function () {
 
         // Draft response should not include dataCiteSync key
         $response->assertJsonMissing(['dataCiteSync']);
+    });
+
+    it('preserves workflow state for background and landing-page saves', function (EditorDraftSaveIntent $intent) {
+        $resource = Resource::factory()->create([
+            'workflow_status_override' => ResourceWorkflowStatus::REVIEW,
+            'force_review_status' => true,
+            'created_by_user_id' => $this->user->id,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', [
+                'intent' => $intent->value,
+                'resourceId' => $resource->id,
+                'doi' => $resource->doi,
+                'titles' => [
+                    ['title' => 'Preserved workflow', 'titleType' => 'main-title'],
+                ],
+            ]);
+
+        $response->assertOk();
+
+        expect($resource->fresh()->workflow_status_override)->toBe(ResourceWorkflowStatus::REVIEW)
+            ->and($resource->fresh()->force_review_status)->toBeTrue();
+    })->with([
+        EditorDraftSaveIntent::AUTOSAVE,
+        EditorDraftSaveIntent::LANDING_PAGE_PREVIEW,
+    ]);
+
+    it('rejects an explicit draft transition for a published resource', function () {
+        $resource = Resource::factory()->create(['created_by_user_id' => $this->user->id]);
+        LandingPage::factory()->for($resource)->published()->withDoi((string) $resource->doi)->create();
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', [
+                'intent' => EditorDraftSaveIntent::SAVE_DRAFT->value,
+                'resourceId' => $resource->id,
+                'doi' => $resource->doi,
+                'titles' => [
+                    ['title' => 'Published resource', 'titleType' => 'main-title'],
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['intent']);
+
+        expect($resource->fresh()->workflow_status_override)->toBeNull();
+    });
+
+    it('validates locally, clears an explicit draft, and never writes to DataCite', function () {
+        Http::fake();
+        $payload = ($this->validEditorPayload)([
+            'doi' => '10.5880/editor.validate-only',
+        ]);
+
+        $draftResponse = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', [
+                ...$payload,
+                'intent' => EditorDraftSaveIntent::SAVE_DRAFT->value,
+            ])
+            ->assertCreated();
+
+        $resource = Resource::query()->findOrFail($draftResponse->json('resource.id'));
+        expect($resource->workflow_status_override)->toBe(ResourceWorkflowStatus::DRAFT);
+
+        LandingPage::factory()->for($resource)->published()->withDoi((string) $resource->doi)->create();
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources', [
+                ...$payload,
+                'resourceId' => $resource->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('resource.id', $resource->id)
+            ->assertJsonPath('resource.publicStatus', 'published')
+            ->assertJsonMissing(['dataCiteSync']);
+
+        expect($resource->fresh()->workflow_status_override)->toBeNull();
+        Http::assertNothingSent();
     });
 
     it('requires authentication for draft save', function () {

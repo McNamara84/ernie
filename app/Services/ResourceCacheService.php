@@ -31,6 +31,10 @@ class ResourceCacheService
 
     private const IGSN_RESOURCE_COUNT_CACHE_SUFFIX = 'igsn_resources';
 
+    private const PUBLISHED_DATA_RESOURCE_COUNT_CACHE_SUFFIX = 'published_data_resources';
+
+    private const PUBLISHED_IGSN_RESOURCE_COUNT_CACHE_SUFFIX = 'published_igsn_resources';
+
     /**
      * Cache a paginated resource listing.
      *
@@ -150,6 +154,65 @@ class ResourceCacheService
                 ->count(),
             suffix: $this->buildCountCacheSuffix(self::IGSN_RESOURCE_COUNT_CACHE_SUFFIX, $physicalObjectTypeId),
         );
+    }
+
+    /**
+     * Get the published-only Resource/IGSN inventory used by the DOI
+     * registration celebration.
+     *
+     * @return array{resources: int, igsns: int, total: int}
+     */
+    public function getPublishedResourceCounts(?int $physicalObjectTypeId = null): array
+    {
+        $physicalObjectTypeId ??= $this->getPhysicalObjectTypeId();
+
+        $resources = $this->cacheResourceCount(
+            callback: function () use ($physicalObjectTypeId): int {
+                $query = Resource::query()->published();
+
+                if ($physicalObjectTypeId === null) {
+                    return $query->count();
+                }
+
+                return $query
+                    ->where(function (Builder $resourceQuery) use ($physicalObjectTypeId): void {
+                        $resourceQuery->whereNull('resource_type_id')
+                            ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
+                    })
+                    ->count();
+            },
+            suffix: $this->buildCountCacheSuffix(self::PUBLISHED_DATA_RESOURCE_COUNT_CACHE_SUFFIX, $physicalObjectTypeId),
+        );
+
+        $igsns = $physicalObjectTypeId === null
+            ? 0
+            : $this->cacheResourceCount(
+                callback: fn (): int => Resource::query()
+                    ->published()
+                    ->where('resource_type_id', $physicalObjectTypeId)
+                    ->count(),
+                suffix: $this->buildCountCacheSuffix(self::PUBLISHED_IGSN_RESOURCE_COUNT_CACHE_SUFFIX, $physicalObjectTypeId),
+            );
+
+        return [
+            'resources' => $resources,
+            'igsns' => $igsns,
+            'total' => $resources + $igsns,
+        ];
+    }
+
+    /** Invalidate only the published inventory counts. */
+    public function invalidatePublishedResourceCounts(): void
+    {
+        $physicalObjectTypeId = $this->getPhysicalObjectTypeId();
+        $cache = $this->getCacheInstance(CacheKey::RESOURCE_COUNT->tags());
+
+        $cache->forget(CacheKey::RESOURCE_COUNT->key(
+            $this->buildCountCacheSuffix(self::PUBLISHED_DATA_RESOURCE_COUNT_CACHE_SUFFIX, $physicalObjectTypeId)
+        ));
+        $cache->forget(CacheKey::RESOURCE_COUNT->key(
+            $this->buildCountCacheSuffix(self::PUBLISHED_IGSN_RESOURCE_COUNT_CACHE_SUFFIX, $physicalObjectTypeId)
+        ));
     }
 
     /**

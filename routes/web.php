@@ -412,6 +412,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('resources.export-iso-19115-3');
 
     Route::post('resources/{resource}/register-doi', [ResourceDoiRegistrationController::class, 'registerDoi'])
+        ->middleware('can:register-doi')
         ->name('resources.register-doi');
 
     // Related Items (DataCite 4.7) — Related Item Manager

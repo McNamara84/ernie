@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Enums\AccessLevel;
+use App\Enums\EditorDraftSaveIntent;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Models\RelatedIdentifier;
 use App\Models\TitleType;
@@ -52,6 +53,7 @@ class StoreDraftResourceRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'intent' => ['required', Rule::enum(EditorDraftSaveIntent::class)],
             'resourceId' => ['nullable', 'integer', Rule::exists('resources', 'id')],
             'doi' => [
                 'nullable',
@@ -219,6 +221,12 @@ class StoreDraftResourceRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        if (! $this->has('intent')) {
+            // Backwards-compatible default for explicit draft saves. Browser
+            // autosave and landing-page preview always send their own intent.
+            $this->merge(['intent' => EditorDraftSaveIntent::SAVE_DRAFT->value]);
+        }
+
         $legacyDatacenters = $this->input('datacenters');
 
         if (! $this->has('datacenter_id')
