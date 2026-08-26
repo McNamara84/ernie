@@ -13,7 +13,8 @@ use Illuminate\Console\Command;
 
 #[Description('Hydrate missing citation labels for existing DOI and URL related identifiers.')]
 #[Signature('related-identifiers:hydrate-citation-labels
-                            {--limit=0 : Maximum number of missing related identifiers to process (0 = all)}')]
+                            {--limit=0 : Maximum number of missing related identifiers to process (0 = all)}
+                            {--after-id=0 : Process only related identifiers with an ID greater than this cursor}')]
 class HydrateRelatedIdentifierCitationLabels extends Command
 {
     public function __construct(
@@ -34,6 +35,8 @@ class HydrateRelatedIdentifierCitationLabels extends Command
             return self::FAILURE;
         }
 
+        $afterId = max(0, (int) $this->option('after-id'));
+
         $baseQuery = RelatedIdentifier::query()
             ->with('identifierType')
             ->whereIn('identifier_type_id', $identifierTypeIds->values()->all())
@@ -42,7 +45,8 @@ class HydrateRelatedIdentifierCitationLabels extends Command
                     ->orWhere('citation_label', '');
             })
             ->whereNotNull('identifier')
-            ->where('identifier', '!=', '');
+            ->where('identifier', '!=', '')
+            ->where('id', '>', $afterId);
 
         $limit = max(0, (int) $this->option('limit'));
 
@@ -70,14 +74,16 @@ class HydrateRelatedIdentifierCitationLabels extends Command
         $processed = 0;
         $updated = 0;
         $unresolved = 0;
+        $lastProcessedId = $afterId;
 
         $this->info("Hydrating missing citation labels for {$total} DOI or URL related identifier(s)...");
 
-        $query->orderBy('id')->chunkById(100, function ($relatedIdentifiers) use (&$processed, &$unresolved, &$updated): void {
+        $query->orderBy('id')->chunkById(100, function ($relatedIdentifiers) use (&$lastProcessedId, &$processed, &$unresolved, &$updated): void {
             $storagePayload = [];
 
             foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
                 $processed++;
+                $lastProcessedId = max($lastProcessedId, (int) $relatedIdentifier->getKey());
                 $storagePayload[$index] = [
                     'identifier' => $relatedIdentifier->identifier,
                     'identifierType' => $relatedIdentifier->identifierType->slug,
@@ -114,6 +120,12 @@ class HydrateRelatedIdentifierCitationLabels extends Command
 
         $this->info("Processed {$processed} missing DOI or URL related identifier(s).");
         $this->info("Hydrated {$updated} citation label(s).");
+
+        if ($limit > 0 && (clone $baseQuery)->where('id', '>', $lastProcessedId)->exists()) {
+            $this->line(
+                "Continue with: php artisan related-identifiers:hydrate-citation-labels --limit={$limit} --after-id={$lastProcessedId}",
+            );
+        }
 
         if ($unresolved > 0) {
             $this->warn("{$unresolved} related identifier(s) remain without a citation label.");

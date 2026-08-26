@@ -194,6 +194,56 @@ it('respects the limit and remains idempotent across repeated URL backfills', fu
         ->expectsOutputToContain('No missing DOI or URL citation labels found.');
 });
 
+it('uses an explicit cursor to continue limited backfills past unresolved URLs', function (): void {
+    $resource = Resource::factory()->create();
+    $urlTypeId = IdentifierType::query()->where('slug', 'URL')->value('id');
+    $relationTypeId = RelationType::query()->where('slug', 'Cites')->value('id');
+
+    expect($urlTypeId)->toBeInt()
+        ->and($relationTypeId)->toBeInt();
+
+    $uncached = RelatedIdentifier::query()->create([
+        'resource_id' => $resource->id,
+        'identifier' => 'https://example.com/not-cached-first',
+        'identifier_type_id' => $urlTypeId,
+        'relation_type_id' => $relationTypeId,
+        'position' => 0,
+    ]);
+    $cached = RelatedIdentifier::query()->create([
+        'resource_id' => $resource->id,
+        'identifier' => 'https://example.com/cached-second',
+        'identifier_type_id' => $urlTypeId,
+        'relation_type_id' => $relationTypeId,
+        'position' => 1,
+    ]);
+
+    DB::connection('legacy_metaworks')->table('citationcache')->insert([
+        'url' => 'https://example.com/cached-second',
+        'citation' => 'Second URL citation',
+    ]);
+
+    test()->artisan('related-identifiers:hydrate-citation-labels', ['--limit' => 1])
+        ->assertExitCode(Command::SUCCESS)
+        ->expectsOutputToContain('1 related identifier(s) remain without a citation label.')
+        ->expectsOutputToContain(
+            "Continue with: php artisan related-identifiers:hydrate-citation-labels --limit=1 --after-id={$uncached->id}",
+        );
+
+    expect($uncached->fresh()?->citation_label)->toBeNull()
+        ->and($cached->fresh()?->citation_label)->toBeNull();
+
+    test()->artisan('related-identifiers:hydrate-citation-labels', [
+        '--limit' => 1,
+        '--after-id' => $uncached->id,
+    ])
+        ->assertExitCode(Command::SUCCESS)
+        ->expectsOutputToContain('Processed 1 missing DOI or URL related identifier')
+        ->doesntExpectOutputToContain('Continue with:');
+
+    expect($uncached->fresh()?->citation_label)->toBeNull()
+        ->and($cached->fresh()?->citation_label)->toBe('Second URL citation');
+});
+
 it('leaves uncached URLs unresolved without making HTTP requests', function (): void {
     $resource = Resource::factory()->create();
     $urlTypeId = IdentifierType::query()->where('slug', 'URL')->value('id');
