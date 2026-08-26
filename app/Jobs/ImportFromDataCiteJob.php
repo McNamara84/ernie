@@ -24,6 +24,7 @@ use App\Services\LegacyResourceLookupService;
 use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
+use App\Services\SumarioPmdCoverageEnrichmentService;
 use App\Services\Xml\OriginalDataCiteSubjectExtractionService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -1409,6 +1410,16 @@ class ImportFromDataCiteJob implements ShouldQueue
         }
 
         app(SumarioPmdContactEnrichmentService::class)->enrich($resource, $doi);
+
+        try {
+            app(SumarioPmdCoverageEnrichmentService::class)->enrich($resource, $doi);
+        } catch (\Throwable $exception) {
+            Log::warning('Unexpected SUMARIO coverage enrichment failure; continuing DataCite import.', [
+                'doi' => $doi,
+                'resource_id' => $resource->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
 
         if ($portalDatacenterNames !== null && $portalDatacenterNames !== []) {
             $this->syncPortalDatacenters($resource, $portalDatacenterNames);

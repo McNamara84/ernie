@@ -22,6 +22,7 @@ use App\Services\LegacyResourceLookupService;
 use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
+use App\Services\SumarioPmdCoverageEnrichmentService;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Bus;
@@ -116,6 +117,14 @@ beforeEach(function () {
         ->andReturn(false)
         ->byDefault();
     $this->app->instance(SumarioPmdContactEnrichmentService::class, $this->contactEnrichmentService);
+
+    $this->coverageEnrichmentService = Mockery::mock(SumarioPmdCoverageEnrichmentService::class);
+    $this->coverageEnrichmentService
+        ->shouldReceive('enrich')
+        ->zeroOrMoreTimes()
+        ->andReturn(false)
+        ->byDefault();
+    $this->app->instance(SumarioPmdCoverageEnrichmentService::class, $this->coverageEnrichmentService);
 
     $this->datacenterLookupService = Mockery::mock(LegacyMetaworksDatacenterLookupService::class);
     $this->datacenterLookupService
@@ -353,6 +362,7 @@ describe('ImportFromDataCiteJob', function () {
         // Transformer should not be called for existing DOIs
         $this->transformer->shouldReceive('transform')->never();
         $this->legacyResourceLookupService->shouldReceive('importMetadataByDoi')->never();
+        $this->coverageEnrichmentService->shouldReceive('enrich')->never();
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
@@ -1207,6 +1217,12 @@ describe('ImportFromDataCiteJob', function () {
             ->once()
             ->with($doiRecord, $this->user->id)
             ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
+        $this->coverageEnrichmentService
+            ->shouldReceive('enrich')
+            ->once()
+            ->withArgs(fn (Resource $resource, string $resolvedDoi): bool => $resource->doi === $doi
+                && $resolvedDoi === $doi)
+            ->andReturnTrue();
 
         $importId = Str::uuid()->toString();
         (new ImportFromDataCiteJob($this->user->id, $importId, $doi))
@@ -1222,6 +1238,43 @@ describe('ImportFromDataCiteJob', function () {
             ])
             ->and($resource->fresh()->datacenter?->name)
             ->toBe(LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER);
+    });
+
+    it('keeps a new DataCite import successful when coverage enrichment unexpectedly fails', function () {
+        $doi = '10.5880/coverage.enrichment.failure';
+        $doiRecord = [
+            'id' => $doi,
+            'attributes' => [
+                'doi' => $doi,
+                'titles' => [['title' => 'Coverage enrichment failure']],
+                'publicationYear' => 2026,
+                'types' => ['resourceTypeGeneral' => 'Dataset'],
+            ],
+        ];
+
+        $this->importService->shouldReceive('fetchSingleDoi')->once()->with($doi)->andReturn($doiRecord);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->with($doiRecord, $this->user->id)
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
+        $this->coverageEnrichmentService
+            ->shouldReceive('enrich')
+            ->once()
+            ->andThrow(new RuntimeException('legacy coverage database unavailable'));
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, $doi))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        expect(Cache::get("datacite_import:{$importId}"))
+            ->toMatchArray([
+                'status' => 'completed',
+                'imported' => 1,
+                'failed' => 0,
+            ])
+            ->and(Resource::query()->where('doi', $doi)->exists())
+            ->toBeTrue();
     });
 
     it('uses the legacy datacenter fallback when the portal has no DOI assignment', function () {
