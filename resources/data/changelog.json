@@ -2,13 +2,12 @@
     {
         "version": "1.0.2",
         "date": "2026-08-26",
-        "features": [
+        "features": [],
+        "improvements": [
             {
                 "title": "Persistent IGSN Datacenter Filter",
                 "description": "The IGSN list can now be filtered by an assigned Datacenter or by samples without a Datacenter. Only Datacenters represented by stored IGSNs are offered, the selection combines with all existing IGSN filters and navigation, and ERNIE safely restores it in the current browser until it is changed or cleared."
-            }
-        ],
-        "improvements": [
+            },
             {
                 "title": "Safer Data Editor and DataCite Actions",
                 "description": "The Data Editor now presents separate actions for saving drafts, validating metadata, registering or updating DataCite records, and previewing or opening landing pages according to publication status. Every DataCite write requires explicit confirmation, published landing pages open without saving pending editor changes, and successful new DOI registrations celebrate the canonically published Resource and IGSN inventory in ERNIE."
