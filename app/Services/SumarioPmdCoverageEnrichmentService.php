@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\GeoLocation;
 use App\Models\Resource;
 use App\Services\Legacy\LegacyCoverageGeometryParserService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -37,8 +38,13 @@ class SumarioPmdCoverageEnrichmentService
 
             return DB::connection($resource->getConnectionName())
                 ->transaction(function () use ($resource, $doi, $coverages): bool {
+                    $dataCiteBoxes = $this->loadDataCiteBoxes($resource);
+
+                    /** @var array<int, list<array{box: GeoLocation, coverage: array{coverage_id: int, legacy_resource_id: int}}>> $boxAssignments */
+                    $boxAssignments = [];
+
                     foreach ($coverages as $coverage) {
-                        $matchingBox = $this->findMatchingBox($resource, $doi, $coverage);
+                        $matchingBox = $this->findMatchingBox($dataCiteBoxes, $doi, $coverage);
 
                         $resource->geoLocations()->create([
                             'geo_type' => 'line',
@@ -47,8 +53,28 @@ class SumarioPmdCoverageEnrichmentService
                         ]);
 
                         if ($matchingBox !== null) {
-                            $matchingBox->delete();
+                            $boxAssignments[$matchingBox->id][] = [
+                                'box' => $matchingBox,
+                                'coverage' => $coverage,
+                            ];
                         }
+                    }
+
+                    foreach ($boxAssignments as $boxId => $assignments) {
+                        if (count($assignments) !== 1) {
+                            foreach ($assignments as $assignment) {
+                                $this->logAmbiguousBoxMatch(
+                                    $doi,
+                                    $assignment['coverage'],
+                                    [$boxId],
+                                    'candidate_assigned_to_multiple_coverages',
+                                );
+                            }
+
+                            continue;
+                        }
+
+                        $assignments[0]['box']->delete();
                     }
 
                     $resource->unsetRelation('geoLocations');
@@ -144,6 +170,21 @@ class SumarioPmdCoverageEnrichmentService
     }
 
     /**
+     * @return Collection<int, GeoLocation>
+     */
+    private function loadDataCiteBoxes(Resource $resource): Collection
+    {
+        return $resource->geoLocations()
+            ->where('geo_type', 'box')
+            ->whereNotNull('west_bound_longitude')
+            ->whereNotNull('east_bound_longitude')
+            ->whereNotNull('south_bound_latitude')
+            ->whereNotNull('north_bound_latitude')
+            ->get();
+    }
+
+    /**
+     * @param  Collection<int, GeoLocation>  $dataCiteBoxes
      * @param  array{
      *     coverage_id: int,
      *     legacy_resource_id: int,
@@ -155,19 +196,13 @@ class SumarioPmdCoverageEnrichmentService
      *     points: list<array{longitude: float, latitude: float}>
      * }  $coverage
      */
-    private function findMatchingBox(Resource $resource, string $doi, array $coverage): ?GeoLocation
+    private function findMatchingBox(Collection $dataCiteBoxes, string $doi, array $coverage): ?GeoLocation
     {
         if (! $this->hasCompleteBounds($coverage)) {
             return null;
         }
 
-        $candidates = $resource->geoLocations()
-            ->where('geo_type', 'box')
-            ->whereNotNull('west_bound_longitude')
-            ->whereNotNull('east_bound_longitude')
-            ->whereNotNull('south_bound_latitude')
-            ->whereNotNull('north_bound_latitude')
-            ->get()
+        $candidates = $dataCiteBoxes
             ->filter(fn (GeoLocation $geoLocation): bool => $this->boundsMatch($geoLocation, $coverage))
             ->values();
 

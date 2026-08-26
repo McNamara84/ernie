@@ -200,6 +200,60 @@ describe('SumarioPmdCoverageEnrichmentService', function () {
             ->and($resource->geoLocations()->where('geo_type', 'line')->count())->toBe(1);
     });
 
+    it('matches all coverages against the initial box set regardless of legacy row order', function (
+        int $describedCoverageId,
+        int $descriptionlessCoverageId,
+    ) {
+        issue1179CreateLegacyResource('10.5880/order-independent-matching');
+        issue1179CreateLegacyCoverage([
+            'id' => $describedCoverageId,
+            'description' => 'Profile Alpha',
+        ]);
+        issue1179CreateLegacyCoverage([
+            'id' => $descriptionlessCoverageId,
+            'description' => null,
+            'wkt' => '11.8 49.82, 12.3 50.04',
+        ]);
+        $resource = Resource::factory()->create(['doi' => '10.5880/order-independent-matching']);
+        $matchingBox = GeoLocation::factory()->withBox(11.7763, 12.3128, 49.8099, 50.0529)->create([
+            'resource_id' => $resource->id,
+            'place' => 'Profile Alpha',
+        ]);
+        $ambiguousBox = GeoLocation::factory()->withBox(11.7763, 12.3128, 49.8099, 50.0529)->create([
+            'resource_id' => $resource->id,
+            'place' => 'Profile Beta',
+        ]);
+
+        app(SumarioPmdCoverageEnrichmentService::class)->enrich($resource, $resource->doi);
+
+        expect(GeoLocation::query()->whereKey($matchingBox->id)->exists())->toBeFalse()
+            ->and(GeoLocation::query()->whereKey($ambiguousBox->id)->exists())->toBeTrue()
+            ->and($resource->geoLocations()->where('geo_type', 'line')->count())->toBe(2);
+    })->with([
+        'described coverage first' => [1, 2],
+        'description-less coverage first' => [2, 1],
+    ]);
+
+    it('preserves a box when multiple legacy coverages would be assigned to it', function () {
+        issue1179CreateLegacyResource('10.5880/duplicate-assignment');
+        issue1179CreateLegacyCoverage(['description' => 'Shared profile']);
+        issue1179CreateLegacyCoverage([
+            'id' => 2,
+            'description' => 'Shared profile',
+            'wkt' => '11.8 49.82, 12.3 50.04',
+        ]);
+        $resource = Resource::factory()->create(['doi' => '10.5880/duplicate-assignment']);
+        $box = GeoLocation::factory()->withBox(11.7763, 12.3128, 49.8099, 50.0529)->create([
+            'resource_id' => $resource->id,
+            'place' => 'Shared profile',
+        ]);
+
+        app(SumarioPmdCoverageEnrichmentService::class)->enrich($resource, $resource->doi);
+
+        expect(GeoLocation::query()->whereKey($box->id)->exists())->toBeTrue()
+            ->and($resource->geoLocations()->where('geo_type', 'line')->count())->toBe(2);
+    });
+
     it('adds a valid line without deleting a box when legacy bounds are incomplete', function () {
         issue1179CreateLegacyResource('10.5880/incomplete.bounds');
         issue1179CreateLegacyCoverage(['maxlon' => null]);
