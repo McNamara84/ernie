@@ -77,6 +77,7 @@ type DownloadUrlSuggestionEntry = {
 type PersistedLandingPageDraftState = {
     template: string;
     ftpUrl: string;
+    primaryDownloadLabel: string;
     ftpFormatId: number | null;
     ftpSizeId: number | null;
     downloadsUnavailable: boolean;
@@ -121,6 +122,7 @@ function cloneLandingPageFiles(files: LandingPageFile[] = []): LandingPageFile[]
     return files.map((file, index) => ({
         id: file.id,
         url: file.url,
+        label: file.label ?? null,
         format_id: file.format_id ?? null,
         size_id: file.size_id ?? null,
         tracked_url: file.tracked_url ?? null,
@@ -132,6 +134,7 @@ function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPag
     return {
         template: draftState.template,
         ftpUrl: draftState.ftpUrl,
+        primaryDownloadLabel: draftState.primaryDownloadLabel,
         ftpFormatId: draftState.ftpFormatId,
         ftpSizeId: draftState.ftpSizeId,
         downloadsUnavailable: draftState.downloadsUnavailable,
@@ -150,6 +153,7 @@ function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPag
         files: cloneLandingPageFiles(draftState.files).map((file, index) => ({
             id: file.id,
             url: file.url,
+            label: file.label ?? null,
             format_id: file.format_id ?? null,
             size_id: file.size_id ?? null,
             position: typeof file.position === 'number' ? file.position : index,
@@ -214,6 +218,7 @@ function parsePersistedLandingPageDraftState(rawValue: string | null, fallbackFi
                       {
                           id: candidate.id,
                           url: candidate.url,
+                          label: typeof candidate.label === 'string' ? candidate.label : null,
                           format_id: typeof candidate.format_id === 'number' ? candidate.format_id : null,
                           size_id: typeof candidate.size_id === 'number' ? candidate.size_id : null,
                           tracked_url: typeof candidate.tracked_url === 'string' ? candidate.tracked_url : null,
@@ -226,6 +231,7 @@ function parsePersistedLandingPageDraftState(rawValue: string | null, fallbackFi
         return {
             template: parsed.template,
             ftpUrl: typeof parsed.ftpUrl === 'string' ? parsed.ftpUrl : '',
+            primaryDownloadLabel: typeof parsed.primaryDownloadLabel === 'string' ? parsed.primaryDownloadLabel : '',
             ftpFormatId: typeof parsed.ftpFormatId === 'number' ? parsed.ftpFormatId : null,
             ftpSizeId: typeof parsed.ftpSizeId === 'number' ? parsed.ftpSizeId : null,
             downloadsUnavailable: parsed.downloadsUnavailable === true,
@@ -424,6 +430,7 @@ export default function SetupLandingPageModal({
             return {
                 template: preferredTemplate,
                 ftpUrl: config?.ftp_url ?? '',
+                primaryDownloadLabel: config?.primary_download_label ?? '',
                 ftpFormatId: config?.ftp_format_id ?? null,
                 ftpSizeId: config?.ftp_size_id ?? null,
                 downloadsUnavailable: config?.downloads_unavailable === true,
@@ -441,6 +448,7 @@ export default function SetupLandingPageModal({
     const applyDraftState = useCallback((draftState: PersistedLandingPageDraftState) => {
         setTemplate(draftState.template);
         setFtpUrl(draftState.ftpUrl);
+        setPrimaryDownloadLabel(draftState.primaryDownloadLabel);
         setFtpFormatId(draftState.ftpFormatId);
         setFtpSizeId(draftState.ftpSizeId);
         setDownloadsUnavailable(draftState.downloadsUnavailable);
@@ -454,6 +462,7 @@ export default function SetupLandingPageModal({
 
     const [template, setTemplate] = useState<string>(initialTemplate);
     const [ftpUrl, setFtpUrl] = useState<string>(existingConfig?.ftp_url ?? '');
+    const [primaryDownloadLabel, setPrimaryDownloadLabel] = useState<string>(existingConfig?.primary_download_label ?? '');
     const [ftpFormatId, setFtpFormatId] = useState<number | null>(existingConfig?.ftp_format_id ?? null);
     const [ftpSizeId, setFtpSizeId] = useState<number | null>(existingConfig?.ftp_size_id ?? null);
     const [downloadsUnavailable, setDownloadsUnavailable] = useState<boolean>(existingConfig?.downloads_unavailable === true);
@@ -529,6 +538,7 @@ export default function SetupLandingPageModal({
         () => ({
             template,
             ftpUrl,
+            primaryDownloadLabel,
             ftpFormatId,
             ftpSizeId,
             downloadsUnavailable,
@@ -547,6 +557,7 @@ export default function SetupLandingPageModal({
             ftpFormatId,
             ftpSizeId,
             ftpUrl,
+            primaryDownloadLabel,
             isPublished,
             landingPageTemplateId,
             links,
@@ -708,6 +719,7 @@ export default function SetupLandingPageModal({
                 isPublished,
                 supportsFtpUrl,
                 ftpUrl,
+                primaryDownloadLabel,
                 ftpFormatId,
                 ftpSizeId,
                 supportsDownloadsUnavailable,
@@ -814,6 +826,7 @@ export default function SetupLandingPageModal({
             template !== currentTemplate ||
             // ftpUrl is irrelevant for external and IGSN templates.
             (supportsFtpUrl && ftpUrl !== (currentConfig.ftp_url ?? '')) ||
+            (supportsFtpUrl && primaryDownloadLabel !== (currentConfig.primary_download_label ?? '')) ||
             (supportsFtpUrl && ftpFormatId !== (currentConfig.ftp_format_id ?? null)) ||
             (supportsFtpUrl && ftpSizeId !== (currentConfig.ftp_size_id ?? null)) ||
             (supportsDownloadsUnavailable && downloadsUnavailable !== (currentConfig.downloads_unavailable === true)) ||
@@ -841,7 +854,7 @@ export default function SetupLandingPageModal({
             files.length !== currentFiles.length ||
             files.some((file, index) => {
                 const original = currentFiles[index];
-                return !original || file.format_id !== original.format_id || file.size_id !== original.size_id;
+                return !original || file.label !== original.label || file.format_id !== original.format_id || file.size_id !== original.size_id;
             });
 
         if (isExternalTemplate) {
@@ -856,6 +869,7 @@ export default function SetupLandingPageModal({
         currentConfig,
         template,
         ftpUrl,
+        primaryDownloadLabel,
         ftpFormatId,
         ftpSizeId,
         downloadsUnavailable,
@@ -1023,6 +1037,7 @@ export default function SetupLandingPageModal({
                     landingPageTemplateId,
                     supportsFtpUrl,
                     ftpUrl,
+                    primaryDownloadLabel,
                     ftpFormatId,
                     ftpSizeId,
                     supportsDownloadsUnavailable,
@@ -1424,6 +1439,25 @@ export default function SetupLandingPageModal({
                                         </p>
                                     )}
 
+                                    {!hasImportedFiles && (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="primary-download-label">Button label</Label>
+                                            <Input
+                                                id="primary-download-label"
+                                                type="text"
+                                                maxLength={255}
+                                                placeholder="Download data and description"
+                                                value={primaryDownloadLabel}
+                                                onChange={(event) => setPrimaryDownloadLabel(event.target.value)}
+                                                disabled={ftpUrl.trim() === ''}
+                                            />
+                                            <p className="text-sm text-muted-foreground">
+                                                Optional text for the primary download button. If left empty, “Download data and description” is
+                                                shown.
+                                            </p>
+                                        </div>
+                                    )}
+
                                     {!hasImportedFiles && ftpUrl.trim() !== '' && (
                                         <ContentDescriptorFields
                                             formatId={ftpFormatId}
@@ -1469,26 +1503,43 @@ export default function SetupLandingPageModal({
                                 </div>
                             )}
 
-                            {/* Imported download files (read-only, from legacy database) */}
+                            {/* Imported download files (read-only URLs with editable labels) */}
                             {!isExternal && hasImportedFiles && (
                                 <div className="space-y-2">
                                     <Label>Imported Download Files</Label>
-                                    <div className="space-y-1 rounded-md border bg-muted/50 p-3">
+                                    <div className="space-y-3 rounded-md border bg-muted/50 p-3">
                                         {importedDownloadFiles.map((file) => (
-                                            <a
-                                                key={file.id ?? file.url}
-                                                href={file.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="block truncate text-sm text-blue-600 hover:underline dark:text-blue-400"
-                                            >
-                                                {file.url}
-                                            </a>
+                                            <div key={file.id ?? file.url} className="space-y-1.5">
+                                                <a
+                                                    href={file.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="block truncate text-sm text-blue-600 hover:underline dark:text-blue-400"
+                                                    title={file.url}
+                                                >
+                                                    {file.url}
+                                                </a>
+                                                <Label htmlFor={`imported-file-label-${file.id}`}>
+                                                    Button label<span className="sr-only"> for {file.url}</span>
+                                                </Label>
+                                                <Input
+                                                    id={`imported-file-label-${file.id}`}
+                                                    type="text"
+                                                    maxLength={255}
+                                                    placeholder="Download data and description"
+                                                    value={file.label ?? ''}
+                                                    onChange={(event) =>
+                                                        setFiles((current) =>
+                                                            current.map((entry) =>
+                                                                entry.id === file.id ? { ...entry, label: event.target.value } : entry,
+                                                            ),
+                                                        )
+                                                    }
+                                                />
+                                            </div>
                                         ))}
                                     </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        These files were imported from the legacy database and cannot be edited here.
-                                    </p>
+                                    <p className="text-sm text-muted-foreground">Labels can be edited. Imported target URLs remain read-only.</p>
                                 </div>
                             )}
 

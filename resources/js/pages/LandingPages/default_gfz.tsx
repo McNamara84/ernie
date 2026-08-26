@@ -103,7 +103,9 @@ export default function DefaultGfzTemplate() {
             files: downloadsUnavailable ? null : (
                 <FilesSection
                     key="files"
-                    downloadUrl={landingPage?.tracked_ftp_url ?? landingPage?.ftp_url}
+                    downloadUrl={landingPage?.ftp_url}
+                    trackedDownloadUrl={landingPage?.tracked_ftp_url}
+                    downloadLabel={landingPage?.primary_download_label}
                     downloadFiles={landingPage?.files}
                     licenses={resource.licenses || []}
                     contactPersons={resource.contact_persons || []}

@@ -86,6 +86,9 @@ class LandingPagePreviewController extends Controller
 
                 $previewFiles[] = [
                     ...$file->toArray(),
+                    'label' => $this->normalizeOptionalLabel(
+                        array_key_exists('label', $fileData) ? $fileData['label'] : $file->label,
+                    ),
                     'format_id' => $fileData['format_id'] ?? null,
                     'size_id' => $fileData['size_id'] ?? null,
                 ];
@@ -95,6 +98,9 @@ class LandingPagePreviewController extends Controller
         $effectiveFtpUrl = array_key_exists('ftp_url', $validated)
             ? $validated['ftp_url']
             : $resource->landingPage?->ftp_url;
+        $effectivePrimaryDownloadLabel = array_key_exists('primary_download_label', $validated)
+            ? $this->normalizeOptionalLabel($validated['primary_download_label'])
+            : $resource->landingPage?->primary_download_label;
 
         Session::put($sessionKey, [
             'template' => $validated['template'],
@@ -103,6 +109,10 @@ class LandingPagePreviewController extends Controller
                 : null,
             'ftp_url' => LandingPageController::templateSupportsFtpUrl($validated['template'])
                 ? $effectiveFtpUrl
+                : null,
+            'primary_download_label' => LandingPageController::templateSupportsFtpUrl($validated['template'])
+                && ! empty($effectiveFtpUrl)
+                ? $effectivePrimaryDownloadLabel
                 : null,
             'ftp_format_id' => LandingPageController::templateSupportsFtpUrl($validated['template'])
                 ? ($validated['ftp_format_id'] ?? null)
@@ -203,6 +213,9 @@ class LandingPagePreviewController extends Controller
             'template' => $template,
             'landing_page_template_id' => $landingPageTemplateId,
             'ftp_url' => $ftpUrl,
+            'primary_download_label' => $ftpUrl !== null
+                ? ($previewData['primary_download_label'] ?? null)
+                : null,
             'ftp_format_id' => $previewData['ftp_format_id'] ?? null,
             'ftp_size_id' => $previewData['ftp_size_id'] ?? null,
             'downloads_unavailable' => $downloadsUnavailable,
@@ -244,5 +257,16 @@ class LandingPagePreviewController extends Controller
         return response()->json([
             'message' => 'Preview session cleared',
         ]);
+    }
+
+    private function normalizeOptionalLabel(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $label = trim($value);
+
+        return $label === '' ? null : $label;
     }
 }

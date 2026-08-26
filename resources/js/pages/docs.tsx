@@ -1826,6 +1826,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             as <code>https://datapub.gfz.de/</code> to save typing, and then continue editing the remainder of the path if needed.
                         </p>
                         <p>
+                            When no imported download files are available, the <strong>Button label</strong> field below the primary Download URL
+                            controls the text of the main download button. It is optional; an empty field falls back to{' '}
+                            <strong>Download data and description</strong>. If imported files are available, each URL appears under{' '}
+                            <strong>Imported Download Files</strong> with its own editable Button label. Imported URLs remain read-only. An empty
+                            imported-file label falls back to <strong>Download data and description</strong> for a single file, or to numbered labels
+                            such as <strong>Download (1)</strong> when several files are shown.
+                        </p>
+                        <p>
                             If a generated GFZ landing page should not offer downloads yet, enable <strong>No data available for download</strong> in
                             the same Download URL section. ERNIE keeps the saved primary URL, imported legacy files, and additional download links in
                             the setup modal, but hides the complete Files section on the preview and public landing page until the option is disabled

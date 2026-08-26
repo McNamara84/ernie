@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\LandingPage;
 
-use App\Http\Requests\LandingPage\Concerns\ValidatesLandingPageContentDescriptors;
 use App\Http\Controllers\LandingPageController;
+use App\Http\Requests\LandingPage\Concerns\ValidatesLandingPageContentDescriptors;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
-use App\Rules\SafeUrl;
 use App\Rules\ResourceDigitalSize;
 use App\Rules\ResourceMimeType;
+use App\Rules\SafeUrl;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -43,6 +43,7 @@ class UpdateLandingPageRequest extends FormRequest
             'template' => ['sometimes', 'string', Rule::in(LandingPageController::ALLOWED_TEMPLATES)],
             'landing_page_template_id' => ['nullable', 'integer', 'exists:landing_page_templates,id'],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
+            'primary_download_label' => ['nullable', 'string', 'max:255'],
             'ftp_format_id' => ['nullable', 'integer', new ResourceMimeType($resource)],
             'ftp_size_id' => ['nullable', 'integer', new ResourceDigitalSize($resource)],
             'downloads_unavailable' => ['sometimes', 'boolean'],
@@ -64,6 +65,7 @@ class UpdateLandingPageRequest extends FormRequest
             ],
             'files.*.format_id' => ['nullable', 'integer', new ResourceMimeType($resource)],
             'files.*.size_id' => ['nullable', 'integer', new ResourceDigitalSize($resource)],
+            'files.*.label' => ['nullable', 'string', 'max:255'],
             'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
             'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'sometimes|boolean',

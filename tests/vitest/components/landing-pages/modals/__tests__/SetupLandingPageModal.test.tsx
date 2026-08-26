@@ -518,6 +518,85 @@ describe('SetupLandingPageModal', () => {
             expect(ftpInput).toHaveValue('https://manual.example.org/file.zip');
         });
 
+        it('edits and persists the primary download button label', async () => {
+            const config = {
+                ...mockExistingConfig,
+                primary_download_label: 'Download data',
+            };
+            mockModalGetRequests({ landingPage: config });
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', landing_page: config } });
+            mockedAxiosDelete.mockResolvedValue({ data: {} });
+            const user = userEvent.setup();
+
+            render(<SetupLandingPageModal resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />);
+
+            const labelInput = await screen.findByLabelText(/^Button label$/i);
+            expect(labelInput).toHaveValue('Download data');
+            await user.clear(labelInput);
+            await user.type(labelInput, 'Download data via IGETS Database');
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        primary_download_label: 'Download data via IGETS Database',
+                    }),
+                );
+            });
+        });
+
+        it('allows editing an imported file label without submitting its read-only URL', async () => {
+            const config = {
+                ...mockExistingConfig,
+                files: [
+                    {
+                        id: 7,
+                        url: 'https://legacy.gfz.de/download/model.zip',
+                        label: 'Old label',
+                        position: 0,
+                    },
+                    {
+                        id: 8,
+                        url: 'https://legacy.gfz.de/download/documentation.pdf',
+                        label: 'Documentation',
+                        position: 1,
+                    },
+                ],
+            };
+            mockModalGetRequests({ landingPage: config });
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', landing_page: config } });
+            mockedAxiosDelete.mockResolvedValue({ data: {} });
+            const user = userEvent.setup();
+
+            render(<SetupLandingPageModal resource={mockResource} existingConfig={config} isOpen={true} onClose={mockOnClose} />);
+
+            const labelInput = await screen.findByLabelText(/model\.zip/i);
+            expect(screen.getByLabelText(/documentation\.pdf/i)).toHaveValue('Documentation');
+            expect(labelInput).toHaveValue('Old label');
+            await user.clear(labelInput);
+            await user.type(labelInput, 'Download model data');
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+
+            await waitFor(() => expect(mockedAxiosPut).toHaveBeenCalled());
+            const payload = mockedAxiosPut.mock.calls.at(-1)?.[1] as { files?: Array<Record<string, unknown>> };
+            expect(payload.files).toEqual([
+                {
+                    id: 7,
+                    label: 'Download model data',
+                    format_id: null,
+                    size_id: null,
+                },
+                {
+                    id: 8,
+                    label: 'Documentation',
+                    format_id: null,
+                    size_id: null,
+                },
+            ]);
+            expect(payload.files?.[0]).not.toHaveProperty('url');
+        });
+
         it('normalizes a legacy Physical Object config passed via props to the IGSN template', async () => {
             mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,

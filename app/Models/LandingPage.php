@@ -25,6 +25,7 @@ use Illuminate\Support\Str;
  * @property string $slug URL-friendly title slug (immutable after creation - see note below)
  * @property string $template
  * @property string|null $ftp_url Direct download URL for the dataset files
+ * @property string|null $primary_download_label Display label for the primary download button
  * @property int|null $ftp_format_id
  * @property int|null $ftp_size_id
  * @property bool $downloads_unavailable Whether the generated Files section is hidden because no downloads are available
@@ -91,7 +92,7 @@ use Illuminate\Support\Str;
  * @see LandingPageController::store() for API creation endpoint
  * @see LandingPageController::update() for API update endpoint
  */
-#[Fillable(['resource_id', 'doi_prefix', 'slug', 'template', 'landing_page_template_id', 'ftp_url', 'ftp_format_id', 'ftp_size_id', 'downloads_unavailable', 'external_domain_id', 'external_path', 'is_published', 'preview_token', 'published_at', 'view_count', 'last_viewed_at'])]
+#[Fillable(['resource_id', 'doi_prefix', 'slug', 'template', 'landing_page_template_id', 'ftp_url', 'primary_download_label', 'ftp_format_id', 'ftp_size_id', 'downloads_unavailable', 'external_domain_id', 'external_path', 'is_published', 'preview_token', 'published_at', 'view_count', 'last_viewed_at'])]
 class LandingPage extends Model
 {
     /** @use HasFactory<LandingPageFactory> */

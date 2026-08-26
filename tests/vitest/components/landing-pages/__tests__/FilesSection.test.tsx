@@ -69,6 +69,13 @@ describe('FilesSection', () => {
             expect(downloadLink).toBeInTheDocument();
             expect(downloadLink).toHaveAttribute('href', 'https://datapub.gfz-potsdam.de/download/test.zip');
             expect(downloadLink).toHaveAttribute('target', '_blank');
+            expect(downloadLink).toHaveAttribute('title', 'https://datapub.gfz-potsdam.de/download/test.zip');
+        });
+
+        it('renders a configured primary label', () => {
+            render(<FilesSection downloadUrl="https://example.com/data.zip" downloadLabel="Download data via IGETS Database" licenses={[]} />);
+
+            expect(screen.getByRole('link', { name: 'Download data via IGETS Database' })).toBeInTheDocument();
         });
 
         it('shows download button even when contact person with email exists', () => {

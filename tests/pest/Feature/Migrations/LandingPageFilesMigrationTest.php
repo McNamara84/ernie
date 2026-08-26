@@ -16,6 +16,7 @@ describe('landing_page_files migration', function () {
             'id',
             'landing_page_id',
             'url',
+            'label',
             'position',
             'created_at',
             'updated_at',

@@ -412,6 +412,7 @@ class LandingPagePublicController extends Controller
 
         $landingPageData['ftp_url'] = null;
         $landingPageData['tracked_ftp_url'] = null;
+        $landingPageData['primary_download_label'] = null;
         $landingPageData['files'] = [];
         $landingPageData['links'] = [];
 

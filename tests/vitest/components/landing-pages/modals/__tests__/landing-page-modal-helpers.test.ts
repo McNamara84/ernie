@@ -28,6 +28,7 @@ describe('landing-page-modal-helpers', () => {
             landing_page_template_id: 42,
             status: 'published',
             ftp_url: null,
+            primary_download_label: null,
             ftp_format_id: null,
             ftp_size_id: null,
             links: [
@@ -56,6 +57,7 @@ describe('landing-page-modal-helpers', () => {
             landing_page_template_id: null,
             status: 'draft',
             ftp_url: 'https://datapub.example.org/download',
+            primary_download_label: null,
             ftp_format_id: null,
             ftp_size_id: null,
             downloads_unavailable: true,
@@ -147,6 +149,7 @@ describe('landing-page-modal-helpers', () => {
             template: 'default_gfz',
             landing_page_template_id: null,
             ftp_url: 'https://datapub.example.org/download',
+            primary_download_label: null,
             ftp_format_id: null,
             ftp_size_id: null,
         });
@@ -169,6 +172,7 @@ describe('landing-page-modal-helpers', () => {
             template: 'default_gfz',
             landing_page_template_id: null,
             ftp_url: 'https://datapub.example.org/download',
+            primary_download_label: null,
             ftp_format_id: null,
             ftp_size_id: null,
             downloads_unavailable: true,
@@ -181,23 +185,26 @@ describe('landing-page-modal-helpers', () => {
             landingPageTemplateId: null,
             supportsFtpUrl: true,
             ftpUrl: 'https://datapub.example.org/data.nc',
+            primaryDownloadLabel: '  Download model data  ',
             ftpFormatId: 11,
             ftpSizeId: 12,
             supportsLinks: true,
             links: [],
-            files: [{ id: 21, format_id: 22, size_id: 23 }],
+            files: [{ id: 21, label: '  Supplementary table  ', format_id: 22, size_id: 23 }],
             isExternal: false,
         };
 
         expect(buildLandingPageSetupPayload({ ...options, isPublished: false })).toMatchObject({
+            primary_download_label: 'Download model data',
             ftp_format_id: 11,
             ftp_size_id: 12,
-            files: [{ id: 21, format_id: 22, size_id: 23 }],
+            files: [{ id: 21, label: 'Supplementary table', format_id: 22, size_id: 23 }],
         });
         expect(buildLandingPagePreviewPayload(options)).toMatchObject({
+            primary_download_label: 'Download model data',
             ftp_format_id: 11,
             ftp_size_id: 12,
-            files: [{ id: 21, format_id: 22, size_id: 23 }],
+            files: [{ id: 21, label: 'Supplementary table', format_id: 22, size_id: 23 }],
         });
     });
 

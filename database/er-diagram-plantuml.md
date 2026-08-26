@@ -679,6 +679,7 @@ entity "landing_pages" as landing_pages {
     * template : VARCHAR(50) = 'default_gfz'
     landing_page_template_id : BIGINT <<FK>>
     ftp_url : VARCHAR(2048)
+    primary_download_label : VARCHAR(255) <<nullable>>
     ftp_format_id : BIGINT <<FK>> <<nullable>>
     ftp_size_id : BIGINT <<FK>> <<nullable>>
     * downloads_unavailable : BOOLEAN = false
@@ -698,6 +699,7 @@ entity "landing_page_files" as landing_page_files {
     --
     * landing_page_id : BIGINT <<FK>>
     * url : VARCHAR(2048)
+    label : VARCHAR(255) <<nullable>>
     format_id : BIGINT <<FK>> <<nullable>>
     size_id : BIGINT <<FK>> <<nullable>>
     * position : SMALLINT = 0

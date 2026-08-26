@@ -212,6 +212,8 @@ export interface LandingPageFile {
 
     /** Download URL */
     url: string;
+    /** Curator-editable display label; the imported URL itself remains read-only */
+    label?: string | null;
     format_id?: number | null;
     size_id?: number | null;
 
@@ -273,6 +275,8 @@ export interface LandingPageConfig {
 
     /** FTP URL for dataset downloads (optional) */
     ftp_url?: string | null;
+    /** Optional display label for the primary download button */
+    primary_download_label?: string | null;
     ftp_format_id?: number | null;
     ftp_size_id?: number | null;
 

@@ -538,10 +538,12 @@ describe('Tracked Download URLs', function () {
                 'doi_prefix' => '10.5880/test.public.001',
                 'slug' => 'tracked-downloads-test',
                 'ftp_url' => 'https://downloads.example.org/dataset.zip',
+                'primary_download_label' => 'Download dataset package',
             ]);
 
         $file = $landingPage->files()->create([
             'url' => 'https://downloads.example.org/supplement.csv',
+            'label' => 'Supplementary table',
             'position' => 0,
         ]);
 
@@ -549,8 +551,10 @@ describe('Tracked Download URLs', function () {
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('landingPage.ftp_url', 'https://downloads.example.org/dataset.zip')
+                ->where('landingPage.primary_download_label', 'Download dataset package')
                 ->where('landingPage.tracked_ftp_url', route('landing-page.download.primary', ['landingPage' => $landingPage->id]))
                 ->where('landingPage.files.0.url', 'https://downloads.example.org/supplement.csv')
+                ->where('landingPage.files.0.label', 'Supplementary table')
                 ->where('landingPage.files.0.tracked_url', route('landing-page.download.file', ['landingPage' => $landingPage->id, 'landingPageFile' => $file->id]))
             );
     });
@@ -564,6 +568,7 @@ describe('Tracked Download URLs', function () {
                 'doi_prefix' => '10.5880/test.public.001',
                 'slug' => 'downloads-unavailable-test',
                 'ftp_url' => 'https://downloads.example.org/dataset.zip',
+                'primary_download_label' => 'Hidden download',
             ]);
 
         $landingPage->files()->create([
@@ -582,6 +587,7 @@ describe('Tracked Download URLs', function () {
                 ->where('landingPage.downloads_unavailable', true)
                 ->where('landingPage.ftp_url', null)
                 ->where('landingPage.tracked_ftp_url', null)
+                ->where('landingPage.primary_download_label', null)
                 ->where('landingPage.files', [])
                 ->where('landingPage.links', [])
             );
