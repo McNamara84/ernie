@@ -111,7 +111,11 @@ describe('IgsnDifXmlParser', function () {
         expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
 
         $descriptionJson = $this->igsnMetadata->fresh()->description_json;
-        expect($descriptionJson['material_descriptions'])->toBe(['Smell: None, sediment type: sandy'])
+        expect($descriptionJson['description_groups'])->toBe([['entries' => [[
+            'value' => 'Smell: None, sediment type: sandy',
+            'scheme' => null,
+        ]]]])
+            ->and($descriptionJson['material_descriptions'])->toBe(['Smell: None, sediment type: sandy'])
             ->and($descriptionJson['comments'])->toBe(['Stored frozen after collection']);
     });
 
@@ -138,7 +142,55 @@ describe('IgsnDifXmlParser', function () {
         $descriptionJson = $this->igsnMetadata->fresh()->description_json;
         expect($descriptionJson['parent_igsn_handle'])->toBe('GFHER7EC99')
             ->and($descriptionJson['material_descriptions'])->toBe(['porewater,'])
+            ->and($descriptionJson['description_groups'])->toBe([['entries' => [[
+                'value' => 'porewater,',
+                'scheme' => null,
+            ]]]])
             ->and($descriptionJson)->not->toHaveKey('comments');
+    });
+
+    it('atomically replaces description groups while preserving unrelated JSON keys and remains idempotent', function (): void {
+        $this->igsnMetadata->update([
+            'description_json' => [
+                'parent_igsn_handle' => 'GF-PARENT',
+                'custom_key' => ['keep' => true],
+                'description_groups' => [['entries' => [['value' => 'old', 'scheme' => null]]]],
+            ],
+        ]);
+        $xml = <<<'XML'
+        <resource><sample>
+          <descriptions>
+            <description>Value; stays whole</description>
+            <description descriptionScheme="Rock Type">Quartzite</description>
+          </descriptions>
+        </sample></resource>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+        $first = $this->igsnMetadata->fresh();
+        $updatedAt = $first->updated_at;
+
+        expect($first->description_json)->toMatchArray([
+            'parent_igsn_handle' => 'GF-PARENT',
+            'custom_key' => ['keep' => true],
+            'description_groups' => [['entries' => [
+                ['value' => 'Value; stays whole', 'scheme' => null],
+                ['value' => 'Quartzite', 'scheme' => 'Rock Type'],
+            ]]],
+        ])->and($this->parser->enrichFromDifXml($xml, $this->resource, $first))->toBeTrue()
+            ->and($this->igsnMetadata->fresh()->updated_at->equalTo($updatedAt))->toBeTrue();
+    });
+
+    it('persists locality descriptions without overwriting an existing curated value', function (): void {
+        $location = GeoLocation::create([
+            'resource_id' => $this->resource->id,
+            'place' => 'Existing place',
+            'locality_description' => 'Curated locality',
+        ]);
+        $xml = '<resource><sample><locality_description>Imported locality</locality_description></sample></resource>';
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue()
+            ->and($location->fresh()->locality_description)->toBe('Curated locality');
     });
 
     it('keeps collection method and its description in separate columns', function () {
