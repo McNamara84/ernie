@@ -110,11 +110,11 @@ final class IgsnSampleImageStorageService
                 ])
                 ->get($sourceUrl);
 
-            if (! $response->successful()) {
-                throw new RuntimeException('The sample image request returned HTTP '.$response->status().'.');
-            }
             if ($response->redirect()) {
                 throw new RuntimeException('Sample image redirects are not allowed.');
+            }
+            if (! $response->successful()) {
+                throw new RuntimeException('The sample image request returned HTTP '.$response->status().'.');
             }
 
             // Laravel HTTP fakes do not process Guzzle's sink option.

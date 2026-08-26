@@ -81,6 +81,21 @@ it('rejects invalid content without publishing a broken image path', function (s
     'oversize' => [issue1168Jpeg(), ['Content-Type' => 'image/jpeg'], 10],
 ]);
 
+it('rejects redirects with the explicit redirect error', function (): void {
+    Http::fake([
+        'dataservices.gfz-potsdam.de/*' => Http::response('', 302, [
+            'Location' => 'https://example.org/redirected-image.jpg',
+        ]),
+    ]);
+    $metadata = issue1168Metadata('https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/redirect.jpg');
+
+    expect(app(IgsnSampleImageStorageService::class)->sync($metadata))->toBe([
+        'status' => 'failed',
+        'message' => 'Sample image redirects are not allowed.',
+    ]);
+    Http::assertSentCount(1);
+});
+
 it('does not treat a stored path for another source as current and keeps it when replacement fails', function (): void {
     $metadata = issue1168Metadata('https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/replacement.jpg');
     $metadata->update([
