@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CitationLabelResolutionMode;
 use App\Enums\ResourceWorkflowStatus;
 use App\Models\Datacenter;
 use App\Models\Resource;
@@ -100,10 +101,15 @@ describe('SumarioPendingResourceImportService', function () {
         $resourceStorage
             ->shouldReceive('store')
             ->once()
-            ->andReturnUsing(function (array $payload, int $userId) use ($user, $datacenter): array {
+            ->andReturnUsing(function (
+                array $payload,
+                int $userId,
+                CitationLabelResolutionMode $citationLabelResolutionMode,
+            ) use ($user, $datacenter): array {
                 $datasetTypeId = ResourceType::query()->where('slug', 'dataset')->value('id');
 
                 expect($userId)->toBe($user->id)
+                    ->and($citationLabelResolutionMode)->toBe(CitationLabelResolutionMode::EXHAUSTIVE)
                     ->and($payload['doi'])->toBe('10.5880/pending.one')
                     ->and($payload['language'])->toBeNull()
                     ->and($payload['resourceType'])->toBe($datasetTypeId)
@@ -152,7 +158,11 @@ describe('SumarioPendingResourceImportService', function () {
             doiSuggestionService: app(DoiSuggestionService::class),
         );
 
-        $result = $service->importPendingByDoi('https://doi.org/10.5880/PENDING.ONE', $user->id);
+        $result = $service->importPendingByDoi(
+            'https://doi.org/10.5880/PENDING.ONE',
+            $user->id,
+            CitationLabelResolutionMode::EXHAUSTIVE,
+        );
 
         $resource = $result['resource']?->fresh(['landingPage']);
 
@@ -166,6 +176,63 @@ describe('SumarioPendingResourceImportService', function () {
             ->and($resource->landingPage)->not->toBeNull()
             ->and($resource->landingPage->is_published)->toBeFalse()
             ->and($resource->landingPage->ftp_url)->toBe('https://datapub.gfz.de/pending-one.zip');
+    });
+
+    it('normalises related identifiers without synthesising citation labels and skips invalid DOI placeholders', function () {
+        $service = new SumarioPendingResourceImportService(
+            editorLoader: Mockery::mock(OldDatasetEditorLoader::class),
+            resourceStorage: Mockery::mock(ResourceStorageService::class),
+            datacenterLookup: Mockery::mock(LegacyMetaworksDatacenterLookupService::class),
+            downloadUrlService: Mockery::mock(MetaworksDownloadUrlService::class),
+            landingPageImport: Mockery::mock(LegacyLandingPageImportService::class),
+            doiSuggestionService: app(DoiSuggestionService::class),
+        );
+
+        $method = new ReflectionMethod($service, 'normaliseRelatedIdentifiers');
+
+        $result = $method->invoke($service, [
+            [
+                'identifier' => 'https://doi.org/10.5880/RELATED.ONE',
+                'identifierType' => 'doi',
+                'relationType' => 'Cites',
+                'citationLabel' => 'https://doi.org/10.5880/RELATED.ONE',
+            ],
+            [
+                'identifier' => '10.5880/related.two',
+                'identifierType' => 'DOI',
+                'relationType' => 'References',
+                'citation_label' => 'Doe, J. (2026): A real citation.',
+            ],
+            [
+                'identifier' => 'DOI of paper when available',
+                'identifierType' => 'DOI',
+                'relationType' => 'References',
+            ],
+            [
+                'identifier' => 'https://example.org/project',
+                'identifierType' => 'URL',
+                'relationType' => 'IsDocumentedBy',
+            ],
+        ]);
+
+        expect($result)->toBe([
+            [
+                'identifier' => '10.5880/related.one',
+                'identifierType' => 'DOI',
+                'relationType' => 'Cites',
+            ],
+            [
+                'identifier' => '10.5880/related.two',
+                'identifierType' => 'DOI',
+                'relationType' => 'References',
+                'citationLabel' => 'Doe, J. (2026): A real citation.',
+            ],
+            [
+                'identifier' => 'https://example.org/project',
+                'identifierType' => 'URL',
+                'relationType' => 'IsDocumentedBy',
+            ],
+        ]);
     });
 
     it('passes high-cardinality and repeated legacy metadata to storage without truncation', function () {

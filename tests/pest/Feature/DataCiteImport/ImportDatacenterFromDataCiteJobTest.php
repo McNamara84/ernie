@@ -185,8 +185,9 @@ describe('datacenter-scoped DataCite import job', function () {
         $this->pendingImportService
             ->shouldReceive('importPendingByDoi')
             ->times(3)
-            ->withArgs(fn (string $doi, int $userId): bool => in_array($doi, $pendingDois, true)
-                && $userId === $this->user->id)
+            ->withArgs(fn (string $doi, int $userId, CitationLabelResolutionMode $mode): bool => in_array($doi, $pendingDois, true)
+                && $userId === $this->user->id
+                && $mode === CitationLabelResolutionMode::BEST_EFFORT)
             ->andReturnUsing(function (string $doi) use ($domeDatacenter): array {
                 $resource = Resource::factory()->create([
                     'doi' => $doi,
@@ -518,7 +519,11 @@ describe('datacenter-scoped DataCite import job', function () {
         $this->pendingImportService
             ->shouldReceive('importPendingByDoi')
             ->once()
-            ->with('10.5880/pending-gfz', $this->user->id)
+            ->with(
+                '10.5880/pending-gfz',
+                $this->user->id,
+                CitationLabelResolutionMode::BEST_EFFORT,
+            )
             ->andReturn([
                 'status' => 'imported',
                 'resource' => $pendingResource,
@@ -586,7 +591,11 @@ describe('datacenter-scoped DataCite import job', function () {
         $this->pendingImportService
             ->shouldReceive('importPendingByDoi')
             ->once()
-            ->with('10.5880/shared', $this->user->id)
+            ->with(
+                '10.5880/shared',
+                $this->user->id,
+                CitationLabelResolutionMode::BEST_EFFORT,
+            )
             ->andReturn([
                 'status' => 'imported',
                 'resource' => $pendingResource,
@@ -746,7 +755,11 @@ describe('datacenter-scoped DataCite import job', function () {
         $this->pendingImportService
             ->shouldReceive('importPendingByDoi')
             ->once()
-            ->with('10.5880/missing-everywhere', $this->user->id)
+            ->with(
+                '10.5880/missing-everywhere',
+                $this->user->id,
+                CitationLabelResolutionMode::BEST_EFFORT,
+            )
             ->andReturn([
                 'status' => 'missing',
                 'resource' => null,

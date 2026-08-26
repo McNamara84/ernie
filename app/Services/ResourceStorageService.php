@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CitationLabelResolutionMode;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\DescriptionType;
@@ -67,9 +68,12 @@ class ResourceStorageService
      * @throws ValidationException
      */
     #[\NoDiscard('Stored resource and update flag must be used')]
-    public function store(array $data, ?int $userId = null): array
-    {
-        $data = $this->prepareDataForStorage($data);
+    public function store(
+        array $data,
+        ?int $userId = null,
+        CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
+    ): array {
+        $data = $this->prepareDataForStorage($data, $citationLabelResolutionMode);
 
         return DB::transaction(function () use ($data, $userId): array {
             $languageId = null;
@@ -161,8 +165,10 @@ class ResourceStorageService
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private function prepareDataForStorage(array $data): array
-    {
+    private function prepareDataForStorage(
+        array $data,
+        CitationLabelResolutionMode $citationLabelResolutionMode,
+    ): array {
         $relatedIdentifiers = $data['relatedIdentifiers'] ?? null;
 
         if (! is_array($relatedIdentifiers)) {
@@ -200,11 +206,16 @@ class ResourceStorageService
                 continue;
             }
 
-            $resolvedCitationLabel = $this->relatedIdentifierCitationLabelService->resolveBestEffort(
-                $identifier,
-                (string) ($relatedIdentifier['identifierType'] ?? ''),
-                $citationResolutionDeadline,
-            );
+            $resolvedCitationLabel = $citationLabelResolutionMode === CitationLabelResolutionMode::EXHAUSTIVE
+                ? $this->relatedIdentifierCitationLabelService->resolve(
+                    $identifier,
+                    (string) ($relatedIdentifier['identifierType'] ?? ''),
+                )
+                : $this->relatedIdentifierCitationLabelService->resolveBestEffort(
+                    $identifier,
+                    (string) ($relatedIdentifier['identifierType'] ?? ''),
+                    $citationResolutionDeadline,
+                );
 
             if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {
                 $relatedIdentifiers[$index]['citationLabel'] = trim($resolvedCitationLabel);

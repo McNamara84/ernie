@@ -121,7 +121,13 @@ export default function DefaultGfzTemplate() {
             ),
             dates: <DatesSection key="dates" dates={resource.dates || []} />,
             contact: <ContactSection key="contact" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />,
-            model_description: <ModelDescriptionSection key="model_description" relatedIdentifiers={resource.related_identifiers || []} />,
+            model_description: (
+                <ModelDescriptionSection
+                    key="model_description"
+                    relatedIdentifiers={resource.related_identifiers || []}
+                    resourceType={resource.resource_type?.name}
+                />
+            ),
             related_work: (
                 <RelatedWorkSection
                     key="related_work"

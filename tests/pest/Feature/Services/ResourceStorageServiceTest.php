@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CitationLabelResolutionMode;
 use App\Models\DateType;
 use App\Models\DescriptionType;
 use App\Models\FunderIdentifierType;
@@ -578,6 +579,7 @@ describe('ResourceStorageService', function () {
         $resourceType = ResourceType::first();
 
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldNotReceive('resolve');
         $mock->shouldReceive('resolveBestEffort')
             ->once()
             ->with('10.5880/test.related', 'DOI', Mockery::type('float'))
@@ -639,6 +641,62 @@ describe('ResourceStorageService', function () {
             ->and($related->relation_type_information)->toBe('Supplemental context')
             ->and($related->citation_label)->toBe('Doe, J. (2026): Auto-resolved citation.')
             ->and($related->position)->toBe(0);
+    });
+
+    it('resolves related identifier citation labels exhaustively when requested', function () {
+        $resourceType = ResourceType::first();
+
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldNotReceive('resolveBestEffort');
+        $mock->shouldReceive('resolve')
+            ->once()
+            ->with('10.5880/test.exhaustive', 'DOI')
+            ->andReturn('Doe, J. (2026): Exhaustively resolved citation.');
+        $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
+        $service = app(ResourceStorageService::class);
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Test Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'John',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Test abstract.',
+                ],
+            ],
+            'relatedIdentifiers' => [
+                [
+                    'identifier' => '10.5880/test.exhaustive',
+                    'identifierType' => 'DOI',
+                    'relationType' => 'Cites',
+                ],
+            ],
+        ];
+
+        [$resource] = $service->store(
+            $data,
+            $this->user->id,
+            CitationLabelResolutionMode::EXHAUSTIVE,
+        );
+
+        expect($resource->fresh()->relatedIdentifiers()->sole()->citation_label)
+            ->toBe('Doe, J. (2026): Exhaustively resolved citation.');
     });
 
     it('preserves manual related identifier citation labels without calling the resolver', function () {

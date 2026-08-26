@@ -13,6 +13,14 @@
             {
                 "title": "Correct IGSN Description Labels",
                 "description": "IGSN landing pages now label legacy descriptions from their actual description scheme instead of the sample material, while preserving source groups, entry order, and semicolon-containing values. Locality and platform descriptions also appear in their proper sections, and a dry-run-first backfill command can safely refresh existing legacy IGSNs without overwriting curated metadata."
+            },
+            {
+                "title": "Formatted Related Work in Legacy Resource Previews",
+                "description": "New pending SUMARIO resource imports now resolve valid related DOIs into formatted citation labels instead of persisting the identifier as its own label. Unresolvable DOIs and regular URLs remain safe links, while invalid DOI placeholders are omitted without blocking the import."
+            },
+            {
+                "title": "Complete Supplement Descriptions on Landing Pages",
+                "description": "Landing pages now display every Supplement To relationship together in one description card and no longer repeat additional supplements under Related Work. The card is labeled Dataset Description for datasets, Model Description for models, and Model / Method Description for other resource types."
             }
         ]
     },
