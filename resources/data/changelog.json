@@ -2,7 +2,12 @@
     {
         "version": "1.0.2",
         "date": "2026-08-26",
-        "features": [],
+        "features": [
+            {
+                "title": "Persistent IGSN Datacenter Filter",
+                "description": "The IGSN list can now be filtered by an assigned Datacenter or by samples without a Datacenter. Only Datacenters represented by stored IGSNs are offered, the selection combines with all existing IGSN filters and navigation, and ERNIE safely restores it in the current browser until it is changed or cleared."
+            }
+        ],
         "improvements": [
             {
                 "title": "Safer Data Editor and DataCite Actions",

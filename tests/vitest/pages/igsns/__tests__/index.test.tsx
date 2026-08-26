@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { render, screen, within } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia
@@ -80,18 +80,45 @@ vi.mock('@/components/igsns/igsn-filters', () => ({
         resultCount,
         totalCount,
     }: {
-        filters: Record<string, string | undefined>;
-        onFilterChange: (v: Record<string, string | undefined>) => void;
+        filters: Record<string, string | number | boolean | undefined>;
+        onFilterChange: (v: Record<string, string | number | boolean | undefined>) => void;
         resultCount: number;
         totalCount: number;
     }) => (
         <div data-testid="igsn-filters">
             <input
                 data-testid="search-field"
-                value={filters.search || ''}
+                value={String(filters.search || '')}
                 onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
                 aria-label="Search IGSNs by IGSN or title"
             />
+            <button
+                type="button"
+                data-testid="select-datacenter"
+                onClick={() => onFilterChange({ ...filters, datacenter_id: 7, without_datacenter: undefined })}
+            >
+                Select datacenter
+            </button>
+            <button
+                type="button"
+                data-testid="select-without-datacenter"
+                onClick={() => onFilterChange({ ...filters, datacenter_id: undefined, without_datacenter: true })}
+            >
+                Select without datacenter
+            </button>
+            <button
+                type="button"
+                data-testid="clear-datacenter"
+                onClick={() => {
+                    const nextFilters = { ...filters };
+                    delete nextFilters.datacenter_id;
+                    delete nextFilters.without_datacenter;
+                    onFilterChange(nextFilters);
+                }}
+            >
+                Clear datacenter
+            </button>
+            <output data-testid="igsn-filter-state">{JSON.stringify(filters)}</output>
             <span data-testid="search-counts">
                 {resultCount} / {totalCount}
             </span>
@@ -201,16 +228,18 @@ const defaultProps = {
     search: '',
     totalCount: 2,
     filters: { prefix: '', status: '' },
-    filterOptions: { prefixes: [], statuses: [] },
+    filterOptions: { prefixes: [], statuses: [], datacenters: [] },
 };
 
 describe('IgsnsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        localStorage.clear();
         // Mock window.location
         Object.defineProperty(window, 'location', {
+            configurable: true,
             writable: true,
-            value: { href: '', search: '' },
+            value: { href: '', pathname: '/test', search: '' },
         });
     });
 
@@ -382,6 +411,109 @@ describe('IgsnsPage', () => {
             render(<IgsnsPage {...defaultProps} />);
             // Check for sort buttons
             expect(screen.getByRole('button', { name: /sort by title/i })).toBeInTheDocument();
+        });
+    });
+
+    describe('datacenter filter persistence and URL handling', () => {
+        const filterOptions = {
+            prefixes: [],
+            statuses: [],
+            datacenters: [{ id: 7, name: 'GFZ Samples' }],
+        };
+
+        it('persists a concrete selection and serializes it into the filter URL', () => {
+            render(<IgsnsPage {...defaultProps} filterOptions={filterOptions} />);
+
+            fireEvent.click(screen.getByTestId('select-datacenter'));
+
+            expect(localStorage.getItem('ernie.igsns.datacenter-filter.v1')).toBe(
+                JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 7 }),
+            );
+            expect(mockRouterVisit).toHaveBeenCalledWith(
+                '/igsns?sort=updated_at&direction=desc&datacenter_id=7&per_page=25',
+                expect.objectContaining({ preserveState: false, replace: true }),
+            );
+        });
+
+        it('persists the unassigned selection and clears either saved choice', () => {
+            render(<IgsnsPage {...defaultProps} filterOptions={filterOptions} />);
+
+            fireEvent.click(screen.getByTestId('select-without-datacenter'));
+            expect(localStorage.getItem('ernie.igsns.datacenter-filter.v1')).toBe(JSON.stringify({ version: 1, type: 'without_datacenter' }));
+            expect(mockRouterVisit).toHaveBeenLastCalledWith(
+                '/igsns?sort=updated_at&direction=desc&without_datacenter=1&per_page=25',
+                expect.anything(),
+            );
+
+            fireEvent.click(screen.getByTestId('clear-datacenter'));
+            expect(localStorage.getItem('ernie.igsns.datacenter-filter.v1')).toBeNull();
+        });
+
+        it('restores a valid stored datacenter only on a clean IGSN URL', async () => {
+            window.location.pathname = '/igsns';
+            localStorage.setItem('ernie.igsns.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 7 }));
+
+            render(<IgsnsPage {...defaultProps} filterOptions={filterOptions} />);
+
+            await waitFor(() => {
+                expect(mockRouterVisit).toHaveBeenCalledWith(
+                    '/igsns?sort=updated_at&direction=desc&datacenter_id=7&per_page=25',
+                    expect.objectContaining({ preserveState: false, replace: true }),
+                );
+            });
+            expect(screen.getByTestId('igsn-filter-state')).toHaveTextContent('"datacenter_id":7');
+        });
+
+        it('restores the saved without-datacenter selection', async () => {
+            window.location.pathname = '/igsns';
+            localStorage.setItem('ernie.igsns.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'without_datacenter' }));
+
+            render(<IgsnsPage {...defaultProps} filterOptions={filterOptions} />);
+
+            await waitFor(() => {
+                expect(mockRouterVisit).toHaveBeenCalledWith(
+                    '/igsns?sort=updated_at&direction=desc&without_datacenter=1&per_page=25',
+                    expect.objectContaining({ preserveState: false, replace: true }),
+                );
+            });
+        });
+
+        it('does not restore over an explicit filtered URL', () => {
+            window.location.pathname = '/igsns';
+            window.location.search = '?status=pending';
+            localStorage.setItem('ernie.igsns.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 7 }));
+
+            render(<IgsnsPage {...defaultProps} filters={{ prefix: '', status: 'pending' }} filterOptions={filterOptions} />);
+
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+            expect(screen.getByTestId('igsn-filter-state')).toHaveTextContent('"status":"pending"');
+        });
+
+        it('discards a stored datacenter that is unavailable for IGSNs', async () => {
+            window.location.pathname = '/igsns';
+            localStorage.setItem('ernie.igsns.datacenter-filter.v1', JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 99 }));
+
+            render(<IgsnsPage {...defaultProps} filterOptions={filterOptions} />);
+
+            await waitFor(() => expect(localStorage.getItem('ernie.igsns.datacenter-filter.v1')).toBeNull());
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('preserves an active datacenter while sorting and changing pages', async () => {
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    filters={{ prefix: '', status: '', datacenter_id: 7 }}
+                    filterOptions={filterOptions}
+                    pagination={createPagination({ has_more: true, current_page: 1 })}
+                />,
+            );
+
+            await userEvent.click(screen.getByRole('button', { name: /sort by title/i }));
+            await userEvent.click(screen.getByText(/load more/i));
+
+            expect(mockRouterVisit).toHaveBeenNthCalledWith(1, expect.stringMatching(/sort=title.*datacenter_id=7/), expect.anything());
+            expect(mockRouterVisit).toHaveBeenNthCalledWith(2, expect.stringMatching(/datacenter_id=7.*page=2/), expect.anything());
         });
     });
 

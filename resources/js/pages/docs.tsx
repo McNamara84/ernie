@@ -2706,6 +2706,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>Register or update IGSNs at DataCite; Beginner users are forced to the test API</li>
                         </ul>
 
+                        <h4>Filtering by Datacenter</h4>
+                        <p>
+                            Use the <strong>Datacenter</strong> dropdown to show IGSNs assigned to one Datacenter. The dropdown lists only Datacenters
+                            assigned to at least one IGSN; Datacenters used only by regular Resources and unused Datacenters are omitted. Choose{' '}
+                            <strong>Without Datacenter</strong> to find imported samples that still require an assignment. The Datacenter filter can
+                            be combined with search, IGSN prefix, upload status, sorting, and pagination.
+                        </p>
+                        <p>
+                            ERNIE remembers the selected Datacenter or <strong>Without Datacenter</strong> in this browser and restores it the next
+                            time you open the unfiltered <code>/igsns</code> page. A Datacenter supplied in the URL takes precedence. Choosing
+                            <strong>All Datacenters</strong>, removing the Datacenter badge, or clearing all filters removes the saved selection;
+                            search, prefix, and status remain URL-based and are not stored.
+                        </p>
+
                         <h4>Bulk Selection</h4>
                         <p>You can select multiple IGSNs at once using the checkboxes:</p>
                         <ul className="list-inside list-disc space-y-1">
