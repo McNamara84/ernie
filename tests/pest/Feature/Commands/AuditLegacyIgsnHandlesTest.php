@@ -120,3 +120,14 @@ test('legacy IGSN audit ignores drafts, non-identity relations and modern IGSNs'
 
     Http::assertNothingSent();
 });
+
+test('legacy IGSN audit fails when an empty report cannot be written', function () {
+    Http::fake();
+
+    $this->artisan('igsn:audit-legacy-handles', ['--output' => sys_get_temp_dir()])
+        ->expectsOutput('No published legacy IGSN Handles found.')
+        ->expectsOutputToContain('Could not write audit report')
+        ->assertFailed();
+
+    Http::assertNothingSent();
+});

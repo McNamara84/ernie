@@ -39,9 +39,8 @@ class AuditLegacyIgsnHandles extends Command
 
         if ($identifiers->isEmpty()) {
             $this->info('No published legacy IGSN Handles found.');
-            $this->writeReport([], 0);
 
-            return self::SUCCESS;
+            return $this->writeReport([], 0) ? self::SUCCESS : self::FAILURE;
         }
 
         $this->info("Auditing {$identifiers->count()} published legacy IGSN Handle(s)...");
