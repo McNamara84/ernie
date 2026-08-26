@@ -3,12 +3,13 @@
         "version": "1.0.3",
         "date": "2026-08-27",
         "features": [],
-        "improvements": [],
-        "fixes": [
+        "improvements": [
             {
                 "title": "Flexible and Correct Download Link Labels",
                 "description": "Legacy downloads now use their visible names instead of URL-like file names, and curators can customize labels for primary downloads and historically imported files. Download buttons retain click tracking while exposing the real destination on hover, and a dry-run-first backfill safely corrects clearly automatic existing labels without overwriting curated text."
-            },
+            }
+        ],
+        "fixes": [
             {
                 "title": "Complete Legacy Datacenter DOI Imports",
                 "description": "Datacenter and single-DOI imports now recover eligible legacy resources from SUMARIO when their DOI is missing from DataCite, including records already marked as released. These fallback resources enter ERNIE in Review with an unpublished landing page, retain their legacy source status and datacenter assignment, and remain idempotent on repeated imports."
