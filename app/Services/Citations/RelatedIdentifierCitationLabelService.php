@@ -135,6 +135,76 @@ class RelatedIdentifierCitationLabelService
     }
 
     /**
+     * Exhaustively resolve the editor/storage representation of related identifiers.
+     *
+     * The exhaustive resolver operates on an entire list so DOI metadata can be
+     * fetched through the retrying batch path. This adapter preserves the storage
+     * payload's field names while delegating resolution to {@see resolveExhaustive()}.
+     *
+     * @param  array<int, mixed>  $relatedIdentifiers
+     * @return array<int, mixed>
+     */
+    public function resolveExhaustiveForStorage(array $relatedIdentifiers): array
+    {
+        $resolutionCandidates = [];
+
+        foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
+            if (! is_array($relatedIdentifier)) {
+                continue;
+            }
+
+            $identifier = isset($relatedIdentifier['identifier'])
+                ? trim((string) $relatedIdentifier['identifier'])
+                : '';
+            $identifierType = isset($relatedIdentifier['identifierType'])
+                ? trim((string) $relatedIdentifier['identifierType'])
+                : '';
+            $citationLabel = isset($relatedIdentifier['citationLabel'])
+                ? trim((string) $relatedIdentifier['citationLabel'])
+                : '';
+
+            if ($identifier === '') {
+                unset($relatedIdentifiers[$index]['citationLabel']);
+
+                continue;
+            }
+
+            $relatedIdentifiers[$index]['identifier'] = $identifier;
+
+            if ($citationLabel !== '') {
+                $relatedIdentifiers[$index]['citationLabel'] = $citationLabel;
+            } else {
+                unset($relatedIdentifiers[$index]['citationLabel']);
+            }
+
+            $resolutionCandidates[$index] = [
+                'relatedIdentifier' => $identifier,
+                'relatedIdentifierType' => $identifierType,
+            ];
+
+            if ($citationLabel !== '') {
+                $resolutionCandidates[$index]['citationLabel'] = $citationLabel;
+            }
+        }
+
+        $resolvedCandidates = $this->resolveExhaustive($resolutionCandidates);
+
+        foreach ($resolvedCandidates as $index => $resolvedCandidate) {
+            $citationLabel = isset($resolvedCandidate['citationLabel'])
+                ? trim((string) $resolvedCandidate['citationLabel'])
+                : '';
+
+            if ($citationLabel !== '') {
+                $relatedIdentifiers[$index]['citationLabel'] = $citationLabel;
+            } else {
+                unset($relatedIdentifiers[$index]['citationLabel']);
+            }
+        }
+
+        return $relatedIdentifiers;
+    }
+
+    /**
      * Exhaustively resolve missing citation labels for a single-resource import.
      *
      * Existing labels are preserved. DOI-like URL identifiers participate in

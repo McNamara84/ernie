@@ -1500,7 +1500,11 @@ describe('ImportFromDataCiteJob', function () {
         $this->pendingImportService
             ->shouldReceive('importPendingByDoi')
             ->once()
-            ->with('10.5880/pending.unavailable', $this->user->id)
+            ->with(
+                '10.5880/pending.unavailable',
+                $this->user->id,
+                CitationLabelResolutionMode::EXHAUSTIVE,
+            )
             ->andThrow(new RuntimeException('Connection refused'));
 
         $this->transformer->shouldReceive('transform')->never();
@@ -1531,7 +1535,11 @@ describe('ImportFromDataCiteJob', function () {
         $this->pendingImportService
             ->shouldReceive('importPendingByDoi')
             ->once()
-            ->with('10.5880/pending.single', $this->user->id)
+            ->with(
+                '10.5880/pending.single',
+                $this->user->id,
+                CitationLabelResolutionMode::EXHAUSTIVE,
+            )
             ->andReturn([
                 'status' => 'imported',
                 'resource' => Resource::factory()->create([
@@ -1566,7 +1574,11 @@ describe('ImportFromDataCiteJob', function () {
         $this->pendingImportService
             ->shouldReceive('importPendingByDoi')
             ->once()
-            ->with('10.5880/pending.skip', $this->user->id)
+            ->with(
+                '10.5880/pending.skip',
+                $this->user->id,
+                CitationLabelResolutionMode::EXHAUSTIVE,
+            )
             ->andReturn([
                 'status' => 'skipped',
                 'resource' => null,

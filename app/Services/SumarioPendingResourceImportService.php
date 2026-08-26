@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CitationLabelResolutionMode;
 use App\Enums\ResourceWorkflowStatus;
 use App\Models\Datacenter;
 use App\Models\OldDataset;
@@ -34,8 +35,11 @@ class SumarioPendingResourceImportService
     /**
      * @return array{status: 'imported'|'skipped'|'missing'|'failed', resource: Resource|null, doi: string, error: string|null}
      */
-    public function importPendingByDoi(string $doi, int $userId): array
-    {
+    public function importPendingByDoi(
+        string $doi,
+        int $userId,
+        CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
+    ): array {
         $normalisedDoi = $this->normaliseDoi($doi);
 
         if ($this->shouldSkipLegacyDoi($normalisedDoi)) {
@@ -74,7 +78,7 @@ class SumarioPendingResourceImportService
         try {
             return [
                 'status' => 'imported',
-                'resource' => $this->importDataset($oldDataset, $normalisedDoi, $userId),
+                'resource' => $this->importDataset($oldDataset, $normalisedDoi, $userId, $citationLabelResolutionMode),
                 'doi' => $normalisedDoi,
                 'error' => null,
             ];
@@ -191,7 +195,12 @@ class SumarioPendingResourceImportService
             }
 
             try {
-                $this->importDataset($oldDataset, $doi, $userId);
+                $this->importDataset(
+                    $oldDataset,
+                    $doi,
+                    $userId,
+                    CitationLabelResolutionMode::BEST_EFFORT,
+                );
                 $summary['imported']++;
             } catch (\Throwable $exception) {
                 $summary['failed']++;
@@ -222,12 +231,16 @@ class SumarioPendingResourceImportService
             ->first();
     }
 
-    private function importDataset(OldDataset $oldDataset, ?string $doi, int $userId): Resource
-    {
+    private function importDataset(
+        OldDataset $oldDataset,
+        ?string $doi,
+        int $userId,
+        CitationLabelResolutionMode $citationLabelResolutionMode,
+    ): Resource {
         $editorData = $this->editorLoader->loadForEditor((int) $oldDataset->id);
         $payload = $this->mapEditorPayloadForStorage($editorData, $oldDataset, $doi);
 
-        [$resource] = $this->resourceStorage->store($payload, $userId);
+        [$resource] = $this->resourceStorage->store($payload, $userId, $citationLabelResolutionMode);
 
         $resource->forceFill([
             'legacy_source' => 'sumario-pmd',
@@ -438,7 +451,7 @@ class SumarioPendingResourceImportService
     }
 
     /**
-     * @return list<array{identifier: string, identifierType: string, relationType: string, citationLabel: string}>
+     * @return list<array{identifier: string, identifierType: string, relationType: string, citationLabel?: string}>
      */
     private function normaliseRelatedIdentifiers(mixed $relatedIdentifiers): array
     {
@@ -459,15 +472,63 @@ class SumarioPendingResourceImportService
                 continue;
             }
 
-            $normalised[] = [
+            $identifierType = $this->filledString(
+                $relatedIdentifier['identifierType'] ?? $relatedIdentifier['identifier_type'] ?? null,
+            ) ?? 'DOI';
+            $relationType = $this->filledString(
+                $relatedIdentifier['relationType'] ?? $relatedIdentifier['relation_type'] ?? null,
+            ) ?? 'References';
+
+            if (strcasecmp($identifierType, 'DOI') === 0) {
+                if (! $this->doiSuggestionService->isValidDoiFormat($identifier)) {
+                    Log::info('Skipping invalid DOI related identifier from SUMARIO pending resource.', [
+                        'identifier' => $identifier,
+                        'relation_type' => $relationType,
+                    ]);
+
+                    continue;
+                }
+
+                $identifierType = 'DOI';
+                $identifier = $this->doiSuggestionService->normalizeDoi($identifier);
+            }
+
+            $normalisedRelatedIdentifier = [
                 'identifier' => $identifier,
-                'identifierType' => $this->filledString($relatedIdentifier['identifierType'] ?? $relatedIdentifier['identifier_type'] ?? null) ?? 'DOI',
-                'relationType' => $this->filledString($relatedIdentifier['relationType'] ?? $relatedIdentifier['relation_type'] ?? null) ?? 'References',
-                'citationLabel' => $identifier,
+                'identifierType' => $identifierType,
+                'relationType' => $relationType,
             ];
+
+            $citationLabel = $this->filledString(
+                $relatedIdentifier['citationLabel'] ?? $relatedIdentifier['citation_label'] ?? null,
+            );
+
+            if ($citationLabel !== null && ! $this->citationLabelDuplicatesIdentifier(
+                $citationLabel,
+                $identifier,
+                $identifierType,
+            )) {
+                $normalisedRelatedIdentifier['citationLabel'] = $citationLabel;
+            }
+
+            $normalised[] = $normalisedRelatedIdentifier;
         }
 
         return $normalised;
+    }
+
+    private function citationLabelDuplicatesIdentifier(
+        string $citationLabel,
+        string $identifier,
+        string $identifierType,
+    ): bool {
+        if (strcasecmp(trim($citationLabel), trim($identifier)) === 0) {
+            return true;
+        }
+
+        return $identifierType === 'DOI'
+            && $this->doiSuggestionService->isValidDoiFormat($citationLabel)
+            && $this->doiSuggestionService->normalizeDoi($citationLabel) === $identifier;
     }
 
     /**

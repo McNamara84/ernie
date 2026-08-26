@@ -11,14 +11,16 @@ describe('ModelDescriptionSection', () => {
 
     it('returns null when no IsSupplementTo relation exists', () => {
         const { container } = render(
-            <ModelDescriptionSection relatedIdentifiers={[
-                {
-                    id: 1,
-                    identifier: '10.5880/test',
-                    identifier_type: 'DOI',
-                    relation_type: 'References',
-                },
-            ]} />,
+            <ModelDescriptionSection
+                relatedIdentifiers={[
+                    {
+                        id: 1,
+                        identifier: '10.5880/test',
+                        identifier_type: 'DOI',
+                        relation_type: 'References',
+                    },
+                ]}
+            />,
         );
 
         expect(container.firstChild).toBeNull();
@@ -26,15 +28,18 @@ describe('ModelDescriptionSection', () => {
 
     it('renders the section title and persisted citation label', () => {
         render(
-            <ModelDescriptionSection relatedIdentifiers={[
-                {
-                    id: 1,
-                    identifier: '10.5880/test',
-                    identifier_type: 'DOI',
-                    relation_type: 'IsSupplementTo',
-                    citation_label: 'Smith, J. (2024). Test Model.',
-                },
-            ]} />,
+            <ModelDescriptionSection
+                resourceType="Model"
+                relatedIdentifiers={[
+                    {
+                        id: 1,
+                        identifier: '10.5880/test',
+                        identifier_type: 'DOI',
+                        relation_type: 'IsSupplementTo',
+                        citation_label: 'Smith, J. (2024). Test Model.',
+                    },
+                ]}
+            />,
         );
 
         expect(screen.getByRole('heading', { name: 'Model Description' })).toBeInTheDocument();
@@ -44,15 +49,17 @@ describe('ModelDescriptionSection', () => {
 
     it('falls back to related_title when no citation label exists', () => {
         render(
-            <ModelDescriptionSection relatedIdentifiers={[
-                {
-                    id: 1,
-                    identifier: '10.5880/test',
-                    identifier_type: 'DOI',
-                    relation_type: 'IsSupplementTo',
-                    related_title: 'Fallback Model Title',
-                },
-            ]} />,
+            <ModelDescriptionSection
+                relatedIdentifiers={[
+                    {
+                        id: 1,
+                        identifier: '10.5880/test',
+                        identifier_type: 'DOI',
+                        relation_type: 'IsSupplementTo',
+                        related_title: 'Fallback Model Title',
+                    },
+                ]}
+            />,
         );
 
         expect(screen.getByText('Fallback Model Title')).toBeInTheDocument();
@@ -60,54 +67,87 @@ describe('ModelDescriptionSection', () => {
 
     it('falls back to the identifier when no citation label or related title exists', () => {
         render(
-            <ModelDescriptionSection relatedIdentifiers={[
-                {
-                    id: 1,
-                    identifier: '10.5880/test',
-                    identifier_type: 'DOI',
-                    relation_type: 'IsSupplementTo',
-                },
-            ]} />,
+            <ModelDescriptionSection
+                relatedIdentifiers={[
+                    {
+                        id: 1,
+                        identifier: '10.5880/test',
+                        identifier_type: 'DOI',
+                        relation_type: 'IsSupplementTo',
+                    },
+                ]}
+            />,
         );
 
         expect(screen.getByText('10.5880/test')).toBeInTheDocument();
     });
 
-    it('uses the first IsSupplementTo relation only', () => {
+    it('renders every IsSupplementTo relation in source order', () => {
         render(
-            <ModelDescriptionSection relatedIdentifiers={[
-                {
-                    id: 1,
-                    identifier: '10.5880/first',
-                    identifier_type: 'DOI',
-                    relation_type: 'IsSupplementTo',
-                    citation_label: 'First citation',
-                },
-                {
-                    id: 2,
-                    identifier: '10.5880/second',
-                    identifier_type: 'DOI',
-                    relation_type: 'IsSupplementTo',
-                    citation_label: 'Second citation',
-                },
-            ]} />,
+            <ModelDescriptionSection
+                relatedIdentifiers={[
+                    {
+                        id: 1,
+                        identifier: '10.5880/first',
+                        identifier_type: 'DOI',
+                        relation_type: 'IsSupplementTo',
+                        citation_label: 'First citation',
+                    },
+                    {
+                        id: 2,
+                        identifier: '10.5880/second',
+                        identifier_type: 'DOI',
+                        relation_type: 'IsSupplementTo',
+                        citation_label: 'Second citation',
+                    },
+                ]}
+            />,
         );
 
         expect(screen.getByText('First citation')).toBeInTheDocument();
-        expect(screen.queryByText('Second citation')).not.toBeInTheDocument();
+        expect(screen.getByText('Second citation')).toBeInTheDocument();
+        expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual(['First citation', 'Second citation']);
+    });
+
+    it.each([
+        ['Dataset', 'Dataset Description'],
+        [' dataset ', 'Dataset Description'],
+        ['Model', 'Model Description'],
+        ['MODEL', 'Model Description'],
+        ['Physical Object', 'Model / Method Description'],
+        [null, 'Model / Method Description'],
+    ])('uses the resource type %s to render the heading %s', (resourceType, expectedHeading) => {
+        render(
+            <ModelDescriptionSection
+                resourceType={resourceType}
+                relatedIdentifiers={[
+                    {
+                        id: 1,
+                        identifier: '10.5880/test',
+                        identifier_type: 'DOI',
+                        relation_type: 'IsSupplementTo',
+                    },
+                ]}
+            />,
+        );
+
+        expect(screen.getByRole('heading', { level: 2, name: expectedHeading })).toBeInTheDocument();
+        expect(screen.getByRole('region', { name: expectedHeading })).toBeInTheDocument();
     });
 
     it('renders the resolved DOI link', () => {
         render(
-            <ModelDescriptionSection relatedIdentifiers={[
-                {
-                    id: 1,
-                    identifier: '10.5880/my-dataset',
-                    identifier_type: 'DOI',
-                    relation_type: 'IsSupplementTo',
-                    citation_label: 'Test Citation',
-                },
-            ]} />,
+            <ModelDescriptionSection
+                relatedIdentifiers={[
+                    {
+                        id: 1,
+                        identifier: '10.5880/my-dataset',
+                        identifier_type: 'DOI',
+                        relation_type: 'IsSupplementTo',
+                        citation_label: 'Test Citation',
+                    },
+                ]}
+            />,
         );
 
         const link = screen.getByRole('link');
@@ -116,31 +156,62 @@ describe('ModelDescriptionSection', () => {
         expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
-    it('returns null when the identifier is empty or unsafe', () => {
+    it('returns null when the only identifiers are empty or unsafe', () => {
         const { container: emptyContainer } = render(
-            <ModelDescriptionSection relatedIdentifiers={[
-                {
-                    id: 1,
-                    identifier: '',
-                    identifier_type: 'DOI',
-                    relation_type: 'IsSupplementTo',
-                },
-            ]} />,
+            <ModelDescriptionSection
+                relatedIdentifiers={[
+                    {
+                        id: 1,
+                        identifier: '',
+                        identifier_type: 'DOI',
+                        relation_type: 'IsSupplementTo',
+                    },
+                ]}
+            />,
         );
 
         const { container: unsafeContainer } = render(
-            <ModelDescriptionSection relatedIdentifiers={[
-                {
-                    id: 2,
-                    identifier: 'javascript:alert(1)',
-                    identifier_type: 'URL',
-                    relation_type: 'IsSupplementTo',
-                },
-            ]} />,
+            <ModelDescriptionSection
+                relatedIdentifiers={[
+                    {
+                        id: 2,
+                        identifier: 'javascript:alert(1)',
+                        identifier_type: 'URL',
+                        relation_type: 'IsSupplementTo',
+                    },
+                ]}
+            />,
         );
 
         expect(emptyContainer.firstChild).toBeNull();
         expect(unsafeContainer.firstChild).toBeNull();
         expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('keeps valid supplements when another supplement has an unsafe target', () => {
+        render(
+            <ModelDescriptionSection
+                resourceType="Dataset"
+                relatedIdentifiers={[
+                    {
+                        id: 1,
+                        identifier: 'javascript:alert(1)',
+                        identifier_type: 'URL',
+                        relation_type: 'IsSupplementTo',
+                        citation_label: 'Unsafe supplement',
+                    },
+                    {
+                        id: 2,
+                        identifier: '10.5880/safe',
+                        identifier_type: 'DOI',
+                        relation_type: 'IsSupplementTo',
+                        citation_label: 'Safe supplement',
+                    },
+                ]}
+            />,
+        );
+
+        expect(screen.queryByText('Unsafe supplement')).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Safe supplement' })).toHaveAttribute('href', 'https://doi.org/10.5880/safe');
     });
 });
