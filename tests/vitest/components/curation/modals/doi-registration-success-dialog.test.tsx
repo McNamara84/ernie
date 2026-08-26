@@ -15,6 +15,7 @@ describe('DoiRegistrationSuccessDialog', () => {
     it('shows the published Resource + IGSN total and continues automatically', () => {
         vi.useFakeTimers();
         const onContinue = vi.fn();
+        const localeStringSpy = vi.spyOn(Number.prototype, 'toLocaleString');
 
         render(
             <DoiRegistrationSuccessDialog open doi="10.83279/example" counts={{ resources: 1200, igsns: 34, total: 1234 }} onContinue={onContinue} />,
@@ -23,6 +24,7 @@ describe('DoiRegistrationSuccessDialog', () => {
         expect(screen.getByText('Canonically published records in ERNIE')).toBeInTheDocument();
         expect(screen.getByTestId('published-record-total')).toHaveTextContent('1,234');
         expect(screen.getByText('1,200 Resources + 34 IGSNs')).toBeInTheDocument();
+        expect(localeStringSpy.mock.calls).toEqual([['en-US'], ['en-US'], ['en-US']]);
         expect(screen.getByTestId('doi-success-confetti')).toBeInTheDocument();
 
         act(() => vi.advanceTimersByTime(4_999));

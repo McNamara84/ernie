@@ -904,8 +904,8 @@ count.
 
 ### 4.2 Resources
 
-- [ ] Sign in as an administrator, open `/resources`, and select `Update
-DataCite landing-page URLs`.
+- [ ] Sign in as an administrator, open `/resources`, and select
+      `Update DataCite landing-page URLs`.
 - [ ] Confirm the `DataCite Production` badge, production endpoint, target base,
       eligible total, and all ten current/new URL samples.
 - [ ] Confirm that no sampled external landing page is present and that every

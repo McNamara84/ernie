@@ -104,10 +104,10 @@ export function DoiRegistrationSuccessDialog({ open, doi, counts, onContinue, re
                         transition={{ delay: 0.15, type: 'spring', stiffness: 180 }}
                         data-testid="published-record-total"
                     >
-                        {counts.total.toLocaleString()}
+                        {counts.total.toLocaleString('en-US')}
                     </motion.p>
                     <p className="mt-2 text-sm text-muted-foreground">
-                        {counts.resources.toLocaleString()} Resources + {counts.igsns.toLocaleString()} IGSNs
+                        {counts.resources.toLocaleString('en-US')} Resources + {counts.igsns.toLocaleString('en-US')} IGSNs
                     </p>
                 </div>
 
