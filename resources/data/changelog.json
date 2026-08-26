@@ -20,8 +20,9 @@
             },
             {
                 "title": "Private IGSN Repository Contact Forms",
-                "description": "IGSN landing pages no longer expose repository email addresses in rendered content or page data. Current and original repositories now provide separate protected contact forms when a server-side address is available; submissions carry only the selected repository role, while ERNIE resolves, validates, and deduplicates recipients on the server.",
+                "description": "IGSN landing pages no longer expose repository email addresses in rendered content or page data. Current and original repositories now provide separate protected contact forms when a server-side address is available; submissions carry only the selected repository role, while ERNIE resolves, validates, and deduplicates recipients on the server."
             },
+            {
                 "title": "Formatted Related Work in Legacy Resource Previews",
                 "description": "New pending SUMARIO resource imports now resolve valid related DOIs into formatted citation labels instead of persisting the identifier as its own label. Unresolvable DOIs and regular URLs remain safe links, while invalid DOI placeholders are omitted without blocking the import."
             },
