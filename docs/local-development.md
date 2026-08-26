@@ -171,6 +171,14 @@ With `DATACITE_TEST_MODE=false` on Production, the same local landing pages are 
 
 Production uses separate DataCite Repository accounts for ordinary GFZ DOIs and legacy IGSNs. Configure `DATACITE_USERNAME` / `DATACITE_PASSWORD` for the ordinary DOI repository and `DATACITE_IGSN_USERNAME` / `DATACITE_IGSN_PASSWORD` for the `GFZ.IGSN` repository that owns prefix `10.60510`. ERNIE selects the IGSN credentials automatically for that prefix; using the ordinary DOI credentials results in a DataCite HTTP 403 response.
 
+### Legacy line coverage enrichment
+
+Newly created resources from DataCite are optionally enriched with profile lines from non-empty `sumario-pmd.coverage.wkt` values. ERNIE stores each valid coordinate chain as `geo_type = line` with its ordered points in `polygon_points`, so the Data Editor and landing pages retain the original line geometry. On later DataCite exports, the existing thin-polygon workaround is used because DataCite does not provide a line geometry type.
+
+The enrichment replaces a DataCite bounding box only when all four legacy bounds match and exactly one safe candidate can be identified, using the place description to resolve equal boxes where possible. Other GeoLocations are preserved. Invalid geometry, incomplete bounds, ambiguous matches, and legacy database failures keep the imported DataCite metadata and do not fail the import.
+
+This enrichment runs only while creating a new DataCite resource. Duplicate, skipped, and repair paths do not add lines to resources that already exist in ERNIE; there is no automatic backfill.
+
 ### Testing Data Editor registration safely
 
 Keep `DATACITE_TEST_MODE=true` and use test Repository credentials when exercising the Data Editor's `Register` or `Update Metadata` actions locally. `Validate`, `Save Draft`, autosave, `Preview LP`, and `Show LP` are local-only actions and must not produce a DataCite request. The two DataCite write actions run complete client validation, show an explicit confirmation before their action-specific save, and automatically continue through landing-page setup when a page is missing.

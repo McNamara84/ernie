@@ -17,6 +17,7 @@ use App\Services\LegacyResourceLookupService;
 use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
+use App\Services\SumarioPmdCoverageEnrichmentService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -57,6 +58,14 @@ beforeEach(function () {
         ->andReturnFalse()
         ->byDefault();
     $this->app->instance(SumarioPmdContactEnrichmentService::class, $this->contactEnrichmentService);
+
+    $this->coverageEnrichmentService = Mockery::mock(SumarioPmdCoverageEnrichmentService::class);
+    $this->coverageEnrichmentService
+        ->shouldReceive('enrich')
+        ->zeroOrMoreTimes()
+        ->andReturnFalse()
+        ->byDefault();
+    $this->app->instance(SumarioPmdCoverageEnrichmentService::class, $this->coverageEnrichmentService);
 
     $this->datacenterLookupService = Mockery::mock(LegacyMetaworksDatacenterLookupService::class);
     $this->datacenterLookupService
@@ -159,6 +168,12 @@ describe('datacenter-scoped DataCite import job', function () {
                 // that do not yet satisfy newer ERNIE completeness requirements.
                 'access_level' => null,
             ]));
+        $this->coverageEnrichmentService
+            ->shouldReceive('enrich')
+            ->times(8)
+            ->withArgs(fn (Resource $resource, string $doi): bool => $resource->doi === $doi
+                && in_array($doi, $publishedDois, true))
+            ->andReturnFalse();
 
         $this->metaworksService
             ->shouldReceive('lookupFileEntries')

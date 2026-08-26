@@ -104,6 +104,29 @@ describe('Landing Page with GeoLocations', function () {
             );
     });
 
+    test('returns a line with its complete ordered point sequence', function () {
+        $linePoints = [
+            ['longitude' => 11.77626257, 'latitude' => 49.80986519],
+            ['longitude' => 12, 'latitude' => 49.9],
+            ['longitude' => 12.31280322, 'latitude' => 50.05294114],
+        ];
+
+        GeoLocation::factory()->withLine($linePoints)->create([
+            'resource_id' => $this->resource->id,
+            'place' => 'DEKORP profile',
+        ]);
+
+        $response = $this->get($this->landingPageUrl);
+
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page
+                ->has('resource.geo_locations', 1)
+                ->where('resource.geo_locations.0.geo_type', 'line')
+                ->where('resource.geo_locations.0.place', 'DEKORP profile')
+                ->where('resource.geo_locations.0.polygon_points', $linePoints)
+            );
+    });
+
     test('returns empty geo_locations array when none exist', function () {
         $response = $this->get("{$this->landingPageUrl}");
 
