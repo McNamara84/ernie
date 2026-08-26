@@ -367,7 +367,7 @@ describe('Update', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         $newRightOrder = locationFirstRightColumnOrder();
-        $newLeftOrder = ['contact', 'files', 'citation', 'dates', 'related_work', 'model_description'];
+        $newLeftOrder = ['contact', 'files', 'licenses', 'citation', 'dates', 'related_work', 'model_description'];
 
         $response = $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
@@ -879,6 +879,7 @@ describe('API List', function (): void {
                 'contact',
                 'model_description',
                 'related_work',
+                'licenses',
                 'general',
                 'sample_family',
                 'acquisition',
@@ -923,6 +924,7 @@ describe('Model', function (): void {
         ))->toBe([
             'contact',
             'files',
+            'licenses',
             'dates',
             'model_description',
             'related_work',
@@ -933,6 +935,7 @@ describe('Model', function (): void {
         ))->toBe([
             'contact',
             'general',
+            'licenses',
             'sample_family',
             'acquisition',
             'repositories',
@@ -951,6 +954,7 @@ describe('Model', function (): void {
             'contact',
             'citation',
             'files',
+            'licenses',
             'dates',
             'model_description',
             'related_work',
@@ -958,6 +962,7 @@ describe('Model', function (): void {
             ['citation', 'contact', 'general'],
             LandingPageTemplate::TEMPLATE_TYPE_IGSN,
         ))->toBe([
+            'licenses',
             'citation',
             'contact',
             'general',
@@ -1304,6 +1309,7 @@ describe('Update Edge Cases', function (): void {
             ->assertJsonPath('template.left_column_order', [
                 'contact',
                 'files',
+                'licenses',
                 'dates',
                 'model_description',
                 'related_work',
@@ -1332,7 +1338,7 @@ describe('Update Edge Cases', function (): void {
             ->assertOk();
 
         $response->assertJsonPath('template.left_column_order', [
-            'contact', 'files', 'dates', 'model_description', 'related_work', 'citation',
+            'contact', 'files', 'licenses', 'dates', 'model_description', 'related_work', 'citation',
         ]);
 
         $template->refresh();

@@ -20,6 +20,7 @@ export const RIGHT_SECTION_LABELS: Record<RightColumnSection, string> = {
 
 export const LEFT_SECTION_LABELS: Record<LeftColumnSection, string> = {
     files: 'Files & Downloads',
+    licenses: 'License & Rights',
     general: 'General',
     sample_family: 'Sample Family',
     acquisition: 'Acquisition',
@@ -41,13 +42,22 @@ export const RIGHT_COLUMN_SECTIONS: RightColumnSection[] = [
     'location',
 ];
 
-export const RESOURCE_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = ['files', 'citation', 'dates', 'contact', 'model_description', 'related_work'];
+export const RESOURCE_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
+    'files',
+    'licenses',
+    'citation',
+    'dates',
+    'contact',
+    'model_description',
+    'related_work',
+];
 
 export const IGSN_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
     'general',
     'sample_family',
     'acquisition',
     'repositories',
+    'licenses',
     'citation',
     'dates',
     'contact',
@@ -57,6 +67,7 @@ export const IGSN_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
 
 export const LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
     'files',
+    'licenses',
     'general',
     'sample_family',
     'acquisition',
@@ -81,6 +92,20 @@ function normalizeOrder<T extends string>(stored: readonly T[], canonical: reado
         if (!canonicalSet.has(key) || seen.has(key)) continue;
         seen.add(key);
         result.push(key);
+    }
+
+    const licenses = 'licenses' as T;
+    if (canonicalSet.has(licenses) && !seen.has(licenses)) {
+        const resourceAnchor = 'files' as T;
+        const igsnAnchor = 'repositories' as T;
+        const citation = 'citation' as T;
+        const anchor = canonicalSet.has(resourceAnchor) ? resourceAnchor : igsnAnchor;
+        const anchorIndex = result.indexOf(anchor);
+        const citationIndex = result.indexOf(citation);
+        const insertAt = anchorIndex !== -1 ? anchorIndex + 1 : citationIndex !== -1 ? citationIndex : result.length;
+
+        result.splice(insertAt, 0, licenses);
+        seen.add(licenses);
     }
 
     for (const key of canonical) {

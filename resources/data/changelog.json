@@ -11,6 +11,14 @@
         ],
         "fixes": [
             {
+                "title": "Complete Funding References on Landing Pages",
+                "description": "Resource and IGSN landing pages now show award titles and grant numbers alongside each funder, preserve ROR and Crossref links, and link complete award labels when a safe award URL is available. Existing imported funding metadata becomes visible without requiring a reimport."
+            },
+            {
+                "title": "Licenses Remain Visible Without Downloads",
+                "description": "Licenses and rights now have an independent, template-configurable landing-page section that remains visible when files are unavailable or data must be requested through a contact form. Trusted catalog licenses retain their SPDX and Creative Commons presentation, while unmatched historical and software rights statements remain available as neutral text with safe links across Resource, IGSN, custom, and Datacenter-inherited templates."
+            },
+            {
                 "title": "Complete Legacy Datacenter DOI Imports",
                 "description": "Datacenter and single-DOI imports now recover eligible legacy resources from SUMARIO when their DOI is missing from DataCite, including records already marked as released. These fallback resources enter ERNIE in Review with an unpublished landing page, retain their legacy source status and datacenter assignment, and remain idempotent on repeated imports."
             },

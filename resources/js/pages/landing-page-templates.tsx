@@ -754,8 +754,8 @@ export default function LandingPageTemplatesPage() {
                                         labels={LEFT_SECTION_LABELS}
                                         description={
                                             editTemplate?.template_type === 'igsn'
-                                                ? 'IGSN templates use the General and Acquisition modules instead of Files & Downloads.'
-                                                : 'Resource templates render files, contact details, and related material in the sidebar.'
+                                                ? 'IGSN templates use General and Acquisition instead of Files & Downloads; License & Rights remains available.'
+                                                : 'Resource templates render files, licenses and rights, contact details, and related material in the sidebar.'
                                         }
                                         onReorder={(items) => setEditLeftOrder(items as LeftColumnSection[])}
                                     />

@@ -773,7 +773,7 @@ describe('LandingPageTemplatesPage', () => {
                 expect(mockedAxiosPut).toHaveBeenCalledWith(
                     `/landing-pages/${customTemplate.id}`,
                     expect.objectContaining({
-                        left_column_order: ['contact', 'citation', 'files', 'dates', 'model_description', 'related_work'],
+                        left_column_order: ['contact', 'citation', 'files', 'licenses', 'dates', 'model_description', 'related_work'],
                     }),
                 );
             });
@@ -807,6 +807,7 @@ describe('LandingPageTemplatesPage', () => {
             expect(within(dialog).getByText('General')).toBeInTheDocument();
             expect(within(dialog).getByText('Sample Family')).toBeInTheDocument();
             expect(within(dialog).getByText('Acquisition')).toBeInTheDocument();
+            expect(within(dialog).getByText('License & Rights')).toBeInTheDocument();
             expect(within(dialog).getByText('Cite this Resource')).toBeInTheDocument();
 
             await user.click(screen.getByRole('button', { name: /Save Changes/i }));
@@ -819,6 +820,7 @@ describe('LandingPageTemplatesPage', () => {
                             'contact',
                             'model_description',
                             'related_work',
+                            'licenses',
                             'general',
                             'sample_family',
                             'acquisition',

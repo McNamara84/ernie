@@ -9,7 +9,9 @@ use App\Models\LandingPageDailyStatistic;
 use App\Models\LandingPageDomain;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
@@ -580,6 +582,22 @@ describe('Tracked Download URLs', function () {
             'label' => 'Supporting repository',
             'position' => 0,
         ]);
+        $right = Right::factory()->create([
+            'identifier' => 'CC-BY-NC-4.0',
+            'name' => 'Creative Commons Attribution Non Commercial 4.0 International',
+            'uri' => 'https://spdx.org/licenses/CC-BY-NC-4.0.html',
+            'scheme_uri' => 'https://spdx.org/licenses/',
+        ]);
+        $linkedRight = ResourceRight::create([
+            'resource_id' => $this->resource->id,
+            'rights_id' => $right->id,
+            'rights_text' => 'Creative Commons Attribution-NonCommercial 4.0 International',
+        ]);
+        $rawRight = ResourceRight::create([
+            'resource_id' => $this->resource->id,
+            'rights_text' => 'Software source access requires individual permission.',
+            'rights_uri' => 'https://example.org/software-rights',
+        ]);
 
         $this->get(landingPageUrl($landingPage))
             ->assertOk()
@@ -590,6 +608,13 @@ describe('Tracked Download URLs', function () {
                 ->where('landingPage.primary_download_label', null)
                 ->where('landingPage.files', [])
                 ->where('landingPage.links', [])
+                ->where('resource.licenses.0.resource_right_id', $linkedRight->id)
+                ->where('resource.licenses.0.spdx_id', 'CC-BY-NC-4.0')
+                ->where('resource.licenses.0.source', 'catalog')
+                ->where('resource.licenses.1.resource_right_id', $rawRight->id)
+                ->where('resource.licenses.1.name', 'Software source access requires individual permission.')
+                ->where('resource.licenses.1.reference', 'https://example.org/software-rights')
+                ->where('resource.licenses.1.source', 'raw')
             );
 
         expect($landingPage->fresh()->ftp_url)->toBe('https://downloads.example.org/dataset.zip')
@@ -848,6 +873,7 @@ describe('Landing Page with Custom Template', function () {
                 ->where('sectionOrder.leftColumn', [
                     'contact',
                     'files',
+                    'licenses',
                     'model_description',
                     'related_work',
                     'dates',
@@ -1033,6 +1059,7 @@ describe('Landing Page with Custom Template', function () {
                     'contact',
                     'model_description',
                     'related_work',
+                    'licenses',
                     'general',
                     'sample_family',
                     'acquisition',

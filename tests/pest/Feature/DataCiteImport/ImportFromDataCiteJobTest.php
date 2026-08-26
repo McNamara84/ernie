@@ -11,6 +11,7 @@ use App\Models\LandingPageDomain;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
+use App\Models\ResourceRight;
 use App\Models\Right;
 use App\Models\User;
 use App\Services\DataCiteImportService;
@@ -18,12 +19,22 @@ use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\DoiSuggestionService;
 use App\Services\GfzDataServicesPortalService;
+use App\Services\LandingPageResourceTransformer;
 use App\Services\LegacyMetaworksDatacenterLookupService;
 use App\Services\LegacyResourceLookupService;
 use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
 use App\Services\SumarioPmdCoverageEnrichmentService;
+use Database\Seeders\ContributorTypeSeeder;
+use Database\Seeders\DescriptionTypeSeeder;
+use Database\Seeders\FunderIdentifierTypeSeeder;
+use Database\Seeders\IdentifierTypeSeeder;
+use Database\Seeders\LanguageSeeder;
+use Database\Seeders\PublisherSeeder;
+use Database\Seeders\RelationTypeSeeder;
+use Database\Seeders\ResourceTypeSeeder;
+use Database\Seeders\TitleTypeSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Bus;
@@ -2167,6 +2178,24 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
     });
 
     it('creates a default landing page with downloads unavailable when a legacy resource has no files', function () {
+        $this->seed([
+            ResourceTypeSeeder::class,
+            TitleTypeSeeder::class,
+            DescriptionTypeSeeder::class,
+            ContributorTypeSeeder::class,
+            IdentifierTypeSeeder::class,
+            LanguageSeeder::class,
+            PublisherSeeder::class,
+            RelationTypeSeeder::class,
+            FunderIdentifierTypeSeeder::class,
+        ]);
+        $catalogRight = Right::factory()->create([
+            'identifier' => 'CC-BY-NC-4.0',
+            'name' => 'Creative Commons Attribution Non Commercial 4.0 International',
+            'uri' => 'https://spdx.org/licenses/CC-BY-NC-4.0.html',
+            'scheme_uri' => 'https://spdx.org/licenses/',
+        ]);
+
         $this->importService
             ->shouldReceive('getTotalDoiCount')
             ->once()
@@ -2183,31 +2212,46 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                         'url' => 'https://dataservices.gfz.de/dekorp/showshort.php?id=493dcc02-011c-11ed-9531-ca1f3ed77ce8',
                         'state' => 'findable',
                         'titles' => [['title' => 'DEKORP No Files Dataset']],
+                        'creators' => [['name' => 'DEKORP Research Team']],
                         'publicationYear' => 2022,
                         'types' => ['resourceTypeGeneral' => 'Dataset'],
+                        'fundingReferences' => [
+                            [
+                                'funderName' => 'Bundesministerium für Forschung und Technologie',
+                                'funderIdentifier' => 'https://doi.org/10.13039/501100004937',
+                                'funderIdentifierType' => 'Crossref Funder ID',
+                                'awardTitle' => 'DEKORP',
+                            ],
+                            [
+                                'funderName' => 'Bundesministerium für Forschung und Technologie',
+                                'funderIdentifier' => 'https://doi.org/10.13039/501100004937',
+                                'funderIdentifierType' => 'Crossref Funder ID',
+                                'awardTitle' => 'KTB',
+                            ],
+                        ],
+                        'rightsList' => [[
+                            'rights' => 'Creative Commons Attribution Non Commercial 4.0 International',
+                            'rightsUri' => 'https://creativecommons.org/licenses/by-nc/4.0/legalcode',
+                            'rightsIdentifier' => 'CC-BY-NC-4.0',
+                            'rightsIdentifierScheme' => 'SPDX',
+                            'schemeUri' => 'https://spdx.org/licenses/',
+                        ]],
+                        'xml' => <<<'XML'
+                            <resource xmlns="http://datacite.org/schema/kernel-4">
+                              <rightsList>
+                                <rights rightsURI="https://creativecommons.org/licenses/by-nc/4.0/legalcode" rightsIdentifier="CC-BY-NC-4.0" rightsIdentifierScheme="SPDX" schemeURI="https://spdx.org/licenses/">Creative Commons Attribution Non Commercial 4.0 International</rights>
+                                <rights rightsURI="https://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)</rights>
+                              </rightsList>
+                            </resource>
+                            XML,
                     ],
                 ];
             })());
 
-        // The real transformer strips read-only DataCite fields such as state.
-        // The publication decision must therefore use the original API record.
-        $this->transformer
-            ->shouldReceive('prepareDoiData')
-            ->once()
-            ->andReturn([
-                'id' => '10.5880/gfz.dekorp.ktb8401.001',
-                'attributes' => [
-                    'doi' => '10.5880/gfz.dekorp.ktb8401.001',
-                    'titles' => [['title' => 'DEKORP No Files Dataset']],
-                    'publicationYear' => 2022,
-                    'types' => ['resourceTypeGeneral' => 'Dataset'],
-                ],
-            ]);
-
-        $this->transformer
-            ->shouldReceive('transform')
-            ->once()
-            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/gfz.dekorp.ktb8401.001']));
+        // Exercise the actual DataCite transformation and rights persistence;
+        // only the external DataCite and legacy service boundaries stay mocked.
+        $transformer = new DataCiteToResourceTransformer;
+        $this->app->instance(DataCiteToResourceTransformer::class, $transformer);
 
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
         $metaworksService->shouldReceive('lookupFileEntries')
@@ -2223,10 +2267,23 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
-        $job->handle($this->importService, $this->transformer, $metaworksService);
+        $job->handle($this->importService, $transformer, $metaworksService);
 
         $resource = Resource::where('doi', '10.5880/gfz.dekorp.ktb8401.001')->firstOrFail();
         $landingPage = $resource->fresh(['landingPage'])->landingPage;
+        $resolvedResourceRight = ResourceRight::query()
+            ->where('resource_id', $resource->id)
+            ->whereNotNull('rights_id')
+            ->sole();
+        $rawResourceRight = ResourceRight::query()
+            ->where('resource_id', $resource->id)
+            ->whereNull('rights_id')
+            ->sole();
+        $landingPageTransformer = new LandingPageResourceTransformer;
+        $resource->load($landingPageTransformer->requiredRelations());
+        $landingPagePayload = $landingPageTransformer->transform($resource);
+        $catalogLicense = collect($landingPagePayload['licenses'])->firstWhere('source', 'catalog');
+        $rawLicense = collect($landingPagePayload['licenses'])->firstWhere('source', 'raw');
 
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->template)->toBe('default_gfz')
@@ -2234,7 +2291,25 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->and($landingPage->downloads_unavailable)->toBeTrue()
             ->and($landingPage->is_published)->toBeTrue()
             ->and($landingPage->published_at)->not->toBeNull()
-            ->and(LandingPageDomain::count())->toBe(0);
+            ->and(LandingPageDomain::count())->toBe(0)
+            ->and($resource->fundingReferences)->toHaveCount(2)
+            ->and($resource->fundingReferences->pluck('award_title')->all())->toBe(['DEKORP', 'KTB'])
+            ->and($resolvedResourceRight->rights_id)->toBe($catalogRight->id)
+            ->and($rawResourceRight->rights_id)->toBeNull()
+            ->and($rawResourceRight->rights_text)->toBe('Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)')
+            ->and($landingPagePayload['licenses'])->toHaveCount(2)
+            ->and($catalogLicense)->toMatchArray([
+                'id' => $catalogRight->id,
+                'resource_right_id' => $resolvedResourceRight->id,
+                'spdx_id' => 'CC-BY-NC-4.0',
+                'source' => 'catalog',
+            ])
+            ->and($rawLicense)->toMatchArray([
+                'resource_right_id' => $rawResourceRight->id,
+                'name' => 'Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)',
+                'reference' => 'https://creativecommons.org/licenses/by-nc/4.0/',
+                'source' => 'raw',
+            ]);
     });
 
     it('publishes a findable landing page even when non-public legacy rows have no valid URLs', function () {

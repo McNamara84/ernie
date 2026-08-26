@@ -70,6 +70,34 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(screen.getByText('Rock Sample Core XYZ')).toBeInTheDocument();
         });
 
+        it('renders License & Rights independently of the unavailable Files module', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        licenses: [
+                            {
+                                id: null,
+                                resource_right_id: 15,
+                                name: 'Repository permission required.',
+                                spdx_id: null,
+                                reference: null,
+                                source: 'raw',
+                            },
+                        ],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.queryByRole('heading', { name: 'Files' })).not.toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: 'License & Rights' })).toBeInTheDocument();
+            expect(screen.getByText('Repository permission required.')).toBeInTheDocument();
+        });
+
         it('renders the GFZ Data Services logo', () => {
             mockUsePage.mockReturnValue({
                 props: {
