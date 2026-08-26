@@ -33,6 +33,63 @@ function legacyCitationCacheService(): LegacyCitationCacheService
     return new LegacyCitationCacheService(new DataCiteApiService);
 }
 
+it('returns and sanitizes a citation stored under a literal URL', function (): void {
+    DB::connection('legacy_metaworks')->table('citationcache')->insert([
+        'url' => 'https://www.researchgate.net/publication/337654804',
+        'citation' => "Miranda, D.A. &amp; Chaves, A. <i>Petrologia e geoquímica</i>.\n",
+    ]);
+
+    expect(legacyCitationCacheService()->findUrl('  https://www.researchgate.net/publication/337654804  '))
+        ->toBe('Miranda, D.A. & Chaves, A. Petrologia e geoquímica.');
+});
+
+it('batch-loads literal URLs once and returns them in input order', function (): void {
+    DB::connection('legacy_metaworks')->table('citationcache')->insert([
+        [
+            'url' => 'https://example.org/first?view=Full',
+            'citation' => 'First URL citation',
+        ],
+        [
+            'url' => 'https://example.org/second',
+            'citation' => 'Second URL citation',
+        ],
+    ]);
+
+    $connection = DB::connection('legacy_metaworks');
+    $connection->flushQueryLog();
+    $connection->enableQueryLog();
+
+    $citations = legacyCitationCacheService()->findManyUrls([
+        ' https://example.org/second ',
+        'https://example.org/first?view=Full',
+        'https://example.org/second',
+        '',
+        'https://example.org/missing',
+    ]);
+
+    $citationQueries = array_values(array_filter(
+        $connection->getQueryLog(),
+        static fn (array $query): bool => str_contains($query['query'], 'citationcache'),
+    ));
+
+    expect($citations)->toBe([
+        'https://example.org/second' => 'Second URL citation',
+        'https://example.org/first?view=Full' => 'First URL citation',
+    ])->and($citationQueries)->toHaveCount(1);
+});
+
+it('does not lowercase or synthesize variants for literal URLs', function (): void {
+    DB::connection('legacy_metaworks')->table('citationcache')->insert([
+        'url' => 'https://example.org/CaseSensitive?view=Full',
+        'citation' => 'Case-sensitive citation',
+    ]);
+
+    $service = legacyCitationCacheService();
+
+    expect($service->findUrl('https://example.org/casesensitive?view=full'))->toBeNull()
+        ->and($service->findUrl('https://example.org/CaseSensitive?view=Full/'))->toBeNull();
+});
+
 it('returns and normalizes the canonical legacy citation', function (): void {
     DB::connection('legacy_metaworks')->table('citationcache')->insert([
         'url' => 'http://doi.org/10.1007/978-94-015-7879-0',
@@ -169,13 +226,15 @@ it('opens a circuit breaker after a legacy database failure', function (): void 
     Log::shouldReceive('warning')
         ->once()
         ->with(
-            'Legacy citation cache lookup failed; falling back to DOI metadata.',
-            Mockery::on(fn (array $context): bool => $context['doi_count'] === 1 && $context['error'] !== ''),
+            'Legacy citation cache lookup failed; continuing without cached citation labels.',
+            Mockery::on(fn (array $context): bool => $context['identifier_count'] === 1 && $context['error'] !== ''),
         );
 
     $service = legacyCitationCacheService();
 
-    expect($service->find('10.1234/example'))->toBeNull()
+    expect($service->findUrl('https://example.org/failure'))->toBeNull()
+        ->and($service->find('10.1234/example'))->toBeNull()
         ->and($service->find('10.1234/another'))->toBeNull()
-        ->and($service->findMany(['10.1234/third']))->toBe([]);
+        ->and($service->findMany(['10.1234/third']))->toBe([])
+        ->and($service->findManyUrls(['https://example.org/another']))->toBe([]);
 });

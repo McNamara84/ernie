@@ -510,6 +510,10 @@ describe('JSON Upload - DataCite JSON format', function () {
             ->once()
             ->with('10.1234/related', 'DOI', Mockery::type('float'))
             ->andReturn('Doe, J. (2026): Imported citation. Publisher.');
+        $mock->shouldReceive('resolveBestEffortBatchForStorage')
+            ->once()
+            ->with(Mockery::type('array'), Mockery::type('float'))
+            ->andReturnUsing(fn (array $relatedIdentifiers): array => $relatedIdentifiers);
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
         $json = dataCiteJson(minimalAttributes([

@@ -1,7 +1,7 @@
 <?php
 
-use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Models\User;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -133,6 +133,10 @@ test('xml upload canonicalizes human readable related work type values', functio
         ->once()
         ->with('10.1000/readable.1', 'DOI', Mockery::type('float'))
         ->andReturn('Doe, J. (2026): XML imported citation. Publisher.');
+    $mock->shouldReceive('resolveBestEffortBatchForStorage')
+        ->once()
+        ->with(Mockery::type('array'), Mockery::type('float'))
+        ->andReturnUsing(fn (array $relatedIdentifiers): array => $relatedIdentifiers);
     $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
     $xml = <<<'XML'

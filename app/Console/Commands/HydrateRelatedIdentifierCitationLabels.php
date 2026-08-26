@@ -11,9 +11,10 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Description('Hydrate missing citation labels for existing DOI related identifiers.')]
+#[Description('Hydrate missing citation labels for existing DOI and URL related identifiers.')]
 #[Signature('related-identifiers:hydrate-citation-labels
-                            {--limit=0 : Maximum number of missing DOI related identifiers to process (0 = all)}')]
+                            {--limit=0 : Maximum number of missing related identifiers to process (0 = all)}
+                            {--after-id=0 : Process only related identifiers with an ID greater than this cursor}')]
 class HydrateRelatedIdentifierCitationLabels extends Command
 {
     public function __construct(
@@ -24,73 +25,110 @@ class HydrateRelatedIdentifierCitationLabels extends Command
 
     public function handle(): int
     {
-        $doiTypeId = IdentifierType::query()->where('slug', 'DOI')->value('id');
+        $identifierTypeIds = IdentifierType::query()
+            ->whereIn('slug', ['DOI', 'URL'])
+            ->pluck('id', 'slug');
 
-        if (! is_int($doiTypeId)) {
-            $this->error('DOI identifier type not found. Seed identifier types before running this command.');
+        if (! $identifierTypeIds->has('DOI') || ! $identifierTypeIds->has('URL')) {
+            $this->error('DOI and URL identifier types not found. Seed identifier types before running this command.');
 
             return self::FAILURE;
         }
 
+        $afterId = max(0, (int) $this->option('after-id'));
+
         $baseQuery = RelatedIdentifier::query()
-            ->where('identifier_type_id', $doiTypeId)
+            ->with('identifierType')
+            ->whereIn('identifier_type_id', $identifierTypeIds->values()->all())
             ->where(function ($query): void {
                 $query->whereNull('citation_label')
                     ->orWhere('citation_label', '');
             })
             ->whereNotNull('identifier')
-            ->where('identifier', '!=', '');
+            ->where('identifier', '!=', '')
+            ->where('id', '>', $afterId);
 
         $limit = max(0, (int) $this->option('limit'));
 
         $query = clone $baseQuery;
 
         if ($limit > 0) {
-            $query = RelatedIdentifier::query()->whereKey(
-                (clone $baseQuery)
-                    ->orderBy('id')
-                    ->limit($limit)
-                    ->pluck('id'),
-            );
+            $query = RelatedIdentifier::query()
+                ->with('identifierType')
+                ->whereKey(
+                    (clone $baseQuery)
+                        ->orderBy('id')
+                        ->limit($limit)
+                        ->pluck('id'),
+                );
         }
 
         $total = (clone $query)->count();
 
         if ($total === 0) {
-            $this->info('No missing DOI citation labels found.');
+            $this->info('No missing DOI or URL citation labels found.');
 
             return self::SUCCESS;
         }
 
         $processed = 0;
         $updated = 0;
+        $unresolved = 0;
+        $lastProcessedId = $afterId;
 
-        $this->info("Hydrating missing citation labels for {$total} DOI related identifier(s)...");
+        $this->info("Hydrating missing citation labels for {$total} DOI or URL related identifier(s)...");
 
-        $query->orderBy('id')->chunkById(100, function ($relatedIdentifiers) use (&$processed, &$updated): void {
-            foreach ($relatedIdentifiers as $relatedIdentifier) {
+        $query->orderBy('id')->chunkById(100, function ($relatedIdentifiers) use (&$lastProcessedId, &$processed, &$unresolved, &$updated): void {
+            $storagePayload = [];
+
+            foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
                 $processed++;
+                $lastProcessedId = max($lastProcessedId, (int) $relatedIdentifier->getKey());
+                $storagePayload[$index] = [
+                    'identifier' => $relatedIdentifier->identifier,
+                    'identifierType' => $relatedIdentifier->identifierType->slug,
+                ];
+            }
 
-                $citationLabel = $this->citationLabelService->resolve($relatedIdentifier->identifier, 'DOI');
+            $resolvedPayload = $this->citationLabelService
+                ->resolveExhaustiveForStorage($storagePayload);
 
-                if (! is_string($citationLabel) || trim($citationLabel) === '') {
+            foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
+                $citationLabel = isset($resolvedPayload[$index]['citationLabel'])
+                    ? trim((string) $resolvedPayload[$index]['citationLabel'])
+                    : '';
+
+                if ($citationLabel === '') {
+                    $unresolved++;
+
+                    continue;
+                }
+
+                $relatedIdentifier->refresh();
+
+                if (is_string($relatedIdentifier->citation_label) && trim($relatedIdentifier->citation_label) !== '') {
                     continue;
                 }
 
                 $relatedIdentifier->forceFill([
-                    'citation_label' => trim($citationLabel),
+                    'citation_label' => $citationLabel,
                 ])->save();
 
                 $updated++;
             }
         });
 
-        $this->info("Processed {$processed} missing DOI related identifier(s).");
+        $this->info("Processed {$processed} missing DOI or URL related identifier(s).");
         $this->info("Hydrated {$updated} citation label(s).");
 
-        if ($updated < $processed) {
-            $remaining = $processed - $updated;
-            $this->warn("{$remaining} DOI related identifier(s) remain without a citation label.");
+        if ($limit > 0 && (clone $baseQuery)->where('id', '>', $lastProcessedId)->exists()) {
+            $this->line(
+                "Continue with: php artisan related-identifiers:hydrate-citation-labels --limit={$limit} --after-id={$lastProcessedId}",
+            );
+        }
+
+        if ($unresolved > 0) {
+            $this->warn("{$unresolved} related identifier(s) remain without a citation label.");
         }
 
         return self::SUCCESS;

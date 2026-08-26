@@ -136,6 +136,54 @@ XML;
         ]);
 });
 
+it('persists the curated citation label for the non DOI URL from issue 1175', function (): void {
+    $url = 'https://www.researchgate.net/publication/337654804';
+    $citation = 'Miranda, D.A., de Oliveira Chaves, A. and de Paula Oliveira, V., 2018. Petrologia e geoquímica dos litotipos neoarqueanos.';
+    $citationService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+    $citationService->shouldReceive('resolveExhaustive')
+        ->once()
+        ->with(Mockery::on(static fn (array $relations): bool => count($relations) === 1
+            && $relations[0]['relatedIdentifier'] === $url
+            && $relations[0]['relatedIdentifierType'] === 'URL'
+            && $relations[0]['relationType'] === 'Cites'))
+        ->andReturnUsing(function (array $relations) use ($citation): array {
+            $relations[0]['citationLabel'] = $citation;
+
+            return $relations;
+        });
+    $this->app->instance(RelatedIdentifierCitationLabelService::class, $citationService);
+
+    $transformer = new DataCiteToResourceTransformer;
+    $prepared = $transformer->prepareDoiData([
+        'attributes' => [
+            'doi' => '10.5880/digis.e.2025.004',
+            'publicationYear' => 2026,
+            'titles' => [['title' => 'Issue 1175 regression fixture']],
+            'creators' => [[
+                'familyName' => 'Spencer',
+                'givenName' => 'Laura M.',
+                'nameType' => 'Personal',
+            ]],
+            'relatedIdentifiers' => [],
+        ],
+    ], [[
+        'identifier' => $url,
+        'identifierType' => 'URL',
+        'relationType' => 'Cites',
+        'position' => 0,
+    ]], CitationLabelResolutionMode::EXHAUSTIVE);
+
+    $resource = $transformer->transform($prepared, User::factory()->create()->id);
+    $relatedIdentifier = $resource->relatedIdentifiers()
+        ->with(['identifierType', 'relationType'])
+        ->sole();
+
+    expect($relatedIdentifier->identifier)->toBe($url)
+        ->and($relatedIdentifier->identifierType?->slug)->toBe('URL')
+        ->and($relatedIdentifier->relationType?->slug)->toBe('Cites')
+        ->and($relatedIdentifier->citation_label)->toBe($citation);
+});
+
 it('persists all 17 citation labels from issue 1086 in stable order in exhaustive mode', function (): void {
     $dois = [
         '10.1186/s40645-023-00560-4',

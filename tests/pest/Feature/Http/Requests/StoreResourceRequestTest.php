@@ -636,10 +636,14 @@ describe('related identifiers validation', function () {
 
     it('auto-fills a missing citation label during save', function () {
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $mock->shouldReceive('resolveBestEffort')
+        $mock->shouldReceive('resolveBestEffortBatchForStorage')
             ->once()
-            ->with('10.1234/test', 'DOI', Mockery::type('float'))
-            ->andReturn('Doe, J. (2026): Auto-filled. Publisher.');
+            ->with(Mockery::type('array'), Mockery::type('float'))
+            ->andReturnUsing(function (array $relatedIdentifiers): array {
+                $relatedIdentifiers[0]['citationLabel'] = 'Doe, J. (2026): Auto-filled. Publisher.';
+
+                return $relatedIdentifiers;
+            });
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
         $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
@@ -664,6 +668,10 @@ describe('related identifiers validation', function () {
     it('preserves a manually provided citation label during save', function () {
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
         $mock->shouldNotReceive('resolveBestEffort');
+        $mock->shouldReceive('resolveBestEffortBatchForStorage')
+            ->once()
+            ->with(Mockery::type('array'), Mockery::type('float'))
+            ->andReturnUsing(fn (array $relatedIdentifiers): array => $relatedIdentifiers);
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
         $data = validResourcePayload($this->resourceType->id, $this->right->identifier);

@@ -19,6 +19,8 @@ function relatedIdentifierCitationLabelService(
         $legacy = Mockery::mock(LegacyCitationCacheService::class);
         $legacy->shouldReceive('find')->zeroOrMoreTimes()->andReturnNull();
         $legacy->shouldReceive('findMany')->zeroOrMoreTimes()->andReturn([]);
+        $legacy->shouldReceive('findUrl')->zeroOrMoreTimes()->andReturnNull();
+        $legacy->shouldReceive('findManyUrls')->zeroOrMoreTimes()->andReturn([]);
     }
 
     return new RelatedIdentifierCitationLabelService($dataCite, $legacy);
@@ -74,6 +76,25 @@ it('resolves a citation label for DOI resolver URLs stored as URL', function () 
     expect($service->resolve('https://doi.org/10.1234/example', 'URL'))->toBe('Doe, J. (2026): Example. Publisher.');
 });
 
+it('uses a literal URL citation before attempting DOI normalization', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldNotReceive('normalizeDoi');
+    $dataCite->shouldNotReceive('getMetadata');
+    $dataCite->shouldNotReceive('buildCitationFromMetadata');
+
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('findUrl')
+        ->once()
+        ->with('https://www.researchgate.net/publication/337654804')
+        ->andReturn('  Miranda et al. (2018): Petrologia e geoquímica.  ');
+    $legacy->shouldNotReceive('find');
+
+    $service = relatedIdentifierCitationLabelService($dataCite, $legacy);
+
+    expect($service->resolve(' https://www.researchgate.net/publication/337654804 ', 'URL'))
+        ->toBe('Miranda et al. (2018): Petrologia e geoquímica.');
+});
+
 it('returns null for non DOI-like URL identifiers', function () {
     $dataCite = Mockery::mock(DataCiteApiService::class);
     $dataCite->shouldReceive('normalizeDoi')->once()->with('https://example.org/page')->andReturn('https://example.org/page');
@@ -83,6 +104,23 @@ it('returns null for non DOI-like URL identifiers', function () {
     $service = relatedIdentifierCitationLabelService($dataCite);
 
     expect($service->resolve('https://example.org/page', 'URL'))->toBeNull();
+});
+
+it('uses a literal URL cache hit even after the best-effort HTTP budget expires', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldNotReceive('normalizeDoi');
+    $dataCite->shouldNotReceive('getMetadata');
+
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('findUrl')
+        ->once()
+        ->with('https://example.org/curated')
+        ->andReturn('Curated URL citation');
+
+    $service = relatedIdentifierCitationLabelService($dataCite, $legacy);
+
+    expect($service->resolveBestEffort('https://example.org/curated', 'URL', microtime(true) - 1))
+        ->toBe('Curated URL citation');
 });
 
 it('returns null for unsupported identifier types', function () {
@@ -208,6 +246,64 @@ it('batch-resolves legacy citations before spending the shared best-effort HTTP 
         'citationLabel' => 'Legacy citation',
     ])->and($resolved[1]['citationLabel'])->toBe('Metadata citation')
         ->and($resolved[2]['citationLabel'])->toBe('Manual citation');
+});
+
+it('batch-resolves literal URLs before DOI cache and metadata fallbacks', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class)->makePartial();
+    $dataCite->shouldReceive('getMetadata')
+        ->once()
+        ->with(
+            '10.1234/metadata',
+            Mockery::on(fn (float $timeout): bool => $timeout >= 0.1 && $timeout <= 0.75),
+            false,
+        )
+        ->andReturn(['title' => 'Metadata']);
+    $dataCite->shouldReceive('buildCitationFromMetadata')->once()->andReturn('Metadata citation');
+
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('findManyUrls')
+        ->once()
+        ->with([
+            'https://www.researchgate.net/publication/337654804',
+            'https://example.org/unresolved',
+        ])
+        ->andReturn([
+            'https://www.researchgate.net/publication/337654804' => 'Miranda legacy citation',
+        ]);
+    $legacy->shouldReceive('findMany')
+        ->once()
+        ->with(['10.1234/legacy', '10.1234/metadata'])
+        ->andReturn(['10.1234/legacy' => 'Legacy DOI citation']);
+
+    $resolved = relatedIdentifierCitationLabelService($dataCite, $legacy)->resolveBestEffortBatch([
+        [
+            'relatedIdentifier' => ' https://www.researchgate.net/publication/337654804 ',
+            'relatedIdentifierType' => 'URL',
+        ],
+        [
+            'relatedIdentifier' => '10.1234/legacy',
+            'relatedIdentifierType' => 'DOI',
+        ],
+        [
+            'relatedIdentifier' => '10.1234/metadata',
+            'relatedIdentifierType' => 'DOI',
+        ],
+        [
+            'relatedIdentifier' => 'https://example.org/unresolved',
+            'relatedIdentifierType' => 'URL',
+        ],
+        [
+            'relatedIdentifier' => 'https://example.org/manual',
+            'relatedIdentifierType' => 'URL',
+            'citationLabel' => ' Manual URL citation ',
+        ],
+    ], microtime(true) + 1);
+
+    expect($resolved[0]['citationLabel'])->toBe('Miranda legacy citation')
+        ->and($resolved[1]['citationLabel'])->toBe('Legacy DOI citation')
+        ->and($resolved[2]['citationLabel'])->toBe('Metadata citation')
+        ->and($resolved[3])->not->toHaveKey('citationLabel')
+        ->and($resolved[4]['citationLabel'])->toBe('Manual URL citation');
 });
 
 it('resolves all 17 citation labels from issue 1086 with the existing ERNIE formatter', function () {
@@ -414,6 +510,73 @@ it('resolves a complete storage payload through one exhaustive metadata batch', 
         ->and($resolved[3])->not->toHaveKey('citationLabel')
         ->and($resolved[0])->not->toHaveKey('relatedIdentifier')
         ->and($resolved[0])->not->toHaveKey('relatedIdentifierType');
+});
+
+it('resolves literal URL labels for best-effort storage payloads in one batch', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldNotReceive('normalizeDoi');
+    $dataCite->shouldNotReceive('getMetadata');
+
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('findManyUrls')
+        ->once()
+        ->with(['https://www.researchgate.net/publication/337654804'])
+        ->andReturn([
+            'https://www.researchgate.net/publication/337654804' => 'Miranda legacy citation',
+        ]);
+    $legacy->shouldNotReceive('findMany');
+
+    $resolved = relatedIdentifierCitationLabelService($dataCite, $legacy)
+        ->resolveBestEffortBatchForStorage([
+            [
+                'identifier' => ' https://www.researchgate.net/publication/337654804 ',
+                'identifierType' => 'URL',
+                'relationType' => 'Cites',
+            ],
+            [
+                'identifier' => 'https://example.org/manual',
+                'identifierType' => 'URL',
+                'relationType' => 'References',
+                'citationLabel' => ' Manual citation ',
+            ],
+        ], microtime(true) - 1);
+
+    expect($resolved)->toBe([
+        [
+            'identifier' => 'https://www.researchgate.net/publication/337654804',
+            'identifierType' => 'URL',
+            'relationType' => 'Cites',
+            'citationLabel' => 'Miranda legacy citation',
+        ],
+        [
+            'identifier' => 'https://example.org/manual',
+            'identifierType' => 'URL',
+            'relationType' => 'References',
+            'citationLabel' => 'Manual citation',
+        ],
+    ]);
+});
+
+it('prefers a literal cache entry for a DOI resolver URL during exhaustive resolution', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldNotReceive('normalizeDoi');
+    $dataCite->shouldNotReceive('getMetadataBatch');
+
+    $legacy = Mockery::mock(LegacyCitationCacheService::class);
+    $legacy->shouldReceive('findManyUrls')
+        ->once()
+        ->with(['https://doi.org/10.1234/curated'])
+        ->andReturn([
+            'https://doi.org/10.1234/curated' => 'Curated resolver-URL citation',
+        ]);
+    $legacy->shouldNotReceive('findMany');
+
+    $resolved = relatedIdentifierCitationLabelService($dataCite, $legacy)->resolveExhaustive([[
+        'relatedIdentifier' => 'https://doi.org/10.1234/curated',
+        'relatedIdentifierType' => 'URL',
+    ]]);
+
+    expect($resolved[0]['citationLabel'])->toBe('Curated resolver-URL citation');
 });
 
 it('bypasses a cached transient failure during exhaustive storage resolution', function () {

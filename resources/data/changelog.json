@@ -15,6 +15,10 @@
         ],
         "fixes": [
             {
+                "title": "Legacy URL Citation Labels on Import",
+                "description": "New DataCite and SUMARIO resource imports now reuse manually curated citation labels from PanMetaWorks for regular Related Work URLs as well as DOIs, so non-DOI references reach the Data Editor and landing pages with their intended bibliographic text. An idempotent hydration command can fill missing DOI and URL labels on existing resources without overwriting curated values, while uncached URLs remain safe links and legacy database outages do not block imports."
+            },
+            {
                 "title": "Legacy Profile Lines in DataCite Imports",
                 "description": "New DataCite imports now recover valid profile lines from SUMARIOPMD and preserve their complete ordered coordinates for the Data Editor and landing pages. ERNIE replaces only the unambiguously matching DataCite bounding box, keeps all other geolocations on uncertain or invalid legacy data, and continues to use the existing thin-polygon workaround when exporting lines back to DataCite. Existing resources remain unchanged."
             },

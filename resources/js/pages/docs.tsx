@@ -507,11 +507,16 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                         <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels" />
                         <p className="text-sm text-muted-foreground">
                             Run this once after deploying the citation-label update to an existing installation. It hydrates missing citation labels
-                            for already stored DOI-based related identifiers without overwriting labels that were curated manually.
+                            for already stored DOI- and URL-based related identifiers without overwriting labels that were curated manually. DOI
+                            labels fall back to the configured metadata providers after a legacy citation-cache miss. URL labels are hydrated only
+                            when their exact URL exists in the PanMetaWorks citation cache; uncached URLs remain unresolved.
                         </p>
                         <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels --limit=500" />
+                        <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels --limit=500 --after-id=12345" />
                         <p className="text-sm text-muted-foreground">
-                            Use <code>--limit</code> to process large installations in smaller batches during low-traffic maintenance windows.
+                            Use <code>--limit</code> to process large installations in smaller batches during low-traffic maintenance windows. When
+                            more rows remain, the command prints the next invocation with an <code>--after-id</code> cursor. Always use that printed
+                            cursor for the following batch so unresolved URLs do not cause later rows to be selected repeatedly.
                         </p>
 
                         <h4>Audit Legacy IGSN Handles</h4>
