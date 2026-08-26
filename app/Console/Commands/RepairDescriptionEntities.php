@@ -67,7 +67,7 @@ final class RepairDescriptionEntities extends Command
         }
 
         try {
-            fputcsv($stream, ['description_id', 'resource_id', 'doi', 'status', 'replacements', 'message']);
+            fputcsv($stream, ['description_id', 'resource_id', 'doi', 'status', 'replacements', 'message'], escape: '');
             foreach ($rows as $row) {
                 fputcsv($stream, [
                     $row['description_id'],
@@ -76,7 +76,7 @@ final class RepairDescriptionEntities extends Command
                     $row['status'],
                     $row['replacements'],
                     $row['message'],
-                ]);
+                ], escape: '');
             }
         } finally {
             fclose($stream);
