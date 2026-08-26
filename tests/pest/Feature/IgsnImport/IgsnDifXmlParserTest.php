@@ -20,6 +20,7 @@ use App\Models\Size;
 use App\Services\IgsnDifXmlParser;
 use App\Services\LandingPageResourceTransformer;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     $this->artisan('db:seed', ['--class' => 'DateTypeSeeder']);
@@ -34,6 +35,74 @@ beforeEach(function () {
 });
 
 describe('IgsnDifXmlParser', function () {
+    it('persists safe managed and external sample image descriptors without downloading', function () {
+        $managed = <<<'XML'
+        <resource><sample>
+          <sample_image>SO273-31D-18_wet.jpg</sample_image>
+          <sample_image_path>https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/</sample_image_path>
+        </sample></resource>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($managed, $this->resource, $this->igsnMetadata))->toBeTrue();
+        $this->igsnMetadata->refresh();
+        expect($this->igsnMetadata->sample_image_source_url)
+            ->toBe('https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/SO273-31D-18_wet.jpg')
+            ->and($this->igsnMetadata->sample_image_external_url)->toBeNull()
+            ->and($this->igsnMetadata->sample_image_storage_path)->toBeNull();
+
+        $external = <<<'XML'
+        <resource><sample>
+          <sample_image>CS_5054.jpg</sample_image>
+          <sample_image_path>http://www-icdp.icdp-online.org/sites/cosc/news/cores/</sample_image_path>
+        </sample></resource>
+        XML;
+        expect($this->parser->enrichFromDifXml($external, $this->resource, $this->igsnMetadata))->toBeTrue();
+        $this->igsnMetadata->refresh();
+        expect($this->igsnMetadata->sample_image_external_url)
+            ->toBe('https://data.icdp-online.org/sites/cosc/news/cores/CS_5054.jpg');
+    });
+
+    it('keeps a matching managed image and clears it when the managed source changes', function () {
+        Storage::fake('public');
+        $oldPath = 'igsn-sample-images/gfso273n39/old.jpg';
+        $oldSource = 'https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/old.jpg';
+        $this->igsnMetadata->update([
+            'sample_image_source_url' => $oldSource,
+            'sample_image_storage_path' => $oldPath,
+            'sample_image_mime_type' => 'image/jpeg',
+            'sample_image_size' => 123,
+        ]);
+        Storage::disk('public')->put($oldPath, 'old image');
+
+        $sameSource = <<<'XML'
+        <resource><sample>
+          <sample_image>old.jpg</sample_image>
+          <sample_image_path>https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/</sample_image_path>
+        </sample></resource>
+        XML;
+        expect($this->parser->enrichFromDifXml($sameSource, $this->resource, $this->igsnMetadata))->toBeTrue();
+        $this->igsnMetadata->refresh();
+        expect($this->igsnMetadata->sample_image_storage_path)->toBe($oldPath);
+        Storage::disk('public')->assertExists($oldPath);
+
+        $changedSource = <<<'XML'
+        <resource><sample>
+          <sample_image>new.jpg</sample_image>
+          <sample_image_path>https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/</sample_image_path>
+        </sample></resource>
+        XML;
+        expect($this->parser->enrichFromDifXml($changedSource, $this->resource, $this->igsnMetadata))->toBeTrue();
+        $this->igsnMetadata->refresh();
+
+        expect($this->igsnMetadata->sample_image_source_url)
+            ->toBe('https://dataservices.gfz-potsdam.de/extern/IGSN/GFSO273/new.jpg')
+            ->and($this->igsnMetadata->sample_image_storage_path)->toBeNull()
+            ->and($this->igsnMetadata->sample_image_mime_type)->toBeNull()
+            ->and($this->igsnMetadata->sample_image_size)->toBeNull()
+            ->and($this->igsnMetadata->sampleImageUrl())->toBeNull();
+        Storage::disk('public')->assertMissing($oldPath);
+    });
+
     it('parses scalar fields from DIF XML with namespace', function () {
         $xml = <<<'XML'
         <?xml version="1.0" encoding="UTF-8"?>

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * IGSN Metadata Model
@@ -49,6 +50,11 @@ use Illuminate\Support\Carbon;
  * @property string|null $coordinate_system
  * @property string|null $user_code
  * @property array<mixed>|null $description_json
+ * @property string|null $sample_image_source_url
+ * @property string|null $sample_image_external_url
+ * @property string|null $sample_image_storage_path
+ * @property string|null $sample_image_mime_type
+ * @property int|null $sample_image_size
  * @property string $upload_status
  * @property string|null $upload_error_message
  * @property string|null $csv_filename
@@ -66,6 +72,8 @@ use Illuminate\Support\Carbon;
     'cruise_field_program', 'platform_type', 'platform_name', 'platform_description',
     'current_archive', 'current_archive_contact', 'original_archive', 'original_archive_contact', 'sample_access', 'operator',
     'coordinate_system', 'user_code', 'description_json',
+    'sample_image_source_url', 'sample_image_external_url', 'sample_image_storage_path',
+    'sample_image_mime_type', 'sample_image_size',
     'upload_status', 'upload_error_message', 'csv_filename', 'csv_row_number',
 ])]
 #[Table('igsn_metadata')]
@@ -82,6 +90,7 @@ class IgsnMetadata extends Model
         'depth_max' => 'decimal:2',
         'description_json' => 'array',
         'csv_row_number' => 'integer',
+        'sample_image_size' => 'integer',
     ];
 
     /**
@@ -226,5 +235,30 @@ class IgsnMetadata extends Model
             'upload_status' => $status,
             'upload_error_message' => null,
         ]);
+    }
+
+    /**
+     * Return the only sample-image URL that may be exposed publicly.
+     */
+    public function sampleImageUrl(): ?string
+    {
+        if (is_string($this->sample_image_storage_path) && $this->sample_image_storage_path !== '') {
+            return Storage::disk((string) config('igsn_images.disk', 'public'))->url($this->sample_image_storage_path);
+        }
+
+        return is_string($this->sample_image_external_url) && $this->sample_image_external_url !== ''
+            ? $this->sample_image_external_url
+            : null;
+    }
+
+    public function sampleImageHosting(): ?string
+    {
+        if (is_string($this->sample_image_storage_path) && $this->sample_image_storage_path !== '') {
+            return 'managed';
+        }
+
+        return is_string($this->sample_image_external_url) && $this->sample_image_external_url !== ''
+            ? 'external'
+            : null;
     }
 }

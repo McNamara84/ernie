@@ -10,10 +10,8 @@ interface LandingPageShellProps {
     mainAriaLabel: string;
     customLogoUrl?: string | null;
     hero: ReactNode;
-    metadataSection: ReactNode;
-    locationSection: ReactNode;
-    renderLocationBeforeMetadata: boolean;
     leftColumnSections: ReactNode[];
+    rightColumnSections: ReactNode[];
 }
 
 export function LandingPageShell({
@@ -22,10 +20,8 @@ export function LandingPageShell({
     mainAriaLabel,
     customLogoUrl,
     hero,
-    metadataSection,
-    locationSection,
-    renderLocationBeforeMetadata,
     leftColumnSections,
+    rightColumnSections,
 }: LandingPageShellProps) {
     const defaultHeaderLogoClassName = 'h-24 max-w-full object-contain dark:grayscale dark:invert dark:mix-blend-screen';
 
@@ -79,13 +75,13 @@ export function LandingPageShell({
                         {hero}
 
                         <div className="mx-8 mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-                            <div className="order-1 space-y-6 lg:order-2 lg:col-span-2">
-                                {renderLocationBeforeMetadata && locationSection}
-                                {metadataSection}
-                                {!renderLocationBeforeMetadata && locationSection}
+                            <div data-testid="landing-page-right-column" className="order-1 space-y-6 lg:order-2 lg:col-span-2">
+                                {rightColumnSections}
                             </div>
 
-                            <div className="order-2 space-y-6 lg:order-1 lg:col-span-1">{leftColumnSections}</div>
+                            <div data-testid="landing-page-left-column" className="order-2 space-y-6 lg:order-1 lg:col-span-1">
+                                {leftColumnSections}
+                            </div>
                         </div>
                     </main>
 

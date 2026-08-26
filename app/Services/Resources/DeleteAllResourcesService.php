@@ -20,6 +20,7 @@ use App\Services\ResourceCacheService;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 final class DeleteAllResourcesService
 {
@@ -38,6 +39,8 @@ final class DeleteAllResourcesService
         $hadAssessments = false;
 
         DB::transaction(function () use (&$deletedResources, &$hadAssessments): void {
+            $managedIgsnImagePaths = $this->managedIgsnSampleImagePaths();
+
             $this->trackPublishedResourcesAsDeleted();
 
             $hadAssessments = ResourceAssessment::query()->exists();
@@ -45,6 +48,7 @@ final class DeleteAllResourcesService
 
             $this->deleteOrphanedAffiliations();
             $this->deleteOrphanedPeopleAndPublishers();
+            $this->deleteManagedIgsnSampleImagesAfterCommit($managedIgsnImagePaths);
         });
 
         if ($deletedResources > 0) {
@@ -56,6 +60,40 @@ final class DeleteAllResourcesService
         }
 
         return $deletedResources;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function managedIgsnSampleImagePaths(): array
+    {
+        $paths = DB::table('igsn_metadata')
+            ->whereNotNull('sample_image_storage_path')
+            ->where('sample_image_storage_path', '!=', '')
+            ->distinct()
+            ->pluck('sample_image_storage_path')
+            ->filter(static fn (mixed $path): bool => is_string($path) && $path !== '')
+            ->map(static fn (mixed $path): string => (string) $path)
+            ->values()
+            ->all();
+
+        return array_values($paths);
+    }
+
+    /**
+     * @param  list<string>  $paths
+     */
+    private function deleteManagedIgsnSampleImagesAfterCommit(array $paths): void
+    {
+        if ($paths === []) {
+            return;
+        }
+
+        $disk = (string) config('igsn_images.disk', 'public');
+
+        DB::afterCommit(static function () use ($disk, $paths): void {
+            Storage::disk($disk)->delete($paths);
+        });
     }
 
     private function trackPublishedResourcesAsDeleted(): void

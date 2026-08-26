@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\CacheKey;
 use App\Enums\UserRole;
 use App\Models\Affiliation;
+use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\Person;
@@ -15,8 +16,11 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\User;
+use App\Services\Resources\DeleteAllResourcesService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\actingAs;
 
@@ -202,6 +206,68 @@ it('succeeds even when no resources exist', function () {
         ->delete(route('resources.destroy-all'), ['confirmation' => 'delete'])
         ->assertRedirect(route('logs.index'))
         ->assertSessionHas('success');
+});
+
+it('deletes managed IGSN sample images after bulk deletion commits', function () {
+    Storage::fake('igsn-images');
+    Config::set('igsn_images.disk', 'igsn-images');
+
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $resource = Resource::factory()->create([
+        'doi' => '10.60510/bulk-delete-image',
+        'identifier_type' => 'IGSN',
+    ]);
+    $managedPath = 'igsn-sample-images/bulk-delete-image/sample.jpg';
+    $unrelatedPath = 'igsn-sample-images/unrelated/sample.jpg';
+
+    IgsnMetadata::query()->create([
+        'resource_id' => $resource->id,
+        'sample_image_storage_path' => $managedPath,
+    ]);
+    Storage::disk('igsn-images')->put($managedPath, 'managed image');
+    Storage::disk('igsn-images')->put($unrelatedPath, 'unrelated image');
+
+    actingAs($admin)
+        ->delete(route('resources.destroy-all'), ['confirmation' => 'delete'])
+        ->assertRedirect(route('logs.index'))
+        ->assertSessionHas('success');
+
+    expect(Resource::count())->toBe(0)
+        ->and(IgsnMetadata::count())->toBe(0);
+    Storage::disk('igsn-images')->assertMissing($managedPath);
+    Storage::disk('igsn-images')->assertExists($unrelatedPath);
+});
+
+it('keeps managed IGSN sample images when an enclosing bulk deletion transaction rolls back', function () {
+    Storage::fake('igsn-images');
+    Config::set('igsn_images.disk', 'igsn-images');
+
+    $resource = Resource::factory()->create([
+        'doi' => '10.60510/bulk-delete-image-rollback',
+        'identifier_type' => 'IGSN',
+    ]);
+    $managedPath = 'igsn-sample-images/bulk-delete-image-rollback/sample.jpg';
+
+    IgsnMetadata::query()->create([
+        'resource_id' => $resource->id,
+        'sample_image_storage_path' => $managedPath,
+    ]);
+    Storage::disk('igsn-images')->put($managedPath, 'managed image');
+
+    DB::beginTransaction();
+    try {
+        app(DeleteAllResourcesService::class)->deleteAll();
+
+        expect(Resource::count())->toBe(0)
+            ->and(IgsnMetadata::count())->toBe(0);
+        Storage::disk('igsn-images')->assertExists($managedPath);
+    } finally {
+        DB::rollBack();
+    }
+
+    expect(Resource::query()->whereKey($resource->id)->exists())->toBeTrue()
+        ->and(IgsnMetadata::query()->where('resource_id', $resource->id)->exists())->toBeTrue();
+    Storage::disk('igsn-images')->assertExists($managedPath);
 });
 
 it('tracks published DOI resources as OAI-PMH deleted records during bulk deletion', function () {

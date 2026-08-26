@@ -65,6 +65,8 @@ const routerMock = vi.hoisted(() => ({ reload: vi.fn() }));
 
 const dndContextMock = vi.hoisted(() => ({
     handlers: [] as Array<(event: { active: { id: string }; over: { id: string } | null }) => void>,
+    startHandlers: [] as Array<(event: { active: { id: string } }) => void>,
+    overHandlers: [] as Array<(event: { active: { id: string }; over: { id: string } | null }) => void>,
 }));
 
 vi.mock('axios', () => {
@@ -108,17 +110,24 @@ vi.mock('@dnd-kit/core', () => ({
     DndContext: ({
         children,
         onDragEnd,
+        onDragStart,
+        onDragOver,
     }: {
         children: React.ReactNode;
         onDragEnd: (event: { active: { id: string }; over: { id: string } | null }) => void;
+        onDragStart?: (event: { active: { id: string } }) => void;
+        onDragOver?: (event: { active: { id: string }; over: { id: string } | null }) => void;
     }) => {
         dndContextMock.handlers.push(onDragEnd);
+        if (onDragStart) dndContextMock.startHandlers.push(onDragStart);
+        if (onDragOver) dndContextMock.overHandlers.push(onDragOver);
         return <div data-testid="dnd-context">{children}</div>;
     },
     KeyboardSensor: vi.fn(),
     PointerSensor: vi.fn(),
     useSensor: vi.fn(),
     useSensors: vi.fn(() => []),
+    useDroppable: vi.fn(() => ({ setNodeRef: vi.fn(), isOver: false })),
 }));
 
 vi.mock('@dnd-kit/sortable', () => ({
@@ -241,6 +250,8 @@ describe('LandingPageTemplatesPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         dndContextMock.handlers.length = 0;
+        dndContextMock.startHandlers.length = 0;
+        dndContextMock.overHandlers.length = 0;
         mockTemplates = [defaultTemplate, customTemplate, customTemplateNoLogo];
         mockDatacenters = [];
         mockLogoUploadConstraints.maxSizeKb = 2048;
@@ -808,6 +819,7 @@ describe('LandingPageTemplatesPage', () => {
             expect(within(dialog).getByText('Sample Family')).toBeInTheDocument();
             expect(within(dialog).getByText('Acquisition')).toBeInTheDocument();
             expect(within(dialog).getByText('Cite this Resource')).toBeInTheDocument();
+            expect(within(dialog).getByText('Sample Image')).toBeInTheDocument();
 
             await user.click(screen.getByRole('button', { name: /Save Changes/i }));
 
@@ -829,6 +841,78 @@ describe('LandingPageTemplatesPage', () => {
                     }),
                 );
             });
+        });
+
+        it('restores the original IGSN layout when a cross-column drag ends outside both columns', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [
+                {
+                    ...defaultIgsnTemplate,
+                    id: 6,
+                    is_default: false,
+                    name: 'Custom IGSN Template',
+                    created_by: 1,
+                    creator: { id: 1, name: 'Admin User' },
+                    landing_pages_count: 0,
+                },
+            ];
+
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+            await user.click(screen.getByRole('button', { name: /Edit/i }));
+
+            act(() => dndContextMock.startHandlers.at(-1)?.({ active: { id: 'general' } }));
+            act(() => dndContextMock.overHandlers.at(-1)?.({ active: { id: 'general' }, over: { id: 'igsn-right-column' } }));
+            act(() => dndContextMock.handlers.at(-1)?.({ active: { id: 'general' }, over: null }));
+
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    '/landing-pages/6',
+                    expect.objectContaining({
+                        left_column_order: expect.arrayContaining(['general']),
+                    }),
+                );
+            });
+        });
+
+        it('applies a cross-column IGSN drop exactly once at the hovered module', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [
+                {
+                    ...defaultIgsnTemplate,
+                    id: 7,
+                    is_default: false,
+                    name: 'Cross-column IGSN Template',
+                    created_by: 1,
+                    creator: { id: 1, name: 'Admin User' },
+                    landing_pages_count: 0,
+                },
+            ];
+
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+            await user.click(screen.getByRole('button', { name: /Edit/i }));
+
+            act(() => dndContextMock.startHandlers.at(-1)?.({ active: { id: 'general' } }));
+            act(() => dndContextMock.overHandlers.at(-1)?.({ active: { id: 'general' }, over: { id: 'abstract' } }));
+            act(() => dndContextMock.handlers.at(-1)?.({ active: { id: 'general' }, over: { id: 'abstract' } }));
+
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    '/landing-pages/7',
+                    expect.objectContaining({
+                        left_column_order: expect.not.arrayContaining(['general']),
+                        right_column_order: expect.arrayContaining(['general', 'abstract']),
+                    }),
+                );
+            });
+
+            const payload = mockedAxiosPut.mock.calls.at(-1)?.[1] as { right_column_order: string[] };
+            expect(payload.right_column_order.indexOf('general')).toBe(payload.right_column_order.indexOf('abstract') - 1);
         });
 
         it('normalizes middle location to the end before saving', async () => {

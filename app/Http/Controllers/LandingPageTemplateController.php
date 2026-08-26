@@ -426,10 +426,19 @@ class LandingPageTemplateController extends Controller
             : [];
         unset($payload['igsn_datacenters']);
         $payload['datacenters_count'] = count($payload['datacenters']);
-        $payload['left_column_order'] = LandingPageTemplate::normalizeLeftColumnOrder(
-            $template->left_column_order,
-            $template->template_type,
-        );
+        if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
+            $orders = LandingPageTemplate::normalizeIgsnSectionOrders(
+                $template->left_column_order,
+                $template->right_column_order,
+            );
+            $payload['left_column_order'] = $orders['left'];
+            $payload['right_column_order'] = $orders['right'];
+        } else {
+            $payload['left_column_order'] = LandingPageTemplate::normalizeLeftColumnOrder(
+                $template->left_column_order,
+                $template->template_type,
+            );
+        }
 
         return $payload;
     }

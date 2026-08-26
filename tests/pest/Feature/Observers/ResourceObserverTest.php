@@ -16,6 +16,9 @@ use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\PortalKeywordCacheInvalidationService;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 covers(ResourceObserver::class);
 
@@ -193,6 +196,67 @@ describe('updated', function () {
 // =========================================================================
 
 describe('deleted', function () {
+    it('deletes a managed image after a resource cascade commits', function () {
+        Storage::fake('public');
+        Config::set('igsn_images.disk', 'public');
+        $resource = Resource::factory()->create(['doi' => '10.60510/gfso273cascade']);
+        $path = 'igsn-sample-images/gfso273cascade/sample.jpg';
+        IgsnMetadata::query()->create([
+            'resource_id' => $resource->id,
+            'sample_image_storage_path' => $path,
+        ]);
+        Storage::disk('public')->put($path, 'image');
+        $this->landingPageRenderDataCache
+            ->shouldReceive('forgetForIgsnFamilies')
+            ->once()
+            ->with([(int) $resource->id]);
+
+        $startingTransactionLevel = DB::transactionLevel();
+        DB::beginTransaction();
+        try {
+            $this->observer->deleting($resource);
+            Resource::withoutEvents(function () use ($resource): void {
+                $resource->delete();
+            });
+
+            expect(IgsnMetadata::query()->where('resource_id', $resource->id)->exists())->toBeFalse();
+            Storage::disk('public')->assertExists($path);
+            DB::commit();
+        } finally {
+            while (DB::transactionLevel() > $startingTransactionLevel) {
+                DB::rollBack();
+            }
+        }
+
+        Storage::disk('public')->assertMissing($path);
+    });
+
+    it('keeps a managed IGSN sample image when the enclosing transaction rolls back', function () {
+        Storage::fake('public');
+        Config::set('igsn_images.disk', 'public');
+        $resource = Resource::factory()->create(['doi' => '10.60510/gfso273n39']);
+        IgsnMetadata::query()->create([
+            'resource_id' => $resource->id,
+            'sample_image_storage_path' => 'igsn-sample-images/gfso273n39/sample.jpg',
+        ]);
+        Storage::disk('public')->put('igsn-sample-images/gfso273n39/sample.jpg', 'image');
+        $this->landingPageRenderDataCache
+            ->shouldReceive('forgetForIgsnFamilies')
+            ->once()
+            ->with([(int) $resource->id]);
+
+        DB::beginTransaction();
+        try {
+            $this->observer->deleting($resource);
+
+            Storage::disk('public')->assertExists('igsn-sample-images/gfso273n39/sample.jpg');
+        } finally {
+            DB::rollBack();
+        }
+
+        Storage::disk('public')->assertExists('igsn-sample-images/gfso273n39/sample.jpg');
+    });
+
     it('invalidates all resource caches', function () {
         $resource = Resource::factory()->create();
 

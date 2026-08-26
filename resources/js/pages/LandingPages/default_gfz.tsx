@@ -24,7 +24,7 @@ import { ResourceHero } from './components/ResourceHero';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
 import { type MetadataSectionKey } from './lib/metadata-sections';
-import { normalizeLeftColumnOrder, RESOURCE_LEFT_COLUMN_SECTIONS, RIGHT_COLUMN_SECTIONS } from './lib/section-catalog';
+import { normalizeLeftColumnOrder, normalizeRightColumnOrder, RESOURCE_LEFT_COLUMN_SECTIONS, RIGHT_COLUMN_SECTIONS } from './lib/section-catalog';
 
 /**
  * Props passed to landing page templates via Inertia
@@ -68,7 +68,7 @@ export default function DefaultGfzTemplate() {
         peopleDisplayLimits.citationAuthors,
     );
 
-    const rightOrder = sectionOrder?.rightColumn ?? RIGHT_COLUMN_SECTIONS;
+    const rightOrder = sectionOrder?.rightColumn ? normalizeRightColumnOrder(sectionOrder.rightColumn) : RIGHT_COLUMN_SECTIONS;
     const leftOrder = sectionOrder?.leftColumn ? normalizeLeftColumnOrder(sectionOrder.leftColumn, 'resource') : RESOURCE_LEFT_COLUMN_SECTIONS;
     const downloadsUnavailable = landingPage?.downloads_unavailable === true;
     const metadataOrder = rightOrder.filter((key): key is MetadataSectionKey => key !== 'location');
@@ -162,9 +162,11 @@ export default function DefaultGfzTemplate() {
                     citationPresentation={citationPresentation}
                 />
             }
-            metadataSection={rightSectionRegistry.metadata}
-            locationSection={rightSectionRegistry.location}
-            renderLocationBeforeMetadata={renderLocationBeforeMetadata}
+            rightColumnSections={
+                renderLocationBeforeMetadata
+                    ? [rightSectionRegistry.location, rightSectionRegistry.metadata]
+                    : [rightSectionRegistry.metadata, rightSectionRegistry.location]
+            }
             leftColumnSections={leftOrder.map((key) => leftSectionRegistry[key]).filter(Boolean)}
         />
     );

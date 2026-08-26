@@ -5,6 +5,14 @@
         "features": [],
         "improvements": [
             {
+                "title": "IGSN Sample Images",
+                "description": "Legacy IGSN sample images are now processed during imports and through a dry-run-first backfill for samples already stored in ERNIE. Managed GFZ images are safely copied to persistent storage, known ICDP images use canonical external links, and image failures remain retryable without rolling back metadata."
+            },
+            {
+                "title": "Flexible Landing Page Layouts",
+                "description": "Every IGSN landing-page module can now be arranged freely across both template columns while each module remains present exactly once. The default layout places the sample image directly before the location map."
+            },
+            {
                 "title": "Flexible and Correct Download Link Labels",
                 "description": "Legacy downloads now use their visible names instead of URL-like file names, and curators can customize labels for primary downloads and historically imported files. Download buttons retain click tracking while exposing the real destination on hover, and a dry-run-first backfill safely corrects clearly automatic existing labels without overwriting curated text."
             }

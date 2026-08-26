@@ -22,12 +22,39 @@ export type RightColumnSection =
 export type LeftColumnSection =
     'files' | 'general' | 'sample_family' | 'acquisition' | 'repositories' | 'citation' | 'dates' | 'contact' | 'model_description' | 'related_work';
 
+/** Every independently movable module supported by IGSN templates. */
+export type IgsnSection =
+    | 'general'
+    | 'sample_family'
+    | 'acquisition'
+    | 'repositories'
+    | 'citation'
+    | 'dates'
+    | 'contact'
+    | 'model_description'
+    | 'related_work'
+    | 'abstract'
+    | 'methods'
+    | 'technical_info'
+    | 'series_information'
+    | 'table_of_contents'
+    | 'other'
+    | 'creators'
+    | 'contributors'
+    | 'funders'
+    | 'keywords'
+    | 'metadata_download'
+    | 'sample_image'
+    | 'location';
+
+export type TemplateSection = LeftColumnSection | RightColumnSection | IgsnSection;
+
 /**
  * Section order configuration for landing page templates.
  */
 export interface SectionOrder {
-    rightColumn: RightColumnSection[];
-    leftColumn: LeftColumnSection[];
+    rightColumn: TemplateSection[];
+    leftColumn: TemplateSection[];
 }
 
 /**
@@ -66,10 +93,10 @@ export interface LandingPageTemplateConfig {
     logo_url: string | null;
 
     /** Ordered right column sections */
-    right_column_order: RightColumnSection[];
+    right_column_order: TemplateSection[];
 
     /** Ordered left column sections */
-    left_column_order: LeftColumnSection[];
+    left_column_order: TemplateSection[];
 
     /** Number of creators shown initially on public landing pages */
     creator_display_limit: number;
@@ -122,8 +149,8 @@ export interface LandingPageTemplateSummary {
     template_type: 'resource' | 'igsn';
     logo_path: string | null;
     logo_url: string | null;
-    right_column_order: RightColumnSection[];
-    left_column_order: LeftColumnSection[];
+    right_column_order: TemplateSection[];
+    left_column_order: TemplateSection[];
     creator_display_limit?: number;
     contributor_display_limit?: number;
     citation_author_display_limit?: number;
@@ -716,6 +743,10 @@ export interface LandingPageIgsnMetadata {
     original_archive: string | null;
     original_archive_contact: string | null;
     repository_contacts?: LandingPageRepositoryContact[];
+    sample_image?: {
+        url: string;
+        hosting: 'managed' | 'external';
+    } | null;
     platform_type?: string | null;
     platform_name?: string | null;
     platform_description?: string | null;

@@ -18,6 +18,7 @@ use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Observer for Resource model to handle cache invalidation.
@@ -201,6 +202,16 @@ class ResourceObserver
 
         if ($resource->igsnMetadata !== null) {
             $this->landingPageRenderDataCache->forgetForIgsnFamilies([(int) $resource->id]);
+
+            $imagePath = $resource->igsnMetadata->sample_image_storage_path;
+            if (is_string($imagePath) && $imagePath !== '') {
+                // The database cascade removes igsn_metadata rows without dispatching
+                // Eloquent model events, so IgsnMetadataObserver cannot clean up this file.
+                $imageDisk = (string) config('igsn_images.disk', 'public');
+                DB::afterCommit(static function () use ($imageDisk, $imagePath): void {
+                    Storage::disk($imageDisk)->delete($imagePath);
+                });
+            }
         }
 
         if ($resource->doi !== null && $resource->doi !== '') {

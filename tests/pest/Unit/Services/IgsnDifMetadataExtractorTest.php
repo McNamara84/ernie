@@ -195,3 +195,28 @@ it('preserves repeated size values until they are paired with their labels', fun
         ['numeric_value' => '50', 'unit' => 'mm', 'type' => 'length'],
     ]);
 });
+
+it('extracts image metadata only from the first sample block', function (): void {
+    $extractor = new IgsnDifMetadataExtractor;
+    $xml = <<<'XML'
+    <resource>
+      <sample><sample_image>first.jpg</sample_image><sample_image_path>https://example.test/first/</sample_image_path></sample>
+      <sample><sample_image>second.jpg</sample_image><sample_image_path>https://example.test/second/</sample_image_path></sample>
+    </resource>
+    XML;
+
+    expect($extractor->extractImageFields($xml))->toBe([
+        'file_name' => 'first.jpg',
+        'base_url' => 'https://example.test/first/',
+    ])->and($extractor->extract($xml)['sample_image'])->toBe([
+        'file_name' => 'first.jpg',
+        'base_url' => 'https://example.test/first/',
+    ]);
+});
+
+it('returns empty image fields for a sample without image metadata', function (): void {
+    expect((new IgsnDifMetadataExtractor)->extractImageFields('<resource><sample /></resource>'))->toBe([
+        'file_name' => null,
+        'base_url' => null,
+    ]);
+});
