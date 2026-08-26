@@ -6,9 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { FilesSection } from '@/pages/LandingPages/components/FilesSection';
 
-const mockLicenses = [
-    { id: 1, name: 'CC BY 4.0', spdx_id: 'CC-BY-4.0', reference: 'https://creativecommons.org/licenses/by/4.0/' },
-];
+const mockLicenses = [{ id: 1, name: 'CC BY 4.0', spdx_id: 'CC-BY-4.0', reference: 'https://creativecommons.org/licenses/by/4.0/' }];
 
 describe('FilesSection', () => {
     it('renders download link when downloadUrl is provided', () => {
@@ -17,15 +15,47 @@ describe('FilesSection', () => {
         expect(screen.getByText('Download data and description')).toBeInTheDocument();
     });
 
-    it('prefers tracked file URLs over raw file URLs', () => {
+    it('uses a custom primary label while exposing the external URL in the tooltip for a tracked link', () => {
         render(
             <FilesSection
-                downloadFiles={[{ url: 'https://example.com/raw.csv', tracked_url: '/landing-page-downloads/1/files/7' }]}
+                downloadUrl="https://example.com/raw.zip"
+                trackedDownloadUrl="/landing-page-downloads/1/primary"
+                downloadLabel="Download via GFZ Data Services"
                 licenses={[]}
             />,
         );
 
+        const link = screen.getByRole('link', { name: 'Download via GFZ Data Services' });
+        expect(link).toHaveAttribute('href', '/landing-page-downloads/1/primary');
+        expect(link).toHaveAttribute('title', 'https://example.com/raw.zip');
+    });
+
+    it('prefers tracked file URLs over raw file URLs', () => {
+        render(
+            <FilesSection downloadFiles={[{ url: 'https://example.com/raw.csv', tracked_url: '/landing-page-downloads/1/files/7' }]} licenses={[]} />,
+        );
+
         expect(screen.getByRole('link', { name: /Download data and description/i })).toHaveAttribute('href', '/landing-page-downloads/1/files/7');
+        expect(screen.getByRole('link', { name: /Download data and description/i })).toHaveAttribute('title', 'https://example.com/raw.csv');
+    });
+
+    it('renders individual labels and raw URL tooltips for multiple imported files', () => {
+        render(
+            <FilesSection
+                downloadFiles={[
+                    { url: 'https://example.com/model', label: 'Download model data', tracked_url: '/tracked/model' },
+                    { url: 'https://example.com/calculate', label: 'Calculation service', tracked_url: '/tracked/calculate' },
+                ]}
+                licenses={[]}
+            />,
+        );
+
+        const modelLink = screen.getByRole('link', { name: 'Download model data' });
+        expect(modelLink).toHaveAttribute('href', '/tracked/model');
+        expect(modelLink).toHaveAttribute('title', 'https://example.com/model');
+        const calculationLink = screen.getByRole('link', { name: 'Calculation service' });
+        expect(calculationLink).toHaveAttribute('href', '/tracked/calculate');
+        expect(calculationLink).toHaveAttribute('title', 'https://example.com/calculate');
     });
 
     it('renders fallback message when no download or contacts', () => {
@@ -156,6 +186,7 @@ describe('FilesSection', () => {
             const link = screen.getByText('GitLab Repository').closest('a');
             expect(link).toHaveAttribute('target', '_blank');
             expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+            expect(link).toHaveAttribute('title', 'https://gitlab.com/example/repo');
         });
     });
 });

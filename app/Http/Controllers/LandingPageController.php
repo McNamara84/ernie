@@ -9,11 +9,12 @@ use App\Exceptions\ResourceAlreadyExistsException;
 use App\Http\Requests\LandingPage\StoreLandingPageRequest;
 use App\Http\Requests\LandingPage\UpdateLandingPageRequest;
 use App\Models\LandingPage;
+use App\Models\LandingPageLink;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
-use App\Services\LandingPageTemplateResolverService;
 use App\Services\LandingPageContentDescriptorOptionsService;
+use App\Services\LandingPageTemplateResolverService;
 use App\Support\Traits\ChecksCacheTagging;
 use App\Support\UrlNormalizer;
 use Illuminate\Database\QueryException;
@@ -67,10 +68,10 @@ class LandingPageController extends Controller
     private static function normalizeContentDescriptorLinks(array $links): array
     {
         return array_map(static function (array $link): array {
-            $kind = $link['kind'] ?? \App\Models\LandingPageLink::KIND_RELATED;
+            $kind = $link['kind'] ?? LandingPageLink::KIND_RELATED;
             $link['kind'] = $kind;
 
-            if ($kind !== \App\Models\LandingPageLink::KIND_DOWNLOAD) {
+            if ($kind !== LandingPageLink::KIND_DOWNLOAD) {
                 $link['format_id'] = null;
                 $link['size_id'] = null;
             }
@@ -90,6 +91,12 @@ class LandingPageController extends Controller
         if (array_key_exists('ftp_url', $validated) && ! self::templateSupportsFtpUrl($template)) {
             $unsupportedFields['ftp_url'] = [
                 'The ftp_url field is not supported for this landing page template.',
+            ];
+        }
+
+        if (array_key_exists('primary_download_label', $validated) && ! self::templateSupportsFtpUrl($template)) {
+            $unsupportedFields['primary_download_label'] = [
+                'The primary_download_label field is not supported for this landing page template.',
             ];
         }
 
@@ -290,6 +297,10 @@ class LandingPageController extends Controller
                     'ftp_url' => self::templateSupportsFtpUrl($validated['template'])
                         ? ($validated['ftp_url'] ?? null)
                         : null,
+                    'primary_download_label' => self::templateSupportsFtpUrl($validated['template'])
+                        && ! empty($validated['ftp_url'])
+                        ? self::normalizeOptionalLabel($validated['primary_download_label'] ?? null)
+                        : null,
                     'ftp_format_id' => self::templateSupportsFtpUrl($validated['template'])
                         && ! empty($validated['ftp_url'])
                         ? ($validated['ftp_format_id'] ?? null)
@@ -310,6 +321,7 @@ class LandingPageController extends Controller
                     $createData['external_domain_id'] = $validated['external_domain_id'];
                     $createData['external_path'] = $validated['external_path'];
                     $createData['ftp_url'] = null; // FTP URL not relevant for external pages
+                    $createData['primary_download_label'] = null;
                     $createData['ftp_format_id'] = null;
                     $createData['ftp_size_id'] = null;
                     $createData['downloads_unavailable'] = false;
@@ -529,6 +541,16 @@ class LandingPageController extends Controller
                 $landingPage->ftp_url = null;
             }
 
+            if (self::templateSupportsFtpUrl($effectiveTemplate) && array_key_exists('primary_download_label', $validated)) {
+                $landingPage->primary_download_label = self::normalizeOptionalLabel($validated['primary_download_label']);
+            } elseif (! self::templateSupportsFtpUrl($effectiveTemplate)) {
+                $landingPage->primary_download_label = null;
+            }
+
+            if (empty($landingPage->ftp_url)) {
+                $landingPage->primary_download_label = null;
+            }
+
             if (self::templateSupportsFtpUrl($effectiveTemplate) && ! empty($landingPage->ftp_url)) {
                 if (array_key_exists('ftp_format_id', $validated)) {
                     $landingPage->ftp_format_id = $validated['ftp_format_id'];
@@ -559,6 +581,7 @@ class LandingPageController extends Controller
                 }
                 // Clear FTP URL for external pages (not relevant)
                 $landingPage->ftp_url = null;
+                $landingPage->primary_download_label = null;
                 $landingPage->ftp_format_id = null;
                 $landingPage->ftp_size_id = null;
                 $landingPage->downloads_unavailable = false;
@@ -576,6 +599,9 @@ class LandingPageController extends Controller
                         ->whereKey((int) $fileData['id'])
                         ->firstOrFail();
                     $file->fill([
+                        'label' => array_key_exists('label', $fileData)
+                            ? self::normalizeOptionalLabel($fileData['label'])
+                            : $file->label,
                         'format_id' => $fileData['format_id'] ?? null,
                         'size_id' => $fileData['size_id'] ?? null,
                     ]);
@@ -735,6 +761,9 @@ class LandingPageController extends Controller
         $payload['ftp_url'] = self::templateSupportsFtpUrl($effectiveTemplate)
             ? $landingPage->ftp_url
             : null;
+        $payload['primary_download_label'] = self::templateSupportsFtpUrl($effectiveTemplate)
+            ? $landingPage->primary_download_label
+            : null;
         $payload['downloads_unavailable'] = self::templateSupportsDownloadsUnavailable($effectiveTemplate)
             ? $landingPage->downloads_unavailable
             : false;
@@ -762,6 +791,17 @@ class LandingPageController extends Controller
         }
 
         return $payload;
+    }
+
+    private static function normalizeOptionalLabel(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $label = trim($value);
+
+        return $label === '' ? null : $label;
     }
 
     /**

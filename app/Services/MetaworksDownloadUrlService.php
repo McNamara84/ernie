@@ -49,9 +49,9 @@ class MetaworksDownloadUrlService
      *
      * The first entry becomes the landing page's primary download URL. Remaining
      * entries are imported as landing page additional links, using the legacy
-     * file name first and the description as fallback label.
+     * visible name (description) first and the old file name only as fallback.
      *
-     * @return array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound: bool, hasFileRows: bool, resourcePublicStatus: string|null}
+     * @return array{files: list<array{url: string, label: string|null, source_name: string|null, visible: string|null}>, allPublic: bool, resourceFound: bool, hasFileRows: bool, resourcePublicStatus: string|null}
      */
     public function lookupFileEntries(string $doi): array
     {
@@ -108,7 +108,8 @@ class MetaworksDownloadUrlService
             $seenUrls[$url] = true;
             $entries[] = [
                 'url' => $url,
-                'label' => $this->resolveLabel($file->name ?? null, $file->description ?? null),
+                'label' => $this->resolveLabel($file->description ?? null, $file->name ?? null),
+                'source_name' => $this->normaliseLabel($file->name ?? null),
                 'visible' => isset($file->visible) ? (string) $file->visible : null,
             ];
         }
@@ -137,20 +138,19 @@ class MetaworksDownloadUrlService
         return true;
     }
 
-    private function resolveLabel(mixed $name, mixed $description): ?string
+    private function resolveLabel(mixed $description, mixed $name): ?string
     {
-        foreach ([$name, $description] as $candidate) {
-            if (! is_string($candidate)) {
-                continue;
-            }
+        return $this->normaliseLabel($description) ?? $this->normaliseLabel($name);
+    }
 
-            $label = trim($candidate);
-
-            if ($label !== '') {
-                return mb_substr($label, 0, 255);
-            }
+    private function normaliseLabel(mixed $candidate): ?string
+    {
+        if (! is_string($candidate)) {
+            return null;
         }
 
-        return null;
+        $label = trim($candidate);
+
+        return $label === '' ? null : mb_substr($label, 0, 255);
     }
 }

@@ -1323,7 +1323,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         array $doiRecord,
         MetaworksDownloadUrlService $metaworksService,
     ): array {
-        /** @var array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound?: bool, hasFileRows?: bool, resourcePublicStatus?: string|null} $fileResult */
+        /** @var array{files: list<array{url: string, label: string|null, source_name: string|null, visible: string|null}>, allPublic: bool, resourceFound?: bool, hasFileRows?: bool, resourcePublicStatus?: string|null} $fileResult */
         $fileResult = ['files' => [], 'allPublic' => false, 'resourceFound' => false, 'hasFileRows' => false, 'resourcePublicStatus' => null];
 
         try {

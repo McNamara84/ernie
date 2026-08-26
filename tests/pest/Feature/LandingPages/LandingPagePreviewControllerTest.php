@@ -28,6 +28,7 @@ describe('Session Preview Creation', function () {
         $response = $this->postJson("/resources/{$this->resource->id}/landing-page/preview", [
             'template' => 'default_gfz',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'primary_download_label' => '  Download model data  ',
         ]);
 
         $response->assertStatus(201)
@@ -40,6 +41,7 @@ describe('Session Preview Creation', function () {
         expect($sessionData)
             ->toHaveKey('template', 'default_gfz')
             ->toHaveKey('ftp_url', 'https://datapub.gfz-potsdam.de/download/test.zip')
+            ->toHaveKey('primary_download_label', 'Download model data')
             ->toHaveKey('resource_id', $this->resource->id);
     });
 
@@ -63,6 +65,43 @@ describe('Session Preview Creation', function () {
             ->toHaveKey('ftp_url', 'https://downloads.example.org/existing.zip')
             ->toHaveKey('ftp_format_id', $format->id)
             ->toHaveKey('ftp_size_id', $size->id);
+    });
+
+    test('previews an edited imported-file label without persisting it', function () {
+        $landingPage = LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+        ]);
+        $file = $landingPage->files()->create([
+            'url' => 'https://downloads.example.org/imported.nc',
+            'label' => 'Original label',
+            'position' => 0,
+        ]);
+
+        $this->postJson('/resources/'.$this->resource->id.'/landing-page/preview', [
+            'template' => 'default_gfz',
+            'files' => [[
+                'id' => $file->id,
+                'label' => '  Preview label  ',
+            ]],
+        ])->assertCreated();
+
+        $sessionData = Session::get('landing_page_preview.'.$this->resource->id);
+        expect($sessionData['files'][0]['label'])->toBe('Preview label')
+            ->and($file->fresh()->label)->toBe('Original label')
+            ->and($file->fresh()->url)->toBe('https://downloads.example.org/imported.nc');
+
+        $this->postJson('/resources/'.$this->resource->id.'/landing-page/preview', [
+            'template' => 'default_gfz',
+            'files' => [[
+                'id' => $file->id,
+                'label' => null,
+            ]],
+        ])->assertCreated();
+
+        $sessionData = Session::get('landing_page_preview.'.$this->resource->id);
+        expect($sessionData['files'][0]['label'])->toBeNull()
+            ->and($file->fresh()->label)->toBe('Original label');
     });
 
     test('stores downloads unavailable preview data while retaining submitted download values in session', function () {

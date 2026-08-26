@@ -115,13 +115,14 @@ interface BuildLandingPagePayloadOptions {
     isPublished?: boolean;
     supportsFtpUrl: boolean;
     ftpUrl?: string;
+    primaryDownloadLabel?: string;
     ftpFormatId?: number | null;
     ftpSizeId?: number | null;
     supportsDownloadsUnavailable?: boolean;
     downloadsUnavailable?: boolean;
     supportsLinks: boolean;
     links?: LandingPageLink[];
-    files?: Array<{ id: number; format_id?: number | null; size_id?: number | null }>;
+    files?: Array<{ id: number; label?: string | null; format_id?: number | null; size_id?: number | null }>;
     isExternal: boolean;
     externalDomainId?: string;
     externalPath?: string;
@@ -154,6 +155,7 @@ function buildLandingPagePayload(options: BuildLandingPagePayloadOptions): Recor
 
     if (options.supportsFtpUrl) {
         payload.ftp_url = options.ftpUrl || null;
+        payload.primary_download_label = options.ftpUrl ? options.primaryDownloadLabel?.trim() || null : null;
         payload.ftp_format_id = options.ftpUrl ? (options.ftpFormatId ?? null) : null;
         payload.ftp_size_id = options.ftpUrl ? (options.ftpSizeId ?? null) : null;
     }
@@ -178,6 +180,7 @@ function buildLandingPagePayload(options: BuildLandingPagePayloadOptions): Recor
     if (options.files) {
         payload.files = options.files.map((file) => ({
             id: file.id,
+            label: file.label?.trim() || null,
             format_id: file.format_id ?? null,
             size_id: file.size_id ?? null,
         }));

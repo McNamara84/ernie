@@ -40,6 +40,7 @@ describe('Landing Page Creation', function () {
         $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
             'template' => 'default_gfz',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'primary_download_label' => '  Download via GFZ Data Services  ',
             'status' => 'draft',
         ]);
 
@@ -51,6 +52,7 @@ describe('Landing Page Creation', function () {
                     'resource_id',
                     'template',
                     'ftp_url',
+                    'primary_download_label',
                     'status',
                     'preview_token',
                     'preview_url',
@@ -61,6 +63,7 @@ describe('Landing Page Creation', function () {
         expect($this->resource->fresh()->landingPage)
             ->not->toBeNull()
             ->status->toBe('draft')
+            ->primary_download_label->toBe('Download via GFZ Data Services')
             ->preview_token->not->toBeNull()
             ->published_at->toBeNull();
     });
@@ -197,6 +200,15 @@ describe('Landing Page Creation', function () {
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['ftp_url']);
     });
+
+    test('validates the primary download label length', function () {
+        $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://downloads.example.org/data.zip',
+            'primary_download_label' => str_repeat('x', 256),
+            'status' => 'draft',
+        ])->assertJsonValidationErrors(['primary_download_label']);
+    });
 });
 
 describe('Landing Page Updates', function () {
@@ -210,6 +222,7 @@ describe('Landing Page Updates', function () {
         $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
             'template' => 'default_gfz',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/updated.zip',
+            'primary_download_label' => 'Download updated package',
             'status' => 'draft',
         ]);
 
@@ -219,7 +232,31 @@ describe('Landing Page Updates', function () {
             ]);
 
         expect($this->landingPage->fresh())
-            ->ftp_url->toBe('https://datapub.gfz-potsdam.de/download/updated.zip');
+            ->ftp_url->toBe('https://datapub.gfz-potsdam.de/download/updated.zip')
+            ->primary_download_label->toBe('Download updated package');
+    });
+
+    test('preserves a primary label when omitted and clears it together with its URL', function () {
+        $this->landingPage->update([
+            'ftp_url' => 'https://downloads.example.org/data.zip',
+            'primary_download_label' => 'Download dataset',
+        ]);
+
+        $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'status' => 'draft',
+        ])->assertOk();
+
+        expect($this->landingPage->fresh()->primary_download_label)->toBe('Download dataset');
+
+        $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => null,
+            'status' => 'draft',
+        ])->assertOk();
+
+        expect($this->landingPage->fresh()->ftp_url)->toBeNull()
+            ->and($this->landingPage->fresh()->primary_download_label)->toBeNull();
     });
 
     test('can toggle downloads unavailable without clearing retained download configuration', function () {
@@ -446,13 +483,24 @@ describe('Landing Page content descriptors', function () {
             'template' => 'default_gfz',
             'files' => [[
                 'id' => $file->id,
+                'label' => '  Download imported NetCDF data  ',
                 'format_id' => $format->id,
                 'size_id' => $size->id,
             ]],
         ])->assertOk();
 
-        expect($file->fresh()->format_id)->toBe($format->id)
+        expect($file->fresh()->label)->toBe('Download imported NetCDF data')
+            ->and($file->fresh()->url)->toBe('https://downloads.example.org/imported.nc')
+            ->and($file->fresh()->format_id)->toBe($format->id)
             ->and($file->fresh()->size_id)->toBe($size->id);
+
+        $this->putJson('/resources/'.$this->resource->id.'/landing-page', [
+            'template' => 'default_gfz',
+            'files' => [['id' => $file->id]],
+        ])->assertOk();
+
+        expect($file->fresh()->label)->toBe('Download imported NetCDF data')
+            ->and($file->fresh()->url)->toBe('https://downloads.example.org/imported.nc');
     });
 });
 
@@ -865,6 +913,7 @@ describe('Landing Page Template Assignment', function () {
             'external_domain_id' => $domain->id,
             'external_path' => 'dataset/123',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/updated.zip',
+            'primary_download_label' => 'Unsupported download label',
             'downloads_unavailable' => true,
             'links' => [
                 [
@@ -880,7 +929,7 @@ describe('Landing Page Template Assignment', function () {
             ->assertJson([
                 'message' => 'The request includes fields that are not supported for this landing page template.',
             ])
-            ->assertJsonValidationErrors(['ftp_url', 'downloads_unavailable', 'links']);
+            ->assertJsonValidationErrors(['ftp_url', 'primary_download_label', 'downloads_unavailable', 'links']);
 
         expect($this->resource->fresh()->landingPage)
             ->template->toBe('default_gfz')

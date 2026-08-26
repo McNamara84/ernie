@@ -171,7 +171,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->and($result['allPublic'])->toBeTrue();
     });
 
-    it('returns structured file entries with labels from name and description', function () {
+    it('prefers the visible-name description and retains the historical name for safe backfills', function () {
         $resourceQuery = Mockery::mock();
         $resourceQuery->shouldReceive('where')
             ->with('identifier', '10.5880/GFZ.labels.test')
@@ -222,8 +222,10 @@ describe('MetaworksDownloadUrlService', function () {
         $result = $service->lookupFileEntries('10.5880/GFZ.labels.test');
 
         expect($result['files'])->toHaveCount(2)
-            ->and($result['files'][0]['label'])->toBe('Name Label')
+            ->and($result['files'][0]['label'])->toBe('Description Label')
+            ->and($result['files'][0]['source_name'])->toBe('Name Label')
             ->and($result['files'][1]['label'])->toBe('Description Fallback')
+            ->and($result['files'][1]['source_name'])->toBeNull()
             ->and($result['allPublic'])->toBeTrue()
             ->and($result['resourcePublicStatus'])->toBe('published');
     });

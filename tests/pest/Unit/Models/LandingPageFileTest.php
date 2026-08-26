@@ -19,12 +19,14 @@ describe('LandingPageFile', function () {
         $file = LandingPageFile::create([
             'landing_page_id' => $landingPage->id,
             'url' => 'https://datapub.gfz.de/download/10.5880/test',
+            'label' => 'Download model data',
             'position' => 0,
         ]);
 
         expect($file)->toBeInstanceOf(LandingPageFile::class)
             ->and($file->landing_page_id)->toBe($landingPage->id)
             ->and($file->url)->toBe('https://datapub.gfz.de/download/10.5880/test')
+            ->and($file->label)->toBe('Download model data')
             ->and($file->position)->toBe(0)
             ->and($file->landingPage->id)->toBe($landingPage->id);
     });

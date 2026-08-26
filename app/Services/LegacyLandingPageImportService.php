@@ -17,7 +17,7 @@ class LegacyLandingPageImportService
      * The first URL becomes the primary download URL. Subsequent URLs are stored
      * as landing page links with legacy names/descriptions as labels.
      *
-     * @param  list<array{url: string, label?: string|null, visible?: string|null}>  $fileEntries
+     * @param  list<array{url: string, label?: string|null, source_name?: string|null, visible?: string|null}>  $fileEntries
      */
     public function createForResource(
         Resource $resource,
@@ -54,8 +54,8 @@ class LegacyLandingPageImportService
      * legacy resource may publish an existing draft page, but this method never
      * unpublishes an existing page.
      *
-     * @param  list<array{url: string, label?: string|null, visible?: string|null}>  $fileEntries
-     * @return array{changed: bool, created: bool, ftp_url_added: bool, links_added: int, landing_page: LandingPage|null}
+     * @param  list<array{url: string, label?: string|null, source_name?: string|null, visible?: string|null}>  $fileEntries
+     * @return array{changed: bool, created: bool, ftp_url_added: bool, links_added: int, labels_updated: int, landing_page: LandingPage|null}
      */
     public function syncMissingFileEntries(
         Resource $resource,
@@ -107,6 +107,7 @@ class LegacyLandingPageImportService
 
             $ftpUrlAdded = false;
             $downloadsUnavailableCleared = false;
+            $labelsUpdated = 0;
             $primaryFile = $fileEntries[0];
 
             if ($this->isBlank($landingPage->ftp_url)) {
@@ -123,12 +124,43 @@ class LegacyLandingPageImportService
                 $landingPage->refresh()->load('links');
             }
 
+            if ($this->sameUrl($landingPage->ftp_url, $primaryFile['url'])
+                && ! $this->isBlank($primaryFile['label'])
+                && $this->canReplaceImportedLabel(
+                    (string) $landingPage->primary_download_label,
+                    $primaryFile['url'],
+                    $primaryFile['source_name'],
+                )) {
+                $landingPage->forceFill(['primary_download_label' => $primaryFile['label']])->save();
+                if ($landingPage->wasChanged('primary_download_label')) {
+                    $labelsUpdated++;
+                }
+                $landingPage->refresh()->load('links');
+            }
+
             $existingUrls = $this->existingLandingPageUrls($landingPage);
             $nextPosition = $this->nextLinkPosition($landingPage);
             $linksAdded = 0;
 
             foreach ($fileEntries as $fileEntry) {
                 if (isset($existingUrls[$fileEntry['url']])) {
+                    $existingLink = $landingPage->links->first(
+                        fn ($link): bool => $this->sameUrl($link->url, $fileEntry['url'])
+                    );
+
+                    if ($existingLink !== null
+                        && ! $this->isBlank($fileEntry['label'])
+                        && $this->canReplaceImportedLabel(
+                            (string) $existingLink->label,
+                            $fileEntry['url'],
+                            $fileEntry['source_name'],
+                        )) {
+                        $existingLink->forceFill(['label' => $fileEntry['label']])->save();
+                        if ($existingLink->wasChanged('label')) {
+                            $labelsUpdated++;
+                        }
+                    }
+
                     continue;
                 }
 
@@ -144,9 +176,10 @@ class LegacyLandingPageImportService
             }
 
             return $this->syncResult(
-                changed: $published || $ftpUrlAdded || $downloadsUnavailableCleared || $linksAdded > 0,
+                changed: $published || $ftpUrlAdded || $downloadsUnavailableCleared || $linksAdded > 0 || $labelsUpdated > 0,
                 ftpUrlAdded: $ftpUrlAdded,
                 linksAdded: $linksAdded,
+                labelsUpdated: $labelsUpdated,
                 landingPage: $landingPage->fresh(['links']),
             );
         });
@@ -159,7 +192,7 @@ class LegacyLandingPageImportService
     }
 
     /**
-     * @param  list<array{url: string, label: string|null, visible: string|null}>  $fileEntries
+     * @param  list<array{url: string, label: string|null, source_name: string|null, visible: string|null}>  $fileEntries
      */
     private function createDefaultLandingPage(Resource $resource, array $fileEntries, bool $isPublished): LandingPage
     {
@@ -172,6 +205,7 @@ class LegacyLandingPageImportService
             'resource_id' => $resource->id,
             'template' => 'default_gfz',
             'ftp_url' => $primaryFile['url'] ?? null,
+            'primary_download_label' => $primaryFile['label'] ?? null,
             'downloads_unavailable' => $primaryFile === null,
             'is_published' => $shouldPublish,
             'published_at' => $shouldPublish ? now() : null,
@@ -192,8 +226,8 @@ class LegacyLandingPageImportService
     }
 
     /**
-     * @param  list<array{url: string, label?: string|null, visible?: string|null}>  $fileEntries
-     * @return list<array{url: string, label: string|null, visible: string|null}>
+     * @param  list<array{url: string, label?: string|null, source_name?: string|null, visible?: string|null}>  $fileEntries
+     * @return list<array{url: string, label: string|null, source_name: string|null, visible: string|null}>
      */
     private function normaliseFileEntries(array $fileEntries): array
     {
@@ -210,10 +244,12 @@ class LegacyLandingPageImportService
             $seenUrls[$url] = true;
 
             $label = isset($entry['label']) ? trim((string) $entry['label']) : '';
+            $sourceName = isset($entry['source_name']) ? trim((string) $entry['source_name']) : '';
 
             $normalised[] = [
                 'url' => $url,
                 'label' => $label !== '' ? mb_substr($label, 0, 255) : null,
+                'source_name' => $sourceName !== '' ? mb_substr($sourceName, 0, 255) : null,
                 'visible' => isset($entry['visible']) ? (string) $entry['visible'] : null,
             ];
         }
@@ -255,14 +291,31 @@ class LegacyLandingPageImportService
         return trim((string) $value) === '';
     }
 
+    private function sameUrl(?string $left, ?string $right): bool
+    {
+        return trim((string) $left) !== ''
+            && trim((string) $left) === trim((string) $right);
+    }
+
+    private function canReplaceImportedLabel(string $currentLabel, string $url, ?string $sourceName): bool
+    {
+        $currentLabel = trim($currentLabel);
+
+        return $currentLabel === ''
+            || $currentLabel === trim($url)
+            || ($sourceName !== null && $currentLabel === trim($sourceName))
+            || preg_match('/\ADownload \d+\z/', $currentLabel) === 1;
+    }
+
     /**
-     * @return array{changed: bool, created: bool, ftp_url_added: bool, links_added: int, landing_page: LandingPage|null}
+     * @return array{changed: bool, created: bool, ftp_url_added: bool, links_added: int, labels_updated: int, landing_page: LandingPage|null}
      */
     private function syncResult(
         bool $changed = false,
         bool $created = false,
         bool $ftpUrlAdded = false,
         int $linksAdded = 0,
+        int $labelsUpdated = 0,
         ?LandingPage $landingPage = null,
     ): array {
         return [
@@ -270,6 +323,7 @@ class LegacyLandingPageImportService
             'created' => $created,
             'ftp_url_added' => $ftpUrlAdded,
             'links_added' => $linksAdded,
+            'labels_updated' => $labelsUpdated,
             'landing_page' => $landingPage,
         ];
     }

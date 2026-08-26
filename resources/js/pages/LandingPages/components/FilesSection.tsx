@@ -10,7 +10,9 @@ import { LandingPageCard } from './LandingPageCard';
 
 interface FilesSectionProps {
     downloadUrl?: string | null;
-    downloadFiles?: { url: string; tracked_url?: string | null }[];
+    trackedDownloadUrl?: string | null;
+    downloadLabel?: string | null;
+    downloadFiles?: { url: string; label?: string | null; tracked_url?: string | null }[];
     licenses: LandingPageLicense[];
     contactPersons?: LandingPageContactPerson[];
     datasetTitle?: string;
@@ -27,14 +29,39 @@ interface FilesSectionProps {
  */
 type FallbackMode = 'download' | 'contact-form' | 'website' | 'fallback-message';
 
-export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPersons = [], datasetTitle, additionalLinks = [] }: FilesSectionProps) {
+const DEFAULT_PRIMARY_DOWNLOAD_LABEL = 'Download data and description';
+
+export function FilesSection({
+    downloadUrl,
+    trackedDownloadUrl,
+    downloadLabel,
+    downloadFiles,
+    licenses,
+    contactPersons = [],
+    datasetTitle,
+    additionalLinks = [],
+}: FilesSectionProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPerson, setSelectedPerson] = useState<LandingPageContactPerson | null>(null);
 
     // Build effective list of download URLs: prefer downloadFiles, fall back to single downloadUrl
     const hasDownloadUrl = typeof downloadUrl === 'string' && downloadUrl !== '#' && downloadUrl.trim() !== '';
     const effectiveDownloads =
-        downloadFiles && downloadFiles.length > 0 ? downloadFiles.map((file) => file.tracked_url ?? file.url) : hasDownloadUrl ? [downloadUrl!] : [];
+        downloadFiles && downloadFiles.length > 0
+            ? downloadFiles.map((file, index) => ({
+                  href: file.tracked_url ?? file.url,
+                  url: file.url,
+                  label: file.label?.trim() || (downloadFiles.length === 1 ? DEFAULT_PRIMARY_DOWNLOAD_LABEL : `Download (${index + 1})`),
+              }))
+            : hasDownloadUrl
+              ? [
+                    {
+                        href: trackedDownloadUrl ?? downloadUrl!,
+                        url: downloadUrl!,
+                        label: downloadLabel?.trim() || DEFAULT_PRIMARY_DOWNLOAD_LABEL,
+                    },
+                ]
+              : [];
 
     // Find contact persons for fallback options
     const contactPersonWithEmail = contactPersons.find((p) => p.has_email);
@@ -77,27 +104,29 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                     {/* Download Link(s) - shown when download URLs are available */}
                     {displayMode === 'download' && effectiveDownloads.length === 1 && (
                         <a
-                            href={effectiveDownloads[0]}
+                            href={effectiveDownloads[0].href}
+                            title={effectiveDownloads[0].url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="gfz-action-button flex items-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
                         >
                             <Download className="h-4 w-4" aria-hidden="true" />
-                            Download data and description
+                            {effectiveDownloads[0].label}
                         </a>
                     )}
                     {displayMode === 'download' && effectiveDownloads.length > 1 && (
                         <div className="space-y-2">
-                            {effectiveDownloads.map((url, index) => (
+                            {effectiveDownloads.map((download) => (
                                 <a
-                                    key={url}
-                                    href={url}
+                                    key={download.url}
+                                    href={download.href}
+                                    title={download.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="gfz-action-button flex items-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
                                 >
                                     <Download className="h-4 w-4" aria-hidden="true" />
-                                    <span className="truncate">Download ({index + 1})</span>
+                                    <span className="truncate">{download.label}</span>
                                 </a>
                             ))}
                         </div>
@@ -143,6 +172,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                                     <a
                                         key={link.id ?? `${link.url}-${link.position}`}
                                         href={link.url}
+                                        title={link.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"

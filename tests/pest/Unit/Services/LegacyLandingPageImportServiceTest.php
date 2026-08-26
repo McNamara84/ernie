@@ -39,6 +39,7 @@ describe('LegacyLandingPageImportService', function () {
 
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/primary.zip')
+            ->and($landingPage->primary_download_label)->toBe('Primary package')
             ->and($landingPage->is_published)->toBeTrue()
             ->and($landingPage->published_at)->not->toBeNull();
 
@@ -48,6 +49,76 @@ describe('LegacyLandingPageImportService', function () {
             ->and($links[0]->label)->toBe('Additional table')
             ->and(LandingPageFile::query()->where('landing_page_id', $landingPage->id)->count())->toBe(0)
             ->and(Cache::get(CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->key()))->toBeNull();
+    });
+
+    it('corrects only automatically generated labels when legacy files are synced again', function () {
+        $resource = Resource::factory()->create(['doi' => '10.5880/landing.sync.labels']);
+        $landingPage = LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+            'ftp_url' => 'https://datapub.gfz.de/primary.zip',
+            'primary_download_label' => 'https://datapub.gfz.de/primary.zip',
+        ]);
+        $automatic = $landingPage->links()->create([
+            'url' => 'https://example.org/automatic',
+            'label' => 'https://example.org/automatic',
+            'position' => 0,
+        ]);
+        $custom = $landingPage->links()->create([
+            'url' => 'https://example.org/custom',
+            'label' => 'Curated service label',
+            'position' => 1,
+        ]);
+
+        $result = (new LegacyLandingPageImportService)->syncMissingFileEntries(
+            resource: $resource,
+            fileEntries: [
+                [
+                    'url' => 'https://datapub.gfz.de/primary.zip',
+                    'label' => 'Download via GFZ Data Services',
+                    'source_name' => 'https://datapub.gfz.de/primary.zip',
+                ],
+                [
+                    'url' => 'https://example.org/automatic',
+                    'label' => 'Automatic service',
+                    'source_name' => 'https://example.org/automatic',
+                ],
+                [
+                    'url' => 'https://example.org/custom',
+                    'label' => 'Legacy replacement',
+                    'source_name' => 'https://example.org/custom',
+                ],
+            ],
+            isPublished: true,
+        );
+
+        expect($result['changed'])->toBeTrue()
+            ->and($result['labels_updated'])->toBe(2)
+            ->and($landingPage->fresh()->primary_download_label)->toBe('Download via GFZ Data Services')
+            ->and($automatic->fresh()->label)->toBe('Automatic service')
+            ->and($custom->fresh()->label)->toBe('Curated service label');
+    });
+
+    it('preserves a curated primary download label when legacy files are synced again', function () {
+        $resource = Resource::factory()->create(['doi' => '10.5880/landing.sync.primary-label']);
+        $landingPage = LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+            'ftp_url' => 'https://datapub.gfz.de/primary.zip',
+            'primary_download_label' => 'Curated primary package',
+        ]);
+
+        $result = (new LegacyLandingPageImportService)->syncMissingFileEntries(
+            resource: $resource,
+            fileEntries: [[
+                'url' => 'https://datapub.gfz.de/primary.zip',
+                'label' => 'Legacy replacement',
+                'source_name' => 'https://datapub.gfz.de/primary.zip',
+            ]],
+            isPublished: true,
+        );
+
+        expect($result['changed'])->toBeFalse()
+            ->and($result['labels_updated'])->toBe(0)
+            ->and($landingPage->fresh()->primary_download_label)->toBe('Curated primary package');
     });
 
     it('creates an unpublished draft landing page without a download URL when requested for an empty pending import', function () {
