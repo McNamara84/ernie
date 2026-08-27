@@ -21,6 +21,14 @@
             {
                 "title": "Stable Data Editor Dropdowns",
                 "description": "Long Resource Type and Related Work selection menus now use viewport-aware popper positioning, bounded scrolling, and semantic option groups, preventing the menus from jumping while users scroll in compact Data Editor windows."
+            },
+            {
+                "title": "Visible Sonne273 Legacy Classification",
+                "description": "New Sonne273 IGSN imports now recognize the reported Igneous>Felsic legacy Rock classification and display its exact wording instead of discarding it. Existing incomplete records remain unchanged until an administrator deletes them and an authorized user imports them again."
+            },
+            {
+                "title": "Complete Earth Shape Legacy Classifications",
+                "description": "New Earth Shape IGSN imports now recognize all eleven known legacy Rock and Biology classifications and display their original wording on landing pages. Existing incomplete records remain unchanged until an administrator deletes them and an authorized user imports them again."
             }
         ]
     },

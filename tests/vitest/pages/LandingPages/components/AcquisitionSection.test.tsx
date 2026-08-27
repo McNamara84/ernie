@@ -120,6 +120,18 @@ describe('AcquisitionSection', () => {
     it.each([
         ['Rock', 'rock:bedrock igneous'],
         ['Biology', 'vegetation:leaves/needles'],
+        ['Rock', 'Igneous>Felsic'],
+        ['Rock', 'rock'],
+        ['Rock', 'rock:core stone'],
+        ['Rock', 'rock:crump'],
+        ['Biology', 'vegetation'],
+        ['Biology', 'vegetation:leaf litter'],
+        ['Biology', 'vegetation:other'],
+        ['Biology', 'vegetation:other plant litter'],
+        ['Biology', 'vegetation:whole plant'],
+        ['Biology', 'vegetation:blossom'],
+        ['Biology', 'vegetation:lichen'],
+        ['Biology', 'vegetation:root'],
     ])('renders the imported %s legacy classification verbatim', (material, value) => {
         render(
             <AcquisitionSection

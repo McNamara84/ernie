@@ -236,11 +236,13 @@ Authenticated Solr and the direct legacy database remain optional enrichment sou
 
 Both app and queue services must use `QUEUE_CONNECTION=database`, and the worker command must consume `imports`. The single-import start endpoint returns `202 Accepted`; later portal or persistence failures are reported through the import status endpoint.
 
-#### Reimport after Medusa metadata fixes
+#### Reimport after legacy IGSN metadata fixes
 
 Legacy IGSNs that were imported before a vocabulary or database-schema fix are not updated automatically. Existing IGSNs are deliberately skipped by the DataCite import, so retrying an import without first deleting the incomplete local records does not repair them.
 
 For the Medusa records covered by issues #1191 and #1192, deploy the updated classification catalogs and run the migration that widens `igsn_metadata.user_code` before any affected record is deleted. An administrator must then delete the affected IGSNs, either individually or with the batch action. After deletion, an authorized user can import those records again. Do not begin the reimport while an application instance or queue worker is still running against the previous schema.
+
+For the Sonne273 and Earth Shape records covered by issues #1200 and #1202, deploy the updated classification catalogs before deleting any affected record; no database migration is required. Delete records individually or in administrator batches of at most 100. Then reimport the affected Sonne273 IGSN through the single-import action, or reimport the affected Earth Shape records through their Datacenter. The importer preserves the reported legacy classification wording. The rejected request in issue #1201 is intentionally not included in the vocabulary.
 
 #### Legacy IGSN sample images
 
