@@ -734,11 +734,12 @@ class DataCiteJsonExporter
 
         foreach ($resource->geoLocations as $geoLocation) {
             $dateValue = app(TemporalCoverageValueService::class)->toDataCiteValue([
-                'startDate' => $geoLocation->start_date?->format('Y-m-d'),
-                'endDate' => $geoLocation->end_date?->format('Y-m-d'),
+                'startDate' => $geoLocation->start_date,
+                'endDate' => $geoLocation->end_date,
                 'startTime' => $geoLocation->start_time,
                 'endTime' => $geoLocation->end_time,
                 'timezone' => $geoLocation->timezone,
+                'temporalMode' => $geoLocation->temporal_mode,
             ]);
 
             if ($dateValue === null || isset($knownCoverageValues[$dateValue])) {

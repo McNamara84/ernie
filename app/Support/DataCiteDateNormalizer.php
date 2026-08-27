@@ -51,6 +51,66 @@ final readonly class DataCiteDateNormalizer
         return $preserveDateTime ? $date : substr($date, 0, 10);
     }
 
+    public static function isDateOnly(?string $date): bool
+    {
+        if ($date === null) {
+            return false;
+        }
+
+        $date = trim($date);
+
+        return $date !== '' && self::normalize($date) === $date;
+    }
+
+    /**
+     * Compare valid reduced-precision dates without inventing precision.
+     *
+     * A range is considered reversed only when the earliest possible start is
+     * after the latest possible end. Overlapping reduced-precision values are
+     * therefore accepted.
+     */
+    public static function isRangeReversed(string $startDate, string $endDate): bool
+    {
+        $startDate = trim($startDate);
+        $endDate = trim($endDate);
+
+        if (! self::isDateOnly($startDate) || ! self::isDateOnly($endDate)) {
+            return false;
+        }
+
+        return self::lowerBound($startDate) > self::upperBound($endDate);
+    }
+
+    private static function lowerBound(string $date): string
+    {
+        return match (strlen($date)) {
+            4 => $date.'-01-01',
+            7 => $date.'-01',
+            default => $date,
+        };
+    }
+
+    private static function upperBound(string $date): string
+    {
+        if (strlen($date) === 4) {
+            return $date.'-12-31';
+        }
+
+        if (strlen($date) === 7) {
+            [$year, $month] = array_map('intval', explode('-', $date));
+            $isLeapYear = $year % 400 === 0 || ($year % 4 === 0 && $year % 100 !== 0);
+            $lastDay = match ($month) {
+                2 => $isLeapYear ? 29 : 28,
+                4, 6, 9, 11 => 30,
+                default => 31,
+            };
+
+            return sprintf('%s-%02d', $date, $lastDay);
+        }
+
+        return $date;
+    }
+
     private static function hasIsoDateTimeSuffix(string $suffix): bool
     {
         return preg_match(

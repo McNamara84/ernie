@@ -55,6 +55,23 @@ test('exports start-only temporal geo locations as open DataCite Coverage dates'
         ->and($xpath->query('/d:resource/d:geoLocations'))->toHaveCount(0);
 });
 
+test('exports reduced-precision temporal instants without turning them into intervals', function () {
+    $resource = Resource::factory()->create();
+    GeoLocation::create([
+        'resource_id' => $resource->id,
+        'start_date' => '2026-05',
+        'temporal_mode' => 'instant',
+    ]);
+
+    $document = new DOMDocument;
+    expect($document->loadXML($this->exporter->export($resource->fresh())))->toBeTrue();
+    $xpath = new DOMXPath($document);
+    $xpath->registerNamespace('d', 'http://datacite.org/schema/kernel-4');
+
+    expect($xpath->evaluate('string(/d:resource/d:dates/d:date[@dateType="Coverage"])'))
+        ->toBe('2026-05');
+});
+
 describe('DataCiteXmlExporter - XML Structure', function () {
     test('exports valid XML with proper declaration', function () {
         $resource = Resource::factory()->create();

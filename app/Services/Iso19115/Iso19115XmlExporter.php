@@ -646,11 +646,12 @@ class Iso19115XmlExporter
         }
 
         $endpoints = app(TemporalCoverageValueService::class)->toIsoEndpoints([
-            'startDate' => $geoLocation->start_date?->format('Y-m-d'),
-            'endDate' => $geoLocation->end_date?->format('Y-m-d'),
+            'startDate' => $geoLocation->start_date,
+            'endDate' => $geoLocation->end_date,
             'startTime' => $geoLocation->start_time,
             'endTime' => $geoLocation->end_time,
             'timezone' => $geoLocation->timezone,
+            'temporalMode' => $geoLocation->temporal_mode,
         ]);
 
         if ($endpoints['start'] === '' && $endpoints['end'] === '') {
@@ -660,6 +661,16 @@ class Iso19115XmlExporter
         $temporalProperty = $this->append($extent, self::GEX_NAMESPACE, 'gex:temporalElement');
         $temporal = $this->append($temporalProperty, self::GEX_NAMESPACE, 'gex:EX_TemporalExtent');
         $timeProperty = $this->append($temporal, self::GEX_NAMESPACE, 'gex:extent');
+
+        if ($endpoints['mode'] === 'instant' && $endpoints['start'] !== '') {
+            $instant = $this->append($timeProperty, self::GML_NAMESPACE, 'gml:TimeInstant');
+            $instant->setAttributeNS(self::GML_NAMESPACE, 'gml:id', 'coverage-temporal-'.$position);
+            $timePosition = $this->append($instant, self::GML_NAMESPACE, 'gml:timePosition');
+            $timePosition->appendChild($this->dom->createTextNode($endpoints['start']));
+
+            return;
+        }
+
         $period = $this->append($timeProperty, self::GML_NAMESPACE, 'gml:TimePeriod');
         $period->setAttributeNS(self::GML_NAMESPACE, 'gml:id', 'coverage-temporal-'.$position);
 

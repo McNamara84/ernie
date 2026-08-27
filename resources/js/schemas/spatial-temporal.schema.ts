@@ -6,7 +6,15 @@
 
 import { z } from 'zod';
 
-import { isoDateSchema, latitudeSchema, longitudeSchema, timeSchema } from './common.schema';
+import {
+    isCompleteCoverageDate,
+    isCoverageRangeReversed,
+    isCoverageTimeRangeReversed,
+    isValidCoverageDate,
+    isValidCoverageTime,
+} from '@/lib/temporal-coverage';
+
+import { latitudeSchema, longitudeSchema } from './common.schema';
 
 // =============================================================================
 // Coverage Type
@@ -29,6 +37,15 @@ export const polygonPointSchema = z.object({
 
 export type PolygonPointFormData = z.infer<typeof polygonPointSchema>;
 
+const coverageDateSchema = z
+    .string()
+    .refine(isValidCoverageDate, 'Date must use YYYY, YYYY-MM, or YYYY-MM-DD format')
+    .optional()
+    .or(z.literal(''))
+    .nullable();
+
+const coverageTimeSchema = z.string().refine(isValidCoverageTime, 'Time must use HH:MM or HH:MM:SS format').optional().or(z.literal(''));
+
 // =============================================================================
 // Spatial-Temporal Coverage Schema
 // =============================================================================
@@ -50,10 +67,11 @@ export const spatialTemporalCoverageSchema = z
         polygonPoints: z.array(polygonPointSchema).optional(),
 
         // Temporal Information
-        startDate: isoDateSchema,
-        endDate: isoDateSchema,
-        startTime: timeSchema,
-        endTime: timeSchema,
+        startDate: coverageDateSchema,
+        endDate: coverageDateSchema,
+        temporalMode: z.enum(['instant', 'interval']).optional(),
+        startTime: coverageTimeSchema,
+        endTime: coverageTimeSchema,
         timezone: z.string().max(100).optional().or(z.literal('')),
 
         // Description
@@ -138,7 +156,39 @@ export const spatialTemporalCoverageSchema = z
         }
 
         // Validate date range (endDate >= startDate)
-        if (data.startDate && data.endDate && data.startDate > data.endDate) {
+        if (data.startTime && !isCompleteCoverageDate(data.startDate)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'A start time requires a complete start date',
+                path: ['startTime'],
+            });
+        }
+
+        if (data.endTime && !isCompleteCoverageDate(data.endDate)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'An end time requires a complete end date',
+                path: ['endTime'],
+            });
+        }
+
+        if (data.timezone && !data.startDate && !data.endDate) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'A timezone requires a start or end date',
+                path: ['timezone'],
+            });
+        }
+
+        if (data.temporalMode === 'instant' && (!data.startDate || !!data.endDate)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'A temporal instant requires exactly one start date',
+                path: ['temporalMode'],
+            });
+        }
+
+        if (data.startDate && data.endDate && isCoverageRangeReversed(data.startDate, data.endDate)) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 message: 'End date must be after or equal to start date',
@@ -146,7 +196,13 @@ export const spatialTemporalCoverageSchema = z
             });
         }
 
-        if (data.startDate && data.startDate === data.endDate && data.startTime && data.endTime && data.startTime > data.endTime) {
+        if (
+            data.startDate &&
+            data.startDate === data.endDate &&
+            data.startTime &&
+            data.endTime &&
+            isCoverageTimeRangeReversed(data.startTime, data.endTime)
+        ) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 message: 'End time must be after or equal to start time when dates are the same',

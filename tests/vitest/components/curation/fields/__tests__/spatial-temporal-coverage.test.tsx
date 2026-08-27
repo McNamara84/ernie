@@ -288,9 +288,9 @@ describe('SpatialTemporalCoverageField', () => {
     test.each([
         ['start date', { startDate: '2026-08-25' }],
         ['end date', { endDate: '2026-08-27' }],
-        ['start time', { startTime: '14:37' }],
-        ['end time', { endTime: '17:37' }],
-        ['timezone', { timezone: '+02:00' }],
+        ['start time with date', { startDate: '2026-08-25', startTime: '14:37' }],
+        ['end time with date', { endDate: '2026-08-27', endTime: '17:37' }],
+        ['timezone with date', { startDate: '2026-08-25', timezone: '+02:00' }],
         ['description', { description: 'Temporal campaign' }],
     ])('allows another entry after temporal-only %s data', (_label, values) => {
         const temporalOnly: SpatialTemporalCoverageEntry = {
@@ -310,6 +310,30 @@ describe('SpatialTemporalCoverageField', () => {
         };
 
         expect(canAddCoverage([temporalOnly])).toBe(true);
+    });
+
+    test.each([
+        ['start time', { startTime: '14:37' }],
+        ['end time', { endTime: '17:37' }],
+        ['timezone', { timezone: '+02:00' }],
+    ])('does not allow another entry after orphaned %s data', (_label, values) => {
+        const temporalOnly: SpatialTemporalCoverageEntry = {
+            id: 'orphaned-temporal',
+            type: 'point',
+            latMin: '',
+            lonMin: '',
+            latMax: '',
+            lonMax: '',
+            startDate: '',
+            endDate: '',
+            startTime: '',
+            endTime: '',
+            timezone: '',
+            description: '',
+            ...values,
+        };
+
+        expect(canAddCoverage([temporalOnly])).toBe(false);
     });
 
     test('updates entry field when onChange is called', () => {

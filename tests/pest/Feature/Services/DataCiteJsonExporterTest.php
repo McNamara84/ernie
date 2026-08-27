@@ -65,6 +65,23 @@ test('exports and deduplicates temporal geo locations as DataCite Coverage dates
         ->and((new JsonSchemaValidator)->validate($attributes))->toBeTrue();
 });
 
+test('exports reduced-precision temporal instants without turning them into intervals', function () {
+    $resource = Resource::factory()->create();
+    GeoLocation::create([
+        'resource_id' => $resource->id,
+        'start_date' => '2026',
+        'temporal_mode' => 'instant',
+    ]);
+
+    $attributes = $this->exporter->export($resource->fresh())['data']['attributes'];
+    $coverage = collect($attributes['dates'])->firstWhere('dateType', 'Coverage');
+
+    expect($coverage)->toBe([
+        'dateType' => 'Coverage',
+        'date' => '2026',
+    ]);
+});
+
 describe('DataCiteJsonExporter - JSON Structure', function () {
     test('exports valid JSON with proper structure', function () {
         $resource = Resource::factory()->create();

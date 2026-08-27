@@ -351,6 +351,13 @@ erDiagram
         bigint resource_id FK
         varchar geo_type "10, point/box/polygon"
         text place
+        varchar start_date "10, YYYY/YYYY-MM/YYYY-MM-DD, nullable"
+        varchar end_date "10, YYYY/YYYY-MM/YYYY-MM-DD, nullable"
+        varchar temporal_mode "8, instant/interval, nullable"
+        varchar start_time "8, HH:MM[:SS], nullable"
+        varchar end_time "8, HH:MM[:SS], nullable"
+        varchar timezone "100, nullable"
+        int position "unsigned, default 0, IDX(resource_id, position)"
         varchar location_type "100, nullable"
         text location_description
         text locality_description

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { isCompleteCoverageDate } from '@/lib/temporal-coverage';
 
 import CoverageEntry from './CoverageEntry';
 import type { SpatialTemporalCoverageEntry } from './types';
@@ -18,23 +19,21 @@ interface SpatialTemporalCoverageFieldProps {
  * Handles legacy data from backend that may not have type set
  */
 const normalizeCoverage = (coverage: SpatialTemporalCoverageEntry): SpatialTemporalCoverageEntry => {
-    // If type is already set, return as-is
-    if (coverage.type) {
-        return coverage;
-    }
-
     // Detect type based on existing data
-    let detectedType: 'point' | 'box' | 'polygon' | 'line' = 'point';
+    let detectedType: 'point' | 'box' | 'polygon' | 'line' = coverage.type || 'point';
 
-    if (coverage.polygonPoints && coverage.polygonPoints.length > 0) {
-        detectedType = 'polygon';
-    } else if (coverage.latMax && coverage.lonMax) {
-        detectedType = 'box';
+    if (!coverage.type) {
+        if (coverage.polygonPoints && coverage.polygonPoints.length > 0) {
+            detectedType = 'polygon';
+        } else if (coverage.latMax && coverage.lonMax) {
+            detectedType = 'box';
+        }
     }
 
     return {
         ...coverage,
         type: detectedType,
+        temporalMode: coverage.temporalMode ?? 'interval',
     };
 };
 
@@ -52,6 +51,7 @@ const createEmptyCoverage = (): SpatialTemporalCoverageEntry => {
         polygonPoints: undefined,
         startDate: '',
         endDate: '',
+        temporalMode: 'interval',
         startTime: '',
         endTime: '',
         timezone: '',
@@ -66,6 +66,14 @@ export const canAddCoverage = (coverages: SpatialTemporalCoverageEntry[]): boole
     if (coverages.length === 0) return true;
 
     const lastCoverage = coverages[coverages.length - 1];
+
+    if (
+        (lastCoverage.startTime && !isCompleteCoverageDate(lastCoverage.startDate)) ||
+        (lastCoverage.endTime && !isCompleteCoverageDate(lastCoverage.endDate)) ||
+        (lastCoverage.timezone && !lastCoverage.startDate && !lastCoverage.endDate)
+    ) {
+        return false;
+    }
 
     const hasTemporalOrDescription = !!(
         lastCoverage.startDate ||
@@ -98,7 +106,7 @@ export default function SpatialTemporalCoverageField({ coverages, apiKey, onChan
     // Normalize coverages on mount if they don't have type field
     // This runs only once with the initial coverages prop value to handle legacy data
     useEffect(() => {
-        const needsNormalization = coverages.some((c) => !c.type);
+        const needsNormalization = coverages.some((c) => !c.type || !c.temporalMode);
         if (needsNormalization) {
             const normalized = coverages.map(normalizeCoverage);
             onChange(normalized);

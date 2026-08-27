@@ -427,13 +427,14 @@ final class LegacyTemporalCoverageBackfillService
 
     /**
      * @param  array<string, mixed>  $coverage
-     * @return array{start_date: string|null, end_date: string|null, start_time: string|null, end_time: string|null, timezone: string|null}
+     * @return array{start_date: string|null, end_date: string|null, temporal_mode: string|null, start_time: string|null, end_time: string|null, timezone: string|null}
      */
     private function incomingTemporalValues(array $coverage): array
     {
         return [
             'start_date' => $this->nullableString($coverage['startDate'] ?? null),
             'end_date' => $this->nullableString($coverage['endDate'] ?? null),
+            'temporal_mode' => $this->nullableString($coverage['temporalMode'] ?? null),
             'start_time' => $this->nullableString($coverage['startTime'] ?? null),
             'end_time' => $this->nullableString($coverage['endTime'] ?? null),
             'timezone' => $this->nullableString($coverage['timezone'] ?? null),
@@ -441,14 +442,15 @@ final class LegacyTemporalCoverageBackfillService
     }
 
     /**
-     * @param  array{start_date: string|null, end_date: string|null, start_time: string|null, end_time: string|null, timezone: string|null}  $incoming
+     * @param  array{start_date: string|null, end_date: string|null, temporal_mode: string|null, start_time: string|null, end_time: string|null, timezone: string|null}  $incoming
      * @return array{updates: array<string, string>, conflicts: list<string>}
      */
     private function mergeTemporalValues(GeoLocation $location, array $incoming): array
     {
         $current = [
-            'start_date' => $location->start_date?->format('Y-m-d'),
-            'end_date' => $location->end_date?->format('Y-m-d'),
+            'start_date' => $this->nullableString($location->start_date),
+            'end_date' => $this->nullableString($location->end_date),
+            'temporal_mode' => $this->nullableString($location->temporal_mode),
             'start_time' => $this->nullableString($location->start_time),
             'end_time' => $this->nullableString($location->end_time),
             'timezone' => $this->nullableString($location->timezone),

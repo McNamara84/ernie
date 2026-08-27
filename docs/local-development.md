@@ -183,7 +183,7 @@ This enrichment runs only while creating a new DataCite resource. Duplicate, ski
 
 The temporal-coverage migration adds nullable columns to `geo_locations`; it does not guess or manufacture values for existing rows. After deploying the migration, the original `sumario-pmd.coverage.start` and `coverage.end` values can be copied into already imported ERNIE resources with the dry-run-first backfill command.
 
-By default, the command considers only resources with the exact `legacy_source = sumario-pmd` and `legacy_source_id` recorded by the SUMARIO import. It matches each legacy coverage to an existing GeoLocation by its spatial coordinates, then uses a normalized description or the original one-to-one position only where that is unambiguous. A legacy coverage without spatial identity is added as a temporal/place-only GeoLocation. Existing equal values are left unchanged; missing fields are filled, but any conflicting existing value is preserved and reported for manual review.
+By default, the command considers only resources with the exact `legacy_source = sumario-pmd` and `legacy_source_id` recorded by the SUMARIO import. It matches each legacy coverage to an existing GeoLocation by its spatial coordinates, then uses a normalized description or the original one-to-one position only where that is unambiguous. A legacy coverage without spatial identity is added as a temporal/place-only GeoLocation. Existing equal values are left unchanged. If any temporal field conflicts, the matched GeoLocation remains completely unchanged and is reported for manual review; missing fields are filled only when the complete merge is conflict-free.
 
 Run the migration and audit before applying changes:
 

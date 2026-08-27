@@ -1035,6 +1035,7 @@ class OldDataset extends Model
                 'startTime' => $temporal['startTime'],
                 'endTime' => $temporal['endTime'],
                 'timezone' => $temporal['timezone'],
+                'temporalMode' => $temporal['temporalMode'],
 
                 // Description
                 'description' => $coverage->description ?? '',
@@ -1108,7 +1109,7 @@ class OldDataset extends Model
      *
      * @param  string|null  $start  Start date/time string
      * @param  string|null  $end  End date/time string
-     * @return array{startDate: string, endDate: string, startTime: string, endTime: string, timezone: string}
+     * @return array{startDate: string, endDate: string, startTime: string, endTime: string, timezone: string, temporalMode: string}
      */
     private function parseTemporalCoverage(?string $start, ?string $end): array
     {

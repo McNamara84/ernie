@@ -1,7 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import TemporalInputs from '@/components/curation/fields/spatial-temporal-coverage/TemporalInputs';
@@ -25,7 +24,6 @@ describe('TemporalInputs', () => {
     test('renders all temporal input fields', () => {
         const { container } = render(<TemporalInputs {...defaultProps} />);
 
-        // Date inputs don't have textbox role
         expect(container.querySelector('#start-date')).toBeInTheDocument();
         expect(container.querySelector('#end-date')).toBeInTheDocument();
         expect(container.querySelector('#start-time')).toBeInTheDocument();
@@ -51,13 +49,12 @@ describe('TemporalInputs', () => {
         expect(screen.getByDisplayValue('17:00')).toBeInTheDocument();
     });
 
-    test('calls onChange when start date is changed', async () => {
-        const user = userEvent.setup();
+    test('calls onChange when start date is changed', () => {
         const { container } = render(<TemporalInputs {...defaultProps} />);
 
         const startDateInput = container.querySelector('#start-date') as HTMLInputElement;
 
-        await user.type(startDateInput, '2024-06-15');
+        fireEvent.change(startDateInput, { target: { value: '2024-06-15' } });
 
         expect(mockOnChange).toHaveBeenCalledWith('startDate', '2024-06-15');
     });
@@ -81,33 +78,15 @@ describe('TemporalInputs', () => {
     });
 
     test('shows validation error when start date is after end date', () => {
-        render(
-            <TemporalInputs
-                {...defaultProps}
-                startDate="2024-12-31"
-                endDate="2024-01-01"
-            />,
-        );
+        render(<TemporalInputs {...defaultProps} startDate="2024-12-31" endDate="2024-01-01" />);
 
-        expect(
-            screen.getByText(/Start date must be before or equal to end date/i),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/Start date must be before or equal to end date/i)).toBeInTheDocument();
     });
 
     test('shows validation error when start time is after end time on same date', () => {
-        render(
-            <TemporalInputs
-                {...defaultProps}
-                startDate="2024-01-01"
-                endDate="2024-01-01"
-                startTime="17:00"
-                endTime="09:00"
-            />,
-        );
+        render(<TemporalInputs {...defaultProps} startDate="2024-01-01" endDate="2024-01-01" startTime="17:00" endTime="09:00" />);
 
-        expect(
-            screen.getByText(/Start time must be before or equal to end time when dates are the same/i),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/Start time must be before or equal to end time when dates are the same/i)).toBeInTheDocument();
     });
 
     test('time inputs are optional', () => {

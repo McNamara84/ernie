@@ -390,6 +390,13 @@ entity "geo_locations" as geo_locations {
     * resource_id : BIGINT <<FK>>
     geo_type : VARCHAR(10) //point/box/polygon//
     place : TEXT
+    start_date : VARCHAR(10) <<nullable>> //YYYY/YYYY-MM/YYYY-MM-DD//
+    end_date : VARCHAR(10) <<nullable>> //YYYY/YYYY-MM/YYYY-MM-DD//
+    temporal_mode : VARCHAR(8) <<nullable>> //instant/interval//
+    start_time : VARCHAR(8) <<nullable>> //HH:MM[:SS]//
+    end_time : VARCHAR(8) <<nullable>> //HH:MM[:SS]//
+    timezone : VARCHAR(100) <<nullable>>
+    position : INT = 0 <<IDX(resource_id, position)>>
     location_type : VARCHAR(100)
     location_description : TEXT
     locality_description : TEXT

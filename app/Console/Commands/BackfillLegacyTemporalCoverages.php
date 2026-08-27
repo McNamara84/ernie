@@ -100,7 +100,7 @@ final class BackfillLegacyTemporalCoverages extends Command
                 'coverages_created',
                 'warnings',
                 'message',
-            ]);
+            ], escape: '');
 
             foreach ($rows as $row) {
                 fputcsv($stream, [
@@ -114,7 +114,7 @@ final class BackfillLegacyTemporalCoverages extends Command
                     $row['coverages_created'],
                     $row['warnings'],
                     $row['message'],
-                ]);
+                ], escape: '');
             }
         } finally {
             fclose($stream);

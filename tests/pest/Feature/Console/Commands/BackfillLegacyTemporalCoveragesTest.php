@@ -169,8 +169,8 @@ it('dry-runs, applies, and repeats idempotently for matched point box and line c
         'changed' => 1,
         'coverages_updated' => 3,
         'coverages_created' => 0,
-    ])->and($box->fresh()->end_date?->format('Y-m-d'))->toBe('2026-09-30')
-        ->and($line->fresh()->start_date?->format('Y-m-d'))->toBe('2026-08-25')
+    ])->and($box->fresh()->end_date)->toBe('2026-09-30')
+        ->and($line->fresh()->start_date)->toBe('2026-08-25')
         ->and($line->fresh()->start_time)->toBe('14:37')
         ->and($line->fresh()->end_time)->toBe('17:37:42')
         ->and($line->fresh()->timezone)->toBe('+09:00')
@@ -208,8 +208,8 @@ it('creates a temporal-only coverage that an older import could not persist', fu
         'coverages_updated' => 0,
         'coverages_created' => 1,
     ])->and($location->place)->toBe('Measurement period')
-        ->and($location->start_date?->format('Y-m-d'))->toBe('2020-01-01')
-        ->and($location->end_date?->format('Y-m-d'))->toBe('2020-12-31')
+        ->and($location->start_date)->toBe('2020-01-01')
+        ->and($location->end_date)->toBe('2020-12-31')
         ->and($location->hasSpatialCoverage())->toBeTrue()
         ->and($location->point_latitude)->toBeNull();
 });
@@ -241,7 +241,7 @@ it('fills missing fields but preserves a conflicting existing temporal coverage 
         'coverages_updated' => 0,
     ])->and($result['records'][0]['status'])->toBe('manual_review')
         ->and($result['records'][0]['message'])->toContain('end_date')
-        ->and($location->fresh()->end_date?->format('Y-m-d'))->toBe('2025-01-01')
+        ->and($location->fresh()->end_date)->toBe('2025-01-01')
         ->and($location->fresh()->end_time)->toBeNull()
         ->and($location->fresh()->timezone)->toBeNull();
 });
@@ -272,7 +272,7 @@ it('adds missing interval fields while treating equivalent time and UTC spelling
         'coverages_updated' => 1,
     ])->and($location->fresh()->start_time)->toBe('08:30:00')
         ->and($location->fresh()->timezone)->toBe('GMT')
-        ->and($location->fresh()->end_date?->format('Y-m-d'))->toBe('2024-12-31')
+        ->and($location->fresh()->end_date)->toBe('2024-12-31')
         ->and($location->fresh()->end_time)->toBe('18:45');
 });
 
@@ -314,8 +314,8 @@ it('disambiguates equal spatial coverages by their descriptions', function (): v
         'changed' => 1,
         'manual_review' => 0,
         'coverages_updated' => 2,
-    ])->and($alpha->fresh()->start_date?->format('Y-m-d'))->toBe('2022-01-01')
-        ->and($beta->fresh()->start_date?->format('Y-m-d'))->toBe('2021-01-01');
+    ])->and($alpha->fresh()->start_date)->toBe('2022-01-01')
+        ->and($beta->fresh()->start_date)->toBe('2021-01-01');
 });
 
 it('matches a legacy line to an older bounding-box import only by one-to-one description and position', function (): void {
@@ -342,7 +342,7 @@ it('matches a legacy line to an older bounding-box import only by one-to-one des
         'changed' => 1,
         'manual_review' => 0,
         'coverages_updated' => 1,
-    ])->and($box->fresh()->start_date?->format('Y-m-d'))->toBe('2017-04-05')
+    ])->and($box->fresh()->start_date)->toBe('2017-04-05')
         ->and($resource->geoLocations()->count())->toBe(1);
 });
 
@@ -411,7 +411,7 @@ it('supports explicit DOI matching for pre-link imports and command filters and 
             '--doi' => ['10.5880/legacy.temporal.selected'],
         ])->assertSuccessful();
 
-        expect($selected->geoLocations()->sole()->start_date?->format('Y-m-d'))->toBe('2019-01-01');
+        expect($selected->geoLocations()->sole()->start_date)->toBe('2019-01-01');
     } finally {
         File::delete($reportPath);
     }

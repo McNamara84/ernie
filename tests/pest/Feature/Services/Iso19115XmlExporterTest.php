@@ -968,6 +968,22 @@ test('exports end-only coverage as an ISO temporal extent with an unknown begin'
         ->and($end->textContent)->toBe('2026-08-27T17:37Z');
 });
 
+test('exports a coverage instant as TimeInstant without changing its meaning', function () {
+    [$resource, $exporter] = iso19115Resource();
+    GeoLocation::create([
+        'resource_id' => $resource->id,
+        'start_date' => '2026-05',
+        'temporal_mode' => 'instant',
+    ]);
+
+    [, $xpath] = parseIso19115($exporter->export($resource->fresh()));
+
+    expect($xpath->evaluate('string(//gml:TimeInstant[starts-with(@gml:id, "coverage-temporal-")]/gml:timePosition)'))
+        ->toBe('2026-05')
+        ->and($xpath->query('//gml:TimePeriod[starts-with(@gml:id, "coverage-temporal-")]')->length)
+        ->toBe(0);
+});
+
 test('pinned validation manifest is complete and every asset hash matches', function () {
     $manifestPath = config('iso19115.validation.manifest');
     expect($manifestPath)->toBeString()->and(is_file($manifestPath))->toBeTrue();

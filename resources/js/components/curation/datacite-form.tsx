@@ -543,7 +543,10 @@ export default function DataCiteForm({
     }, []); // Run only once on mount - initialFreeKeywords intentionally excluded
     const [spatialTemporalCoverages, setSpatialTemporalCoverages] = useState<SpatialTemporalCoverageEntry[]>(() => {
         if (initialSpatialTemporalCoverages && initialSpatialTemporalCoverages.length > 0) {
-            return initialSpatialTemporalCoverages;
+            return initialSpatialTemporalCoverages.map((coverage) => ({
+                ...coverage,
+                temporalMode: coverage.temporalMode ?? 'interval',
+            }));
         }
         return [];
     });
@@ -2224,6 +2227,7 @@ export default function DataCiteForm({
                 lonMax: string;
                 startDate: string;
                 endDate: string;
+                temporalMode?: 'instant' | 'interval';
                 startTime: string;
                 endTime: string;
                 timezone: string;
@@ -2313,6 +2317,7 @@ export default function DataCiteForm({
                 lonMax: coverage.lonMax,
                 startDate: coverage.startDate,
                 endDate: coverage.endDate,
+                temporalMode: coverage.temporalMode,
                 startTime: coverage.startTime,
                 endTime: coverage.endTime,
                 timezone: coverage.timezone,

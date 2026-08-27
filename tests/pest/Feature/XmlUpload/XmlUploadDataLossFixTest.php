@@ -513,6 +513,38 @@ XML;
     $response->assertSessionDataPath('coverages.1.endTime', '');
 
     $response->assertSessionDataPath('coverages.1.timezone', '+05:00');
+    $response->assertSessionDataPath('coverages.1.temporalMode', 'instant');
+
+    $resource = App\Models\Resource::with('geoLocations')->findOrFail($response->json('resourceId'));
+    expect($resource->geoLocations[1]->temporal_mode)->toBe('instant');
+});
+
+test('preserves reduced precision for DataCite coverage dates', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <titles><title>Reduced coverage precision</title></titles>
+  <dates><date dateType="Coverage">2025/2026-08</date></dates>
+</resource>
+XML;
+
+    $response = $this->postJson('/dashboard/upload-xml', [
+        'file' => UploadedFile::fake()->createWithContent('coverage-reduced.xml', $xml),
+    ])->assertOk();
+
+    $response->assertSessionDataPath('coverages.0.startDate', '2025');
+    $response->assertSessionDataPath('coverages.0.endDate', '2026-08');
+    $response->assertSessionDataPath('coverages.0.temporalMode', 'interval');
+
+    $coverage = App\Models\Resource::with('geoLocations')
+        ->findOrFail($response->json('resourceId'))
+        ->geoLocations
+        ->sole();
+    expect($coverage->start_date)->toBe('2025')
+        ->and($coverage->end_date)->toBe('2026-08')
+        ->and($coverage->temporal_mode)->toBe('interval');
 });
 
 test('temporal-only coverage without geoLocations preserves time', function () {
@@ -680,8 +712,9 @@ XML;
     $coverage = $resource->geoLocations->sole();
 
     expect($coverage->geo_type)->toBe('box')
-        ->and($coverage->start_date?->format('Y-m-d'))->toBe('2026-08-25')
-        ->and($coverage->end_date?->format('Y-m-d'))->toBe('2026-08-27')
+        ->and($coverage->start_date)->toBe('2026-08-25')
+        ->and($coverage->end_date)->toBe('2026-08-27')
+        ->and($coverage->temporal_mode)->toBe('interval')
         ->and($coverage->start_time)->toBe('14:37')
         ->and($coverage->end_time)->toBe('17:37')
         ->and($coverage->timezone)->toBe('+02:00')

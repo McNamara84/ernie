@@ -7,9 +7,11 @@ namespace App\Http\Requests;
 use App\Enums\AccessLevel;
 use App\Enums\EditorDraftSaveIntent;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
+use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
 use App\Models\RelatedIdentifier;
 use App\Models\TitleType;
 use App\Rules\SafeUrl;
+use App\Rules\TemporalCoverageDate;
 use App\Rules\TemporalCoverageTimezone;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
@@ -30,6 +32,7 @@ use Illuminate\Validation\Validator;
 class StoreDraftResourceRequest extends FormRequest
 {
     use ValidatesEditorDates;
+    use ValidatesTemporalCoverages;
 
     /**
      * Keep draft request protection aligned with final resource validation.
@@ -159,8 +162,9 @@ class StoreDraftResourceRequest extends FormRequest
             'spatialTemporalCoverages.*.polygonPoints' => ['nullable', 'array'],
             'spatialTemporalCoverages.*.polygonPoints.*.lat' => ['required', 'numeric', 'between:-90,90'],
             'spatialTemporalCoverages.*.polygonPoints.*.lon' => ['required', 'numeric', 'between:-180,180'],
-            'spatialTemporalCoverages.*.startDate' => ['nullable', 'date'],
-            'spatialTemporalCoverages.*.endDate' => ['nullable', 'date'],
+            'spatialTemporalCoverages.*.startDate' => ['nullable', app(TemporalCoverageDate::class)],
+            'spatialTemporalCoverages.*.endDate' => ['nullable', app(TemporalCoverageDate::class)],
+            'spatialTemporalCoverages.*.temporalMode' => ['nullable', Rule::in(['instant', 'interval'])],
             'spatialTemporalCoverages.*.startTime' => ['nullable', 'date_format:H:i:s,H:i'],
             'spatialTemporalCoverages.*.endTime' => ['nullable', 'date_format:H:i:s,H:i'],
             'spatialTemporalCoverages.*.timezone' => ['nullable', 'string', 'max:100', app(TemporalCoverageTimezone::class)],
@@ -726,6 +730,7 @@ class StoreDraftResourceRequest extends FormRequest
                 'polygonPoints' => $polygonPoints,
                 'startDate' => isset($coverage['startDate']) ? trim((string) $coverage['startDate']) : null,
                 'endDate' => isset($coverage['endDate']) ? trim((string) $coverage['endDate']) : null,
+                'temporalMode' => isset($coverage['temporalMode']) ? trim((string) $coverage['temporalMode']) : null,
                 'startTime' => isset($coverage['startTime']) ? trim((string) $coverage['startTime']) : null,
                 'endTime' => isset($coverage['endTime']) ? trim((string) $coverage['endTime']) : null,
                 'timezone' => isset($coverage['timezone']) ? trim((string) $coverage['timezone']) : null,
@@ -1200,26 +1205,7 @@ class StoreDraftResourceRequest extends FormRequest
                         }
                     }
 
-                    $startDate = $coverage['startDate'] ?? null;
-                    $endDate = $coverage['endDate'] ?? null;
-                    $startTime = $coverage['startTime'] ?? null;
-                    $endTime = $coverage['endTime'] ?? null;
-                    $datesAreComparable = is_string($startDate) && is_string($endDate) && $startDate !== '' && $endDate !== '';
-                    $datesAreReversed = $datesAreComparable && $startDate > $endDate;
-                    $sameDayTimesAreReversed = $datesAreComparable
-                        && $startDate === $endDate
-                        && is_string($startTime)
-                        && is_string($endTime)
-                        && $startTime !== ''
-                        && $endTime !== ''
-                        && $startTime > $endTime;
-
-                    if ($datesAreReversed || $sameDayTimesAreReversed) {
-                        $validator->errors()->add(
-                            "spatialTemporalCoverages.$index.endDate",
-                            '[Spatial & Temporal Coverage] The end must be after or equal to the start.',
-                        );
-                    }
+                    $this->validateTemporalCoverage($validator, $coverage, $index);
                 }
             },
         ];

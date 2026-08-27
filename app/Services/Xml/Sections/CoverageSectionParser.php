@@ -282,7 +282,7 @@ final readonly class CoverageSectionParser
                 $isoExtent = array_merge($dataCiteSpatial[$matchedIndex], array_filter(
                     $isoExtent,
                     static fn (mixed $value, string $key): bool => in_array($key, [
-                        'startDate', 'endDate', 'startTime', 'endTime', 'timezone',
+                        'startDate', 'endDate', 'startTime', 'endTime', 'timezone', 'temporalMode',
                     ], true) || ($key === 'description' && $value !== ''),
                     ARRAY_FILTER_USE_BOTH,
                 ));
@@ -389,7 +389,7 @@ final readonly class CoverageSectionParser
      */
     private function sameTemporalCoverage(array $left, array $right): bool
     {
-        foreach (['startDate', 'endDate', 'startTime', 'endTime', 'timezone'] as $key) {
+        foreach (['startDate', 'endDate', 'startTime', 'endTime', 'timezone', 'temporalMode'] as $key) {
             if (($left[$key] ?? '') !== ($right[$key] ?? '')) {
                 return false;
             }

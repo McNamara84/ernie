@@ -3,6 +3,7 @@
  */
 
 export type CoverageType = 'point' | 'box' | 'polygon' | 'line';
+export type TemporalCoverageMode = 'instant' | 'interval';
 
 export interface PolygonPoint {
     lat: number;
@@ -25,8 +26,9 @@ export interface SpatialTemporalCoverageEntry {
     polygonPoints?: PolygonPoint[]; // Optional (for polygon min 3, for line min 2)
 
     // Temporal Information
-    startDate: string; // Optional, format: YYYY-MM-DD
-    endDate: string; // Optional, format: YYYY-MM-DD
+    startDate: string; // Optional, format: YYYY, YYYY-MM, or YYYY-MM-DD
+    endDate: string; // Optional, format: YYYY, YYYY-MM, or YYYY-MM-DD
+    temporalMode?: TemporalCoverageMode; // Preserves whether the source was an instant or interval
     startTime: string; // Optional, format: HH:MM
     endTime: string; // Optional, format: HH:MM
     timezone: string; // Optional IANA zone, UTC, or numeric offset

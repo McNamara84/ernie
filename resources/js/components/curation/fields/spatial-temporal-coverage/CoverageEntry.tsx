@@ -155,6 +155,16 @@ export default function CoverageEntry({
     };
 
     const handleTemporalChange = (field: 'startDate' | 'endDate' | 'startTime' | 'endTime' | 'timezone', value: string) => {
+        if (field === 'endDate' && value !== '') {
+            onBatchChange({ endDate: value, temporalMode: 'interval' });
+            return;
+        }
+
+        if (field === 'startDate' && value === '' && entry.temporalMode === 'instant') {
+            onBatchChange({ startDate: '', temporalMode: 'interval' });
+            return;
+        }
+
         onChange(field, value);
     };
 

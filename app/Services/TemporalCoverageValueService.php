@@ -4,23 +4,26 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Support\DataCiteDateNormalizer;
 use DateTimeImmutable;
 use DateTimeZone;
 
 final class TemporalCoverageValueService
 {
     /**
-     * @return array{startDate: string, endDate: string, startTime: string, endTime: string, timezone: string}
+     * @return array{startDate: string, endDate: string, startTime: string, endTime: string, timezone: string, temporalMode: string}
      */
     public function parse(string $value): array
     {
         $value = trim($value);
-        [$start, $end] = str_contains($value, '/')
+        $isInterval = str_contains($value, '/');
+        [$start, $end] = $isInterval
             ? explode('/', $value, 2)
             : [$value, ''];
 
         $startParts = $this->parseEndpoint($start);
         $endParts = $this->parseEndpoint($end);
+        $hasParsedEndpoint = $startParts['date'] !== '' || $endParts['date'] !== '';
 
         return [
             'startDate' => $startParts['date'],
@@ -30,13 +33,14 @@ final class TemporalCoverageValueService
             'timezone' => $startParts['timezone'] !== ''
                 ? $startParts['timezone']
                 : $endParts['timezone'],
+            'temporalMode' => $hasParsedEndpoint ? ($isInterval ? 'interval' : 'instant') : '',
         ];
     }
 
     /**
      * Convert one editor/storage coverage into a DataCite Coverage date.
      *
-     * @param  array{startDate?: mixed, endDate?: mixed, startTime?: mixed, endTime?: mixed, timezone?: mixed}  $coverage
+     * @param  array{startDate?: mixed, endDate?: mixed, startTime?: mixed, endTime?: mixed, timezone?: mixed, temporalMode?: mixed}  $coverage
      */
     public function toDataCiteValue(array $coverage): ?string
     {
@@ -56,30 +60,39 @@ final class TemporalCoverageValueService
             return null;
         }
 
+        if (($coverage['temporalMode'] ?? null) === 'instant' && $start !== '' && $end === '') {
+            return $start;
+        }
+
         return $start.'/'.$end;
     }
 
     /**
-     * @param  array{startDate?: mixed, endDate?: mixed, startTime?: mixed, endTime?: mixed, timezone?: mixed}  $coverage
-     * @return array{start: string, end: string}
+     * @param  array{startDate?: mixed, endDate?: mixed, startTime?: mixed, endTime?: mixed, timezone?: mixed, temporalMode?: mixed}  $coverage
+     * @return array{start: string, end: string, mode: 'instant'|'interval'}
      */
     public function toIsoEndpoints(array $coverage): array
     {
         $timezone = $this->normalizeTimezone($coverage['timezone'] ?? null);
+        $start = $this->formatEndpoint(
+            $coverage['startDate'] ?? null,
+            $coverage['startTime'] ?? null,
+            $timezone,
+            false,
+        );
+        $end = $this->formatEndpoint(
+            $coverage['endDate'] ?? null,
+            $coverage['endTime'] ?? null,
+            $timezone,
+            false,
+        );
 
         return [
-            'start' => $this->formatEndpoint(
-                $coverage['startDate'] ?? null,
-                $coverage['startTime'] ?? null,
-                $timezone,
-                false,
-            ),
-            'end' => $this->formatEndpoint(
-                $coverage['endDate'] ?? null,
-                $coverage['endTime'] ?? null,
-                $timezone,
-                false,
-            ),
+            'start' => $start,
+            'end' => $end,
+            'mode' => ($coverage['temporalMode'] ?? null) === 'instant' && $start !== '' && $end === ''
+                ? 'instant'
+                : 'interval',
         ];
     }
 
@@ -117,6 +130,11 @@ final class TemporalCoverageValueService
 
         if ($value === '') {
             return ['date' => '', 'time' => '', 'timezone' => ''];
+        }
+
+        $date = DataCiteDateNormalizer::normalize($value);
+        if ($date === $value) {
+            return ['date' => $date, 'time' => '', 'timezone' => ''];
         }
 
         if (preg_match(
@@ -162,7 +180,7 @@ final class TemporalCoverageValueService
         $date = is_string($dateValue) ? trim($dateValue) : '';
         $time = is_string($timeValue) ? trim($timeValue) : '';
 
-        if ($date === '') {
+        if (! DataCiteDateNormalizer::isDateOnly($date)) {
             return '';
         }
 

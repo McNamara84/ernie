@@ -1336,16 +1336,18 @@ class ResourceStorageService
                 || ! empty($coverage['polygonPoints'])
                 || ! empty($coverage['description'])
                 || ! empty($coverage['startDate'])
-                || ! empty($coverage['endDate'])
-                || ! empty($coverage['startTime'])
-                || ! empty($coverage['endTime'])
-                || ! empty($coverage['timezone']);
+                || ! empty($coverage['endDate']);
 
             if ($hasData) {
                 $geoLocationData = [
                     'place' => ! empty($coverage['description']) ? $coverage['description'] : null,
                     'start_date' => ! empty($coverage['startDate']) ? $coverage['startDate'] : null,
                     'end_date' => ! empty($coverage['endDate']) ? $coverage['endDate'] : null,
+                    'temporal_mode' => ! empty($coverage['startDate']) || ! empty($coverage['endDate'])
+                        ? (in_array($coverage['temporalMode'] ?? null, ['instant', 'interval'], true)
+                            ? $coverage['temporalMode']
+                            : 'interval')
+                        : null,
                     'start_time' => ! empty($coverage['startTime']) ? $coverage['startTime'] : null,
                     'end_time' => ! empty($coverage['endTime']) ? $coverage['endTime'] : null,
                     'timezone' => $this->temporalCoverageValueService->normalizeTimezone($coverage['timezone'] ?? null),

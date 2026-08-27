@@ -20,8 +20,9 @@ use Illuminate\Support\Carbon;
  * @property int $resource_id
  * @property string|null $geo_type
  * @property string|null $place
- * @property Carbon|null $start_date
- * @property Carbon|null $end_date
+ * @property string|null $start_date
+ * @property string|null $end_date
+ * @property string|null $temporal_mode
  * @property string|null $start_time
  * @property string|null $end_time
  * @property string|null $timezone
@@ -50,7 +51,7 @@ use Illuminate\Support\Carbon;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/geolocation/
  */
-#[Fillable(['resource_id', 'geo_type', 'place', 'start_date', 'end_date', 'start_time', 'end_time', 'timezone', 'position', 'location_type', 'location_description', 'locality_description', 'country', 'province', 'county', 'city', 'point_longitude', 'point_latitude', 'elevation', 'elevation_unit', 'west_bound_longitude', 'east_bound_longitude', 'south_bound_latitude', 'north_bound_latitude', 'polygon_points', 'in_polygon_point_longitude', 'in_polygon_point_latitude'])]
+#[Fillable(['resource_id', 'geo_type', 'place', 'start_date', 'end_date', 'temporal_mode', 'start_time', 'end_time', 'timezone', 'position', 'location_type', 'location_description', 'locality_description', 'country', 'province', 'county', 'city', 'point_longitude', 'point_latitude', 'elevation', 'elevation_unit', 'west_bound_longitude', 'east_bound_longitude', 'south_bound_latitude', 'north_bound_latitude', 'polygon_points', 'in_polygon_point_longitude', 'in_polygon_point_latitude'])]
 class GeoLocation extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -59,8 +60,6 @@ class GeoLocation extends Model
     public const GLOBAL_COVERAGE_TOLERANCE = 0.000001;
 
     protected $casts = [
-        'start_date' => 'date:Y-m-d',
-        'end_date' => 'date:Y-m-d',
         'position' => 'integer',
         'point_longitude' => 'decimal:8',
         'point_latitude' => 'decimal:8',
@@ -219,10 +218,7 @@ class GeoLocation extends Model
     public function hasTemporalCoverage(): bool
     {
         return $this->start_date !== null
-            || $this->end_date !== null
-            || $this->start_time !== null
-            || $this->end_time !== null
-            || $this->timezone !== null;
+            || $this->end_date !== null;
     }
 
     private function isNear(float $actual, float $expected): bool

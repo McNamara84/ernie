@@ -1,6 +1,13 @@
 import { useMemo } from 'react';
 
 import { Label } from '@/components/ui/label';
+import {
+    isCompleteCoverageDate,
+    isCoverageRangeReversed,
+    isCoverageTimeRangeReversed,
+    isValidCoverageDate,
+    isValidCoverageTime,
+} from '@/lib/temporal-coverage';
 
 import InputField from '../input-field';
 import { SelectField } from '../select-field';
@@ -43,16 +50,6 @@ const TIMEZONE_OPTIONS = [
     { value: 'Pacific/Auckland', label: 'Pacific/Auckland (NZDT/NZST)' },
 ];
 
-/**
- * Validates time format (HH:MM or HH:MM:SS)
- */
-const isValidTime = (value: string): boolean => {
-    if (!value) return true; // Empty is valid (optional field)
-    // Accept both HH:MM and HH:MM:SS formats
-    const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
-    return timeRegex.test(value);
-};
-
 export default function TemporalInputs({ startDate, endDate, startTime, endTime, timezone, onChange, showLabels = true }: TemporalInputsProps) {
     const timezoneOptions = useMemo(() => {
         if (!timezone || TIMEZONE_OPTIONS.some((opt) => opt.value === timezone)) {
@@ -77,10 +74,15 @@ export default function TemporalInputs({ startDate, endDate, startTime, endTime,
                         <InputField
                             id="start-date"
                             label="Date (optional)"
-                            type="date"
+                            type="text"
                             value={startDate}
                             onChange={(e) => onChange('startDate', e.target.value)}
+                            placeholder="YYYY, YYYY-MM, or YYYY-MM-DD"
+                            className={startDate && !isValidCoverageDate(startDate) ? 'border-destructive' : ''}
                         />
+                        {startDate && !isValidCoverageDate(startDate) && (
+                            <p className="text-xs text-destructive">Date must use YYYY, YYYY-MM, or YYYY-MM-DD format</p>
+                        )}
                         <InputField
                             id="start-time"
                             label="Time (optional)"
@@ -88,9 +90,16 @@ export default function TemporalInputs({ startDate, endDate, startTime, endTime,
                             value={startTime}
                             onChange={(e) => onChange('startTime', e.target.value)}
                             placeholder="HH:MM or HH:MM:SS"
-                            className={startTime && !isValidTime(startTime) ? 'border-destructive' : ''}
+                            className={
+                                startTime && (!isValidCoverageTime(startTime) || !isCompleteCoverageDate(startDate)) ? 'border-destructive' : ''
+                            }
                         />
-                        {startTime && !isValidTime(startTime) && <p className="text-xs text-destructive">Time must be in HH:MM or HH:MM:SS format</p>}
+                        {startTime && !isValidCoverageTime(startTime) && (
+                            <p className="text-xs text-destructive">Time must be in HH:MM or HH:MM:SS format</p>
+                        )}
+                        {startTime && isValidCoverageTime(startTime) && !isCompleteCoverageDate(startDate) && (
+                            <p className="text-xs text-destructive">A start time requires a complete start date</p>
+                        )}
                     </div>
                 </div>
 
@@ -101,10 +110,15 @@ export default function TemporalInputs({ startDate, endDate, startTime, endTime,
                         <InputField
                             id="end-date"
                             label="Date (optional)"
-                            type="date"
+                            type="text"
                             value={endDate}
                             onChange={(e) => onChange('endDate', e.target.value)}
+                            placeholder="YYYY, YYYY-MM, or YYYY-MM-DD"
+                            className={endDate && !isValidCoverageDate(endDate) ? 'border-destructive' : ''}
                         />
+                        {endDate && !isValidCoverageDate(endDate) && (
+                            <p className="text-xs text-destructive">Date must use YYYY, YYYY-MM, or YYYY-MM-DD format</p>
+                        )}
                         <InputField
                             id="end-time"
                             label="Time (optional)"
@@ -112,9 +126,14 @@ export default function TemporalInputs({ startDate, endDate, startTime, endTime,
                             value={endTime}
                             onChange={(e) => onChange('endTime', e.target.value)}
                             placeholder="HH:MM or HH:MM:SS"
-                            className={endTime && !isValidTime(endTime) ? 'border-destructive' : ''}
+                            className={endTime && (!isValidCoverageTime(endTime) || !isCompleteCoverageDate(endDate)) ? 'border-destructive' : ''}
                         />
-                        {endTime && !isValidTime(endTime) && <p className="text-xs text-destructive">Time must be in HH:MM or HH:MM:SS format</p>}
+                        {endTime && !isValidCoverageTime(endTime) && (
+                            <p className="text-xs text-destructive">Time must be in HH:MM or HH:MM:SS format</p>
+                        )}
+                        {endTime && isValidCoverageTime(endTime) && !isCompleteCoverageDate(endDate) && (
+                            <p className="text-xs text-destructive">An end time requires a complete end date</p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -129,10 +148,11 @@ export default function TemporalInputs({ startDate, endDate, startTime, endTime,
                     options={timezoneOptions}
                     clearable
                 />
+                {timezone && !startDate && !endDate && <p className="mt-2 text-xs text-destructive">A timezone requires a start or end date</p>}
             </div>
 
             {/* Validation: Start date must be before end date */}
-            {startDate && endDate && startDate > endDate && (
+            {startDate && endDate && isCoverageRangeReversed(startDate, endDate) && (
                 <p className="text-xs text-destructive">Start date must be before or equal to end date</p>
             )}
 
@@ -142,9 +162,9 @@ export default function TemporalInputs({ startDate, endDate, startTime, endTime,
                 startDate === endDate &&
                 startTime &&
                 endTime &&
-                isValidTime(startTime) &&
-                isValidTime(endTime) &&
-                startTime > endTime && (
+                isValidCoverageTime(startTime) &&
+                isValidCoverageTime(endTime) &&
+                isCoverageTimeRangeReversed(startTime, endTime) && (
                     <p className="text-xs text-destructive">Start time must be before or equal to end time when dates are the same</p>
                 )}
         </div>

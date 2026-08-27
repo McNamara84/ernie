@@ -590,6 +590,66 @@ describe('spatial temporal coverage validation', function () {
         ]);
     });
 
+    it('accepts reduced-precision temporal coverage instants', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['spatialTemporalCoverages'] = [[
+            'type' => 'point',
+            'startDate' => '2026-05',
+            'temporalMode' => 'instant',
+        ]];
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertJsonMissingValidationErrors([
+                'spatialTemporalCoverages.0.startDate',
+                'spatialTemporalCoverages.0.temporalMode',
+            ]);
+    });
+
+    it('rejects times without their corresponding coverage dates', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['spatialTemporalCoverages'] = [[
+            'type' => 'point',
+            'startTime' => '14:37',
+            'endTime' => '17:37',
+        ]];
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertJsonValidationErrors([
+                'spatialTemporalCoverages.0.startTime',
+                'spatialTemporalCoverages.0.endTime',
+            ]);
+    });
+
+    it('rejects timezone-only coverage metadata', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['spatialTemporalCoverages'] = [[
+            'type' => 'point',
+            'timezone' => 'UTC',
+        ]];
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertJsonValidationErrors(['spatialTemporalCoverages.0.timezone']);
+    });
+
+    it('rejects non-ISO temporal coverage dates', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['spatialTemporalCoverages'] = [[
+            'type' => 'point',
+            'startDate' => '12/31/2025',
+            'endDate' => '01/01/2026',
+        ]];
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertJsonValidationErrors([
+                'spatialTemporalCoverages.0.startDate',
+                'spatialTemporalCoverages.0.endDate',
+            ]);
+    });
+
     it('rejects invalid temporal coverage timezones', function () {
         $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
         $data['spatialTemporalCoverages'] = [
