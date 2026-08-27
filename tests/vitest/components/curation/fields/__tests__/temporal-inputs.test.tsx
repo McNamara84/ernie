@@ -106,7 +106,7 @@ describe('TemporalInputs', () => {
         );
 
         expect(
-            screen.getByText(/Start time must be before end time when dates are the same/i),
+            screen.getByText(/Start time must be before or equal to end time when dates are the same/i),
         ).toBeInTheDocument();
     });
 

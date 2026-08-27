@@ -235,7 +235,21 @@ describe('TemporalInputs', () => {
 
             render(<TemporalInputs {...props} />);
 
-            expect(screen.getByText(/start time must be before end time when dates are the same/i)).toBeInTheDocument();
+            expect(screen.getByText(/start time must be before or equal to end time when dates are the same/i)).toBeInTheDocument();
+        });
+
+        test('allows equal start and end times on the same date', () => {
+            const props = {
+                ...defaultProps,
+                startDate: '2024-01-01',
+                endDate: '2024-01-01',
+                startTime: '15:00',
+                endTime: '15:00',
+            };
+
+            render(<TemporalInputs {...props} />);
+
+            expect(screen.queryByText(/start time must be before or equal to end time/i)).not.toBeInTheDocument();
         });
 
         test('allows start time after end time on different dates', () => {
