@@ -3,7 +3,7 @@ services:
   # Serves application on https://localhost:3333 (no prefix)
   # On Windows: Docker provider disabled, uses static routes.yml
   traefik:
-    image: traefik:v3.7.11@sha256:5203c3f39ca70de6790d964624e042463ffbd57715bc82be155cf224c0dd5144
+    image: traefik:v3.7.12@sha256:5447d0eaf375d832b8f224f88db0e80c0a2d44554fc973e3ba72c3a52946cfcc
     container_name: ernie-traefik
     restart: unless-stopped
     command:
@@ -205,7 +205,7 @@ services:
 
   # Redis for caching and sessions
   redis:
-    image: redis:8.6.5-alpine@sha256:cd218f4b106a332c5c992e38a9480bfb9d7e9f8f7b0ec9a0023bfa36d9a408f9
+    image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
     container_name: ernie-redis-dev
     restart: unless-stopped
     networks:

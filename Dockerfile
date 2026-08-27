@@ -1,4 +1,4 @@
-FROM mysql:8.4.7@sha256:0426ec38c7a10aa45ba383887df7878f74ee70e2fd589c7b69207f3577901903 AS legacy-mysql-dump-client
+FROM mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb AS legacy-mysql-dump-client
 
 FROM php:8.5.9-fpm-trixie@sha256:3c8e184204a94c0e00ea8d58156b4181cd7e65a0b77c8bf0edc5c3b47d06fec2 AS app-base
 
@@ -67,20 +67,33 @@ RUN update-ca-certificates
 
 FROM app-base AS app-build
 
+ARG NPM_VERSION=12.0.2
+ARG NODE_CHECKSUM_ARM64=23c1b4d19e2f12a7d06fe8aa3d6e0e4923cf77a47e13c5ccdf32fadaa33960f2
+ARG NODE_CHECKSUM_X64=3e301118d7df53d563b7e96c1617545f26e2f76f9724be668d6cab65c15dda5d
+
 # Install Node.js only in the build stage so the runtime image contains no Node package manifests.
-# The Node.js version comes from .node-version; NodeSource only needs the numeric major.
+# Download the exact stable release from nodejs.org and verify it for supported architectures.
 COPY .node-version /tmp/.node-version
-RUN NODE_VERSION="$(tr -d '\r\n' < /tmp/.node-version)" \
-    && NODE_VERSION="${NODE_VERSION#v}" \
-    && NODE_MAJOR="${NODE_VERSION%%.*}" \
-    && case "$NODE_MAJOR" in ''|*[!0-9]*) echo "Expected .node-version to start with a numeric Node.js major version, got: $NODE_VERSION" >&2; exit 1 ;; esac \
-    && mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update \
-    && apt-get install -y nodejs \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    NODE_VERSION="$(tr -d '\r\n' < /tmp/.node-version)"; \
+    NODE_VERSION="${NODE_VERSION#v}"; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) NODE_ARCH='x64'; NODE_CHECKSUM="${NODE_CHECKSUM_X64}" ;; \
+        arm64) NODE_ARCH='arm64'; NODE_CHECKSUM="${NODE_CHECKSUM_ARM64}" ;; \
+        *) echo "Unsupported Node.js build architecture: $(dpkg --print-architecture)" >&2; exit 1 ;; \
+    esac; \
+    NODE_ARCHIVE="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends xz-utils; \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${NODE_ARCHIVE}" -o "/tmp/${NODE_ARCHIVE}"; \
+    echo "${NODE_CHECKSUM}  /tmp/${NODE_ARCHIVE}" | sha256sum -c -; \
+    tar -xJf "/tmp/${NODE_ARCHIVE}" -C /usr/local --strip-components=1 --no-same-owner; \
+    rm -f "/tmp/${NODE_ARCHIVE}"; \
+    npm install --global "npm@${NPM_VERSION}"; \
+    node --version; \
+    npm --version; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files FIRST (this layer is cached unless dependencies change)
 COPY composer.json composer.lock ./
@@ -129,7 +142,7 @@ EXPOSE 9000
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
 
-FROM nginx:1.31.3-alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752 AS nginx
+FROM nginx:1.31.4-alpine@sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913 AS nginx
 
 WORKDIR /var/www/html
 
