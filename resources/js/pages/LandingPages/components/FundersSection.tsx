@@ -1,5 +1,6 @@
 import type { LandingPageFundingReference } from '@/types/landing-page';
 
+import { isSafeHttpUrl } from '../lib/resolveIdentifierUrl';
 import { CollapsibleList } from './CollapsibleList';
 import { CrossrefFunderIcon, RorIcon } from './PidIcons';
 
@@ -30,7 +31,9 @@ export function FundersSection({ fundingReferences }: FundersSectionProps) {
 
     return (
         <section className="mt-6" data-testid="funding-section" aria-labelledby="heading-funders">
-            <h3 id="heading-funders" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Funders</h3>
+            <h3 id="heading-funders" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Funders
+            </h3>
             <CollapsibleList
                 items={fundingReferences}
                 itemLabel="funders"
@@ -39,35 +42,56 @@ export function FundersSection({ fundingReferences }: FundersSectionProps) {
                         {children}
                     </ul>
                 )}
-                renderItem={(funding) => (
-                    <li key={funding.id} className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
-                        <span>{funding.funder_name}</span>
+                renderItem={(funding) => {
+                    const awardTitle = funding.award_title?.trim() || null;
+                    const awardNumber = funding.award_number?.trim() || null;
+                    const awardLabel = awardTitle ? `${awardTitle}${awardNumber ? ` (${awardNumber})` : ''}` : awardNumber;
+                    const awardUrl = awardLabel && funding.award_uri && isSafeHttpUrl(funding.award_uri) ? funding.award_uri : null;
 
-                        {funding.funder_identifier_type === 'ROR' && funding.funder_identifier && (
-                            <a
-                                href={funding.funder_identifier}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3"
-                                aria-label={`ROR profile of ${funding.funder_name}`}
-                            >
-                                <RorIcon />
-                            </a>
-                        )}
+                    return (
+                        <li key={funding.id} className="flex items-start gap-1 text-sm text-gray-700 dark:text-gray-300">
+                            <span className="min-w-0 break-words">
+                                <span>{funding.funder_name}</span>
+                                {awardLabel && (
+                                    <>
+                                        <span aria-hidden="true">: </span>
+                                        {awardUrl ? (
+                                            <a href={awardUrl} target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
+                                                {awardLabel}
+                                            </a>
+                                        ) : (
+                                            <span>{awardLabel}</span>
+                                        )}
+                                    </>
+                                )}
+                            </span>
 
-                        {funding.funder_identifier_type === 'Crossref Funder ID' && funding.funder_identifier && (
-                            <a
-                                href={resolveCrossrefFunderUrl(funding.funder_identifier)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3"
-                                aria-label={`Crossref Funder ID for ${funding.funder_name}`}
-                            >
-                                <CrossrefFunderIcon />
-                            </a>
-                        )}
-                    </li>
-                )}
+                            {funding.funder_identifier_type === 'ROR' && funding.funder_identifier && (
+                                <a
+                                    href={funding.funder_identifier}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3"
+                                    aria-label={`ROR profile of ${funding.funder_name}`}
+                                >
+                                    <RorIcon />
+                                </a>
+                            )}
+
+                            {funding.funder_identifier_type === 'Crossref Funder ID' && funding.funder_identifier && (
+                                <a
+                                    href={resolveCrossrefFunderUrl(funding.funder_identifier)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3"
+                                    aria-label={`Crossref Funder ID for ${funding.funder_name}`}
+                                >
+                                    <CrossrefFunderIcon />
+                                </a>
+                            )}
+                        </li>
+                    );
+                }}
             />
         </section>
     );

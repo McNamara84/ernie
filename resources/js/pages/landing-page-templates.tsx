@@ -898,7 +898,7 @@ export default function LandingPageTemplatesPage() {
                                             title="Left Column (sidebar)"
                                             items={editLeftOrder}
                                             labels={LEFT_SECTION_LABELS}
-                                            description="Resource templates render files, contact details, and related material in the sidebar."
+                                            description="Resource templates render files, licenses and rights, contact details, and related material in the sidebar."
                                             onReorder={(items) => setEditLeftOrder(items as TemplateSection[])}
                                         />
                                         <SectionOrderEditor

@@ -6,11 +6,9 @@ import { describe, expect, it } from 'vitest';
 
 import { FilesSection } from '@/pages/LandingPages/components/FilesSection';
 
-const mockLicenses = [{ id: 1, name: 'CC BY 4.0', spdx_id: 'CC-BY-4.0', reference: 'https://creativecommons.org/licenses/by/4.0/' }];
-
 describe('FilesSection', () => {
     it('renders download link when downloadUrl is provided', () => {
-        render(<FilesSection downloadUrl="https://example.com/files" licenses={mockLicenses} />);
+        render(<FilesSection downloadUrl="https://example.com/files" />);
 
         expect(screen.getByText('Download data and description')).toBeInTheDocument();
     });
@@ -21,7 +19,6 @@ describe('FilesSection', () => {
                 downloadUrl="https://example.com/raw.zip"
                 trackedDownloadUrl="/landing-page-downloads/1/primary"
                 downloadLabel="Download via GFZ Data Services"
-                licenses={[]}
             />,
         );
 
@@ -31,9 +28,7 @@ describe('FilesSection', () => {
     });
 
     it('prefers tracked file URLs over raw file URLs', () => {
-        render(
-            <FilesSection downloadFiles={[{ url: 'https://example.com/raw.csv', tracked_url: '/landing-page-downloads/1/files/7' }]} licenses={[]} />,
-        );
+        render(<FilesSection downloadFiles={[{ url: 'https://example.com/raw.csv', tracked_url: '/landing-page-downloads/1/files/7' }]} />);
 
         expect(screen.getByRole('link', { name: /Download data and description/i })).toHaveAttribute('href', '/landing-page-downloads/1/files/7');
         expect(screen.getByRole('link', { name: /Download data and description/i })).toHaveAttribute('title', 'https://example.com/raw.csv');
@@ -46,7 +41,6 @@ describe('FilesSection', () => {
                     { url: 'https://example.com/model', label: 'Download model data', tracked_url: '/tracked/model' },
                     { url: 'https://example.com/calculate', label: 'Calculation service', tracked_url: '/tracked/calculate' },
                 ]}
-                licenses={[]}
             />,
         );
 
@@ -59,7 +53,7 @@ describe('FilesSection', () => {
     });
 
     it('renders fallback message when no download or contacts', () => {
-        render(<FilesSection licenses={[]} />);
+        render(<FilesSection />);
 
         expect(screen.getByText(/Download information not available/)).toBeInTheDocument();
     });
@@ -80,7 +74,7 @@ describe('FilesSection', () => {
             },
         ];
 
-        render(<FilesSection licenses={[]} contactPersons={contactPersons} />);
+        render(<FilesSection contactPersons={contactPersons} />);
 
         expect(screen.getByText('Request data via contact form')).toBeInTheDocument();
     });
@@ -101,19 +95,13 @@ describe('FilesSection', () => {
             },
         ];
 
-        render(<FilesSection licenses={[]} contactPersons={contactPersons} />);
+        render(<FilesSection contactPersons={contactPersons} />);
 
         expect(screen.getByText('Visit contact person website')).toBeInTheDocument();
     });
 
-    it('renders license badges', () => {
-        render(<FilesSection licenses={mockLicenses} />);
-
-        expect(screen.getByText('CC BY 4.0')).toBeInTheDocument();
-    });
-
     it('does not render download link for empty or hash URL', () => {
-        render(<FilesSection downloadUrl="#" licenses={[]} />);
+        render(<FilesSection downloadUrl="#" />);
 
         expect(screen.queryByText('Download data and description')).not.toBeInTheDocument();
     });
@@ -134,7 +122,7 @@ describe('FilesSection', () => {
             },
         ];
 
-        render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} contactPersons={contactPersons} />);
+        render(<FilesSection downloadUrl="https://example.com/files" contactPersons={contactPersons} />);
 
         expect(screen.getByText('Download data and description')).toBeInTheDocument();
         expect(screen.queryByText('Request data via contact form')).not.toBeInTheDocument();
@@ -147,14 +135,14 @@ describe('FilesSection', () => {
         ];
 
         it('renders additional links below download', () => {
-            render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} additionalLinks={mockLinks} />);
+            render(<FilesSection downloadUrl="https://example.com/files" additionalLinks={mockLinks} />);
 
             expect(screen.getByText('GitLab Repository')).toBeInTheDocument();
             expect(screen.getByText('Project Website')).toBeInTheDocument();
         });
 
         it('renders additional links with correct styling', () => {
-            render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} additionalLinks={mockLinks} />);
+            render(<FilesSection downloadUrl="https://example.com/files" additionalLinks={mockLinks} />);
 
             const link = screen.getByText('GitLab Repository').closest('a');
             expect(link).toHaveClass('bg-gray-100');
@@ -167,7 +155,7 @@ describe('FilesSection', () => {
                 { id: 1, url: 'https://example.com/first', label: 'First', position: 0 },
             ];
 
-            render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} additionalLinks={unorderedLinks} />);
+            render(<FilesSection downloadUrl="https://example.com/files" additionalLinks={unorderedLinks} />);
 
             const links = screen.getAllByRole('link');
             const additionalLinkTexts = links.filter((l) => l.classList.contains('bg-gray-100')).map((l) => l.textContent);
@@ -175,13 +163,13 @@ describe('FilesSection', () => {
         });
 
         it('does not render section when additionalLinks is empty', () => {
-            render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} additionalLinks={[]} />);
+            render(<FilesSection downloadUrl="https://example.com/files" additionalLinks={[]} />);
 
             expect(screen.queryByText('GitLab Repository')).not.toBeInTheDocument();
         });
 
         it('opens links in new tab with security attributes', () => {
-            render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} additionalLinks={mockLinks} />);
+            render(<FilesSection downloadUrl="https://example.com/files" additionalLinks={mockLinks} />);
 
             const link = screen.getByText('GitLab Repository').closest('a');
             expect(link).toHaveAttribute('target', '_blank');

@@ -18,6 +18,7 @@ import { ContactSection } from './components/ContactSection';
 import { DatesSection } from './components/DatesSection';
 import { GeneralSection } from './components/GeneralSection';
 import { LandingPageShell } from './components/LandingPageShell';
+import { LicenseAndRightsSection } from './components/LicenseAndRightsSection';
 import { LocationSection } from './components/LocationSection';
 import { ModelDescriptionSection } from './components/ModelDescriptionSection';
 import { RelatedWorkSection } from './components/RelatedWorkSection';
@@ -104,6 +105,7 @@ export default function DefaultGfzIgsnTemplate() {
         );
 
         return {
+            licenses: <LicenseAndRightsSection key="licenses" licenses={resource.licenses || []} />,
             general: <GeneralSection key="general" igsn={resource.igsn_metadata} dates={resource.dates || []} />,
             sample_family: <SampleFamilySection key="sample_family" family={resource.igsn_sample_family} currentResourceId={resource.id} />,
             acquisition: (

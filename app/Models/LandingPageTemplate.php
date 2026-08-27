@@ -119,6 +119,7 @@ class LandingPageTemplate extends Model
      */
     public const RESOURCE_LEFT_COLUMN_SECTIONS = [
         'files',
+        'licenses',
         'citation',
         'dates',
         'contact',
@@ -136,6 +137,7 @@ class LandingPageTemplate extends Model
         'sample_family',
         'acquisition',
         'repositories',
+        'licenses',
         'citation',
         'dates',
         'contact',
@@ -168,6 +170,7 @@ class LandingPageTemplate extends Model
      */
     public const LEFT_COLUMN_SECTIONS = [
         'files',
+        'licenses',
         'general',
         'sample_family',
         'acquisition',
@@ -556,6 +559,18 @@ class LandingPageTemplate extends Model
 
             $seen[$key] = true;
             $normalized[] = $key;
+        }
+
+        if (isset($canonicalSet['licenses']) && ! isset($seen['licenses'])) {
+            $anchor = $templateType === self::TEMPLATE_TYPE_IGSN ? 'repositories' : 'files';
+            $anchorIndex = array_search($anchor, $normalized, true);
+            $citationIndex = array_search('citation', $normalized, true);
+            $insertAt = $anchorIndex !== false
+                ? $anchorIndex + 1
+                : ($citationIndex !== false ? $citationIndex : count($normalized));
+
+            array_splice($normalized, $insertAt, 0, ['licenses']);
+            $seen['licenses'] = true;
         }
 
         foreach ($canonical as $key) {

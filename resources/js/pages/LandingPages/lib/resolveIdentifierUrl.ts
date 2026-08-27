@@ -102,7 +102,7 @@ function stripHandlePrefix(value: string): string {
  * Validates that a URL string uses a safe HTTP(S) scheme.
  * Rejects javascript:, data:, and other dangerous schemes.
  */
-function isSafeHttpUrl(url: string): boolean {
+export function isSafeHttpUrl(url: string): boolean {
     try {
         const parsed = new URL(url);
         return parsed.protocol === 'http:' || parsed.protocol === 'https:';

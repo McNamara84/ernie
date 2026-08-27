@@ -17,6 +17,7 @@ import { ContactSection } from './components/ContactSection';
 import { DatesSection } from './components/DatesSection';
 import { FilesSection } from './components/FilesSection';
 import { LandingPageShell } from './components/LandingPageShell';
+import { LicenseAndRightsSection } from './components/LicenseAndRightsSection';
 import { LocationSection } from './components/LocationSection';
 import { ModelDescriptionSection } from './components/ModelDescriptionSection';
 import { RelatedWorkSection } from './components/RelatedWorkSection';
@@ -107,12 +108,12 @@ export default function DefaultGfzTemplate() {
                     trackedDownloadUrl={landingPage?.tracked_ftp_url}
                     downloadLabel={landingPage?.primary_download_label}
                     downloadFiles={landingPage?.files}
-                    licenses={resource.licenses || []}
                     contactPersons={resource.contact_persons || []}
                     datasetTitle={mainTitle}
                     additionalLinks={landingPage?.links}
                 />
             ),
+            licenses: <LicenseAndRightsSection key="licenses" licenses={resource.licenses || []} />,
             citation: (
                 <CiteThisResourceSection
                     key="citation"

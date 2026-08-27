@@ -20,7 +20,17 @@ export type RightColumnSection =
  * Left column section identifiers for landing page templates.
  */
 export type LeftColumnSection =
-    'files' | 'general' | 'sample_family' | 'acquisition' | 'repositories' | 'citation' | 'dates' | 'contact' | 'model_description' | 'related_work';
+    | 'files'
+    | 'licenses'
+    | 'general'
+    | 'sample_family'
+    | 'acquisition'
+    | 'repositories'
+    | 'citation'
+    | 'dates'
+    | 'contact'
+    | 'model_description'
+    | 'related_work';
 
 /** Every independently movable module supported by IGSN templates. */
 export type IgsnSection =
@@ -28,6 +38,7 @@ export type IgsnSection =
     | 'sample_family'
     | 'acquisition'
     | 'repositories'
+    | 'licenses'
     | 'citation'
     | 'dates'
     | 'contact'
@@ -438,7 +449,10 @@ export interface LandingPageDescription {
  * License entry for landing pages
  */
 export interface LandingPageLicense {
-    id: number;
+    /** Catalog right id; null while an imported statement is unresolved. */
+    id: number | null;
+    /** Stable id of the resource-specific rights statement. */
+    resource_right_id?: number | null;
     /** Display name of the license */
     name: string;
     /** SPDX identifier (e.g., 'CC-BY-4.0'); null for custom licenses */
@@ -447,6 +461,8 @@ export interface LandingPageLicense {
     reference: string | null;
     /** Rights scheme URI, e.g. SPDX scheme for SPDX licenses */
     scheme_uri?: string | null;
+    /** Whether this entry is backed by the trusted catalog or raw imported metadata. */
+    source?: 'catalog' | 'raw';
     /** Legacy: license name */
     rights?: string;
     /** Legacy: license URI */
