@@ -1,11 +1,10 @@
-import type { LandingPageCreator } from '@/types/landing-page';
-
 import { formatPersonName } from '../lib/formatPersonName';
+import type { LandingPageDisplayCreator } from '../lib/mergeLandingPageCredits';
 import { CollapsibleList } from './CollapsibleList';
 import { PersonMetadataLine } from './PersonMetadataLine';
 
 interface CreatorsSectionProps {
-    creators: LandingPageCreator[];
+    creators: LandingPageDisplayCreator[];
     displayLimit?: number;
 }
 
@@ -38,6 +37,7 @@ export function CreatorsSection({ creators, displayLimit = 50 }: CreatorsSection
                     const hasOrcid = isPerson && creatorable.name_identifier && creatorable.name_identifier_scheme === 'ORCID';
                     const formattedName = isPerson ? formatPersonName(creatorable.family_name, creatorable.given_name) : creatorable.name;
                     const personName = (formattedName === 'Unknown' && creatorable.name ? creatorable.name : formattedName) ?? 'Unknown';
+                    const roleLabel = creator.contributor_types.length > 0 ? creator.contributor_types.join(', ') : null;
 
                     return (
                         <li key={creator.id} className="text-sm leading-6 text-gray-700 dark:text-gray-300">
@@ -45,6 +45,7 @@ export function CreatorsSection({ creators, displayLimit = 50 }: CreatorsSection
                                 name={personName}
                                 orcid={hasOrcid ? creatorable.name_identifier : null}
                                 affiliations={creator.affiliations}
+                                roleLabel={roleLabel}
                             />
                         </li>
                     );
