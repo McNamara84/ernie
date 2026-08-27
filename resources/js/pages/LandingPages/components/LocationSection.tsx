@@ -370,7 +370,7 @@ function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
             {/* Polygon as filled area */}
             {hasPolygon(geoLocation) && (
                 <Polygon
-                    positions={geoLocation.polygon_points!.map((p) => [p.latitude, p.longitude])}
+                    positions={geoLocation.polygon_points!.map((p): L.LatLngTuple => [p.latitude, p.longitude])}
                     pathOptions={{
                         color: GFZ_BLUE,
                         weight: 2,
@@ -383,7 +383,7 @@ function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
             {hasLine(geoLocation) && (
                 <>
                     <Polyline
-                        positions={geoLocation.polygon_points!.map((p) => [p.latitude, p.longitude])}
+                        positions={geoLocation.polygon_points!.map((p): L.LatLngTuple => [p.latitude, p.longitude])}
                         pathOptions={{
                             color: GFZ_BLUE,
                             weight: 3,

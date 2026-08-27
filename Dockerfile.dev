@@ -5,7 +5,7 @@
 # Usage: docker-compose -f docker-compose.dev.yml up --build
 # =============================================================================
 
-FROM mysql:8.4.7@sha256:0426ec38c7a10aa45ba383887df7878f74ee70e2fd589c7b69207f3577901903 AS legacy-mysql-dump-client
+FROM mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb AS legacy-mysql-dump-client
 
 # -----------------------------------------------------------------------------
 # Stage: PHP-FPM Application (Development)
@@ -16,12 +16,14 @@ WORKDIR /var/www/html
 
 ARG PHP_REDIS_VERSION=6.3.0
 ARG XDEBUG_VERSION=3.5.3
+ARG NPM_VERSION=12.0.2
+ARG NODE_CHECKSUM_ARM64=23c1b4d19e2f12a7d06fe8aa3d6e0e4923cf77a47e13c5ccdf32fadaa33960f2
+ARG NODE_CHECKSUM_X64=3e301118d7df53d563b7e96c1617545f26e2f76f9724be668d6cab65c15dda5d
 
-# Copy .node-version so the following RUN step can derive the NodeSource major
-# from the repository's single source of truth.
+# Copy the exact Node.js version from the repository's single source of truth.
 COPY .node-version /tmp/.node-version
 
-# Install system dependencies and Node.js in one RUN step to keep the build
+# Install system dependencies and the verified Node.js release in one RUN step to keep the build
 # setup straightforward.
 # LEGACY_DATABASE_DUMP_SUPPORT:
 # Required for the admin-only /database dump page while legacy MySQL 5.6/5.7 exports exist.
@@ -141,17 +143,23 @@ RUN apt-get update \
     xkb-data \
     xserver-common \
     xvfb \
-    # Install Node.js from NodeSource. This package includes npm,
-    # so no separate npm installation is needed.
+    xz-utils \
+    # Install the exact stable Node.js release and verify it for supported architectures.
     && NODE_VERSION="$(tr -d '\r\n' < /tmp/.node-version)" \
     && NODE_VERSION="${NODE_VERSION#v}" \
-    && NODE_MAJOR="${NODE_VERSION%%.*}" \
-    && case "$NODE_MAJOR" in ''|*[!0-9]*) echo "Expected .node-version to start with a numeric Node.js major version, got: $NODE_VERSION" >&2; exit 1 ;; esac \
-    && mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update \
-    && apt-get install -y nodejs \
+    && case "$(dpkg --print-architecture)" in \
+        amd64) NODE_ARCH='x64'; NODE_CHECKSUM="${NODE_CHECKSUM_X64}" ;; \
+        arm64) NODE_ARCH='arm64'; NODE_CHECKSUM="${NODE_CHECKSUM_ARM64}" ;; \
+        *) echo "Unsupported Node.js build architecture: $(dpkg --print-architecture)" >&2; exit 1 ;; \
+    esac \
+    && NODE_ARCHIVE="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${NODE_ARCHIVE}" -o "/tmp/${NODE_ARCHIVE}" \
+    && echo "${NODE_CHECKSUM}  /tmp/${NODE_ARCHIVE}" | sha256sum -c - \
+    && tar -xJf "/tmp/${NODE_ARCHIVE}" -C /usr/local --strip-components=1 --no-same-owner \
+    && rm -f "/tmp/${NODE_ARCHIVE}" \
+    && npm install --global "npm@${NPM_VERSION}" \
+    && node --version \
+    && npm --version \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -209,7 +217,7 @@ CMD ["php-fpm"]
 # -----------------------------------------------------------------------------
 # Stage: Nginx Webserver (Development)
 # -----------------------------------------------------------------------------
-FROM nginx:1.31.3-alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752 AS nginx
+FROM nginx:1.31.4-alpine@sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913 AS nginx
 
 WORKDIR /var/www/html
 
