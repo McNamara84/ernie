@@ -1059,11 +1059,11 @@ describe('Landing Page with Custom Template', function () {
                     'contact',
                     'model_description',
                     'related_work',
-                    'licenses',
                     'general',
                     'sample_family',
                     'acquisition',
                     'repositories',
+                    'licenses',
                     'dates',
                     'citation',
                 ])

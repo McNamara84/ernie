@@ -424,9 +424,9 @@ describe('Session Preview Display', function () {
                     'acquisition',
                     'model_description',
                     'related_work',
-                    'licenses',
                     'sample_family',
                     'repositories',
+                    'licenses',
                     'dates',
                     'citation',
                 ])
@@ -483,9 +483,9 @@ describe('Session Preview Display', function () {
                     'acquisition',
                     'model_description',
                     'related_work',
-                    'licenses',
                     'sample_family',
                     'repositories',
+                    'licenses',
                     'dates',
                     'citation',
                 ])
