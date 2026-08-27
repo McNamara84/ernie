@@ -55,6 +55,7 @@ class ResourceStorageService
         protected ResourceRightsStorageService $resourceRightsStorage,
         protected CustomRightCatalogService $customRightCatalog,
         protected SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver,
+        protected TemporalCoverageValueService $temporalCoverageValueService,
     ) {}
 
     /**
@@ -1312,7 +1313,7 @@ class ResourceStorageService
 
         $coverages = $data['spatialTemporalCoverages'] ?? [];
 
-        foreach ($coverages as $coverage) {
+        foreach ($coverages as $position => $coverage) {
             $type = $coverage['type'] ?? 'point';
 
             // Only save coverage if it has at least one meaningful field.
@@ -1330,12 +1331,25 @@ class ResourceStorageService
 
             $hasData = $isCoordinateProvided($coverage['latMin'] ?? null)
                 || $isCoordinateProvided($coverage['lonMin'] ?? null)
+                || $isCoordinateProvided($coverage['latMax'] ?? null)
+                || $isCoordinateProvided($coverage['lonMax'] ?? null)
                 || ! empty($coverage['polygonPoints'])
-                || ! empty($coverage['description']);
+                || ! empty($coverage['description'])
+                || ! empty($coverage['startDate'])
+                || ! empty($coverage['endDate'])
+                || ! empty($coverage['startTime'])
+                || ! empty($coverage['endTime'])
+                || ! empty($coverage['timezone']);
 
             if ($hasData) {
                 $geoLocationData = [
-                    'place' => $coverage['description'] ?? null,
+                    'place' => ! empty($coverage['description']) ? $coverage['description'] : null,
+                    'start_date' => ! empty($coverage['startDate']) ? $coverage['startDate'] : null,
+                    'end_date' => ! empty($coverage['endDate']) ? $coverage['endDate'] : null,
+                    'start_time' => ! empty($coverage['startTime']) ? $coverage['startTime'] : null,
+                    'end_time' => ! empty($coverage['endTime']) ? $coverage['endTime'] : null,
+                    'timezone' => $this->temporalCoverageValueService->normalizeTimezone($coverage['timezone'] ?? null),
+                    'position' => $position,
                 ];
 
                 // For polygon type, store polygon points as JSON (geo_locations.polygon_points)

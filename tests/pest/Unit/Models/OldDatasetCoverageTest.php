@@ -127,3 +127,37 @@ it('keeps point coverage behaviour when no wkt exists', function (): void {
             'lonMax' => '',
         ]);
 });
+
+it('keeps a missing legacy coverage timezone empty', function (): void {
+    DB::connection('metaworks')->table('coverage')->insert([
+        'resource_id' => 1,
+        'start' => '2026-08-25 14:37:00',
+        'end' => '2026-08-27 17:37:42',
+        'dateformat' => 'Y-m-d H:i:s',
+    ]);
+
+    expect(OldDataset::findOrFail(1)->getCoverages()[0])->toMatchArray([
+        'startDate' => '2026-08-25',
+        'endDate' => '2026-08-27',
+        'startTime' => '14:37',
+        'endTime' => '17:37:42',
+        'timezone' => '',
+    ]);
+});
+
+it('preserves a legacy coverage timezone offset', function (): void {
+    DB::connection('metaworks')->table('coverage')->insert([
+        'resource_id' => 1,
+        'start' => '2026-08-25T14:37:00+09:00',
+        'end' => '2026-08-27T17:37:00+09:00',
+        'dateformat' => 'Y-m-d\\TH:i:sT',
+    ]);
+
+    expect(OldDataset::findOrFail(1)->getCoverages()[0])->toMatchArray([
+        'startDate' => '2026-08-25',
+        'endDate' => '2026-08-27',
+        'startTime' => '14:37',
+        'endTime' => '17:37',
+        'timezone' => '+09:00',
+    ]);
+});

@@ -8,6 +8,7 @@ use App\Models\DescriptionType;
 use App\Models\Format;
 use App\Models\FunderIdentifierType;
 use App\Models\FundingReference;
+use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Language;
@@ -32,6 +33,26 @@ use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->exporter = new DataCiteXmlExporter;
+});
+
+test('exports start-only temporal geo locations as open DataCite Coverage dates', function () {
+    $resource = Resource::factory()->create();
+    GeoLocation::create([
+        'resource_id' => $resource->id,
+        'start_date' => '2026-08-25',
+        'start_time' => '14:37',
+        'timezone' => '+02:00',
+    ]);
+
+    $xml = $this->exporter->export($resource->fresh());
+    $document = new DOMDocument;
+    expect($document->loadXML($xml))->toBeTrue();
+    $xpath = new DOMXPath($document);
+    $xpath->registerNamespace('d', 'http://datacite.org/schema/kernel-4');
+
+    expect($xpath->evaluate('string(/d:resource/d:dates/d:date[@dateType="Coverage"])'))
+        ->toBe('2026-08-25T14:37+02:00/')
+        ->and($xpath->query('/d:resource/d:geoLocations'))->toHaveCount(0);
 });
 
 describe('DataCiteXmlExporter - XML Structure', function () {

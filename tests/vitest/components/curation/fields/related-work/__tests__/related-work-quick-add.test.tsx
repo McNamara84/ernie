@@ -225,37 +225,19 @@ describe('RelatedWorkQuickAdd', () => {
 
     it('suppresses opposite relation suggestions when the opposite type is filtered out', async () => {
         const user = userEvent.setup();
-        const { rerender } = render(
-            <RelatedWorkQuickAdd
-                {...defaultProps}
-                relationType="References"
-                activeRelationTypes={['Cites']}
-            />,
-        );
+        const { rerender } = render(<RelatedWorkQuickAdd {...defaultProps} relationType="References" activeRelationTypes={['Cites']} />);
 
         await user.click(screen.getByRole('combobox', { name: /relation type/i }));
         await user.click(screen.getByRole('option', { name: /cites/i }));
 
-        rerender(
-            <RelatedWorkQuickAdd
-                {...defaultProps}
-                relationType="Cites"
-                activeRelationTypes={['Cites']}
-            />,
-        );
+        rerender(<RelatedWorkQuickAdd {...defaultProps} relationType="Cites" activeRelationTypes={['Cites']} />);
 
         expect(screen.queryByText(/did you mean/i)).not.toBeInTheDocument();
     });
 
     it('filters identifier types and relation groups when active options are constrained', async () => {
         const user = userEvent.setup();
-        render(
-            <RelatedWorkQuickAdd
-                {...defaultProps}
-                activeIdentifierTypes={['DOI', 'URL']}
-                activeRelationTypes={['Documents']}
-            />,
-        );
+        render(<RelatedWorkQuickAdd {...defaultProps} activeIdentifierTypes={['DOI', 'URL']} activeRelationTypes={['Documents']} />);
 
         await user.click(screen.getByRole('combobox', { name: /identifier type/i }));
 
@@ -269,6 +251,8 @@ describe('RelatedWorkQuickAdd', () => {
         expect(screen.queryByText('Most Used')).not.toBeInTheDocument();
         expect(screen.getByText('All relation types')).toBeInTheDocument();
         expect(screen.getByRole('option', { name: /documents/i })).toBeInTheDocument();
+        expect(screen.getByRole('group')).toBeInTheDocument();
+        expect(document.querySelector('[data-radix-popper-content-wrapper]')).toBeInTheDocument();
     });
 
     it('handles Enter to add a valid identifier', async () => {

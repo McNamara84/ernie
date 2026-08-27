@@ -16,6 +16,7 @@ use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\RorLookupService;
+use App\Services\TemporalCoverageValueService;
 use App\Services\UploadLogService;
 use App\Services\Uploads\UploadedResourceDraftService;
 use App\Support\DataCiteDateNormalizer;
@@ -94,6 +95,7 @@ class UploadJsonController extends Controller
         private readonly MslLaboratoryService $mslLaboratoryService,
         private readonly RorLookupService $rorLookupService,
         private readonly ControlledSubjectImportNormalizerService $controlledSubjectNormalizer,
+        private readonly TemporalCoverageValueService $temporalCoverageValueService,
     ) {}
 
     public function __invoke(UploadJsonRequest $request): JsonResponse
@@ -685,7 +687,7 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $dates
-     * @return array<int, array{dateType: string, startDate: string, endDate: string}>
+     * @return array<int, array{dateType: string, startDate: string, endDate: string, rawValue: string}>
      */
     private function extractDates(array $dates): array
     {
@@ -715,6 +717,7 @@ class UploadJsonController extends Controller
                 'dateType' => Str::kebab($dateType),
                 'startDate' => $startDate,
                 'endDate' => $endDate,
+                'rawValue' => $dateValue,
             ];
         }
 
@@ -730,34 +733,11 @@ class UploadJsonController extends Controller
     {
         $coverages = [];
 
-        // Find temporal coverage from dates
-        $temporalCoverage = null;
-        foreach ($dates as $date) {
-            if (($date['dateType'] ?? '') === 'coverage') {
-                $temporalCoverage = $date;
-                break;
-            }
-        }
-
-        if (count($geoLocations) === 0 && $temporalCoverage !== null) {
-            $coverages[] = [
-                'id' => 'coverage-1',
-                'type' => 'point',
-                'latMin' => '',
-                'latMax' => '',
-                'lonMin' => '',
-                'lonMax' => '',
-                'polygonPoints' => [],
-                'startDate' => $temporalCoverage['startDate'] ?? '',
-                'endDate' => $temporalCoverage['endDate'] ?? '',
-                'startTime' => '',
-                'endTime' => '',
-                'timezone' => 'UTC',
-                'description' => '',
-            ];
-
-            return $coverages;
-        }
+        $temporalCoverages = array_values(array_map(
+            fn (array $date): array => $this->temporalCoverageValueService->parse($date['rawValue'] ?? ''),
+            array_filter($dates, fn (array $date): bool => ($date['dateType'] ?? '') === 'coverage'),
+        ));
+        $emptyTemporal = $this->temporalCoverageValueService->parse('');
 
         $index = 1;
 
@@ -770,11 +750,7 @@ class UploadJsonController extends Controller
                 'lonMin' => '',
                 'lonMax' => '',
                 'polygonPoints' => [],
-                'startDate' => $temporalCoverage['startDate'] ?? '',
-                'endDate' => $temporalCoverage['endDate'] ?? '',
-                'startTime' => '',
-                'endTime' => '',
-                'timezone' => 'UTC',
+                ...$emptyTemporal,
                 'description' => '',
             ];
 
@@ -838,10 +814,31 @@ class UploadJsonController extends Controller
             // Only include if there's actual data
             if ($coverage['latMin'] !== '' || $coverage['lonMin'] !== '' ||
                 ! empty($coverage['polygonPoints']) ||
-                $coverage['description'] !== '' || $coverage['startDate'] !== '') {
+                $coverage['description'] !== '' || $coverage['startDate'] !== '' ||
+                $coverage['endDate'] !== '' || $coverage['startTime'] !== '' ||
+                $coverage['endTime'] !== '' || $coverage['timezone'] !== '') {
                 $coverages[] = $coverage;
                 $index++;
             }
+        }
+
+        foreach ($temporalCoverages as $temporalCoverage) {
+            if ($temporalCoverage['startDate'] === '' && $temporalCoverage['endDate'] === '') {
+                continue;
+            }
+
+            $coverages[] = [
+                'id' => 'coverage-'.$index,
+                'type' => 'point',
+                'latMin' => '',
+                'latMax' => '',
+                'lonMin' => '',
+                'lonMax' => '',
+                'polygonPoints' => [],
+                ...$temporalCoverage,
+                'description' => '',
+            ];
+            $index++;
         }
 
         return $coverages;

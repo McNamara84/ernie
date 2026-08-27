@@ -948,6 +948,26 @@ test('validator uses pinned local XSD assets and reports schema diagnostics', fu
         ->toContain('The pinned ISO 19115-3 aggregation schema is missing.');
 });
 
+test('exports end-only coverage as an ISO temporal extent with an unknown begin', function () {
+    [$resource, $exporter] = iso19115Resource();
+    GeoLocation::create([
+        'resource_id' => $resource->id,
+        'end_date' => '2026-08-27',
+        'end_time' => '17:37',
+        'timezone' => 'UTC',
+    ]);
+
+    [$document, $xpath] = parseIso19115($exporter->export($resource->fresh()));
+    $begin = $xpath->query('//gml:TimePeriod[starts-with(@gml:id, "coverage-temporal-")]/gml:beginPosition')->item(0);
+    $end = $xpath->query('//gml:TimePeriod[starts-with(@gml:id, "coverage-temporal-")]/gml:endPosition')->item(0);
+
+    expect($document)->toBeInstanceOf(DOMDocument::class)
+        ->and($begin)->toBeInstanceOf(DOMElement::class)
+        ->and($begin->getAttribute('indeterminatePosition'))->toBe('unknown')
+        ->and($end)->toBeInstanceOf(DOMElement::class)
+        ->and($end->textContent)->toBe('2026-08-27T17:37Z');
+});
+
 test('pinned validation manifest is complete and every asset hash matches', function () {
     $manifestPath = config('iso19115.validation.manifest');
     expect($manifestPath)->toBeString()->and(is_file($manifestPath))->toBeTrue();

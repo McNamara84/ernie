@@ -127,6 +127,7 @@ export default function TemporalInputs({ startDate, endDate, startTime, endTime,
                     value={timezone}
                     onValueChange={(value) => onChange('timezone', value)}
                     options={timezoneOptions}
+                    clearable
                 />
             </div>
 
@@ -143,7 +144,9 @@ export default function TemporalInputs({ startDate, endDate, startTime, endTime,
                 endTime &&
                 isValidTime(startTime) &&
                 isValidTime(endTime) &&
-                startTime >= endTime && <p className="text-xs text-destructive">Start time must be before end time when dates are the same</p>}
+                startTime > endTime && (
+                    <p className="text-xs text-destructive">Start time must be before or equal to end time when dates are the same</p>
+                )}
         </div>
     );
 }

@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Xml\Sections;
 
+use App\Services\TemporalCoverageValueService;
 use App\Support\Xml\XmlElementHelpers;
-use DateTimeImmutable;
-use DateTimeZone;
 use Saloon\XmlWrangler\XmlReader;
 
 /**
@@ -17,6 +16,8 @@ use Saloon\XmlWrangler\XmlReader;
  */
 final readonly class CoverageSectionParser
 {
+    public function __construct(private TemporalCoverageValueService $temporalCoverageValueService) {}
+
     /**
      * @param  array<int, array<string, string>>  $dates  Already-extracted dates (raw shape from DateSectionParser)
      * @return array<int, array<string, mixed>>
@@ -25,39 +26,15 @@ final readonly class CoverageSectionParser
     {
         $coverages = [];
 
-        $temporalCoverage = null;
-        foreach ($dates as $date) {
-            if (($date['dateType'] ?? '') === 'coverage') {
-                $temporalCoverage = $date;
-                break;
-            }
-        }
-
-        $temporalComponents = $this->parseTemporalCoverageComponents($temporalCoverage);
+        $temporalCoverages = array_values(array_map(
+            fn (array $date): array => $this->temporalCoverageValueService->parse($date['rawValue'] ?? ''),
+            array_filter($dates, fn (array $date): bool => ($date['dateType'] ?? '') === 'coverage'),
+        ));
+        $emptyTemporal = $this->temporalCoverageValueService->parse('');
 
         $geoLocationElements = $reader
             ->xpathElement('//*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]')
             ->get();
-
-        if (count($geoLocationElements) === 0 && $temporalCoverage !== null) {
-            $coverages[] = [
-                'id' => 'coverage-1',
-                'type' => 'point',
-                'latMin' => '',
-                'latMax' => '',
-                'lonMin' => '',
-                'lonMax' => '',
-                'polygonPoints' => [],
-                'startDate' => $temporalComponents['startDate'],
-                'endDate' => $temporalComponents['endDate'],
-                'startTime' => $temporalComponents['startTime'],
-                'endTime' => $temporalComponents['endTime'],
-                'timezone' => $temporalComponents['timezone'],
-                'description' => '',
-            ];
-
-            return $coverages;
-        }
 
         $index = 1;
         foreach ($geoLocationElements as $geoLocationIndex => $geoLocation) {
@@ -69,11 +46,7 @@ final readonly class CoverageSectionParser
                 'lonMin' => '',
                 'lonMax' => '',
                 'polygonPoints' => [],
-                'startDate' => $temporalComponents['startDate'],
-                'endDate' => $temporalComponents['endDate'],
-                'startTime' => $temporalComponents['startTime'],
-                'endTime' => $temporalComponents['endTime'],
-                'timezone' => $temporalComponents['timezone'],
+                ...$emptyTemporal,
                 'description' => '',
             ];
 
@@ -127,13 +100,17 @@ final readonly class CoverageSectionParser
 
             if ($coverage['latMin'] !== '' || $coverage['lonMin'] !== '' ||
                 ! empty($coverage['polygonPoints']) ||
-                $coverage['description'] !== '' || $coverage['startDate'] !== '') {
+                $coverage['description'] !== '' || $this->hasTemporalData($coverage)) {
                 $coverages[] = $coverage;
                 $index++;
             }
         }
 
-        return $coverages;
+        return $this->mergeIsoExtentsAndDataCiteFallbacks(
+            $coverages,
+            $this->parseIsoExtents($reader),
+            $temporalCoverages,
+        );
     }
 
     private static function formatCoordinate(string $value): string
@@ -202,103 +179,222 @@ final readonly class CoverageSectionParser
         return 'point';
     }
 
-    /**
-     * @param  array<string, string>|null  $temporalCoverage
-     * @return array{startDate: string, endDate: string, startTime: string, endTime: string, timezone: string}
-     */
-    private function parseTemporalCoverageComponents(?array $temporalCoverage): array
+    /** @param array<string, mixed> $coverage */
+    private function hasTemporalData(array $coverage): bool
     {
-        $default = [
-            'startDate' => '',
-            'endDate' => '',
-            'startTime' => '',
-            'endTime' => '',
-            'timezone' => 'UTC',
-        ];
-
-        if ($temporalCoverage === null) {
-            return $default;
-        }
-
-        $rawValue = $temporalCoverage['rawValue'] ?? '';
-
-        if ($rawValue === '') {
-            return [
-                'startDate' => $temporalCoverage['startDate'] ?? '',
-                'endDate' => $temporalCoverage['endDate'] ?? '',
-                'startTime' => '',
-                'endTime' => '',
-                'timezone' => 'UTC',
-            ];
-        }
-
-        if (str_contains($rawValue, '/')) {
-            [$startRaw, $endRaw] = explode('/', $rawValue, 2);
-            $startParts = $this->parseDateTimeComponents(trim($startRaw));
-            $endParts = $this->parseDateTimeComponents(trim($endRaw));
-        } else {
-            $startParts = $this->parseDateTimeComponents($rawValue);
-            $endParts = ['date' => '', 'time' => '', 'timezone' => ''];
-        }
-
-        $hasTimeComponent = $startParts['time'] !== '' || $endParts['time'] !== '';
-        $resolvedTimezone = $startParts['timezone'] ?: $endParts['timezone'];
-
-        if ($resolvedTimezone === '' && ! $hasTimeComponent) {
-            $resolvedTimezone = 'UTC';
-        }
-
-        return [
-            'startDate' => $startParts['date'],
-            'endDate' => $endParts['date'],
-            'startTime' => $startParts['time'],
-            'endTime' => $endParts['time'],
-            'timezone' => $resolvedTimezone,
-        ];
+        return ($coverage['startDate'] ?? '') !== ''
+            || ($coverage['endDate'] ?? '') !== ''
+            || ($coverage['startTime'] ?? '') !== ''
+            || ($coverage['endTime'] ?? '') !== ''
+            || ($coverage['timezone'] ?? '') !== '';
     }
 
     /**
-     * @return array{date: string, time: string, timezone: string}
+     * ISO extents carry the spatial-to-temporal association that DataCite's
+     * separate dates and geoLocations lists cannot express.
+     *
+     * @return array<int, array<string, mixed>>
      */
-    private function parseDateTimeComponents(string $value): array
+    private function parseIsoExtents(XmlReader $reader): array
     {
-        $value = trim($value);
+        $elements = $reader
+            ->xpathElement('//*[local-name()="identificationInfo"]//*[local-name()="EX_Extent"]')
+            ->get();
+        $coverages = [];
 
-        if ($value === '') {
-            return ['date' => '', 'time' => '', 'timezone' => ''];
-        }
+        foreach ($elements as $index => $element) {
+            $position = (int) $index + 1;
+            $path = '(//*[local-name()="identificationInfo"]//*[local-name()="EX_Extent"])['.$position.']';
+            $coverage = [
+                'id' => 'iso-coverage-'.$position,
+                'type' => 'point',
+                'latMin' => '',
+                'latMax' => '',
+                'lonMin' => '',
+                'lonMax' => '',
+                'polygonPoints' => [],
+                ...$this->temporalCoverageValueService->parse(''),
+                'description' => $this->queryString(
+                    $reader,
+                    $path.'/*[local-name()="description"]//*[local-name()="CharacterString"]',
+                ) ?? '',
+            ];
 
-        if (str_contains($value, 'T')) {
-            try {
-                $timePart = substr($value, (int) strpos($value, 'T') + 1);
-                $hasExplicitTimezone = (bool) preg_match('/[Zz]$|[+-]\d{2}:\d{2}$/', $timePart);
+            $west = $this->queryString($reader, $path.'//*[local-name()="EX_GeographicBoundingBox"]/*[local-name()="westBoundLongitude"]//*[local-name()="Decimal"]');
+            $east = $this->queryString($reader, $path.'//*[local-name()="EX_GeographicBoundingBox"]/*[local-name()="eastBoundLongitude"]//*[local-name()="Decimal"]');
+            $south = $this->queryString($reader, $path.'//*[local-name()="EX_GeographicBoundingBox"]/*[local-name()="southBoundLatitude"]//*[local-name()="Decimal"]');
+            $north = $this->queryString($reader, $path.'//*[local-name()="EX_GeographicBoundingBox"]/*[local-name()="northBoundLatitude"]//*[local-name()="Decimal"]');
 
-                $dt = $hasExplicitTimezone
-                    ? new DateTimeImmutable($value)
-                    : new DateTimeImmutable($value, new DateTimeZone('UTC'));
+            if ($west !== null && $east !== null && $south !== null && $north !== null) {
+                $coverage['type'] = 'box';
+                $coverage['lonMin'] = self::formatCoordinate($west);
+                $coverage['lonMax'] = self::formatCoordinate($east);
+                $coverage['latMin'] = self::formatCoordinate($south);
+                $coverage['latMax'] = self::formatCoordinate($north);
+            }
 
-                $date = $dt->format('Y-m-d');
-                $time = (int) $dt->format('s') !== 0 ? $dt->format('H:i:s') : $dt->format('H:i');
-                $timezone = $hasExplicitTimezone ? $this->resolveTimezone($dt) : '';
+            $begin = $this->queryString($reader, $path.'//*[local-name()="TimePeriod"]/*[local-name()="beginPosition"]');
+            $end = $this->queryString($reader, $path.'//*[local-name()="TimePeriod"]/*[local-name()="endPosition"]');
+            $instant = $this->queryString($reader, $path.'//*[local-name()="TimeInstant"]/*[local-name()="timePosition"]');
+            $temporal = $instant !== null
+                ? $this->temporalCoverageValueService->parse($instant)
+                : $this->temporalCoverageValueService->parse(($begin ?? '').'/'.($end ?? ''));
+            $coverage = array_merge($coverage, $temporal);
 
-                return ['date' => $date, 'time' => $time, 'timezone' => $timezone];
-            } catch (\Exception) {
-                // Fall through to plain date normalisation
+            if ($this->hasSpatialData($coverage) || $this->hasTemporalData($coverage)) {
+                $coverages[] = $coverage;
             }
         }
 
-        return ['date' => DateSectionParser::normalizeDateString($value), 'time' => '', 'timezone' => ''];
+        return $coverages;
     }
 
-    private function resolveTimezone(DateTimeImmutable $dt): string
+    private function queryString(XmlReader $reader, string $query): ?string
     {
-        $tz = $dt->getTimezone();
-        $tzName = $tz->getName();
+        return XmlElementHelpers::firstStringFromQuery($reader->xpathValue($query));
+    }
 
-        if ($tzName === '' || $tzName === '+00:00' || $tzName === 'Z') {
-            return 'UTC';
+    /**
+     * @param  array<int, array<string, mixed>>  $dataCiteSpatial
+     * @param  array<int, array<string, mixed>>  $isoExtents
+     * @param  array<int, array<string, string>>  $dataCiteTemporal
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeIsoExtentsAndDataCiteFallbacks(
+        array $dataCiteSpatial,
+        array $isoExtents,
+        array $dataCiteTemporal,
+    ): array {
+        $result = [];
+        $usedSpatial = [];
+        $usedTemporal = [];
+        $allowPositionalFallback = count($isoExtents) === count($dataCiteSpatial);
+
+        foreach ($isoExtents as $isoExtent) {
+            $matchedIndex = $this->matchingSpatialIndex(
+                $isoExtent,
+                $dataCiteSpatial,
+                $usedSpatial,
+                $allowPositionalFallback,
+            );
+            if ($matchedIndex !== null) {
+                $usedSpatial[$matchedIndex] = true;
+                $isoExtent = array_merge($dataCiteSpatial[$matchedIndex], array_filter(
+                    $isoExtent,
+                    static fn (mixed $value, string $key): bool => in_array($key, [
+                        'startDate', 'endDate', 'startTime', 'endTime', 'timezone',
+                    ], true) || ($key === 'description' && $value !== ''),
+                    ARRAY_FILTER_USE_BOTH,
+                ));
+            }
+
+            foreach ($dataCiteTemporal as $temporalIndex => $temporal) {
+                if ($this->sameTemporalCoverage($isoExtent, $temporal)) {
+                    $usedTemporal[$temporalIndex] = true;
+                }
+            }
+
+            $result[] = $isoExtent;
         }
 
-        return $tzName;
+        foreach ($dataCiteSpatial as $spatialIndex => $spatial) {
+            if (! isset($usedSpatial[$spatialIndex])) {
+                $result[] = $spatial;
+            }
+        }
+
+        foreach ($dataCiteTemporal as $temporalIndex => $temporal) {
+            if (isset($usedTemporal[$temporalIndex]) || ! $this->hasTemporalData($temporal)) {
+                continue;
+            }
+
+            $result[] = [
+                'id' => 'temporal-coverage-'.($temporalIndex + 1),
+                'type' => 'point',
+                'latMin' => '',
+                'latMax' => '',
+                'lonMin' => '',
+                'lonMax' => '',
+                'polygonPoints' => [],
+                ...$temporal,
+                'description' => '',
+            ];
+        }
+
+        foreach ($result as $index => &$coverage) {
+            $coverage['id'] = 'coverage-'.($index + 1);
+        }
+        unset($coverage);
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, mixed>  $needle
+     * @param  array<int, array<string, mixed>>  $haystack
+     * @param  array<int, bool>  $used
+     */
+    private function matchingSpatialIndex(array $needle, array $haystack, array $used, bool $allowPositionalFallback): ?int
+    {
+        $signature = $this->spatialSignature($needle);
+        if ($signature !== null) {
+            foreach ($haystack as $index => $candidate) {
+                if (! isset($used[$index]) && $this->spatialSignature($candidate) === $signature) {
+                    return $index;
+                }
+            }
+        }
+
+        if ($allowPositionalFallback) {
+            foreach (array_keys($haystack) as $index) {
+                if (! isset($used[$index])) {
+                    return $index;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /** @param array<string, mixed> $coverage */
+    private function spatialSignature(array $coverage): ?string
+    {
+        if (($coverage['type'] ?? '') === 'box') {
+            return implode('|', array_map(
+                static fn (string $key): string => number_format((float) ($coverage[$key] ?? 0), 6, '.', ''),
+                ['latMin', 'latMax', 'lonMin', 'lonMax'],
+            ));
+        }
+
+        if (($coverage['latMin'] ?? '') !== '' && ($coverage['lonMin'] ?? '') !== '') {
+            return number_format((float) $coverage['latMin'], 6, '.', '').'|'
+                .number_format((float) $coverage['lonMin'], 6, '.', '');
+        }
+
+        return null;
+    }
+
+    /** @param array<string, mixed> $coverage */
+    private function hasSpatialData(array $coverage): bool
+    {
+        return ($coverage['latMin'] ?? '') !== ''
+            || ($coverage['lonMin'] ?? '') !== ''
+            || ! empty($coverage['polygonPoints'])
+            || ($coverage['description'] ?? '') !== '';
+    }
+
+    /**
+     * @param  array<string, mixed>  $left
+     * @param  array<string, mixed>  $right
+     */
+    private function sameTemporalCoverage(array $left, array $right): bool
+    {
+        foreach (['startDate', 'endDate', 'startTime', 'endTime', 'timezone'] as $key) {
+            if (($left[$key] ?? '') !== ($right[$key] ?? '')) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

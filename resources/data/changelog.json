@@ -1,5 +1,25 @@
 [
     {
+        "version": "1.0.4",
+        "date": "2026-08-27",
+        "features": [],
+        "improvements": [],
+        "fixes": [
+            {
+                "title": "Preserved Temporal Coverage in Metadata Imports",
+                "description": "Envelope XML, DataCite JSON, and new SUMARIO imports now retain optional Coverage dates, times, seconds, UTC offsets, open interval boundaries, and per-entry ordering through storage and Data Editor reloads. ISO envelope extents preserve their spatial-to-temporal pairing, while DataCite XML, JSON, and ISO exports include the representable stored intervals without inventing missing times or timezone offsets. A dry-run-first, idempotent Artisan command can safely restore temporal coverage from SUMARIO for existing legacy imports, including an explicit DOI fallback for records imported before legacy source IDs were stored, while preserving conflicting curated values for manual review."
+            },
+            {
+                "title": "Preserved ELMO Contact Websites",
+                "description": "New Envelope XML uploads now safely normalize legacy contact websites without a URL scheme to HTTPS before validation, so valid ELMO point-of-contact links remain available in the Data Editor while unsafe and malformed schemes stay rejected."
+            },
+            {
+                "title": "Stable Data Editor Dropdowns",
+                "description": "Long Resource Type and Related Work selection menus now use viewport-aware popper positioning, bounded scrolling, and semantic option groups, preventing the menus from jumping while users scroll in compact Data Editor windows."
+            }
+        ]
+    },
+    {
         "version": "1.0.3",
         "date": "2026-08-27",
         "features": [],

@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { useIdentifierValidation } from '@/hooks/use-identifier-validation';
 import {
@@ -54,18 +54,12 @@ export default function RelatedWorkQuickAdd({
     const [showSuggestion, setShowSuggestion] = useState(false);
 
     const filteredMostUsedRelationTypes = useMemo(
-        () =>
-            activeRelationTypes
-                ? MOST_USED_RELATION_TYPES.filter((t) => activeRelationTypes.includes(t))
-                : MOST_USED_RELATION_TYPES,
+        () => (activeRelationTypes ? MOST_USED_RELATION_TYPES.filter((t) => activeRelationTypes.includes(t)) : MOST_USED_RELATION_TYPES),
         [activeRelationTypes],
     );
 
     const filteredRelationTypes = useMemo(
-        () =>
-            activeRelationTypes
-                ? getAllRelationTypes().filter((t) => activeRelationTypes.includes(t))
-                : getAllRelationTypes(),
+        () => (activeRelationTypes ? getAllRelationTypes().filter((t) => activeRelationTypes.includes(t)) : getAllRelationTypes()),
         [activeRelationTypes],
     );
 
@@ -75,10 +69,7 @@ export default function RelatedWorkQuickAdd({
     );
 
     const filteredIdentifierTypes = useMemo(
-        () =>
-            activeIdentifierTypes
-                ? identifierTypes.filter((type) => activeIdentifierTypes.includes(type))
-                : [...identifierTypes],
+        () => (activeIdentifierTypes ? identifierTypes.filter((type) => activeIdentifierTypes.includes(type)) : [...identifierTypes]),
         [activeIdentifierTypes],
     );
 
@@ -147,8 +138,8 @@ export default function RelatedWorkQuickAdd({
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
                 <p>
-                    Add relationships to other datasets, publications, or resources. Identifier types are auto-detected, and you can fine-tune citation
-                    labels directly in the cards below after adding an entry.
+                    Add relationships to other datasets, publications, or resources. Identifier types are auto-detected, and you can fine-tune
+                    citation labels directly in the cards below after adding an entry.
                 </p>
             </div>
 
@@ -210,7 +201,7 @@ export default function RelatedWorkQuickAdd({
                         <SelectTrigger id="related-identifier-type">
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent position="popper" className="max-h-[min(24rem,var(--radix-select-content-available-height))]">
                             {filteredIdentifierTypes.map((type) => (
                                 <SelectItem key={type} value={type}>
                                     {type}
@@ -229,29 +220,35 @@ export default function RelatedWorkQuickAdd({
                         <SelectTrigger id="relation-type">
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent position="popper" className="max-h-[min(24rem,var(--radix-select-content-available-height))]">
                             {filteredMostUsedRelationTypes.length > 0 && (
-                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Most Used</div>
+                                <SelectGroup>
+                                    <SelectLabel className="font-semibold">Most Used</SelectLabel>
+                                    {filteredMostUsedRelationTypes.map((type) => (
+                                        <SelectItem key={type} value={type}>
+                                            <div className="flex flex-col items-start">
+                                                <span>{formatRelationTypeLabel(type)}</span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {RELATION_TYPE_DESCRIPTIONS[type].substring(0, 50)}...
+                                                </span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
                             )}
-                            {filteredMostUsedRelationTypes.map((type) => (
-                                <SelectItem key={type} value={type}>
-                                    <div className="flex flex-col items-start">
-                                        <span>{formatRelationTypeLabel(type)}</span>
-                                        <span className="text-xs text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[type].substring(0, 50)}...</span>
-                                    </div>
-                                </SelectItem>
-                            ))}
                             {additionalRelationTypes.length > 0 && (
-                                <div className="px-2 pt-3 pb-1.5 text-xs font-semibold text-muted-foreground">All relation types</div>
+                                <SelectGroup>
+                                    <SelectLabel className="pt-3 font-semibold">All relation types</SelectLabel>
+                                    {additionalRelationTypes.map((type) => (
+                                        <SelectItem key={type} value={type}>
+                                            <div className="flex flex-col items-start">
+                                                <span>{formatRelationTypeLabel(type)}</span>
+                                                <span className="text-xs text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[type]}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
                             )}
-                            {additionalRelationTypes.map((type) => (
-                                <SelectItem key={type} value={type}>
-                                    <div className="flex flex-col items-start">
-                                        <span>{formatRelationTypeLabel(type)}</span>
-                                        <span className="text-xs text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[type]}</span>
-                                    </div>
-                                </SelectItem>
-                            ))}
                         </SelectContent>
                     </Select>
                 </div>

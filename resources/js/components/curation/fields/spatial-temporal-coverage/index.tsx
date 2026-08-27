@@ -42,9 +42,6 @@ const normalizeCoverage = (coverage: SpatialTemporalCoverageEntry): SpatialTempo
  * Creates an empty coverage entry with default values
  */
 const createEmptyCoverage = (): SpatialTemporalCoverageEntry => {
-    // Get user's timezone as default
-    const defaultTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
     return {
         id: crypto.randomUUID(),
         type: 'point', // Default to point coverage
@@ -57,7 +54,7 @@ const createEmptyCoverage = (): SpatialTemporalCoverageEntry => {
         endDate: '',
         startTime: '',
         endTime: '',
-        timezone: defaultTimezone,
+        timezone: '',
         description: '',
     };
 };
@@ -70,18 +67,26 @@ export const canAddCoverage = (coverages: SpatialTemporalCoverageEntry[]): boole
 
     const lastCoverage = coverages[coverages.length - 1];
 
-    // For polygon/line type: require at least the minimum number of points
-    if (lastCoverage.type === 'polygon') {
-        return !!(lastCoverage.polygonPoints && lastCoverage.polygonPoints.length >= 3);
+    const hasTemporalOrDescription = !!(
+        lastCoverage.startDate ||
+        lastCoverage.endDate ||
+        lastCoverage.startTime ||
+        lastCoverage.endTime ||
+        lastCoverage.timezone ||
+        lastCoverage.description
+    );
+
+    if (lastCoverage.type === 'polygon' || lastCoverage.type === 'line') {
+        const pointCount = lastCoverage.polygonPoints?.length ?? 0;
+        const requiredCount = lastCoverage.type === 'polygon' ? 3 : 2;
+        return pointCount === 0 ? hasTemporalOrDescription : pointCount >= requiredCount;
     }
 
-    if (lastCoverage.type === 'line') {
-        return !!(lastCoverage.polygonPoints && lastCoverage.polygonPoints.length >= 2);
-    }
+    const coordinates = [lastCoverage.latMin, lastCoverage.lonMin, lastCoverage.latMax, lastCoverage.lonMax];
+    const hasCoordinates = coordinates.some(Boolean);
+    if (!hasCoordinates) return hasTemporalOrDescription;
 
-    // For point/box type: require latMin and lonMin
-    // Temporal fields (startDate, endDate, timezone) are now optional
-    return !!(lastCoverage.latMin && lastCoverage.lonMin);
+    return lastCoverage.type === 'box' ? coordinates.every(Boolean) : !!(lastCoverage.latMin && lastCoverage.lonMin);
 };
 
 /**

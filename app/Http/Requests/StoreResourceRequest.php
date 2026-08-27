@@ -13,6 +13,7 @@ use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Rules\HasMainTitle;
 use App\Rules\SafeUrl;
+use App\Rules\TemporalCoverageTimezone;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
 use App\Support\LanguageTag;
@@ -152,7 +153,7 @@ class StoreResourceRequest extends FormRequest
             'spatialTemporalCoverages.*.endDate' => ['nullable', 'date'],
             'spatialTemporalCoverages.*.startTime' => ['nullable', 'date_format:H:i:s,H:i'],
             'spatialTemporalCoverages.*.endTime' => ['nullable', 'date_format:H:i:s,H:i'],
-            'spatialTemporalCoverages.*.timezone' => ['nullable', 'string', 'max:100'],
+            'spatialTemporalCoverages.*.timezone' => ['nullable', 'string', 'max:100', app(TemporalCoverageTimezone::class)],
             'spatialTemporalCoverages.*.description' => ['nullable', 'string'],
             'relatedIdentifiers' => ['nullable', 'array'],
             'relatedIdentifiers.*.id' => ['nullable', 'integer', 'min:1'],
@@ -1502,8 +1503,8 @@ class StoreResourceRequest extends FormRequest
 
                     $type = $coverage['type'] ?? 'point';
 
-                    if ($type === 'polygon' || $type === 'line') {
-                        $polygonPoints = $coverage['polygonPoints'] ?? [];
+                    if (($type === 'polygon' || $type === 'line') && ! empty($coverage['polygonPoints'])) {
+                        $polygonPoints = $coverage['polygonPoints'];
                         $minimumPoints = $type === 'polygon' ? 3 : 2;
 
                         if (! is_array($polygonPoints) || count($polygonPoints) < $minimumPoints) {
@@ -1512,6 +1513,27 @@ class StoreResourceRequest extends FormRequest
                                 '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' '.$type.' must have at least '.$minimumPoints.' points.',
                             );
                         }
+                    }
+
+                    $startDate = $coverage['startDate'] ?? null;
+                    $endDate = $coverage['endDate'] ?? null;
+                    $startTime = $coverage['startTime'] ?? null;
+                    $endTime = $coverage['endTime'] ?? null;
+                    $datesAreComparable = is_string($startDate) && is_string($endDate) && $startDate !== '' && $endDate !== '';
+                    $datesAreReversed = $datesAreComparable && $startDate > $endDate;
+                    $sameDayTimesAreReversed = $datesAreComparable
+                        && $startDate === $endDate
+                        && is_string($startTime)
+                        && is_string($endTime)
+                        && $startTime !== ''
+                        && $endTime !== ''
+                        && $startTime > $endTime;
+
+                    if ($datesAreReversed || $sameDayTimesAreReversed) {
+                        $validator->errors()->add(
+                            "spatialTemporalCoverages.$index.endDate",
+                            '[Spatial & Temporal Coverage] The end must be after or equal to the start.',
+                        );
                     }
                 }
             },

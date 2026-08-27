@@ -712,7 +712,9 @@ class DataCiteXmlExporter
      */
     private function buildDates(Resource $resource): void
     {
-        if ($resource->dates->isEmpty()) {
+        if ($resource->dates->isEmpty() && ! $resource->geoLocations->contains(
+            static fn ($geoLocation): bool => $geoLocation->hasTemporalCoverage(),
+        )) {
             return;
         }
 
@@ -749,6 +751,33 @@ class DataCiteXmlExporter
             }
 
             $dates->appendChild($dateElement);
+            $hasDates = true;
+        }
+
+        $knownCoverageValues = [];
+        foreach ($dates->childNodes as $dateNode) {
+            if ($dateNode instanceof DOMElement && $dateNode->getAttribute('dateType') === 'Coverage') {
+                $knownCoverageValues[$dateNode->textContent] = true;
+            }
+        }
+
+        foreach ($resource->geoLocations as $geoLocation) {
+            $dateValue = app(TemporalCoverageValueService::class)->toDataCiteValue([
+                'startDate' => $geoLocation->start_date?->format('Y-m-d'),
+                'endDate' => $geoLocation->end_date?->format('Y-m-d'),
+                'startTime' => $geoLocation->start_time,
+                'endTime' => $geoLocation->end_time,
+                'timezone' => $geoLocation->timezone,
+            ]);
+
+            if ($dateValue === null || isset($knownCoverageValues[$dateValue])) {
+                continue;
+            }
+
+            $dateElement = $this->dom->createElement('date', htmlspecialchars($dateValue));
+            $dateElement->setAttribute('dateType', 'Coverage');
+            $dates->appendChild($dateElement);
+            $knownCoverageValues[$dateValue] = true;
             $hasDates = true;
         }
 

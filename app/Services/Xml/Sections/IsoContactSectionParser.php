@@ -16,7 +16,7 @@ final readonly class IsoContactSectionParser
 {
     /**
      * @return array<string, array{email: string, website: string}>
-     *         Key is normalized name "familyname, givenname" (lowercase, trimmed).
+     *                                                              Key is normalized name "familyname, givenname" (lowercase, trimmed).
      */
     public function parse(XmlReader $reader): array
     {
@@ -46,7 +46,7 @@ final readonly class IsoContactSectionParser
             }
 
             $email = $this->extractEmail($content);
-            $website = $this->extractWebsite($content);
+            $website = $this->normalizeWebsite($this->extractWebsite($content));
 
             $contactInfo[$normalizedName] = [
                 'email' => $email ?? '',
@@ -214,5 +214,31 @@ final readonly class IsoContactSectionParser
         $url = $urlElement->getContent();
 
         return is_string($url) ? trim($url) : null;
+    }
+
+    private function normalizeWebsite(?string $value): ?string
+    {
+        $website = trim($value ?? '');
+        if ($website === '') {
+            return null;
+        }
+
+        if (str_starts_with($website, '//')) {
+            $website = 'https:'.$website;
+        } elseif (preg_match('/^[a-z][a-z0-9+.-]*:/i', $website) !== 1) {
+            $website = 'https://'.$website;
+        }
+
+        $parts = parse_url($website);
+        if (
+            filter_var($website, FILTER_VALIDATE_URL) === false
+            || ! is_array($parts)
+            || ! in_array(strtolower((string) ($parts['scheme'] ?? '')), ['http', 'https'], true)
+            || trim((string) ($parts['host'] ?? '')) === ''
+        ) {
+            return null;
+        }
+
+        return $website;
     }
 }

@@ -54,14 +54,19 @@ export const spatialTemporalCoverageSchema = z
         endDate: isoDateSchema,
         startTime: timeSchema,
         endTime: timeSchema,
-        timezone: z.string().min(1, 'Timezone is required'),
+        timezone: z.string().max(100).optional().or(z.literal('')),
 
         // Description
         description: z.string().optional().or(z.literal('')),
     })
     .superRefine((data, ctx) => {
-        // Validate point type requires latMin and lonMin
-        if (data.type === 'point') {
+        const hasTemporalOrDescription = !!(data.startDate || data.endDate || data.startTime || data.endTime || data.timezone || data.description);
+        const hasPointCoordinates = !!(data.latMin || data.lonMin);
+        const hasBoxCoordinates = !!(data.latMin || data.lonMin || data.latMax || data.lonMax);
+        const pointCount = data.polygonPoints?.length ?? 0;
+
+        // Spatial data is optional, but partially entered geometry is invalid.
+        if (data.type === 'point' && hasPointCoordinates) {
             if (!data.latMin) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
@@ -79,7 +84,7 @@ export const spatialTemporalCoverageSchema = z
         }
 
         // Validate box type requires all four coordinates
-        if (data.type === 'box') {
+        if (data.type === 'box' && hasBoxCoordinates) {
             if (!data.latMin) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
@@ -111,7 +116,7 @@ export const spatialTemporalCoverageSchema = z
         }
 
         // Validate polygon type requires at least 3 points
-        if (data.type === 'polygon') {
+        if (data.type === 'polygon' && pointCount > 0) {
             if (!data.polygonPoints || data.polygonPoints.length < 3) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
@@ -122,7 +127,7 @@ export const spatialTemporalCoverageSchema = z
         }
 
         // Validate line type requires at least 2 points
-        if (data.type === 'line') {
+        if (data.type === 'line' && pointCount > 0) {
             if (!data.polygonPoints || data.polygonPoints.length < 2) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
@@ -138,6 +143,22 @@ export const spatialTemporalCoverageSchema = z
                 code: z.ZodIssueCode.custom,
                 message: 'End date must be after or equal to start date',
                 path: ['endDate'],
+            });
+        }
+
+        if (data.startDate && data.startDate === data.endDate && data.startTime && data.endTime && data.startTime > data.endTime) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'End time must be after or equal to start time when dates are the same',
+                path: ['endTime'],
+            });
+        }
+
+        if (!hasTemporalOrDescription && !hasPointCoordinates && !hasBoxCoordinates && pointCount === 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Coverage must contain spatial, temporal, or descriptive information',
+                path: ['type'],
             });
         }
     });

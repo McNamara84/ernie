@@ -1680,7 +1680,18 @@ export default function DataCiteForm({
     const spatialTemporalCoverageStatus = useMemo(() => {
         // Spatial/temporal coverage is optional
         const hasAnyCoverage = spatialTemporalCoverages.some(
-            (coverage) => coverage.latMin.trim() !== '' || coverage.lonMin.trim() !== '' || coverage.startDate.trim() !== '',
+            (coverage) =>
+                coverage.latMin.trim() !== '' ||
+                coverage.lonMin.trim() !== '' ||
+                coverage.latMax.trim() !== '' ||
+                coverage.lonMax.trim() !== '' ||
+                (coverage.polygonPoints?.length ?? 0) > 0 ||
+                coverage.startDate.trim() !== '' ||
+                coverage.endDate.trim() !== '' ||
+                coverage.startTime.trim() !== '' ||
+                coverage.endTime.trim() !== '' ||
+                coverage.timezone.trim() !== '' ||
+                coverage.description.trim() !== '',
         );
 
         if (!hasAnyCoverage) {
@@ -3371,6 +3382,8 @@ export default function DataCiteForm({
                             className="min-w-0 md:col-span-6 xl:col-span-2"
                             required
                             data-testid="resource-type-select"
+                            contentPosition="popper"
+                            contentClassName="max-h-[min(24rem,var(--radix-select-content-available-height))]"
                         />
                         <AccessLevelField
                             value={form.accessLevel}

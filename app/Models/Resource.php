@@ -234,7 +234,9 @@ class Resource extends Model
     public function geoLocations(): HasMany
     {
         /** @var HasMany<GeoLocation, static> $relation */
-        $relation = $this->hasMany(GeoLocation::class);
+        $relation = $this->hasMany(GeoLocation::class)
+            ->orderBy('position')
+            ->orderBy('id');
 
         return $relation;
     }

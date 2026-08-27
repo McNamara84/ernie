@@ -569,6 +569,65 @@ describe('spatial temporal coverage validation', function () {
         // Valid type should not produce validation error for the type field
         $response->assertJsonMissingValidationErrors(['spatialTemporalCoverages.0.type']);
     });
+
+    it('accepts temporal-only sparse coverage fields', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['spatialTemporalCoverages'] = [
+            [
+                'type' => 'point',
+                'endDate' => '2026-08-27',
+                'endTime' => '17:37:42',
+                'timezone' => '+02:00',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors([
+            'spatialTemporalCoverages.0.endDate',
+            'spatialTemporalCoverages.0.endTime',
+            'spatialTemporalCoverages.0.timezone',
+        ]);
+    });
+
+    it('rejects invalid temporal coverage timezones', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['spatialTemporalCoverages'] = [
+            ['type' => 'point', 'startDate' => '2026-08-25', 'timezone' => '+14:30'],
+        ];
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertJsonValidationErrors(['spatialTemporalCoverages.0.timezone']);
+    });
+
+    it('rejects a temporal coverage whose end date precedes its start date', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['spatialTemporalCoverages'] = [[
+            'type' => 'point',
+            'startDate' => '2026-08-27',
+            'endDate' => '2026-08-25',
+        ]];
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertJsonValidationErrors(['spatialTemporalCoverages.0.endDate']);
+    });
+
+    it('rejects reversed times on the same temporal coverage date', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['spatialTemporalCoverages'] = [[
+            'type' => 'point',
+            'startDate' => '2026-08-27',
+            'endDate' => '2026-08-27',
+            'startTime' => '17:37',
+            'endTime' => '14:37',
+        ]];
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertJsonValidationErrors(['spatialTemporalCoverages.0.endDate']);
+    });
 });
 
 // =========================================================================
