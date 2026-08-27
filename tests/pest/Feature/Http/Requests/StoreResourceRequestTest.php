@@ -686,7 +686,8 @@ describe('spatial temporal coverage validation', function () {
 
         $this->actingAs($this->user)
             ->postJson('/editor/resources', $data)
-            ->assertJsonValidationErrors(['spatialTemporalCoverages.0.endDate']);
+            ->assertJsonValidationErrors(['spatialTemporalCoverages.0.endTime'])
+            ->assertJsonMissingValidationErrors(['spatialTemporalCoverages.0.endDate']);
     });
 });
 

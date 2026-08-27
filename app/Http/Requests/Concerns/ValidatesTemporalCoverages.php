@@ -58,10 +58,17 @@ trait ValidatesTemporalCoverages
             && $endTime !== null
             && $this->canonicalTemporalTime($startTime) > $this->canonicalTemporalTime($endTime);
 
-        if ($datesAreReversed || $sameDayTimesAreReversed) {
+        if ($datesAreReversed) {
             $validator->errors()->add(
                 "$path.endDate",
                 '[Spatial & Temporal Coverage] The end must be after or equal to the start.',
+            );
+        }
+
+        if ($sameDayTimesAreReversed) {
+            $validator->errors()->add(
+                "$path.endTime",
+                '[Spatial & Temporal Coverage] The end time must be after or equal to the start time.',
             );
         }
     }

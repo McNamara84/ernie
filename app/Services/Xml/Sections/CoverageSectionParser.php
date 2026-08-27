@@ -30,7 +30,7 @@ final readonly class CoverageSectionParser
             fn (array $date): array => $this->temporalCoverageValueService->parse($date['rawValue'] ?? ''),
             array_filter($dates, fn (array $date): bool => ($date['dateType'] ?? '') === 'coverage'),
         ));
-        $emptyTemporal = $this->temporalCoverageValueService->parse('');
+        $emptyTemporal = $this->emptyTemporalCoverage();
 
         $geoLocationElements = $reader
             ->xpathElement('//*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]')
@@ -213,7 +213,7 @@ final readonly class CoverageSectionParser
                 'lonMin' => '',
                 'lonMax' => '',
                 'polygonPoints' => [],
-                ...$this->temporalCoverageValueService->parse(''),
+                ...$this->emptyTemporalCoverage(),
                 'description' => $this->queryString(
                     $reader,
                     $path.'/*[local-name()="description"]//*[local-name()="CharacterString"]',
@@ -239,7 +239,9 @@ final readonly class CoverageSectionParser
             $temporal = $instant !== null
                 ? $this->temporalCoverageValueService->parse($instant)
                 : $this->temporalCoverageValueService->parse(($begin ?? '').'/'.($end ?? ''));
-            $coverage = array_merge($coverage, $temporal);
+            if ($this->hasTemporalData($temporal)) {
+                $coverage = array_merge($coverage, $temporal);
+            }
 
             if ($this->hasSpatialData($coverage) || $this->hasTemporalData($coverage)) {
                 $coverages[] = $coverage;
@@ -247,6 +249,17 @@ final readonly class CoverageSectionParser
         }
 
         return $coverages;
+    }
+
+    /**
+     * @return array{startDate: string, endDate: string, startTime: string, endTime: string, timezone: string, temporalMode: 'interval'}
+     */
+    private function emptyTemporalCoverage(): array
+    {
+        return [
+            ...$this->temporalCoverageValueService->parse(''),
+            'temporalMode' => 'interval',
+        ];
     }
 
     private function queryString(XmlReader $reader, string $query): ?string

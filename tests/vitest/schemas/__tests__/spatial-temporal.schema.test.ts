@@ -150,6 +150,11 @@ describe('Spatial-Temporal Schemas', () => {
                 endTime: '14:59',
             });
             expect(result.success).toBe(false);
+            if (!result.success) {
+                const paths = result.error.issues.map((issue) => issue.path.join('.'));
+                expect(paths).toContain('endTime');
+                expect(paths).not.toContain('endDate');
+            }
         });
 
         it('accepts equal start and end times on the same date', () => {

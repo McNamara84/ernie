@@ -441,6 +441,7 @@ describe('JSON Upload - DataCite JSON format', function () {
         expect($data['coverages'][0]['description'])->toBe('Potsdam');
         expect($data['coverages'][0]['latMin'])->toBe('52.380000');
         expect($data['coverages'][0]['lonMin'])->toBe('13.060000');
+        expect($data['coverages'][0]['temporalMode'])->toBe('interval');
     });
 
     test('persists DataCite Coverage datetimes separately from JSON geo locations', function () {
@@ -462,6 +463,7 @@ describe('JSON Upload - DataCite JSON format', function () {
         $data = getJsonUploadData($response);
         expect($data['coverages'])->toHaveCount(2)
             ->and($data['coverages'][0]['startDate'])->toBe('')
+            ->and($data['coverages'][0]['temporalMode'])->toBe('interval')
             ->and($data['coverages'][1])->toMatchArray([
                 'startDate' => '2026-08-25',
                 'endDate' => '2026-08-27',

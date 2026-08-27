@@ -483,6 +483,27 @@ it('treats HH:MM and equivalent HH:MM:SS coverage times as equal', function (str
     'final save' => StoreResourceRequest::class,
 ]);
 
+it('reports reversed same-day temporal times on the end time field', function (string $requestClass): void {
+    $validator = validateTemporalCoverageRequest($requestClass, [
+        'type' => 'point',
+        'latMin' => '',
+        'latMax' => '',
+        'lonMin' => '',
+        'lonMax' => '',
+        'startDate' => '2026-08-27',
+        'endDate' => '2026-08-27',
+        'startTime' => '17:37',
+        'endTime' => '14:37',
+        'temporalMode' => 'interval',
+    ]);
+
+    expect($validator->errors()->has('spatialTemporalCoverages.0.endTime'))->toBeTrue()
+        ->and($validator->errors()->has('spatialTemporalCoverages.0.endDate'))->toBeFalse();
+})->with([
+    'draft save' => StoreDraftResourceRequest::class,
+    'final save' => StoreResourceRequest::class,
+]);
+
 it('uses position-aware safe URL messages for draft custom license URLs', function (): void {
     $request = new StoreDraftResourceRequest;
 

@@ -737,7 +737,10 @@ class UploadJsonController extends Controller
             fn (array $date): array => $this->temporalCoverageValueService->parse($date['rawValue'] ?? ''),
             array_filter($dates, fn (array $date): bool => ($date['dateType'] ?? '') === 'coverage'),
         ));
-        $emptyTemporal = $this->temporalCoverageValueService->parse('');
+        $emptyTemporal = [
+            ...$this->temporalCoverageValueService->parse(''),
+            'temporalMode' => 'interval',
+        ];
 
         $index = 1;
 

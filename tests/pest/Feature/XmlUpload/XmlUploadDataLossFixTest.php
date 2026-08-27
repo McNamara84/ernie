@@ -613,6 +613,7 @@ XML;
     $response->assertSessionDataPath('coverages.0.startTime', '');
     $response->assertSessionDataPath('coverages.0.endTime', '');
     $response->assertSessionDataPath('coverages.0.timezone', '');
+    $response->assertSessionDataPath('coverages.0.temporalMode', 'interval');
 });
 
 // ──────────────────────────────────────────────────────────────────
@@ -729,6 +730,38 @@ XML;
         'endTime' => '17:37',
         'timezone' => '+02:00',
     ]);
+});
+
+test('ISO spatial extent without temporal data uses a valid default temporal mode', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<envelope xmlns:gco="http://www.isotc211.org/2005/gco">
+  <resource xmlns="http://datacite.org/schema/kernel-4">
+    <titles><title>Spatial-only ISO extent</title></titles>
+  </resource>
+  <MD_Metadata xmlns="http://www.isotc211.org/2005/gmd">
+    <identificationInfo><MD_DataIdentification><extent><EX_Extent>
+      <geographicElement><EX_GeographicBoundingBox>
+        <westBoundLongitude><gco:Decimal>-114.961</gco:Decimal></westBoundLongitude>
+        <eastBoundLongitude><gco:Decimal>-108.633</gco:Decimal></eastBoundLongitude>
+        <southBoundLatitude><gco:Decimal>39.7966</gco:Decimal></southBoundLatitude>
+        <northBoundLatitude><gco:Decimal>45.233</gco:Decimal></northBoundLatitude>
+      </EX_GeographicBoundingBox></geographicElement>
+    </EX_Extent></extent></MD_DataIdentification></identificationInfo>
+  </MD_Metadata>
+</envelope>
+XML;
+
+    $response = $this->postJson('/dashboard/upload-xml', [
+        'file' => UploadedFile::fake()->createWithContent('spatial-only-envelope.xml', $xml),
+    ])->assertOk();
+
+    $response->assertSessionDataCount(1, 'coverages');
+    $response->assertSessionDataPath('coverages.0.type', 'box');
+    $response->assertSessionDataPath('coverages.0.startDate', '');
+    $response->assertSessionDataPath('coverages.0.temporalMode', 'interval');
 });
 
 // ──────────────────────────────────────────────────────────────────
