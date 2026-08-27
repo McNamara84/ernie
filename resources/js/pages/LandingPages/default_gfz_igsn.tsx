@@ -2,12 +2,12 @@ import { usePage } from '@inertiajs/react';
 import { type ReactNode, useMemo } from 'react';
 
 import type {
+    IgsnSection,
     LandingPageCitationStyle,
     LandingPageConfig,
     LandingPageDisplayLimits,
     LandingPageMetadataLink,
     LandingPageResource,
-    LeftColumnSection,
     SectionOrder,
 } from '@/types/landing-page';
 
@@ -25,11 +25,12 @@ import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { RepositoriesSection } from './components/RepositoriesSection';
 import { ResourceHero } from './components/ResourceHero';
 import { SampleFamilySection } from './components/SampleFamilySection';
+import { SampleImageSection } from './components/SampleImageSection';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { replaceIgsnIdentifierText } from './lib/igsn-display';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
 import { type MetadataSectionKey } from './lib/metadata-sections';
-import { IGSN_LEFT_COLUMN_SECTIONS, normalizeLeftColumnOrder, RIGHT_COLUMN_SECTIONS } from './lib/section-catalog';
+import { IGSN_LEFT_COLUMN_SECTIONS, IGSN_RIGHT_COLUMN_SECTIONS, normalizeIgsnColumnOrders } from './lib/section-catalog';
 
 /**
  * Props passed to IGSN landing page template via Inertia
@@ -81,48 +82,29 @@ export default function DefaultGfzIgsnTemplate() {
     };
     const { status, subtitle } = templateData;
 
-    const rightOrder = sectionOrder?.rightColumn ?? RIGHT_COLUMN_SECTIONS;
-    const leftOrder = sectionOrder?.leftColumn ? normalizeLeftColumnOrder(sectionOrder.leftColumn, 'igsn') : IGSN_LEFT_COLUMN_SECTIONS;
-    const metadataOrder = rightOrder.filter((key): key is MetadataSectionKey => key !== 'location');
-    const firstMetadataIndex = rightOrder.findIndex((key) => key !== 'location');
-    const locationIndex = rightOrder.indexOf('location');
-    const renderLocationBeforeMetadata = locationIndex !== -1 && (firstMetadataIndex === -1 || locationIndex < firstMetadataIndex);
+    const orders = sectionOrder
+        ? normalizeIgsnColumnOrders(sectionOrder.leftColumn, sectionOrder.rightColumn)
+        : { left: IGSN_LEFT_COLUMN_SECTIONS as IgsnSection[], right: IGSN_RIGHT_COLUMN_SECTIONS };
 
-    const rightSectionRegistry = useMemo((): { metadata: ReactNode; location: ReactNode } => {
+    const sectionRegistry = useMemo((): Record<IgsnSection, ReactNode> => {
         const jsonLdExportUrl = landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined;
-        return {
-            metadata: (
-                <AbstractSection
-                    key="metadata"
-                    descriptions={resource.descriptions || []}
-                    creators={resource.creators || []}
-                    contributors={resource.contributors || []}
-                    fundingReferences={resource.funding_references || []}
-                    subjects={resource.subjects || []}
-                    resourceId={resource.id}
-                    jsonLdExportUrl={jsonLdExportUrl}
-                    metadataLinks={metadataLinks}
-                    sectionOrder={metadataOrder}
-                    displayLimits={peopleDisplayLimits}
-                />
-            ),
-            location: (
-                <LocationSection
-                    key="location"
-                    geoLocations={resource.geo_locations || []}
-                    isDark={isDark}
-                    samplingLocation
-                    igsn={resource.igsn_metadata}
-                />
-            ),
-        };
-    }, [resource, landingPage, isDark, metadataOrder, peopleDisplayLimits, metadataLinks]);
+        const metadataSection = (key: MetadataSectionKey): ReactNode => (
+            <AbstractSection
+                key={key}
+                descriptions={resource.descriptions || []}
+                creators={resource.creators || []}
+                contributors={resource.contributors || []}
+                fundingReferences={resource.funding_references || []}
+                subjects={resource.subjects || []}
+                resourceId={resource.id}
+                jsonLdExportUrl={jsonLdExportUrl}
+                metadataLinks={metadataLinks}
+                sectionOrder={[key]}
+                displayLimits={peopleDisplayLimits}
+            />
+        );
 
-    const leftSectionRegistry = useMemo((): Record<LeftColumnSection, ReactNode> => {
         return {
-            // The IGSN template never renders the Files module — the data flow is
-            // physical-sample-centric and there are no downloadable artefacts.
-            files: null,
             licenses: <LicenseAndRightsSection key="licenses" licenses={resource.licenses || []} />,
             general: <GeneralSection key="general" igsn={resource.igsn_metadata} dates={resource.dates || []} />,
             sample_family: <SampleFamilySection key="sample_family" family={resource.igsn_sample_family} currentResourceId={resource.id} />,
@@ -165,8 +147,29 @@ export default function DefaultGfzIgsnTemplate() {
                     useIgsnHandles
                 />
             ),
+            abstract: metadataSection('abstract'),
+            methods: metadataSection('methods'),
+            technical_info: metadataSection('technical_info'),
+            series_information: metadataSection('series_information'),
+            table_of_contents: metadataSection('table_of_contents'),
+            other: metadataSection('other'),
+            creators: metadataSection('creators'),
+            contributors: metadataSection('contributors'),
+            funders: metadataSection('funders'),
+            keywords: metadataSection('keywords'),
+            metadata_download: metadataSection('metadata_download'),
+            sample_image: <SampleImageSection key="sample_image" igsn={resource.igsn_metadata} />,
+            location: (
+                <LocationSection
+                    key="location"
+                    geoLocations={resource.geo_locations || []}
+                    isDark={isDark}
+                    samplingLocation
+                    igsn={resource.igsn_metadata}
+                />
+            ),
         };
-    }, [resource, mainTitle, citationStyles, peopleDisplayLimits.citationAuthors]);
+    }, [resource, landingPage, isDark, peopleDisplayLimits, metadataLinks, mainTitle, citationStyles]);
 
     return (
         <LandingPageShell
@@ -185,10 +188,8 @@ export default function DefaultGfzIgsnTemplate() {
                     useIgsnIcon={true}
                 />
             }
-            metadataSection={rightSectionRegistry.metadata}
-            locationSection={rightSectionRegistry.location}
-            renderLocationBeforeMetadata={renderLocationBeforeMetadata}
-            leftColumnSections={leftOrder.map((key) => leftSectionRegistry[key]).filter(Boolean)}
+            rightColumnSections={orders.right.map((key) => sectionRegistry[key]).filter(Boolean)}
+            leftColumnSections={orders.left.map((key) => sectionRegistry[key]).filter(Boolean)}
         />
     );
 }

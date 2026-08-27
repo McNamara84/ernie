@@ -32,6 +32,13 @@ interface ImportProgress extends ImportDataCiteSyncProgress {
     unassigned?: number;
     unassigned_dois?: string[];
     warnings?: string[];
+    images_total?: number;
+    images_processed?: number;
+    images_stored?: number;
+    images_external?: number;
+    images_skipped?: number;
+    images_failed?: number;
+    image_warnings?: Array<{ doi: string; error: string }>;
     started_at?: string;
     completed_at?: string;
     error?: string;
@@ -270,9 +277,14 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
     }, [modalState, onClose]);
 
     const isSyncing = progress?.phase === 'syncing';
-    const progressCurrent = isSyncing ? (progress.sync_processed ?? 0) : (progress?.processed ?? 0);
-    const progressTotal = isSyncing ? (progress?.sync_total ?? 0) : (progress?.total ?? 0);
-    const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
+    const isProcessingImages = progress?.phase === 'images';
+    const progressCurrent = isSyncing
+        ? (progress.sync_processed ?? 0)
+        : isProcessingImages
+          ? (progress?.images_processed ?? 0)
+          : (progress?.processed ?? 0);
+    const progressTotal = isSyncing ? progress?.sync_total : isProcessingImages ? progress?.images_total : progress?.total;
+    const progressPercent = progressTotal !== undefined && progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
     const relatedIgsnCount = progress?.discovered_children?.length ?? 0;
     const isAlreadyImported = progress?.imported === 0 && progress?.skipped === progress?.total && progress?.failed === 0;
 
@@ -330,10 +342,14 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-2">
                                         <Spinner size="sm" />
-                                        {isSyncing ? 'Updating DataCite metadata...' : 'Processing...'}
+                                        {isSyncing
+                                            ? 'Updating DataCite metadata...'
+                                            : isProcessingImages
+                                              ? 'Processing sample images...'
+                                              : 'Processing...'}
                                     </span>
                                     <span className="text-muted-foreground">
-                                        {progressCurrent} / {progressTotal || '?'} {isSyncing ? 'updates' : 'IGSNs'}
+                                        {progressCurrent} / {progressTotal ?? '?'} {isSyncing ? 'updates' : isProcessingImages ? 'images' : 'IGSNs'}
                                     </span>
                                 </div>
                                 <Progress value={progressPercent} className="h-2" />
@@ -395,6 +411,26 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                                     <AlertDescription>{warning}</AlertDescription>
                                 </Alert>
                             ))}
+
+                            {(progress.image_warnings ?? []).map((warning) => (
+                                <Alert
+                                    key={`${warning.doi}-${warning.error}`}
+                                    className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950"
+                                >
+                                    <AlertCircle className="size-4 text-yellow-600 dark:text-yellow-400" />
+                                    <AlertTitle>Sample image warning</AlertTitle>
+                                    <AlertDescription>
+                                        {warning.doi}: {warning.error}
+                                    </AlertDescription>
+                                </Alert>
+                            ))}
+
+                            {(progress.images_processed ?? 0) > 0 && (
+                                <p className="text-sm text-muted-foreground">
+                                    Sample images: {progress.images_stored ?? 0} stored locally, {progress.images_external ?? 0} linked externally,{' '}
+                                    {progress.images_failed ?? 0} failed.
+                                </p>
+                            )}
 
                             {relatedIgsnCount > 0 && (
                                 <div className="rounded-md border p-3 text-sm">

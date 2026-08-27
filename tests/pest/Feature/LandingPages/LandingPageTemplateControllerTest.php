@@ -46,6 +46,61 @@ beforeEach(function (): void {
     $this->igsnDefaultTemplate = $systemTemplates[LandingPageTemplate::TEMPLATE_TYPE_IGSN];
 });
 
+describe('Flexible IGSN columns for Issue 1168', function (): void {
+    it('accepts every IGSN module in either column including an empty column', function (): void {
+        expect(LandingPageTemplate::isValidIgsnSectionLayout(
+            LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
+            LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+        ))->toBeTrue()
+            ->and(LandingPageTemplate::isValidIgsnSectionLayout([], LandingPageTemplate::IGSN_SECTIONS))->toBeTrue()
+            ->and(LandingPageTemplate::isValidIgsnSectionLayout(LandingPageTemplate::IGSN_SECTIONS, []))->toBeTrue();
+    });
+
+    it('rejects missing duplicate and unknown IGSN modules across columns', function (): void {
+        $withoutImage = array_values(array_filter(
+            LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+            static fn (string $key): bool => $key !== 'sample_image',
+        ));
+
+        expect(LandingPageTemplate::isValidIgsnSectionLayout(
+            LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
+            $withoutImage,
+        ))->toBeFalse()
+            ->and(LandingPageTemplate::isValidIgsnSectionLayout(
+                [...LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS, 'location'],
+                LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+            ))->toBeFalse()
+            ->and(LandingPageTemplate::isValidIgsnSectionLayout(
+                [...LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS, 'unknown'],
+                LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+            ))->toBeFalse();
+    });
+
+    it('persists a cross-column IGSN layout and requires both columns together', function (): void {
+        $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $this->admin->id]);
+        $left = ['sample_image', 'location'];
+        $right = array_values(array_filter(
+            LandingPageTemplate::IGSN_SECTIONS,
+            static fn (string $key): bool => ! in_array($key, ['sample_image', 'location'], true),
+        ));
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'left_column_order' => $left,
+                'right_column_order' => $right,
+            ])
+            ->assertOk();
+
+        expect($template->fresh()->left_column_order)->toBe($left)
+            ->and($template->fresh()->right_column_order)->toBe($right);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", ['left_column_order' => LandingPageTemplate::IGSN_SECTIONS])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('right_column_order');
+    });
+});
+
 function locationFirstRightColumnOrder(): array
 {
     return [
@@ -608,7 +663,7 @@ describe('Update', function (): void {
                 'name' => 'Valid Name',
                 'left_column_order' => ['files', 'contact', 'model_description', 'related_work', 'general'],
             ])
-            ->assertJsonValidationErrors(['left_column_order']);
+            ->assertJsonValidationErrors(['left_column_order.0', 'right_column_order']);
     });
 
     it('requires citation exactly once when a left-column order is submitted', function (array $leftOrder): void {
@@ -975,6 +1030,29 @@ describe('Model', function (): void {
         ]);
     });
 
+    it('preserves the legacy citation fallback when normalizing flexible IGSN layouts', function (): void {
+        $normalized = LandingPageTemplate::normalizeIgsnSectionOrders(
+            ['contact', 'general', 'unknown'],
+            ['abstract', 'location'],
+        );
+
+        expect($normalized['left'])->toBe([
+            'contact',
+            'general',
+            'sample_family',
+            'acquisition',
+            'repositories',
+            'dates',
+            'model_description',
+            'related_work',
+            'citation',
+        ])->and($normalized['right'])->toContain('sample_image')
+            ->and(LandingPageTemplate::normalizeIgsnSectionOrders(
+                ['general'],
+                ['citation', 'location'],
+            )['right'][0])->toBe('citation');
+    });
+
     it('restores citation at the canonical position in legacy system defaults', function (): void {
         $this->defaultTemplate->update([
             'left_column_order' => ['files', 'dates', 'contact', 'model_description', 'related_work'],
@@ -1208,7 +1286,8 @@ describe('Factory', function (): void {
         $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $this->admin->id]);
 
         expect($template->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN)
-            ->and($template->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS);
+            ->and($template->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS)
+            ->and($template->right_column_order)->toBe(LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS);
     });
 
     it('creates a default template via state', function (): void {

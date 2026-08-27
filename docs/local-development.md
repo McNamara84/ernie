@@ -206,6 +206,23 @@ Authenticated Solr and the direct legacy database remain optional enrichment sou
 
 Both app and queue services must use `QUEUE_CONNECTION=database`, and the worker command must consume `imports`. The single-import start endpoint returns `202 Accepted`; later portal or persistence failures are reported through the import status endpoint.
 
+#### Legacy IGSN sample images
+
+When a legacy DIF record contains a sample image, the import stores its validated source description with the IGSN metadata. Known GFZ Data Services images are downloaded only after the metadata transaction has committed and are served from the persistent Laravel `public` disk. Known ICDP image URLs are normalized to `https://data.icdp-online.org/...` and remain external. Unknown hosts, unsafe paths, placeholders, invalid MIME types, oversized files, and failed downloads never produce a public image card and do not roll back an otherwise successful metadata import. The completed import dialog reports those image failures separately so they can be retried through the backfill.
+
+Configure the storage disk and download limits with `IGSN_IMAGE_DISK`, `IGSN_IMAGE_CONNECT_TIMEOUT`, `IGSN_IMAGE_TIMEOUT`, and `IGSN_IMAGE_MAX_BYTES`. The default size limit is 20 MiB and only validated JPEG files are accepted. In production, the selected disk must be persistent, backed up, and publicly linked in the same way as the existing Laravel `public` disk.
+
+The backfill deliberately considers only IGSNs that already exist in ERNIE. It is a dry run unless `--apply` is supplied:
+
+```bash
+npm run artisan -- igsn:backfill-images --doi=GFSO273N39
+npm run artisan -- igsn:backfill-images --apply --after-id=0 --chunk=100 --report=storage/app/igsn-image-backfill.csv
+```
+
+Use `--limit` for bounded rollout batches, repeat `--doi` to select multiple handles or DOIs, and use `--force` only when already processed images must be revalidated or replaced. A failed run can resume after the last reported resource ID with `--after-id`. The command is idempotent; missing legacy DIF records and records without an image are reported separately from real processing failures.
+
+IGSN landing-page templates expose every IGSN module, including Sample Image and Location, in a shared two-column editor. Modules can be reordered within a column or moved across columns; each module must occur exactly once across the saved layout. The system default places Sample Image in the right column immediately before Location.
+
 ### DataCite landing-page domain migration
 
 The admin-only actions on `/resources` and `/igsns` use a persistent queue and the shared application cache. The Docker worker consumes the dedicated `datacite` queue. Queue connections whose configured driver is `sync` or `null` are rejected regardless of the connection name, because the run must survive request timeouts, browser navigation, deployments, and worker restarts.

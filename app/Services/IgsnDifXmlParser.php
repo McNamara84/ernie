@@ -22,6 +22,7 @@ use App\Models\ResourceDate;
 use App\Models\Size;
 use App\Services\Igsn\IgsnDifMetadataExtractor;
 use App\Services\Igsn\IgsnGeometryNormalizer;
+use App\Services\Igsn\IgsnSampleImageUrlService;
 use App\Services\Igsn\IgsnVocabularyNormalizerService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +41,7 @@ class IgsnDifXmlParser
         private readonly IgsnDifMetadataExtractor $extractor = new IgsnDifMetadataExtractor,
         private readonly IgsnGeometryNormalizer $geometryNormalizer = new IgsnGeometryNormalizer,
         private readonly IgsnVocabularyNormalizerService $vocabularyNormalizer = new IgsnVocabularyNormalizerService,
+        private readonly IgsnSampleImageUrlService $sampleImageUrlService = new IgsnSampleImageUrlService,
     ) {}
 
     public function enrichFromDifXml(string $difXml, Resource $resource, IgsnMetadata $igsnMetadata): bool
@@ -72,6 +74,7 @@ class IgsnDifXmlParser
         try {
             DB::transaction(function () use ($metadata, $resource, $igsnMetadata): void {
                 $this->persistScalars($metadata, $resource, $igsnMetadata);
+                $this->persistSampleImageDescriptor($metadata['sample_image'], $igsnMetadata);
                 $this->persistAlternateIdentifiers($metadata, $resource);
                 $this->persistGeoLocation($metadata['location'], $resource);
                 $this->persistCollectionDate($metadata['collection'], $resource);
@@ -95,6 +98,33 @@ class IgsnDifXmlParser
             ]);
 
             return false;
+        }
+    }
+
+    /** @param array{file_name: string|null, base_url: string|null} $image */
+    private function persistSampleImageDescriptor(array $image, IgsnMetadata $igsnMetadata): void
+    {
+        $resolved = $this->sampleImageUrlService->resolve($image['base_url'], $image['file_name']);
+
+        if ($resolved['status'] === IgsnSampleImageUrlService::STATUS_MANAGED) {
+            $sourceChanged = $igsnMetadata->sample_image_source_url !== $resolved['source_url'];
+            $igsnMetadata->sample_image_source_url = $resolved['source_url'];
+            $igsnMetadata->sample_image_external_url = null;
+            if ($sourceChanged) {
+                $igsnMetadata->sample_image_storage_path = null;
+                $igsnMetadata->sample_image_mime_type = null;
+                $igsnMetadata->sample_image_size = null;
+            }
+
+            return;
+        }
+
+        if ($resolved['status'] === IgsnSampleImageUrlService::STATUS_EXTERNAL) {
+            $igsnMetadata->sample_image_source_url = $resolved['source_url'];
+            $igsnMetadata->sample_image_external_url = $resolved['external_url'];
+            $igsnMetadata->sample_image_storage_path = null;
+            $igsnMetadata->sample_image_mime_type = null;
+            $igsnMetadata->sample_image_size = null;
         }
     }
 

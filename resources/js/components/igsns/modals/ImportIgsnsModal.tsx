@@ -28,6 +28,13 @@ interface ImportProgress extends ImportDataCiteSyncProgress {
     unassigned?: number;
     unassigned_dois?: string[];
     warnings?: string[];
+    images_total?: number;
+    images_processed?: number;
+    images_stored?: number;
+    images_external?: number;
+    images_skipped?: number;
+    images_failed?: number;
+    image_warnings?: Array<{ doi: string; error: string }>;
     datacenter?: LegacyIgsnDatacenter | null;
     started_at?: string;
     completed_at?: string;
@@ -248,9 +255,14 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'a
     }, [importId, isCancelling]);
 
     const isSyncing = progress?.phase === 'syncing';
-    const progressCurrent = isSyncing ? (progress.sync_processed ?? 0) : (progress?.processed ?? 0);
-    const progressTotal = isSyncing ? (progress?.sync_total ?? 0) : (progress?.total ?? 0);
-    const progressPercent = progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
+    const isProcessingImages = progress?.phase === 'images';
+    const progressCurrent = isSyncing
+        ? (progress.sync_processed ?? 0)
+        : isProcessingImages
+          ? (progress?.images_processed ?? 0)
+          : (progress?.processed ?? 0);
+    const progressTotal = isSyncing ? progress?.sync_total : isProcessingImages ? progress?.images_total : progress?.total;
+    const progressPercent = progressTotal !== undefined && progressTotal > 0 ? Math.round((progressCurrent / progressTotal) * 100) : 0;
 
     const formatDuration = (startedAt?: string, completedAt?: string): string => {
         if (!startedAt) return '';
@@ -386,10 +398,14 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'a
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-2">
                                         <Spinner size="sm" />
-                                        {isSyncing ? 'Updating DataCite metadata...' : 'Processing...'}
+                                        {isSyncing
+                                            ? 'Updating DataCite metadata...'
+                                            : isProcessingImages
+                                              ? 'Processing sample images...'
+                                              : 'Processing...'}
                                     </span>
                                     <span className="text-muted-foreground">
-                                        {progressCurrent} / {progressTotal || '?'} {isSyncing ? 'updates' : 'IGSNs'}
+                                        {progressCurrent} / {progressTotal ?? '?'} {isSyncing ? 'updates' : isProcessingImages ? 'images' : 'IGSNs'}
                                     </span>
                                 </div>
                                 <Progress value={progressPercent} className="h-2" />
@@ -452,6 +468,26 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'a
                                     <AlertDescription>{warning}</AlertDescription>
                                 </Alert>
                             ))}
+
+                            {(progress.image_warnings ?? []).map((warning) => (
+                                <Alert
+                                    key={`${warning.doi}-${warning.error}`}
+                                    className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950"
+                                >
+                                    <AlertCircle className="size-4 text-yellow-600 dark:text-yellow-400" />
+                                    <AlertTitle>Sample image warning</AlertTitle>
+                                    <AlertDescription>
+                                        {warning.doi}: {warning.error}
+                                    </AlertDescription>
+                                </Alert>
+                            ))}
+
+                            {(progress.images_processed ?? 0) > 0 && (
+                                <p className="text-sm text-muted-foreground">
+                                    Sample images: {progress.images_stored ?? 0} stored locally, {progress.images_external ?? 0} linked externally,{' '}
+                                    {progress.images_failed ?? 0} failed.
+                                </p>
+                            )}
 
                             <div className="grid grid-cols-4 gap-3 text-center">
                                 <div className="rounded-lg bg-green-50 p-3 dark:bg-green-950">

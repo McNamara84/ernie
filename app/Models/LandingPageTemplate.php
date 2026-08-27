@@ -145,6 +145,24 @@ class LandingPageTemplate extends Model
         'related_work',
     ];
 
+    /** Default right-column distribution for IGSN landing pages. */
+    public const IGSN_RIGHT_COLUMN_SECTIONS = [
+        ...self::DESCRIPTION_COLUMN_SECTIONS,
+        'creators',
+        'contributors',
+        'funders',
+        'keywords',
+        'metadata_download',
+        'sample_image',
+        'location',
+    ];
+
+    /** Every independently movable IGSN landing-page module. */
+    public const IGSN_SECTIONS = [
+        ...self::IGSN_LEFT_COLUMN_SECTIONS,
+        ...self::IGSN_RIGHT_COLUMN_SECTIONS,
+    ];
+
     /**
      * Valid section keys for the left column.
      *
@@ -350,6 +368,17 @@ class LandingPageTemplate extends Model
     }
 
     /**
+     * Validate both IGSN columns as one complete, duplicate-free section set.
+     *
+     * @param  array<int, string>  $left
+     * @param  array<int, string>  $right
+     */
+    public static function isValidIgsnSectionLayout(array $left, array $right): bool
+    {
+        return self::isValidSectionOrder([...$left, ...$right], self::IGSN_SECTIONS);
+    }
+
+    /**
      * Keep `location` as a standalone card before or after the shared metadata card.
      *
      * When the editor submits `location` in the middle of the right-column list,
@@ -431,6 +460,76 @@ class LandingPageTemplate extends Model
         return $templateType === self::TEMPLATE_TYPE_IGSN
             ? self::IGSN_LEFT_COLUMN_SECTIONS
             : self::RESOURCE_LEFT_COLUMN_SECTIONS;
+    }
+
+    /** @return list<string> */
+    public static function rightColumnSectionsForTemplateType(string $templateType): array
+    {
+        return $templateType === self::TEMPLATE_TYPE_IGSN
+            ? self::IGSN_RIGHT_COLUMN_SECTIONS
+            : self::RIGHT_COLUMN_SECTIONS;
+    }
+
+    /**
+     * Normalize legacy IGSN layouts while preserving known section positions.
+     *
+     * @param  array<int, string>  $left
+     * @param  array<int, string>  $right
+     * @return array{left: list<string>, right: list<string>}
+     */
+    public static function normalizeIgsnSectionOrders(array $left, array $right): array
+    {
+        $valid = array_fill_keys(self::IGSN_SECTIONS, true);
+        $seen = [];
+        $normalizedLeft = [];
+        $normalizedRight = [];
+
+        foreach ($left as $key) {
+            if (isset($valid[$key]) && ! isset($seen[$key])) {
+                $seen[$key] = true;
+                $normalizedLeft[] = $key;
+            }
+        }
+        foreach ($right as $key) {
+            if (isset($valid[$key]) && ! isset($seen[$key])) {
+                $seen[$key] = true;
+                $normalizedRight[] = $key;
+            }
+        }
+
+        $hasStoredCitation = isset($seen['citation']);
+
+        foreach (self::IGSN_LEFT_COLUMN_SECTIONS as $key) {
+            if ($key === 'citation' && ! $hasStoredCitation) {
+                continue;
+            }
+
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $normalizedLeft[] = $key;
+            }
+        }
+
+        if (! $hasStoredCitation) {
+            $seen['citation'] = true;
+            $normalizedLeft[] = 'citation';
+        }
+
+        foreach (self::IGSN_RIGHT_COLUMN_SECTIONS as $key) {
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $locationIndex = $key === 'sample_image'
+                    ? array_search('location', $normalizedRight, true)
+                    : false;
+                if ($locationIndex === false) {
+                    $normalizedRight[] = $key;
+                } else {
+                    array_splice($normalizedRight, $locationIndex, 0, [$key]);
+                }
+            }
+        }
+
+        return ['left' => $normalizedLeft, 'right' => $normalizedRight];
     }
 
     /**
@@ -623,7 +722,7 @@ class LandingPageTemplate extends Model
                             'template_type' => $templateType,
                             'logo_path' => null,
                             'logo_filename' => null,
-                            'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
+                            'right_column_order' => self::rightColumnSectionsForTemplateType($templateType),
                             'left_column_order' => self::leftColumnSectionsForTemplateType($templateType),
                             'creator_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
                             'contributor_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
@@ -663,7 +762,7 @@ class LandingPageTemplate extends Model
             $template->forceFill([
                 'is_default' => true,
                 'template_type' => $templateType,
-                'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
+                'right_column_order' => self::rightColumnSectionsForTemplateType($templateType),
                 'left_column_order' => self::leftColumnSectionsForTemplateType($templateType),
                 'created_by' => null,           // System-owned, not created by a user
                 'logo_path' => null,            // No custom logo

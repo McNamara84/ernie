@@ -31,13 +31,15 @@ class UpdateLandingPageTemplateRequest extends FormRequest
         /** @var LandingPageTemplate $template */
         $template = $this->route('landingPageTemplate');
         $allowedLeftColumnSections = LandingPageTemplate::leftColumnSectionsForTemplateType($template->template_type);
+        $allowedRightColumnSections = LandingPageTemplate::rightColumnSectionsForTemplateType($template->template_type);
+        $isIgsn = $template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN;
 
         return [
             'name' => ['sometimes', 'filled', 'string', 'min:1', 'max:255', Rule::unique('landing_page_templates', 'name')->ignore($template->id)],
-            'right_column_order' => ['sometimes', 'array'],
-            'right_column_order.*' => ['required', 'string', Rule::in(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)],
-            'left_column_order' => ['sometimes', 'array'],
-            'left_column_order.*' => ['required', 'string', Rule::in($allowedLeftColumnSections)],
+            'right_column_order' => $isIgsn ? ['sometimes', 'required_with:left_column_order', 'array'] : ['sometimes', 'array'],
+            'right_column_order.*' => ['required', 'string', Rule::in($isIgsn ? LandingPageTemplate::IGSN_SECTIONS : $allowedRightColumnSections)],
+            'left_column_order' => $isIgsn ? ['sometimes', 'required_with:right_column_order', 'array'] : ['sometimes', 'array'],
+            'left_column_order.*' => ['required', 'string', Rule::in($isIgsn ? LandingPageTemplate::IGSN_SECTIONS : $allowedLeftColumnSections)],
             'creator_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'contributor_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'citation_author_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
@@ -72,6 +74,38 @@ class UpdateLandingPageTemplateRequest extends FormRequest
 
             $allowedLeftColumnSections = LandingPageTemplate::leftColumnSectionsForTemplateType($template->template_type);
 
+            if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
+                && ($this->has('right_column_order') || $this->has('left_column_order'))) {
+                if ($this->has('left_column_order') && ! $this->has('right_column_order')) {
+                    $validator->errors()->add(
+                        'right_column_order',
+                        'The right column order is required when changing an IGSN layout.'
+                    );
+                }
+
+                if ($this->has('right_column_order') && ! $this->has('left_column_order')) {
+                    $validator->errors()->add(
+                        'left_column_order',
+                        'The left column order is required when changing an IGSN layout.'
+                    );
+                }
+
+                $rightOrder = $this->input('right_column_order', []);
+                $leftOrder = $this->input('left_column_order', []);
+                if (is_array($rightOrder)
+                    && is_array($leftOrder)
+                    && ! $validator->errors()->has('right_column_order')
+                    && ! $validator->errors()->has('left_column_order')
+                    && ! LandingPageTemplate::isValidIgsnSectionLayout($leftOrder, $rightOrder)) {
+                    $validator->errors()->add(
+                        'right_column_order',
+                        'IGSN columns must contain every valid section exactly once across both columns.'
+                    );
+                }
+
+                return;
+            }
+
             // Validate right column order contains exactly all valid sections
             if ($this->has('right_column_order') && ! $validator->errors()->has('right_column_order')) {
                 $rightOrder = $this->input('right_column_order', []);
@@ -105,7 +139,9 @@ class UpdateLandingPageTemplateRequest extends FormRequest
             $this->merge(['name' => trim($this->input('name'))]);
         }
 
-        if ($this->has('right_column_order')) {
+        /** @var LandingPageTemplate|null $template */
+        $template = $this->route('landingPageTemplate');
+        if ($this->has('right_column_order') && $template?->template_type !== LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
             $rightOrder = $this->input('right_column_order');
 
             if (is_array($rightOrder)) {

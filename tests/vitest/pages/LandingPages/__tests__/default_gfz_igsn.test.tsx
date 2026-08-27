@@ -1,4 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import { render } from '@tests/vitest/utils/render';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -820,6 +821,71 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             expect(screen.getByTestId('citation-content')).toHaveAttribute('data-citation-style', 'apa-7');
             expect(screen.getByText('IGSN APA citation').tagName).toBe('EM');
+        });
+
+        it('renders the sample image in either configured column', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...fullyVisibleResource,
+                        igsn_metadata: {
+                            ...fullyVisibleResource.igsn_metadata,
+                            sample_image: { url: '/storage/igsn-sample-images/gfso273n39/image.jpg', hosting: 'managed' },
+                        },
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionOrder: { leftColumn: ['sample_image'], rightColumn: [] },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(within(screen.getByTestId('landing-page-left-column')).getByRole('heading', { name: 'Sample Image' })).toBeInTheDocument();
+            expect(within(screen.getByTestId('landing-page-right-column')).queryByRole('heading', { name: 'Sample Image' })).not.toBeInTheDocument();
+        });
+
+        it('renders independently movable metadata modules as separate cards', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...fullyVisibleResource,
+                        descriptions: [{ id: 1, value: 'Independent abstract', description_type: 'Abstract' }],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            const abstractCard = screen.getByText('Independent abstract').closest('[data-slot="landing-page-card"]');
+            const creatorsCard = screen.getByRole('heading', { name: 'Creators' }).closest('[data-slot="landing-page-card"]');
+            expect(abstractCard).not.toBeNull();
+            expect(creatorsCard).not.toBeNull();
+            expect(abstractCard).not.toBe(creatorsCard);
+        });
+
+        it('does not render cards for independently placed metadata modules without content', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...fullyVisibleResource,
+                        creators: [],
+                        contributors: [],
+                        descriptions: [],
+                        funding_references: [],
+                        subjects: [],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getAllByTestId('metadata-section')).toHaveLength(1);
+            expect(screen.getByRole('heading', { name: 'Download Metadata' })).toBeInTheDocument();
         });
     });
 });

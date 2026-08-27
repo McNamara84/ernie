@@ -2001,33 +2001,34 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Reorder Sections">
                                 <p>
-                                    Click the edit icon on a template card. Use <strong>drag &amp; drop</strong> to rearrange the right and left
-                                    column sections independently.
+                                    Click the edit icon on a template card. For Resource templates, use <strong>drag &amp; drop</strong> to rearrange
+                                    sections within the right or left column. For IGSN templates, every module can also be moved between columns.
                                 </p>
                                 <p>
-                                    The right column exposes separate description modules for <strong>Abstract</strong>, <strong>Methods</strong>,
+                                    Resource templates expose separate right-column controls for <strong>Abstract</strong>, <strong>Methods</strong>,
                                     <strong>Technical Information</strong>, <strong>Series Information</strong>, <strong>Table of Contents</strong>,
                                     and <strong>Additional Information</strong>, followed by Creators, Contributors, Funding References, Keywords,
-                                    Metadata Download, and Location / Map. Description modules are reordered individually, but they still render
-                                    together inside one shared metadata card on the public landing page. The <strong>Location / Map</strong> section
-                                    remains a separate card above or below that metadata card.
+                                    Metadata Download, and Location / Map. On Resource landing pages, these metadata modules still render together
+                                    inside one shared card; <strong>Location / Map</strong> remains a separate card above or below it.
                                 </p>
                                 <p>
-                                    For IGSN landing pages, the left column also includes <strong>General</strong> (Project, Campaign, Type, Name,
-                                    IGSN, Parent IGSN, Purpose, Release Date), <strong>Sample Family</strong> (the complete locally known hierarchy
-                                    from the highest ancestor to all descendants, with links to published family members),{' '}
-                                    <strong>Acquisition</strong> (Material, material-specific Classification, structured Description fields labelled
-                                    by their scheme, Geological Unit, Comments, Minimum/Maximum Depth, Depth Scale, Sizes, Collection Method and
-                                    Collection Method Description, Platform Type, Platform Name, Platform Description, Funding Agency, Chief
-                                    Scientist, Start/End Date), and <strong>Repositories</strong> (current and original repository, their protected
-                                    contact actions, and sample access). Draft family members remain visible without a link, while empty fields and
-                                    empty modules are hidden automatically on the rendered page.
+                                    For IGSN landing pages, each module renders in its own card and can be placed in either column. IGSN modules
+                                    include <strong>General</strong> (Project, Campaign, Type, Name, IGSN, Parent IGSN, Purpose, Release Date),{' '}
+                                    <strong>Sample Family</strong> (the complete locally known hierarchy from the highest ancestor to all descendants,
+                                    with links to published family members), <strong>Acquisition</strong> (Material, material-specific Classification,
+                                    structured Description fields labelled by their scheme, Geological Unit, Comments, Minimum/Maximum Depth, Depth
+                                    Scale, Sizes, Collection Method and Collection Method Description, Platform Type, Platform Name, Platform
+                                    Description, Funding Agency, Chief Scientist, Start/End Date), and <strong>Repositories</strong> (current and
+                                    original repository, their protected contact actions, and sample access), plus <strong>Sample Image</strong>.
+                                    Sample Image displays the locally managed or approved external legacy photo and may be positioned like any other
+                                    IGSN module. Draft family members remain visible without a link, while empty fields and empty modules, including a
+                                    missing image, are hidden automatically.
                                 </p>
                                 <p>
-                                    The right-column <strong>Location / Map</strong> module becomes <strong>Sampling Location</strong> for IGSNs. It
-                                    can display latitude and longitude, bounding coordinates, coordinate system, elevation, location type and name,
-                                    Location Description, Locality Description, country, province, county, and city. One coordinate pair is rendered
-                                    as a point, two pairs as a box, and three or more pairs as a polygon.
+                                    The <strong>Location / Map</strong> module becomes <strong>Sampling Location</strong> for IGSNs. It can display
+                                    latitude and longitude, bounding coordinates, coordinate system, elevation, location type and name, Location
+                                    Description, Locality Description, country, province, county, and city. One coordinate pair is rendered as a
+                                    point, two pairs as a box, and three or more pairs as a polygon.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Upload Custom Logo (Optional)">
