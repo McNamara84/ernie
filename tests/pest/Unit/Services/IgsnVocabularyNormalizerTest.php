@@ -56,14 +56,17 @@ it('rejects unsupported material values', function (): void {
 it('loads all versioned material-specific classification values', function (): void {
     $vocabulary = new IgsnClassificationVocabularyService;
 
-    expect($vocabulary->values(IgsnClassificationType::ROCK))->toHaveCount(79)
+    expect($vocabulary->values(IgsnClassificationType::ROCK))->toHaveCount(83)
         ->and($vocabulary->values(IgsnClassificationType::MINERAL))->toHaveCount(4172)
-        ->and($vocabulary->values(IgsnClassificationType::BIOLOGY))->toHaveCount(31)
+        ->and($vocabulary->values(IgsnClassificationType::BIOLOGY))->toHaveCount(39)
         ->and($vocabulary->contains(IgsnClassificationType::ROCK, 'Igneous>Volcanic'))->toBeTrue()
+        ->and($vocabulary->contains(IgsnClassificationType::ROCK, 'Igneous>Felsic'))->toBeTrue()
         ->and($vocabulary->contains(IgsnClassificationType::ROCK, 'rock:bedrock igneous'))->toBeTrue()
+        ->and($vocabulary->contains(IgsnClassificationType::ROCK, 'rock:core stone'))->toBeTrue()
         ->and($vocabulary->contains(IgsnClassificationType::MINERAL, 'Quartz'))->toBeTrue()
         ->and($vocabulary->contains(IgsnClassificationType::BIOLOGY, 'whole plant'))->toBeTrue()
-        ->and($vocabulary->contains(IgsnClassificationType::BIOLOGY, 'vegetation:leaves/needles'))->toBeTrue();
+        ->and($vocabulary->contains(IgsnClassificationType::BIOLOGY, 'vegetation:leaves/needles'))->toBeTrue()
+        ->and($vocabulary->contains(IgsnClassificationType::BIOLOGY, 'vegetation:other plant litter'))->toBeTrue();
 });
 
 it('keeps the versioned classification catalogs structurally valid', function (): void {
@@ -101,12 +104,23 @@ it('keeps the versioned classification catalogs structurally valid', function ()
         }
     }
 
+    $legacyBiologyWithoutExactBto = [
+        'vegetation',
+        'vegetation:blossom',
+        'vegetation:leaf litter',
+        'vegetation:leaves/needles',
+        'vegetation:lichen',
+        'vegetation:litter bag',
+        'vegetation:other',
+        'vegetation:other plant litter',
+    ];
+
     foreach ($biology['values'] as $entry) {
         expect($entry)->toHaveKeys(['value', 'definition', 'value_uri']);
         if ($entry['value'] !== 'Other') {
             expect($entry['definition'])->toBeString()->not->toBeEmpty();
 
-            if (in_array($entry['value'], ['vegetation:leaves/needles', 'vegetation:litter bag'], true)) {
+            if (in_array($entry['value'], $legacyBiologyWithoutExactBto, true)) {
                 expect($entry['value_uri'])->toBeNull()
                     ->and($entry['legacy'] ?? null)->toBeTrue();
             } else {
@@ -173,6 +187,52 @@ it('marks every issue 1191 classification as legacy and uses only exact BTO mapp
     }
 });
 
+it('marks every issue 1200 and 1202 classification as legacy and uses only exact BTO mappings', function (): void {
+    $catalog = static function (string $name): array {
+        $contents = file_get_contents(resource_path("data/igsn/classification-{$name}.json"));
+        if ($contents === false) {
+            throw new RuntimeException("Unable to read the {$name} classification catalog.");
+        }
+
+        return json_decode($contents, true, flags: JSON_THROW_ON_ERROR)['values'];
+    };
+    $entriesByValue = static function (array $entries): array {
+        $result = [];
+        foreach ($entries as $entry) {
+            if (is_array($entry) && is_string($entry['value'] ?? null)) {
+                $result[$entry['value']] = $entry;
+            }
+        }
+
+        return $result;
+    };
+
+    $rock = $entriesByValue($catalog('rock'));
+    $biology = $entriesByValue($catalog('biology'));
+
+    foreach (['Igneous>Felsic', 'rock', 'rock:core stone', 'rock:crump'] as $value) {
+        expect($rock)->toHaveKey($value)
+            ->and($rock[$value]['legacy'] ?? null)->toBeTrue();
+    }
+
+    $expectedBiologyUris = [
+        'vegetation' => null,
+        'vegetation:leaf litter' => null,
+        'vegetation:other' => null,
+        'vegetation:other plant litter' => null,
+        'vegetation:whole plant' => 'http://purl.obolibrary.org/obo/BTO_0001461',
+        'vegetation:blossom' => null,
+        'vegetation:lichen' => null,
+        'vegetation:root' => 'http://purl.obolibrary.org/obo/BTO_0001188',
+    ];
+    foreach ($expectedBiologyUris as $value => $uri) {
+        expect($biology)->toHaveKey($value)
+            ->and($biology[$value]['legacy'] ?? null)->toBeTrue()
+            ->and($biology[$value]['definition'] ?? null)->toBeString()->not->toBeEmpty()
+            ->and($biology[$value]['value_uri'] ?? null)->toBe($uri);
+    }
+});
+
 it('canonicalizes and deduplicates classifications for controlled materials', function (): void {
     $normalizer = new IgsnVocabularyNormalizerService;
 
@@ -202,6 +262,28 @@ it('canonicalizes every issue 1191 legacy classification without changing its va
     ['Biology', 'VEGETATION:STEM', 'vegetation:stem'],
     ['Biology', 'VEGETATION:TWIG', 'vegetation:twig'],
     ['Biology', 'VEGETATION:WOOD', 'vegetation:wood'],
+]);
+
+it('canonicalizes every issue 1200 and 1202 legacy classification without changing its value', function (
+    string $material,
+    string $raw,
+    string $canonical,
+): void {
+    expect((new IgsnVocabularyNormalizerService)->normalizeClassifications($material, [$raw]))
+        ->toBe([$canonical]);
+})->with([
+    ['Rock', ' IGNEOUS>FELSIC ', 'Igneous>Felsic'],
+    ['Rock', ' ROCK ', 'rock'],
+    ['Rock', 'ROCK:CORE   STONE', 'rock:core stone'],
+    ['Rock', 'ROCK:CRUMP', 'rock:crump'],
+    ['Biology', ' VEGETATION ', 'vegetation'],
+    ['Biology', 'VEGETATION:LEAF   LITTER', 'vegetation:leaf litter'],
+    ['Biology', 'VEGETATION:OTHER', 'vegetation:other'],
+    ['Biology', 'VEGETATION:OTHER PLANT LITTER', 'vegetation:other plant litter'],
+    ['Biology', 'VEGETATION:WHOLE PLANT', 'vegetation:whole plant'],
+    ['Biology', 'VEGETATION:BLOSSOM', 'vegetation:blossom'],
+    ['Biology', 'VEGETATION:LICHEN', 'vegetation:lichen'],
+    ['Biology', 'VEGETATION:ROOT', 'vegetation:root'],
 ]);
 
 it('rejects a classification outside the material-specific vocabulary', function (): void {

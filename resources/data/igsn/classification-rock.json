@@ -11,6 +11,10 @@
         "Hydrothermal>Sulfate",
         "Hydrothermal>Sulfide",
         "Igneous",
+        {
+            "value": "Igneous>Felsic",
+            "legacy": true
+        },
         "Igneous>Plutonic",
         "Igneous>Plutonic>Exotic",
         "Igneous>Plutonic>Felsic",
@@ -80,11 +84,23 @@
         "Xenolithic>Metamorphic>Schist",
         "Xenolithic>Metamorphic>Slate",
         {
+            "value": "rock",
+            "legacy": true
+        },
+        {
             "value": "rock:bedrock igneous",
             "legacy": true
         },
         {
             "value": "rock:bedrock metamorphic",
+            "legacy": true
+        },
+        {
+            "value": "rock:core stone",
+            "legacy": true
+        },
+        {
+            "value": "rock:crump",
             "legacy": true
         },
         {
