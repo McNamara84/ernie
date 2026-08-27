@@ -553,6 +553,9 @@ test('transforms resolved and unresolved resource rights exactly once', function
 
     expect($transformer->requiredRelations())
         ->toContain('resourceRights.right')
+        ->not->toContain('rights')
+        ->and($resource->relationLoaded('resourceRights'))->toBeTrue()
+        ->and($resource->relationLoaded('rights'))->toBeFalse()
         ->and($data)->not->toHaveKeys(['rights', 'resource_rights'])
         ->and($data['licenses'])->toHaveCount(3)
         ->and($data['licenses'][0])->toMatchArray([

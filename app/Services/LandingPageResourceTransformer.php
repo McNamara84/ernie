@@ -67,7 +67,6 @@ final class LandingPageResourceTransformer
             'contributors.affiliations',
             'titles.titleType',
             'descriptions.descriptionType',
-            'rights',
             'resourceRights.right',
             'subjects',
             'geoLocations',
