@@ -149,6 +149,27 @@ vi.mock('@/components/igsns/modals/ImportSingleIgsnModal', () => ({
 vi.mock('@/components/ui/validation-error-modal', () => ({
     ValidationErrorModal: () => null,
 }));
+vi.mock('@/components/ui/select', () => ({
+    Select: ({
+        children,
+        value,
+        onValueChange,
+        disabled,
+    }: {
+        children: React.ReactNode;
+        value: string;
+        onValueChange: (value: string) => void;
+        disabled?: boolean;
+    }) => (
+        <select aria-label="Rows per page" value={value} onChange={(event) => onValueChange(event.target.value)} disabled={disabled}>
+            {children}
+        </select>
+    ),
+    SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => <option value={value}>{children}</option>,
+    SelectTrigger: () => null,
+    SelectValue: () => null,
+}));
 
 import IgsnsPage from '@/pages/igsns/index';
 
@@ -205,7 +226,7 @@ function createPagination(
     return {
         current_page: 1,
         last_page: 1,
-        per_page: 25,
+        per_page: 100,
         total: 2,
         from: 1,
         to: 2,
@@ -394,15 +415,83 @@ describe('IgsnsPage', () => {
         });
     });
 
-    describe('load more', () => {
-        it('shows Load More button when has_more is true', () => {
+    describe('pagination', () => {
+        it('renders the page size selector and complete page controls', () => {
             render(<IgsnsPage {...defaultProps} pagination={createPagination({ has_more: true, last_page: 3 })} />);
-            expect(screen.getByText(/Load More/)).toBeInTheDocument();
+
+            expect(screen.getByRole('combobox', { name: 'Rows per page' })).toHaveValue('100');
+            expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Go to first page' })).toBeDisabled();
+            expect(screen.getByRole('button', { name: 'Go to previous page' })).toBeDisabled();
+            expect(screen.getByRole('button', { name: 'Go to next page' })).toBeEnabled();
+            expect(screen.getByRole('button', { name: 'Go to last page' })).toBeEnabled();
         });
 
-        it('hides Load More button when has_more is false', () => {
-            render(<IgsnsPage {...defaultProps} pagination={createPagination({ has_more: false })} />);
-            expect(screen.queryByText(/Load More/)).not.toBeInTheDocument();
+        it('navigates to the next page while retaining the page size', async () => {
+            render(<IgsnsPage {...defaultProps} pagination={createPagination({ has_more: true, last_page: 3 })} />);
+
+            await userEvent.click(screen.getByRole('button', { name: 'Go to next page' }));
+
+            expect(mockRouterVisit).toHaveBeenCalledWith(
+                '/igsns?sort=updated_at&direction=desc&page=2&per_page=100',
+                expect.objectContaining({ preserveState: false, replace: true }),
+            );
+        });
+
+        it('persists a changed page size and restarts at the first page', async () => {
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    pagination={createPagination({ current_page: 3, last_page: 5, per_page: 100, from: 201, to: 300, total: 500 })}
+                />,
+            );
+
+            await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Rows per page' }), '1000');
+
+            expect(localStorage.getItem('ernie.igsns.page-size.v1')).toBe('1000');
+            expect(mockRouterVisit).toHaveBeenCalledWith(
+                '/igsns?sort=updated_at&direction=desc&per_page=1000',
+                expect.objectContaining({ preserveState: false, replace: true }),
+            );
+        });
+
+        it('restores the stored page size when the URL has no explicit value', async () => {
+            window.location.pathname = '/igsns';
+            localStorage.setItem('ernie.igsns.page-size.v1', '10');
+
+            render(<IgsnsPage {...defaultProps} />);
+
+            await waitFor(() => {
+                expect(mockRouterVisit).toHaveBeenCalledWith(
+                    '/igsns?sort=updated_at&direction=desc&per_page=10',
+                    expect.objectContaining({ preserveState: false, replace: true }),
+                );
+            });
+        });
+
+        it('restores the stored page size without dropping URL filters', async () => {
+            window.location.pathname = '/igsns';
+            window.location.search = '?status=pending';
+            localStorage.setItem('ernie.igsns.page-size.v1', '10');
+
+            render(<IgsnsPage {...defaultProps} filters={{ prefix: '', status: 'pending' }} />);
+
+            await waitFor(() => {
+                expect(mockRouterVisit).toHaveBeenCalledWith(
+                    '/igsns?sort=updated_at&direction=desc&status=pending&per_page=10',
+                    expect.objectContaining({ preserveState: false, replace: true }),
+                );
+            });
+        });
+
+        it('does not restore over an explicit page size in the URL', () => {
+            window.location.pathname = '/igsns';
+            window.location.search = '?per_page=100';
+            localStorage.setItem('ernie.igsns.page-size.v1', '10');
+
+            render(<IgsnsPage {...defaultProps} />);
+
+            expect(mockRouterVisit).not.toHaveBeenCalled();
         });
     });
 
@@ -430,7 +519,7 @@ describe('IgsnsPage', () => {
                 JSON.stringify({ version: 1, type: 'datacenter', datacenterId: 7 }),
             );
             expect(mockRouterVisit).toHaveBeenCalledWith(
-                '/igsns?sort=updated_at&direction=desc&datacenter_id=7&per_page=25',
+                '/igsns?sort=updated_at&direction=desc&datacenter_id=7&per_page=100',
                 expect.objectContaining({ preserveState: false, replace: true }),
             );
         });
@@ -441,7 +530,7 @@ describe('IgsnsPage', () => {
             fireEvent.click(screen.getByTestId('select-without-datacenter'));
             expect(localStorage.getItem('ernie.igsns.datacenter-filter.v1')).toBe(JSON.stringify({ version: 1, type: 'without_datacenter' }));
             expect(mockRouterVisit).toHaveBeenLastCalledWith(
-                '/igsns?sort=updated_at&direction=desc&without_datacenter=1&per_page=25',
+                '/igsns?sort=updated_at&direction=desc&without_datacenter=1&per_page=100',
                 expect.anything(),
             );
 
@@ -457,7 +546,7 @@ describe('IgsnsPage', () => {
 
             await waitFor(() => {
                 expect(mockRouterVisit).toHaveBeenCalledWith(
-                    '/igsns?sort=updated_at&direction=desc&datacenter_id=7&per_page=25',
+                    '/igsns?sort=updated_at&direction=desc&datacenter_id=7&per_page=100',
                     expect.objectContaining({ preserveState: false, replace: true }),
                 );
             });
@@ -472,7 +561,7 @@ describe('IgsnsPage', () => {
 
             await waitFor(() => {
                 expect(mockRouterVisit).toHaveBeenCalledWith(
-                    '/igsns?sort=updated_at&direction=desc&without_datacenter=1&per_page=25',
+                    '/igsns?sort=updated_at&direction=desc&without_datacenter=1&per_page=100',
                     expect.objectContaining({ preserveState: false, replace: true }),
                 );
             });
@@ -499,21 +588,19 @@ describe('IgsnsPage', () => {
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it('preserves an active datacenter while sorting and changing pages', async () => {
+        it('preserves an active datacenter while changing pages', async () => {
             render(
                 <IgsnsPage
                     {...defaultProps}
                     filters={{ prefix: '', status: '', datacenter_id: 7 }}
                     filterOptions={filterOptions}
-                    pagination={createPagination({ has_more: true, current_page: 1 })}
+                    pagination={createPagination({ has_more: true, current_page: 1, last_page: 2 })}
                 />,
             );
 
-            await userEvent.click(screen.getByRole('button', { name: /sort by title/i }));
-            await userEvent.click(screen.getByText(/load more/i));
+            await userEvent.click(screen.getByRole('button', { name: 'Go to next page' }));
 
-            expect(mockRouterVisit).toHaveBeenNthCalledWith(1, expect.stringMatching(/sort=title.*datacenter_id=7/), expect.anything());
-            expect(mockRouterVisit).toHaveBeenNthCalledWith(2, expect.stringMatching(/datacenter_id=7.*page=2/), expect.anything());
+            expect(mockRouterVisit).toHaveBeenCalledWith(expect.stringMatching(/datacenter_id=7.*page=2/), expect.anything());
         });
     });
 
@@ -636,11 +723,11 @@ describe('IgsnsPage', () => {
     });
 
     describe('pagination details', () => {
-        it('navigates to next page when Load More is clicked', async () => {
-            render(<IgsnsPage {...defaultProps} pagination={createPagination({ has_more: true, current_page: 1 })} />);
-            await userEvent.click(screen.getByText(/load more/i));
+        it('navigates to the previous page', async () => {
+            render(<IgsnsPage {...defaultProps} pagination={createPagination({ has_more: true, current_page: 2, last_page: 3 })} />);
+            await userEvent.click(screen.getByRole('button', { name: 'Go to previous page' }));
             expect(mockRouterVisit).toHaveBeenCalledWith(
-                expect.stringContaining('page=2'),
+                '/igsns?sort=updated_at&direction=desc&per_page=100',
                 expect.objectContaining({ preserveState: false, replace: true }),
             );
         });

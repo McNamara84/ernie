@@ -3,7 +3,12 @@
         "version": "1.0.4",
         "date": "2026-08-27",
         "features": [],
-        "improvements": [],
+        "improvements": [
+            {
+                "title": "Persistent IGSN List Pagination",
+                "description": "The IGSN list now displays 100 samples per page by default, lets users choose 10, 100, or 1000 in the current browser, and restores that preference on later visits. First, previous, next, and last page controls retain active search, filters, and sorting."
+            }
+        ],
         "fixes": [
             {
                 "title": "Preserved Temporal Coverage in Metadata Imports",

@@ -674,6 +674,27 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('documents persistent IGSN page sizing and page controls for all physical-sample users', async () => {
+        const { user } = renderDocsPage('beginner');
+        await openPhysicalSamplesTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Pagination', level: 4 })).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('display 10, 100, or 1000 IGSNs at a time') &&
+                    text.includes('stores this choice only in the current browser') &&
+                    text.includes('returns to the first page')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/first, previous, next, or last page/i)).toBeInTheDocument();
+    });
+
     it('shows landing pages documentation for beginner training', async () => {
         const user = userEvent.setup();
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
