@@ -48,11 +48,11 @@
             },
             {
                 "title": "Visible Medusa Legacy Classifications",
-                "description": "New Medusa IGSN imports now recognize the ten reported legacy Rock and Biology classifications as controlled values and display their original wording on landing pages. Existing incomplete records remain unchanged until their users delete and import them again."
+                "description": "New Medusa IGSN imports now recognize the ten reported legacy Rock and Biology classifications as controlled values and display their original wording on landing pages. Existing incomplete records remain unchanged until an administrator deletes them and an authorized user imports them again."
             },
             {
                 "title": "Complete Medusa Imports with Long User Codes",
-                "description": "Medusa IGSNs with long project information in User Code now retain their complete DIF metadata instead of falling back to a title-only DataCite import. User Code supports up to 255 characters; existing incomplete records can be repaired by their users through deletion and reimport after deployment."
+                "description": "Medusa IGSNs with long project information in User Code now retain their complete DIF metadata instead of falling back to a title-only DataCite import. User Code supports up to 255 characters; after deployment, an administrator can delete existing incomplete records so an authorized user can reimport them."
             }
         ]
     },

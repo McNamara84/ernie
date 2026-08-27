@@ -210,7 +210,7 @@ Both app and queue services must use `QUEUE_CONNECTION=database`, and the worker
 
 Legacy IGSNs that were imported before a vocabulary or database-schema fix are not updated automatically. Existing IGSNs are deliberately skipped by the DataCite import, so retrying an import without first deleting the incomplete local records does not repair them.
 
-For the Medusa records covered by issues #1191 and #1192, deploy the updated classification catalogs and run the migration that widens `igsn_metadata.user_code` before any affected record is deleted. The responsible users can then delete and import those records again. Do not begin the reimport while an application instance or queue worker is still running against the previous schema.
+For the Medusa records covered by issues #1191 and #1192, deploy the updated classification catalogs and run the migration that widens `igsn_metadata.user_code` before any affected record is deleted. An administrator must then delete the affected IGSNs, either individually or with the batch action. After deletion, an authorized user can import those records again. Do not begin the reimport while an application instance or queue worker is still running against the previous schema.
 
 #### Legacy IGSN sample images
 
