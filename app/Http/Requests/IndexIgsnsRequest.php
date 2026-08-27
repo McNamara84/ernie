@@ -13,6 +13,8 @@ final class IndexIgsnsRequest extends FormRequest
 
     public const PER_PAGE_OPTIONS = [10, 100, 1000];
 
+    public const LEGACY_PER_PAGE_OPTIONS = [25, 50];
+
     public function authorize(): bool
     {
         return true;
@@ -24,7 +26,7 @@ final class IndexIgsnsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'per_page' => ['nullable', 'integer', Rule::in([...self::PER_PAGE_OPTIONS, ...self::LEGACY_PER_PAGE_OPTIONS])],
             'datacenter_id' => [
                 'nullable',
                 'integer',

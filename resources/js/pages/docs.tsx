@@ -2727,6 +2727,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>Register or update IGSNs at DataCite; Beginner users are forced to the test API</li>
                         </ul>
 
+                        <h4>Pagination</h4>
+                        <p>
+                            Use <strong>Rows per page</strong> to display 10, 100, or 1000 IGSNs at a time; new browsers default to 100. ERNIE stores
+                            this choice only in the current browser and restores it on later visits. Changing the page size returns to the first page
+                            while keeping the active search, filters, and sorting.
+                        </p>
+                        <p>
+                            The pagination controls show the current page and total page count. Use the arrow buttons to go to the first, previous,
+                            next, or last page. On smaller screens, the previous and next buttons remain available while the first and last buttons
+                            are hidden.
+                        </p>
+
                         <h4>Filtering by Datacenter</h4>
                         <p>
                             Use the <strong>Datacenter</strong> dropdown to show IGSNs assigned to one Datacenter. The dropdown lists only Datacenters

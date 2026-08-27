@@ -105,12 +105,12 @@ describe('IGSN Pagination', function () {
             );
     })->with([25, 50]);
 
-    it('rejects out-of-range page sizes', function (int $perPage) {
+    it('rejects unsupported page sizes', function (int $perPage) {
         $this->actingAs($this->user)
             ->getJson('/igsns?per_page='.$perPage)
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['per_page']);
-    })->with([0, 1001]);
+    })->with([0, 11, 1001]);
 
     it('returns the requested page', function () {
         foreach (range(1, 11) as $index) {
