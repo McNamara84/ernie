@@ -20,6 +20,13 @@ use Illuminate\Support\Carbon;
  * @property int $resource_id
  * @property string|null $geo_type
  * @property string|null $place
+ * @property string|null $start_date
+ * @property string|null $end_date
+ * @property string|null $temporal_mode
+ * @property string|null $start_time
+ * @property string|null $end_time
+ * @property string|null $timezone
+ * @property int $position
  * @property string|null $location_type
  * @property string|null $location_description
  * @property string|null $locality_description
@@ -44,7 +51,7 @@ use Illuminate\Support\Carbon;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/geolocation/
  */
-#[Fillable(['resource_id', 'geo_type', 'place', 'location_type', 'location_description', 'locality_description', 'country', 'province', 'county', 'city', 'point_longitude', 'point_latitude', 'elevation', 'elevation_unit', 'west_bound_longitude', 'east_bound_longitude', 'south_bound_latitude', 'north_bound_latitude', 'polygon_points', 'in_polygon_point_longitude', 'in_polygon_point_latitude'])]
+#[Fillable(['resource_id', 'geo_type', 'place', 'start_date', 'end_date', 'temporal_mode', 'start_time', 'end_time', 'timezone', 'position', 'location_type', 'location_description', 'locality_description', 'country', 'province', 'county', 'city', 'point_longitude', 'point_latitude', 'elevation', 'elevation_unit', 'west_bound_longitude', 'east_bound_longitude', 'south_bound_latitude', 'north_bound_latitude', 'polygon_points', 'in_polygon_point_longitude', 'in_polygon_point_latitude'])]
 class GeoLocation extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -53,6 +60,7 @@ class GeoLocation extends Model
     public const GLOBAL_COVERAGE_TOLERANCE = 0.000001;
 
     protected $casts = [
+        'position' => 'integer',
         'point_longitude' => 'decimal:8',
         'point_latitude' => 'decimal:8',
         'elevation' => 'decimal:2',
@@ -196,6 +204,21 @@ class GeoLocation extends Model
     public function hasElevation(): bool
     {
         return $this->elevation !== null;
+    }
+
+    public function hasSpatialCoverage(): bool
+    {
+        return $this->hasPoint()
+            || $this->hasBox()
+            || $this->hasPolygon()
+            || $this->hasLine()
+            || $this->hasPlace();
+    }
+
+    public function hasTemporalCoverage(): bool
+    {
+        return $this->start_date !== null
+            || $this->end_date !== null;
     }
 
     private function isNear(float $actual, float $expected): bool

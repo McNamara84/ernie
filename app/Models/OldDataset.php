@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Services\Legacy\LegacyCoverageGeometryParserService;
+use App\Services\TemporalCoverageValueService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Attributes\Connection;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -1014,6 +1015,7 @@ class OldDataset extends Model
         // Get all coverage entries for this resource
         $coverages = $db->table('coverage')
             ->where('resource_id', $this->id)
+            ->orderBy('id')
             ->get();
 
         return $coverages->map(function ($coverage, $index) use ($geometryParser) {
@@ -1021,7 +1023,6 @@ class OldDataset extends Model
             $temporal = $this->parseTemporalCoverage(
                 $coverage->start,
                 $coverage->end,
-                $coverage->dateformat
             );
 
             $baseCoverage = [
@@ -1034,6 +1035,7 @@ class OldDataset extends Model
                 'startTime' => $temporal['startTime'],
                 'endTime' => $temporal['endTime'],
                 'timezone' => $temporal['timezone'],
+                'temporalMode' => $temporal['temporalMode'],
 
                 // Description
                 'description' => $coverage->description ?? '',
@@ -1107,75 +1109,19 @@ class OldDataset extends Model
      *
      * @param  string|null  $start  Start date/time string
      * @param  string|null  $end  End date/time string
-     * @param  string|null  $dateformat  Format pattern (e.g., "Y-m-d", "Y-m-d\TH:i:sT")
-     * @return array{startDate: string, endDate: string, startTime: string, endTime: string, timezone: string}
+     * @return array{startDate: string, endDate: string, startTime: string, endTime: string, timezone: string, temporalMode: string}
      */
-    private function parseTemporalCoverage(?string $start, ?string $end, ?string $dateformat): array
+    private function parseTemporalCoverage(?string $start, ?string $end): array
     {
-        $result = [
-            'startDate' => '',
-            'endDate' => '',
-            'startTime' => '',
-            'endTime' => '',
-            'timezone' => 'UTC', // Default timezone
-        ];
+        $normalizeEndpoint = static function (?string $value): string {
+            $value = trim($value ?? '');
 
-        // Helper function to parse a single date/time string
-        $parseDateTimeString = function (?string $dateTimeStr) use (&$result): array {
-            if (empty($dateTimeStr)) {
-                return ['date' => '', 'time' => ''];
-            }
-
-            // Try to parse ISO 8601 format with timezone (e.g., "2009-12-31T23:16:00+00:00")
-            if (preg_match('/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})([+-]\d{2}:\d{2}|Z)?/', $dateTimeStr, $matches)) {
-                $date = $matches[1]; // YYYY-MM-DD
-                $time = $matches[2]; // HH:MM:SS
-
-                // Extract timezone if present (group 3 is optional in regex, but if matched it's always non-empty)
-                if (isset($matches[3])) {
-                    if ($matches[3] === 'Z') {
-                        $result['timezone'] = 'UTC';
-                    } elseif ($matches[3] === '+00:00') {
-                        $result['timezone'] = 'UTC';
-                    } else {
-                        // For other timezones, try to map offset to timezone name
-                        // For simplicity, we'll use UTC for now
-                        $result['timezone'] = 'UTC';
-                    }
-                }
-
-                return ['date' => $date, 'time' => $time];
-            }
-
-            // Try simple date format (e.g., "2013-09-05")
-            if (preg_match('/^(\d{4}-\d{2}-\d{2})$/', $dateTimeStr, $matches)) {
-                return ['date' => $matches[1], 'time' => ''];
-            }
-
-            // Try date with time but no timezone (e.g., "2013-09-05 14:30:00")
-            if (preg_match('/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/', $dateTimeStr, $matches)) {
-                return ['date' => $matches[1], 'time' => $matches[2]];
-            }
-
-            // If we can't parse it, return as-is for date (might be partial data)
-            return ['date' => $dateTimeStr, 'time' => ''];
+            return preg_replace('/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/', '$1T$2', $value, 1) ?? $value;
         };
 
-        // Parse start date/time
-        if (! empty($start)) {
-            $startParsed = $parseDateTimeString($start);
-            $result['startDate'] = $startParsed['date'];
-            $result['startTime'] = $startParsed['time'];
-        }
-
-        // Parse end date/time
-        if (! empty($end)) {
-            $endParsed = $parseDateTimeString($end);
-            $result['endDate'] = $endParsed['date'];
-            $result['endTime'] = $endParsed['time'];
-        }
-
-        return $result;
+        return app(TemporalCoverageValueService::class)->parse(
+            $normalizeEndpoint($start).'/'.$normalizeEndpoint($end),
+        );
     }
 
     /**

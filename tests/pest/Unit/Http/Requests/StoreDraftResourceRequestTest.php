@@ -367,6 +367,143 @@ it('keeps date mode validation aligned between draft and final resource requests
         ->and($storeRequest->rules())->toHaveKey('dates.*.dateMode');
 });
 
+/** @param array<string, mixed> $coverage */
+function validateTemporalCoverageRequest(string $requestClass, array $coverage): Illuminate\Contracts\Validation\Validator
+{
+    /** @var StoreDraftResourceRequest|StoreResourceRequest $request */
+    $request = $requestClass::create('/editor/resources', 'POST', [
+        'spatialTemporalCoverages' => [$coverage],
+    ]);
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+    $rules = array_filter(
+        $request->rules(),
+        static fn (string $key): bool => str_starts_with($key, 'spatialTemporalCoverages'),
+        ARRAY_FILTER_USE_KEY,
+    );
+    $validator = Validator::make($request->all(), $rules);
+
+    foreach ($request->after() as $callback) {
+        $validator->after($callback);
+    }
+    $validator->passes();
+
+    return $validator;
+}
+
+it('validates temporal coverage cross-field dependencies for draft and final saves', function (string $requestClass): void {
+    $base = [
+        'type' => 'point',
+        'latMin' => '',
+        'latMax' => '',
+        'lonMin' => '',
+        'lonMax' => '',
+    ];
+
+    $timeWithoutDate = validateTemporalCoverageRequest($requestClass, [
+        ...$base,
+        'startTime' => '12:30',
+    ]);
+    $timezoneOnly = validateTemporalCoverageRequest($requestClass, [
+        ...$base,
+        'timezone' => 'UTC',
+    ]);
+
+    expect($timeWithoutDate->errors()->has('spatialTemporalCoverages.0.startTime'))->toBeTrue()
+        ->and($timezoneOnly->errors()->has('spatialTemporalCoverages.0.timezone'))->toBeTrue();
+})->with([
+    'draft save' => StoreDraftResourceRequest::class,
+    'final save' => StoreResourceRequest::class,
+]);
+
+it('accepts valid reduced-precision coverage dates and rejects ambiguous non-ISO input', function (string $requestClass): void {
+    $base = [
+        'type' => 'point',
+        'latMin' => '',
+        'latMax' => '',
+        'lonMin' => '',
+        'lonMax' => '',
+        'temporalMode' => 'interval',
+    ];
+
+    $reducedPrecision = validateTemporalCoverageRequest($requestClass, [
+        ...$base,
+        'startDate' => '2025',
+        'endDate' => '2026-08',
+    ]);
+    $nonIso = validateTemporalCoverageRequest($requestClass, [
+        ...$base,
+        'startDate' => '12/31/2025',
+        'endDate' => '01/01/2026',
+    ]);
+
+    expect($reducedPrecision->errors()->has('spatialTemporalCoverages.0.startDate'))->toBeFalse()
+        ->and($reducedPrecision->errors()->has('spatialTemporalCoverages.0.endDate'))->toBeFalse()
+        ->and($nonIso->errors()->has('spatialTemporalCoverages.0.startDate'))->toBeTrue()
+        ->and($nonIso->errors()->has('spatialTemporalCoverages.0.endDate'))->toBeTrue();
+})->with([
+    'draft save' => StoreDraftResourceRequest::class,
+    'final save' => StoreResourceRequest::class,
+]);
+
+it('compares reduced-precision temporal ranges by their possible bounds', function (string $requestClass): void {
+    $validator = validateTemporalCoverageRequest($requestClass, [
+        'type' => 'point',
+        'latMin' => '',
+        'latMax' => '',
+        'lonMin' => '',
+        'lonMax' => '',
+        'startDate' => '2027',
+        'endDate' => '2026-12',
+        'temporalMode' => 'interval',
+    ]);
+
+    expect($validator->errors()->has('spatialTemporalCoverages.0.endDate'))->toBeTrue();
+})->with([
+    'draft save' => StoreDraftResourceRequest::class,
+    'final save' => StoreResourceRequest::class,
+]);
+
+it('treats HH:MM and equivalent HH:MM:SS coverage times as equal', function (string $requestClass): void {
+    $validator = validateTemporalCoverageRequest($requestClass, [
+        'type' => 'point',
+        'latMin' => '',
+        'latMax' => '',
+        'lonMin' => '',
+        'lonMax' => '',
+        'startDate' => '2026-08-27',
+        'endDate' => '2026-08-27',
+        'startTime' => '12:30:00',
+        'endTime' => '12:30',
+        'temporalMode' => 'interval',
+    ]);
+
+    expect($validator->errors()->has('spatialTemporalCoverages.0.endDate'))->toBeFalse();
+})->with([
+    'draft save' => StoreDraftResourceRequest::class,
+    'final save' => StoreResourceRequest::class,
+]);
+
+it('reports reversed same-day temporal times on the end time field', function (string $requestClass): void {
+    $validator = validateTemporalCoverageRequest($requestClass, [
+        'type' => 'point',
+        'latMin' => '',
+        'latMax' => '',
+        'lonMin' => '',
+        'lonMax' => '',
+        'startDate' => '2026-08-27',
+        'endDate' => '2026-08-27',
+        'startTime' => '17:37',
+        'endTime' => '14:37',
+        'temporalMode' => 'interval',
+    ]);
+
+    expect($validator->errors()->has('spatialTemporalCoverages.0.endTime'))->toBeTrue()
+        ->and($validator->errors()->has('spatialTemporalCoverages.0.endDate'))->toBeFalse();
+})->with([
+    'draft save' => StoreDraftResourceRequest::class,
+    'final save' => StoreResourceRequest::class,
+]);
+
 it('uses position-aware safe URL messages for draft custom license URLs', function (): void {
     $request = new StoreDraftResourceRequest;
 

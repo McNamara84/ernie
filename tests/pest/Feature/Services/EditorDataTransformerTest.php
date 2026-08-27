@@ -1567,7 +1567,7 @@ describe('transformCoverages', function (): void {
 
         expect($result)->toHaveCount(1)
             ->and($result[0]['description'])->toBe('Potsdam, Germany')
-            ->and($result[0]['timezone'])->toBe('UTC');
+            ->and($result[0]['timezone'])->toBe('');
     });
 
     it('returns empty strings for null coordinates', function (): void {
@@ -1583,6 +1583,29 @@ describe('transformCoverages', function (): void {
             ->and($result[0]['latMax'])->toBe('')
             ->and($result[0]['lonMin'])->toBe('')
             ->and($result[0]['lonMax'])->toBe('');
+    });
+
+    it('hydrates optional temporal coverage fields without defaults', function (): void {
+        GeoLocation::factory()->create([
+            'resource_id' => $this->resource->id,
+            'start_date' => '2026-08-25',
+            'end_date' => null,
+            'start_time' => '14:37:30',
+            'end_time' => null,
+            'timezone' => '+02:00',
+            'position' => 3,
+        ]);
+        $this->resource->load('geoLocations');
+
+        $result = $this->transformer->transformCoverages($this->resource);
+
+        expect($result[0])->toMatchArray([
+            'startDate' => '2026-08-25',
+            'endDate' => '',
+            'startTime' => '14:37:30',
+            'endTime' => '',
+            'timezone' => '+02:00',
+        ]);
     });
 
     it('transforms bounding box coordinates as strings', function (): void {

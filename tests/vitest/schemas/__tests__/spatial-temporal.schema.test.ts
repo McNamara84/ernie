@@ -18,7 +18,7 @@ const baseCoverage = {
     endDate: '',
     startTime: '',
     endTime: '',
-    timezone: 'UTC',
+    timezone: '',
     description: '',
 };
 
@@ -55,25 +55,24 @@ describe('Spatial-Temporal Schemas', () => {
             expect(result.success).toBe(true);
         });
 
-        it('requires lat/lon for point coverage', () => {
+        it('rejects a partially entered point coverage', () => {
             const result = spatialTemporalCoverageSchema.safeParse({
                 ...baseCoverage,
-                latMin: '',
+                latMin: '52.0',
                 lonMin: '',
             });
             expect(result.success).toBe(false);
             if (!result.success) {
                 const paths = result.error.issues.map((i) => i.path.join('.'));
-                expect(paths).toContain('latMin');
                 expect(paths).toContain('lonMin');
             }
         });
 
-        it('requires all coordinates for box coverage', () => {
+        it('requires all coordinates for a partially entered box coverage', () => {
             const result = spatialTemporalCoverageSchema.safeParse({
                 ...baseCoverage,
                 type: 'box',
-                latMin: '',
+                latMin: '52.0',
                 lonMin: '',
                 latMax: '',
                 lonMax: '',
@@ -81,7 +80,6 @@ describe('Spatial-Temporal Schemas', () => {
             expect(result.success).toBe(false);
             if (!result.success) {
                 const paths = result.error.issues.map((i) => i.path.join('.'));
-                expect(paths).toContain('latMin');
                 expect(paths).toContain('lonMin');
                 expect(paths).toContain('latMax');
                 expect(paths).toContain('lonMax');
@@ -143,12 +141,126 @@ describe('Spatial-Temporal Schemas', () => {
             expect(result.success).toBe(true);
         });
 
-        it('requires timezone', () => {
+        it('rejects reversed times on the same date', () => {
             const result = spatialTemporalCoverageSchema.safeParse({
                 ...baseCoverage,
-                timezone: '',
+                startDate: '2024-01-15',
+                endDate: '2024-01-15',
+                startTime: '15:00',
+                endTime: '14:59',
             });
             expect(result.success).toBe(false);
+            if (!result.success) {
+                const paths = result.error.issues.map((issue) => issue.path.join('.'));
+                expect(paths).toContain('endTime');
+                expect(paths).not.toContain('endDate');
+            }
+        });
+
+        it('accepts equal start and end times on the same date', () => {
+            const result = spatialTemporalCoverageSchema.safeParse({
+                ...baseCoverage,
+                startDate: '2024-01-15',
+                endDate: '2024-01-15',
+                startTime: '15:00',
+                endTime: '15:00',
+            });
+            expect(result.success).toBe(true);
+        });
+
+        it('accepts equivalent times with and without seconds', () => {
+            const result = spatialTemporalCoverageSchema.safeParse({
+                ...baseCoverage,
+                startDate: '2024-01-15',
+                endDate: '2024-01-15',
+                startTime: '15:00:00',
+                endTime: '15:00',
+            });
+            expect(result.success).toBe(true);
+        });
+
+        it('accepts temporal-only coverage without timezone', () => {
+            const result = spatialTemporalCoverageSchema.safeParse({
+                ...baseCoverage,
+                latMin: '',
+                lonMin: '',
+                startDate: '2026-08-25',
+                timezone: '',
+            });
+            expect(result.success).toBe(true);
+        });
+
+        it('accepts end-only coverage', () => {
+            const result = spatialTemporalCoverageSchema.safeParse({
+                ...baseCoverage,
+                latMin: '',
+                lonMin: '',
+                endDate: '2026-08-27',
+                timezone: '',
+            });
+            expect(result.success).toBe(true);
+        });
+
+        it('accepts valid reduced-precision coverage dates', () => {
+            const result = spatialTemporalCoverageSchema.safeParse({
+                ...baseCoverage,
+                latMin: '',
+                lonMin: '',
+                startDate: '2025',
+                endDate: '2026-08',
+                temporalMode: 'interval',
+            });
+            expect(result.success).toBe(true);
+        });
+
+        it('rejects non-ISO coverage dates', () => {
+            const result = spatialTemporalCoverageSchema.safeParse({
+                ...baseCoverage,
+                startDate: '12/31/2025',
+                endDate: '01/01/2026',
+            });
+            expect(result.success).toBe(false);
+        });
+
+        it('requires a complete corresponding date for each time', () => {
+            const result = spatialTemporalCoverageSchema.safeParse({
+                ...baseCoverage,
+                startDate: '2026-08',
+                startTime: '12:30',
+            });
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues.map((issue) => issue.path.join('.'))).toContain('startTime');
+            }
+        });
+
+        it('rejects timezone-only temporal metadata', () => {
+            const result = spatialTemporalCoverageSchema.safeParse({
+                ...baseCoverage,
+                timezone: 'UTC',
+            });
+            expect(result.success).toBe(false);
+            if (!result.success) {
+                expect(result.error.issues.map((issue) => issue.path.join('.'))).toContain('timezone');
+            }
+        });
+
+        it('preserves valid instant semantics', () => {
+            expect(
+                spatialTemporalCoverageSchema.safeParse({
+                    ...baseCoverage,
+                    startDate: '2026-05',
+                    temporalMode: 'instant',
+                }).success,
+            ).toBe(true);
+            expect(
+                spatialTemporalCoverageSchema.safeParse({
+                    ...baseCoverage,
+                    startDate: '2026-05',
+                    endDate: '2026-06',
+                    temporalMode: 'instant',
+                }).success,
+            ).toBe(false);
         });
     });
 

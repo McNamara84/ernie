@@ -50,7 +50,7 @@ XML;
     $response->assertSessionDataPath('coverages.0.latMax', ''); // Point: max coordinates empty
     $response->assertSessionDataPath('coverages.0.lonMax', ''); // Point: max coordinates empty
     $response->assertSessionDataPath('coverages.0.description', 'Vancouver, British Columbia, Canada');
-    $response->assertSessionDataPath('coverages.0.timezone', 'UTC');
+    $response->assertSessionDataPath('coverages.0.timezone', '');
 });
 
 test('extracts spatial coverage from geoLocationBox', function () {
@@ -137,8 +137,10 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertSessionDataPath('coverages.0.startDate', '2024-01-01');
-    $response->assertSessionDataPath('coverages.0.endDate', '2024-12-31');
+    $response->assertSessionDataCount(2, 'coverages');
+    $response->assertSessionDataPath('coverages.0.startDate', '');
+    $response->assertSessionDataPath('coverages.1.startDate', '2024-01-01');
+    $response->assertSessionDataPath('coverages.1.endDate', '2024-12-31');
 });
 
 test('handles multiple geoLocation entries', function () {

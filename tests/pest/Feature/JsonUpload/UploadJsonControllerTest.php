@@ -441,6 +441,75 @@ describe('JSON Upload - DataCite JSON format', function () {
         expect($data['coverages'][0]['description'])->toBe('Potsdam');
         expect($data['coverages'][0]['latMin'])->toBe('52.380000');
         expect($data['coverages'][0]['lonMin'])->toBe('13.060000');
+        expect($data['coverages'][0]['temporalMode'])->toBe('interval');
+    });
+
+    test('persists DataCite Coverage datetimes separately from JSON geo locations', function () {
+        $this->actingAs(User::factory()->create());
+
+        $json = dataCiteJson(minimalAttributes([
+            'dates' => [
+                ['date' => '2026-08-25T14:37:00+02:00/2026-08-27T17:37:42+02:00', 'dateType' => 'Coverage'],
+            ],
+            'geoLocations' => [[
+                'geoLocationPoint' => ['pointLatitude' => 52.38, 'pointLongitude' => 13.06],
+            ]],
+        ]));
+
+        $response = $this->postJson('/dashboard/upload-json', [
+            'file' => UploadedFile::fake()->createWithContent('coverage-datetime.json', $json),
+        ])->assertOk();
+
+        $data = getJsonUploadData($response);
+        expect($data['coverages'])->toHaveCount(2)
+            ->and($data['coverages'][0]['startDate'])->toBe('')
+            ->and($data['coverages'][0]['temporalMode'])->toBe('interval')
+            ->and($data['coverages'][1])->toMatchArray([
+                'startDate' => '2026-08-25',
+                'endDate' => '2026-08-27',
+                'startTime' => '14:37',
+                'endTime' => '17:37:42',
+                'timezone' => '+02:00',
+            ]);
+
+        $resource = Resource::with('geoLocations')->findOrFail($response->json('resourceId'));
+        expect($resource->geoLocations)->toHaveCount(2)
+            ->and($resource->geoLocations[0]->hasSpatialCoverage())->toBeTrue()
+            ->and($resource->geoLocations[0]->hasTemporalCoverage())->toBeFalse()
+            ->and($resource->geoLocations[1]->hasSpatialCoverage())->toBeFalse()
+            ->and($resource->geoLocations[1]->hasTemporalCoverage())->toBeTrue()
+            ->and($resource->geoLocations[1]->temporal_mode)->toBe('interval')
+            ->and($resource->geoLocations[1]->timezone)->toBe('+02:00');
+    });
+
+    test('preserves reduced precision and instant semantics for DataCite Coverage dates', function () {
+        $this->actingAs(User::factory()->create());
+
+        $json = dataCiteJson(minimalAttributes([
+            'dates' => [
+                ['date' => '2026-05', 'dateType' => 'Coverage'],
+            ],
+        ]));
+
+        $response = $this->postJson('/dashboard/upload-json', [
+            'file' => UploadedFile::fake()->createWithContent('coverage-instant.json', $json),
+        ])->assertOk();
+
+        $data = getJsonUploadData($response);
+        expect($data['coverages'])->toHaveCount(1)
+            ->and($data['coverages'][0])->toMatchArray([
+                'startDate' => '2026-05',
+                'endDate' => '',
+                'temporalMode' => 'instant',
+            ]);
+
+        $coverage = Resource::with('geoLocations')
+            ->findOrFail($response->json('resourceId'))
+            ->geoLocations
+            ->sole();
+        expect($coverage->start_date)->toBe('2026-05')
+            ->and($coverage->end_date)->toBeNull()
+            ->and($coverage->temporal_mode)->toBe('instant');
     });
 
     test('extracts free keywords', function () {

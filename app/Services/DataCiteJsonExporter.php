@@ -727,6 +727,29 @@ class DataCiteJsonExporter
             $dates[] = $dateData;
         }
 
+        $knownCoverageValues = array_fill_keys(array_map(
+            static fn (array $date): string => $date['dateType'] === 'Coverage' ? $date['date'] : '',
+            $dates,
+        ), true);
+
+        foreach ($resource->geoLocations as $geoLocation) {
+            $dateValue = app(TemporalCoverageValueService::class)->toDataCiteValue([
+                'startDate' => $geoLocation->start_date,
+                'endDate' => $geoLocation->end_date,
+                'startTime' => $geoLocation->start_time,
+                'endTime' => $geoLocation->end_time,
+                'timezone' => $geoLocation->timezone,
+                'temporalMode' => $geoLocation->temporal_mode,
+            ]);
+
+            if ($dateValue === null || isset($knownCoverageValues[$dateValue])) {
+                continue;
+            }
+
+            $dates[] = ['dateType' => 'Coverage', 'date' => $dateValue];
+            $knownCoverageValues[$dateValue] = true;
+        }
+
         return ! empty($dates) ? $dates : null;
     }
 

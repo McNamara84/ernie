@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -8,60 +8,51 @@ import CoverageEntry from '@/components/curation/fields/spatial-temporal-coverag
 import type { SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 
 // Mock PointForm component
-vi.mock(
-    '@/components/curation/fields/spatial-temporal-coverage/PointForm',
-    () => ({
-        default: ({ onBatchChange }: { onBatchChange: (updates: Record<string, unknown>) => void }) => (
-            <div data-testid="mock-point-form">
-                <button
-                    onClick={() =>
-                        onBatchChange({
-                            latMin: '48.137154',
-                            lonMin: '11.576124',
-                            latMax: '',
-                            lonMax: '',
-                        })
-                    }
-                    data-testid="select-point-btn"
-                >
-                    Select Point
-                </button>
-            </div>
-        ),
-    }),
-);
+vi.mock('@/components/curation/fields/spatial-temporal-coverage/PointForm', () => ({
+    default: ({ onBatchChange }: { onBatchChange: (updates: Record<string, unknown>) => void }) => (
+        <div data-testid="mock-point-form">
+            <button
+                onClick={() =>
+                    onBatchChange({
+                        latMin: '48.137154',
+                        lonMin: '11.576124',
+                        latMax: '',
+                        lonMax: '',
+                    })
+                }
+                data-testid="select-point-btn"
+            >
+                Select Point
+            </button>
+        </div>
+    ),
+}));
 
 // Mock BoxForm component
-vi.mock(
-    '@/components/curation/fields/spatial-temporal-coverage/BoxForm',
-    () => ({
-        default: ({ onBatchChange }: { onBatchChange: (updates: Record<string, unknown>) => void }) => (
-            <div data-testid="mock-box-form">
-                <button
-                    onClick={() =>
-                        onBatchChange({
-                            latMin: '48.100000',
-                            latMax: '48.200000',
-                            lonMin: '11.500000',
-                            lonMax: '11.700000',
-                        })
-                    }
-                    data-testid="select-rectangle-btn"
-                >
-                    Select Rectangle
-                </button>
-            </div>
-        ),
-    }),
-);
+vi.mock('@/components/curation/fields/spatial-temporal-coverage/BoxForm', () => ({
+    default: ({ onBatchChange }: { onBatchChange: (updates: Record<string, unknown>) => void }) => (
+        <div data-testid="mock-box-form">
+            <button
+                onClick={() =>
+                    onBatchChange({
+                        latMin: '48.100000',
+                        latMax: '48.200000',
+                        lonMin: '11.500000',
+                        lonMax: '11.700000',
+                    })
+                }
+                data-testid="select-rectangle-btn"
+            >
+                Select Rectangle
+            </button>
+        </div>
+    ),
+}));
 
 // Mock PolygonForm component
-vi.mock(
-    '@/components/curation/fields/spatial-temporal-coverage/PolygonForm',
-    () => ({
-        default: () => <div data-testid="mock-polygon-form">Polygon Form</div>,
-    }),
-);
+vi.mock('@/components/curation/fields/spatial-temporal-coverage/PolygonForm', () => ({
+    default: () => <div data-testid="mock-polygon-form">Polygon Form</div>,
+}));
 
 describe('CoverageEntry', () => {
     const mockOnChange = vi.fn();
@@ -79,7 +70,7 @@ describe('CoverageEntry', () => {
         endDate: '',
         startTime: '',
         endTime: '',
-        timezone: 'UTC',
+        timezone: '',
         description: '',
     };
 
@@ -227,7 +218,7 @@ describe('CoverageEntry', () => {
             // Preview should show coordinate and date summaries
             expect(screen.getByText(/Coordinates: Box:/)).toBeInTheDocument();
             expect(screen.getByText(/Dates: 2024-01-01 to 2024-12-31/)).toBeInTheDocument();
-            
+
             // Verify description is shown
             expect(screen.getByText('Test description')).toBeInTheDocument();
         });
@@ -300,6 +291,26 @@ describe('CoverageEntry', () => {
     });
 
     describe('Form Inputs', () => {
+        test('changes an instant to an interval when an end date is entered', () => {
+            render(<CoverageEntry {...defaultProps} entry={{ ...defaultEntry, startDate: '2026-05', temporalMode: 'instant' }} />);
+
+            fireEvent.change(screen.getByLabelText(/^Date \(optional\)$/i, { selector: '#end-date' }), {
+                target: { value: '2026-06' },
+            });
+
+            expect(mockOnBatchChange).toHaveBeenCalledWith({ endDate: '2026-06', temporalMode: 'interval' });
+        });
+
+        test('clears instant semantics when its start date is removed', () => {
+            render(<CoverageEntry {...defaultProps} entry={{ ...defaultEntry, startDate: '2026-05', temporalMode: 'instant' }} />);
+
+            fireEvent.change(screen.getByLabelText(/^Date \(optional\)$/i, { selector: '#start-date' }), {
+                target: { value: '' },
+            });
+
+            expect(mockOnBatchChange).toHaveBeenCalledWith({ startDate: '', temporalMode: 'interval' });
+        });
+
         test('calls onChange when description is entered', async () => {
             const user = userEvent.setup();
             render(<CoverageEntry {...defaultProps} />);
@@ -310,7 +321,7 @@ describe('CoverageEntry', () => {
             // user.type() calls onChange for each character
             // Verify that onChange was called with the description field
             expect(mockOnChange).toHaveBeenCalled();
-            const calls = mockOnChange.mock.calls.filter(call => call[0] === 'description');
+            const calls = mockOnChange.mock.calls.filter((call) => call[0] === 'description');
             expect(calls.length).toBeGreaterThan(0);
         });
 

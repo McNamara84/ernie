@@ -714,6 +714,23 @@ test('extracts email and website from ISO pointOfContact for contact person', fu
     $response->assertSessionDataCount(0, 'contributors');
 });
 
+test('normalizes and persists a scheme-less ISO contact website', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xmlContent = file_get_contents(base_path('tests/pest/dataset-examples/contact-person-with-iso.xml'));
+    expect($xmlContent)->toBeString();
+    $xmlContent = str_replace('https://example.org/mustermann', 'www.example.org/mustermann', $xmlContent);
+
+    $response = $this->postJson('/dashboard/upload-xml', [
+        'file' => UploadedFile::fake()->createWithContent('scheme-less-contact.xml', $xmlContent),
+    ])->assertOk();
+
+    $response->assertSessionDataPath('authors.0.website', 'https://www.example.org/mustermann');
+
+    $resource = Resource::with('creators')->findOrFail($response->json('resourceId'));
+    expect($resource->creators->sole()->website)->toBe('https://www.example.org/mustermann');
+});
+
 test('handles XML without ISO part gracefully', function () {
     $this->actingAs(User::factory()->create());
 

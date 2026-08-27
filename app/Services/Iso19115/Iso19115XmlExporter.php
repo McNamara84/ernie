@@ -9,6 +9,7 @@ use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Services\TemporalCoverageValueService;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
 use DOMDocument;
@@ -584,9 +585,9 @@ class Iso19115XmlExporter
 
     private function buildExtents(DOMElement $identification, Resource $resource): void
     {
-        foreach ($resource->geoLocations as $geoLocation) {
+        foreach ($resource->geoLocations as $coverageIndex => $geoLocation) {
             $bounds = $this->bounds($geoLocation);
-            if ($bounds === null && ! $geoLocation->hasPlace()) {
+            if ($bounds === null && ! $geoLocation->hasPlace() && ! $geoLocation->hasTemporalCoverage()) {
                 continue;
             }
 
@@ -623,19 +624,69 @@ class Iso19115XmlExporter
 
             $this->buildSourceGeometry($extent, $geoLocation);
 
-            if ($bounds === null) {
-                continue;
+            if ($bounds !== null) {
+                $geoProperty = $this->append($extent, self::GEX_NAMESPACE, 'gex:geographicElement');
+                $box = $this->append($geoProperty, self::GEX_NAMESPACE, 'gex:EX_GeographicBoundingBox');
+                $this->decimal($box, 'gex:westBoundLongitude', $bounds['west']);
+                $this->decimal($box, 'gex:eastBoundLongitude', $bounds['east']);
+                $this->decimal($box, 'gex:southBoundLatitude', $bounds['south']);
+                $this->decimal($box, 'gex:northBoundLatitude', $bounds['north']);
             }
 
-            $geoProperty = $this->append($extent, self::GEX_NAMESPACE, 'gex:geographicElement');
-            $box = $this->append($geoProperty, self::GEX_NAMESPACE, 'gex:EX_GeographicBoundingBox');
-            $this->decimal($box, 'gex:westBoundLongitude', $bounds['west']);
-            $this->decimal($box, 'gex:eastBoundLongitude', $bounds['east']);
-            $this->decimal($box, 'gex:southBoundLatitude', $bounds['south']);
-            $this->decimal($box, 'gex:northBoundLatitude', $bounds['north']);
+            $this->buildCoverageTemporalElement($extent, $geoLocation, $coverageIndex + 1);
         }
 
         $this->buildTemporalExtents($identification, $resource);
+    }
+
+    private function buildCoverageTemporalElement(DOMElement $extent, GeoLocation $geoLocation, int $position): void
+    {
+        if (! $geoLocation->hasTemporalCoverage()) {
+            return;
+        }
+
+        $endpoints = app(TemporalCoverageValueService::class)->toIsoEndpoints([
+            'startDate' => $geoLocation->start_date,
+            'endDate' => $geoLocation->end_date,
+            'startTime' => $geoLocation->start_time,
+            'endTime' => $geoLocation->end_time,
+            'timezone' => $geoLocation->timezone,
+            'temporalMode' => $geoLocation->temporal_mode,
+        ]);
+
+        if ($endpoints['start'] === '' && $endpoints['end'] === '') {
+            return;
+        }
+
+        $temporalProperty = $this->append($extent, self::GEX_NAMESPACE, 'gex:temporalElement');
+        $temporal = $this->append($temporalProperty, self::GEX_NAMESPACE, 'gex:EX_TemporalExtent');
+        $timeProperty = $this->append($temporal, self::GEX_NAMESPACE, 'gex:extent');
+
+        if ($endpoints['mode'] === 'instant' && $endpoints['start'] !== '') {
+            $instant = $this->append($timeProperty, self::GML_NAMESPACE, 'gml:TimeInstant');
+            $instant->setAttributeNS(self::GML_NAMESPACE, 'gml:id', 'coverage-temporal-'.$position);
+            $timePosition = $this->append($instant, self::GML_NAMESPACE, 'gml:timePosition');
+            $timePosition->appendChild($this->dom->createTextNode($endpoints['start']));
+
+            return;
+        }
+
+        $period = $this->append($timeProperty, self::GML_NAMESPACE, 'gml:TimePeriod');
+        $period->setAttributeNS(self::GML_NAMESPACE, 'gml:id', 'coverage-temporal-'.$position);
+
+        $begin = $this->append($period, self::GML_NAMESPACE, 'gml:beginPosition');
+        if ($endpoints['start'] === '') {
+            $begin->setAttribute('indeterminatePosition', 'unknown');
+        } else {
+            $begin->appendChild($this->dom->createTextNode($endpoints['start']));
+        }
+
+        $end = $this->append($period, self::GML_NAMESPACE, 'gml:endPosition');
+        if ($endpoints['end'] === '') {
+            $end->setAttribute('indeterminatePosition', 'unknown');
+        } else {
+            $end->appendChild($this->dom->createTextNode($endpoints['end']));
+        }
     }
 
     private function buildSourceGeometry(DOMElement $extent, GeoLocation $geoLocation): void

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Services\Editor\EditorDataTransformer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 
@@ -254,13 +255,13 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertSessionDataPath('coverages.0.startDate', '2026-03-31');
-    $response->assertSessionDataPath('coverages.0.endDate', '2026-03-31');
-    $response->assertSessionDataPath('coverages.0.startTime', '20:00');
-    $response->assertSessionDataPath('coverages.0.endTime', '21:00');
+    $response->assertSessionDataPath('coverages.1.startDate', '2026-03-31');
+    $response->assertSessionDataPath('coverages.1.endDate', '2026-03-31');
+    $response->assertSessionDataPath('coverages.1.startTime', '20:00');
+    $response->assertSessionDataPath('coverages.1.endTime', '21:00');
 
     // Timezone should be the original offset string from the XML
-    $response->assertSessionDataPath('coverages.0.timezone', '+02:00');
+    $response->assertSessionDataPath('coverages.1.timezone', '+02:00');
 });
 
 test('normalizes +00:00 timezone offset to UTC', function () {
@@ -294,7 +295,7 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertSessionDataPath('coverages.0.timezone', 'UTC');
+    $response->assertSessionDataPath('coverages.1.timezone', 'UTC');
 });
 
 test('normalizes Z timezone designator to UTC', function () {
@@ -328,7 +329,7 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertSessionDataPath('coverages.0.timezone', 'UTC');
+    $response->assertSessionDataPath('coverages.1.timezone', 'UTC');
 });
 
 test('preserves seconds in coverage time when present', function () {
@@ -362,8 +363,8 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertSessionDataPath('coverages.0.startTime', '20:00:30');
-    $response->assertSessionDataPath('coverages.0.endTime', '22:15:45');
+    $response->assertSessionDataPath('coverages.1.startTime', '20:00:30');
+    $response->assertSessionDataPath('coverages.1.endTime', '22:15:45');
 });
 
 test('omits seconds when they are zero', function () {
@@ -397,7 +398,7 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertSessionDataPath('coverages.0.startTime', '14:30');
+    $response->assertSessionDataPath('coverages.1.startTime', '14:30');
 });
 
 test('datetime without explicit timezone returns empty timezone', function () {
@@ -431,10 +432,10 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertSessionDataPath('coverages.0.startDate', '2026-06-15');
-    $response->assertSessionDataPath('coverages.0.startTime', '20:00:30');
-    $response->assertSessionDataPath('coverages.0.endTime', '22:15:45');
-    $response->assertSessionDataPath('coverages.0.timezone', '');
+    $response->assertSessionDataPath('coverages.1.startDate', '2026-06-15');
+    $response->assertSessionDataPath('coverages.1.startTime', '20:00:30');
+    $response->assertSessionDataPath('coverages.1.endTime', '22:15:45');
+    $response->assertSessionDataPath('coverages.1.timezone', '');
 });
 
 test('extracts coverage date without time as date-only', function () {
@@ -468,11 +469,11 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertSessionDataPath('coverages.0.startDate', '2026-04-01');
-    $response->assertSessionDataPath('coverages.0.endDate', '2026-04-16');
-    $response->assertSessionDataPath('coverages.0.startTime', '');
-    $response->assertSessionDataPath('coverages.0.endTime', '');
-    $response->assertSessionDataPath('coverages.0.timezone', 'UTC');
+    $response->assertSessionDataPath('coverages.1.startDate', '2026-04-01');
+    $response->assertSessionDataPath('coverages.1.endDate', '2026-04-16');
+    $response->assertSessionDataPath('coverages.1.startTime', '');
+    $response->assertSessionDataPath('coverages.1.endTime', '');
+    $response->assertSessionDataPath('coverages.1.timezone', '');
 });
 
 test('extracts single-date coverage without range separator', function () {
@@ -506,12 +507,44 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertSessionDataPath('coverages.0.startDate', '2026-05-01');
-    $response->assertSessionDataPath('coverages.0.startTime', '14:30');
-    $response->assertSessionDataPath('coverages.0.endDate', '');
-    $response->assertSessionDataPath('coverages.0.endTime', '');
+    $response->assertSessionDataPath('coverages.1.startDate', '2026-05-01');
+    $response->assertSessionDataPath('coverages.1.startTime', '14:30');
+    $response->assertSessionDataPath('coverages.1.endDate', '');
+    $response->assertSessionDataPath('coverages.1.endTime', '');
 
-    $response->assertSessionDataPath('coverages.0.timezone', '+05:00');
+    $response->assertSessionDataPath('coverages.1.timezone', '+05:00');
+    $response->assertSessionDataPath('coverages.1.temporalMode', 'instant');
+
+    $resource = App\Models\Resource::with('geoLocations')->findOrFail($response->json('resourceId'));
+    expect($resource->geoLocations[1]->temporal_mode)->toBe('instant');
+});
+
+test('preserves reduced precision for DataCite coverage dates', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <titles><title>Reduced coverage precision</title></titles>
+  <dates><date dateType="Coverage">2025/2026-08</date></dates>
+</resource>
+XML;
+
+    $response = $this->postJson('/dashboard/upload-xml', [
+        'file' => UploadedFile::fake()->createWithContent('coverage-reduced.xml', $xml),
+    ])->assertOk();
+
+    $response->assertSessionDataPath('coverages.0.startDate', '2025');
+    $response->assertSessionDataPath('coverages.0.endDate', '2026-08');
+    $response->assertSessionDataPath('coverages.0.temporalMode', 'interval');
+
+    $coverage = App\Models\Resource::with('geoLocations')
+        ->findOrFail($response->json('resourceId'))
+        ->geoLocations
+        ->sole();
+    expect($coverage->start_date)->toBe('2025')
+        ->and($coverage->end_date)->toBe('2026-08')
+        ->and($coverage->temporal_mode)->toBe('interval');
 });
 
 test('temporal-only coverage without geoLocations preserves time', function () {
@@ -579,7 +612,8 @@ XML;
     $response->assertSessionDataPath('coverages.0.endDate', '');
     $response->assertSessionDataPath('coverages.0.startTime', '');
     $response->assertSessionDataPath('coverages.0.endTime', '');
-    $response->assertSessionDataPath('coverages.0.timezone', 'UTC');
+    $response->assertSessionDataPath('coverages.0.timezone', '');
+    $response->assertSessionDataPath('coverages.0.temporalMode', 'interval');
 });
 
 // ──────────────────────────────────────────────────────────────────
@@ -630,13 +664,104 @@ XML;
     expect($coverageDates)->toBeEmpty();
 
     // Coverage should exist in coverages
-    $response->assertSessionDataPath('coverages.0.startDate', '2026-03-31');
-    $response->assertSessionDataPath('coverages.0.startTime', '20:00');
+    $response->assertSessionDataPath('coverages.1.startDate', '2026-03-31');
+    $response->assertSessionDataPath('coverages.1.startTime', '20:00');
 
     // rawValue key should not be present in dates
     foreach ($dates as $date) {
         expect($date)->not->toHaveKey('rawValue');
     }
+});
+
+test('persists and reloads paired ISO extent coverage fields', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<envelope xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gml="http://www.opengis.net/gml">
+  <resource xmlns="http://datacite.org/schema/kernel-4">
+    <titles><title>Envelope coverage roundtrip</title></titles>
+    <dates><date dateType="Coverage">2026-08-25T14:37:00+02:00/2026-08-27T17:37:00+02:00</date></dates>
+    <geoLocations><geoLocation><geoLocationBox>
+      <westBoundLongitude>-114.961</westBoundLongitude><eastBoundLongitude>-108.633</eastBoundLongitude>
+      <southBoundLatitude>39.7966</southBoundLatitude><northBoundLatitude>45.233</northBoundLatitude>
+    </geoLocationBox></geoLocation></geoLocations>
+  </resource>
+  <MD_Metadata xmlns="http://www.isotc211.org/2005/gmd">
+    <identificationInfo><MD_DataIdentification><extent><EX_Extent>
+      <geographicElement><EX_GeographicBoundingBox>
+        <westBoundLongitude><gco:Decimal>-114.961</gco:Decimal></westBoundLongitude>
+        <eastBoundLongitude><gco:Decimal>-108.633</gco:Decimal></eastBoundLongitude>
+        <southBoundLatitude><gco:Decimal>39.7966</gco:Decimal></southBoundLatitude>
+        <northBoundLatitude><gco:Decimal>45.233</gco:Decimal></northBoundLatitude>
+      </EX_GeographicBoundingBox></geographicElement>
+      <temporalElement><EX_TemporalExtent><extent><gml:TimePeriod gml:id="period-1">
+        <gml:beginPosition>2026-08-25T14:37:00+02:00</gml:beginPosition>
+        <gml:endPosition>2026-08-27T17:37:00+02:00</gml:endPosition>
+      </gml:TimePeriod></extent></EX_TemporalExtent></temporalElement>
+    </EX_Extent></extent></MD_DataIdentification></identificationInfo>
+  </MD_Metadata>
+</envelope>
+XML;
+
+    $response = $this->postJson('/dashboard/upload-xml', [
+        'file' => UploadedFile::fake()->createWithContent('paired-envelope.xml', $xml),
+    ])->assertOk();
+
+    $response->assertSessionDataCount(1, 'coverages');
+    $resource = App\Models\Resource::with('geoLocations')->findOrFail($response->json('resourceId'));
+    $coverage = $resource->geoLocations->sole();
+
+    expect($coverage->geo_type)->toBe('box')
+        ->and($coverage->start_date)->toBe('2026-08-25')
+        ->and($coverage->end_date)->toBe('2026-08-27')
+        ->and($coverage->temporal_mode)->toBe('interval')
+        ->and($coverage->start_time)->toBe('14:37')
+        ->and($coverage->end_time)->toBe('17:37')
+        ->and($coverage->timezone)->toBe('+02:00')
+        ->and($coverage->position)->toBe(0);
+
+    $editorCoverage = app(EditorDataTransformer::class)
+        ->transformCoverages($resource)[0];
+    expect($editorCoverage)->toMatchArray([
+        'startDate' => '2026-08-25',
+        'endDate' => '2026-08-27',
+        'startTime' => '14:37',
+        'endTime' => '17:37',
+        'timezone' => '+02:00',
+    ]);
+});
+
+test('ISO spatial extent without temporal data uses a valid default temporal mode', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<envelope xmlns:gco="http://www.isotc211.org/2005/gco">
+  <resource xmlns="http://datacite.org/schema/kernel-4">
+    <titles><title>Spatial-only ISO extent</title></titles>
+  </resource>
+  <MD_Metadata xmlns="http://www.isotc211.org/2005/gmd">
+    <identificationInfo><MD_DataIdentification><extent><EX_Extent>
+      <geographicElement><EX_GeographicBoundingBox>
+        <westBoundLongitude><gco:Decimal>-114.961</gco:Decimal></westBoundLongitude>
+        <eastBoundLongitude><gco:Decimal>-108.633</gco:Decimal></eastBoundLongitude>
+        <southBoundLatitude><gco:Decimal>39.7966</gco:Decimal></southBoundLatitude>
+        <northBoundLatitude><gco:Decimal>45.233</gco:Decimal></northBoundLatitude>
+      </EX_GeographicBoundingBox></geographicElement>
+    </EX_Extent></extent></MD_DataIdentification></identificationInfo>
+  </MD_Metadata>
+</envelope>
+XML;
+
+    $response = $this->postJson('/dashboard/upload-xml', [
+        'file' => UploadedFile::fake()->createWithContent('spatial-only-envelope.xml', $xml),
+    ])->assertOk();
+
+    $response->assertSessionDataCount(1, 'coverages');
+    $response->assertSessionDataPath('coverages.0.type', 'box');
+    $response->assertSessionDataPath('coverages.0.startDate', '');
+    $response->assertSessionDataPath('coverages.0.temporalMode', 'interval');
 });
 
 // ──────────────────────────────────────────────────────────────────

@@ -543,7 +543,10 @@ export default function DataCiteForm({
     }, []); // Run only once on mount - initialFreeKeywords intentionally excluded
     const [spatialTemporalCoverages, setSpatialTemporalCoverages] = useState<SpatialTemporalCoverageEntry[]>(() => {
         if (initialSpatialTemporalCoverages && initialSpatialTemporalCoverages.length > 0) {
-            return initialSpatialTemporalCoverages;
+            return initialSpatialTemporalCoverages.map((coverage) => ({
+                ...coverage,
+                temporalMode: coverage.temporalMode ?? 'interval',
+            }));
         }
         return [];
     });
@@ -1680,7 +1683,18 @@ export default function DataCiteForm({
     const spatialTemporalCoverageStatus = useMemo(() => {
         // Spatial/temporal coverage is optional
         const hasAnyCoverage = spatialTemporalCoverages.some(
-            (coverage) => coverage.latMin.trim() !== '' || coverage.lonMin.trim() !== '' || coverage.startDate.trim() !== '',
+            (coverage) =>
+                coverage.latMin.trim() !== '' ||
+                coverage.lonMin.trim() !== '' ||
+                coverage.latMax.trim() !== '' ||
+                coverage.lonMax.trim() !== '' ||
+                (coverage.polygonPoints?.length ?? 0) > 0 ||
+                coverage.startDate.trim() !== '' ||
+                coverage.endDate.trim() !== '' ||
+                coverage.startTime.trim() !== '' ||
+                coverage.endTime.trim() !== '' ||
+                coverage.timezone.trim() !== '' ||
+                coverage.description.trim() !== '',
         );
 
         if (!hasAnyCoverage) {
@@ -2213,6 +2227,7 @@ export default function DataCiteForm({
                 lonMax: string;
                 startDate: string;
                 endDate: string;
+                temporalMode?: 'instant' | 'interval';
                 startTime: string;
                 endTime: string;
                 timezone: string;
@@ -2302,6 +2317,7 @@ export default function DataCiteForm({
                 lonMax: coverage.lonMax,
                 startDate: coverage.startDate,
                 endDate: coverage.endDate,
+                temporalMode: coverage.temporalMode,
                 startTime: coverage.startTime,
                 endTime: coverage.endTime,
                 timezone: coverage.timezone,
@@ -3371,6 +3387,8 @@ export default function DataCiteForm({
                             className="min-w-0 md:col-span-6 xl:col-span-2"
                             required
                             data-testid="resource-type-select"
+                            contentPosition="popper"
+                            contentClassName="max-h-[min(24rem,var(--radix-select-content-available-height))]"
                         />
                         <AccessLevelField
                             value={form.accessLevel}

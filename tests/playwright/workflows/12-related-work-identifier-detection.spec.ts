@@ -42,11 +42,7 @@ test.describe('Related Work Identifier Type Detection', () => {
     /**
      * Helper function to add a related work and verify its identifier type
      */
-    async function addRelatedWorkAndVerifyType(
-        page: import('@playwright/test').Page,
-        identifier: string,
-        expectedType: string,
-    ) {
+    async function addRelatedWorkAndVerifyType(page: import('@playwright/test').Page, identifier: string, expectedType: string) {
         const identifierInput = page.getByTestId('related-identifier-input');
         await identifierInput.fill(identifier);
 
@@ -57,6 +53,51 @@ test.describe('Related Work Identifier Type Detection', () => {
         const typeBadge = page.getByTestId('identifier-type-badge').filter({ hasText: expectedType });
         await expect(typeBadge.first()).toBeVisible({ timeout: 5000 });
     }
+
+    test('keeps the long relation-type dropdown stable in a compact viewport', async ({ page }) => {
+        await page.setViewportSize({ width: 988, height: 676 });
+        const trigger = page.locator('#relation-type');
+        await trigger.scrollIntoViewIfNeeded();
+        await trigger.click();
+
+        const listbox = page.getByRole('listbox');
+        await expect(listbox).toBeVisible();
+        const before = await listbox.boundingBox();
+        expect(before).not.toBeNull();
+
+        await listbox.hover();
+        await page.mouse.wheel(0, 900);
+        const after = await listbox.boundingBox();
+        expect(after).not.toBeNull();
+        const maximumSubpixelShift = 4;
+        expect(Math.abs((after?.x ?? 0) - (before?.x ?? 0))).toBeLessThan(maximumSubpixelShift);
+        expect(Math.abs((after?.y ?? 0) - (before?.y ?? 0))).toBeLessThan(maximumSubpixelShift);
+        expect((after?.y ?? 0) + (after?.height ?? 0)).toBeLessThanOrEqual(676);
+
+        const lastRelationOption = page.getByRole('option').last();
+        await lastRelationOption.scrollIntoViewIfNeeded();
+        const relationLabel = (await lastRelationOption.textContent())?.trim();
+        expect(relationLabel).toBeTruthy();
+        await lastRelationOption.click();
+        await expect(trigger).toContainText(relationLabel ?? '');
+
+        const resourceTypeTrigger = page.getByTestId('resource-type-select');
+        await resourceTypeTrigger.scrollIntoViewIfNeeded();
+        await resourceTypeTrigger.click();
+
+        const resourceTypeListbox = page.getByRole('listbox');
+        await expect(resourceTypeListbox).toBeVisible();
+        const resourceTypeBounds = await resourceTypeListbox.boundingBox();
+        expect(resourceTypeBounds).not.toBeNull();
+        expect((resourceTypeBounds?.y ?? 0) + (resourceTypeBounds?.height ?? 0)).toBeLessThanOrEqual(676);
+
+        const lastResourceTypeOption = page.getByRole('option').last();
+        await lastResourceTypeOption.scrollIntoViewIfNeeded();
+        const resourceTypeLabel = (await lastResourceTypeOption.textContent())?.trim();
+        expect(resourceTypeLabel).toBeTruthy();
+        await lastResourceTypeOption.click();
+        await expect(resourceTypeTrigger).toContainText(resourceTypeLabel ?? '');
+    });
 
     // =========================================================================
     // DOI Detection - Most common identifier type

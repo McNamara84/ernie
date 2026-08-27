@@ -3,6 +3,7 @@
  */
 
 export type CoverageType = 'point' | 'box' | 'polygon' | 'line';
+export type TemporalCoverageMode = 'instant' | 'interval';
 
 export interface PolygonPoint {
     lat: number;
@@ -16,8 +17,8 @@ export interface SpatialTemporalCoverageEntry {
     type: CoverageType; // Required, determines which spatial data is used
 
     // Spatial Information (Point/Box)
-    latMin: string; // Required for point/box, -90 to +90, max 6 decimals
-    lonMin: string; // Required for point/box, -180 to +180, max 6 decimals
+    latMin: string; // Optional; required with lonMin when a point/box is entered
+    lonMin: string; // Optional; required with latMin when a point/box is entered
     latMax: string; // Optional (only for box), -90 to +90, max 6 decimals
     lonMax: string; // Optional (only for box), -180 to +180, max 6 decimals
 
@@ -25,11 +26,12 @@ export interface SpatialTemporalCoverageEntry {
     polygonPoints?: PolygonPoint[]; // Optional (for polygon min 3, for line min 2)
 
     // Temporal Information
-    startDate: string; // Required, format: YYYY-MM-DD
-    endDate: string; // Required, format: YYYY-MM-DD
+    startDate: string; // Optional, format: YYYY, YYYY-MM, or YYYY-MM-DD
+    endDate: string; // Optional, format: YYYY, YYYY-MM, or YYYY-MM-DD
+    temporalMode?: TemporalCoverageMode; // Preserves whether the source was an instant or interval
     startTime: string; // Optional, format: HH:MM
     endTime: string; // Optional, format: HH:MM
-    timezone: string; // Required, e.g., "Europe/Berlin"
+    timezone: string; // Optional IANA zone, UTC, or numeric offset
 
     // Description
     description: string; // Optional

@@ -26,6 +26,8 @@ interface SelectFieldProps {
     clearLabel?: string;
     containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     triggerClassName?: string;
+    contentClassName?: string;
+    contentPosition?: 'item-aligned' | 'popper';
     'data-testid'?: string;
 
     // Validation props
@@ -51,6 +53,8 @@ export function SelectField({
     clearLabel = 'Clear selection',
     containerProps,
     triggerClassName,
+    contentClassName,
+    contentPosition,
     'data-testid': dataTestId,
     validationMessages = [],
     touched = false,
@@ -137,7 +141,7 @@ export function SelectField({
                 >
                     <SelectValue placeholder={placeholder} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className={contentClassName} position={contentPosition}>
                     {clearable && value && (
                         <>
                             <SelectItem value={clearValue}>{clearLabel}</SelectItem>

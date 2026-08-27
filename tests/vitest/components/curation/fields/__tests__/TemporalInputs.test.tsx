@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -68,23 +68,21 @@ describe('TemporalInputs', () => {
 
     describe('User Input', () => {
         test('calls onChange when start date is entered', async () => {
-            const user = userEvent.setup();
             render(<TemporalInputs {...defaultProps} />);
 
             const startDateInput = screen.getByLabelText(/^Date \(optional\)$/i, { selector: '#start-date' });
 
-            await user.type(startDateInput, '2024-01-01');
+            fireEvent.change(startDateInput, { target: { value: '2024-01-01' } });
 
             expect(mockOnChange).toHaveBeenCalledWith('startDate', '2024-01-01');
         });
 
         test('calls onChange when end date is entered', async () => {
-            const user = userEvent.setup();
             render(<TemporalInputs {...defaultProps} />);
 
             const endDateInput = screen.getByLabelText(/^Date \(optional\)$/i, { selector: '#end-date' });
 
-            await user.type(endDateInput, '2024-12-31');
+            fireEvent.change(endDateInput, { target: { value: '2024-12-31' } });
 
             expect(mockOnChange).toHaveBeenCalledWith('endDate', '2024-12-31');
         });
@@ -96,7 +94,7 @@ describe('TemporalInputs', () => {
             const startTimeInput = screen.getByLabelText(/^Time \(optional\)$/i, { selector: '#start-time' }) as HTMLInputElement;
 
             await user.clear(startTimeInput);
-            await user.type(startTimeInput, '1030');  // Type as 4 digits for time input
+            await user.type(startTimeInput, '1030'); // Type as 4 digits for time input
 
             // Check that onChange was called with the time value (may be '10:30' or partial during typing)
             expect(mockOnChange).toHaveBeenCalledWith('startTime', expect.stringContaining('10'));
@@ -109,7 +107,7 @@ describe('TemporalInputs', () => {
             const endTimeInput = screen.getByLabelText(/^Time \(optional\)$/i, { selector: '#end-time' }) as HTMLInputElement;
 
             await user.clear(endTimeInput);
-            await user.type(endTimeInput, '1545');  // Type as 4 digits for time input
+            await user.type(endTimeInput, '1545'); // Type as 4 digits for time input
 
             // Check that onChange was called with the time value
             expect(mockOnChange).toHaveBeenCalledWith('endTime', expect.stringContaining('15'));
@@ -188,9 +186,28 @@ describe('TemporalInputs', () => {
 
             expect(screen.queryByText(/start date must be before/i)).not.toBeInTheDocument();
         });
+
+        test('displays and accepts reduced-precision dates', () => {
+            render(<TemporalInputs {...defaultProps} startDate="2024" endDate="2024-12" />);
+
+            expect(screen.getByDisplayValue('2024')).toBeInTheDocument();
+            expect(screen.getByDisplayValue('2024-12')).toBeInTheDocument();
+            expect(screen.queryByText(/date must use/i)).not.toBeInTheDocument();
+        });
+
+        test('shows an error for invalid calendar dates', () => {
+            render(<TemporalInputs {...defaultProps} startDate="2024-02-30" />);
+
+            expect(screen.getByText(/date must use YYYY/i)).toBeInTheDocument();
+        });
     });
 
     describe('Time Validation', () => {
+        test('requires a complete date for a time', () => {
+            render(<TemporalInputs {...defaultProps} startDate="2024-01" startTime="10:30" />);
+
+            expect(screen.getByText(/start time requires a complete start date/i)).toBeInTheDocument();
+        });
         test('shows error for invalid time format', () => {
             const props = {
                 ...defaultProps,
@@ -235,7 +252,21 @@ describe('TemporalInputs', () => {
 
             render(<TemporalInputs {...props} />);
 
-            expect(screen.getByText(/start time must be before end time when dates are the same/i)).toBeInTheDocument();
+            expect(screen.getByText(/start time must be before or equal to end time when dates are the same/i)).toBeInTheDocument();
+        });
+
+        test('allows equal start and end times on the same date', () => {
+            const props = {
+                ...defaultProps,
+                startDate: '2024-01-01',
+                endDate: '2024-01-01',
+                startTime: '15:00',
+                endTime: '15:00',
+            };
+
+            render(<TemporalInputs {...props} />);
+
+            expect(screen.queryByText(/start time must be before or equal to end time/i)).not.toBeInTheDocument();
         });
 
         test('allows start time after end time on different dates', () => {

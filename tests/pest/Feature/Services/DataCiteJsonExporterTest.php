@@ -6,6 +6,7 @@ use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Format;
+use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\Language;
 use App\Models\Person;
@@ -26,6 +27,59 @@ use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->exporter = new DataCiteJsonExporter;
+});
+
+test('exports and deduplicates temporal geo locations as DataCite Coverage dates', function () {
+    $resource = Resource::factory()->create();
+    $titleType = TitleType::firstOrCreate(
+        ['slug' => 'MainTitle'],
+        ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true],
+    );
+    Title::create([
+        'resource_id' => $resource->id,
+        'title_type_id' => $titleType->id,
+        'value' => 'Temporal coverage export',
+    ]);
+    foreach ([0, 1] as $position) {
+        GeoLocation::create([
+            'resource_id' => $resource->id,
+            'start_date' => '2026-08-25',
+            'end_date' => '2026-08-27',
+            'start_time' => '14:37',
+            'end_time' => '17:37:42',
+            'timezone' => '+02:00',
+            'position' => $position,
+        ]);
+    }
+
+    $attributes = $this->exporter->export($resource->fresh())['data']['attributes'];
+    $coverageDates = array_values(array_filter(
+        $attributes['dates'],
+        static fn (array $date): bool => $date['dateType'] === 'Coverage',
+    ));
+
+    expect($coverageDates)->toBe([[
+        'dateType' => 'Coverage',
+        'date' => '2026-08-25T14:37+02:00/2026-08-27T17:37:42+02:00',
+    ]])->and($attributes)->not->toHaveKey('geoLocations')
+        ->and((new JsonSchemaValidator)->validate($attributes))->toBeTrue();
+});
+
+test('exports reduced-precision temporal instants without turning them into intervals', function () {
+    $resource = Resource::factory()->create();
+    GeoLocation::create([
+        'resource_id' => $resource->id,
+        'start_date' => '2026',
+        'temporal_mode' => 'instant',
+    ]);
+
+    $attributes = $this->exporter->export($resource->fresh())['data']['attributes'];
+    $coverage = collect($attributes['dates'])->firstWhere('dateType', 'Coverage');
+
+    expect($coverage)->toBe([
+        'dateType' => 'Coverage',
+        'date' => '2026',
+    ]);
 });
 
 describe('DataCiteJsonExporter - JSON Structure', function () {
@@ -794,7 +848,6 @@ describe('DataCiteJsonExporter - Subjects/Keywords', function () {
     });
 });
 
-use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\IgsnMetadata;
 use App\Models\Publisher;

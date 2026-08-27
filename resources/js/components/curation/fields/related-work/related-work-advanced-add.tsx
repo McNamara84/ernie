@@ -50,18 +50,12 @@ export default function RelatedWorkAdvancedAdd({
 
     // Filter types to only show active ones from backend
     const filteredRelationTypes = useMemo(
-        () =>
-            activeRelationTypes
-                ? getAllRelationTypes().filter((t) => activeRelationTypes.includes(t))
-                : getAllRelationTypes(),
+        () => (activeRelationTypes ? getAllRelationTypes().filter((t) => activeRelationTypes.includes(t)) : getAllRelationTypes()),
         [activeRelationTypes],
     );
 
     const filteredIdentifierTypes = useMemo(
-        () =>
-            activeIdentifierTypes
-                ? identifierTypes.filter((t) => activeIdentifierTypes.includes(t))
-                : [...identifierTypes],
+        () => (activeIdentifierTypes ? identifierTypes.filter((t) => activeIdentifierTypes.includes(t)) : [...identifierTypes]),
         [activeIdentifierTypes],
     );
 
@@ -104,7 +98,11 @@ export default function RelatedWorkAdvancedAdd({
                 <Label className="text-base font-semibold">Advanced Mode</Label>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                     <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                    <p>Browse {filteredRelationTypes.length}{activeRelationTypes ? ' active' : ''} DataCite relation types organized by category. Select the precise relationship that matches your needs.</p>
+                    <p>
+                        Browse {filteredRelationTypes.length}
+                        {activeRelationTypes ? ' active' : ''} DataCite relation types organized by category. Select the precise relationship that
+                        matches your needs.
+                    </p>
                 </div>
             </div>
 
@@ -156,7 +154,7 @@ export default function RelatedWorkAdvancedAdd({
                         <SelectTrigger id="advanced-identifier-type">
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent position="popper" className="max-h-[min(24rem,var(--radix-select-content-available-height))]">
                             {filteredIdentifierTypes.map((type) => (
                                 <SelectItem key={type} value={type}>
                                     {type}
@@ -173,7 +171,7 @@ export default function RelatedWorkAdvancedAdd({
                         <SelectTrigger id="advanced-relation-type">
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="max-h-[400px]">
+                        <SelectContent position="popper" className="max-h-[min(24rem,var(--radix-select-content-available-height))]">
                             {filteredRelationTypes.map((type) => (
                                 <SelectItem key={type} value={type}>
                                     <div className="flex flex-col items-start">
@@ -211,9 +209,7 @@ export default function RelatedWorkAdvancedAdd({
                         onKeyPress={handleKeyPress}
                         placeholder="Describe the relationship type"
                     />
-                    <p className="text-xs text-muted-foreground">
-                        Provide additional information about the non-standard relationship type.
-                    </p>
+                    <p className="text-xs text-muted-foreground">Provide additional information about the non-standard relationship type.</p>
                 </div>
             )}
 

@@ -101,7 +101,18 @@ const hasData = (entry: SpatialTemporalCoverageEntry): boolean => {
     }
 
     // Check point/box coordinates
-    return !!(entry.latMin || entry.lonMin || entry.startDate || entry.endDate || entry.description);
+    return !!(
+        entry.latMin ||
+        entry.lonMin ||
+        entry.latMax ||
+        entry.lonMax ||
+        entry.startDate ||
+        entry.endDate ||
+        entry.startTime ||
+        entry.endTime ||
+        entry.timezone ||
+        entry.description
+    );
 };
 
 export default function CoverageEntry({
@@ -144,6 +155,16 @@ export default function CoverageEntry({
     };
 
     const handleTemporalChange = (field: 'startDate' | 'endDate' | 'startTime' | 'endTime' | 'timezone', value: string) => {
+        if (field === 'endDate' && value !== '') {
+            onBatchChange({ endDate: value, temporalMode: 'interval' });
+            return;
+        }
+
+        if (field === 'startDate' && value === '' && entry.temporalMode === 'instant') {
+            onBatchChange({ startDate: '', temporalMode: 'interval' });
+            return;
+        }
+
         onChange(field, value);
     };
 
@@ -230,7 +251,7 @@ export default function CoverageEntry({
                             endDate={entry.endDate || ''}
                             startTime={entry.startTime || ''}
                             endTime={entry.endTime || ''}
-                            timezone={entry.timezone || 'UTC'}
+                            timezone={entry.timezone || ''}
                             onChange={handleTemporalChange}
                             showLabels={true}
                         />

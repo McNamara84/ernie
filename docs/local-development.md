@@ -179,6 +179,36 @@ The enrichment replaces a DataCite bounding box only when all four legacy bounds
 
 This enrichment runs only while creating a new DataCite resource. Duplicate, skipped, and repair paths do not add lines to resources that already exist in ERNIE; there is no automatic backfill.
 
+### Legacy temporal coverage backfill
+
+The temporal-coverage migration adds nullable columns to `geo_locations`; it does not guess or manufacture values for existing rows. After deploying the migration, the original `sumario-pmd.coverage.start` and `coverage.end` values can be copied into already imported ERNIE resources with the dry-run-first backfill command.
+
+By default, the command considers only resources with the exact `legacy_source = sumario-pmd` and `legacy_source_id` recorded by the SUMARIO import. It matches each legacy coverage to an existing GeoLocation by its spatial coordinates, then uses a normalized description or the original one-to-one position only where that is unambiguous. A legacy coverage without spatial identity is added as a temporal/place-only GeoLocation. Existing equal values are left unchanged. If any temporal field conflicts, the matched GeoLocation remains completely unchanged and is reported for manual review; missing fields are filled only when the complete merge is conflict-free.
+
+Run the migration and audit before applying changes:
+
+```bash
+npm run artisan -- migrate --force
+npm run artisan -- resources:backfill-legacy-temporal-coverages --report=storage/app/legacy-temporal-coverage-dry-run.csv
+```
+
+Review every `manual_review`, `missing_legacy`, and `error` row in the CSV. Then apply the safe rows in bounded batches:
+
+```bash
+npm run artisan -- resources:backfill-legacy-temporal-coverages --apply --after-id=0 --limit=500 --chunk=100 --report=storage/app/legacy-temporal-coverage-applied.csv
+```
+
+Use repeatable `--doi` or `--legacy-id` options for a targeted rollout. `--after-id` always refers to the ERNIE `resources.id` shown in the report. The command is idempotent and invalidates the rendered cache of a changed published landing page.
+
+Imports created before ERNIE recorded `legacy_source_id` require an explicit DOI fallback. Audit a small selection first because this mode also inspects otherwise unlinked ERNIE resources whose DOI exists in SUMARIO:
+
+```bash
+npm run artisan -- resources:backfill-legacy-temporal-coverages --match-by-doi --doi=10.5880/example --report=storage/app/legacy-temporal-coverage-doi-audit.csv
+npm run artisan -- resources:backfill-legacy-temporal-coverages --apply --match-by-doi --doi=10.5880/example
+```
+
+The application and queue containers need working access to the configured `metaworks` connection while the command runs. The backfill reads but never modifies the legacy database. Take the normal ERNIE database backup before the apply run; a nonzero exit code indicates processing errors, while manual-review rows deliberately remain unchanged and do not fail the complete run.
+
 ### Testing Data Editor registration safely
 
 Keep `DATACITE_TEST_MODE=true` and use test Repository credentials when exercising the Data Editor's `Register` or `Update Metadata` actions locally. `Validate`, `Save Draft`, autosave, `Preview LP`, and `Show LP` are local-only actions and must not produce a DataCite request. The two DataCite write actions run complete client validation, show an explicit confirmation before their action-specific save, and automatically continue through landing-page setup when a page is missing.

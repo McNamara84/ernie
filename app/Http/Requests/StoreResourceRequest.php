@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use App\Enums\AccessLevel;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
+use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
 use App\Models\ContributorType;
 use App\Models\RelatedIdentifier;
 use App\Models\RelatedItem;
@@ -13,6 +14,8 @@ use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Rules\HasMainTitle;
 use App\Rules\SafeUrl;
+use App\Rules\TemporalCoverageDate;
+use App\Rules\TemporalCoverageTimezone;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
 use App\Support\LanguageTag;
@@ -25,6 +28,7 @@ use Illuminate\Validation\Validator;
 class StoreResourceRequest extends FormRequest
 {
     use ValidatesEditorDates;
+    use ValidatesTemporalCoverages;
 
     /**
      * Technical request-safety ceiling, deliberately above all audited Legacy cardinalities.
@@ -148,11 +152,12 @@ class StoreResourceRequest extends FormRequest
             'spatialTemporalCoverages.*.polygonPoints' => ['nullable', 'array'],
             'spatialTemporalCoverages.*.polygonPoints.*.lat' => ['required', 'numeric', 'between:-90,90'],
             'spatialTemporalCoverages.*.polygonPoints.*.lon' => ['required', 'numeric', 'between:-180,180'],
-            'spatialTemporalCoverages.*.startDate' => ['nullable', 'date'],
-            'spatialTemporalCoverages.*.endDate' => ['nullable', 'date'],
+            'spatialTemporalCoverages.*.startDate' => ['nullable', app(TemporalCoverageDate::class)],
+            'spatialTemporalCoverages.*.endDate' => ['nullable', app(TemporalCoverageDate::class)],
+            'spatialTemporalCoverages.*.temporalMode' => ['nullable', Rule::in(['instant', 'interval'])],
             'spatialTemporalCoverages.*.startTime' => ['nullable', 'date_format:H:i:s,H:i'],
             'spatialTemporalCoverages.*.endTime' => ['nullable', 'date_format:H:i:s,H:i'],
-            'spatialTemporalCoverages.*.timezone' => ['nullable', 'string', 'max:100'],
+            'spatialTemporalCoverages.*.timezone' => ['nullable', 'string', 'max:100', app(TemporalCoverageTimezone::class)],
             'spatialTemporalCoverages.*.description' => ['nullable', 'string'],
             'relatedIdentifiers' => ['nullable', 'array'],
             'relatedIdentifiers.*.id' => ['nullable', 'integer', 'min:1'],
@@ -778,6 +783,7 @@ class StoreResourceRequest extends FormRequest
                 'polygonPoints' => $polygonPoints,
                 'startDate' => isset($coverage['startDate']) ? trim((string) $coverage['startDate']) : null,
                 'endDate' => isset($coverage['endDate']) ? trim((string) $coverage['endDate']) : null,
+                'temporalMode' => isset($coverage['temporalMode']) ? trim((string) $coverage['temporalMode']) : null,
                 'startTime' => isset($coverage['startTime']) ? trim((string) $coverage['startTime']) : null,
                 'endTime' => isset($coverage['endTime']) ? trim((string) $coverage['endTime']) : null,
                 'timezone' => isset($coverage['timezone']) ? trim((string) $coverage['timezone']) : null,
@@ -1502,8 +1508,8 @@ class StoreResourceRequest extends FormRequest
 
                     $type = $coverage['type'] ?? 'point';
 
-                    if ($type === 'polygon' || $type === 'line') {
-                        $polygonPoints = $coverage['polygonPoints'] ?? [];
+                    if (($type === 'polygon' || $type === 'line') && ! empty($coverage['polygonPoints'])) {
+                        $polygonPoints = $coverage['polygonPoints'];
                         $minimumPoints = $type === 'polygon' ? 3 : 2;
 
                         if (! is_array($polygonPoints) || count($polygonPoints) < $minimumPoints) {
@@ -1513,6 +1519,8 @@ class StoreResourceRequest extends FormRequest
                             );
                         }
                     }
+
+                    $this->validateTemporalCoverage($validator, $coverage, $index);
                 }
             },
         ];

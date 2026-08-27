@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { isRepositoryCurationRelatedIdentifier } from '@/lib/related-identifier-provenance';
@@ -197,7 +197,7 @@ export default function RelatedWorkItem({
                             <SelectTrigger id={`related-work-${index}-identifier-type`}>
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent position="popper" className="max-h-[min(24rem,var(--radix-select-content-available-height))]">
                                 {filteredIdentifierTypes.map((type) => (
                                     <SelectItem key={type} value={type}>
                                         {type}
@@ -221,29 +221,33 @@ export default function RelatedWorkItem({
                             <SelectTrigger id={`related-work-${index}-relation-type`}>
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="max-h-100">
+                            <SelectContent position="popper" className="max-h-[min(24rem,var(--radix-select-content-available-height))]">
                                 {filteredMostUsedRelationTypes.length > 0 && (
-                                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Most Used</div>
+                                    <SelectGroup>
+                                        <SelectLabel className="font-semibold">Most Used</SelectLabel>
+                                        {filteredMostUsedRelationTypes.map((type) => (
+                                            <SelectItem key={type} value={type}>
+                                                <div className="flex flex-col items-start">
+                                                    <span className="font-medium">{formatRelationTypeLabel(type)}</span>
+                                                    <span className="text-xs text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[type]}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
                                 )}
-                                {filteredMostUsedRelationTypes.map((type) => (
-                                    <SelectItem key={type} value={type}>
-                                        <div className="flex flex-col items-start">
-                                            <span className="font-medium">{formatRelationTypeLabel(type)}</span>
-                                            <span className="text-xs text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[type]}</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
                                 {additionalRelationTypes.length > 0 && (
-                                    <div className="px-2 pt-3 pb-1.5 text-xs font-semibold text-muted-foreground">All relation types</div>
+                                    <SelectGroup>
+                                        <SelectLabel className="pt-3 font-semibold">All relation types</SelectLabel>
+                                        {additionalRelationTypes.map((type) => (
+                                            <SelectItem key={type} value={type}>
+                                                <div className="flex flex-col items-start">
+                                                    <span className="font-medium">{formatRelationTypeLabel(type)}</span>
+                                                    <span className="text-xs text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[type]}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
                                 )}
-                                {additionalRelationTypes.map((type) => (
-                                    <SelectItem key={type} value={type}>
-                                        <div className="flex flex-col items-start">
-                                            <span className="font-medium">{formatRelationTypeLabel(type)}</span>
-                                            <span className="text-xs text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[type]}</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
                             </SelectContent>
                         </Select>
                     </div>

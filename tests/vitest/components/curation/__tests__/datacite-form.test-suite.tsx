@@ -6618,6 +6618,45 @@ describe('DataCiteForm', () => {
             expect(payload).not.toHaveProperty('accessLevel');
         });
 
+        it('preserves temporal instant semantics in the draft payload', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 42 } },
+                status: 200,
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Coverage Instant Dataset', titleType: 'main-title' }],
+                initialSpatialTemporalCoverages: [
+                    {
+                        id: 'coverage-instant',
+                        type: 'point',
+                        latMin: '',
+                        latMax: '',
+                        lonMin: '',
+                        lonMax: '',
+                        startDate: '2026-05',
+                        endDate: '',
+                        temporalMode: 'instant',
+                        startTime: '',
+                        endTime: '',
+                        timezone: '',
+                        description: '',
+                    },
+                ],
+            });
+
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            expect(mockedAxios.post.mock.calls[0][1].spatialTemporalCoverages[0]).toMatchObject({
+                startDate: '2026-05',
+                endDate: '',
+                temporalMode: 'instant',
+            });
+        });
+
         it('shows collection-level datacenter validation errors inline when saving a draft', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };

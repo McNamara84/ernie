@@ -707,11 +707,12 @@ class EditorDataTransformer
                 'latMax' => '',
                 'lonMin' => '',
                 'lonMax' => '',
-                'startDate' => '',
-                'endDate' => '',
-                'startTime' => '',
-                'endTime' => '',
-                'timezone' => 'UTC',
+                'startDate' => $geoLocation->start_date ?? '',
+                'endDate' => $geoLocation->end_date ?? '',
+                'temporalMode' => $geoLocation->temporal_mode ?? 'interval',
+                'startTime' => $geoLocation->start_time ?? '',
+                'endTime' => $geoLocation->end_time ?? '',
+                'timezone' => $geoLocation->timezone ?? '',
                 'description' => $geoLocation->place ?? '',
             ];
 

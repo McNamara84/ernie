@@ -8,41 +8,34 @@ import SpatialTemporalCoverageField, { canAddCoverage } from '@/components/curat
 import type { SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 
 // Mock the CoverageEntry component to simplify testing
-vi.mock(
-    '@/components/curation/fields/spatial-temporal-coverage/CoverageEntry',
-    () => ({
-        default: ({
-            entry,
-            index,
-            initiallyExpanded,
-            onChange,
-            onRemove,
-        }: {
-            entry: SpatialTemporalCoverageEntry;
-            index: number;
-            initiallyExpanded?: boolean;
-            onChange: (id: string, changes: Partial<SpatialTemporalCoverageEntry>) => void;
-            onRemove: (id: string) => void;
-        }) => (
-            <div data-testid={`coverage-entry-${index}`}>
-                <span>Coverage {index + 1}</span>
-                <span data-testid={`coverage-entry-${index}-expanded`}>
-                    {initiallyExpanded ? 'expanded' : 'collapsed'}
-                </span>
-                <input
-                    aria-label="Latitude *"
-                    id="lat-min"
-                    onChange={(e) =>
-                        onChange(entry.id, { latMin: e.target.value })
-                    }
-                    type="text"
-                    value={entry.latMin}
-                />
-                <button onClick={() => onRemove(entry.id)}>Remove</button>
-            </div>
-        ),
-    }),
-);
+vi.mock('@/components/curation/fields/spatial-temporal-coverage/CoverageEntry', () => ({
+    default: ({
+        entry,
+        index,
+        initiallyExpanded,
+        onChange,
+        onRemove,
+    }: {
+        entry: SpatialTemporalCoverageEntry;
+        index: number;
+        initiallyExpanded?: boolean;
+        onChange: (id: string, changes: Partial<SpatialTemporalCoverageEntry>) => void;
+        onRemove: (id: string) => void;
+    }) => (
+        <div data-testid={`coverage-entry-${index}`}>
+            <span>Coverage {index + 1}</span>
+            <span data-testid={`coverage-entry-${index}-expanded`}>{initiallyExpanded ? 'expanded' : 'collapsed'}</span>
+            <input
+                aria-label="Latitude *"
+                id="lat-min"
+                onChange={(e) => onChange(entry.id, { latMin: e.target.value })}
+                type="text"
+                value={entry.latMin}
+            />
+            <button onClick={() => onRemove(entry.id)}>Remove</button>
+        </div>
+    ),
+}));
 
 describe('SpatialTemporalCoverageField', () => {
     const mockOnChange = vi.fn();
@@ -61,9 +54,7 @@ describe('SpatialTemporalCoverageField', () => {
         render(<SpatialTemporalCoverageField {...defaultProps} />);
 
         expect(screen.getByText(/no coverage entries yet/i)).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: /add.*coverage entry/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add.*coverage entry/i })).toBeInTheDocument();
     });
 
     test('adds a new coverage entry when add button is clicked', async () => {
@@ -83,7 +74,7 @@ describe('SpatialTemporalCoverageField', () => {
                 lonMin: '',
                 startDate: '',
                 endDate: '',
-                timezone: expect.any(String), // Should default to user's timezone
+                timezone: '',
             }),
         ]);
     });
@@ -106,12 +97,7 @@ describe('SpatialTemporalCoverageField', () => {
             },
         ];
 
-        render(
-            <SpatialTemporalCoverageField
-                {...defaultProps}
-                coverages={existingEntries}
-            />,
-        );
+        render(<SpatialTemporalCoverageField {...defaultProps} coverages={existingEntries} />);
 
         expect(screen.getByTestId('coverage-entry-0')).toBeInTheDocument();
         expect(screen.queryByText(/no coverage entries yet/i)).not.toBeInTheDocument();
@@ -135,12 +121,7 @@ describe('SpatialTemporalCoverageField', () => {
             },
         ];
 
-        render(
-            <SpatialTemporalCoverageField
-                {...defaultProps}
-                coverages={existingEntries}
-            />,
-        );
+        render(<SpatialTemporalCoverageField {...defaultProps} coverages={existingEntries} />);
 
         expect(screen.getByTestId('coverage-entry-0-expanded')).toHaveTextContent('collapsed');
     });
@@ -157,12 +138,7 @@ describe('SpatialTemporalCoverageField', () => {
 
         const newCoverages = mockOnChange.mock.calls[0][0];
 
-        rerender(
-            <SpatialTemporalCoverageField
-                {...defaultProps}
-                coverages={newCoverages}
-            />,
-        );
+        rerender(<SpatialTemporalCoverageField {...defaultProps} coverages={newCoverages} />);
 
         expect(screen.getByTestId('coverage-entry-0-expanded')).toHaveTextContent('expanded');
     });
@@ -199,12 +175,7 @@ describe('SpatialTemporalCoverageField', () => {
             },
         ];
 
-        render(
-            <SpatialTemporalCoverageField
-                {...defaultProps}
-                coverages={existingEntries}
-            />,
-        );
+        render(<SpatialTemporalCoverageField {...defaultProps} coverages={existingEntries} />);
 
         expect(screen.getByTestId('coverage-entry-0')).toBeInTheDocument();
         expect(screen.getByTestId('coverage-entry-1')).toBeInTheDocument();
@@ -226,17 +197,14 @@ describe('SpatialTemporalCoverageField', () => {
             description: '',
         };
 
-        render(
-            <SpatialTemporalCoverageField
-                {...defaultProps}
-                coverages={[incompleteEntry]}
-            />,
-        );
+        render(<SpatialTemporalCoverageField {...defaultProps} coverages={[incompleteEntry]} />);
 
         // When entry is incomplete, there's no add button, only a help message
-        expect(screen.queryByRole('button', {
-            name: /add.*coverage entry/i,
-        })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', {
+                name: /add.*coverage entry/i,
+            }),
+        ).not.toBeInTheDocument();
 
         expect(screen.getByText(/complete the required fields/i)).toBeInTheDocument();
     });
@@ -257,17 +225,14 @@ describe('SpatialTemporalCoverageField', () => {
             description: '',
         };
 
-        render(
-            <SpatialTemporalCoverageField
-                {...defaultProps}
-                coverages={[completeEntryWithoutTemporal]}
-            />,
-        );
+        render(<SpatialTemporalCoverageField {...defaultProps} coverages={[completeEntryWithoutTemporal]} />);
 
         // Should show add button because spatial coordinates are complete
-        expect(screen.getByRole('button', {
-            name: /add.*coverage entry/i,
-        })).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: /add.*coverage entry/i,
+            }),
+        ).toBeInTheDocument();
 
         // Should NOT show the "complete required fields" message
         expect(screen.queryByText(/complete the required fields/i)).not.toBeInTheDocument();
@@ -292,12 +257,7 @@ describe('SpatialTemporalCoverageField', () => {
             },
         ];
 
-        render(
-            <SpatialTemporalCoverageField
-                {...defaultProps}
-                coverages={existingEntries}
-            />,
-        );
+        render(<SpatialTemporalCoverageField {...defaultProps} coverages={existingEntries} />);
 
         const removeButton = screen.getByRole('button', { name: /remove/i });
 
@@ -325,6 +285,57 @@ describe('SpatialTemporalCoverageField', () => {
         expect(canAddCoverage(entriesBeyondFormerLimit)).toBe(true);
     });
 
+    test.each([
+        ['start date', { startDate: '2026-08-25' }],
+        ['end date', { endDate: '2026-08-27' }],
+        ['start time with date', { startDate: '2026-08-25', startTime: '14:37' }],
+        ['end time with date', { endDate: '2026-08-27', endTime: '17:37' }],
+        ['timezone with date', { startDate: '2026-08-25', timezone: '+02:00' }],
+        ['description', { description: 'Temporal campaign' }],
+    ])('allows another entry after temporal-only %s data', (_label, values) => {
+        const temporalOnly: SpatialTemporalCoverageEntry = {
+            id: 'temporal-only',
+            type: 'point',
+            latMin: '',
+            lonMin: '',
+            latMax: '',
+            lonMax: '',
+            startDate: '',
+            endDate: '',
+            startTime: '',
+            endTime: '',
+            timezone: '',
+            description: '',
+            ...values,
+        };
+
+        expect(canAddCoverage([temporalOnly])).toBe(true);
+    });
+
+    test.each([
+        ['start time', { startTime: '14:37' }],
+        ['end time', { endTime: '17:37' }],
+        ['timezone', { timezone: '+02:00' }],
+    ])('does not allow another entry after orphaned %s data', (_label, values) => {
+        const temporalOnly: SpatialTemporalCoverageEntry = {
+            id: 'orphaned-temporal',
+            type: 'point',
+            latMin: '',
+            lonMin: '',
+            latMax: '',
+            lonMax: '',
+            startDate: '',
+            endDate: '',
+            startTime: '',
+            endTime: '',
+            timezone: '',
+            description: '',
+            ...values,
+        };
+
+        expect(canAddCoverage([temporalOnly])).toBe(false);
+    });
+
     test('updates entry field when onChange is called', () => {
         const existingEntries: SpatialTemporalCoverageEntry[] = [
             {
@@ -343,12 +354,7 @@ describe('SpatialTemporalCoverageField', () => {
             },
         ];
 
-        render(
-            <SpatialTemporalCoverageField
-                {...defaultProps}
-                coverages={existingEntries}
-            />,
-        );
+        render(<SpatialTemporalCoverageField {...defaultProps} coverages={existingEntries} />);
 
         // Verify that we can update the entry through the mocked component
         const mockedInput = screen.getByLabelText(/^Latitude \*$/i);
@@ -356,7 +362,7 @@ describe('SpatialTemporalCoverageField', () => {
         expect(mockedInput).toHaveValue('');
     });
 
-    test('sets default timezone when adding new entry', async () => {
+    test('does not invent a default timezone when adding new entry', async () => {
         const user = userEvent.setup();
         render(<SpatialTemporalCoverageField {...defaultProps} />);
 
@@ -369,8 +375,6 @@ describe('SpatialTemporalCoverageField', () => {
         const calls = mockOnChange.mock.calls;
         const newEntry = calls[0][0][0];
 
-        // Should have a default timezone set
-        expect(newEntry.timezone).toBeTruthy();
-        expect(newEntry.timezone.length).toBeGreaterThan(0);
+        expect(newEntry.timezone).toBe('');
     });
 });
