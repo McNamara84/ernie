@@ -64,6 +64,48 @@
             "value_uri": "http://purl.obolibrary.org/obo/BTO_0001411"
         },
         {
+            "value": "vegetation:bark",
+            "definition": "Legacy Medusa classification for a sample taken from plant bark",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001301",
+            "legacy": true
+        },
+        {
+            "value": "vegetation:branch",
+            "definition": "Legacy Medusa classification for a sample taken from a plant branch",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001300",
+            "legacy": true
+        },
+        {
+            "value": "vegetation:leaves/needles",
+            "definition": "Legacy Medusa classification for a sample of plant leaves or needles",
+            "value_uri": null,
+            "legacy": true
+        },
+        {
+            "value": "vegetation:litter bag",
+            "definition": "Legacy Medusa classification for material collected in or prepared as a litter bag",
+            "value_uri": null,
+            "legacy": true
+        },
+        {
+            "value": "vegetation:stem",
+            "definition": "Legacy Medusa classification for a sample taken from a plant stem",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0000142",
+            "legacy": true
+        },
+        {
+            "value": "vegetation:twig",
+            "definition": "Legacy Medusa classification for a sample taken from a plant twig",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001411",
+            "legacy": true
+        },
+        {
+            "value": "vegetation:wood",
+            "definition": "Legacy Medusa classification for a sample of wood",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0005516",
+            "legacy": true
+        },
+        {
             "value": "Animal",
             "definition": "Animal material without further definition",
             "value_uri": "http://purl.obolibrary.org/obo/BTO_0000042"

@@ -166,6 +166,41 @@ it('keeps valid legacy classifications and reports unsupported ones separately',
         ->and($metadata['rejected_classifications'])->toBe(['legacy rock term']);
 });
 
+it('accepts every Medusa legacy classification from issue 1191', function (
+    string $material,
+    string $rawClassifications,
+    array $expected,
+): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(<<<XML
+    <resource><sample>
+      <material>{$material}</material>
+      <classification>{$rawClassifications}</classification>
+    </sample></resource>
+    XML);
+
+    expect($metadata['classifications'])->toBe($expected)
+        ->and($metadata['rejected_classifications'])->toBe([]);
+})->with([
+    'rock legacy values' => [
+        'Rock',
+        'rock:bedrock igneous;rock:bedrock metamorphic;rock:skeleton',
+        ['rock:bedrock igneous', 'rock:bedrock metamorphic', 'rock:skeleton'],
+    ],
+    'biology legacy values' => [
+        'Biology',
+        'vegetation:bark;vegetation:branch;vegetation:leaves/needles;vegetation:litter bag;vegetation:stem;vegetation:twig;vegetation:wood',
+        [
+            'vegetation:bark',
+            'vegetation:branch',
+            'vegetation:leaves/needles',
+            'vegetation:litter bag',
+            'vegetation:stem',
+            'vegetation:twig',
+            'vegetation:wood',
+        ],
+    ],
+]);
+
 it('preserves repeated coordinate components so ordered polygon pairs stay aligned', function (): void {
     $metadata = (new IgsnDifMetadataExtractor)->extract(<<<'XML'
     <resource><sample>

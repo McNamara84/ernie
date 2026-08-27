@@ -78,6 +78,18 @@
         "Xenolithic>Metamorphic>Metasomatic",
         "Xenolithic>Metamorphic>Meta-Ultramafic",
         "Xenolithic>Metamorphic>Schist",
-        "Xenolithic>Metamorphic>Slate"
+        "Xenolithic>Metamorphic>Slate",
+        {
+            "value": "rock:bedrock igneous",
+            "legacy": true
+        },
+        {
+            "value": "rock:bedrock metamorphic",
+            "legacy": true
+        },
+        {
+            "value": "rock:skeleton",
+            "legacy": true
+        }
     ]
 }
