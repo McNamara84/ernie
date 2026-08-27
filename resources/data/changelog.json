@@ -37,6 +37,14 @@
             {
                 "title": "Visible Large Related Work Collections",
                 "description": "Related Work cards now become visible as soon as they intersect the viewport, including unusually tall collections that could never satisfy the previous visibility ratio. Desktop pages continue to show every relation, while mobile pages retain the expandable nine-entry preview."
+            },
+            {
+                "title": "Visible Medusa Legacy Classifications",
+                "description": "New Medusa IGSN imports now recognize the ten reported legacy Rock and Biology classifications as controlled values and display their original wording on landing pages. Existing incomplete records remain unchanged until their users delete and import them again."
+            },
+            {
+                "title": "Complete Medusa Imports with Long User Codes",
+                "description": "Medusa IGSNs with long project information in User Code now retain their complete DIF metadata instead of falling back to a title-only DataCite import. User Code supports up to 255 characters; existing incomplete records can be repaired by their users through deletion and reimport after deployment."
             }
         ]
     },

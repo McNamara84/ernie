@@ -206,6 +206,12 @@ Authenticated Solr and the direct legacy database remain optional enrichment sou
 
 Both app and queue services must use `QUEUE_CONNECTION=database`, and the worker command must consume `imports`. The single-import start endpoint returns `202 Accepted`; later portal or persistence failures are reported through the import status endpoint.
 
+#### Reimport after Medusa metadata fixes
+
+Legacy IGSNs that were imported before a vocabulary or database-schema fix are not updated automatically. Existing IGSNs are deliberately skipped by the DataCite import, so retrying an import without first deleting the incomplete local records does not repair them.
+
+For the Medusa records covered by issues #1191 and #1192, deploy the updated classification catalogs and run the migration that widens `igsn_metadata.user_code` before any affected record is deleted. The responsible users can then delete and import those records again. Do not begin the reimport while an application instance or queue worker is still running against the previous schema.
+
 #### Legacy IGSN sample images
 
 When a legacy DIF record contains a sample image, the import stores its validated source description with the IGSN metadata. Known GFZ Data Services images are downloaded only after the metadata transaction has committed and are served from the persistent Laravel `public` disk. Known ICDP image URLs are normalized to `https://data.icdp-online.org/...` and remain external. Unknown hosts, unsafe paths, placeholders, invalid MIME types, oversized files, and failed downloads never produce a public image card and do not roll back an otherwise successful metadata import. The completed import dialog reports those image failures separately so they can be retried through the backfill.

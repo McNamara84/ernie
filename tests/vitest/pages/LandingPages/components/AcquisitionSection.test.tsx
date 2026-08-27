@@ -117,6 +117,25 @@ describe('AcquisitionSection', () => {
         expect(screen.getByText('Igneous, Plutonic')).toBeInTheDocument();
     });
 
+    it.each([
+        ['Rock', 'rock:bedrock igneous'],
+        ['Biology', 'vegetation:leaves/needles'],
+    ])('renders the imported %s legacy classification verbatim', (material, value) => {
+        render(
+            <AcquisitionSection
+                igsn={baseIgsn({ material })}
+                classifications={[{ id: 1, value }]}
+                descriptions={[]}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={[]}
+            />,
+        );
+
+        expect(screen.getByText(value)).toBeInTheDocument();
+        expect(screen.getByText(`${material} Classification`).nextElementSibling).not.toHaveTextContent('N/A');
+    });
+
     it.each(['Rock', 'Mineral', 'Biology', 'Sediment'])('derives only the classification label for %s', (material) => {
         render(
             <AcquisitionSection
