@@ -849,7 +849,7 @@ erDiagram
         varchar sample_access
         varchar operator
         varchar coordinate_system
-        varchar user_code
+        varchar user_code "255"
         json description_json
         varchar sample_image_source_url "2048"
         varchar sample_image_external_url "2048"

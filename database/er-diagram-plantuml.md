@@ -924,7 +924,7 @@ entity "igsn_metadata" as igsn_metadata {
     sample_access : VARCHAR(50)
     operator : VARCHAR(255)
     coordinate_system : VARCHAR(50)
-    user_code : VARCHAR(50)
+    user_code : VARCHAR(255)
     description_json : JSON
     sample_image_source_url : VARCHAR(2048)
     sample_image_external_url : VARCHAR(2048)
