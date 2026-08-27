@@ -47,12 +47,16 @@ function mergeRoles(...roleGroups: string[][]): string[] {
 
 function normalizedAffiliationIdentifier(affiliation: LandingPageAffiliation): string | null {
     const scheme = affiliation.affiliation_identifier_scheme?.trim().toLowerCase() ?? '';
-    const identifier = affiliation.affiliation_identifier
+    let identifier = affiliation.affiliation_identifier
         ?.trim()
         .replace(/^https?:\/\//i, '')
         .replace(/^www\./i, '')
         .replace(/\/+$/g, '')
         .toLowerCase();
+
+    if (scheme === 'ror') {
+        identifier = identifier?.replace(/^ror\.org\//, '');
+    }
 
     if (scheme === '' || !identifier) {
         return null;

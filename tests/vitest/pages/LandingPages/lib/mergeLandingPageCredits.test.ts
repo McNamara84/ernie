@@ -162,6 +162,31 @@ describe('mergeLandingPageCredits', () => {
         expect(result.contributors[0].affiliations).toEqual([makeAffiliation(1, '  GFZ   Potsdam  ', '04z8jg394', 'ROR')]);
     });
 
+    it('fills a missing affiliation name when a later row has the same identifier', () => {
+        const contributors = [
+            makeContributor(1, 10, ['Producer'], {
+                affiliations: [makeAffiliation(1, '', '04z8jg394', 'ROR')],
+            }),
+            makeContributor(2, 10, ['Contact Person'], {
+                affiliations: [makeAffiliation(2, 'GFZ Potsdam', 'https://ror.org/04Z8JG394/', 'ror')],
+            }),
+        ];
+
+        const result = mergeLandingPageCredits([], contributors);
+
+        expect(result.contributors[0].affiliations).toEqual([makeAffiliation(1, 'GFZ Potsdam', '04z8jg394', 'ROR')]);
+    });
+
+    it('deduplicates names without identifiers and preserves an unidentifiable affiliation row', () => {
+        const contributor = makeContributor(1, 10, ['Producer'], {
+            affiliations: [makeAffiliation(1, 'Example Institute'), makeAffiliation(2, ' example   institute '), makeAffiliation(3, ' ')],
+        });
+
+        const result = mergeLandingPageCredits([], [contributor]);
+
+        expect(result.contributors[0].affiliations).toEqual([makeAffiliation(1, 'Example Institute'), makeAffiliation(3, ' ')]);
+    });
+
     it('keeps same-named affiliations separate when they have different identifiers', () => {
         const contributor = makeContributor(1, 10, ['Producer'], {
             affiliations: [
