@@ -31,6 +31,48 @@ describe('FundersSection', () => {
         expect(screen.getByText('DFG')).toBeInTheDocument();
     });
 
+    it.each([
+        ['title and number', { award_title: 'DEKORP', award_number: '03G1234' }, 'DFG: DEKORP (03G1234)'],
+        ['title only', { award_title: 'DEKORP' }, 'DFG: DEKORP'],
+        ['number only', { award_number: '03G1234' }, 'DFG: 03G1234'],
+        ['neither title nor number', {}, 'DFG'],
+    ])('renders the compact award format with %s', (_case, overrides, expected) => {
+        render(<FundersSection fundingReferences={[mockFunder(overrides)]} />);
+
+        expect(screen.getByRole('listitem')).toHaveTextContent(expected);
+    });
+
+    it('links the complete award label when its URI uses HTTP(S)', () => {
+        render(
+            <FundersSection
+                fundingReferences={[
+                    mockFunder({
+                        award_title: 'DEKORP',
+                        award_number: '03G1234',
+                        award_uri: 'https://example.org/awards/03G1234',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByRole('link', { name: 'DEKORP (03G1234)' })).toHaveAttribute('href', 'https://example.org/awards/03G1234');
+    });
+
+    it('renders an award with an unsafe URI as plain text', () => {
+        render(
+            <FundersSection
+                fundingReferences={[
+                    mockFunder({
+                        award_title: 'DEKORP',
+                        award_uri: 'javascript:alert(1)',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('DEKORP').closest('a')).toBeNull();
+    });
+
     it('renders ROR link for funder with ROR identifier', () => {
         const funder = mockFunder({
             funder_identifier: 'https://ror.org/018mejw64',

@@ -1837,7 +1837,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             If a generated GFZ landing page should not offer downloads yet, enable <strong>No data available for download</strong> in
                             the same Download URL section. ERNIE keeps the saved primary URL, imported legacy files, and additional download links in
                             the setup modal, but hides the complete Files section on the preview and public landing page until the option is disabled
-                            again.
+                            again. The independent <strong>License &amp; Rights</strong> section remains visible whenever rights metadata exists.
                         </p>
                         <h4>Expanding Citation Authors</h4>
                         <p>
@@ -1848,9 +1848,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <h4>License Display</h4>
                         <p>
-                            In the Files section, Creative Commons licenses show both the full license name and the conventional short notation, for
-                            example <strong>Creative Commons Attribution 4.0 International (CC BY 4.0)</strong>. The badge remains linked to the
-                            license text when a URL is available, and its tooltip shows the SPDX identifier.
+                            The independent <strong>License &amp; Rights</strong> section is available on Resource and IGSN landing pages, regardless
+                            of whether files can be downloaded or data must be requested through a contact form. Creative Commons licenses show both
+                            the full license name and the conventional short notation, for example{' '}
+                            <strong>Creative Commons Attribution 4.0 International (CC BY 4.0)</strong>. The badge remains linked to the license text
+                            when a URL is available, and its tooltip shows the SPDX identifier.
+                        </p>
+                        <p>
+                            Imported rights statements that have not yet been matched to the trusted local catalog remain visible as neutral text with
+                            an optional safe web link. This presentation preserves the source metadata without claiming an unreviewed SPDX or Creative
+                            Commons identity.
                         </p>
                         <p>
                             From an unpublished record in the Data Editor, click <strong>Preview LP</strong> in the bottom-right action bar to save

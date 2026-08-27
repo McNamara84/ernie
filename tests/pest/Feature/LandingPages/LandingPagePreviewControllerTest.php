@@ -371,6 +371,7 @@ describe('Session Preview Display', function () {
                 ->where('sectionOrder.leftColumn', [
                     'contact',
                     'files',
+                    'licenses',
                     'model_description',
                     'related_work',
                     'dates',
@@ -425,6 +426,7 @@ describe('Session Preview Display', function () {
                     'related_work',
                     'sample_family',
                     'repositories',
+                    'licenses',
                     'dates',
                     'citation',
                 ])
@@ -483,6 +485,7 @@ describe('Session Preview Display', function () {
                     'related_work',
                     'sample_family',
                     'repositories',
+                    'licenses',
                     'dates',
                     'citation',
                 ])

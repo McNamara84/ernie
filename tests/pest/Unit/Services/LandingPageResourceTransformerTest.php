@@ -27,6 +27,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\ResourceRight;
 use App\Models\Right;
 use App\Models\Subject;
 use App\Models\Title;
@@ -519,6 +520,89 @@ test('transforms custom licenses without SPDX identifiers', function () {
         'scheme_uri' => null,
     ]);
 });
+
+test('transforms resolved and unresolved resource rights exactly once', function () {
+    $transformer = new LandingPageResourceTransformer;
+    $resource = Resource::factory()->create();
+    $right = Right::factory()->create([
+        'identifier' => 'CC-BY-4.0',
+        'name' => 'Creative Commons Attribution 4.0 International',
+        'uri' => 'https://creativecommons.org/licenses/by/4.0/',
+        'scheme_uri' => 'https://spdx.org/licenses/',
+    ]);
+    $linked = ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_id' => $right->id,
+        'rights_text' => 'CC BY 4.0',
+        'rights_uri' => 'https://creativecommons.org/licenses/by/4.0/',
+    ]);
+    $raw = ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_text' => 'Use requires individual permission.',
+        'rights_uri' => 'https://example.test/rights/permission',
+        'scheme_uri' => 'https://example.test/rights/',
+    ]);
+    $identifierOnly = ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_identifier' => 'Community-Data-Terms',
+    ]);
+    ResourceRight::create(['resource_id' => $resource->id]);
+
+    $resource->load($transformer->requiredRelations());
+    $data = $transformer->transform($resource);
+
+    expect($transformer->requiredRelations())
+        ->toContain('resourceRights.right')
+        ->not->toContain('rights')
+        ->and($resource->relationLoaded('resourceRights'))->toBeTrue()
+        ->and($resource->relationLoaded('rights'))->toBeFalse()
+        ->and($data)->not->toHaveKeys(['rights', 'resource_rights'])
+        ->and($data['licenses'])->toHaveCount(3)
+        ->and($data['licenses'][0])->toMatchArray([
+            'id' => $right->id,
+            'resource_right_id' => $linked->id,
+            'name' => 'Creative Commons Attribution 4.0 International',
+            'spdx_id' => 'CC-BY-4.0',
+            'reference' => 'https://creativecommons.org/licenses/by/4.0/',
+            'source' => 'catalog',
+        ])
+        ->and($data['licenses'][1])->toMatchArray([
+            'id' => null,
+            'resource_right_id' => $raw->id,
+            'name' => 'Use requires individual permission.',
+            'spdx_id' => null,
+            'reference' => 'https://example.test/rights/permission',
+            'scheme_uri' => 'https://example.test/rights/',
+            'source' => 'raw',
+        ])
+        ->and($data['licenses'][2])->toMatchArray([
+            'resource_right_id' => $identifierOnly->id,
+            'name' => 'Community-Data-Terms',
+            'reference' => null,
+            'source' => 'raw',
+        ]);
+});
+
+test('falls back to an unresolved rights URI when text and identifier are missing', function () {
+    $transformer = new LandingPageResourceTransformer;
+    $resource = Resource::factory()->create();
+    $raw = ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_uri' => 'info:eu-repo/semantics/restrictedAccess',
+    ]);
+
+    $resource->load($transformer->requiredRelations());
+    $data = $transformer->transform($resource);
+
+    expect($data['licenses'])->toHaveCount(1)
+        ->and($data['licenses'][0])->toMatchArray([
+            'resource_right_id' => $raw->id,
+            'name' => 'info:eu-repo/semantics/restrictedAccess',
+            'reference' => 'info:eu-repo/semantics/restrictedAccess',
+            'source' => 'raw',
+        ]);
+});
+
 test('transforms multiple licenses correctly', function () {
     $transformer = new LandingPageResourceTransformer;
 

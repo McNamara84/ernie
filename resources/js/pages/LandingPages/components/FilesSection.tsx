@@ -2,10 +2,9 @@ import { Download, ExternalLink, Mail } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import type { LandingPageContactPerson, LandingPageLicense, LandingPageLink } from '@/types/landing-page';
+import type { LandingPageContactPerson, LandingPageLink } from '@/types/landing-page';
 
 import { ContactModal } from './ContactModal';
-import { CreativeCommonsIcon, getCreativeCommonsShortName } from './CreativeCommonsIcon';
 import { LandingPageCard } from './LandingPageCard';
 
 interface FilesSectionProps {
@@ -13,7 +12,6 @@ interface FilesSectionProps {
     trackedDownloadUrl?: string | null;
     downloadLabel?: string | null;
     downloadFiles?: { url: string; label?: string | null; tracked_url?: string | null }[];
-    licenses: LandingPageLicense[];
     contactPersons?: LandingPageContactPerson[];
     datasetTitle?: string;
     additionalLinks?: LandingPageLink[];
@@ -36,7 +34,6 @@ export function FilesSection({
     trackedDownloadUrl,
     downloadLabel,
     downloadFiles,
-    licenses,
     contactPersons = [],
     datasetTitle,
     additionalLinks = [],
@@ -181,61 +178,6 @@ export function FilesSection({
                                         <span className="truncate">{link.label}</span>
                                     </a>
                                 ))}
-                        </div>
-                    )}
-
-                    {/* License Badges */}
-                    {licenses.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">License</p>
-                            <div className="flex flex-col gap-2">
-                                {licenses.map((license) => {
-                                    const title = license.spdx_id ?? license.name;
-                                    const shortName = license.spdx_id ? getCreativeCommonsShortName(license.spdx_id) : null;
-                                    const showShortName = shortName !== null && license.name.trim().toUpperCase() !== shortName.toUpperCase();
-                                    const icon = license.spdx_id ? (
-                                        <CreativeCommonsIcon spdxId={license.spdx_id} />
-                                    ) : license.reference ? (
-                                        <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                                    ) : null;
-                                    const badgeContent = (
-                                        <>
-                                            {icon}
-                                            <span className="min-w-0 break-words">
-                                                {license.name}
-                                                {showShortName && ` (${shortName})`}
-                                            </span>
-                                        </>
-                                    );
-
-                                    if (!license.reference) {
-                                        return (
-                                            <span
-                                                key={license.id}
-                                                data-testid="license-badge"
-                                                className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                                                title={title}
-                                            >
-                                                {badgeContent}
-                                            </span>
-                                        );
-                                    }
-
-                                    return (
-                                        <a
-                                            key={license.id}
-                                            href={license.reference}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            data-testid="license-badge"
-                                            className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 transition-colors hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50"
-                                            title={title}
-                                        >
-                                            {badgeContent}
-                                        </a>
-                                    );
-                                })}
-                            </div>
                         </div>
                     )}
                 </div>

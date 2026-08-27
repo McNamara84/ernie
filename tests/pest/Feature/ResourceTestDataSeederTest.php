@@ -288,7 +288,12 @@ describe('Scenario: Licenses', function () {
             ->first();
 
         expect($resource)->not->toBeNull();
-        expect($resource->rights)->toHaveCount(3);
+        expect($resource->rights)->toHaveCount(3)
+            ->and($resource->rights->pluck('identifier')->sort()->values()->all())->toBe([
+                'CC-BY-4.0',
+                'CC-BY-SA-4.0',
+                'CC0-1.0',
+            ]);
     });
 });
 

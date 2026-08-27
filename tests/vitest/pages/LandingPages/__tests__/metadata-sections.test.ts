@@ -68,12 +68,13 @@ describe('section-catalog helpers', () => {
             'metadata_download',
             'location',
         ]);
-        expect(RESOURCE_LEFT_COLUMN_SECTIONS).toEqual(['files', 'citation', 'dates', 'contact', 'model_description', 'related_work']);
+        expect(RESOURCE_LEFT_COLUMN_SECTIONS).toEqual(['files', 'licenses', 'citation', 'dates', 'contact', 'model_description', 'related_work']);
         expect(IGSN_LEFT_COLUMN_SECTIONS).toEqual([
             'general',
             'sample_family',
             'acquisition',
             'repositories',
+            'licenses',
             'citation',
             'dates',
             'contact',
@@ -115,6 +116,7 @@ describe('section-catalog helpers', () => {
         expect(normalizeLeftColumnOrder(['contact', 'files', 'unknown'] as never, 'resource')).toEqual([
             'contact',
             'files',
+            'licenses',
             'dates',
             'model_description',
             'related_work',
@@ -123,6 +125,7 @@ describe('section-catalog helpers', () => {
         expect(normalizeLeftColumnOrder(['contact', 'general', 'files'] as never, 'igsn')).toEqual([
             'contact',
             'general',
+            'licenses',
             'sample_family',
             'acquisition',
             'repositories',
@@ -138,11 +141,13 @@ describe('section-catalog helpers', () => {
             'contact',
             'citation',
             'files',
+            'licenses',
             'dates',
             'model_description',
             'related_work',
         ]);
         expect(normalizeLeftColumnOrder(['citation', 'contact', 'general'] as never, 'igsn')).toEqual([
+            'licenses',
             'citation',
             'contact',
             'general',
@@ -158,6 +163,7 @@ describe('section-catalog helpers', () => {
     it('appends a missing citation once after all other sparse legacy sections', () => {
         expect(normalizeLeftColumnOrder(['contact', 'contact', 'unknown'] as never, 'resource')).toEqual([
             'contact',
+            'licenses',
             'files',
             'dates',
             'model_description',
@@ -166,6 +172,7 @@ describe('section-catalog helpers', () => {
         ]);
         expect(normalizeLeftColumnOrder(['contact', 'files', 'unknown'] as never, 'igsn')).toEqual([
             'contact',
+            'licenses',
             'general',
             'sample_family',
             'acquisition',

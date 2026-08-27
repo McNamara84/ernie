@@ -330,7 +330,19 @@ describe('DefaultGfzTemplate', () => {
     it('omits the Files section when downloads are unavailable', () => {
         mockUsePage.mockReturnValue({
             props: {
-                resource: mockResource,
+                resource: {
+                    ...mockResource,
+                    licenses: [
+                        {
+                            id: 1,
+                            resource_right_id: 10,
+                            name: 'Creative Commons Attribution Non Commercial 4.0 International',
+                            spdx_id: 'CC-BY-NC-4.0',
+                            reference: 'https://creativecommons.org/licenses/by-nc/4.0/',
+                            source: 'catalog',
+                        },
+                    ],
+                },
                 landingPage: {
                     ...mockLandingPage,
                     downloads_unavailable: true,
@@ -359,6 +371,8 @@ describe('DefaultGfzTemplate', () => {
         expect(screen.queryByText('Files')).not.toBeInTheDocument();
         expect(screen.queryByText('Download data and description')).not.toBeInTheDocument();
         expect(screen.queryByText('Repository')).not.toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'License & Rights' })).toBeInTheDocument();
+        expect(screen.getByText(/Creative Commons Attribution Non Commercial 4\.0 International/)).toBeInTheDocument();
     });
 
     describe('accessibility', () => {

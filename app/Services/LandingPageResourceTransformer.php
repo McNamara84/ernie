@@ -25,6 +25,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\ResourceRight;
 use App\Models\Right;
 use App\Models\Subject;
 use App\Models\Title;
@@ -66,7 +67,7 @@ final class LandingPageResourceTransformer
             'contributors.affiliations',
             'titles.titleType',
             'descriptions.descriptionType',
-            'rights',
+            'resourceRights.right',
             'subjects',
             'geoLocations',
             'dates.dateType',
@@ -97,7 +98,7 @@ final class LandingPageResourceTransformer
 
         // Publisher metadata is used server-side for CSL formatting. Keep the
         // relation object out of the stable, scalar frontend resource contract.
-        unset($resourceData['publisher']);
+        unset($resourceData['publisher'], $resourceData['rights'], $resourceData['resource_rights']);
 
         $resourceData['titles'] = $resource->titles
             ->map(static fn (Title $title): array => [
@@ -357,16 +358,7 @@ final class LandingPageResourceTransformer
             ])
             ->all();
 
-        // Transform rights to licenses with frontend-compatible field names.
-        $resourceData['licenses'] = $resource->rights
-            ->map(static fn (Right $right): array => [
-                'id' => $right->id,
-                'name' => $right->name,
-                'spdx_id' => CustomRightCatalogService::isSpdxRight($right) ? $right->identifier : null,
-                'reference' => $right->uri,
-                'scheme_uri' => $right->scheme_uri,
-            ])
-            ->all();
+        $resourceData['licenses'] = $this->transformLicenses($resource);
 
         // 1. Collect creator contact persons (is_contact flag + has email)
         $creatorContactPersons = $resource->creators
@@ -644,6 +636,97 @@ final class LandingPageResourceTransformer
         }
 
         return $resourceData;
+    }
+
+    /**
+     * Include both trusted catalog rights and unresolved imported statements.
+     *
+     * `resource_rights` is the source of truth because every row represents one
+     * DataCite rights statement. Keeping the row boundary prevents a linked
+     * statement from also being emitted as an unresolved duplicate.
+     *
+     * @return list<array<string, int|string|null>>
+     */
+    private function transformLicenses(Resource $resource): array
+    {
+        if (! $resource->relationLoaded('resourceRights')) {
+            // Preserve compatibility for direct transformer callers that still
+            // preload only the historical belongs-to-many relation.
+            return array_values($resource->rights
+                ->map(static fn (Right $right): array => [
+                    'id' => $right->id,
+                    'resource_right_id' => null,
+                    'name' => $right->name,
+                    'spdx_id' => CustomRightCatalogService::isSpdxRight($right) ? $right->identifier : null,
+                    'reference' => $right->uri,
+                    'scheme_uri' => $right->scheme_uri,
+                    'source' => 'catalog',
+                ])
+                ->all());
+        }
+
+        return array_values($resource->resourceRights
+            ->map(function (ResourceRight $resourceRight): ?array {
+                $right = $resourceRight->right;
+
+                if ($right instanceof Right) {
+                    return [
+                        'id' => $right->id,
+                        'resource_right_id' => $resourceRight->id,
+                        'name' => $right->name,
+                        'spdx_id' => CustomRightCatalogService::isSpdxRight($right) ? $right->identifier : null,
+                        'reference' => $right->uri,
+                        'scheme_uri' => $right->scheme_uri,
+                        'source' => 'catalog',
+                    ];
+                }
+
+                $name = $this->firstNonEmptyString(
+                    $resourceRight->rights_text,
+                    $resourceRight->rights_identifier,
+                    $resourceRight->rights_uri,
+                );
+
+                if ($name === null) {
+                    return null;
+                }
+
+                return [
+                    'id' => null,
+                    'resource_right_id' => $resourceRight->id,
+                    'name' => $name,
+                    'spdx_id' => null,
+                    'reference' => $this->normalizedString($resourceRight->rights_uri),
+                    'scheme_uri' => $this->normalizedString($resourceRight->scheme_uri),
+                    'source' => 'raw',
+                ];
+            })
+            ->filter()
+            ->all());
+    }
+
+    private function firstNonEmptyString(?string ...$values): ?string
+    {
+        foreach ($values as $value) {
+            $normalized = $this->normalizedString($value);
+
+            if ($normalized !== null) {
+                return $normalized;
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizedString(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
     }
 
     private function sanitizeLandingPageHtml(?string $html, DescriptionFormattingService $descriptionFormattingService): ?string
