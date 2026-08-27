@@ -110,10 +110,10 @@ export class LandingPage {
     this.subjectsSection = page.locator('[data-testid="subjects-section"]');
     this.keywordsList = this.subjectsSection.locator('[data-testid="keywords-list"], .flex.flex-wrap');
 
-    // License section - licenses are displayed within the Files section
-    this.licenseSection = page.locator('[data-testid="license-section"]').first();
+    // License & Rights is an independently configurable landing-page section.
+    this.licenseSection = page.getByTestId('license-and-rights-section');
 
-    // Files section (contains licenses)
+    // Files section
     this.filesSection = page.locator('[data-testid="files-section"]').or(
       page.locator('section[aria-labelledby="heading-files"]')
     );
@@ -429,21 +429,21 @@ export class LandingPage {
   }
 
   /**
-   * Verify license is visible within the files section
+   * Verify the independent License & Rights section is visible
    */
   async verifyLicenseVisible(licenseName?: string) {
-    // Check for "License" label in files section
-    await expect(this.filesSection.locator('text=License')).toBeVisible();
+    await expect(this.licenseSection).toBeVisible();
+    await expect(this.licenseSection.getByRole('heading', { name: 'License & Rights' })).toBeVisible();
     if (licenseName) {
-      await expect(this.filesSection).toContainText(licenseName);
+      await expect(this.licenseSection).toContainText(licenseName);
     }
   }
 
   /**
-   * Verify no license is displayed in the files section
+   * Verify no independent License & Rights section is displayed
    */
   async verifyLicenseNotVisible() {
-    await expect(this.filesSection.locator('text=License')).not.toBeVisible();
+    await expect(this.licenseSection).not.toBeVisible();
   }
 
   /**
@@ -540,8 +540,7 @@ export class LandingPage {
   }
 
   // =========================================================================
-  // License Methods (Full License Names & CC Icons)
-  // Note: Licenses are displayed within the Files section
+  // License & Rights Methods (Full License Names & CC Icons)
   // =========================================================================
 
   /**
@@ -550,7 +549,7 @@ export class LandingPage {
    * "Creative Commons Attribution 4.0 International"
    */
   async verifyLicenseFullName(fullName: string) {
-    const licenseLink = this.filesSection.locator(`a:has-text("${fullName}")`);
+    const licenseLink = this.licenseSection.locator(`a:has-text("${fullName}")`);
     await expect(licenseLink).toBeVisible();
   }
 
@@ -558,16 +557,16 @@ export class LandingPage {
    * Verify a license link has correct href
    */
   async verifyLicenseLinkHref(licenseName: string, expectedUrl: string) {
-    const licenseLink = this.filesSection.locator(`a:has-text("${licenseName}")`);
+    const licenseLink = this.licenseSection.locator(`a:has-text("${licenseName}")`);
     await expect(licenseLink).toHaveAttribute('href', expectedUrl);
   }
 
   /**
    * Verify Creative Commons icons are displayed for a CC license.
-   * Checks for the official CC badge image within the files section.
+   * Checks for the official CC badge image within the License & Rights section.
    */
   async verifyCreativeCommonsIconsVisible() {
-    const ccIcons = this.filesSection.locator('img[alt*="Creative Commons"]');
+    const ccIcons = this.licenseSection.locator('img[alt*="Creative Commons"]');
     await expect(ccIcons.first()).toBeVisible();
   }
 
@@ -575,7 +574,7 @@ export class LandingPage {
    * Verify Creative Commons icons are NOT displayed (for non-CC licenses)
    */
   async verifyCreativeCommonsIconsNotVisible() {
-    const ccIcons = this.filesSection.locator('img[alt*="Creative Commons"]');
+    const ccIcons = this.licenseSection.locator('img[alt*="Creative Commons"]');
     await expect(ccIcons).toHaveCount(0);
   }
 
@@ -583,7 +582,7 @@ export class LandingPage {
    * Verify license has SPDX identifier in tooltip without the old prefix
    */
   async verifyLicenseTooltip(licenseName: string, spdxId: string) {
-    const licenseLink = this.filesSection.locator(`a:has-text("${licenseName}")`);
+    const licenseLink = this.licenseSection.locator(`a:has-text("${licenseName}")`);
     await expect(licenseLink).toHaveAttribute('title', spdxId);
   }
 
@@ -591,7 +590,7 @@ export class LandingPage {
    * Get the count of license badges displayed
    */
   async getLicenseCount(): Promise<number> {
-    const licenseBadges = this.filesSection.locator('[data-testid="license-badge"]');
+    const licenseBadges = this.licenseSection.getByTestId('license-and-rights-entry');
     return await licenseBadges.count();
   }
 }

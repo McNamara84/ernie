@@ -37,6 +37,7 @@ export const IGSN_SECTION_LABELS: Record<IgsnSection, string> = {
     sample_family: 'Sample Family',
     acquisition: 'Acquisition',
     repositories: 'Repositories',
+    licenses: 'License & Rights',
     citation: 'Cite this Resource',
     dates: 'Dates',
     contact: 'Contact Person',

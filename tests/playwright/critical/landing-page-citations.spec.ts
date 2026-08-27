@@ -5,7 +5,7 @@ import { LandingPage } from '../helpers/page-objects/LandingPage';
 const normalizeVisibleText = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
 test.describe('Landing Page - Citation Standards', () => {
-  test('renders the resource module after files, switches styles and copies selected plaintext', async ({ page }) => {
+  test('renders the resource citation after License & Rights, switches styles and copies selected plaintext', async ({ page }) => {
     const landingPage = new LandingPage(page);
     await landingPage.installCitationClipboardStub();
     await landingPage.goto('playwright-published');
@@ -42,9 +42,11 @@ test.describe('Landing Page - Citation Standards', () => {
       sections.map((section) => section.getAttribute('data-testid') ?? section.getAttribute('aria-labelledby')),
     );
     const filesIndex = sectionIds.indexOf('files-section');
+    const licensesIndex = sectionIds.indexOf('license-and-rights-section');
     const citationIndex = sectionIds.indexOf('citation-section');
     expect(filesIndex).toBeGreaterThanOrEqual(0);
-    expect(citationIndex).toBe(filesIndex + 1);
+    expect(licensesIndex).toBe(filesIndex + 1);
+    expect(citationIndex).toBe(licensesIndex + 1);
 
     const apaText = normalizeVisibleText(await landingPage.citationContent.innerText());
     await landingPage.selectCitationStyle('harvard');
@@ -58,7 +60,7 @@ test.describe('Landing Page - Citation Standards', () => {
       .toBe(harvardText);
   });
 
-  test('renders the citation module after Acquisition in an IGSN preview', async ({ page }) => {
+  test('renders the citation module after License & Rights in an IGSN preview', async ({ page }) => {
     const landingPage = new LandingPage(page);
     await landingPage.gotoPreview('playwright-igsn-preview');
     await landingPage.verifyPageLoaded();
@@ -73,7 +75,7 @@ test.describe('Landing Page - Citation Standards', () => {
       .locator(':scope > section > h2')
       .allTextContents();
 
-    expect(leftHeadings.slice(0, 3)).toEqual(['General', 'Acquisition', 'Cite this Resource']);
+    expect(leftHeadings.slice(0, 4)).toEqual(['General', 'Acquisition', 'License & Rights', 'Cite this Resource']);
   });
 
   test('keeps the DOI-less note outside the copied GFZ citation', async ({ page }) => {

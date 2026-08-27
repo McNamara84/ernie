@@ -33,6 +33,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Str;
 
 /**
  * Comprehensive test data seeder for Resources.
@@ -576,8 +577,28 @@ class ResourceTestDataSeeder extends Seeder
         // Note: Default contact person is already at position 1
         $this->addCreator($resource, 'Multi', 'License', null, 2);
 
-        // Note: CC-BY-4.0 is already added by createBaseResource, add additional licenses
-        $additionalLicenses = Right::whereIn('identifier', ['CC-BY-SA-4.0', 'CC0-1.0'])->get();
+        // CC-BY-4.0 is already added by createBaseResource. Keep this fixture
+        // deterministic when the live SPDX sync is unavailable during tests.
+        $additionalLicenses = collect([
+            [
+                'identifier' => 'CC-BY-SA-4.0',
+                'name' => 'Creative Commons Attribution Share Alike 4.0 International',
+                'uri' => 'https://creativecommons.org/licenses/by-sa/4.0/',
+            ],
+            [
+                'identifier' => 'CC0-1.0',
+                'name' => 'Creative Commons Zero v1.0 Universal',
+                'uri' => 'https://creativecommons.org/publicdomain/zero/1.0/',
+            ],
+        ])->map(fn (array $license): Right => Right::updateOrCreate(
+            ['identifier' => $license['identifier']],
+            [
+                'name' => $license['name'],
+                'uri' => $license['uri'],
+                'scheme_uri' => 'https://spdx.org/licenses/',
+            ],
+        ));
+
         foreach ($additionalLicenses as $license) {
             $resource->rights()->attach($license->id);
         }
@@ -1432,7 +1453,7 @@ class ResourceTestDataSeeder extends Seeder
             $title = $firstTitle ? $firstTitle->value : 'N/A';
             $tableData[] = [
                 $resource->id,
-                \Illuminate\Support\Str::limit($title, 50),
+                Str::limit($title, 50),
                 $resource->creators->count(),
                 $resource->contributors->count(),
                 $resource->geoLocations->count(),

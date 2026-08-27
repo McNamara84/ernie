@@ -38,6 +38,7 @@ export type IgsnSection =
     | 'sample_family'
     | 'acquisition'
     | 'repositories'
+    | 'licenses'
     | 'citation'
     | 'dates'
     | 'contact'

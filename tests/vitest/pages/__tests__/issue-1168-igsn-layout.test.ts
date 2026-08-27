@@ -15,6 +15,7 @@ describe('Issue 1168 IGSN template layout', () => {
 
         expect([...orders.left, ...orders.right]).toHaveLength(IGSN_SECTIONS.length);
         expect(new Set([...orders.left, ...orders.right]).size).toBe(IGSN_SECTIONS.length);
+        expect(orders.left).toContain('licenses');
         expect(orders.left.at(-1)).toBe('citation');
         expect(orders.right.indexOf('sample_image')).toBe(orders.right.indexOf('location') - 1);
     });

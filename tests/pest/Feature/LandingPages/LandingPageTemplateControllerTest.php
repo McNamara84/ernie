@@ -994,6 +994,7 @@ describe('Model', function (): void {
             'sample_family',
             'acquisition',
             'repositories',
+            'licenses',
             'dates',
             'model_description',
             'related_work',
