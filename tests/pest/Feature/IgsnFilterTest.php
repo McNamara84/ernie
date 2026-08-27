@@ -70,6 +70,68 @@ function createFilterableIgsn(
 }
 
 // ============================================================================
+// Pagination
+// ============================================================================
+
+describe('IGSN Pagination', function () {
+    it('uses 100 IGSNs per page by default', function () {
+        $this->actingAs($this->user)
+            ->get('/igsns')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('igsns/index')
+                ->where('pagination.per_page', 100)
+                ->where('pagination.current_page', 1)
+            );
+    });
+
+    it('accepts every selectable page size', function (int $perPage) {
+        $this->actingAs($this->user)
+            ->get('/igsns?per_page='.$perPage)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('igsns/index')
+                ->where('pagination.per_page', $perPage)
+            );
+    })->with([10, 100, 1000]);
+
+    it('normalizes unsupported legacy page sizes to the default', function (int $perPage) {
+        $this->actingAs($this->user)
+            ->get('/igsns?per_page='.$perPage)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('igsns/index')
+                ->where('pagination.per_page', 100)
+            );
+    })->with([25, 50]);
+
+    it('rejects out-of-range page sizes', function (int $perPage) {
+        $this->actingAs($this->user)
+            ->getJson('/igsns?per_page='.$perPage)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['per_page']);
+    })->with([0, 1001]);
+
+    it('returns the requested page', function () {
+        foreach (range(1, 11) as $index) {
+            createFilterableIgsn('10.60516/PAGE'.$index, 'Sample '.$index);
+        }
+
+        $this->actingAs($this->user)
+            ->get('/igsns?per_page=10&page=2')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('igsns/index')
+                ->has('igsns', 1)
+                ->where('pagination.current_page', 2)
+                ->where('pagination.last_page', 2)
+                ->where('pagination.per_page', 10)
+                ->where('pagination.total', 11)
+            );
+    });
+});
+
+// ============================================================================
 // Filter Options Endpoint
 // ============================================================================
 

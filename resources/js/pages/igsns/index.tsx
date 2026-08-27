@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { Braces, CloudUpload, Download, FileJson, Globe, RefreshCw } from 'lucide-react';
+import { Braces, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CloudUpload, Download, FileJson, Globe, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SortableTableHeader, type SortDirection, type SortState } from '@/components/ui/sortable-table-header';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -39,6 +40,7 @@ import {
     readStoredIgsnDatacenterFilter,
     storedIgsnDatacenterFilterToState,
 } from '@/lib/igsns-datacenter-filter-storage';
+import { IGSNS_PAGE_SIZE_OPTIONS, isIgsnsPageSize, persistIgsnsPageSize, readStoredIgsnsPageSize } from '@/lib/igsns-page-size-storage';
 import { type BreadcrumbItem } from '@/types';
 
 // ============================================================================
@@ -195,7 +197,7 @@ function IgsnsPage({
     });
     // Filter options are delivered as Inertia props to avoid extra network requests on remount
     const [filterOptions, setFilterOptions] = useState<IgsnFilterOptions>(initialFilterOptions);
-    const attemptedDatacenterFilterRestoreRef = useRef(false);
+    const attemptedPreferenceRestoreRef = useRef(false);
 
     // Selection state for bulk actions
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -334,7 +336,7 @@ function IgsnsPage({
     }, []);
 
     const buildParams = useCallback(
-        (overrides: { sort?: SortState<SortKey>; search?: string; page?: number; filters?: IgsnFilterState } = {}) => {
+        (overrides: { sort?: SortState<SortKey>; search?: string; page?: number; perPage?: number; filters?: IgsnFilterState } = {}) => {
             const sort = overrides.sort ?? sortState;
             const currentFilters = overrides.filters ?? activeFilters;
             const search = overrides.search ?? currentFilters.search ?? searchQuery;
@@ -358,49 +360,90 @@ function IgsnsPage({
             if (overrides.page && overrides.page > 1) {
                 params.set('page', String(overrides.page));
             }
-            // Always carry the current page size so navigation never silently resets it
-            params.set('per_page', String(pagination.per_page));
+            // Always carry the current page size so navigation never silently resets it.
+            params.set('per_page', String(overrides.perPage ?? pagination.per_page));
             return params;
         },
         [sortState, searchQuery, activeFilters, pagination.per_page],
     );
 
     useEffect(() => {
-        if (attemptedDatacenterFilterRestoreRef.current || typeof window === 'undefined') {
+        if (attemptedPreferenceRestoreRef.current || typeof window === 'undefined') {
             return;
         }
 
-        attemptedDatacenterFilterRestoreRef.current = true;
+        attemptedPreferenceRestoreRef.current = true;
 
-        if (window.location.pathname !== '/igsns' || window.location.search !== '') {
+        const searchParams = new URLSearchParams(window.location.search);
+        const storedPageSize = readStoredIgsnsPageSize();
+        const shouldRestorePageSize = !searchParams.has('per_page') && storedPageSize !== null && storedPageSize !== pagination.per_page;
+        let restoredFilters: IgsnFilterState | null = null;
+
+        if (window.location.pathname === '/igsns' && window.location.search === '') {
+            const storedFilter = readStoredIgsnDatacenterFilter();
+
+            if (
+                storedFilter?.type === 'datacenter' &&
+                !(filterOptions.datacenters ?? []).some((datacenter) => datacenter.id === storedFilter.datacenterId)
+            ) {
+                clearStoredIgsnDatacenterFilter();
+            } else if (storedFilter) {
+                restoredFilters = storedIgsnDatacenterFilterToState(storedFilter);
+                setActiveFilters(restoredFilters);
+            }
+        }
+
+        if (!shouldRestorePageSize && restoredFilters === null) {
             return;
         }
 
-        const storedFilter = readStoredIgsnDatacenterFilter();
-        if (!storedFilter) {
-            return;
-        }
-
-        if (
-            storedFilter.type === 'datacenter' &&
-            !(filterOptions.datacenters ?? []).some((datacenter) => datacenter.id === storedFilter.datacenterId)
-        ) {
-            clearStoredIgsnDatacenterFilter();
-
-            return;
-        }
-
-        const restoredFilters: IgsnFilterState = storedIgsnDatacenterFilterToState(storedFilter);
-        setActiveFilters(restoredFilters);
-
-        const params = buildParams({ filters: restoredFilters, search: '' });
+        const params = buildParams({
+            ...(restoredFilters === null ? {} : { filters: restoredFilters, search: '' }),
+            ...(shouldRestorePageSize ? { perPage: storedPageSize } : {}),
+        });
         setIsNavigating(true);
         router.visit(`/igsns?${params.toString()}`, {
             preserveState: false,
             replace: true,
             onFinish: () => setIsNavigating(false),
         });
-    }, [buildParams, filterOptions.datacenters]);
+    }, [buildParams, filterOptions.datacenters, pagination.per_page]);
+
+    const handlePageChange = useCallback(
+        (page: number) => {
+            if (page < 1 || page > pagination.last_page || page === pagination.current_page) {
+                return;
+            }
+
+            const params = buildParams({ page });
+            setIsNavigating(true);
+            router.visit(`/igsns?${params.toString()}`, {
+                preserveState: false,
+                replace: true,
+                onFinish: () => setIsNavigating(false),
+            });
+        },
+        [buildParams, pagination.current_page, pagination.last_page],
+    );
+
+    const handlePageSizeChange = useCallback(
+        (value: string) => {
+            const pageSize = Number(value);
+            if (!isIgsnsPageSize(pageSize) || pageSize === pagination.per_page) {
+                return;
+            }
+
+            persistIgsnsPageSize(pageSize);
+            const params = buildParams({ page: 1, perPage: pageSize });
+            setIsNavigating(true);
+            router.visit(`/igsns?${params.toString()}`, {
+                preserveState: false,
+                replace: true,
+                onFinish: () => setIsNavigating(false),
+            });
+        },
+        [buildParams, pagination.per_page],
+    );
 
     const handleSortChange = useCallback(
         (key: SortKey) => {
@@ -841,29 +884,74 @@ function IgsnsPage({
                                 </Table>
                             )}
 
-                            {/* Pagination Info */}
+                            {/* Pagination */}
                             {pagination.total > 0 && (
-                                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                    <span>
+                                <div className="flex flex-col gap-4 px-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                                    <span className="flex-1">
                                         Showing {pagination.from ?? 0} to {pagination.to ?? 0} of {pagination.total} samples
                                     </span>
-                                    {pagination.has_more && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
-                                                const params = buildParams({ page: pagination.current_page + 1 });
-                                                setIsNavigating(true);
-                                                router.visit(`/igsns?${params.toString()}`, {
-                                                    preserveState: false,
-                                                    replace: true,
-                                                    onFinish: () => setIsNavigating(false),
-                                                });
-                                            }}
-                                        >
-                                            Load More
-                                        </Button>
-                                    )}
+                                    <div className="flex flex-wrap items-center gap-4 sm:justify-end">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-foreground">Rows per page</span>
+                                            <Select value={String(pagination.per_page)} onValueChange={handlePageSizeChange} disabled={isNavigating}>
+                                                <SelectTrigger className="h-8 w-[80px]" aria-label="Rows per page">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent side="top">
+                                                    {IGSNS_PAGE_SIZE_OPTIONS.map((pageSize) => (
+                                                        <SelectItem key={pageSize} value={String(pageSize)}>
+                                                            {pageSize}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <span className="min-w-24 text-center font-medium text-foreground">
+                                            Page {pagination.current_page} of {pagination.last_page}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="hidden size-8 sm:inline-flex"
+                                                onClick={() => handlePageChange(1)}
+                                                disabled={isNavigating || pagination.current_page === 1}
+                                                aria-label="Go to first page"
+                                            >
+                                                <ChevronsLeft className="size-4" />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="size-8"
+                                                onClick={() => handlePageChange(pagination.current_page - 1)}
+                                                disabled={isNavigating || pagination.current_page === 1}
+                                                aria-label="Go to previous page"
+                                            >
+                                                <ChevronLeft className="size-4" />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="size-8"
+                                                onClick={() => handlePageChange(pagination.current_page + 1)}
+                                                disabled={isNavigating || pagination.current_page === pagination.last_page}
+                                                aria-label="Go to next page"
+                                            >
+                                                <ChevronRight className="size-4" />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="hidden size-8 sm:inline-flex"
+                                                onClick={() => handlePageChange(pagination.last_page)}
+                                                disabled={isNavigating || pagination.current_page === pagination.last_page}
+                                                aria-label="Go to last page"
+                                            >
+                                                <ChevronsRight className="size-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>

@@ -9,6 +9,10 @@ use Illuminate\Validation\Rule;
 
 final class IndexIgsnsRequest extends FormRequest
 {
+    public const DEFAULT_PER_PAGE = 100;
+
+    public const PER_PAGE_OPTIONS = [10, 100, 1000];
+
     public function authorize(): bool
     {
         return true;
@@ -20,6 +24,7 @@ final class IndexIgsnsRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'datacenter_id' => [
                 'nullable',
                 'integer',
@@ -28,6 +33,15 @@ final class IndexIgsnsRequest extends FormRequest
             ],
             'without_datacenter' => ['nullable', 'boolean'],
         ];
+    }
+
+    public function perPage(): int
+    {
+        $perPage = (int) ($this->validated('per_page') ?? self::DEFAULT_PER_PAGE);
+
+        return in_array($perPage, self::PER_PAGE_OPTIONS, true)
+            ? $perPage
+            : self::DEFAULT_PER_PAGE;
     }
 
     public function datacenterId(): ?int

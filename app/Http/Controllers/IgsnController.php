@@ -46,12 +46,6 @@ class IgsnController extends Controller
         private readonly DataCiteUrlUpdateRunPresenter $dataCiteUrlUpdateRunPresenter,
     ) {}
 
-    private const DEFAULT_PER_PAGE = 50;
-
-    private const MIN_PER_PAGE = 1;
-
-    private const MAX_PER_PAGE = 100;
-
     private const DEFAULT_SORT_KEY = 'updated_at';
 
     private const DEFAULT_SORT_DIRECTION = 'desc';
@@ -82,8 +76,7 @@ class IgsnController extends Controller
     public function index(IndexIgsnsRequest $request): Response
     {
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = (int) $request->query('per_page', self::DEFAULT_PER_PAGE);
-        $perPage = max(self::MIN_PER_PAGE, min(self::MAX_PER_PAGE, $perPage));
+        $perPage = $request->perPage();
         $search = trim((string) $request->query('search', ''));
 
         // Enforce minimum search length to avoid expensive full-table LIKE scans.
