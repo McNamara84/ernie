@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\AmbiguousLegacyResourceException;
 use App\Models\OldDataset;
 
 class LegacyResourceLookupService
@@ -32,7 +33,9 @@ class LegacyResourceLookupService
     /**
      * @return array{
      *     relatedIdentifiers: list<array{identifier: string, identifierType: string, relationType: string, position: int}>,
-     *     subjects: list<array<string, string>>
+     *     subjects: list<array<string, string>>,
+     *     legacyResourceId: int|null,
+     *     legacyResourceStatus: string|null
      * }
      */
     public function importMetadataByDoi(string $doi): array
@@ -43,20 +46,32 @@ class LegacyResourceLookupService
             return [
                 'relatedIdentifiers' => [],
                 'subjects' => [],
+                'legacyResourceId' => null,
+                'legacyResourceStatus' => null,
             ];
         }
 
         return [
             'relatedIdentifiers' => array_values($resource->getRelatedIdentifiers()),
             'subjects' => $this->keywordService()->dataCiteSubjects($resource),
+            'legacyResourceId' => (int) $resource->id,
+            'legacyResourceStatus' => is_string($resource->publicstatus) ? $resource->publicstatus : null,
         ];
     }
 
     private function findByDoi(string $doi): ?OldDataset
     {
-        return OldDataset::query()
+        $matches = OldDataset::query()
             ->whereRaw('LOWER(identifier) = ?', [mb_strtolower(trim($doi))])
-            ->first();
+            ->orderBy('id')
+            ->limit(2)
+            ->get();
+
+        if ($matches->count() > 1) {
+            throw new AmbiguousLegacyResourceException('Multiple SUMARIO resources have the same DOI.');
+        }
+
+        return $matches->first();
     }
 
     private function keywordService(): LegacyKeywordService

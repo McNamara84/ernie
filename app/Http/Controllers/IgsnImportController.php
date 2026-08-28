@@ -171,19 +171,24 @@ class IgsnImportController extends Controller
     /**
      * Get the status of an ongoing or completed IGSN import.
      */
-    public function status(Request $request, string $importId): JsonResponse
-    {
+    public function status(
+        Request $request,
+        string $importId,
+        ImportProgressService $progressService,
+    ): JsonResponse {
         $this->authorize('importFromDataCite', Resource::class);
 
         if (! Str::isUuid($importId)) {
             return response()->json(['error' => 'Invalid import ID format'], 400);
         }
 
-        $progress = Cache::get("igsn_import:{$importId}");
+        $progress = $progressService->get(ImportProgressService::TYPE_IGSN, $importId);
 
         if ($progress === null) {
             return response()->json(['error' => 'Import not found'], 404);
         }
+
+        unset($progress['sync_full_metadata_resource_ids']);
 
         return response()->json($progress);
     }
@@ -191,21 +196,24 @@ class IgsnImportController extends Controller
     /**
      * Cancel an ongoing IGSN import.
      */
-    public function cancel(Request $request, string $importId): JsonResponse
-    {
+    public function cancel(
+        Request $request,
+        string $importId,
+        ImportProgressService $progressService,
+    ): JsonResponse {
         $this->authorize('importFromDataCite', Resource::class);
 
         if (! Str::isUuid($importId)) {
             return response()->json(['error' => 'Invalid import ID format'], 400);
         }
 
-        $progress = Cache::get("igsn_import:{$importId}");
+        $progress = $progressService->get(ImportProgressService::TYPE_IGSN, $importId);
 
         if ($progress === null) {
             return response()->json(['error' => 'Import not found'], 404);
         }
 
-        if ($progress['status'] !== 'running' && $progress['status'] !== 'pending') {
+        if (! in_array($progress['status'] ?? null, ['running', 'pending'], true)) {
             return response()->json(['error' => 'Import is not running'], 400);
         }
 

@@ -36,6 +36,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $legacy_source
  * @property int|null $legacy_source_id
  * @property string|null $legacy_source_status
+ * @property Carbon|null $legacy_description_breaks_normalized_at
  * @property bool $force_review_status
  * @property ResourceWorkflowStatus|null $workflow_status_override
  * @property AccessLevel|null $access_level
@@ -71,7 +72,7 @@ use Illuminate\Support\Carbon;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
-#[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'datacenter_id', 'created_by_user_id', 'updated_by_user_id', 'legacy_source', 'legacy_source_id', 'legacy_source_status', 'force_review_status', 'workflow_status_override', 'access_level'])]
+#[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'datacenter_id', 'created_by_user_id', 'updated_by_user_id', 'legacy_source', 'legacy_source_id', 'legacy_source_status', 'legacy_description_breaks_normalized_at', 'force_review_status', 'workflow_status_override', 'access_level'])]
 class Resource extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -80,6 +81,7 @@ class Resource extends Model
     protected $casts = [
         'publication_year' => 'integer',
         'legacy_source_id' => 'integer',
+        'legacy_description_breaks_normalized_at' => 'datetime',
         'force_review_status' => 'boolean',
         'workflow_status_override' => ResourceWorkflowStatus::class,
         'access_level' => AccessLevel::class,

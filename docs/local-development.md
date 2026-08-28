@@ -179,6 +179,31 @@ The enrichment replaces a DataCite bounding box only when all four legacy bounds
 
 This enrichment runs only while creating a new DataCite resource. Duplicate, skipped, and repair paths do not add lines to resources that already exist in ERNIE; there is no automatic backfill.
 
+### Legacy description break cleanup
+
+New SUMARIO imports correct the duplicated paragraph breaks produced by the legacy XML export before storing descriptions. The correction is pairwise: two consecutive `<br>` tags become one, three become two, four become two, and in general a run of `n` break tags or plain-text newline tokens becomes `ceil(n / 2)`. Whitespace between tags and the variants `<br>`, `<br/>`, and `<br />` are supported; unrelated text and HTML remain unchanged.
+
+The migration adds `resources.legacy_description_breaks_normalized_at` as a durable one-time marker because applying the pairwise rule twice would remove intentional spacing. The cleanup considers both resources marked with `legacy_source = sumario-pmd` and older unmarked resources whose normalized DOI has exactly one match in SUMARIO. Ambiguous DOI matches are reported for manual review. The configured `metaworks` connection must therefore be reachable for every run, although the command never writes to the legacy database.
+
+Deploy the migration, take the normal ERNIE database backup, and audit the complete selection before applying changes:
+
+```bash
+npm run artisan -- migrate --force
+npm run artisan -- resources:repair-legacy-description-breaks \
+    --report=storage/app/legacy-description-breaks-dry-run.csv
+npm run artisan -- resources:repair-legacy-description-breaks \
+    --apply --after-id=0 --limit=500 --chunk=100 \
+    --report=storage/app/legacy-description-breaks-applied.csv
+```
+
+Use repeatable `--doi` or `--legacy-id` options for targeted audits. `--after-id` refers to the ERNIE `resources.id`; the command always prints the last scanned ID, including batches containing only non-legacy candidates whose CSV has no data rows. Review the CSV and use that printed ID before continuing with another bounded batch. Apply runs update all descriptions of one resource transactionally, reject concurrent edits, invalidate a changed published landing-page cache, and never process an already marked resource again.
+
+With `DATACITE_TEST_MODE=false`, every changed resource with a DOI is queued for a complete metadata synchronization through the `imports` queue. In test mode the local repair still applies but no DataCite request is made. Sync failures do not roll back local changes; retry them with the run UUID printed by the apply command:
+
+```bash
+npm run artisan -- resources:repair-legacy-description-breaks --retry-sync=<sync-run-uuid>
+```
+
 ### Legacy temporal coverage backfill
 
 The temporal-coverage migration adds nullable columns to `geo_locations`; it does not guess or manufacture values for existing rows. After deploying the migration, the original `sumario-pmd.coverage.start` and `coverage.end` values can be copied into already imported ERNIE resources with the dry-run-first backfill command.

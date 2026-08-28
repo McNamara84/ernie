@@ -23,11 +23,15 @@ class SyncImportedResourcesWithDataCiteJob implements ShouldQueue
 
     public int $tries = 1;
 
-    /** @param list<int> $resourceIds */
+    /**
+     * @param  list<int>  $resourceIds
+     * @param  list<int>  $fullMetadataResourceIds
+     */
     public function __construct(
         private readonly string $importType,
         private readonly string $importId,
         private readonly array $resourceIds,
+        private readonly array $fullMetadataResourceIds = [],
     ) {}
 
     public function handle(DataCiteSyncService $syncService, ImportProgressService $progressService): void
@@ -63,9 +67,11 @@ class SyncImportedResourcesWithDataCiteJob implements ShouldQueue
             }
 
             try {
-                $result = $this->importType === ImportProgressService::TYPE_RESOURCE
-                    ? $syncService->syncLandingPageUrlIfRegistered($resource)
-                    : $syncService->syncIfRegistered($resource);
+                $requiresFullMetadata = $this->importType !== ImportProgressService::TYPE_RESOURCE
+                    || in_array($resourceId, $this->fullMetadataResourceIds, true);
+                $result = $requiresFullMetadata
+                    ? $syncService->syncIfRegistered($resource)
+                    : $syncService->syncLandingPageUrlIfRegistered($resource);
 
                 if ($result->hasFailed()) {
                     $progressService->recordSyncFailure(

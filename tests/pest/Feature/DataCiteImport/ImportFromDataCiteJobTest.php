@@ -4,6 +4,7 @@ use App\Enums\CacheKey;
 use App\Enums\CitationLabelResolutionMode;
 use App\Enums\ResourceWorkflowStatus;
 use App\Enums\UserRole;
+use App\Exceptions\AmbiguousLegacyResourceException;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Datacenter;
 use App\Models\LandingPage;
@@ -88,6 +89,8 @@ beforeEach(function () {
         ->andReturn([
             'relatedIdentifiers' => [],
             'subjects' => [],
+            'legacyResourceId' => null,
+            'legacyResourceStatus' => null,
         ])
         ->byDefault();
     $this->app->instance(LegacyResourceLookupService::class, $this->legacyResourceLookupService);
@@ -748,6 +751,58 @@ describe('ImportFromDataCiteJob', function () {
         $status = Cache::get("datacite_import:{$importId}");
         expect($status['imported'])->toBe(2)
             ->and($status['failed'])->toBe(0);
+    });
+
+    it('continues legacy lookup after an ambiguous DOI without opening the metaworks circuit breaker', function (): void {
+        $records = [
+            [
+                'id' => '10.5880/ambiguous.1',
+                'attributes' => ['doi' => '10.5880/ambiguous.1'],
+            ],
+            [
+                'id' => '10.5880/legacy.2',
+                'attributes' => ['doi' => '10.5880/legacy.2'],
+            ],
+        ];
+
+        $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(2);
+        $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () use ($records) {
+            yield from $records;
+        })());
+        $this->legacyResourceLookupService
+            ->shouldReceive('importMetadataByDoi')
+            ->once()
+            ->ordered()
+            ->with('10.5880/ambiguous.1')
+            ->andThrow(new AmbiguousLegacyResourceException('duplicate DOI'));
+        $this->legacyResourceLookupService
+            ->shouldReceive('importMetadataByDoi')
+            ->once()
+            ->ordered()
+            ->with('10.5880/legacy.2')
+            ->andReturn([
+                'relatedIdentifiers' => [],
+                'subjects' => [],
+                'legacyResourceId' => 902,
+                'legacyResourceStatus' => 'released',
+            ]);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->twice()
+            ->andReturnUsing(fn (array $record): Resource => Resource::factory()->create([
+                'doi' => $record['attributes']['doi'],
+            ]));
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        $legacyResource = Resource::query()->where('doi', '10.5880/legacy.2')->firstOrFail();
+
+        expect($status['imported'])->toBe(2)
+            ->and($status['failed'])->toBe(0)
+            ->and($legacyResource->legacy_source_id)->toBe(902);
     });
 
     it('normalizes incoming DOIs before checking for duplicates', function () {
@@ -1775,6 +1830,78 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['imported'])->toBe(1)
             ->and($status['failed'])->toBe(0)
             ->and($status['sync_total'])->toBe(1);
+        Bus::assertBatched(fn ($batch): bool => $batch->jobs->count() === 1);
+    });
+
+    it('normalizes and marks published SUMARIO resources imported through DataCite', function () {
+        Config::set('datacite.test_mode', false);
+        Bus::fake();
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/legacy.description.breaks',
+                    'attributes' => [
+                        'doi' => '10.5880/legacy.description.breaks',
+                        'state' => 'findable',
+                        'titles' => [['title' => 'Legacy Description Breaks']],
+                        'descriptions' => [[
+                            'descriptionType' => 'Abstract',
+                            'description' => 'First<br> <br><br><br>Second',
+                        ]],
+                    ],
+                ];
+            })());
+        $this->legacyResourceLookupService
+            ->shouldReceive('importMetadataByDoi')
+            ->once()
+            ->with('10.5880/legacy.description.breaks')
+            ->andReturn([
+                'relatedIdentifiers' => [],
+                'subjects' => [],
+                'legacyResourceId' => 991,
+                'legacyResourceStatus' => 'released',
+            ]);
+        $this->transformer
+            ->shouldReceive('prepareDoiData')
+            ->once()
+            ->withArgs(function (array $record): bool {
+                expect($record['attributes']['descriptions'][0]['description'])
+                    ->toBe('First<br><br>Second');
+
+                return true;
+            })
+            ->andReturnUsing(fn (array $record): array => $record);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create([
+                'doi' => '10.5880/legacy.description.breaks',
+            ]));
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $resource = Resource::query()->where('doi', '10.5880/legacy.description.breaks')->sole();
+        $status = Cache::get("datacite_import:{$importId}");
+
+        expect($resource->legacy_source)->toBe('sumario-pmd')
+            ->and($resource->legacy_source_id)->toBe(991)
+            ->and($resource->legacy_source_status)->toBe('released')
+            ->and($resource->legacy_description_breaks_normalized_at)->not->toBeNull()
+            ->and($status)->toMatchArray([
+                'phase' => 'syncing',
+                'sync_total' => 1,
+                'sync_full_metadata_total' => 1,
+            ])->not->toHaveKey('sync_full_metadata_resource_ids');
+
         Bus::assertBatched(fn ($batch): bool => $batch->jobs->count() === 1);
     });
 

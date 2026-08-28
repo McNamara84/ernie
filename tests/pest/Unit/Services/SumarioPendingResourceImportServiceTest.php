@@ -415,8 +415,8 @@ describe('SumarioPendingResourceImportService', function () {
             'authors' => $authors,
             'contributors' => $contributors,
             'descriptions' => [
-                ['type' => 'Abstract', 'description' => 'First legacy abstract'],
-                ['type' => 'Abstract', 'description' => 'Second legacy abstract'],
+                ['type' => 'Abstract', 'description' => 'First<br><br>legacy abstract'],
+                ['type' => 'Abstract', 'description' => "Second\n\nlegacy abstract"],
             ],
             'dates' => $dates,
             'gcmdKeywords' => [],
@@ -438,6 +438,10 @@ describe('SumarioPendingResourceImportService', function () {
                 ->and($payload['relatedIdentifiers'])->toHaveCount(101)
                 ->and($payload['descriptions'])->toHaveCount(2)
                 ->and(array_column($payload['descriptions'], 'descriptionType'))->toBe(['abstract', 'abstract'])
+                ->and(array_column($payload['descriptions'], 'description'))->toBe([
+                    'First<br>legacy abstract',
+                    "Second\nlegacy abstract",
+                ])
                 ->and($payload['dates'])->toHaveCount(61)
                 ->and($payload['dates'][60]['dateInformation'])->toBe('Collection event 61');
 
@@ -466,7 +470,8 @@ describe('SumarioPendingResourceImportService', function () {
 
         $result = $service->importReviewFallbackByDoi('10.5880/legacy.high-cardinality', $user->id);
 
-        expect($result['status'])->toBe('imported');
+        expect($result['status'])->toBe('imported')
+            ->and($result['resource']?->fresh()->legacy_description_breaks_normalized_at)->not->toBeNull();
     });
 
     it('uses DOI pattern datacenters when importing mixed-case pending SUMARIO resources', function () {
