@@ -266,3 +266,48 @@ test('keeps incomplete person names separate without strong identity evidence', 
 
     expect($result['contributors'][$contributor->id])->not->toBe($result['creators'][$creator->id]);
 });
+
+test('keeps non-person and unresolved legacy rows in safe standalone groups', function () {
+    $legacyAliasCreator = new ResourceCreator;
+    $legacyAliasCreator->forceFill([
+        'id' => 1,
+        'creatorable_type' => 'LegacyPersonAlias',
+        'creatorable_id' => 9,
+    ]);
+    $legacyAliasCreator->setRelation('creatorable', null);
+
+    $invalidIdCreator = new ResourceCreator;
+    $invalidIdCreator->forceFill([
+        'id' => 2,
+        'creatorable_type' => Person::class,
+        'creatorable_id' => 0,
+    ]);
+    $invalidIdCreator->setRelation('creatorable', null);
+
+    $emptyTypeCreator = new ResourceCreator;
+    $emptyTypeCreator->forceFill([
+        'id' => 3,
+        'creatorable_type' => '',
+        'creatorable_id' => 30,
+    ]);
+    $emptyTypeCreator->setRelation('creatorable', null);
+
+    $institution = new Institution;
+    $institution->forceFill([
+        'id' => 40,
+        'name' => 'Example Institute',
+        'name_identifier' => null,
+        'name_identifier_scheme' => null,
+    ]);
+    $institutionContributor = identityResolverContributor(4, $institution);
+
+    $result = resolveLandingPageIdentities(
+        [$legacyAliasCreator, $invalidIdCreator, $emptyTypeCreator],
+        [$institutionContributor],
+    );
+
+    expect($result['creators'][$legacyAliasCreator->id])->toBe('entity:legacypersonalias:9')
+        ->and($result['creators'][$invalidIdCreator->id])->toBe('creator-row:2')
+        ->and($result['creators'][$emptyTypeCreator->id])->toBe('creator-row:3')
+        ->and($result['contributors'][$institutionContributor->id])->toBe('entity:institution:40');
+});
