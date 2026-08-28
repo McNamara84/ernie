@@ -180,6 +180,46 @@ it('matches unlinked legacy resources by DOI and ignores regular resources', fun
         ]);
 });
 
+it('loads cleanup relations only for resources matched to SUMARIO', function (): void {
+    $legacy = legacyBreakResource('10.5880/relations.legacy', 125);
+    legacyBreakDescription($legacy, "Legacy\n\nvalue");
+    $legacyLandingPage = LandingPage::factory()->published()->create(['resource_id' => $legacy->id]);
+    $regular = Resource::factory()->create([
+        'doi' => '10.5880/relations.regular',
+        'legacy_description_breaks_normalized_at' => null,
+    ]);
+    legacyBreakDescription($regular, "Regular\n\nvalue");
+    LandingPage::factory()->published()->create(['resource_id' => $regular->id]);
+
+    $cache = Mockery::mock(LandingPageRenderDataCacheService::class);
+    $cache->shouldReceive('forgetById')->once()->with($legacyLandingPage->id)->andReturnTrue();
+    $service = new LegacyDescriptionBreakCleanupService(
+        new LegacyDescriptionBreakNormalizer,
+        app(DoiSuggestionService::class),
+        $cache,
+    );
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    $result = $service->run(apply: true);
+    $relationQueries = collect(DB::getQueryLog())->filter(
+        static fn (array $query): bool => str_starts_with(strtolower($query['query']), 'select')
+            && (str_contains(strtolower($query['query']), 'from "descriptions"')
+                || str_contains(strtolower($query['query']), 'from "landing_pages"')),
+    );
+    $legacyIdOnlyPattern = '/\bin\s*\(\s*'.preg_quote((string) $legacy->id, '/').'\s*\)/i';
+
+    expect($result)->toMatchArray([
+        'resources_scanned' => 2,
+        'legacy_resources' => 1,
+        'not_legacy' => 1,
+    ])->and($relationQueries)->toHaveCount(2)
+        ->and($relationQueries->every(
+            static fn (array $query): bool => preg_match($legacyIdOnlyPattern, $query['query']) === 1,
+        ))->toBeTrue();
+});
+
 it('leaves ambiguous DOI matches for manual review', function (): void {
     $resource = Resource::factory()->create([
         'doi' => '10.5880/ambiguous',

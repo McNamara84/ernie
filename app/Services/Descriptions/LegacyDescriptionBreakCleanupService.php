@@ -84,7 +84,7 @@ final class LegacyDescriptionBreakCleanupService
         while ($limit === 0 || $stats['resources_scanned'] < $limit) {
             $batchSize = $limit === 0 ? $chunk : min($chunk, $limit - $stats['resources_scanned']);
             $resources = Resource::query()
-                ->with(['descriptions', 'landingPage'])
+                ->select(['id', 'doi', 'legacy_source', 'legacy_source_id'])
                 ->whereNull('legacy_description_breaks_normalized_at')
                 ->where('id', '>', $cursor)
                 ->where(function (Builder $query): void {
@@ -111,11 +111,25 @@ final class LegacyDescriptionBreakCleanupService
 
             $cursor = (int) $resources->last()->id;
             $legacyMatches = $this->legacyMatchesForUnlinkedResources(array_values($resources->all()));
+            /** @var array<int, array{status: 'matched'|'not_legacy'|'manual_review', legacy_resource_id: int|null, match_method: string}> $matchesByResourceId */
+            $matchesByResourceId = [];
+
+            foreach ($resources as $resource) {
+                $matchesByResourceId[(int) $resource->id] = $this->resolveMatch($resource, $legacyMatches);
+            }
+
+            $matchedResources = $resources->filter(
+                static fn (Resource $resource): bool => $matchesByResourceId[(int) $resource->id]['status'] === 'matched',
+            );
+
+            if ($matchedResources->isNotEmpty()) {
+                $matchedResources->load($apply ? ['descriptions', 'landingPage'] : ['descriptions']);
+            }
 
             foreach ($resources as $resource) {
                 $stats['resources_scanned']++;
                 $stats['last_scanned_resource_id'] = (int) $resource->id;
-                $match = $this->resolveMatch($resource, $legacyMatches);
+                $match = $matchesByResourceId[(int) $resource->id];
 
                 if ($match['status'] === 'not_legacy') {
                     $stats['not_legacy']++;
