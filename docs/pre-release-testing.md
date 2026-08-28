@@ -655,12 +655,27 @@ Modify only purpose-created `MANUAL-TEST` users.
 
 - [ ] A `MANUAL-TEST` template can be created or cloned, edited, and saved.
 
+- [ ] The built-in copy templates are named `Templates Resources` and
+      `Templates IGSN` throughout template management and landing-page setup.
+
+- [ ] `GFZ German Research Centre for Geosciences` remains disabled for a
+      custom Resource template but can be selected for a custom IGSN template.
+
+- [ ] Assigning GFZ to the custom IGSN template changes only its IGSN template
+      slot; its Resource template remains `Templates Resources`.
+
 - [ ] Logo upload accepts a valid image and clearly rejects an invalid file type.
+
+- [ ] A GFZ Physical Object without an explicit template override inherits the
+      custom IGSN template and displays its uploaded header logo.
 
 - [ ] The test template can be selected in the landing page dialog and changes the
       preview as expected.
 
 - [ ] Cancelling preserves the template; confirmed deletion removes only the
+      `MANUAL-TEST` template.
+
+- [ ] The temporary GFZ IGSN assignment is restored before deleting the
       `MANUAL-TEST` template.
 
 ### 3.17 Assistance and Assessment

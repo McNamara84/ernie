@@ -396,7 +396,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
     const automaticTemplateDescription =
         templateInheritance?.automatic_source === 'datacenter'
             ? `Datacenter template: ${templateInheritance.automatic_template.name}`
-            : `System default: ${templateInheritance?.system_default?.name ?? 'Default GFZ IGSN'}`;
+            : `Fallback template: ${templateInheritance?.system_default?.name ?? 'Templates IGSN'}`;
 
     const displayTitle = resource.title ?? `IGSN #${resource.id}`;
 

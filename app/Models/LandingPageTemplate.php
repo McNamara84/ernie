@@ -54,11 +54,11 @@ class LandingPageTemplate extends Model
 
     public const DEFAULT_TEMPLATE_SLUG = 'default_gfz';
 
-    public const DEFAULT_TEMPLATE_NAME = 'Default GFZ Data Services';
+    public const DEFAULT_TEMPLATE_NAME = 'Templates Resources';
 
     public const IGSN_DEFAULT_TEMPLATE_SLUG = 'default_gfz_igsn';
 
-    public const IGSN_DEFAULT_TEMPLATE_NAME = 'Default GFZ IGSN';
+    public const IGSN_DEFAULT_TEMPLATE_NAME = 'Templates IGSN';
 
     public const TEMPLATE_TYPE_RESOURCE = 'resource';
 
@@ -424,7 +424,7 @@ class LandingPageTemplate extends Model
         }
 
         if ($template === self::DEFAULT_TEMPLATE_SLUG && $isPhysicalObject) {
-            return 'The Default GFZ Data Services template cannot be used with Physical Object resources. Use the IGSN template instead.';
+            return 'The Templates Resources copy template cannot be used with Physical Object resources. Use an IGSN template instead.';
         }
 
         return null;
@@ -622,11 +622,11 @@ class LandingPageTemplate extends Model
         }
 
         if ($template->isDefault() && $template->template_type !== self::expectedTemplateTypeForResource($resourceTypeSlug)) {
-            return 'The selected built-in landing page template is not available for this resource type.';
+            return 'The selected built-in landing page copy template is not available for this resource type.';
         }
 
         if ($template->isDefault() && $template->template_type === self::TEMPLATE_TYPE_IGSN) {
-            return 'The selected landing page template is a built-in default and cannot be used as a custom override.';
+            return 'The selected landing page template is a built-in copy template and cannot be used as a custom override.';
         }
 
         $expectedTemplateType = self::expectedTemplateTypeForResource($resourceTypeSlug);

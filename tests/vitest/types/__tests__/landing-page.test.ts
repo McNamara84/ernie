@@ -105,7 +105,7 @@ describe('Landing Page Template Registry', () => {
             const defaultOption = options.find((opt) => opt.value === 'default_gfz');
 
             expect(defaultOption).toBeDefined();
-            expect(defaultOption?.label).toBe('Default GFZ Data Services');
+            expect(defaultOption?.label).toBe('Templates Resources');
         });
 
         it('should exclude IGSN-only templates when no resourceType specified', () => {
@@ -120,7 +120,7 @@ describe('Landing Page Template Registry', () => {
             const igsnOption = options.find((opt) => opt.value === 'default_gfz_igsn');
 
             expect(igsnOption).toBeDefined();
-            expect(igsnOption?.label).toBe('Default GFZ IGSN Template');
+            expect(igsnOption?.label).toBe('Templates IGSN');
         });
 
         it('should only include IGSN-compatible built-in templates when resourceType is PhysicalObject', () => {
@@ -155,7 +155,7 @@ describe('Landing Page Template Registry', () => {
             const igsnOption = options.find((opt) => opt.value === 'default_gfz_igsn');
 
             expect(igsnOption).toBeDefined();
-            expect(igsnOption?.label).toBe('Default GFZ IGSN Template');
+            expect(igsnOption?.label).toBe('Templates IGSN');
         });
 
         it('should exclude resource-only templates', () => {
@@ -216,7 +216,7 @@ describe('Landing Page Template Registry', () => {
 
             expect(metadata).toBeDefined();
             expect(metadata?.key).toBe('default_gfz');
-            expect(metadata?.name).toBe('Default GFZ Data Services');
+            expect(metadata?.name).toBe('Templates Resources');
         });
 
         it('should return null for invalid template key', () => {

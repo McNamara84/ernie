@@ -284,7 +284,7 @@ npm run artisan -- igsn:backfill-images --apply --after-id=0 --chunk=100 --repor
 
 Use `--limit` for bounded rollout batches, repeat `--doi` to select multiple handles or DOIs, and use `--force` only when already processed images must be revalidated or replaced. A failed run can resume after the last reported resource ID with `--after-id`. The command is idempotent; missing legacy DIF records and records without an image are reported separately from real processing failures.
 
-IGSN landing-page templates expose every IGSN module, including Sample Image and Location, in a shared two-column editor. Modules can be reordered within a column or moved across columns; each module must occur exactly once across the saved layout. The system default places Sample Image in the right column immediately before Location.
+IGSN landing-page templates expose every IGSN module, including Sample Image and Location, in a shared two-column editor. Modules can be reordered within a column or moved across columns; each module must occur exactly once across the saved layout. The built-in `Templates IGSN` copy template places Sample Image in the right column immediately before Location.
 
 ### DataCite landing-page domain migration
 

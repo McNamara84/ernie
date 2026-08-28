@@ -529,7 +529,7 @@ export default function SetupLandingPageModal({
     const automaticTemplateDescription =
         templateOptions?.automatic_source === 'datacenter' && templateOptions.automatic_template
             ? `Datacenter template: ${templateOptions.automatic_template.name}`
-            : `System default: ${templateOptions?.system_default?.name ?? 'Default GFZ Data Services'}`;
+            : `Fallback template: ${templateOptions?.system_default?.name ?? 'Templates Resources'}`;
     const importedDownloadFiles = files;
     const hasImportedFiles = importedDownloadFiles.length > 0;
     const availableFormats = currentConfig?.available_formats ?? templateOptions?.available_formats ?? [];
@@ -1236,7 +1236,7 @@ export default function SetupLandingPageModal({
                                                                 <span>{ct.name}</span>
                                                                 <span className="text-xs text-muted-foreground">
                                                                     {ct.is_default
-                                                                        ? 'Explicit system default (overrides datacenter inheritance)'
+                                                                        ? 'Explicit copy template (overrides datacenter inheritance)'
                                                                         : `Custom section order${ct.logo_url ? ' & logo' : ''}`}
                                                                 </span>
                                                             </div>

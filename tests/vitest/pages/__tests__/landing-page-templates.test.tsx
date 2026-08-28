@@ -158,7 +158,7 @@ vi.mock('@dnd-kit/utilities', () => ({
 
 const defaultTemplate: LandingPageTemplateConfig = {
     id: 1,
-    name: 'Default GFZ Data Services',
+    name: 'Templates Resources',
     slug: 'default_gfz',
     is_default: true,
     template_type: 'resource',
@@ -222,7 +222,7 @@ const customTemplateNoLogo: LandingPageTemplateConfig = {
 const defaultIgsnTemplate: LandingPageTemplateConfig = {
     ...defaultTemplate,
     id: 4,
-    name: 'Default GFZ IGSN',
+    name: 'Templates IGSN',
     slug: 'default_gfz_igsn',
     template_type: 'igsn',
     left_column_order: ['general', 'acquisition', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
@@ -292,20 +292,20 @@ describe('LandingPageTemplatesPage', () => {
 
         it('renders all template cards', () => {
             render(<LandingPageTemplatesPage />);
-            expect(screen.getByText('Default GFZ Data Services')).toBeInTheDocument();
+            expect(screen.getByText('Templates Resources')).toBeInTheDocument();
             expect(screen.getByText('Geophysics Template')).toBeInTheDocument();
             expect(screen.getByText('Minimal Template')).toBeInTheDocument();
         });
 
-        it('shows Default badge on default template', () => {
+        it('shows Copy template badge on a built-in template', () => {
             render(<LandingPageTemplatesPage />);
-            expect(screen.getByText('Default')).toBeInTheDocument();
+            expect(screen.getByText('Copy template')).toBeInTheDocument();
         });
 
         it('uses a subtle muted background for default template cards', () => {
             render(<LandingPageTemplatesPage />);
 
-            const defaultCard = screen.getByText('Default GFZ Data Services').closest('[data-slot="card"]');
+            const defaultCard = screen.getByText('Templates Resources').closest('[data-slot="card"]');
             const customCard = screen.getByText('Geophysics Template').closest('[data-slot="card"]');
 
             expect(defaultCard).toHaveClass('bg-muted/20');
@@ -318,9 +318,9 @@ describe('LandingPageTemplatesPage', () => {
             expect(screen.getByText('2 pages')).toBeInTheDocument();
         });
 
-        it('shows "Built-in default template" for default template', () => {
+        it('shows "Built-in copy template" for a built-in template', () => {
             render(<LandingPageTemplatesPage />);
-            expect(screen.getByText('Built-in default template')).toBeInTheDocument();
+            expect(screen.getByText('Built-in copy template')).toBeInTheDocument();
         });
 
         it('shows creator name for custom templates', () => {
@@ -407,7 +407,7 @@ describe('LandingPageTemplatesPage', () => {
 
             await user.click(screen.getByRole('button', { name: /New Template/i }));
 
-            expect(screen.getByText('Clone Default Template')).toBeInTheDocument();
+            expect(screen.getByText('Clone Copy Template')).toBeInTheDocument();
             expect(screen.getByLabelText('Template Name')).toBeInTheDocument();
         });
 
@@ -543,12 +543,12 @@ describe('LandingPageTemplatesPage', () => {
             render(<LandingPageTemplatesPage />);
 
             await user.click(screen.getByRole('button', { name: /New Template/i }));
-            expect(screen.getByText('Clone Default Template')).toBeInTheDocument();
+            expect(screen.getByText('Clone Copy Template')).toBeInTheDocument();
 
             await user.click(screen.getByRole('button', { name: /Cancel/i }));
 
             await waitFor(() => {
-                expect(screen.queryByText('Clone Default Template')).not.toBeInTheDocument();
+                expect(screen.queryByText('Clone Copy Template')).not.toBeInTheDocument();
             });
         });
 
@@ -571,7 +571,7 @@ describe('LandingPageTemplatesPage', () => {
             });
         });
 
-        it('assigns a datacenter while cloning an IGSN template', async () => {
+        it('assigns GFZ and another datacenter while cloning an IGSN template', async () => {
             mockedAxiosPost.mockResolvedValue({ data: { message: 'Created', template: {} } });
             mockTemplates = [defaultIgsnTemplate];
             mockDatacenters = [
@@ -597,7 +597,10 @@ describe('LandingPageTemplatesPage', () => {
             render(<LandingPageTemplatesPage />);
             await user.click(screen.getByRole('button', { name: /Clone this template/i }));
 
-            expect(screen.getByRole('checkbox', { name: /GFZ German Research Centre/i })).toBeDisabled();
+            const canonicalGfz = screen.getByRole('checkbox', { name: /GFZ German Research Centre/i });
+            expect(canonicalGfz).toBeEnabled();
+            expect(screen.getByText(/Currently assigned to Templates IGSN; saving will move it/i)).toBeInTheDocument();
+            await user.click(canonicalGfz);
             await user.click(screen.getByRole('checkbox', { name: /ICDP/i }));
             await user.type(screen.getByLabelText('Template Name'), 'ICDP IGSN Template');
             await user.click(screen.getByRole('button', { name: /Clone Template/i }));
@@ -606,7 +609,7 @@ describe('LandingPageTemplatesPage', () => {
                 expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', {
                     name: 'ICDP IGSN Template',
                     template_type: 'igsn',
-                    datacenter_ids: [20],
+                    datacenter_ids: [21, 20],
                 });
             });
         });
@@ -707,6 +710,75 @@ describe('LandingPageTemplatesPage', () => {
                     datacenter_ids: [],
                 });
             });
+        });
+
+        it('allows GFZ to be moved to a custom IGSN template while editing', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            const customIgsnTemplate: LandingPageTemplateConfig = {
+                ...defaultIgsnTemplate,
+                id: 5,
+                name: 'Custom GFZ IGSN Template',
+                slug: 'custom-gfz-igsn-template',
+                is_default: false,
+                created_by: 1,
+                creator: { id: 1, name: 'Admin User' },
+                datacenters: [],
+                datacenters_count: 0,
+            };
+            mockTemplates = [customIgsnTemplate];
+            mockDatacenters = [
+                {
+                    id: 21,
+                    name: 'GFZ German Research Centre for Geosciences',
+                    landing_page_template_id: defaultTemplate.id,
+                    landing_page_template_name: defaultTemplate.name,
+                    igsn_landing_page_template_id: defaultIgsnTemplate.id,
+                    igsn_landing_page_template_name: defaultIgsnTemplate.name,
+                },
+            ];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /^Edit$/i }));
+            const canonicalGfz = screen.getByRole('checkbox', { name: /GFZ German Research Centre/i });
+            expect(canonicalGfz).toBeEnabled();
+            expect(screen.getByText(/Currently assigned to Templates IGSN; saving will move it/i)).toBeInTheDocument();
+
+            await user.click(canonicalGfz);
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith('/landing-pages/5', expect.objectContaining({ datacenter_ids: [21] }));
+            });
+        });
+
+        it('keeps the existing GFZ assignment read-only on the built-in IGSN copy template', async () => {
+            mockTemplates = [
+                {
+                    ...defaultIgsnTemplate,
+                    datacenters: [{ id: 21, name: 'GFZ German Research Centre for Geosciences' }],
+                    datacenters_count: 1,
+                },
+            ];
+            mockDatacenters = [
+                {
+                    id: 21,
+                    name: 'GFZ German Research Centre for Geosciences',
+                    landing_page_template_id: defaultTemplate.id,
+                    landing_page_template_name: defaultTemplate.name,
+                    igsn_landing_page_template_id: defaultIgsnTemplate.id,
+                    igsn_landing_page_template_name: defaultIgsnTemplate.name,
+                },
+            ];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /Limits/i }));
+            const canonicalGfz = screen.getByRole('checkbox', { name: /GFZ German Research Centre/i });
+
+            expect(canonicalGfz).toBeChecked();
+            expect(canonicalGfz).toBeDisabled();
+            expect(screen.getByText(/Existing copy-template assignment/i)).toBeInTheDocument();
         });
 
         it('shows validation errors on save failure', async () => {
