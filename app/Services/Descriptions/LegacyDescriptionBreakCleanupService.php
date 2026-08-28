@@ -89,7 +89,10 @@ final class LegacyDescriptionBreakCleanupService
                 ->where('id', '>', $cursor)
                 ->where(function (Builder $query): void {
                     $query->where('legacy_source', self::LEGACY_SOURCE)
-                        ->orWhereNotNull('doi');
+                        ->orWhere(function (Builder $doiQuery): void {
+                            $doiQuery->whereNotNull('doi')
+                                ->whereRaw("TRIM(doi) <> ''");
+                        });
                 })
                 ->when(
                     $doiFilter !== [],

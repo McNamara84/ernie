@@ -180,6 +180,55 @@ it('matches unlinked legacy resources by DOI and ignores regular resources', fun
         ]);
 });
 
+it('does not count blank unlinked DOIs against a bounded cleanup batch', function (): void {
+    Resource::factory()->create([
+        'doi' => '',
+        'legacy_description_breaks_normalized_at' => null,
+    ]);
+    Resource::factory()->create([
+        'doi' => '   ',
+        'legacy_description_breaks_normalized_at' => null,
+    ]);
+    $legacy = Resource::factory()->create([
+        'doi' => '10.5880/nonblank.match',
+        'legacy_description_breaks_normalized_at' => null,
+    ]);
+    legacyBreakDescription($legacy, "Legacy\n\nvalue");
+    DB::connection('metaworks')->table('resource')->insert([
+        'identifier' => '10.5880/nonblank.match',
+    ]);
+
+    $result = app(LegacyDescriptionBreakCleanupService::class)->run(limit: 1);
+
+    expect($result)->toMatchArray([
+        'resources_scanned' => 1,
+        'legacy_resources' => 1,
+        'not_legacy' => 0,
+        'last_scanned_resource_id' => $legacy->id,
+    ])->and($result['records'][0]['resource_id'])->toBe($legacy->id);
+});
+
+it('still repairs source-linked legacy resources without a DOI', function (): void {
+    $legacy = Resource::factory()->create([
+        'doi' => '',
+        'legacy_source' => 'sumario-pmd',
+        'legacy_source_id' => 124,
+        'legacy_source_status' => 'released',
+        'legacy_description_breaks_normalized_at' => null,
+    ]);
+    $description = legacyBreakDescription($legacy, "Legacy\n\nvalue");
+
+    $result = app(LegacyDescriptionBreakCleanupService::class)->run(apply: true, limit: 1);
+
+    expect($result)->toMatchArray([
+        'resources_scanned' => 1,
+        'legacy_resources' => 1,
+        'changed' => 1,
+        'sync_resource_ids' => [],
+    ])->and($description->fresh()->value)->toBe("Legacy\nvalue")
+        ->and($legacy->fresh()->legacy_description_breaks_normalized_at)->not->toBeNull();
+});
+
 it('loads cleanup relations only for resources matched to SUMARIO', function (): void {
     $legacy = legacyBreakResource('10.5880/relations.legacy', 125);
     legacyBreakDescription($legacy, "Legacy\n\nvalue");
