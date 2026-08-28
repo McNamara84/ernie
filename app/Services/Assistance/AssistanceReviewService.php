@@ -73,6 +73,40 @@ final class AssistanceReviewService
     }
 
     /**
+     * Return the supplied resource IDs that are affected by at least one
+     * currently pending suggestion from a registered assistant.
+     *
+     * @param  list<int>  $resourceIds
+     * @return list<int>
+     */
+    public function resourceIdsWithPendingSuggestions(array $resourceIds): array
+    {
+        $resourceIds = array_values(array_unique(array_filter(
+            array_map(static fn (int $resourceId): int => $resourceId, $resourceIds),
+            static fn (int $resourceId): bool => $resourceId > 0,
+        )));
+
+        if ($resourceIds === []) {
+            return [];
+        }
+
+        $pendingImpacts = $this->pendingImpactQuery($this->registrar->getAll());
+
+        /** @var list<int> $matchingResourceIds */
+        $matchingResourceIds = DB::query()
+            ->fromSub($pendingImpacts, 'pending_impacts')
+            ->whereIn('pending_impacts.impact_resource_id', $resourceIds)
+            ->distinct()
+            ->orderBy('pending_impacts.impact_resource_id')
+            ->pluck('pending_impacts.impact_resource_id')
+            ->map(static fn (mixed $resourceId): int => (int) $resourceId)
+            ->values()
+            ->all();
+
+        return $matchingResourceIds;
+    }
+
+    /**
      * @param  array<string, AssistantContract>  $assistants
      */
     private function pendingImpactQuery(array $assistants): QueryBuilder

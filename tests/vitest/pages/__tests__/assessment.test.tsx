@@ -5,7 +5,7 @@ import { render, screen } from '@tests/vitest/utils/render';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AssessmentPageProps } from '@/types/assessment';
+import type { AssessmentPageProps, FairImprovementOpportunity } from '@/types/assessment';
 
 const { mockRouterGet, mockRouterReload } = vi.hoisted(() => ({
     mockRouterGet: vi.fn(),
@@ -27,6 +27,11 @@ const { mockToast } = vi.hoisted(() => ({
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ title }: { title: string }) => <title>{title}</title>,
+    Link: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+        <a href={href} {...props}>
+            {children}
+        </a>
+    ),
     router: { get: mockRouterGet, reload: mockRouterReload },
 }));
 
@@ -72,6 +77,7 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
         canRunAssessments: true,
         showImprovementActorLabels: true,
         includeExternalResources: false,
+        includeDraftReviewResources: false,
         filters: { doi: null, datacenter_id: null },
         datacenterOptions: [],
         resourcesNeedingAttention: [
@@ -81,6 +87,7 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
                 mainTitle: 'Lowest resource score',
                 score: 11.25,
                 assessedAt: '2026-05-04T09:00:00+00:00',
+                hasPendingSuggestions: false,
                 improvementOpportunity: completeOpportunity,
             },
         ],
@@ -91,6 +98,7 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
                 mainTitle: 'Lowest IGSN score',
                 score: 18.5,
                 assessedAt: '2026-05-04T10:00:00+00:00',
+                hasPendingSuggestions: false,
                 improvementOpportunity: completeOpportunity,
             },
         ],
@@ -218,6 +226,7 @@ describe('Assessment page', () => {
                             mainTitle: 'Untitled assessment target',
                             score: 9.5,
                             assessedAt: '2026-05-04T09:00:00+00:00',
+                            hasPendingSuggestions: false,
                             improvementOpportunity: completeOpportunity,
                         },
                     ],
@@ -242,6 +251,27 @@ describe('Assessment page', () => {
             { include_external_resources: true },
             {
                 only: ['includeExternalResources', 'resourcesNeedingAttention'],
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    });
+
+    it('keeps Draft and Review resources excluded by default and reloads only the resource ranking when enabled', () => {
+        render(<AssessmentPage {...makeProps()} />);
+
+        const filter = screen.getByRole('switch', { name: 'Include resources with Draft or Review status' });
+
+        expect(filter).not.toBeChecked();
+
+        fireEvent.click(filter);
+
+        expect(mockRouterGet).toHaveBeenCalledWith(
+            '/assessment',
+            { include_draft_review_resources: true },
+            {
+                only: ['includeDraftReviewResources', 'resourcesNeedingAttention'],
                 preserveScroll: true,
                 preserveState: true,
                 replace: true,
@@ -347,6 +377,7 @@ describe('Assessment page', () => {
                             mainTitle: longTitle,
                             score: 9.5,
                             assessedAt: '2026-05-04T09:00:00+00:00',
+                            hasPendingSuggestions: false,
                             improvementOpportunity: completeOpportunity,
                         },
                     ],
@@ -359,6 +390,88 @@ describe('Assessment page', () => {
         const title = screen.getByText(longTitle);
         expect(title).toHaveClass('truncate');
         expect(title).toHaveAttribute('title', longTitle);
+    });
+
+    it('links curator-action resources to the Data Editor and to matching pending Assistant suggestions', () => {
+        const curatorOpportunity = {
+            status: 'available',
+            dimension: 'R',
+            dimensionLabel: 'Reusability',
+            missingPoints: 1,
+            totalPoints: 6,
+            potentialFairGain: 3.85,
+            severity: 'low',
+            requiresReassessment: false,
+            suggestions: [{ key: 'license', actor: 'curator', text: 'Add a license.' }],
+        } satisfies FairImprovementOpportunity;
+
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    resourcesNeedingAttention: [
+                        {
+                            ...makeProps().resourcesNeedingAttention[0],
+                            hasPendingSuggestions: true,
+                            improvementOpportunity: curatorOpportunity,
+                        },
+                        {
+                            ...makeProps().resourcesNeedingAttention[0],
+                            id: 3,
+                            doi: '10.5880/test.003',
+                            mainTitle: 'Curator action without pending suggestions',
+                            hasPendingSuggestions: false,
+                            improvementOpportunity: curatorOpportunity,
+                        },
+                    ],
+                    igsnsNeedingAttention: [
+                        {
+                            ...makeProps().igsnsNeedingAttention[0],
+                            hasPendingSuggestions: true,
+                            improvementOpportunity: curatorOpportunity,
+                        },
+                    ],
+                })}
+            />,
+        );
+
+        const editorLinks = screen.getAllByRole('link', { name: 'Open in Data Editor' });
+
+        expect(editorLinks).toHaveLength(2);
+        expect(editorLinks[0]).toHaveAttribute('href', '/editor?resourceId=1');
+        expect(editorLinks[1]).toHaveAttribute('href', '/editor?resourceId=3');
+        expect(screen.getByRole('link', { name: 'Check Assistant' })).toHaveAttribute('href', '/assistance?doi=10.5880%2Ftest.001');
+        expect(screen.getAllByRole('link', { name: /Open in Data Editor|Check Assistant/ })).toHaveLength(3);
+    });
+
+    it('does not offer Assistant navigation without pending suggestions or a curator action', () => {
+        const administratorOpportunity = {
+            status: 'available',
+            dimension: 'A',
+            dimensionLabel: 'Accessibility',
+            missingPoints: 1,
+            totalPoints: 7,
+            potentialFairGain: 3.85,
+            severity: 'low',
+            requiresReassessment: false,
+            suggestions: [{ key: 'server', actor: 'administrator', text: 'Change server configuration.' }],
+        } satisfies FairImprovementOpportunity;
+
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    resourcesNeedingAttention: [
+                        {
+                            ...makeProps().resourcesNeedingAttention[0],
+                            hasPendingSuggestions: true,
+                            improvementOpportunity: administratorOpportunity,
+                        },
+                    ],
+                })}
+            />,
+        );
+
+        expect(screen.queryByRole('link', { name: 'Open in Data Editor' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Check Assistant' })).not.toBeInTheDocument();
     });
 
     it('renders a read-only curator view with a role-appropriate empty state', () => {
@@ -383,6 +496,7 @@ describe('Assessment page', () => {
         expect(screen.queryByRole('button', { name: 'Check IGSNs' })).not.toBeInTheDocument();
         expect(screen.getByText('No assessment results are available yet. Ask an Admin or Group Leader to run Check Resources.')).toBeInTheDocument();
         expect(screen.getByRole('switch', { name: 'Include resources with external landing pages' })).toBeInTheDocument();
+        expect(screen.getByRole('switch', { name: 'Include resources with Draft or Review status' })).toBeInTheDocument();
     });
 
     it('starts a resource assessment and reloads the page after the polling job completes', async () => {

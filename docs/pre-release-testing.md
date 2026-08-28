@@ -699,6 +699,15 @@ reason.
       assessments. Combining DOI and Datacenter uses AND semantics without
       changing the scope of `Check` or `Check all` jobs.
 
+- [ ] Draft and Review Resources are excluded from the attention ranking by
+      default. Enabling their dedicated switch restores them without changing
+      either assessment summary or the IGSN ranking.
+
+- [ ] A Resource with a Curator action links to its Data Editor record.
+      `Check Assistant` appears only when that Resource also has pending suggestions
+      and opens Assistance with the exact DOI filter; neither action is offered
+      for IGSNs.
+
 - [ ] Both Assessment tables show the letter for the largest raw F-UJI gap (`F`,
       `A`, `I`, or `R`) for usable results; color, accessible name, and tooltip
       consistently communicate the potential increase in the overall FAIR score.

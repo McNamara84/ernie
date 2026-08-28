@@ -14,8 +14,10 @@ use App\Models\ResourceAssessment;
 use App\Services\Assessment\FairImprovementContextFactory;
 use App\Services\Assessment\FairImprovementOpportunityResolver;
 use App\Services\Assessment\FujiAssessmentService;
+use App\Services\Assistance\AssistanceReviewService;
 use App\Services\ResourceCacheService;
 use App\Services\Resources\ResourceImpactFilterService;
+use App\Services\Resources\ResourceQueryBuilder;
 use App\Support\ResourceImpactFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +32,8 @@ class AssessmentController extends Controller
         private readonly FujiAssessmentService $fujiService,
         private readonly ResourceCacheService $resourceCache,
         private readonly ResourceImpactFilterService $filterService,
+        private readonly ResourceQueryBuilder $resourceQueryBuilder,
+        private readonly AssistanceReviewService $assistanceReviewService,
         private readonly FairImprovementContextFactory $fairImprovementContextFactory,
         private readonly FairImprovementOpportunityResolver $fairImprovementResolver,
     ) {}
@@ -39,6 +43,7 @@ class AssessmentController extends Controller
         $physicalObjectTypeId = $this->resourceCache->getPhysicalObjectTypeId();
         $fujiHealth = $this->cachedHealthStatus();
         $includeExternalResources = $request->boolean('include_external_resources');
+        $includeDraftReviewResources = $request->boolean('include_draft_review_resources');
         $filter = $request->resourceImpactFilter();
         $allowedImprovementActors = $request->user()?->role === UserRole::ADMIN
             ? ['curator', 'administrator']
@@ -52,6 +57,7 @@ class AssessmentController extends Controller
             'canRunAssessments' => $request->user()?->can('run-assessment') ?? false,
             'showImprovementActorLabels' => $request->user()?->role === UserRole::ADMIN,
             'includeExternalResources' => $includeExternalResources,
+            'includeDraftReviewResources' => $includeDraftReviewResources,
             'filters' => $filter->toArray(),
             'datacenterOptions' => $this->assessmentDatacenterOptions(),
             'resourcesNeedingAttention' => $this->buildAttentionList(
@@ -59,6 +65,7 @@ class AssessmentController extends Controller
                 physicalObjectTypeId: $physicalObjectTypeId,
                 allowedImprovementActors: $allowedImprovementActors,
                 includeExternalResources: $includeExternalResources,
+                includeDraftReviewResources: $includeDraftReviewResources,
                 filter: $filter,
             ),
             'igsnsNeedingAttention' => $this->buildAttentionList(
@@ -217,6 +224,7 @@ class AssessmentController extends Controller
      *     mainTitle: string,
      *     score: float,
      *     assessedAt: string|null,
+     *     hasPendingSuggestions: bool,
      *     improvementOpportunity: array<string, mixed>
      * }>
      */
@@ -225,6 +233,7 @@ class AssessmentController extends Controller
         ?int $physicalObjectTypeId,
         array $allowedImprovementActors,
         bool $includeExternalResources = true,
+        bool $includeDraftReviewResources = true,
         ?ResourceImpactFilter $filter = null,
     ): array {
         $query = $this->buildScopeQuery($scope, $physicalObjectTypeId, $filter)
@@ -239,7 +248,13 @@ class AssessmentController extends Controller
             );
         }
 
-        $items = $query
+        if ($scope === RunResourceAssessmentsJob::RESOURCE_SCOPE && ! $includeDraftReviewResources) {
+            $this->resourceQueryBuilder->applyFilters($query, [
+                'status' => ['curation', 'published'],
+            ]);
+        }
+
+        $resources = $query
             ->with([
                 'titles.titleType',
                 'resourceAssessment',
@@ -252,8 +267,18 @@ class AssessmentController extends Controller
             ->orderBy('resources.id')
             ->select('resources.*')
             ->limit(10)
-            ->get()
-            ->map(function (Resource $resource) use ($scope, $allowedImprovementActors): array {
+            ->get();
+        $pendingSuggestionResourceIds = $scope === RunResourceAssessmentsJob::RESOURCE_SCOPE
+            ? array_fill_keys($this->assistanceReviewService->resourceIdsWithPendingSuggestions(
+                array_map(
+                    static fn (int|string $id): int => (int) $id,
+                    array_values($resources->modelKeys()),
+                ),
+            ), true)
+            : [];
+
+        $items = $resources
+            ->map(function (Resource $resource) use ($scope, $allowedImprovementActors, $pendingSuggestionResourceIds): array {
                 $assessment = $resource->resourceAssessment;
                 $context = $this->fairImprovementContextFactory->fromResource(
                     resource: $resource,
@@ -267,6 +292,7 @@ class AssessmentController extends Controller
                     'mainTitle' => $resource->main_title ?? 'Untitled',
                     'score' => round((float) ($assessment->total_score ?? 0), 2),
                     'assessedAt' => $assessment?->assessed_at?->toIso8601String(),
+                    'hasPendingSuggestions' => isset($pendingSuggestionResourceIds[$resource->id]),
                     'improvementOpportunity' => $this->fairImprovementResolver->resolve(
                         payload: $assessment?->payload,
                         scope: $scope,
@@ -284,6 +310,7 @@ class AssessmentController extends Controller
          *     mainTitle: string,
          *     score: float,
          *     assessedAt: string|null,
+         *     hasPendingSuggestions: bool,
          *     improvementOpportunity: array<string, mixed>
          * }> $items
          */

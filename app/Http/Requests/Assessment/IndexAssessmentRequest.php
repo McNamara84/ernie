@@ -29,6 +29,7 @@ final class IndexAssessmentRequest extends FormRequest
         return [
             ...$this->resourceImpactFilterRules(),
             'include_external_resources' => ['nullable', 'boolean'],
+            'include_draft_review_resources' => ['nullable', 'boolean'],
         ];
     }
 }

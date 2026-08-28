@@ -7,6 +7,11 @@ import { type AssessmentEntry, type AssessmentSummary } from '@/types/assessment
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    Link: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+        <a href={href} {...props}>
+            {children}
+        </a>
+    ),
     router: {
         get: vi.fn(),
         reload: vi.fn(),
@@ -31,6 +36,7 @@ const resourceEntry: AssessmentEntry = {
     mainTitle: 'Digital test resource',
     score: 42.31,
     assessedAt: '2026-07-17T10:00:00Z',
+    hasPendingSuggestions: false,
     improvementOpportunity: {
         status: 'available',
         dimension: 'R',
@@ -56,6 +62,7 @@ const igsnEntry: AssessmentEntry = {
     mainTitle: 'Physical test sample',
     score: 53.85,
     assessedAt: '2026-07-17T10:00:00Z',
+    hasPendingSuggestions: false,
     improvementOpportunity: {
         status: 'available',
         dimension: 'F',
@@ -79,15 +86,7 @@ const igsnEntry: AssessmentEntry = {
 
 describe('Assessment FAIR opportunity integration', () => {
     it('places the FAIR opportunity column between title and score', () => {
-        render(
-            <AssessmentTable
-                entries={[resourceEntry]}
-                summary={summary}
-                scope="resource"
-                canRunAssessments
-                showImprovementActorLabels
-            />,
-        );
+        render(<AssessmentTable entries={[resourceEntry]} summary={summary} scope="resource" canRunAssessments showImprovementActorLabels />);
 
         const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
 
@@ -105,6 +104,7 @@ describe('Assessment FAIR opportunity integration', () => {
                 canRunAssessments
                 showImprovementActorLabels
                 includeExternalResources={false}
+                includeDraftReviewResources={false}
                 resourcesNeedingAttention={[resourceEntry]}
                 igsnsNeedingAttention={[igsnEntry]}
                 resourceAssessmentSummary={summary}
@@ -128,6 +128,7 @@ describe('Assessment FAIR opportunity integration', () => {
             fujiStatusCode: 200,
             canRunAssessments: true,
             includeExternalResources: false,
+            includeDraftReviewResources: false,
             resourcesNeedingAttention: [resourceEntry],
             igsnsNeedingAttention: [],
             resourceAssessmentSummary: summary,

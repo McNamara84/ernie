@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Models\Datacenter;
+use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
@@ -46,6 +47,7 @@ it('shows exact assessment matches and indirect assistance impacts for the same 
         'datacenter_id' => $matchingDatacenter->id,
     ]);
     Title::factory()->for($matchingResource)->create(['value' => 'Matching browser assessment']);
+    LandingPage::factory()->for($matchingResource)->withDoi((string) $matchingResource->doi)->published()->create();
     ResourceAssessment::query()->create([
         'resource_id' => $matchingResource->id,
         'status' => ResourceAssessment::STATUS_COMPLETED,
@@ -58,6 +60,7 @@ it('shows exact assessment matches and indirect assistance impacts for the same 
         'datacenter_id' => $originDatacenter->id,
     ]);
     Title::factory()->for($unrelatedResource)->create(['value' => 'Unrelated browser assessment']);
+    LandingPage::factory()->for($unrelatedResource)->withDoi((string) $unrelatedResource->doi)->published()->create();
     ResourceAssessment::query()->create([
         'resource_id' => $unrelatedResource->id,
         'status' => ResourceAssessment::STATUS_COMPLETED,
