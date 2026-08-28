@@ -278,22 +278,33 @@ it('rolls back a resource when a description changes concurrently', function ():
     $first = legacyBreakDescription($resource, "First\n\nvalue");
     $second = legacyBreakDescription($resource, "Second\n\nvalue");
     $armed = true;
+    $originalDispatcher = Description::getEventDispatcher();
 
-    Description::retrieved(function (Description $loaded) use (&$armed, $second): void {
-        if (! $armed || ! $loaded->is($second)) {
-            return;
-        }
+    if ($originalDispatcher === null) {
+        throw new RuntimeException('Eloquent event dispatcher is not configured.');
+    }
 
-        $armed = false;
-        DB::table('descriptions')
-            ->where('id', $loaded->id)
-            ->update(['value' => "Curated\nvalue"]);
-    });
+    Description::setEventDispatcher(clone $originalDispatcher);
 
-    $result = app(LegacyDescriptionBreakCleanupService::class)->run(
-        apply: true,
-        dois: ['10.5880/concurrent'],
-    );
+    try {
+        Description::retrieved(function (Description $loaded) use (&$armed, $second): void {
+            if (! $armed || ! $loaded->is($second)) {
+                return;
+            }
+
+            $armed = false;
+            DB::table('descriptions')
+                ->where('id', $loaded->id)
+                ->update(['value' => "Curated\nvalue"]);
+        });
+
+        $result = app(LegacyDescriptionBreakCleanupService::class)->run(
+            apply: true,
+            dois: ['10.5880/concurrent'],
+        );
+    } finally {
+        Description::setEventDispatcher($originalDispatcher);
+    }
 
     expect($result)->toMatchArray([
         'changed' => 0,
@@ -302,7 +313,8 @@ it('rolls back a resource when a description changes concurrently', function ():
     ])->and($result['records'][0]['status'])->toBe('concurrent_change')
         ->and($first->fresh()->value)->toBe("First\n\nvalue")
         ->and($second->fresh()->value)->toBe("Curated\nvalue")
-        ->and($resource->fresh()->legacy_description_breaks_normalized_at)->toBeNull();
+        ->and($resource->fresh()->legacy_description_breaks_normalized_at)->toBeNull()
+        ->and(Description::getEventDispatcher())->toBe($originalDispatcher);
 });
 
 it('honors DOI legacy ID resume and limit filters', function (): void {
