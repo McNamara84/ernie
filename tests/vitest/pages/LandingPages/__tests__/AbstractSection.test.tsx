@@ -467,6 +467,72 @@ describe('AbstractSection', () => {
 
             expect(screen.queryByText(/^\(.*\)$/)).not.toBeInTheDocument();
         });
+
+        it('merges contributor rows into creators and hides the empty contributors section', () => {
+            const creators = [
+                createCreator({
+                    id: 1,
+                    creatorable: { id: 101, given_name: 'Georg', family_name: 'Feulner' },
+                    affiliations: [
+                        createAffiliation({ id: 1, name: 'Potsdam Institute for Climate Impact Research' }),
+                        createAffiliation({ id: 2, name: 'Institute of Physics and Astronomy, Potsdam University' }),
+                    ],
+                }),
+                createCreator({
+                    id: 2,
+                    creatorable: { id: 102, given_name: 'Mona Sofie', family_name: 'Bukenberger' },
+                    affiliations: [createAffiliation({ id: 3, name: 'Institute for Atmospheric and Climate Science, ETH Zürich' })],
+                }),
+                createCreator({
+                    id: 3,
+                    creatorable: { id: 103, given_name: 'Stefan', family_name: 'Petri' },
+                    affiliations: [createAffiliation({ id: 4, name: 'Potsdam Institute for Climate Impact Research' })],
+                }),
+            ];
+            const contributors = [
+                createContributor({ id: 11, contributorable: { id: 101 }, contributor_types: ['Producer'] }),
+                createContributor({ id: 12, contributorable: { id: 102 }, contributor_types: ['Producer'] }),
+                createContributor({ id: 13, contributorable: { id: 103 }, contributor_types: ['Producer'] }),
+                createContributor({ id: 14, contributorable: { id: 101 }, contributor_types: ['Contact Person'] }),
+            ];
+
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    descriptions={[]}
+                    creators={creators}
+                    contributors={contributors}
+                    sectionOrder={['creators', 'contributors']}
+                />
+            );
+
+            expect(screen.getAllByRole('listitem')).toHaveLength(3);
+            expect(screen.getByText('Feulner, Georg')).toBeInTheDocument();
+            expect(screen.getByText('Bukenberger, Mona Sofie')).toBeInTheDocument();
+            expect(screen.getByText('Petri, Stefan')).toBeInTheDocument();
+            expect(screen.getByText('(Producer, Contact Person)')).toBeInTheDocument();
+            expect(screen.getAllByText('(Producer)')).toHaveLength(2);
+            expect(screen.queryByTestId('contributors-section')).not.toBeInTheDocument();
+        });
+
+        it('applies contributor display limits after duplicate rows are merged', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    descriptions={[]}
+                    contributors={[
+                        createContributor({ id: 1, contributorable: { id: 10 }, contributor_types: ['Producer'] }),
+                        createContributor({ id: 2, contributorable: { id: 10 }, contributor_types: ['Contact Person'] }),
+                        createContributor({ id: 3, contributorable: { id: 20 }, contributor_types: ['Researcher'] }),
+                    ]}
+                    sectionOrder={['contributors']}
+                    displayLimits={{ creators: 50, contributors: 1, citationAuthors: 50 }}
+                />
+            );
+
+            expect(screen.getByText('Showing 1 of 2 contributors')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Show all 2 contributors/i })).toBeInTheDocument();
+        });
     });
 
     describe('funding section', () => {

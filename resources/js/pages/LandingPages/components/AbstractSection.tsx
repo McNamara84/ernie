@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import type {
     LandingPageContributor,
     LandingPageCreator,
@@ -8,6 +10,7 @@ import type {
     LandingPageSubject,
 } from '@/types/landing-page';
 
+import { mergeLandingPageCredits } from '../lib/mergeLandingPageCredits';
 import { expandMetadataOrder, filterDescriptionsBySection, isDescriptionSectionKey, type MetadataSectionKey } from '../lib/metadata-sections';
 import { ContributorsSection } from './ContributorsSection';
 import { CreatorsSection } from './CreatorsSection';
@@ -50,6 +53,7 @@ export function AbstractSection({
     displayLimits = { creators: 50, contributors: 50, citationAuthors: 50 },
 }: AbstractSectionProps) {
     const expandedSectionOrder = expandMetadataOrder(sectionOrder);
+    const displayCredits = useMemo(() => mergeLandingPageCredits(creators, contributors), [creators, contributors]);
 
     const renderedSections = expandedSectionOrder
         .map((sectionKey) => {
@@ -63,10 +67,16 @@ export function AbstractSection({
 
             switch (sectionKey) {
                 case 'creators':
-                    return creators.length > 0 ? <CreatorsSection key="creators" creators={creators} displayLimit={displayLimits.creators} /> : null;
+                    return displayCredits.creators.length > 0 ? (
+                        <CreatorsSection key="creators" creators={displayCredits.creators} displayLimit={displayLimits.creators} />
+                    ) : null;
                 case 'contributors':
-                    return contributors.length > 0 ? (
-                        <ContributorsSection key="contributors" contributors={contributors} displayLimit={displayLimits.contributors} />
+                    return displayCredits.contributors.length > 0 ? (
+                        <ContributorsSection
+                            key="contributors"
+                            contributors={displayCredits.contributors}
+                            displayLimit={displayLimits.contributors}
+                        />
                     ) : null;
                 case 'funders':
                     return fundingReferences.length > 0 ? <FundersSection key="funders" fundingReferences={fundingReferences} /> : null;

@@ -5,9 +5,9 @@ import { fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { CreatorsSection } from '@/pages/LandingPages/components/CreatorsSection';
-import type { LandingPageCreator } from '@/types/landing-page';
+import type { LandingPageDisplayCreator } from '@/pages/LandingPages/lib/mergeLandingPageCredits';
 
-const mockCreator = (overrides: Partial<LandingPageCreator> = {}): LandingPageCreator => ({
+const mockCreator = (overrides: Partial<LandingPageDisplayCreator> = {}): LandingPageDisplayCreator => ({
     id: 1,
     position: 1,
     creatorable: {
@@ -20,6 +20,7 @@ const mockCreator = (overrides: Partial<LandingPageCreator> = {}): LandingPageCr
         name_identifier_scheme: null,
     },
     affiliations: [],
+    contributor_types: [],
     ...overrides,
 });
 
@@ -33,6 +34,12 @@ describe('CreatorsSection', () => {
         render(<CreatorsSection creators={[mockCreator()]} />);
         expect(screen.getByTestId('creators-section')).toBeInTheDocument();
         expect(screen.getByText('Doe, John')).toBeInTheDocument();
+    });
+
+    it('renders contributor roles merged into a creator', () => {
+        render(<CreatorsSection creators={[mockCreator({ contributor_types: ['Producer', 'Contact Person'] })]} />);
+
+        expect(screen.getByText('(Producer, Contact Person)')).toBeInTheDocument();
     });
 
     it('renders ORCID link when creator has ORCID', () => {

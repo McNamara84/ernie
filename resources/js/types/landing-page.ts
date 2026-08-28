@@ -390,7 +390,8 @@ export interface LandingPageAffiliation {
  */
 export interface LandingPageCreatorable {
     type: string;
-    id: number;
+    /** Local entity id; null only when a legacy relation can no longer be resolved. */
+    id: number | null;
     /** Person: given name */
     given_name: string | null;
     /** Person: family name */
