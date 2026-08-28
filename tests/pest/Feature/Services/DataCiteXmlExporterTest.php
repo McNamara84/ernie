@@ -724,19 +724,20 @@ describe('DataCiteXmlExporter - Subjects', function () {
             ->and($xml)->toContain('>Geophysics</subject>');
     });
 
-    test('exports xml:lang="en" on all subjects', function () {
+    test('exports the stored subject language with an English fallback', function () {
         $resource = Resource::factory()->create();
 
         Subject::create([
             'resource_id' => $resource->id,
             'value' => 'Climate Science',
+            'language' => 'de',
             'subject_scheme' => 'NASA/GCMD Science Keywords',
             'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
             'value_uri' => null,
             'classification_code' => null,
         ]);
 
-        Subject::create([
+        $fallbackSubject = Subject::create([
             'resource_id' => $resource->id,
             'value' => 'seismology',
             'subject_scheme' => null,
@@ -744,6 +745,7 @@ describe('DataCiteXmlExporter - Subjects', function () {
             'value_uri' => null,
             'classification_code' => null,
         ]);
+        DB::table('subjects')->where('id', $fallbackSubject->id)->update(['language' => '']);
 
         $xml = $this->exporter->export($resource);
 
@@ -751,10 +753,16 @@ describe('DataCiteXmlExporter - Subjects', function () {
         $dom->loadXML($xml);
         $subjectElements = $dom->getElementsByTagName('subject');
 
-        expect($subjectElements->length)->toBe(2);
+        $languagesBySubject = [];
         foreach ($subjectElements as $element) {
-            expect($element->getAttribute('xml:lang'))->toBe('en');
+            $languagesBySubject[$element->textContent] = $element->getAttribute('xml:lang');
         }
+
+        expect($subjectElements->length)->toBe(2)
+            ->and($languagesBySubject)->toBe([
+                'Climate Science' => 'de',
+                'seismology' => 'en',
+            ]);
     });
 
     test('exports resolved CGI Simple Lithology subjects with canonical scheme and concept URIs', function () {

@@ -333,6 +333,80 @@ describe('ControlledVocabulariesField - Initial selected keywords', () => {
     });
 });
 
+describe('ControlledVocabulariesField - multilingual concept variants', () => {
+    const conceptId = 'https://example.test/concepts/earthquake';
+    const scheme = 'GCMD Science Keywords';
+    const schemeURI = 'https://example.test/schemes/science';
+    const scienceKeywords: VocabularyKeyword[] = [
+        {
+            id: conceptId,
+            text: 'Earthquake',
+            language: 'en',
+            scheme,
+            schemeURI,
+            description: '',
+            children: [],
+        },
+    ];
+    const englishKeyword: SelectedKeyword = {
+        id: conceptId,
+        text: 'Earthquake',
+        path: 'Earthquake',
+        language: 'en',
+        scheme,
+        schemeURI,
+    };
+    const germanKeyword: SelectedKeyword = {
+        id: conceptId,
+        text: 'Earthquake',
+        path: 'Earthquake',
+        language: 'de',
+        scheme,
+        schemeURI,
+    };
+
+    it('removes only the selected language variant from its badge', async () => {
+        const onChange = vi.fn();
+        const user = userEvent.setup();
+
+        render(
+            <ControlledVocabulariesField
+                scienceKeywords={scienceKeywords}
+                platforms={[]}
+                instruments={[]}
+                selectedKeywords={[englishKeyword, germanKeyword]}
+                onChange={onChange}
+            />,
+        );
+
+        const removeButtons = screen.getAllByRole('button', { name: 'Remove Earthquake' });
+        expect(removeButtons).toHaveLength(2);
+
+        await user.click(removeButtons[1]);
+
+        expect(onChange).toHaveBeenCalledWith([englishKeyword]);
+    });
+
+    it('toggles only the exact vocabulary variant when concept ids are shared', async () => {
+        const onChange = vi.fn();
+        const user = userEvent.setup();
+
+        render(
+            <ControlledVocabulariesField
+                scienceKeywords={scienceKeywords}
+                platforms={[]}
+                instruments={[]}
+                selectedKeywords={[englishKeyword, germanKeyword]}
+                onChange={onChange}
+            />,
+        );
+
+        await user.click(screen.getByRole('checkbox', { name: 'Earthquake' }));
+
+        expect(onChange).toHaveBeenCalledWith([germanKeyword]);
+    });
+});
+
 describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
     const mockScienceKeywords: VocabularyKeyword[] = [
         {

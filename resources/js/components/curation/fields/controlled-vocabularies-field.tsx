@@ -24,6 +24,29 @@ import { GCMDTree } from './gcmd-tree';
  */
 const MIN_SEARCH_LENGTH = 3;
 
+/**
+ * Identifies the persisted Subject represented by a selected keyword.
+ * A concept URI alone is not unique because DataCite permits multilingual and
+ * otherwise metadata-distinct variants of the same controlled concept.
+ */
+function selectedKeywordIdentity(keyword: SelectedKeyword): string {
+    const filled = (value: string | undefined): string | null => {
+        const normalized = value?.trim() ?? '';
+
+        return normalized !== '' ? normalized : null;
+    };
+
+    return JSON.stringify({
+        valueUriOrCode: filled(keyword.id),
+        value: filled(keyword.text),
+        language: filled(keyword.language) ?? 'en',
+        subjectScheme: filled(keyword.scheme),
+        schemeUri: filled(keyword.schemeURI),
+        classificationCode: filled(keyword.classificationCode),
+        breadcrumbPath: filled(keyword.path),
+    });
+}
+
 interface ThesauriAvailability {
     science_keywords: boolean;
     platforms: boolean;
@@ -271,21 +294,22 @@ export default function ControlledVocabulariesField({
     // Handle keyword toggle (select/deselect)
     const handleToggle = useCallback(
         (keyword: VocabularyKeyword, path: string[]) => {
-            const isSelected = selectedKeywords.some((k) => k.id === keyword.id);
+            const newKeyword: SelectedKeyword = {
+                id: keyword.id,
+                text: keyword.text,
+                path: path.join(' > '),
+                language: keyword.language,
+                scheme: keyword.scheme,
+                schemeURI: keyword.schemeURI,
+            };
+            const identity = selectedKeywordIdentity(newKeyword);
+            const matchingIndex = selectedKeywords.findIndex((selected) => selectedKeywordIdentity(selected) === identity);
+            const selectedIndex = matchingIndex >= 0 ? matchingIndex : selectedKeywords.findIndex((selected) => selected.id === keyword.id);
 
-            if (isSelected) {
-                // Remove keyword
-                onChange(selectedKeywords.filter((k) => k.id !== keyword.id));
+            if (selectedIndex >= 0) {
+                // Remove only the matching persisted variant of this concept.
+                onChange(selectedKeywords.filter((_, index) => index !== selectedIndex));
             } else {
-                // Add keyword with all GCMD metadata
-                const newKeyword: SelectedKeyword = {
-                    id: keyword.id,
-                    text: keyword.text,
-                    path: path.join(' > '),
-                    language: keyword.language,
-                    scheme: keyword.scheme,
-                    schemeURI: keyword.schemeURI,
-                };
                 onChange([...selectedKeywords, newKeyword]);
             }
         },
@@ -294,8 +318,12 @@ export default function ControlledVocabulariesField({
 
     // Handle keyword removal from badge
     const handleRemove = useCallback(
-        (id: string) => {
-            onChange(selectedKeywords.filter((k) => k.id !== id));
+        (identity: string) => {
+            const selectedIndex = selectedKeywords.findIndex((keyword) => selectedKeywordIdentity(keyword) === identity);
+
+            if (selectedIndex >= 0) {
+                onChange(selectedKeywords.filter((_, index) => index !== selectedIndex));
+            }
         },
         [selectedKeywords, onChange],
     );
@@ -359,7 +387,7 @@ export default function ControlledVocabulariesField({
                                 <div className="flex flex-wrap gap-2">
                                     {keywords.map((keyword) => (
                                         <Badge
-                                            key={keyword.id}
+                                            key={selectedKeywordIdentity(keyword)}
                                             variant={keyword.isLegacy ? 'destructive' : 'secondary'}
                                             className={cn(
                                                 'gap-1.5 pr-1.5',
@@ -379,7 +407,7 @@ export default function ControlledVocabulariesField({
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-4 w-4 p-0 hover:bg-transparent"
-                                                onClick={() => handleRemove(keyword.id)}
+                                                onClick={() => handleRemove(selectedKeywordIdentity(keyword))}
                                                 aria-label={`Remove ${keyword.path}`}
                                             >
                                                 <X className="h-3 w-3" />
