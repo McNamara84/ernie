@@ -179,8 +179,11 @@ class DataCiteImportController extends Controller
      * Returns progress information including counts of
      * imported, skipped, and failed DOIs.
      */
-    public function status(Request $request, string $importId): JsonResponse
-    {
+    public function status(
+        Request $request,
+        string $importId,
+        ImportProgressService $progressService,
+    ): JsonResponse {
         $this->authorize('importFromDataCite', Resource::class);
 
         // Validate UUID format
@@ -190,7 +193,7 @@ class DataCiteImportController extends Controller
             ], 400);
         }
 
-        $progress = Cache::get("datacite_import:{$importId}");
+        $progress = $progressService->get(ImportProgressService::TYPE_RESOURCE, $importId);
 
         if ($progress === null) {
             return response()->json([
@@ -210,8 +213,11 @@ class DataCiteImportController extends Controller
      * but marks it as cancelled in the cache.
      * The job should check this status periodically.
      */
-    public function cancel(Request $request, string $importId): JsonResponse
-    {
+    public function cancel(
+        Request $request,
+        string $importId,
+        ImportProgressService $progressService,
+    ): JsonResponse {
         $this->authorize('importFromDataCite', Resource::class);
 
         // Validate UUID format
@@ -221,7 +227,7 @@ class DataCiteImportController extends Controller
             ], 400);
         }
 
-        $progress = Cache::get("datacite_import:{$importId}");
+        $progress = $progressService->get(ImportProgressService::TYPE_RESOURCE, $importId);
 
         if ($progress === null) {
             return response()->json([
@@ -229,7 +235,7 @@ class DataCiteImportController extends Controller
             ], 404);
         }
 
-        if ($progress['status'] !== 'running' && $progress['status'] !== 'pending') {
+        if (! in_array($progress['status'] ?? null, ['running', 'pending'], true)) {
             return response()->json([
                 'error' => 'Import is not running',
             ], 400);

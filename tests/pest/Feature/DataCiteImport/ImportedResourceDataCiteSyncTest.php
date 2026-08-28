@@ -207,6 +207,44 @@ it('can read full metadata IDs from legacy progress during a rolling deployment'
         ->toBe([9]);
 });
 
+it('returns no full metadata IDs when progress is missing', function (): void {
+    $missingImportId = Str::uuid()->toString();
+
+    expect(app(ImportProgressService::class)->fullMetadataResourceIds(
+        ImportProgressService::TYPE_RESOURCE,
+        $missingImportId,
+    ))->toBe([]);
+});
+
+it('replaces malformed cached progress during updates', function (): void {
+    Cache::put("datacite_import:{$this->importId}", 'malformed');
+
+    app(ImportProgressService::class)->update(
+        ImportProgressService::TYPE_RESOURCE,
+        $this->importId,
+        ['processed' => 1],
+    );
+
+    expect(Cache::get("datacite_import:{$this->importId}"))->toBe(['processed' => 1]);
+});
+
+it('replaces malformed cached progress when recording sync results', function (): void {
+    Cache::put("datacite_import:{$this->importId}", 42);
+
+    app(ImportProgressService::class)->recordSyncSuccess(
+        ImportProgressService::TYPE_RESOURCE,
+        $this->importId,
+        123,
+    );
+
+    expect(Cache::get("datacite_import:{$this->importId}"))->toMatchArray([
+        'status' => 'completed',
+        'phase' => 'completed',
+        'sync_processed' => 1,
+        'sync_succeeded' => 1,
+    ]);
+});
+
 it('finishes locally without dispatching DataCite jobs in test mode', function (): void {
     Config::set('datacite.test_mode', true);
     Bus::fake();
@@ -224,6 +262,27 @@ it('finishes locally without dispatching DataCite jobs in test mode', function (
         'sync_total' => 1,
         'sync_processed' => 0,
         'sync_skipped_test_mode' => true,
+    ]);
+});
+
+it('can initialize synchronization when public progress is missing', function (): void {
+    Config::set('datacite.test_mode', false);
+    Bus::fake();
+    $missingImportId = Str::uuid()->toString();
+
+    app(ImportedResourceDataCiteSyncDispatcherService::class)->dispatch(
+        ImportProgressService::TYPE_RESOURCE,
+        $missingImportId,
+        [123],
+    );
+
+    Bus::assertBatched(fn (PendingBatch $batch): bool => $batch->jobs->count() === 1);
+    expect(app(ImportProgressService::class)->get(
+        ImportProgressService::TYPE_RESOURCE,
+        $missingImportId,
+    ))->toMatchArray([
+        'status' => 'running',
+        'sync_total' => 1,
     ]);
 });
 

@@ -38,6 +38,7 @@ class ImportProgressService
 
         $this->withProgressLock($type, $importId, 'update', function () use ($key, $values): void {
             $progress = Cache::get($key, []);
+            $progress = is_array($progress) ? $progress : [];
 
             foreach ($values as $name => $value) {
                 $progress[$name] = $value;
@@ -227,7 +228,7 @@ class ImportProgressService
 
         if ($ids === null) {
             $progress = $this->get($type, $importId);
-            $ids = $progress['sync_full_metadata_resource_ids'] ?? [];
+            $ids = $progress === null ? [] : ($progress['sync_full_metadata_resource_ids'] ?? []);
         }
 
         if (! is_array($ids)) {
@@ -272,6 +273,7 @@ class ImportProgressService
 
         $this->withProgressLock($type, $importId, 'record_sync_result', function () use ($key, $type, $importId, $resourceId, $doi, $error): void {
             $progress = Cache::get($key, []);
+            $progress = is_array($progress) ? $progress : [];
 
             if (($progress['status'] ?? null) === 'cancelled') {
                 return;

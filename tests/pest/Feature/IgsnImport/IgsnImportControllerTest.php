@@ -237,6 +237,19 @@ describe('IgsnImportController', function () {
 
             $response->assertStatus(400);
         });
+
+        it('treats malformed cached progress as a missing import', function (): void {
+            $importId = Str::uuid()->toString();
+            Cache::put("igsn_import:{$importId}", 42);
+
+            $this->actingAs($this->adminUser)
+                ->getJson("/igsns/import/{$importId}/status")
+                ->assertNotFound();
+
+            $this->actingAs($this->adminUser)
+                ->postJson("/igsns/import/{$importId}/cancel")
+                ->assertNotFound();
+        });
     });
 
     describe('cancel endpoint', function () {

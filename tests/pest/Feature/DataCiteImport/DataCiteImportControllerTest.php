@@ -142,6 +142,19 @@ describe('DataCiteImportController', function () {
 
             $response->assertNotFound();
         });
+
+        it('treats malformed cached progress as a missing import', function (): void {
+            $importId = Str::uuid()->toString();
+            Cache::put("datacite_import:{$importId}", 'malformed');
+
+            $this->actingAs($this->adminUser)
+                ->getJson("/datacite/import/{$importId}/status")
+                ->assertNotFound();
+
+            $this->actingAs($this->adminUser)
+                ->postJson("/datacite/import/{$importId}/cancel")
+                ->assertNotFound();
+        });
     });
 
     describe('cancel endpoint', function () {

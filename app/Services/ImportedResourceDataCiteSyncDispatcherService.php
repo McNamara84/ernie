@@ -39,7 +39,9 @@ class ImportedResourceDataCiteSyncDispatcherService
             array_unique(array_map('intval', $fullMetadataResourceIds)),
         ));
 
-        if (($this->progressService->get($type, $importId)['status'] ?? null) === 'cancelled') {
+        $progress = $this->progressService->get($type, $importId);
+
+        if ($progress !== null && ($progress['status'] ?? null) === 'cancelled') {
             return;
         }
 
