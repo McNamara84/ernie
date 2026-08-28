@@ -940,7 +940,7 @@ export interface LandingPageTemplateOption {
 export const LANDING_PAGE_TEMPLATES: Record<string, TemplateMetadata> = {
     default_gfz: {
         key: 'default_gfz',
-        name: 'Default GFZ Data Services',
+        name: 'Templates Resources',
         description: 'Standard template with all features',
         category: 'official',
         version: '1.0',
@@ -949,7 +949,7 @@ export const LANDING_PAGE_TEMPLATES: Record<string, TemplateMetadata> = {
     },
     default_gfz_igsn: {
         key: 'default_gfz_igsn',
-        name: 'Default GFZ IGSN Template',
+        name: 'Templates IGSN',
         description: 'Simplified template for physical samples (IGSN)',
         category: 'official',
         version: '1.0',

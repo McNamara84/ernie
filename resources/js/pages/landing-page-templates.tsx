@@ -264,14 +264,14 @@ function DatacenterAssignmentField({
     selected,
     onChange,
     currentTemplateId,
-    allowCanonicalGfz,
+    isCopyTemplate,
     templateType,
 }: {
     options: LandingPageTemplateDatacenter[];
     selected: number[];
     onChange: (ids: number[]) => void;
     currentTemplateId: number | null;
-    allowCanonicalGfz: boolean;
+    isCopyTemplate: boolean;
     templateType: 'resource' | 'igsn';
 }) {
     const [search, setSearch] = useState('');
@@ -300,7 +300,7 @@ function DatacenterAssignmentField({
             <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
                 {visibleOptions.map((option) => {
                     const isCanonicalGfz = option.name === 'GFZ German Research Centre for Geosciences';
-                    const isProtected = isCanonicalGfz;
+                    const isProtected = isCanonicalGfz && (templateType === 'resource' || isCopyTemplate);
                     const checkboxId = `datacenter-template-${templateType}-${option.id}`;
                     const assignedTemplateId = templateType === 'igsn' ? option.igsn_landing_page_template_id : option.landing_page_template_id;
                     const assignedTemplateName = templateType === 'igsn' ? option.igsn_landing_page_template_name : option.landing_page_template_name;
@@ -320,9 +320,11 @@ function DatacenterAssignmentField({
                                     <span className="block">{option.name}</span>
                                     {isProtected && (
                                         <span className="block text-xs text-muted-foreground">
-                                            {allowCanonicalGfz
-                                                ? 'Protected system-default assignment'
-                                                : `Reserved for the ${templateType === 'igsn' ? 'IGSN' : 'resource'} system default`}
+                                            {templateType === 'resource'
+                                                ? 'Reserved for the Templates Resources copy template'
+                                                : selected.includes(option.id)
+                                                  ? 'Existing copy-template assignment; assign GFZ to a custom IGSN template to move it.'
+                                                  : 'GFZ can only be assigned to a custom IGSN template.'}
                                         </span>
                                     )}
                                     {!isProtected && assignedElsewhere && (
@@ -555,8 +557,8 @@ export default function LandingPageTemplatesPage() {
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Landing Pages</h1>
                         <p className="text-muted-foreground">
-                            Manage custom templates for resource and IGSN landing pages. Clone a default template and customize section order and
-                            logo.
+                            Manage custom templates for resource and IGSN landing pages. Start from a built-in copy template and customize section
+                            order and logo.
                         </p>
                         <p data-testid="landing-page-logo-size-hint" className="mt-2 text-sm text-muted-foreground">
                             Header logo: use a {logoUploadConstraints.aspectRatio} image. Recommended: {logoUploadConstraints.recommendedWidth} ×{' '}
@@ -584,14 +586,14 @@ export default function LandingPageTemplatesPage() {
                                         <div>
                                             <CardTitle className="text-base">{tmpl.name}</CardTitle>
                                             <CardDescription className="text-xs">
-                                                {tmpl.is_default ? 'Built-in default template' : `Created by ${tmpl.creator?.name ?? 'Unknown'}`}
+                                                {tmpl.is_default ? 'Built-in copy template' : `Created by ${tmpl.creator?.name ?? 'Unknown'}`}
                                             </CardDescription>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1">
                                         {tmpl.is_default && (
                                             <Badge variant="secondary" className="text-xs">
-                                                Default
+                                                Copy template
                                             </Badge>
                                         )}
                                         <Badge variant="outline" className="text-xs">
@@ -743,11 +745,11 @@ export default function LandingPageTemplatesPage() {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Copy className="size-5" />
-                            Clone Default Template
+                            Clone Copy Template
                         </DialogTitle>
                         <DialogDescription>
-                            Create a new template based on the selected default template type (resource or IGSN). You can customize the section order
-                            and logo afterwards.
+                            Create a new template based on the selected copy template type (resource or IGSN). You can customize the section order and
+                            logo afterwards.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -759,8 +761,8 @@ export default function LandingPageTemplatesPage() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="resource">Resource (DOI) — Default GFZ Data Services</SelectItem>
-                                    <SelectItem value="igsn">IGSN — Default GFZ IGSN</SelectItem>
+                                    <SelectItem value="resource">Resource (DOI) — Templates Resources</SelectItem>
+                                    <SelectItem value="igsn">IGSN — Templates IGSN</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -780,7 +782,7 @@ export default function LandingPageTemplatesPage() {
                             selected={cloneDatacenterIds}
                             onChange={setCloneDatacenterIds}
                             currentTemplateId={null}
-                            allowCanonicalGfz={false}
+                            isCopyTemplate={false}
                             templateType={cloneType}
                         />
                     </div>
@@ -806,7 +808,7 @@ export default function LandingPageTemplatesPage() {
                         </DialogTitle>
                         <DialogDescription>
                             {editTemplate?.is_default
-                                ? 'Customize how many creators, contributors, and citation authors are shown for this built-in template.'
+                                ? 'Customize how many creators, contributors, and citation authors are shown for this built-in copy template.'
                                 : 'Customize the template name, section order, and creator/contributor/citation display limits.'}
                         </DialogDescription>
                     </DialogHeader>
@@ -873,7 +875,7 @@ export default function LandingPageTemplatesPage() {
                                     selected={editDatacenterIds}
                                     onChange={setEditDatacenterIds}
                                     currentTemplateId={editTemplate.id}
-                                    allowCanonicalGfz={editTemplate.is_default}
+                                    isCopyTemplate={editTemplate.is_default}
                                     templateType={editTemplate.template_type}
                                 />
                             </>

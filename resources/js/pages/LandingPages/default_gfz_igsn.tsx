@@ -57,10 +57,10 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
 };
 
 /**
- * Default GFZ IGSN Landing Page Template
+ * Built-in GFZ IGSN Landing Page Copy Template
  *
  * Two-column landing page for physical samples (IGSNs). Mirrors the layout
- * of the Default GFZ Data Services template but replaces the Files module
+ * of the Templates Resources layout but replaces the Files module
  * with IGSN-specific General and Acquisition modules in the left column.
  */
 export default function DefaultGfzIgsnTemplate() {

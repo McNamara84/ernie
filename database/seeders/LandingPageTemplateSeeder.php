@@ -11,21 +11,28 @@ use Illuminate\Database\Seeder;
 class LandingPageTemplateSeeder extends Seeder
 {
     /**
-     * Seed the immutable system landing page templates.
+     * Seed the immutable system landing page copy templates.
      *
-     * Creates the two default templates that serve as the base for cloning
-     * custom templates: the GFZ Data Services default for resources (DOIs)
-     * and the GFZ IGSN default for physical samples.
+     * Creates the two templates that serve as the base for cloning custom
+     * templates and as technical fallbacks for resources and physical samples.
      */
     public function run(): void
     {
         $templates = LandingPageTemplate::ensureSystemTemplatesExist();
 
-        Datacenter::query()->firstOrCreate([
+        $gfz = Datacenter::query()->firstOrCreate([
             'name' => Datacenter::GFZ_NAME,
-        ])->forceFill([
+        ]);
+        $initializeIgsnAssignment = $gfz->igsn_landing_page_template_id === null;
+
+        $assignments = [
             'landing_page_template_id' => $templates['resource']->id,
-            'igsn_landing_page_template_id' => $templates['igsn']->id,
-        ])->save();
+        ];
+
+        if ($initializeIgsnAssignment) {
+            $assignments['igsn_landing_page_template_id'] = $templates['igsn']->id;
+        }
+
+        $gfz->forceFill($assignments)->save();
     }
 }

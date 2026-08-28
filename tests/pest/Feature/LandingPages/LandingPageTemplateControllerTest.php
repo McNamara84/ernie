@@ -478,7 +478,7 @@ describe('Update', function (): void {
             ->putJson("/landing-pages/{$this->defaultTemplate->id}", ['name' => 'Hacked'])
             ->assertForbidden()
             ->assertJson([
-                'message' => 'Only display limits and datacenter assignments can be updated on default templates.',
+                'message' => 'Only display limits and datacenter assignments can be updated on built-in copy templates.',
                 'error' => 'default_template_immutable',
             ]);
     });
@@ -1294,7 +1294,7 @@ describe('Factory', function (): void {
     it('creates a default template via state', function (): void {
         $template = LandingPageTemplate::factory()->default()->make();
 
-        expect($template->name)->toBe('Default GFZ Data Services')
+        expect($template->name)->toBe('Templates Resources')
             ->and($template->slug)->toBe(LandingPageTemplate::DEFAULT_TEMPLATE_SLUG)
             ->and($template->is_default)->toBeTrue()
             ->and($template->created_by)->toBeNull();
@@ -1331,7 +1331,7 @@ describe('Seeder', function (): void {
         $default = LandingPageTemplate::where('slug', LandingPageTemplate::DEFAULT_TEMPLATE_SLUG)->first();
 
         expect($default)->not->toBeNull()
-            ->and($default->name)->toBe('Default GFZ Data Services')
+            ->and($default->name)->toBe('Templates Resources')
             ->and($default->is_default)->toBeTrue()
             ->and($default->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
             ->and($default->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS);

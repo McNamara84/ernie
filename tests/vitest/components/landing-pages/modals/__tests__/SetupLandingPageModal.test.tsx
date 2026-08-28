@@ -234,7 +234,7 @@ describe('SetupLandingPageModal', () => {
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
-                expect(screen.getByText(/Default GFZ Data Services/i)).toBeInTheDocument();
+                expect(screen.getByText(/Templates Resources/i)).toBeInTheDocument();
             });
         });
 
@@ -251,15 +251,15 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
-                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Default GFZ IGSN Template');
+                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Templates IGSN');
             });
 
             await user.click(screen.getByRole('combobox', { name: /landing page template/i }));
 
             const optionsList = screen.getByRole('listbox');
-            expect(optionsList).toHaveTextContent('Default GFZ IGSN Template');
+            expect(optionsList).toHaveTextContent('Templates IGSN');
             expect(optionsList).toHaveTextContent('External Landing Page');
-            expect(optionsList).not.toHaveTextContent('Default GFZ Data Services');
+            expect(optionsList).not.toHaveTextContent('Templates Resources');
             expect(screen.queryByLabelText(/^Download URL$/i)).not.toBeInTheDocument();
         });
 
@@ -625,7 +625,7 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
-                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Default GFZ IGSN Template');
+                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Templates IGSN');
             });
 
             expect(screen.queryByLabelText(/^Download URL$/i)).not.toBeInTheDocument();
@@ -693,7 +693,7 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
-                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Default GFZ IGSN Template');
+                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Templates IGSN');
             });
 
             await user.click(screen.getByRole('button', { name: /Update/i }));
@@ -1459,7 +1459,7 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
-                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Default GFZ IGSN Template');
+                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Templates IGSN');
             });
 
             expect(screen.queryByText(/You have unsaved changes/i)).not.toBeInTheDocument();
@@ -2046,7 +2046,7 @@ describe('SetupLandingPageModal', () => {
                             templates: [
                                 {
                                     id: 1,
-                                    name: 'Default GFZ Data Services',
+                                    name: 'Templates Resources',
                                     slug: 'default_gfz',
                                     is_default: true,
                                     logo_url: null,
@@ -2149,7 +2149,7 @@ describe('SetupLandingPageModal', () => {
                             templates: [
                                 {
                                     id: 1,
-                                    name: 'Default GFZ Data Services',
+                                    name: 'Templates Resources',
                                     slug: 'default_gfz',
                                     is_default: true,
                                     logo_url: null,
@@ -2202,7 +2202,7 @@ describe('SetupLandingPageModal', () => {
                             templates: [
                                 {
                                     id: 1,
-                                    name: 'Default GFZ Data Services',
+                                    name: 'Templates Resources',
                                     slug: 'default_gfz',
                                     is_default: true,
                                     logo_url: null,
@@ -2450,7 +2450,7 @@ describe('SetupLandingPageModal', () => {
                             templates: [
                                 {
                                     id: 1,
-                                    name: 'Default GFZ Data Services',
+                                    name: 'Templates Resources',
                                     slug: 'default_gfz',
                                     is_default: true,
                                     logo_url: null,
@@ -2783,7 +2783,7 @@ describe('SetupLandingPageModal', () => {
                 templates: [
                     {
                         id: 1,
-                        name: 'Default GFZ Data Services',
+                        name: 'Templates Resources',
                         slug: 'default_gfz',
                         is_default: true,
                         logo_url: null,
@@ -2824,7 +2824,7 @@ describe('SetupLandingPageModal', () => {
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             // The select trigger should display the custom template name, not
-            // the fallback "Default GFZ Data Services".
+            // the fallback "Templates Resources".
             await waitFor(() => {
                 const trigger = screen.getByLabelText(/Landing Page Template/i);
                 expect(trigger).toHaveTextContent('My Custom Template');
@@ -2834,7 +2834,7 @@ describe('SetupLandingPageModal', () => {
         it('retains custom template selection after closing and reopening the dialog', async () => {
             // Reproduces the exact user-reported scenario: open dialog, close
             // it, reopen it — the saved custom template must still be shown
-            // in the dropdown (not "Default GFZ Data Services"). Before the
+            // in the dropdown (not "Templates Resources"). Before the
             // fix, reopening hydrated all fields except landing_page_template_id,
             // so the select fell back to the built-in default value.
             const serverConfig: LandingPageConfig = {
@@ -2958,7 +2958,7 @@ describe('SetupLandingPageModal', () => {
 
             await waitFor(() => {
                 const trigger = screen.getByLabelText(/Landing Page Template/i);
-                expect(trigger).toHaveTextContent('Default GFZ Data Services');
+                expect(trigger).toHaveTextContent('Templates Resources');
             });
 
             const updateButton = screen.getByRole('button', { name: /Update/i });
@@ -2983,7 +2983,7 @@ describe('SetupLandingPageModal', () => {
                 landing_page_template_id: 1,
                 landing_page_template: {
                     id: 1,
-                    name: 'Default GFZ Data Services',
+                    name: 'Templates Resources',
                     slug: 'default_gfz',
                     is_default: true,
                     template_type: 'resource',
@@ -3018,7 +3018,7 @@ describe('SetupLandingPageModal', () => {
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
-                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Default GFZ Data Services');
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Templates Resources');
             });
 
             await user.click(screen.getByRole('button', { name: /Update/i }));

@@ -123,7 +123,7 @@ class LandingPageTemplateController extends Controller
 
             if ($unsupportedFields !== []) {
                 return response()->json([
-                    'message' => 'Only display limits and datacenter assignments can be updated on default templates.',
+                    'message' => 'Only display limits and datacenter assignments can be updated on built-in copy templates.',
                     'error' => 'default_template_immutable',
                 ], 403);
             }
@@ -192,7 +192,7 @@ class LandingPageTemplateController extends Controller
 
         if ($landingPageTemplate->isDefault()) {
             return response()->json([
-                'message' => 'The default template cannot be deleted.',
+                'message' => 'The built-in copy template cannot be deleted.',
                 'error' => 'default_template_immutable',
             ], 403);
         }
@@ -234,7 +234,7 @@ class LandingPageTemplateController extends Controller
 
         if ($landingPageTemplate->isDefault()) {
             return response()->json([
-                'message' => 'The default template cannot be modified.',
+                'message' => 'The built-in copy template cannot be modified.',
                 'error' => 'default_template_immutable',
             ], 403);
         }
@@ -284,7 +284,7 @@ class LandingPageTemplateController extends Controller
 
         if ($landingPageTemplate->isDefault()) {
             return response()->json([
-                'message' => 'The default template cannot be modified.',
+                'message' => 'The built-in copy template cannot be modified.',
                 'error' => 'default_template_immutable',
             ], 403);
         }
@@ -447,7 +447,8 @@ class LandingPageTemplateController extends Controller
      * Assign any number of datacenters to a template within its resource scope.
      *
      * Assigning a datacenter already used by another template moves it. The
-     * canonical GFZ assignment is always retained on each system default.
+     * canonical GFZ resource assignment is retained on its system copy template.
+     * Its IGSN assignment is retained there only until a custom template takes it.
      *
      * @param  list<int>  $datacenterIds
      */
@@ -459,9 +460,15 @@ class LandingPageTemplateController extends Controller
             : 'landing_page_template_id';
 
         if ($template->isDefault()) {
-            $gfzId = Datacenter::query()->where('name', Datacenter::GFZ_NAME)->value('id');
-            if ($gfzId !== null && ! in_array((int) $gfzId, $selectedIds, true)) {
-                $selectedIds[] = (int) $gfzId;
+            $gfz = Datacenter::query()
+                ->where('name', Datacenter::GFZ_NAME)
+                ->first(['id', 'igsn_landing_page_template_id']);
+            $shouldRetainCanonicalGfz = $gfz !== null
+                && ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE
+                    || $gfz->igsn_landing_page_template_id === $template->id);
+
+            if ($shouldRetainCanonicalGfz && ! in_array((int) $gfz->id, $selectedIds, true)) {
+                $selectedIds[] = (int) $gfz->id;
             }
         }
 

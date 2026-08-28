@@ -100,7 +100,7 @@ describe('IGSN Template Restriction on Creation', function () {
 
         $response->assertStatus(422)
             ->assertJson([
-                'message' => 'The Default GFZ Data Services template cannot be used with Physical Object resources. Use the IGSN template instead.',
+                'message' => 'The Templates Resources copy template cannot be used with Physical Object resources. Use an IGSN template instead.',
                 'error' => 'invalid_template_for_resource_type',
             ]);
 
@@ -174,7 +174,7 @@ describe('IGSN Template Restriction on Creation', function () {
 
         $response->assertStatus(422)
             ->assertJson([
-                'message' => 'The selected landing page template is a built-in default and cannot be used as a custom override.',
+                'message' => 'The selected landing page template is a built-in copy template and cannot be used as a custom override.',
                 'error' => 'invalid_template_for_resource_type',
             ]);
     });
@@ -278,7 +278,7 @@ describe('IGSN Template Restriction on Update', function () {
 
         $response->assertStatus(422)
             ->assertJson([
-                'message' => 'The Default GFZ Data Services template cannot be used with Physical Object resources. Use the IGSN template instead.',
+                'message' => 'The Templates Resources copy template cannot be used with Physical Object resources. Use an IGSN template instead.',
                 'error' => 'invalid_template_for_resource_type',
             ]);
 
@@ -573,7 +573,7 @@ describe('IGSN Template Preview Session', function () {
 
         $response->assertStatus(422)
             ->assertJson([
-                'message' => 'The Default GFZ Data Services template cannot be used with Physical Object resources. Use the IGSN template instead.',
+                'message' => 'The Templates Resources copy template cannot be used with Physical Object resources. Use an IGSN template instead.',
                 'error' => 'invalid_template_for_resource_type',
             ]);
     });

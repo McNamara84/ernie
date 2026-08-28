@@ -59,16 +59,27 @@ class UpdateLandingPageTemplateRequest extends FormRequest
             $datacenterIds = $this->input('datacenter_ids', []);
 
             if ($this->has('datacenter_ids') && is_array($datacenterIds) && $datacenterIds !== []) {
-                if (! $template->isDefault()
-                    && Datacenter::query()->whereKey($datacenterIds)->where('name', Datacenter::GFZ_NAME)->exists()) {
-                    $scope = $template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
-                        ? 'IGSN'
-                        : 'resource';
+                $gfz = Datacenter::query()
+                    ->whereKey($datacenterIds)
+                    ->where('name', Datacenter::GFZ_NAME)
+                    ->first(['id', 'landing_page_template_id', 'igsn_landing_page_template_id']);
 
-                    $validator->errors()->add(
-                        'datacenter_ids',
-                        "The canonical GFZ datacenter must remain assigned to the {$scope} system default.",
-                    );
+                if ($gfz !== null) {
+                    if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE && ! $template->isDefault()) {
+                        $validator->errors()->add(
+                            'datacenter_ids',
+                            'The canonical GFZ datacenter must remain assigned to the Templates Resources copy template.',
+                        );
+                    }
+
+                    if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
+                        && $template->isDefault()
+                        && $gfz->igsn_landing_page_template_id !== $template->id) {
+                        $validator->errors()->add(
+                            'datacenter_ids',
+                            'The Templates IGSN copy template cannot reclaim the GFZ datacenter after it has been assigned to a custom IGSN template.',
+                        );
+                    }
                 }
             }
 

@@ -11,6 +11,10 @@
             {
                 "title": "Direct FAIR Improvement Actions",
                 "description": "Assessment results with curator actions now link directly to the Data Editor. Admins and Group Leaders also receive an Assistance link with the DOI filter already applied when matching pending metadata suggestions exist, while Curators remain within their authorized workflow and IGSNs remain unchanged until a dedicated editor is available."
+            },
+            {
+                "title": "Configurable GFZ IGSN Landing Page Branding",
+                "description": "The built-in landing-page copy templates are now clearly named Templates Resources and Templates IGSN. Admins and Group Leaders can assign GFZ German Research Centre for Geosciences and additional datacenters to a custom IGSN template, including its custom header logo, while the independent GFZ Resource template assignment remains protected and existing assignments stay unchanged during deployment."
             }
         ],
         "fixes": [

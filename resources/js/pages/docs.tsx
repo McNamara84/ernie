@@ -2007,11 +2007,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Custom Landing Page Templates</h3>
                         <p>
                             Admins and Group Leaders can create custom landing page templates to control the layout and branding of landing pages.
-                            Custom templates are cloned from the immutable default for their Resource or IGSN type and allow customization of section
-                            order and header logo. Both template types can be assigned to any number of datacenters through independent assignment
-                            slots. A landing page in automatic mode inherits the compatible template assigned to its datacenter; without such an
-                            assignment, ERNIE uses the matching Resource or IGSN system default. An explicit landing-page selection always overrides
-                            datacenter inheritance. In template management, the built-in Resource and IGSN defaults stay pinned at the top.
+                            Custom templates are cloned from the built-in <strong>Templates Resources</strong> or <strong>Templates IGSN</strong> copy
+                            template and allow customization of section order and header logo. Both template types can be assigned to any number of
+                            datacenters through independent assignment slots. The GFZ datacenter remains reserved for Templates Resources in the
+                            Resource slot, but can be moved to a custom IGSN template in the independent IGSN slot. A landing page in automatic mode
+                            inherits the compatible template assigned to its datacenter; without such an assignment, ERNIE uses the matching built-in
+                            copy template as its technical fallback. An explicit landing-page selection always overrides datacenter inheritance. The
+                            two copy templates stay pinned at the top of template management.
                         </p>
 
                         <WorkflowSteps>
@@ -2020,10 +2022,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Switch the sidebar to <strong>Administration</strong> and open <strong>Landing Pages</strong>.
                                 </p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={2} title="Clone Default Template">
+                            <WorkflowSteps.Step number={2} title="Clone Copy Template">
                                 <p>
                                     Click <strong>"New Template"</strong> and enter a unique name. The new template starts as an exact copy of the
-                                    Default GFZ template.
+                                    selected Resource or IGSN copy template.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Reorder Sections">

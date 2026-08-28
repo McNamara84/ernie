@@ -103,6 +103,25 @@ it('keeps the canonical GFZ datacenter on the resource system default', function
         ->toBe($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id);
 });
 
+it('rejects assigning the canonical GFZ datacenter while cloning a resource template', function (): void {
+    $gfz = Datacenter::factory()->create([
+        'name' => Datacenter::GFZ_NAME,
+        'landing_page_template_id' => $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->postJson('/landing-pages', [
+            'name' => 'Custom GFZ Resource Template',
+            'template_type' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
+            'datacenter_ids' => [$gfz->id],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('datacenter_ids');
+
+    expect($gfz->fresh()->landing_page_template_id)
+        ->toBe($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id);
+});
+
 it('keeps resource and IGSN template assignments independent on the same datacenter', function (): void {
     $resourceTemplate = LandingPageTemplate::factory()->create();
     $igsnTemplate = LandingPageTemplate::factory()->igsn()->create();
@@ -121,9 +140,10 @@ it('keeps resource and IGSN template assignments independent on the same datacen
         ->and($datacenter->igsn_landing_page_template_id)->toBe($igsnTemplate->id);
 });
 
-it('keeps the canonical GFZ datacenter on the IGSN system default', function (): void {
+it('allows a custom IGSN template to take the canonical GFZ assignment without changing its resource template', function (): void {
     $gfz = Datacenter::factory()->create([
         'name' => Datacenter::GFZ_NAME,
+        'landing_page_template_id' => $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id,
         'igsn_landing_page_template_id' => $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]->id,
     ]);
     $custom = LandingPageTemplate::factory()->igsn()->create();
@@ -132,11 +152,94 @@ it('keeps the canonical GFZ datacenter on the IGSN system default', function ():
         ->putJson("/landing-pages/{$custom->id}", [
             'datacenter_ids' => [$gfz->id],
         ])
+        ->assertOk()
+        ->assertJsonPath('template.datacenters.0.id', $gfz->id);
+
+    $gfz->refresh();
+    expect($gfz->igsn_landing_page_template_id)->toBe($custom->id)
+        ->and($gfz->landing_page_template_id)
+        ->toBe($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id);
+});
+
+it('allows the IGSN copy template to keep its existing canonical GFZ assignment', function (): void {
+    $igsnCopyTemplate = $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN];
+    $gfz = Datacenter::factory()->create([
+        'name' => Datacenter::GFZ_NAME,
+        'igsn_landing_page_template_id' => $igsnCopyTemplate->id,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->putJson("/landing-pages/{$igsnCopyTemplate->id}", [
+            'datacenter_ids' => [$gfz->id],
+        ])
+        ->assertOk();
+
+    expect($gfz->fresh()->igsn_landing_page_template_id)->toBe($igsnCopyTemplate->id);
+});
+
+it('preserves the existing GFZ assignment when the IGSN copy template is updated with an empty selection', function (): void {
+    $igsnCopyTemplate = $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN];
+    $gfz = Datacenter::factory()->create([
+        'name' => Datacenter::GFZ_NAME,
+        'igsn_landing_page_template_id' => $igsnCopyTemplate->id,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->putJson("/landing-pages/{$igsnCopyTemplate->id}", [
+            'datacenter_ids' => [],
+        ])
+        ->assertOk();
+
+    expect($gfz->fresh()->igsn_landing_page_template_id)->toBe($igsnCopyTemplate->id);
+});
+
+it('allows a group leader to assign GFZ and other datacenters while cloning an IGSN template', function (): void {
+    $groupLeader = User::factory()->groupLeader()->create();
+    $gfz = Datacenter::factory()->create([
+        'name' => Datacenter::GFZ_NAME,
+        'landing_page_template_id' => $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id,
+        'igsn_landing_page_template_id' => $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]->id,
+    ]);
+    $other = Datacenter::factory()->create();
+
+    $response = $this->actingAs($groupLeader)->postJson('/landing-pages', [
+        'name' => 'GFZ Shared IGSN Template',
+        'template_type' => LandingPageTemplate::TEMPLATE_TYPE_IGSN,
+        'datacenter_ids' => [$gfz->id, $other->id],
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonCount(2, 'template.datacenters');
+    $templateId = $response->json('template.id');
+
+    expect($gfz->fresh()->igsn_landing_page_template_id)->toBe($templateId)
+        ->and($other->fresh()->igsn_landing_page_template_id)->toBe($templateId)
+        ->and($gfz->fresh()->landing_page_template_id)
+        ->toBe($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id);
+});
+
+it('does not let the IGSN copy template reclaim GFZ after a custom assignment', function (): void {
+    $custom = LandingPageTemplate::factory()->igsn()->create();
+    $gfz = Datacenter::factory()->create([
+        'name' => Datacenter::GFZ_NAME,
+        'igsn_landing_page_template_id' => $custom->id,
+    ]);
+    $igsnCopyTemplate = $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN];
+
+    $this->actingAs($this->admin)
+        ->putJson("/landing-pages/{$igsnCopyTemplate->id}", [
+            'datacenter_ids' => [$gfz->id],
+        ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('datacenter_ids');
 
-    expect($gfz->fresh()->igsn_landing_page_template_id)
-        ->toBe($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]->id);
+    $this->actingAs($this->admin)
+        ->putJson("/landing-pages/{$igsnCopyTemplate->id}", [
+            'datacenter_ids' => [],
+        ])
+        ->assertOk();
+
+    expect($gfz->fresh()->igsn_landing_page_template_id)->toBe($custom->id);
 });
 
 it('inherits an IGSN template for a physical object resource', function (): void {

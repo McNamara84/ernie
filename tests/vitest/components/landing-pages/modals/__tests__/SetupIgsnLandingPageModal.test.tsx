@@ -168,7 +168,7 @@ describe('SetupIgsnLandingPageModal', () => {
                             templates: [],
                             datacenter: { id: 9, name: 'ICDP' },
                             datacenter_template: { id: 12, name: 'ICDP Samples', slug: 'icdp-samples' },
-                            system_default: { id: 2, name: 'Default GFZ IGSN', slug: 'default_gfz_igsn' },
+                            system_default: { id: 2, name: 'Templates IGSN', slug: 'default_gfz_igsn' },
                             automatic_template: { id: 12, name: 'ICDP Samples', slug: 'icdp-samples' },
                             automatic_source: 'datacenter',
                             supports_datacenter_inheritance: true,
@@ -234,7 +234,7 @@ describe('SetupIgsnLandingPageModal', () => {
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
-                expect(screen.getByText(/Default GFZ IGSN Template/i)).toBeInTheDocument();
+                expect(screen.getByRole('combobox')).toHaveTextContent('Templates IGSN');
             });
         });
 
@@ -256,8 +256,8 @@ describe('SetupIgsnLandingPageModal', () => {
 
             const optionsList = screen.getByRole('listbox');
 
-            expect(screen.queryByText('Default GFZ Data Services')).not.toBeInTheDocument();
-            expect(optionsList).toHaveTextContent('Default GFZ IGSN Template');
+            expect(screen.queryByText('Templates Resources')).not.toBeInTheDocument();
+            expect(optionsList).toHaveTextContent('Templates IGSN');
             expect(optionsList).toHaveTextContent('External Landing Page');
         });
     });
@@ -584,7 +584,7 @@ describe('SetupIgsnLandingPageModal', () => {
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
-                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+                expect(screen.getByRole('combobox')).toHaveTextContent('Templates IGSN');
             });
 
             await user.click(screen.getByRole('button', { name: /Update/i }));
@@ -680,7 +680,7 @@ describe('SetupIgsnLandingPageModal', () => {
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
-                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+                expect(screen.getByRole('combobox')).toHaveTextContent('Templates IGSN');
             });
 
             expect(screen.queryByText(/You have unsaved changes/i)).not.toBeInTheDocument();
@@ -882,7 +882,7 @@ describe('SetupIgsnLandingPageModal', () => {
                 landing_page_template_id: 1,
                 landing_page_template: {
                     id: 1,
-                    name: 'Default GFZ IGSN',
+                    name: 'Templates IGSN',
                     slug: 'default_gfz_igsn',
                     is_default: true,
                     template_type: 'igsn',
@@ -923,7 +923,7 @@ describe('SetupIgsnLandingPageModal', () => {
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
-                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Default GFZ IGSN Template');
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Templates IGSN');
             });
 
             expect(screen.queryByText(/You have unsaved changes/i)).not.toBeInTheDocument();

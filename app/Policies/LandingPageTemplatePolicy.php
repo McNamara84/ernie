@@ -12,7 +12,7 @@ use App\Models\User;
  * Policy for LandingPageTemplate model authorization.
  *
  * Only Admin and Group Leader roles can manage landing page templates.
- * The default template (is_default=true) can only receive narrowly scoped
+ * A built-in copy template (is_default=true) can only receive narrowly scoped
  * display-limit updates; immutable fields remain protected by the controller.
  */
 class LandingPageTemplatePolicy
@@ -36,7 +36,7 @@ class LandingPageTemplatePolicy
     }
 
     /**
-     * Determine whether the user can create templates (clone from default).
+     * Determine whether the user can create templates (clone from a copy template).
      */
     public function create(User $user): bool
     {
@@ -45,7 +45,7 @@ class LandingPageTemplatePolicy
 
     /**
      * Determine whether the user can update the template.
-     * Default template field restrictions are enforced by the controller.
+     * Built-in copy template field restrictions are enforced by the controller.
      */
     public function update(User $user, LandingPageTemplate $template): bool
     {
@@ -54,7 +54,7 @@ class LandingPageTemplatePolicy
 
     /**
      * Determine whether the user can delete the template.
-     * Default templates cannot be deleted.
+     * Built-in copy templates cannot be deleted.
      * In-use check is enforced in the controller's destroy() method.
      */
     public function delete(User $user, LandingPageTemplate $template): bool

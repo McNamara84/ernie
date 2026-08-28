@@ -90,7 +90,7 @@ describe('Landing Page Setup Modal (Smoke)', function (): void {
 
 describe('Landing Page Template Persistence (Regression PR #674)', function (): void {
     // Regression coverage (E2E) for PR #674: the Setup Landing Page dialog
-    // used to fall back to "Default GFZ Data Services" in the template select
+    // used to fall back to "Templates Resources" in the template select
     // even when the resource had a custom landing_page_template_id persisted,
     // because loadLandingPageConfig() did not hydrate that field into state.
     //
@@ -130,8 +130,8 @@ describe('Landing Page Template Persistence (Regression PR #674)', function (): 
         $page->click('[aria-label^="Setup landing page for resource"]')
             ->assertSee('Setup Landing Page')
             // The Select trigger must display the custom template name, not
-            // the "Default GFZ Data Services" fallback value.
+            // the "Templates Resources" fallback value.
             ->assertSee('Regression Custom Template')
-            ->assertDontSee('Default GFZ Data Services');
+            ->assertDontSee('Templates Resources');
     });
 });

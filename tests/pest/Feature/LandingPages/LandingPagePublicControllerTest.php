@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\CacheKey;
 use App\Http\Controllers\LandingPagePublicController;
+use App\Models\Datacenter;
 use App\Models\LandingPage;
 use App\Models\LandingPageDailyStatistic;
 use App\Models\LandingPageDomain;
@@ -840,6 +841,43 @@ describe('External Landing Page Redirect', function () {
 });
 
 describe('Landing Page with Custom Template', function () {
+    test('inherits a custom IGSN template and header logo from the GFZ datacenter', function () {
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'logo_path' => 'landing-page-logos/gfz-igsn/header.png',
+        ]);
+        $gfz = Datacenter::factory()->create([
+            'name' => Datacenter::GFZ_NAME,
+            'igsn_landing_page_template_id' => $template->id,
+        ]);
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/test.public.gfz.igsn',
+            'resource_type_id' => $physicalObjectType->id,
+            'datacenter_id' => $gfz->id,
+        ]);
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/test.public.gfz.igsn',
+                'slug' => 'gfz-igsn-inherited-template',
+                'template' => 'default_gfz_igsn',
+                'landing_page_template_id' => null,
+            ]);
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz_igsn')
+                ->where('landingPageTemplateSource', 'datacenter')
+                ->where('effectiveLandingPageTemplate.id', $template->id)
+                ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/gfz-igsn/header.png'))
+            );
+    });
+
     test('renders landing page with custom template section order and logo', function () {
         $template = LandingPageTemplate::factory()->create([
             'created_by' => User::factory()->admin()->create()->id,

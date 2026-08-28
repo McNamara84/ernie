@@ -28,3 +28,40 @@ it('assigns both GFZ system templates to their independent datacenter slots', fu
     expect($gfz->landing_page_template_id)->toBe($defaults['resource']->id)
         ->and($gfz->igsn_landing_page_template_id)->toBe($defaults['igsn']->id);
 });
+
+it('initializes a missing GFZ IGSN assignment when its resource slot already exists', function (): void {
+    $this->seed(DatacenterSeeder::class);
+    $this->seed(LandingPageTemplateSeeder::class);
+
+    $defaults = LandingPageTemplate::ensureSystemTemplatesExist();
+    $gfz = Datacenter::query()->where('name', Datacenter::GFZ_NAME)->firstOrFail();
+    $gfz->update([
+        'landing_page_template_id' => $defaults['resource']->id,
+        'igsn_landing_page_template_id' => null,
+    ]);
+
+    $this->seed(LandingPageTemplateSeeder::class);
+
+    $gfz->refresh();
+    expect($gfz->landing_page_template_id)->toBe($defaults['resource']->id)
+        ->and($gfz->igsn_landing_page_template_id)->toBe($defaults['igsn']->id);
+});
+
+it('preserves a custom GFZ IGSN assignment when the template seeder runs again', function (): void {
+    $this->seed(DatacenterSeeder::class);
+    $this->seed(LandingPageTemplateSeeder::class);
+
+    $defaults = LandingPageTemplate::ensureSystemTemplatesExist();
+    $customIgsnTemplate = LandingPageTemplate::factory()->igsn()->create();
+    $gfz = Datacenter::query()->where('name', Datacenter::GFZ_NAME)->firstOrFail();
+    $gfz->update([
+        'landing_page_template_id' => null,
+        'igsn_landing_page_template_id' => $customIgsnTemplate->id,
+    ]);
+
+    $this->seed(LandingPageTemplateSeeder::class);
+
+    $gfz->refresh();
+    expect($gfz->landing_page_template_id)->toBe($defaults['resource']->id)
+        ->and($gfz->igsn_landing_page_template_id)->toBe($customIgsnTemplate->id);
+});
