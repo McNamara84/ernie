@@ -8,10 +8,10 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
-use App\Services\LandingPagePersonIdentityResolver;
+use App\Services\LandingPagePersonIdentityResolverService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
-covers(LandingPagePersonIdentityResolver::class);
+covers(LandingPagePersonIdentityResolverService::class);
 
 function identityResolverPerson(
     int $id,
@@ -87,7 +87,7 @@ function resolveLandingPageIdentities(array $creators, array $contributors): arr
     $resource->setRelation('creators', new EloquentCollection($creators));
     $resource->setRelation('contributors', new EloquentCollection($contributors));
 
-    return (new LandingPagePersonIdentityResolver)->resolve($resource);
+    return (new LandingPagePersonIdentityResolverService)->resolve($resource);
 }
 
 test('groups creator and contributor rows that reference the same person entity', function () {

@@ -19,7 +19,7 @@ use Illuminate\Support\Str;
  * The returned keys are scoped to one resource representation. They must never
  * be persisted or used to merge Person records.
  */
-final class LandingPagePersonIdentityResolver
+final class LandingPagePersonIdentityResolverService
 {
     private const MINIMUM_LEGACY_NAME_TOKENS = 3;
 

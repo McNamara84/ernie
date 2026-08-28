@@ -14,7 +14,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Services\IgsnRepositoryContactService;
-use App\Services\LandingPagePersonIdentityResolver;
+use App\Services\LandingPagePersonIdentityResolverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -33,7 +33,7 @@ class ContactMessageController extends Controller
 {
     public function __construct(
         private readonly IgsnRepositoryContactService $repositoryContactService,
-        private readonly LandingPagePersonIdentityResolver $personIdentityResolver,
+        private readonly LandingPagePersonIdentityResolverService $personIdentityResolver,
     ) {}
 
     /**

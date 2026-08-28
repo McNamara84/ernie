@@ -44,18 +44,18 @@ final class LandingPageResourceTransformer
 
     private readonly IgsnRepositoryContactService $repositoryContactService;
 
-    private readonly LandingPagePersonIdentityResolver $personIdentityResolver;
+    private readonly LandingPagePersonIdentityResolverService $personIdentityResolver;
 
     public function __construct(
         ?IgsnSampleFamilyService $sampleFamilyService = null,
         ?IgsnDescriptionNormalizerService $igsnDescriptionNormalizer = null,
         ?IgsnRepositoryContactService $repositoryContactService = null,
-        ?LandingPagePersonIdentityResolver $personIdentityResolver = null,
+        ?LandingPagePersonIdentityResolverService $personIdentityResolver = null,
     ) {
         $this->sampleFamilyService = $sampleFamilyService ?? new IgsnSampleFamilyService;
         $this->igsnDescriptionNormalizer = $igsnDescriptionNormalizer ?? new IgsnDescriptionNormalizerService;
         $this->repositoryContactService = $repositoryContactService ?? new IgsnRepositoryContactService;
-        $this->personIdentityResolver = $personIdentityResolver ?? new LandingPagePersonIdentityResolver;
+        $this->personIdentityResolver = $personIdentityResolver ?? new LandingPagePersonIdentityResolverService;
     }
 
     /**
