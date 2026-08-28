@@ -409,6 +409,8 @@ export interface LandingPageCreatorable {
 export interface LandingPageCreator {
     id: number;
     position: number;
+    /** Resource-scoped, display-only identity calculated by the landing-page transformer. */
+    display_identity_key?: string | null;
     is_contact_person?: boolean;
     affiliations: LandingPageAffiliation[];
     creatorable: LandingPageCreatorable;
@@ -420,6 +422,8 @@ export interface LandingPageCreator {
 export interface LandingPageContributor {
     id: number;
     position: number;
+    /** Resource-scoped, display-only identity calculated by the landing-page transformer. */
+    display_identity_key?: string | null;
     contributor_types: string[];
     affiliations: LandingPageAffiliation[];
     contributorable: LandingPageCreatorable;

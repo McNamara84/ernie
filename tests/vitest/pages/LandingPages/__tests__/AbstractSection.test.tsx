@@ -515,6 +515,51 @@ describe('AbstractSection', () => {
             expect(screen.queryByTestId('contributors-section')).not.toBeInTheDocument();
         });
 
+        it('renders a contributor ORCID on the preferred creator credit after consolidation', () => {
+            const creators = [
+                createCreator({
+                    id: 1,
+                    creatorable: {
+                        id: 101,
+                        given_name: 'Alexandra',
+                        family_name: 'Example',
+                        name_identifier: null,
+                        name_identifier_scheme: null,
+                    },
+                }),
+            ];
+            const contributors = [
+                createContributor({
+                    id: 11,
+                    contributorable: {
+                        id: 101,
+                        given_name: 'Example',
+                        family_name: 'Alexandra',
+                        name_identifier: 'https://orcid.org/0000-0002-1825-0097',
+                        name_identifier_scheme: 'ORCID',
+                    },
+                    contributor_types: ['Contact Person'],
+                }),
+            ];
+
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    descriptions={[]}
+                    creators={creators}
+                    contributors={contributors}
+                    sectionOrder={['creators', 'contributors']}
+                />
+            );
+
+            expect(screen.getByText('Example, Alexandra')).toBeInTheDocument();
+            expect(screen.getByRole('link', { name: 'ORCID profile of Example, Alexandra' })).toHaveAttribute(
+                'href',
+                'https://orcid.org/0000-0002-1825-0097',
+            );
+            expect(screen.queryByTestId('contributors-section')).not.toBeInTheDocument();
+        });
+
         it('applies contributor display limits after duplicate rows are merged', () => {
             render(
                 <AbstractSection

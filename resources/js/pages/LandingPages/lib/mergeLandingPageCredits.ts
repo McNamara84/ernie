@@ -22,6 +22,57 @@ function entityKey(entity: LandingPageCreatorable): string | null {
     return `${type}:${id}`;
 }
 
+function displayIdentityKey(displayIdentity: string | null | undefined, entity: LandingPageCreatorable): string | null {
+    const normalizedDisplayIdentity = displayIdentity?.trim();
+
+    if (normalizedDisplayIdentity) {
+        return `display:${normalizedDisplayIdentity}`;
+    }
+
+    return entityKey(entity);
+}
+
+function normalizedNameIdentifier(identifier: string | null): string | null {
+    const normalized = identifier
+        ?.trim()
+        .replace(/^https?:\/\//i, '')
+        .replace(/^www\./i, '')
+        .replace(/^orcid\.org\//i, '')
+        .replace(/\/+$/g, '')
+        .toLowerCase();
+
+    return normalized || null;
+}
+
+function mergeNameIdentifierMetadata(preferred: LandingPageCreatorable, fallback: LandingPageCreatorable): LandingPageCreatorable {
+    const preferredIdentifier = normalizedNameIdentifier(preferred.name_identifier);
+    const fallbackIdentifier = normalizedNameIdentifier(fallback.name_identifier);
+
+    if (fallbackIdentifier === null) {
+        return preferred;
+    }
+
+    if (preferredIdentifier === null) {
+        return {
+            ...preferred,
+            name_identifier: fallback.name_identifier,
+            name_identifier_scheme: fallback.name_identifier_scheme,
+        };
+    }
+
+    const preferredScheme = preferred.name_identifier_scheme?.trim() ?? '';
+    const fallbackScheme = fallback.name_identifier_scheme?.trim() ?? '';
+
+    if (preferredIdentifier === fallbackIdentifier && preferredScheme === '' && fallbackScheme !== '') {
+        return {
+            ...preferred,
+            name_identifier_scheme: fallback.name_identifier_scheme,
+        };
+    }
+
+    return preferred;
+}
+
 function normalizeRole(role: string): string {
     return role.trim().replace(/\s+/g, ' ');
 }
@@ -162,7 +213,7 @@ export function mergeLandingPageCredits(creators: LandingPageCreator[], contribu
     const creatorIndexes = new Map<string, number>();
 
     creators.forEach((creator, index) => {
-        const key = entityKey(creator.creatorable) ?? `creator-row:${index}`;
+        const key = displayIdentityKey(creator.display_identity_key, creator.creatorable) ?? `creator-row:${index}`;
         const existingIndex = creatorIndexes.get(key);
 
         if (existingIndex === undefined) {
@@ -172,6 +223,7 @@ export function mergeLandingPageCredits(creators: LandingPageCreator[], contribu
         }
 
         const existing = displayCreators[existingIndex];
+        existing.creatorable = mergeNameIdentifierMetadata(existing.creatorable, creator.creatorable);
         existing.affiliations = mergeAffiliations(existing.affiliations, creator.affiliations);
     });
 
@@ -179,12 +231,13 @@ export function mergeLandingPageCredits(creators: LandingPageCreator[], contribu
     const contributorIndexes = new Map<string, number>();
 
     contributors.forEach((contributor, index) => {
-        const stableEntityKey = entityKey(contributor.contributorable);
+        const stableEntityKey = displayIdentityKey(contributor.display_identity_key, contributor.contributorable);
         const key = stableEntityKey ?? `contributor-row:${index}`;
         const creatorIndex = stableEntityKey === null ? undefined : creatorIndexes.get(stableEntityKey);
 
         if (creatorIndex !== undefined) {
             const creator = displayCreators[creatorIndex];
+            creator.creatorable = mergeNameIdentifierMetadata(creator.creatorable, contributor.contributorable);
             creator.contributor_types = mergeRoles(creator.contributor_types, contributor.contributor_types);
             creator.affiliations = mergeAffiliations(creator.affiliations, contributor.affiliations);
             return;
@@ -198,6 +251,7 @@ export function mergeLandingPageCredits(creators: LandingPageCreator[], contribu
         }
 
         const existing = displayContributors[existingIndex];
+        existing.contributorable = mergeNameIdentifierMetadata(existing.contributorable, contributor.contributorable);
         existing.contributor_types = mergeRoles(existing.contributor_types, contributor.contributor_types);
         existing.affiliations = mergeAffiliations(existing.affiliations, contributor.affiliations);
     });

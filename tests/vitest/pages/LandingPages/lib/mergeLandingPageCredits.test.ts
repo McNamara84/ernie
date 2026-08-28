@@ -101,6 +101,123 @@ describe('mergeLandingPageCredits', () => {
         expect(result.creators[0].affiliations.map((affiliation) => affiliation.name)).toEqual(['GFZ Potsdam', 'ETH Zürich']);
     });
 
+    it('uses a display identity to merge different legacy person entities', () => {
+        const creators = [
+            makeCreator(1, 10, {
+                display_identity_key: 'entity:person:10',
+                creatorable: makeEntity(10, {
+                    given_name: 'Juan Camilo',
+                    family_name: 'Gomez-Zapata',
+                }),
+                affiliations: [makeAffiliation(1, 'GFZ Potsdam')],
+            }),
+        ];
+        const contributors = [
+            makeContributor(2, 20, ['Contact Person', 'Producer'], {
+                display_identity_key: 'entity:person:10',
+                contributorable: makeEntity(20, {
+                    given_name: 'Gomez Zapata Juan',
+                    family_name: 'Camilo',
+                    name_identifier: 'https://orcid.org/0000-0002-1825-0097',
+                    name_identifier_scheme: 'ORCID',
+                }),
+                affiliations: [makeAffiliation(2, 'University of Potsdam')],
+            }),
+        ];
+
+        const result = mergeLandingPageCredits(creators, contributors);
+
+        expect(result.contributors).toEqual([]);
+        expect(result.creators).toHaveLength(1);
+        expect(result.creators[0].creatorable).toMatchObject({
+            id: 10,
+            given_name: 'Juan Camilo',
+            family_name: 'Gomez-Zapata',
+            name_identifier: 'https://orcid.org/0000-0002-1825-0097',
+            name_identifier_scheme: 'ORCID',
+        });
+        expect(result.creators[0].contributor_types).toEqual(['Contact Person', 'Producer']);
+        expect(result.creators[0].affiliations.map((affiliation) => affiliation.name)).toEqual(['GFZ Potsdam', 'University of Potsdam']);
+    });
+
+    it('does not replace conflicting creator identifier metadata during a display merge', () => {
+        const creators = [
+            makeCreator(1, 10, {
+                display_identity_key: 'entity:person:10',
+                creatorable: makeEntity(10, {
+                    name_identifier: '0000-0002-1825-0097',
+                    name_identifier_scheme: 'ORCID',
+                }),
+            }),
+        ];
+        const contributors = [
+            makeContributor(2, 20, ['Contact Person'], {
+                display_identity_key: 'entity:person:10',
+                contributorable: makeEntity(20, {
+                    name_identifier: '0000-0001-5109-3700',
+                    name_identifier_scheme: 'ORCID',
+                }),
+            }),
+        ];
+
+        const result = mergeLandingPageCredits(creators, contributors);
+
+        expect(result.creators[0].creatorable).toMatchObject({
+            name_identifier: '0000-0002-1825-0097',
+            name_identifier_scheme: 'ORCID',
+        });
+    });
+
+    it('adds a missing identifier scheme when merged rows carry the same identifier', () => {
+        const contributors = [
+            makeContributor(1, 10, ['Producer'], {
+                contributorable: makeEntity(10, {
+                    name_identifier: 'https://orcid.org/0000-0002-1825-0097',
+                    name_identifier_scheme: null,
+                }),
+            }),
+            makeContributor(2, 10, ['Contact Person'], {
+                contributorable: makeEntity(10, {
+                    name_identifier: '0000-0002-1825-0097',
+                    name_identifier_scheme: 'ORCID',
+                }),
+            }),
+        ];
+
+        const result = mergeLandingPageCredits([], contributors);
+
+        expect(result.contributors[0].contributorable).toMatchObject({
+            name_identifier: 'https://orcid.org/0000-0002-1825-0097',
+            name_identifier_scheme: 'ORCID',
+        });
+    });
+
+    it('combines roles from legacy contributor entities with the same display identity', () => {
+        const contributors = [
+            makeContributor(1, 10, ['Producer'], { display_identity_key: 'orcid:0000-0002-1825-0097' }),
+            makeContributor(2, 20, ['Contact Person'], { display_identity_key: 'orcid:0000-0002-1825-0097' }),
+            makeContributor(3, 30, ['Project Leader'], { display_identity_key: 'orcid:0000-0002-1825-0097' }),
+        ];
+
+        const result = mergeLandingPageCredits([], contributors);
+
+        expect(result.contributors).toHaveLength(1);
+        expect(result.contributors[0]).toMatchObject({
+            id: 1,
+            contributor_types: ['Producer', 'Contact Person', 'Project Leader'],
+        });
+    });
+
+    it('falls back to entity ids when a display identity is blank', () => {
+        const creators = [makeCreator(1, 10, { display_identity_key: '   ' })];
+        const contributors = [makeContributor(2, 20, ['Contact Person'], { display_identity_key: '' })];
+
+        const result = mergeLandingPageCredits(creators, contributors);
+
+        expect(result.creators[0].contributor_types).toEqual([]);
+        expect(result.contributors).toHaveLength(1);
+    });
+
     it('does not merge a person and institution that have the same numeric entity id', () => {
         const creators = [makeCreator(1, 10)];
         const contributors = [
