@@ -113,6 +113,11 @@ function mergeAffiliations(...affiliationGroups: LandingPageAffiliation[][]): La
                 identifierIndexes.set(mergedIdentifierKey, existingIndex);
             }
 
+            const mergedNameKey = normalizedAffiliationName(affiliations[existingIndex]);
+            if (mergedNameKey !== null) {
+                nameIndexes.set(mergedNameKey, existingIndex);
+            }
+
             return;
         }
 

@@ -177,6 +177,20 @@ describe('mergeLandingPageCredits', () => {
         expect(result.contributors[0].affiliations).toEqual([makeAffiliation(1, 'GFZ Potsdam', '04z8jg394', 'ROR')]);
     });
 
+    it('indexes a name adopted during an identifier merge for later name-only rows', () => {
+        const contributor = makeContributor(1, 10, ['Producer'], {
+            affiliations: [
+                makeAffiliation(1, '', '04z8jg394', 'ROR'),
+                makeAffiliation(2, 'GFZ Potsdam', 'https://ror.org/04Z8JG394/', 'ror'),
+                makeAffiliation(3, ' gfz   potsdam '),
+            ],
+        });
+
+        const result = mergeLandingPageCredits([], [contributor]);
+
+        expect(result.contributors[0].affiliations).toEqual([makeAffiliation(1, 'GFZ Potsdam', '04z8jg394', 'ROR')]);
+    });
+
     it('deduplicates names without identifiers and preserves an unidentifiable affiliation row', () => {
         const contributor = makeContributor(1, 10, ['Producer'], {
             affiliations: [makeAffiliation(1, 'Example Institute'), makeAffiliation(2, ' example   institute '), makeAffiliation(3, ' ')],
