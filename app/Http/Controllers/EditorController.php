@@ -37,7 +37,7 @@ class EditorController extends Controller
      */
     private const UPLOAD_SESSION_REQUIRED_ARRAY_KEYS = [
         'titles', 'licenses', 'rawRights', 'authors', 'contributors', 'descriptions',
-        'dates', 'gcmdKeywords', 'freeKeywords', 'mslKeywords', 'gemetKeywords',
+        'dates', 'controlledKeywords', 'gcmdKeywords', 'freeKeywords', 'mslKeywords', 'gemetKeywords',
         'coverages', 'relatedWorks', 'relatedItems', 'instruments', 'fundingReferences', 'mslLaboratories',
     ];
 
@@ -126,6 +126,8 @@ class EditorController extends Controller
             }
         }
 
+        $controlledKeywordProps = $this->controlledKeywordProps($sessionData);
+
         return Inertia::render('editor', array_merge(
             $this->transformer->getCommonProps(),
             [
@@ -141,10 +143,10 @@ class EditorController extends Controller
                 'contributors' => $sessionData['contributors'] ?? [],
                 'descriptions' => $sessionData['descriptions'] ?? [],
                 'dates' => $sessionData['dates'] ?? [],
-                'gcmdKeywords' => $sessionData['gcmdKeywords'] ?? [],
+                'gcmdKeywords' => $controlledKeywordProps['gcmdKeywords'],
                 'freeKeywords' => $sessionData['freeKeywords'] ?? [],
                 'mslKeywords' => $sessionData['mslKeywords'] ?? [],
-                'gemetKeywords' => $sessionData['gemetKeywords'] ?? [],
+                'gemetKeywords' => $controlledKeywordProps['gemetKeywords'],
                 'coverages' => $sessionData['coverages'] ?? [],
                 'relatedWorks' => $sessionData['relatedWorks'] ?? [],
                 'relatedItems' => $sessionData['relatedItems'] ?? [],
@@ -188,6 +190,8 @@ class EditorController extends Controller
             }
         }
 
+        $controlledKeywordProps = $this->controlledKeywordProps($sessionData);
+
         return Inertia::render('editor', array_merge(
             $this->transformer->getCommonProps(),
             [
@@ -203,10 +207,10 @@ class EditorController extends Controller
                 'contributors' => $sessionData['contributors'] ?? [],
                 'descriptions' => $sessionData['descriptions'] ?? [],
                 'dates' => $sessionData['dates'] ?? [],
-                'gcmdKeywords' => $sessionData['gcmdKeywords'] ?? [],
+                'gcmdKeywords' => $controlledKeywordProps['gcmdKeywords'],
                 'freeKeywords' => $sessionData['freeKeywords'] ?? [],
                 'mslKeywords' => $sessionData['mslKeywords'] ?? [],
-                'gemetKeywords' => $sessionData['gemetKeywords'] ?? [],
+                'gemetKeywords' => $controlledKeywordProps['gemetKeywords'],
                 'coverages' => $sessionData['coverages'] ?? [],
                 'relatedWorks' => $sessionData['relatedWorks'] ?? [],
                 'relatedItems' => $sessionData['relatedItems'] ?? [],
@@ -493,5 +497,31 @@ class EditorController extends Controller
         }
 
         return is_array($value) ? $value : [];
+    }
+
+    /**
+     * Prefer the canonical upload list while retaining support for older,
+     * short-lived sessions that still partition GEMET separately.
+     *
+     * @param  array<string, mixed>  $sessionData
+     * @return array{gcmdKeywords: array<int, mixed>, gemetKeywords: array<int, mixed>}
+     */
+    private function controlledKeywordProps(array $sessionData): array
+    {
+        if (is_array($sessionData['controlledKeywords'] ?? null)) {
+            return [
+                'gcmdKeywords' => array_values($sessionData['controlledKeywords']),
+                'gemetKeywords' => [],
+            ];
+        }
+
+        return [
+            'gcmdKeywords' => is_array($sessionData['gcmdKeywords'] ?? null)
+                ? array_values($sessionData['gcmdKeywords'])
+                : [],
+            'gemetKeywords' => is_array($sessionData['gemetKeywords'] ?? null)
+                ? array_values($sessionData['gemetKeywords'])
+                : [],
+        ];
     }
 }

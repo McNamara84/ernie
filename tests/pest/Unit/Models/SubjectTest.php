@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Subject;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 covers(Subject::class);
 
@@ -13,12 +14,12 @@ describe('fillable', function () {
         expect($model->getFillable())->toBe([
             'resource_id',
             'value',
+            'language',
             'subject_scheme',
             'scheme_uri',
             'value_uri',
             'classification_code',
             'breadcrumb_path',
-            'language_id',
         ]);
     });
 });
@@ -27,13 +28,22 @@ describe('relationships', function () {
     it('defines resource relationship', function () {
         $model = new Subject;
 
-        expect($model->resource())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->resource())->toBeInstanceOf(BelongsTo::class);
     });
 
-    it('defines language relationship', function () {
-        $model = new Subject;
+});
 
-        expect($model->language())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+describe('language', function () {
+    it('falls back to English when a null language is assigned', function () {
+        $model = new Subject(['language' => null]);
+
+        expect($model->language)->toBe('en');
+    });
+
+    it('trims an explicitly assigned language', function () {
+        $model = new Subject(['language' => ' de ']);
+
+        expect($model->language)->toBe('de');
     });
 });
 

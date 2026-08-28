@@ -13,7 +13,10 @@ use App\Models\Resource;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
+use App\Services\Imports\Subjects\SubjectImportNormalizer;
 use App\Services\ResourceStorageService;
+use App\Support\PortalSubjectNormalizer;
+use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
@@ -220,34 +223,50 @@ final class UploadedResourceDraftService
     private function controlledKeywords(array $payload): array
     {
         $keywords = [];
+        $seen = [];
 
-        foreach (['gcmdKeywords', 'mslKeywords', 'gemetKeywords'] as $key) {
-            foreach ($this->arrayList($payload[$key] ?? []) as $keyword) {
+        $sources = is_array($payload['controlledKeywords'] ?? null)
+            ? [$payload['controlledKeywords']]
+            : array_map(
+                fn (string $key): array => $this->arrayList($payload[$key] ?? []),
+                ['gcmdKeywords', 'mslKeywords', 'gemetKeywords'],
+            );
+
+        foreach ($sources as $source) {
+            foreach ($this->arrayList($source) as $keyword) {
                 if (! is_array($keyword)) {
                     continue;
                 }
 
                 $id = $this->stringOrNull($keyword['id'] ?? null);
                 $text = $this->stringOrNull($keyword['text'] ?? null);
-                $path = $this->stringOrNull($keyword['path'] ?? null) ?? $text;
-                $scheme = $this->stringOrNull($keyword['scheme'] ?? null);
+                $path = SubjectBreadcrumbPath::normalize($this->stringOrNull($keyword['path'] ?? null) ?? $text) ?? $text;
+                $scheme = PortalSubjectNormalizer::normalizeScheme($this->stringOrNull($keyword['scheme'] ?? null));
 
                 if ($id === null || $text === null || $path === null || $scheme === null) {
                     continue;
                 }
 
-                $keywords[] = [
+                $normalized = [
                     'id' => $id,
                     'text' => $text,
                     'path' => $path,
                     'scheme' => $scheme,
                     'schemeURI' => $this->stringOrNull($keyword['schemeURI'] ?? $keyword['schemeUri'] ?? null),
-                    'language' => $this->stringOrNull($keyword['language'] ?? null),
+                    'language' => $this->stringOrNull($keyword['language'] ?? null) ?? 'en',
                     ...($this->stringOrNull($keyword['classificationCode'] ?? null) !== null
                         ? ['classificationCode' => $this->stringOrNull($keyword['classificationCode'])]
                         : []),
                     ...(($keyword['isLegacy'] ?? false) === true ? ['isLegacy' => true] : []),
                 ];
+
+                $fingerprint = SubjectImportNormalizer::controlledKeywordFingerprint($normalized);
+                if (isset($seen[$fingerprint])) {
+                    continue;
+                }
+
+                $keywords[] = $normalized;
+                $seen[$fingerprint] = true;
             }
         }
 

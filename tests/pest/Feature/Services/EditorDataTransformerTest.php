@@ -1536,6 +1536,7 @@ describe('transformGemetKeywords', function (): void {
         Subject::factory()->count(2)->create([
             'resource_id' => $this->resource->id,
             'value' => 'Environmental monitoring',
+            'language' => 'de',
             'subject_scheme' => 'GEMET - GEneral Multilingual Environmental Thesaurus',
             'scheme_uri' => 'https://www.eionet.europa.eu/gemet/',
             'value_uri' => 'https://www.eionet.europa.eu/gemet/concept/'.fake()->numberBetween(1000, 9999),
@@ -1547,7 +1548,8 @@ describe('transformGemetKeywords', function (): void {
         expect($result)->toHaveCount(2)
             ->and(array_keys($result))->toBe([0, 1])
             ->and($result[0]['text'])->toBe('Environmental monitoring')
-            ->and($result[0]['scheme'])->toBe('GEMET - GEneral Multilingual Environmental Thesaurus');
+            ->and($result[0]['scheme'])->toBe('GEMET - GEneral Multilingual Environmental Thesaurus')
+            ->and($result[0]['language'])->toBe('de');
     });
 });
 

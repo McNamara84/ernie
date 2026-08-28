@@ -648,7 +648,7 @@ class EditorDataTransformer
                     'path' => $path,
                     'scheme' => $subject->subject_scheme ?? '',
                     'schemeURI' => $subject->scheme_uri ?? '',
-                    'language' => 'en',
+                    'language' => $subject->language ?? 'en',
                     ...($isLegacy ? ['isLegacy' => true] : []),
                     ...($subject->classification_code !== null ? ['classificationCode' => $subject->classification_code] : []),
                 ];
@@ -673,7 +673,7 @@ class EditorDataTransformer
                     'path' => $path,
                     'scheme' => $subject->subject_scheme ?? '',
                     'schemeURI' => $subject->scheme_uri ?? '',
-                    'language' => 'en',
+                    'language' => $subject->language ?? 'en',
                     ...($subject->classification_code !== null ? ['classificationCode' => $subject->classification_code] : []),
                 ];
             })->values()->toArray();
