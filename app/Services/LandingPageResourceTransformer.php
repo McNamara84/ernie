@@ -441,6 +441,19 @@ final class LandingPageResourceTransformer
             return 'Contact Person';
         };
 
+        $extractOrcid = static function (Person|Institution|null $entity): ?string {
+            if ($entity === null) {
+                return null;
+            }
+
+            $identifier = trim((string) ($entity->name_identifier ?? ''));
+            $scheme = trim((string) ($entity->name_identifier_scheme ?? ''));
+
+            return $identifier !== '' && strcasecmp($scheme, 'ORCID') === 0
+                ? $identifier
+                : null;
+        };
+
         // Helper to map a contact person entry (shared between creators and contributors)
         $mapContactEntry = static function (
             int $id,
@@ -450,13 +463,12 @@ final class LandingPageResourceTransformer
             array $affiliations,
             ?string $website,
             Person|Institution|null $displayEntity = null,
-        ) use ($buildEntityName): array {
+        ) use ($buildEntityName, $extractOrcid): array {
             $visibleEntity = $displayEntity ?? $entity;
             $isPerson = $visibleEntity instanceof Person;
             $givenName = $isPerson ? $visibleEntity->given_name : null;
             $familyName = $isPerson ? $visibleEntity->family_name : null;
-            $nameIdentifierScheme = $visibleEntity?->name_identifier_scheme;
-            $nameIdentifier = $visibleEntity?->name_identifier;
+            $orcid = $extractOrcid($visibleEntity) ?? $extractOrcid($entity);
 
             return [
                 'id' => $id,
@@ -466,9 +478,7 @@ final class LandingPageResourceTransformer
                 'type' => $visibleEntity !== null ? class_basename($visibleEntity) : class_basename($morphType),
                 'source' => $source,
                 'affiliations' => $affiliations,
-                'orcid' => $nameIdentifierScheme === 'ORCID'
-                    ? $nameIdentifier
-                    : null,
+                'orcid' => $orcid,
                 'website' => $website,
                 'has_email' => true,
             ];

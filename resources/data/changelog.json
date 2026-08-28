@@ -16,7 +16,7 @@
             },
             {
                 "title": "Safe Legacy Person Consolidation",
-                "description": "Landing pages now also consolidate separate legacy Person records when they share a valid ORCID or an unambiguous normalized name, including reordered multi-part Contact Person names. Conflicting ORCIDs and ambiguous matches remain separate, all roles and affiliations stay visible, contact delivery is deduplicated, and stored metadata, citations, and exports remain unchanged."
+                "description": "Landing pages now also consolidate separate legacy Person records when they share a valid ORCID or an unambiguous normalized name, including reordered multi-part Contact Person names. Conflicting ORCIDs and ambiguous matches remain separate; roles, affiliations, and non-conflicting identifiers stay visible; contact delivery is deduplicated; and stored metadata, citations, and exports remain unchanged."
             },
             {
                 "title": "Preserved Temporal Coverage in Metadata Imports",

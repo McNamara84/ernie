@@ -709,6 +709,10 @@ describe('Docs page', () => {
         expect(screen.getByRole('heading', { name: 'Expanding Citation Authors', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/keyboard focus stays on the control in both states/i)).toBeInTheDocument();
         expect(screen.getByText(/copy action uses whichever compact or expanded citation is currently visible/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Legacy Creator and Contact Consolidation', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/same stored entity or valid ORCID/i)).toBeInTheDocument();
+        expect(screen.getByText(/Ambiguous names and conflicting ORCIDs remain separate/i)).toBeInTheDocument();
+        expect(screen.getByText(/Contact messages still use the email and route of the actual contact row/i)).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'License Display', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/Creative Commons Attribution 4\.0 International \(CC BY 4\.0\)/i)).toBeInTheDocument();
     });

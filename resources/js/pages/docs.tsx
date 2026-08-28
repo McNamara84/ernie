@@ -1839,6 +1839,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             the setup modal, but hides the complete Files section on the preview and public landing page until the option is disabled
                             again. The independent <strong>License &amp; Rights</strong> section remains visible whenever rights metadata exists.
                         </p>
+                        <h4>Legacy Creator and Contact Consolidation</h4>
+                        <p>
+                            A legacy person recorded separately as a Creator and Contributor may appear only once in landing-page credits and contact
+                            entries. ERNIE consolidates rows for the same stored entity or valid ORCID, and also accepts one unambiguous normalized
+                            full-name match. Reordered names require at least three name parts and the <strong>Contact Person</strong> role. Ambiguous
+                            names and conflicting ORCIDs remain separate.
+                        </p>
+                        <p>
+                            The Creator name stays visible while contributor roles, affiliations, and non-conflicting identifier metadata are added.
+                            Contact messages still use the email and route of the actual contact row. This consolidation is display-only: it does not
+                            merge stored people or change DataCite exports and citations.
+                        </p>
                         <h4>Expanding Citation Authors</h4>
                         <p>
                             When a landing-page template limits the number of citation authors, the citation ends its shortened author list with an

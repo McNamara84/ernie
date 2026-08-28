@@ -1000,6 +1000,41 @@ test('keeps a contributor contact route while using the matched creator identity
         ]);
 });
 
+test('keeps a contributor ORCID while using the matched creator name for display', function () {
+    $creatorPerson = legacyLandingPerson(101, 'Alexandra', 'Example');
+    $contributorPerson = legacyLandingPerson(
+        202,
+        'Alexandra',
+        'Example',
+        '0000-0002-1825-0097',
+        'ORCID',
+    );
+    $creator = legacyLandingCreator(11, $creatorPerson);
+    $contributor = legacyLandingContributor(
+        22,
+        $contributorPerson,
+        'alexandra@example.com',
+        'https://example.com/alexandra',
+    );
+    $resource = legacyLandingResource([$creator], [$contributor]);
+
+    $data = (new LandingPageResourceTransformer)->transform($resource);
+
+    expect($data['creators'][0]['display_identity_key'])
+        ->toBe($data['contributors'][0]['display_identity_key'])
+        ->and($data['contact_persons'])->toHaveCount(1)
+        ->and($data['contact_persons'][0])->toMatchArray([
+            'id' => $contributor->id,
+            'source' => 'contributor',
+            'name' => 'Alexandra Example',
+            'given_name' => 'Alexandra',
+            'family_name' => 'Example',
+            'orcid' => '0000-0002-1825-0097',
+            'website' => 'https://example.com/alexandra',
+            'has_email' => true,
+        ]);
+});
+
 test('deduplicates contributor-only contacts by valid ORCID', function () {
     $firstPerson = legacyLandingPerson(
         201,
