@@ -447,8 +447,8 @@ class LandingPageTemplateController extends Controller
      * Assign any number of datacenters to a template within its resource scope.
      *
      * Assigning a datacenter already used by another template moves it. The
-     * canonical GFZ resource assignment is retained on its system copy template,
-     * while its independent IGSN assignment may move to a custom IGSN template.
+     * canonical GFZ resource assignment is retained on its system copy template.
+     * Its IGSN assignment is retained there only until a custom template takes it.
      *
      * @param  list<int>  $datacenterIds
      */
@@ -459,11 +459,16 @@ class LandingPageTemplateController extends Controller
             ? 'igsn_landing_page_template_id'
             : 'landing_page_template_id';
 
-        if ($template->isDefault()
-            && $template->template_type === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE) {
-            $gfzId = Datacenter::query()->where('name', Datacenter::GFZ_NAME)->value('id');
-            if ($gfzId !== null && ! in_array((int) $gfzId, $selectedIds, true)) {
-                $selectedIds[] = (int) $gfzId;
+        if ($template->isDefault()) {
+            $gfz = Datacenter::query()
+                ->where('name', Datacenter::GFZ_NAME)
+                ->first(['id', 'igsn_landing_page_template_id']);
+            $shouldRetainCanonicalGfz = $gfz !== null
+                && ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE
+                    || $gfz->igsn_landing_page_template_id === $template->id);
+
+            if ($shouldRetainCanonicalGfz && ! in_array((int) $gfz->id, $selectedIds, true)) {
+                $selectedIds[] = (int) $gfz->id;
             }
         }
 

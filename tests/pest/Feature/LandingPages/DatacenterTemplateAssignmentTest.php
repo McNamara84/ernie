@@ -177,6 +177,22 @@ it('allows the IGSN copy template to keep its existing canonical GFZ assignment'
     expect($gfz->fresh()->igsn_landing_page_template_id)->toBe($igsnCopyTemplate->id);
 });
 
+it('preserves the existing GFZ assignment when the IGSN copy template is updated with an empty selection', function (): void {
+    $igsnCopyTemplate = $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN];
+    $gfz = Datacenter::factory()->create([
+        'name' => Datacenter::GFZ_NAME,
+        'igsn_landing_page_template_id' => $igsnCopyTemplate->id,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->putJson("/landing-pages/{$igsnCopyTemplate->id}", [
+            'datacenter_ids' => [],
+        ])
+        ->assertOk();
+
+    expect($gfz->fresh()->igsn_landing_page_template_id)->toBe($igsnCopyTemplate->id);
+});
+
 it('allows a group leader to assign GFZ and other datacenters while cloning an IGSN template', function (): void {
     $groupLeader = User::factory()->groupLeader()->create();
     $gfz = Datacenter::factory()->create([
@@ -216,6 +232,12 @@ it('does not let the IGSN copy template reclaim GFZ after a custom assignment', 
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('datacenter_ids');
+
+    $this->actingAs($this->admin)
+        ->putJson("/landing-pages/{$igsnCopyTemplate->id}", [
+            'datacenter_ids' => [],
+        ])
+        ->assertOk();
 
     expect($gfz->fresh()->igsn_landing_page_template_id)->toBe($custom->id);
 });

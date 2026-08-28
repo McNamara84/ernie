@@ -23,8 +23,7 @@ class LandingPageTemplateSeeder extends Seeder
         $gfz = Datacenter::query()->firstOrCreate([
             'name' => Datacenter::GFZ_NAME,
         ]);
-        $initializeIgsnAssignment = $gfz->landing_page_template_id === null
-            && $gfz->igsn_landing_page_template_id === null;
+        $initializeIgsnAssignment = $gfz->igsn_landing_page_template_id === null;
 
         $assignments = [
             'landing_page_template_id' => $templates['resource']->id,
