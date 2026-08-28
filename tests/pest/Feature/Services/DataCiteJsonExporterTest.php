@@ -779,29 +779,30 @@ describe('DataCiteJsonExporter - Subjects/Keywords', function () {
             ->and($subjects[0])->toHaveKey('subjectScheme', 'DDC');
     });
 
-    test('exports lang field as en on all subjects', function () {
+    test('exports the stored subject language with an English fallback', function () {
         $resource = Resource::factory()->create();
         Subject::create([
             'resource_id' => $resource->id,
             'value' => 'Climate Science',
+            'language' => 'de',
             'subject_scheme' => 'NASA/GCMD Science Keywords',
             'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
         ]);
 
-        Subject::create([
+        $fallbackSubject = Subject::create([
             'resource_id' => $resource->id,
             'value' => 'seismology',
             'subject_scheme' => null,
             'scheme_uri' => null,
         ]);
+        DB::table('subjects')->where('id', $fallbackSubject->id)->update(['language' => '']);
 
         $result = $this->exporter->export($resource);
-        $subjects = $result['data']['attributes']['subjects'];
+        $subjects = collect($result['data']['attributes']['subjects'])->keyBy('subject');
 
         expect($subjects)->toHaveCount(2);
-        foreach ($subjects as $subject) {
-            expect($subject)->toHaveKey('lang', 'en');
-        }
+        expect($subjects['Climate Science'])->toHaveKey('lang', 'de')
+            ->and($subjects['seismology'])->toHaveKey('lang', 'en');
     });
 
     test('exports resolved CGI Simple Lithology subjects with canonical scheme and concept URIs', function () {

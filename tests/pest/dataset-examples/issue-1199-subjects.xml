@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+    <creators>
+        <creator>
+            <creatorName nameType="Personal">Example, Ernie</creatorName>
+            <givenName>Ernie</givenName>
+            <familyName>Example</familyName>
+        </creator>
+    </creators>
+    <titles>
+        <title>Issue 1199 subject import regression</title>
+    </titles>
+    <publisher>GFZ Data Services</publisher>
+    <publicationYear>2026</publicationYear>
+    <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
+    <subjects>
+        <subject
+            subjectScheme="GEMET - GEneral Multilingual Environmental Thesaurus"
+            schemeURI="http://www.eionet.europa.eu/gemet/concept/"
+            valueURI="http://www.eionet.europa.eu/gemet/concept/3650"
+            xml:lang="de">geophysics</subject>
+        <subject
+            subjectScheme="EPOS MSL vocabulary"
+            schemeURI="https://epos-msl.uu.nl/voc"
+            valueURI="https://epos-msl.uu.nl/voc/materials/mineralogy"
+            xml:lang="en">Materials &gt; Mineralogy</subject>
+    </subjects>
+</resource>

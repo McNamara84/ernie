@@ -10,9 +10,11 @@ use App\Exceptions\JsonLdConversionException;
 use App\Http\Requests\UploadJsonRequest;
 use App\Models\ResourceType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
-use App\Services\ControlledSubjectImportNormalizerService;
 use App\Services\DataCiteJsonImportNormalizerService;
 use App\Services\DataCiteJsonLdToJsonConverterService;
+use App\Services\Imports\Subjects\ImportedSubjectData;
+use App\Services\Imports\Subjects\SubjectImportNormalizer;
+use App\Services\Imports\Subjects\SubjectImportResult;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\RorLookupService;
@@ -20,11 +22,9 @@ use App\Services\TemporalCoverageValueService;
 use App\Services\UploadLogService;
 use App\Services\Uploads\UploadedResourceDraftService;
 use App\Support\DataCiteDateNormalizer;
-use App\Support\GcmdUriHelper;
 use App\Support\LanguageTag;
 use App\Support\MslLaboratoryService;
 use App\Support\UploadError;
-use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -74,16 +74,6 @@ class UploadJsonController extends Controller
         'sponsor',
     ];
 
-    /**
-     * MSL vocabulary scheme identifier.
-     */
-    private const MSL_VOCABULARY_SCHEME = 'EPOS MSL vocabulary';
-
-    /**
-     * GEMET vocabulary scheme identifier.
-     */
-    private const GEMET_VOCABULARY_SCHEME = 'GEMET - GEneral Multilingual Environmental Thesaurus';
-
     public function __construct(
         private readonly UploadLogService $uploadLogService,
         private readonly JsonSchemaValidator $jsonSchemaValidator,
@@ -94,7 +84,7 @@ class UploadJsonController extends Controller
         private readonly UploadedResourceDraftService $uploadedResourceDraftService,
         private readonly MslLaboratoryService $mslLaboratoryService,
         private readonly RorLookupService $rorLookupService,
-        private readonly ControlledSubjectImportNormalizerService $controlledSubjectNormalizer,
+        private readonly SubjectImportNormalizer $subjectImportNormalizer,
         private readonly TemporalCoverageValueService $temporalCoverageValueService,
     ) {}
 
@@ -220,11 +210,7 @@ class UploadJsonController extends Controller
             $dates = $this->extractDates($attributes['dates'] ?? []);
             $coverages = $this->extractCoverages($attributes['geoLocations'] ?? [], $dates);
 
-            $keywordsResult = $this->extractKeywords($attributes['subjects'] ?? []);
-            $gcmdKeywords = $keywordsResult['gcmd'];
-            $freeKeywords = $keywordsResult['free'];
-            $mslKeywords = $keywordsResult['msl'];
-            $gemetKeywords = $keywordsResult['gemet'];
+            $subjects = $this->extractKeywords($attributes['subjects'] ?? []);
 
             $relatedResult = $this->extractRelatedWorksAndInstruments($attributes['relatedIdentifiers'] ?? [], $filename);
             $relatedWorks = $relatedResult['relatedWorks'];
@@ -264,10 +250,9 @@ class UploadJsonController extends Controller
             'coverages' => $coverages,
             'relatedWorks' => $relatedWorks,
             'instruments' => $instruments,
-            'gcmdKeywords' => $gcmdKeywords,
-            'freeKeywords' => $freeKeywords,
-            'mslKeywords' => $mslKeywords,
-            'gemetKeywords' => $gemetKeywords,
+            'controlledKeywords' => $subjects->controlledKeywords,
+            'freeKeywords' => $subjects->freeKeywords,
+            ...$subjects->legacyKeywordPayload(),
             'fundingReferences' => $fundingReferences,
             'mslLaboratories' => $mslLaboratories,
         ];
@@ -849,182 +834,22 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $subjects
-     * @return array{gcmd: array<int, array<string, string|bool>>, free: array<int, string>, msl: array<int, array<string, string>>, gemet: array<int, array<string, string>>}
      */
-    private function extractKeywords(array $subjects): array
+    private function extractKeywords(array $subjects): SubjectImportResult
     {
-        $gcmd = [];
-        $free = [];
-        $msl = [];
-        $gemet = [];
-
+        $importedSubjects = [];
         foreach ($subjects as $subject) {
-            $text = $subject['subject'] ?? '';
-            $scheme = $subject['subjectScheme'] ?? null;
-            $schemeUri = $subject['schemeUri'] ?? null;
-            $valueUri = $subject['valueUri'] ?? null;
-            $classificationCode = $subject['classificationCode'] ?? null;
-
-            if (! is_string($text) || trim($text) === '') {
-                continue;
-            }
-
-            $text = trim($text);
-
-            $simpleLithology = $this->controlledSubjectNormalizer->simpleLithology(
-                is_string($scheme) ? $scheme : null,
-                $text,
-                is_string($schemeUri) ? $schemeUri : null,
-                is_string($valueUri) ? $valueUri : null,
-                is_string($classificationCode) || is_numeric($classificationCode) ? (string) $classificationCode : null,
-                is_string($subject['lang'] ?? null) ? $subject['lang'] : null,
+            $importedSubjects[] = new ImportedSubjectData(
+                value: $subject['subject'] ?? null,
+                subjectScheme: $subject['subjectScheme'] ?? null,
+                schemeUri: $subject['schemeUri'] ?? null,
+                valueUri: $subject['valueUri'] ?? null,
+                classificationCode: $subject['classificationCode'] ?? null,
+                language: $subject['lang'] ?? null,
             );
-            if ($simpleLithology !== null) {
-                $gcmd[] = $simpleLithology;
-
-                continue;
-            }
-
-            // No scheme attributes → free keyword
-            if ($scheme === null && $schemeUri === null && $valueUri === null) {
-                $free[] = $text;
-
-                continue;
-            }
-
-            // MSL vocabulary
-            if ($scheme === self::MSL_VOCABULARY_SCHEME) {
-                if (! is_string($valueUri) || trim($valueUri) === '') {
-                    continue;
-                }
-
-                $keyword = [
-                    'id' => trim($valueUri),
-                    'text' => $this->extractLastPathSegment($text),
-                    'path' => $text,
-                    'language' => 'en',
-                    'scheme' => $scheme,
-                    'schemeURI' => is_string($schemeUri) && $schemeUri !== '' ? $schemeUri : 'https://epos-msl.uu.nl/voc',
-                ];
-
-                if (is_string($classificationCode) && $classificationCode !== '') {
-                    $keyword['classificationCode'] = $classificationCode;
-                }
-
-                $msl[] = $keyword;
-
-                continue;
-            }
-
-            // GEMET vocabulary
-            if (is_string($scheme) && $scheme === self::GEMET_VOCABULARY_SCHEME) {
-                if (! is_string($valueUri) || trim($valueUri) === '') {
-                    continue;
-                }
-
-                $keyword = [
-                    'id' => trim($valueUri),
-                    'text' => $this->extractLastPathSegment($text),
-                    'path' => $text,
-                    'language' => 'en',
-                    'scheme' => $scheme,
-                    'schemeURI' => is_string($schemeUri) && $schemeUri !== '' ? $schemeUri : 'http://www.eionet.europa.eu/gemet/concept/',
-                ];
-
-                if (is_string($classificationCode) && $classificationCode !== '') {
-                    $keyword['classificationCode'] = $classificationCode;
-                }
-
-                $gemet[] = $keyword;
-
-                continue;
-            }
-
-            // GCMD keywords
-            if (is_string($scheme) && (
-                stripos($scheme, 'Science Keywords') !== false ||
-                stripos($scheme, 'Platforms') !== false ||
-                stripos($scheme, 'Instruments') !== false
-            )) {
-                if (! is_string($valueUri) || trim($valueUri) === '') {
-                    continue;
-                }
-
-                $uuid = GcmdUriHelper::extractUuid(trim($valueUri));
-                if (! $uuid) {
-                    continue;
-                }
-
-                $id = GcmdUriHelper::buildConceptUri($uuid);
-                $pathArray = XmlKeywordExtractor::parseGcmdPath($text);
-                $pathString = implode(' > ', $pathArray);
-                $kwText = array_last($pathArray) ?? $text;
-
-                // Normalize scheme name
-                $normalizedScheme = $scheme;
-                if (stripos($scheme, 'Science') !== false) {
-                    $normalizedScheme = 'Science Keywords';
-                } elseif (stripos($scheme, 'Platform') !== false) {
-                    $normalizedScheme = 'Platforms';
-                } elseif (stripos($scheme, 'Instrument') !== false) {
-                    $normalizedScheme = 'Instruments';
-                }
-
-                $keyword = [
-                    'uuid' => $uuid,
-                    'id' => $id,
-                    'text' => $kwText,
-                    'path' => $pathString,
-                    'scheme' => $normalizedScheme,
-                ];
-
-                if (is_string($classificationCode) && $classificationCode !== '') {
-                    $keyword['classificationCode'] = $classificationCode;
-                }
-
-                $gcmd[] = $keyword;
-
-                continue;
-            }
-
-            // Unknown scheme with non-empty valueURI or classificationCode → treat as GCMD-like
-            if (is_string($scheme) && (
-                (is_string($valueUri) && trim($valueUri) !== '') ||
-                (is_string($classificationCode) && trim($classificationCode) !== '')
-            )) {
-                $id = '';
-                if (is_string($valueUri) && trim($valueUri) !== '') {
-                    $id = trim($valueUri);
-                } elseif (is_string($classificationCode)) {
-                    $id = $classificationCode;
-                }
-
-                $keyword = [
-                    'uuid' => '',
-                    'id' => $id,
-                    'text' => $text,
-                    'path' => $text,
-                    'scheme' => $scheme,
-                ];
-
-                if (is_string($schemeUri) && $schemeUri !== '') {
-                    $keyword['schemeURI'] = $schemeUri;
-                }
-
-                if (is_string($classificationCode) && $classificationCode !== '') {
-                    $keyword['classificationCode'] = $classificationCode;
-                }
-
-                $gcmd[] = $keyword;
-            }
         }
 
-        return [
-            'gcmd' => $gcmd,
-            'free' => $free,
-            'msl' => $msl,
-            'gemet' => $gemet,
-        ];
+        return $this->subjectImportNormalizer->normalize($importedSubjects);
     }
 
     /**
@@ -1476,16 +1301,6 @@ class UploadJsonController extends Controller
         }
 
         return 'point';
-    }
-
-    /**
-     * Extract the last segment from a hierarchical path.
-     */
-    private function extractLastPathSegment(string $path): string
-    {
-        $parts = explode(' > ', $path);
-
-        return trim(end($parts));
     }
 
     private function errorResponse(

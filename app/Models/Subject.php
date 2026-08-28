@@ -6,9 +6,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Subject Model (DataCite #6)
@@ -23,19 +26,28 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $value_uri
  * @property string|null $classification_code
  * @property string|null $breadcrumb_path
- * @property int|null $language_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string $language
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
- * @property-read Language|null $language
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/subject/
  */
-#[Fillable(['resource_id', 'value', 'subject_scheme', 'scheme_uri', 'value_uri', 'classification_code', 'breadcrumb_path', 'language_id'])]
+#[Fillable(['resource_id', 'value', 'language', 'subject_scheme', 'scheme_uri', 'value_uri', 'classification_code', 'breadcrumb_path'])]
 class Subject extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
+
+    /** @return Attribute<string, string> */
+    protected function language(): Attribute
+    {
+        return Attribute::make(
+            set: static fn (mixed $value): string => is_string($value) && trim($value) !== ''
+                ? trim($value)
+                : 'en',
+        );
+    }
 
     /**
      * Scope free-text subjects, treating NULL and an empty scheme as equivalent.
@@ -68,15 +80,6 @@ class Subject extends Model
     {
         /** @var BelongsTo<Resource, static> $relation */
         $relation = $this->belongsTo(Resource::class);
-
-        return $relation;
-    }
-
-    /** @return BelongsTo<Language, static> */
-    public function language(): BelongsTo
-    {
-        /** @var BelongsTo<Language, static> $relation */
-        $relation = $this->belongsTo(Language::class);
 
         return $relation;
     }

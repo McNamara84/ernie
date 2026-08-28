@@ -1284,9 +1284,13 @@ class ResourceStorageService
             $rawCode = array_key_exists('classificationCode', $keyword) ? trim((string) $keyword['classificationCode']) : '';
             $classificationCode = $rawCode !== '' ? $rawCode : null;
             $valueUri = filter_var($keywordId, FILTER_VALIDATE_URL) ? $keywordId : null;
+            $language = is_string($keyword['language'] ?? null) && trim((string) $keyword['language']) !== ''
+                ? trim((string) $keyword['language'])
+                : 'en';
 
             $controlledKeywordsData[] = [
                 'value' => $keywordText,
+                'language' => $language,
                 'subject_scheme' => $keywordScheme,
                 'scheme_uri' => $keywordSchemeUri,
                 'value_uri' => $valueUri,

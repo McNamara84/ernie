@@ -209,6 +209,31 @@ npm run artisan -- resources:backfill-legacy-temporal-coverages --apply --match-
 
 The application and queue containers need working access to the configured `metaworks` connection while the command runs. The backfill reads but never modifies the legacy database. Take the normal ERNIE database backup before the apply run; a nonzero exit code indicates processing errors, while manual-review rows deliberately remain unchanged and do not fail the complete run.
 
+### Exact subject duplicate cleanup
+
+Metadata imports classify each DataCite subject only once. Resources imported before that fix can be audited with a dry-run-first command. By default it considers controlled subjects only and treats rows as duplicates only when value, language, scheme, scheme URI, value URI, classification code, and breadcrumb path are all exactly equal. The smallest Subject ID survives.
+
+Audit GEMET and MSL first and retain the CSV for review:
+
+```bash
+npm run artisan -- subjects:deduplicate \
+    --scheme="GEMET - GEneral Multilingual Environmental Thesaurus" \
+    --scheme="EPOS MSL vocabulary" \
+    --report=storage/app/subject-duplicates-dry-run.csv
+```
+
+After taking the normal database backup and reviewing the report, apply the same bounded selection:
+
+```bash
+npm run artisan -- subjects:deduplicate --apply \
+    --scheme="GEMET - GEneral Multilingual Environmental Thesaurus" \
+    --scheme="EPOS MSL vocabulary" \
+    --after-resource-id=0 --limit=500 --chunk=100 \
+    --report=storage/app/subject-duplicates-applied.csv
+```
+
+The repeatable `--doi` option narrows an audit further. Use `--include-free` only when exact free-keyword duplicates should also be considered. Apply runs are transactional per resource and idempotent; they remove stale Subject assistance rows and invalidate affected keyword and landing-page caches. A nonzero exit code indicates processing errors.
+
 ### Testing Data Editor registration safely
 
 Keep `DATACITE_TEST_MODE=true` and use test Repository credentials when exercising the Data Editor's `Register` or `Update Metadata` actions locally. `Validate`, `Save Draft`, autosave, `Preview LP`, and `Show LP` are local-only actions and must not produce a DataCite request. The two DataCite write actions run complete client validation, show an explicit confirmation before their action-specific save, and automatically continue through landing-page setup when a page is missing.

@@ -10,14 +10,13 @@ use App\Services\Xml\Sections\CoverageSectionParser;
 use App\Services\Xml\Sections\DateSectionParser;
 use App\Services\Xml\Sections\DescriptionSectionParser;
 use App\Services\Xml\Sections\FundingReferenceSectionParser;
-use App\Services\Xml\Sections\GcmdKeywordSectionParser;
 use App\Services\Xml\Sections\IdentifierSectionParser;
 use App\Services\Xml\Sections\IsoContactSectionParser;
 use App\Services\Xml\Sections\RelatedItemSectionParser;
 use App\Services\Xml\Sections\RelatedWorkAndInstrumentSectionParser;
 use App\Services\Xml\Sections\RightsSectionParser;
+use App\Services\Xml\Sections\SubjectSectionParser;
 use App\Services\Xml\Sections\TitleSectionParser;
-use App\Support\XmlKeywordExtractor;
 use Saloon\XmlWrangler\XmlReader;
 
 /**
@@ -37,11 +36,10 @@ final readonly class DataCiteXmlImportParser
         private DescriptionSectionParser $descriptionParser,
         private DateSectionParser $dateParser,
         private CoverageSectionParser $coverageParser,
-        private GcmdKeywordSectionParser $gcmdKeywordParser,
+        private SubjectSectionParser $subjectParser,
         private FundingReferenceSectionParser $fundingReferenceParser,
         private RelatedItemSectionParser $relatedItemParser,
         private RelatedWorkAndInstrumentSectionParser $relatedWorkAndInstrumentParser,
-        private XmlKeywordExtractor $keywordExtractor,
     ) {}
 
     public function parse(XmlReader $reader, string $filename, ?string $xmlContents = null): DataCiteXmlImportResult
@@ -72,10 +70,7 @@ final readonly class DataCiteXmlImportParser
             ),
         ));
 
-        $gcmdKeywords = $this->gcmdKeywordParser->parse($reader);
-        $freeKeywords = $this->keywordExtractor->extractFreeKeywords($reader);
-        $mslKeywords = $this->keywordExtractor->extractMslKeywords($reader);
-        $gemetKeywords = $this->keywordExtractor->extractGemetKeywords($reader);
+        $subjects = $this->subjectParser->parse($reader);
 
         $rawRights = $this->rightsParser->parseRawRights($reader);
         $licenses = array_values(array_filter(array_map(
@@ -106,10 +101,8 @@ final readonly class DataCiteXmlImportParser
             coverages: $coverages,
             relatedWorks: $relatedWorks,
             instruments: $instruments,
-            gcmdKeywords: $gcmdKeywords,
-            freeKeywords: $freeKeywords,
-            mslKeywords: $mslKeywords,
-            gemetKeywords: $gemetKeywords,
+            controlledKeywords: $subjects->controlledKeywords,
+            freeKeywords: $subjects->freeKeywords,
             fundingReferences: $fundingReferences,
             mslLaboratories: $mslLaboratories,
             relatedItems: $relatedItems,

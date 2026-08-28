@@ -13,7 +13,12 @@
                 "description": "Assessment results with curator actions now link directly to the Data Editor. Admins and Group Leaders also receive an Assistance link with the DOI filter already applied when matching pending metadata suggestions exist, while Curators remain within their authorized workflow and IGSNs remain unchanged until a dedicated editor is available."
             }
         ],
-        "fixes": []
+        "fixes": [
+            {
+                "title": "Unique Controlled Subjects in Metadata Imports",
+                "description": "DataCite XML and JSON imports now share one subject-classification pipeline, so a single GEMET, MSL, GCMD, or other controlled-vocabulary term is stored and shown exactly once while distinct languages and identifiers remain separate. A dry-run-first subjects:deduplicate command can safely remove exact historical duplicates with DOI and scheme filters, resumable batches, assistance cleanup, cache invalidation, and an optional CSV report."
+            }
+        ]
     },
     {
         "version": "1.0.4",

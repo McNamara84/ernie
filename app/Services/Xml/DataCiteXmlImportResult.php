@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Xml;
 
+use App\Services\Imports\Subjects\SubjectImportResult;
+
 /**
  * Result of parsing a DataCite XML upload into the editor session payload.
  */
@@ -20,10 +22,8 @@ final readonly class DataCiteXmlImportResult
      * @param  array<int, array<string, mixed>>  $coverages
      * @param  array<int, array<string, mixed>>  $relatedWorks
      * @param  array<int, array<string, mixed>>  $instruments
-     * @param  array<int, array<string, mixed>>  $gcmdKeywords
+     * @param  array<int, array<string, mixed>>  $controlledKeywords
      * @param  array<int, string>  $freeKeywords
-     * @param  array<int, array<string, mixed>>  $mslKeywords
-     * @param  array<int, array<string, mixed>>  $gemetKeywords
      * @param  array<int, array<string, mixed>>  $fundingReferences
      * @param  array<int, array<string, string|null>>  $mslLaboratories
      * @param  array<int, array<string, mixed>>  $relatedItems
@@ -44,10 +44,8 @@ final readonly class DataCiteXmlImportResult
         public array $coverages,
         public array $relatedWorks,
         public array $instruments,
-        public array $gcmdKeywords,
+        public array $controlledKeywords,
         public array $freeKeywords,
-        public array $mslKeywords,
-        public array $gemetKeywords,
         public array $fundingReferences,
         public array $mslLaboratories,
         public array $relatedItems,
@@ -58,6 +56,11 @@ final readonly class DataCiteXmlImportResult
      */
     public function toSessionPayload(): array
     {
+        $keywordResult = new SubjectImportResult(
+            array_values($this->freeKeywords),
+            array_values($this->controlledKeywords),
+        );
+
         return [
             'doi' => $this->doi,
             'year' => $this->year,
@@ -74,10 +77,9 @@ final readonly class DataCiteXmlImportResult
             'coverages' => $this->coverages,
             'relatedWorks' => $this->relatedWorks,
             'instruments' => $this->instruments,
-            'gcmdKeywords' => $this->gcmdKeywords,
+            'controlledKeywords' => $this->controlledKeywords,
             'freeKeywords' => $this->freeKeywords,
-            'mslKeywords' => $this->mslKeywords,
-            'gemetKeywords' => $this->gemetKeywords,
+            ...$keywordResult->legacyKeywordPayload(),
             'fundingReferences' => $this->fundingReferences,
             'mslLaboratories' => $this->mslLaboratories,
             'relatedItems' => $this->relatedItems,

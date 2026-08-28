@@ -634,9 +634,10 @@ class DataCiteJsonExporter
         $subjects = [];
 
         foreach ($resource->subjects as $subject) {
+            $language = trim((string) $subject->language);
             $subjectData = [
                 'subject' => $this->dataCiteSubjectValue($subject),
-                'lang' => 'en',
+                'lang' => $language !== '' ? $language : 'en',
             ];
 
             if ($subject->subject_scheme) {
