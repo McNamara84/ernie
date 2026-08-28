@@ -36,6 +36,93 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 covers(LandingPageResourceTransformer::class);
 
+function legacyLandingPerson(
+    int $id,
+    string $givenName,
+    string $familyName,
+    ?string $orcid = null,
+    ?string $scheme = null,
+): Person {
+    $person = new Person;
+    $person->forceFill([
+        'id' => $id,
+        'given_name' => $givenName,
+        'family_name' => $familyName,
+        'name_identifier' => $orcid,
+        'name_identifier_scheme' => $scheme,
+    ]);
+
+    return $person;
+}
+
+function legacyLandingCreator(
+    int $id,
+    Person $person,
+    int $position = 1,
+    bool $isContact = false,
+    ?string $email = null,
+): ResourceCreator {
+    $creator = new ResourceCreator;
+    $creator->forceFill([
+        'id' => $id,
+        'position' => $position,
+        'creatorable_type' => Person::class,
+        'creatorable_id' => $person->id,
+        'is_contact' => $isContact,
+        'email' => $email,
+        'website' => null,
+    ]);
+    $creator->setRelation('creatorable', $person);
+    $creator->setRelation('affiliations', new EloquentCollection);
+
+    return $creator;
+}
+
+function legacyLandingContributor(
+    int $id,
+    Person $person,
+    ?string $email = null,
+    ?string $website = null,
+): ResourceContributor {
+    $contactType = new ContributorType;
+    $contactType->forceFill(['id' => 1, 'name' => 'Contact Person', 'slug' => 'ContactPerson']);
+
+    $contributor = new ResourceContributor;
+    $contributor->forceFill([
+        'id' => $id,
+        'position' => 1,
+        'contributorable_type' => Person::class,
+        'contributorable_id' => $person->id,
+        'email' => $email,
+        'website' => $website,
+    ]);
+    $contributor->setRelation('contributorable', $person);
+    $contributor->setRelation('contributorTypes', new EloquentCollection([$contactType]));
+    $contributor->setRelation('affiliations', new EloquentCollection);
+
+    return $contributor;
+}
+
+/**
+ * @param  list<ResourceCreator>  $creators
+ * @param  list<ResourceContributor>  $contributors
+ */
+function legacyLandingResource(array $creators, array $contributors): Resource
+{
+    $resource = new Resource;
+    $resource->setRelation('creators', new EloquentCollection($creators));
+    $resource->setRelation('contributors', new EloquentCollection($contributors));
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    return $resource;
+}
+
 test('transforms a resource into landing page payload structure', function () {
     $transformer = new LandingPageResourceTransformer;
 
@@ -859,6 +946,103 @@ test('deduplicates contributor contact persons against creator contact persons',
         ->toHaveCount(1)
         ->and($data['contact_persons'][0]['source'])->toBe('creator')
         ->and($data['contact_persons'][0]['name'])->toBe('Alice Duplicate');
+});
+
+test('resolves reordered legacy contact names consistently across credits and contacts', function () {
+    $creatorPerson = legacyLandingPerson(101, 'Juan Camilo', 'Gomez-Zapata');
+    $contributorPerson = legacyLandingPerson(202, 'Gomez Zapata Juan', 'Camilo');
+    $creator = legacyLandingCreator(11, $creatorPerson, isContact: true, email: 'juan.creator@example.com');
+    $contributor = legacyLandingContributor(22, $contributorPerson, 'juan.contributor@example.com');
+    $resource = legacyLandingResource([$creator], [$contributor]);
+
+    $data = (new LandingPageResourceTransformer)->transform($resource);
+
+    expect($data['creators'][0]['display_identity_key'])
+        ->toBe($data['contributors'][0]['display_identity_key'])
+        ->and($data['contributors'][0]['contributor_types'])->toBe(['Contact Person'])
+        ->and($data['contact_persons'])->toHaveCount(1)
+        ->and($data['contact_persons'][0]['source'])->toBe('creator')
+        ->and($data['contact_persons'][0]['name'])->toBe('Juan Camilo Gomez-Zapata')
+        ->and($creatorPerson->given_name)->toBe('Juan Camilo')
+        ->and($contributorPerson->given_name)->toBe('Gomez Zapata Juan');
+});
+
+test('keeps a contributor contact route while using the matched creator identity for display', function () {
+    $creatorPerson = legacyLandingPerson(
+        101,
+        'Juan Camilo',
+        'Gomez-Zapata',
+        '0000-0002-1825-0097',
+        'ORCID',
+    );
+    $contributorPerson = legacyLandingPerson(202, 'Gomez Zapata Juan', 'Camilo');
+    $creator = legacyLandingCreator(11, $creatorPerson);
+    $contributor = legacyLandingContributor(
+        22,
+        $contributorPerson,
+        'juan@example.com',
+        'https://example.com/juan',
+    );
+    $resource = legacyLandingResource([$creator], [$contributor]);
+
+    $data = (new LandingPageResourceTransformer)->transform($resource);
+
+    expect($data['contact_persons'])->toHaveCount(1)
+        ->and($data['contact_persons'][0])->toMatchArray([
+            'id' => $contributor->id,
+            'source' => 'contributor',
+            'name' => 'Juan Camilo Gomez-Zapata',
+            'given_name' => 'Juan Camilo',
+            'family_name' => 'Gomez-Zapata',
+            'orcid' => '0000-0002-1825-0097',
+            'website' => 'https://example.com/juan',
+            'has_email' => true,
+        ]);
+});
+
+test('deduplicates contributor-only contacts by valid ORCID', function () {
+    $firstPerson = legacyLandingPerson(
+        201,
+        'Alex',
+        'First',
+        '0000-0002-1825-0097',
+        'ORCID',
+    );
+    $secondPerson = legacyLandingPerson(
+        202,
+        'Alexandra',
+        'Second',
+        'https://orcid.org/0000-0002-1825-0097',
+        null,
+    );
+    $firstContributor = legacyLandingContributor(21, $firstPerson, 'first@example.com');
+    $secondContributor = legacyLandingContributor(22, $secondPerson, 'second@example.com');
+    $resource = legacyLandingResource([], [$firstContributor, $secondContributor]);
+
+    $data = (new LandingPageResourceTransformer)->transform($resource);
+
+    expect($data['contributors'][0]['display_identity_key'])
+        ->toBe($data['contributors'][1]['display_identity_key'])
+        ->and($data['contact_persons'])->toHaveCount(1)
+        ->and($data['contact_persons'][0]['id'])->toBe($firstContributor->id)
+        ->and($data['contact_persons'][0]['source'])->toBe('contributor');
+});
+
+test('keeps ambiguous same-name legacy contacts separate', function () {
+    $firstPerson = legacyLandingPerson(101, 'Alex Maria', 'Example');
+    $secondPerson = legacyLandingPerson(102, 'Alex Maria', 'Example');
+    $contributorPerson = legacyLandingPerson(203, 'Example Alex', 'Maria');
+    $firstCreator = legacyLandingCreator(11, $firstPerson, 1, true, 'first@example.com');
+    $secondCreator = legacyLandingCreator(12, $secondPerson, 2, true, 'second@example.com');
+    $contributor = legacyLandingContributor(22, $contributorPerson, 'third@example.com');
+    $resource = legacyLandingResource([$firstCreator, $secondCreator], [$contributor]);
+
+    $data = (new LandingPageResourceTransformer)->transform($resource);
+
+    expect($data['contact_persons'])->toHaveCount(3)
+        ->and($data['contributors'][0]['display_identity_key'])
+        ->not->toBe($data['creators'][0]['display_identity_key'])
+        ->not->toBe($data['creators'][1]['display_identity_key']);
 });
 
 test('transforms inline relatedItems with titles, creators and contributors', function () {

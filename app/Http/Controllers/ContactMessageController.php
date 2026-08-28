@@ -14,6 +14,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Services\IgsnRepositoryContactService;
+use App\Services\LandingPagePersonIdentityResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -32,6 +33,7 @@ class ContactMessageController extends Controller
 {
     public function __construct(
         private readonly IgsnRepositoryContactService $repositoryContactService,
+        private readonly LandingPagePersonIdentityResolver $personIdentityResolver,
     ) {}
 
     /**
@@ -302,20 +304,26 @@ class ContactMessageController extends Controller
         }
 
         $recipients = [];
+        $displayIdentityKeys = $this->personIdentityResolver->resolve($resource);
 
         // Get creator contact persons (is_contact flag + has email)
-        $creatorContacts = $resource->creators->filter(
-            static fn (ResourceCreator $creator): bool => $creator->is_contact && $creator->email !== null && $creator->email !== ''
-        );
+        $creatorContacts = $resource->creators
+            ->filter(static fn (ResourceCreator $creator): bool => $creator->is_contact && $creator->email !== null && $creator->email !== '')
+            ->unique(static fn (ResourceCreator $creator): string => $displayIdentityKeys['creators'][$creator->id]
+                ?? $creator->creatorable_type.'|'.$creator->creatorable_id)
+            ->values();
 
-        // Track creator entity keys for deduplication
-        $creatorEntityKeys = $creatorContacts
-            ->map(static fn (ResourceCreator $creator): string => $creator->creatorable_type.'|'.$creator->creatorable_id)
+        // Track resolved creator identities for deduplication.
+        $creatorIdentityKeys = $creatorContacts
+            ->map(static fn (ResourceCreator $creator): string => $displayIdentityKeys['creators'][$creator->id]
+                ?? $creator->creatorable_type.'|'.$creator->creatorable_id)
             ->all();
+
+        $seenContactIdentityKeys = array_fill_keys($creatorIdentityKeys, true);
 
         // Get contributor contact persons (ContactPerson type + has email, deduplicated)
         $contributorContacts = $resource->contributors->filter(
-            static function (ResourceContributor $contributor) use ($creatorEntityKeys): bool {
+            static function (ResourceContributor $contributor) use ($displayIdentityKeys, &$seenContactIdentityKeys): bool {
                 if ($contributor->email === null || $contributor->email === '') {
                     return false;
                 }
@@ -327,9 +335,16 @@ class ContactMessageController extends Controller
                     return false;
                 }
 
-                $entityKey = $contributor->contributorable_type.'|'.$contributor->contributorable_id;
+                $identityKey = $displayIdentityKeys['contributors'][$contributor->id]
+                    ?? $contributor->contributorable_type.'|'.$contributor->contributorable_id;
 
-                return ! in_array($entityKey, $creatorEntityKeys, true);
+                if (isset($seenContactIdentityKeys[$identityKey])) {
+                    return false;
+                }
+
+                $seenContactIdentityKeys[$identityKey] = true;
+
+                return true;
             }
         );
 

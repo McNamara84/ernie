@@ -1089,6 +1089,62 @@ describe('ContactMessageController', function (): void {
             Mail::assertQueued(ContactPersonMessage::class, fn ($mail) => $mail->hasTo('alice@example.com'));
         });
 
+        it('deduplicates a reordered legacy contact against its creator when sending to all', function (): void {
+            Mail::fake();
+
+            $resource = Resource::factory()->create();
+            Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Legacy Contact Dataset']);
+
+            $creatorPerson = Person::factory()->create([
+                'given_name' => 'Juan Camilo',
+                'family_name' => 'Gomez-Zapata',
+                'name_identifier' => null,
+                'name_identifier_scheme' => null,
+            ]);
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $creatorPerson->id,
+                'email' => 'creator@example.com',
+                'is_contact' => true,
+            ]);
+
+            $contributorPerson = Person::factory()->create([
+                'given_name' => 'Gomez Zapata Juan',
+                'family_name' => 'Camilo',
+                'name_identifier' => null,
+                'name_identifier_scheme' => null,
+            ]);
+            $contactType = ContributorType::create(['name' => 'ContactPerson', 'slug' => 'ContactPerson']);
+            $contributor = ResourceContributor::factory()->create([
+                'resource_id' => $resource->id,
+                'contributorable_type' => Person::class,
+                'contributorable_id' => $contributorPerson->id,
+                'email' => 'contributor@example.com',
+            ]);
+            $contributor->contributorTypes()->attach($contactType);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.legacy-dedup.001',
+                'slug' => 'legacy-dedup-test',
+            ]);
+
+            $response = $this->postJson('/10.5880/gfz.legacy-dedup.001/legacy-dedup-test/contact', [
+                'sender_name' => 'Test User',
+                'sender_email' => 'test@example.com',
+                'message' => 'Message testing legacy name-order deduplication.',
+                'send_to_all' => true,
+            ]);
+
+            $response->assertOk()
+                ->assertJson(['recipients_count' => 1]);
+
+            Mail::assertQueued(ContactPersonMessage::class, 1);
+            Mail::assertQueued(ContactPersonMessage::class, fn ($mail) => $mail->hasTo('creator@example.com'));
+            Mail::assertNotQueued(ContactPersonMessage::class, fn ($mail) => $mail->hasTo('contributor@example.com'));
+        });
+
     });
 
 });
