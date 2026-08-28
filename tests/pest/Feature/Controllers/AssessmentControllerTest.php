@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Enums\ResourceWorkflowStatus;
 use App\Http\Controllers\AssessmentController;
 use App\Jobs\RunResourceAssessmentsJob;
+use App\Models\AssistantSuggestion;
 use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
@@ -113,8 +115,10 @@ describe('index', function () {
                 ->where('fujiHealthy', true)
                 ->where('fujiStatusMessage', null)
                 ->where('canRunAssessments', true)
+                ->where('canAccessAssistance', true)
                 ->where('showImprovementActorLabels', true)
                 ->where('includeExternalResources', false)
+                ->where('includeDraftReviewResources', false)
                 ->has('resourcesNeedingAttention')
                 ->has('igsnsNeedingAttention')
             );
@@ -153,7 +157,11 @@ describe('index', function () {
             ->assertRedirect('/login');
     });
 
-    it('returns the assessment page to group leaders and curators with role-appropriate display permissions', function (string $role, bool $canRun): void {
+    it('returns the assessment page to group leaders and curators with role-appropriate display permissions', function (
+        string $role,
+        bool $canRun,
+        bool $canAccessAssistance,
+    ): void {
         $user = User::factory()->create(['role' => $role]);
 
         $this->actingAs($user)
@@ -162,11 +170,12 @@ describe('index', function () {
             ->assertInertia(fn ($page) => $page
                 ->where('auth.user.can_access_assessment', true)
                 ->where('canRunAssessments', $canRun)
+                ->where('canAccessAssistance', $canAccessAssistance)
                 ->where('showImprovementActorLabels', false)
             );
     })->with([
-        'group leader' => ['group_leader', true],
-        'curator' => ['curator', false],
+        'group leader' => ['group_leader', true, true],
+        'curator' => ['curator', false, false],
     ]);
 
     it('forbids beginners from accessing assessment', function () {
@@ -266,7 +275,7 @@ describe('index', function () {
         $user = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($user)
-            ->get('/assessment')
+            ->get('/assessment?include_draft_review_resources=1')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('assessment')
@@ -353,7 +362,7 @@ describe('index', function () {
         $user = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($user)
-            ->get('/assessment?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FFILTER.ONE')
+            ->get('/assessment?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FFILTER.ONE&include_draft_review_resources=1')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('filters.doi', '10.5880/filter.one')
@@ -370,7 +379,7 @@ describe('index', function () {
             );
 
         $this->actingAs($user)
-            ->get('/assessment?datacenter_id='.$matchingDatacenter->id)
+            ->get('/assessment?datacenter_id='.$matchingDatacenter->id.'&include_draft_review_resources=1')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('filters.datacenter_id', $matchingDatacenter->id)
@@ -386,7 +395,7 @@ describe('index', function () {
             );
 
         $this->actingAs($user)
-            ->get('/assessment?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FFILTER.IGSN&datacenter_id='.$matchingDatacenter->id)
+            ->get('/assessment?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FFILTER.IGSN&datacenter_id='.$matchingDatacenter->id.'&include_draft_review_resources=1')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('filters.doi', '10.5880/filter.igsn')
@@ -399,7 +408,7 @@ describe('index', function () {
             );
 
         $this->actingAs($user)
-            ->get('/assessment?doi=10.5880%2Ffilter.one&datacenter_id='.$otherDatacenter->id)
+            ->get('/assessment?doi=10.5880%2Ffilter.one&datacenter_id='.$otherDatacenter->id.'&include_draft_review_resources=1')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('resourceAssessmentSummary.total', 0)
@@ -500,6 +509,112 @@ describe('index', function () {
                 ->where('resourceAssessmentSummary.assessed', 21)
                 ->where('igsnsNeedingAttention.0.mainTitle', 'External IGSN remains ranked')
                 ->where('igsnAssessmentSummary.assessed', 1)
+            );
+    });
+
+    it('excludes Draft and Review resources from the ranking by default without changing the summary', function () {
+        $draft = Resource::factory()->withDoi('10.5880/test.status.draft')->create([
+            'workflow_status_override' => ResourceWorkflowStatus::DRAFT,
+        ]);
+        Title::factory()->for($draft)->create(['value' => 'Draft assessment result']);
+        ResourceAssessment::query()->create([
+            'resource_id' => $draft->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 1,
+            'assessed_identifier' => $draft->doi,
+            'assessed_at' => now(),
+        ]);
+
+        $review = Resource::factory()->withDoi('10.5880/test.status.review')->create([
+            'workflow_status_override' => ResourceWorkflowStatus::REVIEW,
+        ]);
+        Title::factory()->for($review)->create(['value' => 'Review assessment result']);
+        ResourceAssessment::query()->create([
+            'resource_id' => $review->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 2,
+            'assessed_identifier' => $review->doi,
+            'assessed_at' => now(),
+        ]);
+
+        $published = Resource::factory()->withDoi('10.5880/test.status.published')->create();
+        Title::factory()->for($published)->create(['value' => 'Published assessment result']);
+        LandingPage::factory()->for($published)->withDoi((string) $published->doi)->published()->create();
+        ResourceAssessment::query()->create([
+            'resource_id' => $published->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 3,
+            'assessed_identifier' => $published->doi,
+            'assessed_at' => now(),
+        ]);
+
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->get('/assessment')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('includeDraftReviewResources', false)
+                ->where('resourceAssessmentSummary.assessed', 3)
+                ->has('resourcesNeedingAttention', 1)
+                ->where('resourcesNeedingAttention.0.id', $published->id)
+            );
+
+        $this->actingAs($user)
+            ->get('/assessment?include_draft_review_resources=1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('includeDraftReviewResources', true)
+                ->where('resourceAssessmentSummary.assessed', 3)
+                ->has('resourcesNeedingAttention', 3)
+                ->where('resourcesNeedingAttention.0.id', $draft->id)
+                ->where('resourcesNeedingAttention.1.id', $review->id)
+                ->where('resourcesNeedingAttention.2.id', $published->id)
+            );
+    });
+
+    it('marks ranked resources that have pending Assistant suggestions', function () {
+        $withSuggestion = Resource::factory()->withDoi('10.5880/test.assistant.pending')->create();
+        Title::factory()->for($withSuggestion)->create(['value' => 'Resource with Assistant suggestion']);
+        LandingPage::factory()->for($withSuggestion)->withDoi((string) $withSuggestion->doi)->published()->create();
+        ResourceAssessment::query()->create([
+            'resource_id' => $withSuggestion->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 1,
+            'assessed_identifier' => $withSuggestion->doi,
+            'assessed_at' => now(),
+        ]);
+        AssistantSuggestion::query()->create([
+            'assistant_id' => 'size-format-suggestion',
+            'resource_id' => $withSuggestion->id,
+            'target_type' => 'resource',
+            'target_id' => $withSuggestion->id,
+            'suggested_value' => 'application/zip',
+            'suggested_label' => 'ZIP',
+            'discovered_at' => now(),
+        ]);
+
+        $withoutSuggestion = Resource::factory()->withDoi('10.5880/test.assistant.none')->create();
+        Title::factory()->for($withoutSuggestion)->create(['value' => 'Resource without Assistant suggestion']);
+        LandingPage::factory()->for($withoutSuggestion)->withDoi((string) $withoutSuggestion->doi)->published()->create();
+        ResourceAssessment::query()->create([
+            'resource_id' => $withoutSuggestion->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 2,
+            'assessed_identifier' => $withoutSuggestion->doi,
+            'assessed_at' => now(),
+        ]);
+
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->get('/assessment')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('resourcesNeedingAttention.0.id', $withSuggestion->id)
+                ->where('resourcesNeedingAttention.0.hasPendingSuggestions', true)
+                ->where('resourcesNeedingAttention.1.id', $withoutSuggestion->id)
+                ->where('resourcesNeedingAttention.1.hasPendingSuggestions', false)
             );
     });
 
@@ -645,7 +760,7 @@ describe('index', function () {
         $user = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($user)
-            ->get('/assessment')
+            ->get('/assessment?include_draft_review_resources=1')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('resourcesNeedingAttention.0.improvementOpportunity.status', 'unavailable')
@@ -759,7 +874,7 @@ describe('index', function () {
         $user = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($user)
-            ->get('/assessment')
+            ->get('/assessment?include_draft_review_resources=1')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('resourcesNeedingAttention.0.improvementOpportunity.suggestions.0.actor', 'curator')
@@ -788,7 +903,7 @@ describe('index', function () {
             $restrictedUser = User::factory()->create(['role' => $role]);
 
             $this->actingAs($restrictedUser)
-                ->get('/assessment')
+                ->get('/assessment?include_draft_review_resources=1')
                 ->assertOk()
                 ->assertInertia(fn ($page) => $page
                     ->where('resourcesNeedingAttention.0.improvementOpportunity.suggestions.0.actor', 'curator')
@@ -910,7 +1025,7 @@ describe('index', function () {
         $user = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($user)
-            ->get('/assessment')
+            ->get('/assessment?include_draft_review_resources=1')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('resourcesNeedingAttention.0.improvementOpportunity.status', 'available')

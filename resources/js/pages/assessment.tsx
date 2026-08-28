@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
 import { RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -93,6 +93,17 @@ function assessmentLabel(scope: AssessmentScope): string {
     return scope === 'resource' ? 'resource assessments' : 'IGSN assessments';
 }
 
+function hasCuratorAction(entry: AssessmentEntry): boolean {
+    return (
+        entry.improvementOpportunity.status === 'available' &&
+        entry.improvementOpportunity.suggestions.some((suggestion) => suggestion.actor === 'curator')
+    );
+}
+
+function assistanceUrl(doi: string): string {
+    return '/assistance?' + new URLSearchParams({ doi }).toString();
+}
+
 function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope, canRunAssessments: boolean, hasActiveFilters = false): string {
     if (hasActiveFilters && summary.total === 0) {
         return `No ${scopeNoun(scope)} match the active DOI and Datacenter filters.`;
@@ -120,6 +131,7 @@ export function AssessmentTable({
     summary,
     scope,
     canRunAssessments,
+    canAccessAssistance,
     showImprovementActorLabels,
     hasActiveFilters = false,
 }: {
@@ -127,6 +139,7 @@ export function AssessmentTable({
     summary: AssessmentSummary;
     scope: AssessmentScope;
     canRunAssessments: boolean;
+    canAccessAssistance: boolean;
     showImprovementActorLabels: boolean;
     hasActiveFilters?: boolean;
 }) {
@@ -159,6 +172,24 @@ export function AssessmentTable({
                             <span className="block truncate font-mono text-[11px] font-normal text-muted-foreground sm:hidden">
                                 {entry.doi ?? 'N/A'}
                             </span>
+                            {scope === 'resource' && hasCuratorAction(entry) && (
+                                <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs font-normal">
+                                    <Link
+                                        href={'/editor?resourceId=' + entry.id}
+                                        className="text-primary underline underline-offset-4 hover:text-primary/80"
+                                    >
+                                        Open in Data Editor
+                                    </Link>
+                                    {canAccessAssistance && entry.doi !== null && entry.hasPendingSuggestions && (
+                                        <Link
+                                            href={assistanceUrl(entry.doi)}
+                                            className="text-primary underline underline-offset-4 hover:text-primary/80"
+                                        >
+                                            Check Assistant
+                                        </Link>
+                                    )}
+                                </span>
+                            )}
                         </TableCell>
                         <TableCell className="text-center">
                             <FairImprovementIndicator opportunity={entry.improvementOpportunity} showActorLabels={showImprovementActorLabels} />
@@ -177,8 +208,10 @@ export default function Assessment({
     fujiStatusMessage,
     fujiStatusCode,
     canRunAssessments,
+    canAccessAssistance,
     showImprovementActorLabels,
     includeExternalResources,
+    includeDraftReviewResources,
     filters = { doi: null, datacenter_id: null },
     datacenterOptions = [],
     resourcesNeedingAttention,
@@ -344,16 +377,17 @@ export default function Assessment({
         }
     }
 
-    function assessmentQuery(nextFilters: ResourceImpactFilterState, includeExternal: boolean) {
+    function assessmentQuery(nextFilters: ResourceImpactFilterState, includeExternal: boolean, includeDraftReview: boolean) {
         return {
             ...(nextFilters.doi !== null ? { doi: nextFilters.doi } : {}),
             ...(nextFilters.datacenter_id !== null ? { datacenter_id: nextFilters.datacenter_id } : {}),
             ...(includeExternal ? { include_external_resources: true } : {}),
+            ...(includeDraftReview ? { include_draft_review_resources: true } : {}),
         };
     }
 
     function handleFiltersChange(nextFilters: ResourceImpactFilterState) {
-        router.get('/assessment', assessmentQuery(nextFilters, includeExternalResources), {
+        router.get('/assessment', assessmentQuery(nextFilters, includeExternalResources, includeDraftReviewResources), {
             only: ['filters', ...RELOAD_KEYS],
             preserveScroll: true,
             preserveState: true,
@@ -362,8 +396,17 @@ export default function Assessment({
     }
 
     function handleExternalResourcesChange(checked: boolean) {
-        router.get('/assessment', assessmentQuery(filters, checked), {
+        router.get('/assessment', assessmentQuery(filters, checked, includeDraftReviewResources), {
             only: ['includeExternalResources', 'resourcesNeedingAttention'],
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
+    }
+
+    function handleDraftReviewResourcesChange(checked: boolean) {
+        router.get('/assessment', assessmentQuery(filters, includeExternalResources, checked), {
+            only: ['includeDraftReviewResources', 'resourcesNeedingAttention'],
             preserveScroll: true,
             preserveState: true,
             replace: true,
@@ -453,6 +496,17 @@ export default function Assessment({
                                         Include resources with external landing pages
                                     </Label>
                                 </div>
+                                <div className="flex items-center gap-2 pt-1">
+                                    <Switch
+                                        id="include-draft-review-resources"
+                                        size="sm"
+                                        checked={includeDraftReviewResources}
+                                        onCheckedChange={handleDraftReviewResourcesChange}
+                                    />
+                                    <Label htmlFor="include-draft-review-resources" className="text-xs text-muted-foreground">
+                                        Include resources with Draft or Review status
+                                    </Label>
+                                </div>
                             </div>
                             {canRunAssessments && (
                                 <LoadingButton
@@ -472,6 +526,7 @@ export default function Assessment({
                                 summary={resourceAssessmentSummary}
                                 scope="resource"
                                 canRunAssessments={canRunAssessments}
+                                canAccessAssistance={canAccessAssistance}
                                 showImprovementActorLabels={showImprovementActorLabels}
                                 hasActiveFilters={hasActiveFilters}
                             />
@@ -502,6 +557,7 @@ export default function Assessment({
                                 summary={igsnAssessmentSummary}
                                 scope="igsn"
                                 canRunAssessments={canRunAssessments}
+                                canAccessAssistance={canAccessAssistance}
                                 showImprovementActorLabels={showImprovementActorLabels}
                                 hasActiveFilters={hasActiveFilters}
                             />

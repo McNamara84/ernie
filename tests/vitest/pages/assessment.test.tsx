@@ -7,6 +7,11 @@ import { type AssessmentEntry, type AssessmentSummary } from '@/types/assessment
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    Link: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+        <a href={href} {...props}>
+            {children}
+        </a>
+    ),
     router: {
         get: vi.fn(),
         reload: vi.fn(),
@@ -31,6 +36,7 @@ const resourceEntry: AssessmentEntry = {
     mainTitle: 'Digital test resource',
     score: 42.31,
     assessedAt: '2026-07-17T10:00:00Z',
+    hasPendingSuggestions: false,
     improvementOpportunity: {
         status: 'available',
         dimension: 'R',
@@ -56,6 +62,7 @@ const igsnEntry: AssessmentEntry = {
     mainTitle: 'Physical test sample',
     score: 53.85,
     assessedAt: '2026-07-17T10:00:00Z',
+    hasPendingSuggestions: false,
     improvementOpportunity: {
         status: 'available',
         dimension: 'F',
@@ -85,6 +92,7 @@ describe('Assessment FAIR opportunity integration', () => {
                 summary={summary}
                 scope="resource"
                 canRunAssessments
+                canAccessAssistance
                 showImprovementActorLabels
             />,
         );
@@ -103,8 +111,10 @@ describe('Assessment FAIR opportunity integration', () => {
                 fujiStatusMessage={null}
                 fujiStatusCode={200}
                 canRunAssessments
+                canAccessAssistance
                 showImprovementActorLabels
                 includeExternalResources={false}
+                includeDraftReviewResources={false}
                 resourcesNeedingAttention={[resourceEntry]}
                 igsnsNeedingAttention={[igsnEntry]}
                 resourceAssessmentSummary={summary}
@@ -127,7 +137,9 @@ describe('Assessment FAIR opportunity integration', () => {
             fujiStatusMessage: null,
             fujiStatusCode: 200,
             canRunAssessments: true,
+            canAccessAssistance: true,
             includeExternalResources: false,
+            includeDraftReviewResources: false,
             resourcesNeedingAttention: [resourceEntry],
             igsnsNeedingAttention: [],
             resourceAssessmentSummary: summary,

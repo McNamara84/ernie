@@ -44,6 +44,7 @@ export interface AssessmentEntry {
     mainTitle: string;
     score: number;
     assessedAt: string | null;
+    hasPendingSuggestions: boolean;
     improvementOpportunity: FairImprovementOpportunity;
 }
 
@@ -72,8 +73,10 @@ export interface AssessmentPageProps {
     fujiStatusMessage: string | null;
     fujiStatusCode: number | null;
     canRunAssessments: boolean;
+    canAccessAssistance: boolean;
     showImprovementActorLabels: boolean;
     includeExternalResources: boolean;
+    includeDraftReviewResources: boolean;
     filters?: ResourceImpactFilterState;
     datacenterOptions?: ResourceImpactDatacenterOption[];
     resourcesNeedingAttention: AssessmentEntry[];

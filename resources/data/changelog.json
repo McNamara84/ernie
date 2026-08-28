@@ -1,5 +1,21 @@
 [
     {
+        "version": "1.0.5",
+        "date": "2026-08-28",
+        "features": [],
+        "improvements": [
+            {
+                "title": "Focused FAIR Assessment Results",
+                "description": "The Assessment resource ranking now excludes Draft and Review records by default while retaining an opt-in filter. Assessment summaries and the IGSN ranking remain unchanged."
+            },
+            {
+                "title": "Direct FAIR Improvement Actions",
+                "description": "Assessment results with curator actions now link directly to the Data Editor. Admins and Group Leaders also receive an Assistance link with the DOI filter already applied when matching pending metadata suggestions exist, while Curators remain within their authorized workflow and IGSNs remain unchanged until a dedicated editor is available."
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.0.4",
         "date": "2026-08-28",
         "features": [],

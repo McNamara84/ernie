@@ -163,3 +163,21 @@ it('uses the newest numeric creation timestamp when assistants report the same r
 
     expect(array_column($result['allAssistantResources']->items(), 'resource_id'))->toBe([10, 20]);
 });
+
+it('returns only requested resource ids affected by pending suggestions', function (): void {
+    $registrar = new AssistantRegistrar;
+    $registrar->register(reviewServiceAssistant('assistant-a', [
+        ['resource_id' => 10, 'resource_created_at_timestamp' => 100],
+        ['resource_id' => 20, 'resource_created_at_timestamp' => 200],
+    ], [
+        reviewServiceItem('assistant-a', 1, 10, 0.9, null),
+        reviewServiceItem('assistant-a', 2, 20, 0.8, null),
+    ]));
+    $service = new AssistanceReviewService(
+        $registrar,
+        new ResourceImpactFilterService(new DoiSuggestionService),
+    );
+
+    expect($service->resourceIdsWithPendingSuggestions([30, 20, 20]))->toBe([20])
+        ->and($service->resourceIdsWithPendingSuggestions([]))->toBe([]);
+});
