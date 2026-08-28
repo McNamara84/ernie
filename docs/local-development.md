@@ -196,7 +196,7 @@ npm run artisan -- resources:repair-legacy-description-breaks \
     --report=storage/app/legacy-description-breaks-applied.csv
 ```
 
-Use repeatable `--doi` or `--legacy-id` options for targeted audits. `--after-id` refers to the ERNIE `resources.id`; review the CSV before continuing with another bounded batch. Apply runs update all descriptions of one resource transactionally, reject concurrent edits, invalidate a changed published landing-page cache, and never process an already marked resource again.
+Use repeatable `--doi` or `--legacy-id` options for targeted audits. `--after-id` refers to the ERNIE `resources.id`; the command always prints the last scanned ID, including batches containing only non-legacy candidates whose CSV has no data rows. Review the CSV and use that printed ID before continuing with another bounded batch. Apply runs update all descriptions of one resource transactionally, reject concurrent edits, invalidate a changed published landing-page cache, and never process an already marked resource again.
 
 With `DATACITE_TEST_MODE=false`, every changed resource with a DOI is queued for a complete metadata synchronization through the `imports` queue. In test mode the local repair still applies but no DataCite request is made. Sync failures do not roll back local changes; retry them with the run UUID printed by the apply command:
 

@@ -244,6 +244,7 @@ erDiagram
         varchar legacy_source "50, nullable"
         bigint legacy_source_id "nullable"
         varchar legacy_source_status "50, nullable"
+        timestamp legacy_description_breaks_normalized_at "nullable"
         boolean force_review_status "default false"
         varchar workflow_status_override "20, nullable, indexed"
         timestamp created_at

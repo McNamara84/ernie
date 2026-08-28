@@ -170,6 +170,7 @@ it('matches unlinked legacy resources by DOI and ignores regular resources', fun
         'legacy_resources' => 1,
         'changed' => 1,
         'not_legacy' => 1,
+        'last_scanned_resource_id' => $regular->id,
     ])->and($result['records'])->toHaveCount(1)
         ->and($result['records'][0])->toMatchArray([
             'resource_id' => $legacy->id,
@@ -198,6 +199,38 @@ it('leaves ambiguous DOI matches for manual review', function (): void {
         'manual_review' => 1,
     ])->and($result['records'][0]['status'])->toBe('manual_review')
         ->and($resource->fresh()->legacy_description_breaks_normalized_at)->toBeNull();
+});
+
+it('preserves a committed repair and sync candidate when cache invalidation fails', function (): void {
+    Config::set('datacite.test_mode', false);
+    $resource = legacyBreakResource('10.5880/cache.failure', 175);
+    $description = legacyBreakDescription($resource, "Cache\n\nvalue");
+    $landingPage = LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+
+    $cache = Mockery::mock(LandingPageRenderDataCacheService::class);
+    $cache->shouldReceive('forgetById')
+        ->once()
+        ->with($landingPage->id)
+        ->andThrow(new RuntimeException('Redis unavailable'));
+    $service = new LegacyDescriptionBreakCleanupService(
+        new LegacyDescriptionBreakNormalizer,
+        app(DoiSuggestionService::class),
+        $cache,
+    );
+
+    $result = $service->run(apply: true, dois: ['10.5880/cache.failure']);
+
+    expect($result)->toMatchArray([
+        'changed' => 1,
+        'cache_invalidation_failures' => 1,
+        'errors' => 0,
+        'sync_resource_ids' => [$resource->id],
+    ])->and($result['records'][0])->toMatchArray([
+        'status' => 'updated',
+        'datacite_sync_status' => 'queued',
+    ])->and($result['records'][0]['message'])->toContain('cache invalidation failed')
+        ->and($description->fresh()->value)->toBe("Cache\nvalue")
+        ->and($resource->fresh()->legacy_description_breaks_normalized_at)->not->toBeNull();
 });
 
 it('rolls back a resource when a description changes concurrently', function (): void {
@@ -282,6 +315,54 @@ it('writes a report and queues full metadata synchronization after apply', funct
             ->toContain('queued');
     } finally {
         File::delete($reportPath);
+    }
+});
+
+it('prints the last scanned ID when a bounded batch contains only non-legacy resources', function (): void {
+    $resource = Resource::factory()->create([
+        'doi' => '10.5880/not-legacy-only',
+        'legacy_description_breaks_normalized_at' => null,
+    ]);
+    legacyBreakDescription($resource, "Regular\n\nvalue");
+    $reportPath = storage_path('framework/testing/legacy-breaks-empty-'.Str::uuid().'.csv');
+
+    try {
+        $this->artisan('resources:repair-legacy-description-breaks', [
+            '--limit' => 1,
+            '--report' => $reportPath,
+        ])->expectsOutputToContain("Last scanned resource ID: {$resource->id}")
+            ->assertExitCode(Command::SUCCESS);
+
+        expect(File::get($reportPath))->toBe(
+            "resource_id,doi,legacy_resource_id,match_method,status,descriptions_scanned,descriptions_changed,breaks_removed,datacite_sync_status,message\n",
+        );
+    } finally {
+        File::delete($reportPath);
+    }
+});
+
+it('dispatches durable synchronization before reporting a CSV failure', function (): void {
+    Config::set('datacite.test_mode', false);
+    Bus::fake();
+    $resource = legacyBreakResource('10.5880/report.failure', 303);
+    legacyBreakDescription($resource, "Report\n\nvalue");
+    $blockingPath = storage_path('framework/testing/legacy-breaks-blocker-'.Str::uuid());
+    File::put($blockingPath, 'not a directory');
+
+    try {
+        $this->artisan('resources:repair-legacy-description-breaks', [
+            '--apply' => true,
+            '--doi' => ['10.5880/report.failure'],
+            '--report' => $blockingPath.'/report.csv',
+        ])->expectsOutputToContain('DataCite full-metadata sync run:')
+            ->expectsOutputToContain('Unable to write repair report:')
+            ->assertExitCode(Command::FAILURE);
+
+        Bus::assertBatched(fn (PendingBatch $batch): bool => $batch->jobs->count() === 1
+            && $batch->jobs->first() instanceof SyncImportedResourcesWithDataCiteJob);
+        expect($resource->fresh()->legacy_description_breaks_normalized_at)->not->toBeNull();
+    } finally {
+        File::delete($blockingPath);
     }
 });
 

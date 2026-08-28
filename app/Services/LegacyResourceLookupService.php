@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\AmbiguousLegacyResourceException;
 use App\Models\OldDataset;
-use RuntimeException;
 
 class LegacyResourceLookupService
 {
@@ -68,7 +68,7 @@ class LegacyResourceLookupService
             ->get();
 
         if ($matches->count() > 1) {
-            throw new RuntimeException('Multiple SUMARIO resources have the same DOI.');
+            throw new AmbiguousLegacyResourceException('Multiple SUMARIO resources have the same DOI.');
         }
 
         return $matches->first();

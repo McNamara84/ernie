@@ -115,6 +115,27 @@ describe('DataCiteImportController', function () {
             ]);
         });
 
+        it('returns only the full metadata count and never the internal resource IDs', function (): void {
+            $importId = Str::uuid()->toString();
+            app(ImportProgressService::class)->beginSync(
+                ImportProgressService::TYPE_RESOURCE,
+                $importId,
+                [101, 102, 103],
+                fullMetadataResourceIds: [102, 103],
+            );
+            $progress = Cache::get("datacite_import:{$importId}");
+            expect($progress)->toBeArray();
+            assert(is_array($progress));
+            $progress['sync_full_metadata_resource_ids'] = range(1, 1000);
+            Cache::put("datacite_import:{$importId}", $progress);
+
+            $this->actingAs($this->adminUser)
+                ->getJson("/datacite/import/{$importId}/status")
+                ->assertOk()
+                ->assertJsonPath('sync_full_metadata_total', 2)
+                ->assertJsonMissingPath('sync_full_metadata_resource_ids');
+        });
+
         it('returns 404 for non-existent import', function () {
             $response = $this->actingAs($this->adminUser)
                 ->getJson('/datacite/import/a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5e/status');

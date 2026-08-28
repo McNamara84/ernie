@@ -206,6 +206,8 @@ describe('IgsnImportController', function () {
                 'enriched' => 4500,
                 'skipped_dois' => ['10.60510/SKIP001'],
                 'failed_dois' => [['doi' => '10.60510/FAIL001', 'error' => 'Test error']],
+                'sync_full_metadata_total' => 1000,
+                'sync_full_metadata_resource_ids' => range(1, 1000),
                 'started_at' => now()->toIso8601String(),
             ], 3600);
 
@@ -218,7 +220,8 @@ describe('IgsnImportController', function () {
                 'total' => 38525,
                 'processed' => 5000,
                 'enriched' => 4500,
-            ]);
+                'sync_full_metadata_total' => 1000,
+            ])->assertJsonMissingPath('sync_full_metadata_resource_ids');
         });
 
         it('returns 404 for non-existent import', function () {

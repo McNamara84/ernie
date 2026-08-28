@@ -198,6 +198,8 @@ class DataCiteImportController extends Controller
             ], 404);
         }
 
+        unset($progress['sync_full_metadata_resource_ids']);
+
         return response()->json($progress);
     }
 

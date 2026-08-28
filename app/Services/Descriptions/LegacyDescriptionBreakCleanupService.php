@@ -38,8 +38,10 @@ final class LegacyDescriptionBreakCleanupService
      *     not_legacy: int,
      *     manual_review: int,
      *     concurrent_changes: int,
+     *     cache_invalidation_failures: int,
      *     errors: int,
      *     breaks_removed: int,
+     *     last_scanned_resource_id: int|null,
      *     sync_resource_ids: list<int>,
      *     records: list<array{
      *         resource_id: int,
@@ -112,6 +114,7 @@ final class LegacyDescriptionBreakCleanupService
 
             foreach ($resources as $resource) {
                 $stats['resources_scanned']++;
+                $stats['last_scanned_resource_id'] = (int) $resource->id;
                 $match = $this->resolveMatch($resource, $legacyMatches);
 
                 if ($match['status'] === 'not_legacy') {
@@ -139,6 +142,7 @@ final class LegacyDescriptionBreakCleanupService
                     $result = $this->processResource($resource, $apply);
                     $stats['descriptions_scanned'] += $result['descriptions_scanned'];
                     $stats['breaks_removed'] += $result['breaks_removed'];
+                    $stats['cache_invalidation_failures'] += (int) $result['cache_invalidation_failed'];
 
                     if ($result['descriptions_changed'] > 0) {
                         $stats['changed']++;
@@ -162,6 +166,9 @@ final class LegacyDescriptionBreakCleanupService
                         descriptionsChanged: $result['descriptions_changed'],
                         breaksRemoved: $result['breaks_removed'],
                         dataCiteSyncStatus: $syncStatus,
+                        message: $result['cache_invalidation_failed']
+                            ? 'Landing-page cache invalidation failed; the repair remains applied and any eligible DataCite sync remains queued.'
+                            : '',
                     );
                 } catch (ConcurrentLegacyDescriptionChangeException $exception) {
                     $stats['concurrent_changes']++;
@@ -265,7 +272,7 @@ final class LegacyDescriptionBreakCleanupService
         ];
     }
 
-    /** @return array{descriptions_scanned: int, descriptions_changed: int, breaks_removed: int} */
+    /** @return array{descriptions_scanned: int, descriptions_changed: int, breaks_removed: int, cache_invalidation_failed: bool} */
     private function processResource(Resource $resource, bool $apply): array
     {
         $updates = [];
@@ -296,6 +303,7 @@ final class LegacyDescriptionBreakCleanupService
                 'descriptions_scanned' => $resource->descriptions->count(),
                 'descriptions_changed' => count($updates),
                 'breaks_removed' => $breaksRemoved,
+                'cache_invalidation_failed' => false,
             ];
         }
 
@@ -335,10 +343,30 @@ final class LegacyDescriptionBreakCleanupService
             }
         });
 
+        $cacheInvalidationFailed = false;
         if ($updates !== []) {
             $landingPage = $resource->landingPage;
             if ($landingPage !== null && $landingPage->isPublished()) {
-                $this->landingPageCache->forgetById((int) $landingPage->id);
+                $cacheInvalidationError = null;
+
+                try {
+                    $cacheInvalidationFailed = ! $this->landingPageCache->forgetById((int) $landingPage->id);
+
+                    if ($cacheInvalidationFailed) {
+                        $cacheInvalidationError = 'The cache store returned false.';
+                    }
+                } catch (Throwable $exception) {
+                    $cacheInvalidationFailed = true;
+                    $cacheInvalidationError = $exception->getMessage();
+                }
+
+                if ($cacheInvalidationFailed) {
+                    Log::warning('Legacy description repair remains applied despite landing-page cache invalidation failure', [
+                        'resource_id' => $resource->id,
+                        'landing_page_id' => $landingPage->id,
+                        'error' => $cacheInvalidationError,
+                    ]);
+                }
             }
         }
 
@@ -346,6 +374,7 @@ final class LegacyDescriptionBreakCleanupService
             'descriptions_scanned' => $resource->descriptions->count(),
             'descriptions_changed' => count($updates),
             'breaks_removed' => $breaksRemoved,
+            'cache_invalidation_failed' => $cacheInvalidationFailed,
         ];
     }
 
@@ -385,7 +414,7 @@ final class LegacyDescriptionBreakCleanupService
     }
 
     /**
-     * @return array{resources_scanned: int, legacy_resources: int, descriptions_scanned: int, changed: int, unchanged: int, not_legacy: int, manual_review: int, concurrent_changes: int, errors: int, breaks_removed: int, sync_resource_ids: list<int>, records: list<array{resource_id: int, doi: string, legacy_resource_id: int|null, match_method: string, status: string, descriptions_scanned: int, descriptions_changed: int, breaks_removed: int, datacite_sync_status: string, message: string}>}
+     * @return array{resources_scanned: int, legacy_resources: int, descriptions_scanned: int, changed: int, unchanged: int, not_legacy: int, manual_review: int, concurrent_changes: int, cache_invalidation_failures: int, errors: int, breaks_removed: int, last_scanned_resource_id: int|null, sync_resource_ids: list<int>, records: list<array{resource_id: int, doi: string, legacy_resource_id: int|null, match_method: string, status: string, descriptions_scanned: int, descriptions_changed: int, breaks_removed: int, datacite_sync_status: string, message: string}>}
      */
     private function emptyStats(): array
     {
@@ -398,8 +427,10 @@ final class LegacyDescriptionBreakCleanupService
             'not_legacy' => 0,
             'manual_review' => 0,
             'concurrent_changes' => 0,
+            'cache_invalidation_failures' => 0,
             'errors' => 0,
             'breaks_removed' => 0,
+            'last_scanned_resource_id' => null,
             'sync_resource_ids' => [],
             'records' => [],
         ];

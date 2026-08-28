@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\AmbiguousLegacyResourceException;
 use App\Services\LegacyResourceLookupService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
@@ -171,5 +172,15 @@ describe('LegacyResourceLookupService', function () {
             'legacyResourceId' => null,
             'legacyResourceStatus' => null,
         ]);
+    });
+
+    it('reports ambiguous legacy DOIs separately from connection failures', function (): void {
+        DB::connection('metaworks')->table('resource')->insert([
+            ['identifier' => '10.5880/ambiguous'],
+            ['identifier' => '10.5880/AMBIGUOUS'],
+        ]);
+
+        expect(fn () => $this->service->importMetadataByDoi('10.5880/ambiguous'))
+            ->toThrow(AmbiguousLegacyResourceException::class);
     });
 });

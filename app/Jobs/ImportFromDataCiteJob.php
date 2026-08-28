@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Enums\AccessLevel;
 use App\Enums\CitationLabelResolutionMode;
+use App\Exceptions\AmbiguousLegacyResourceException;
 use App\Models\Datacenter;
 use App\Models\Resource;
 use App\Services\Crc806LegacyRightsService;
@@ -995,6 +996,12 @@ class ImportFromDataCiteJob implements ShouldQueue
                         $legacyMetadata,
                         app(LegacyResourceLookupService::class)->importMetadataByDoi($doi),
                     );
+                } catch (AmbiguousLegacyResourceException $exception) {
+                    Log::warning('Ambiguous SUMARIO DOI while loading legacy metadata; continuing without legacy enrichment for this record.', [
+                        'import_id' => $this->importId,
+                        'doi' => $doi,
+                        'error' => $exception->getMessage(),
+                    ]);
                 } catch (\Throwable $exception) {
                     $metaworksUnavailable = true;
 

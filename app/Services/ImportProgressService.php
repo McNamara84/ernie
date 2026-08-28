@@ -43,6 +43,10 @@ class ImportProgressService
                 $progress[$name] = $value;
             }
 
+            if (array_key_exists('sync_full_metadata_total', $values)) {
+                unset($progress['sync_full_metadata_resource_ids']);
+            }
+
             Cache::put($key, $progress, now()->addHours(24));
         });
     }
@@ -70,6 +74,11 @@ class ImportProgressService
             Cache::forget($this->failureIdsKey($type, $importId));
         }
         Cache::put($this->pendingIdsKey($type, $importId), $resourceIds, now()->addHours(24));
+        Cache::put(
+            $this->fullMetadataIdsKey($type, $importId),
+            $fullMetadataResourceIds,
+            now()->addHours(24),
+        );
 
         $this->update($type, $importId, [
             'status' => 'running',
@@ -79,7 +88,7 @@ class ImportProgressService
             'sync_succeeded' => 0,
             'sync_failed' => 0,
             'sync_errors' => [],
-            'sync_full_metadata_resource_ids' => $fullMetadataResourceIds,
+            'sync_full_metadata_total' => count($fullMetadataResourceIds),
             'sync_skipped_test_mode' => false,
             'sync_retry_available' => false,
             'sync_retry' => $retry,
@@ -87,8 +96,14 @@ class ImportProgressService
         ]);
     }
 
-    public function markSyncSkipped(string $type, string $importId, int $eligibleCount): void
-    {
+    public function markSyncSkipped(
+        string $type,
+        string $importId,
+        int $eligibleCount,
+        int $fullMetadataCount = 0,
+    ): void {
+        Cache::forget($this->fullMetadataIdsKey($type, $importId));
+
         $this->update($type, $importId, [
             'status' => 'completed',
             'phase' => 'completed',
@@ -97,6 +112,7 @@ class ImportProgressService
             'sync_succeeded' => 0,
             'sync_failed' => 0,
             'sync_errors' => [],
+            'sync_full_metadata_total' => $fullMetadataCount,
             'sync_skipped_test_mode' => $eligibleCount > 0,
             'sync_retry_available' => false,
             'completed_at' => now()->toIso8601String(),
@@ -105,6 +121,8 @@ class ImportProgressService
 
     public function markCompletedWithoutSync(string $type, string $importId): void
     {
+        Cache::forget($this->fullMetadataIdsKey($type, $importId));
+
         $this->update($type, $importId, [
             'status' => 'completed',
             'phase' => 'completed',
@@ -113,6 +131,7 @@ class ImportProgressService
             'sync_succeeded' => 0,
             'sync_failed' => 0,
             'sync_errors' => [],
+            'sync_full_metadata_total' => 0,
             'sync_skipped_test_mode' => false,
             'sync_retry_available' => false,
             'completed_at' => now()->toIso8601String(),
@@ -204,8 +223,12 @@ class ImportProgressService
     /** @return list<int> */
     public function fullMetadataResourceIds(string $type, string $importId): array
     {
-        $progress = $this->get($type, $importId);
-        $ids = $progress['sync_full_metadata_resource_ids'] ?? [];
+        $ids = Cache::get($this->fullMetadataIdsKey($type, $importId));
+
+        if ($ids === null) {
+            $progress = $this->get($type, $importId);
+            $ids = $progress['sync_full_metadata_resource_ids'] ?? [];
+        }
 
         if (! is_array($ids)) {
             return [];
@@ -231,6 +254,11 @@ class ImportProgressService
     private function pendingIdsKey(string $type, string $importId): string
     {
         return "import_datacite_sync_pending:{$type}:{$importId}";
+    }
+
+    private function fullMetadataIdsKey(string $type, string $importId): string
+    {
+        return "import_datacite_sync_full_metadata:{$type}:{$importId}";
     }
 
     private function recordSyncResult(

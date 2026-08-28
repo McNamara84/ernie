@@ -100,8 +100,10 @@ it('uses full metadata synchronization for explicitly marked imported resources'
         ->toMatchArray([
             'sync_processed' => 1,
             'sync_succeeded' => 1,
-            'sync_full_metadata_resource_ids' => [$resource->id],
-        ]);
+            'sync_full_metadata_total' => 1,
+        ])->not->toHaveKey('sync_full_metadata_resource_ids')
+        ->and($progress->fullMetadataResourceIds(ImportProgressService::TYPE_RESOURCE, $this->importId))
+        ->toBe([$resource->id]);
 });
 
 it('keeps local data and exposes retryable synchronization failures', function (): void {
@@ -173,8 +175,36 @@ it('preserves full metadata synchronization when retrying failures', function ()
         ->and($progress->get(ImportProgressService::TYPE_RESOURCE, $this->importId))->toMatchArray([
             'status' => 'running',
             'sync_retry' => true,
-            'sync_full_metadata_resource_ids' => [$resource->id],
-        ]);
+            'sync_full_metadata_total' => 1,
+        ])->not->toHaveKey('sync_full_metadata_resource_ids')
+        ->and($progress->fullMetadataResourceIds(ImportProgressService::TYPE_RESOURCE, $this->importId))
+        ->toBe([$resource->id]);
+});
+
+it('can read full metadata IDs from legacy progress during a rolling deployment', function (): void {
+    Cache::put("datacite_import:{$this->importId}", [
+        'status' => 'completed',
+        'sync_full_metadata_resource_ids' => [8, 8, 9],
+    ]);
+
+    $progress = app(ImportProgressService::class);
+
+    expect($progress->fullMetadataResourceIds(
+        ImportProgressService::TYPE_RESOURCE,
+        $this->importId,
+    ))->toBe([8, 9]);
+
+    $progress->beginSync(
+        ImportProgressService::TYPE_RESOURCE,
+        $this->importId,
+        [8, 9],
+        fullMetadataResourceIds: [9],
+    );
+
+    expect($progress->get(ImportProgressService::TYPE_RESOURCE, $this->importId))
+        ->not->toHaveKey('sync_full_metadata_resource_ids')
+        ->and($progress->fullMetadataResourceIds(ImportProgressService::TYPE_RESOURCE, $this->importId))
+        ->toBe([9]);
 });
 
 it('finishes locally without dispatching DataCite jobs in test mode', function (): void {

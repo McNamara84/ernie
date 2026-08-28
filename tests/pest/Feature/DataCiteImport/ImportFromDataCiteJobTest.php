@@ -4,6 +4,7 @@ use App\Enums\CacheKey;
 use App\Enums\CitationLabelResolutionMode;
 use App\Enums\ResourceWorkflowStatus;
 use App\Enums\UserRole;
+use App\Exceptions\AmbiguousLegacyResourceException;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Datacenter;
 use App\Models\LandingPage;
@@ -750,6 +751,58 @@ describe('ImportFromDataCiteJob', function () {
         $status = Cache::get("datacite_import:{$importId}");
         expect($status['imported'])->toBe(2)
             ->and($status['failed'])->toBe(0);
+    });
+
+    it('continues legacy lookup after an ambiguous DOI without opening the metaworks circuit breaker', function (): void {
+        $records = [
+            [
+                'id' => '10.5880/ambiguous.1',
+                'attributes' => ['doi' => '10.5880/ambiguous.1'],
+            ],
+            [
+                'id' => '10.5880/legacy.2',
+                'attributes' => ['doi' => '10.5880/legacy.2'],
+            ],
+        ];
+
+        $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(2);
+        $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () use ($records) {
+            yield from $records;
+        })());
+        $this->legacyResourceLookupService
+            ->shouldReceive('importMetadataByDoi')
+            ->once()
+            ->ordered()
+            ->with('10.5880/ambiguous.1')
+            ->andThrow(new AmbiguousLegacyResourceException('duplicate DOI'));
+        $this->legacyResourceLookupService
+            ->shouldReceive('importMetadataByDoi')
+            ->once()
+            ->ordered()
+            ->with('10.5880/legacy.2')
+            ->andReturn([
+                'relatedIdentifiers' => [],
+                'subjects' => [],
+                'legacyResourceId' => 902,
+                'legacyResourceStatus' => 'released',
+            ]);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->twice()
+            ->andReturnUsing(fn (array $record): Resource => Resource::factory()->create([
+                'doi' => $record['attributes']['doi'],
+            ]));
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        $legacyResource = Resource::query()->where('doi', '10.5880/legacy.2')->firstOrFail();
+
+        expect($status['imported'])->toBe(2)
+            ->and($status['failed'])->toBe(0)
+            ->and($legacyResource->legacy_source_id)->toBe(902);
     });
 
     it('normalizes incoming DOIs before checking for duplicates', function () {
@@ -1846,8 +1899,8 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status)->toMatchArray([
                 'phase' => 'syncing',
                 'sync_total' => 1,
-                'sync_full_metadata_resource_ids' => [$resource->id],
-            ]);
+                'sync_full_metadata_total' => 1,
+            ])->not->toHaveKey('sync_full_metadata_resource_ids');
 
         Bus::assertBatched(fn ($batch): bool => $batch->jobs->count() === 1);
     });

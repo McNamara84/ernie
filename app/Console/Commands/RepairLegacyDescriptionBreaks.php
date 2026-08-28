@@ -12,6 +12,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 #[Description('Audit and repair duplicated line breaks in imported SUMARIO legacy descriptions.')]
 #[Signature('resources:repair-legacy-description-breaks
@@ -56,7 +57,7 @@ final class RepairLegacyDescriptionBreaks extends Command
             ? 'Legacy description break repair applied.'
             : 'Dry run only; no data was changed.');
         $this->table(
-            ['Scanned', 'Legacy', 'Descriptions', 'Changed', 'Unchanged', 'Not legacy', 'Manual review', 'Concurrent', 'Errors', 'Breaks removed', 'Sync candidates'],
+            ['Scanned', 'Legacy', 'Descriptions', 'Changed', 'Unchanged', 'Not legacy', 'Manual review', 'Concurrent', 'Cache failures', 'Errors', 'Breaks removed', 'Sync candidates'],
             [[
                 $result['resources_scanned'],
                 $result['legacy_resources'],
@@ -66,20 +67,20 @@ final class RepairLegacyDescriptionBreaks extends Command
                 $result['not_legacy'],
                 $result['manual_review'],
                 $result['concurrent_changes'],
+                $result['cache_invalidation_failures'],
                 $result['errors'],
                 $result['breaks_removed'],
                 count($result['sync_resource_ids']),
             ]],
         );
-
-        $reportPath = $this->option('report');
-        if (is_string($reportPath) && trim($reportPath) !== '') {
-            $this->writeCsv(trim($reportPath), $result['records']);
-            $this->info('Repair report written to '.$reportPath);
-        }
+        $this->line('Last scanned resource ID: '.($result['last_scanned_resource_id'] ?? 'none'));
 
         if ($result['manual_review'] > 0 || $result['concurrent_changes'] > 0) {
             $this->warn('Some resources were left unchanged and need review; inspect the CSV report.');
+        }
+
+        if ($result['cache_invalidation_failures'] > 0) {
+            $this->warn('Some repaired landing-page caches could not be invalidated; the repairs remain applied and eligible resources remain queued for synchronization.');
         }
 
         if ((bool) $this->option('apply') && $result['sync_resource_ids'] !== []) {
@@ -98,7 +99,20 @@ final class RepairLegacyDescriptionBreaks extends Command
             $this->info('DataCite full-metadata sync run: '.$syncRunId);
         }
 
-        return $result['errors'] > 0 ? Command::FAILURE : Command::SUCCESS;
+        $reportFailed = false;
+        $reportPath = $this->option('report');
+        if (is_string($reportPath) && trim($reportPath) !== '') {
+            try {
+                $this->writeCsv(trim($reportPath), $result['records']);
+                $this->info('Repair report written to '.$reportPath);
+            } catch (Throwable $exception) {
+                report($exception);
+                $reportFailed = true;
+                $this->error('Unable to write repair report: '.$exception->getMessage());
+            }
+        }
+
+        return $result['errors'] > 0 || $reportFailed ? Command::FAILURE : Command::SUCCESS;
     }
 
     private function retrySync(string $syncRunId): int
@@ -126,6 +140,10 @@ final class RepairLegacyDescriptionBreaks extends Command
     private function writeCsv(string $path, array $rows): void
     {
         $directory = dirname($path);
+        if (file_exists($directory) && ! is_dir($directory)) {
+            throw new RuntimeException('Report directory path is not a directory: '.$directory);
+        }
+
         if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
             throw new RuntimeException('Unable to create report directory: '.$directory);
         }

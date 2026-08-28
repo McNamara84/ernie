@@ -185,6 +185,8 @@ class IgsnImportController extends Controller
             return response()->json(['error' => 'Import not found'], 404);
         }
 
+        unset($progress['sync_full_metadata_resource_ids']);
+
         return response()->json($progress);
     }
 

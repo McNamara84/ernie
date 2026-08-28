@@ -50,7 +50,12 @@ class ImportedResourceDataCiteSyncDispatcherService
         }
 
         if (config('datacite.test_mode') !== false) {
-            $this->progressService->markSyncSkipped($type, $importId, count($resourceIds));
+            $this->progressService->markSyncSkipped(
+                $type,
+                $importId,
+                count($resourceIds),
+                count($fullMetadataResourceIds),
+            );
 
             return;
         }
