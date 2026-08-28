@@ -9,6 +9,7 @@ use App\Services\DataCiteSyncResult;
 use App\Services\DataCiteSyncService;
 use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
+use Illuminate\Bus\PendingBatch;
 use Illuminate\Contracts\Cache\Lock as LockContract;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Bus;
@@ -69,6 +70,40 @@ it('records successful synchronization separately from import counts', function 
         ]);
 });
 
+it('uses full metadata synchronization for explicitly marked imported resources', function (): void {
+    Config::set('datacite.test_mode', false);
+    $resource = Resource::factory()->create(['doi' => '10.5880/full-metadata']);
+    LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+    $progress = app(ImportProgressService::class);
+    $progress->beginSync(
+        ImportProgressService::TYPE_RESOURCE,
+        $this->importId,
+        [$resource->id],
+        fullMetadataResourceIds: [$resource->id],
+    );
+
+    $syncService = Mockery::mock(DataCiteSyncService::class);
+    $syncService->shouldReceive('syncLandingPageUrlIfRegistered')->never();
+    $syncService->shouldReceive('syncIfRegistered')
+        ->once()
+        ->withArgs(fn (Resource $candidate): bool => $candidate->is($resource))
+        ->andReturn(DataCiteSyncResult::succeeded('10.5880/full-metadata'));
+
+    (new SyncImportedResourcesWithDataCiteJob(
+        ImportProgressService::TYPE_RESOURCE,
+        $this->importId,
+        [$resource->id],
+        [$resource->id],
+    ))->handle($syncService, $progress);
+
+    expect($progress->get(ImportProgressService::TYPE_RESOURCE, $this->importId))
+        ->toMatchArray([
+            'sync_processed' => 1,
+            'sync_succeeded' => 1,
+            'sync_full_metadata_resource_ids' => [$resource->id],
+        ]);
+});
+
 it('keeps local data and exposes retryable synchronization failures', function (): void {
     Config::set('datacite.test_mode', false);
     $resource = Resource::factory()->create(['doi' => '10.5880/failure']);
@@ -99,6 +134,47 @@ it('keeps local data and exposes retryable synchronization failures', function (
     ])->and($progress->failedResourceIds(ImportProgressService::TYPE_RESOURCE, $this->importId))
         ->toBe([$resource->id])
         ->and(Resource::find($resource->id))->not->toBeNull();
+});
+
+it('preserves full metadata synchronization when retrying failures', function (): void {
+    Config::set('datacite.test_mode', false);
+    Bus::fake();
+    $resource = Resource::factory()->create(['doi' => '10.5880/full-metadata-retry']);
+    $progress = app(ImportProgressService::class);
+    $progress->beginSync(
+        ImportProgressService::TYPE_RESOURCE,
+        $this->importId,
+        [$resource->id],
+        fullMetadataResourceIds: [$resource->id],
+    );
+    $progress->recordSyncFailure(
+        ImportProgressService::TYPE_RESOURCE,
+        $this->importId,
+        $resource->id,
+        $resource->doi,
+        'Temporary failure',
+    );
+
+    $retried = app(ImportedResourceDataCiteSyncDispatcherService::class)
+        ->retryFailures(ImportProgressService::TYPE_RESOURCE, $this->importId);
+
+    Bus::assertBatched(function (PendingBatch $batch) use ($resource): bool {
+        $job = $batch->jobs->first();
+
+        if (! $job instanceof SyncImportedResourcesWithDataCiteJob) {
+            return false;
+        }
+
+        $fullMetadataResourceIds = new ReflectionProperty($job, 'fullMetadataResourceIds');
+
+        return $fullMetadataResourceIds->getValue($job) === [$resource->id];
+    });
+    expect($retried)->toBeTrue()
+        ->and($progress->get(ImportProgressService::TYPE_RESOURCE, $this->importId))->toMatchArray([
+            'status' => 'running',
+            'sync_retry' => true,
+            'sync_full_metadata_resource_ids' => [$resource->id],
+        ]);
 });
 
 it('finishes locally without dispatching DataCite jobs in test mode', function (): void {

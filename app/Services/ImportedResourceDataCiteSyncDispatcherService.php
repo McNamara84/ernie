@@ -24,10 +24,20 @@ class ImportedResourceDataCiteSyncDispatcherService
      * updates in bounded parallel queue jobs.
      *
      * @param  list<int>  $resourceIds
+     * @param  list<int>  $fullMetadataResourceIds
      */
-    public function dispatch(string $type, string $importId, array $resourceIds, bool $retry = false): void
-    {
+    public function dispatch(
+        string $type,
+        string $importId,
+        array $resourceIds,
+        bool $retry = false,
+        array $fullMetadataResourceIds = [],
+    ): void {
         $resourceIds = array_values(array_unique(array_map('intval', $resourceIds)));
+        $fullMetadataResourceIds = array_values(array_intersect(
+            $resourceIds,
+            array_unique(array_map('intval', $fullMetadataResourceIds)),
+        ));
 
         if (($this->progressService->get($type, $importId)['status'] ?? null) === 'cancelled') {
             return;
@@ -51,14 +61,23 @@ class ImportedResourceDataCiteSyncDispatcherService
             return;
         }
 
-        $this->progressService->beginSync($type, $importId, $resourceIds, $retry);
+        $this->progressService->beginSync(
+            $type,
+            $importId,
+            $resourceIds,
+            $retry,
+            $fullMetadataResourceIds,
+        );
 
         $jobs = array_map(
-            static fn (array $ids): SyncImportedResourcesWithDataCiteJob => new SyncImportedResourcesWithDataCiteJob(
-                $type,
-                $importId,
-                $ids,
-            ),
+            static function (array $ids) use ($type, $importId, $fullMetadataResourceIds): SyncImportedResourcesWithDataCiteJob {
+                return new SyncImportedResourcesWithDataCiteJob(
+                    $type,
+                    $importId,
+                    $ids,
+                    array_values(array_intersect($ids, $fullMetadataResourceIds)),
+                );
+            },
             array_chunk($resourceIds, self::CHUNK_SIZE),
         );
 
@@ -92,7 +111,12 @@ class ImportedResourceDataCiteSyncDispatcherService
             return false;
         }
 
-        $this->dispatch($type, $importId, $resourceIds, true);
+        $fullMetadataResourceIds = array_values(array_intersect(
+            $resourceIds,
+            $this->progressService->fullMetadataResourceIds($type, $importId),
+        ));
+
+        $this->dispatch($type, $importId, $resourceIds, true, $fullMetadataResourceIds);
 
         return true;
     }

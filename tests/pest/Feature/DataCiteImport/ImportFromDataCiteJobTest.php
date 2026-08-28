@@ -88,6 +88,8 @@ beforeEach(function () {
         ->andReturn([
             'relatedIdentifiers' => [],
             'subjects' => [],
+            'legacyResourceId' => null,
+            'legacyResourceStatus' => null,
         ])
         ->byDefault();
     $this->app->instance(LegacyResourceLookupService::class, $this->legacyResourceLookupService);
@@ -1775,6 +1777,78 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['imported'])->toBe(1)
             ->and($status['failed'])->toBe(0)
             ->and($status['sync_total'])->toBe(1);
+        Bus::assertBatched(fn ($batch): bool => $batch->jobs->count() === 1);
+    });
+
+    it('normalizes and marks published SUMARIO resources imported through DataCite', function () {
+        Config::set('datacite.test_mode', false);
+        Bus::fake();
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/legacy.description.breaks',
+                    'attributes' => [
+                        'doi' => '10.5880/legacy.description.breaks',
+                        'state' => 'findable',
+                        'titles' => [['title' => 'Legacy Description Breaks']],
+                        'descriptions' => [[
+                            'descriptionType' => 'Abstract',
+                            'description' => 'First<br> <br><br><br>Second',
+                        ]],
+                    ],
+                ];
+            })());
+        $this->legacyResourceLookupService
+            ->shouldReceive('importMetadataByDoi')
+            ->once()
+            ->with('10.5880/legacy.description.breaks')
+            ->andReturn([
+                'relatedIdentifiers' => [],
+                'subjects' => [],
+                'legacyResourceId' => 991,
+                'legacyResourceStatus' => 'released',
+            ]);
+        $this->transformer
+            ->shouldReceive('prepareDoiData')
+            ->once()
+            ->withArgs(function (array $record): bool {
+                expect($record['attributes']['descriptions'][0]['description'])
+                    ->toBe('First<br><br>Second');
+
+                return true;
+            })
+            ->andReturnUsing(fn (array $record): array => $record);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create([
+                'doi' => '10.5880/legacy.description.breaks',
+            ]));
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $resource = Resource::query()->where('doi', '10.5880/legacy.description.breaks')->sole();
+        $status = Cache::get("datacite_import:{$importId}");
+
+        expect($resource->legacy_source)->toBe('sumario-pmd')
+            ->and($resource->legacy_source_id)->toBe(991)
+            ->and($resource->legacy_source_status)->toBe('released')
+            ->and($resource->legacy_description_breaks_normalized_at)->not->toBeNull()
+            ->and($status)->toMatchArray([
+                'phase' => 'syncing',
+                'sync_total' => 1,
+                'sync_full_metadata_resource_ids' => [$resource->id],
+            ]);
+
         Bus::assertBatched(fn ($batch): bool => $batch->jobs->count() === 1);
     });
 

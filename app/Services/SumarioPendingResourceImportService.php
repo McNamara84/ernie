@@ -10,6 +10,7 @@ use App\Models\Datacenter;
 use App\Models\OldDataset;
 use App\Models\Resource;
 use App\Support\LanguageTag;
+use App\Support\LegacyDescriptionBreakNormalizer;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -23,6 +24,7 @@ class SumarioPendingResourceImportService
         private readonly LegacyLandingPageImportService $landingPageImport,
         private readonly DoiSuggestionService $doiSuggestionService,
         private ?LegacyResourceTypeResolverService $resourceTypeResolver = null,
+        private ?LegacyDescriptionBreakNormalizer $descriptionBreakNormalizer = null,
     ) {}
 
     public function countImportablePending(): int
@@ -246,6 +248,7 @@ class SumarioPendingResourceImportService
             'legacy_source' => 'sumario-pmd',
             'legacy_source_id' => $oldDataset->id,
             'legacy_source_status' => $oldDataset->publicstatus,
+            'legacy_description_breaks_normalized_at' => now(),
             'force_review_status' => $doi !== null,
             'workflow_status_override' => $doi === null
                 ? ResourceWorkflowStatus::DRAFT
@@ -420,9 +423,12 @@ class SumarioPendingResourceImportService
                 continue;
             }
 
+            $normalizedValue = ($this->descriptionBreakNormalizer ??= new LegacyDescriptionBreakNormalizer)
+                ->normalizeStoredValue($value)['value'];
+
             $normalised[] = [
                 'descriptionType' => Str::kebab((string) ($description['descriptionType'] ?? $description['type'] ?? 'abstract')),
-                'description' => $value,
+                'description' => $normalizedValue,
                 'language' => LanguageTag::validOrNull($description['language'] ?? null),
             ];
         }

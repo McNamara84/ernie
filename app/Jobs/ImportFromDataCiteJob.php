@@ -26,6 +26,7 @@ use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
 use App\Services\SumarioPmdCoverageEnrichmentService;
 use App\Services\Xml\OriginalDataCiteSubjectExtractionService;
+use App\Support\LegacyDescriptionBreakNormalizer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\QueryException;
@@ -65,6 +66,9 @@ class ImportFromDataCiteJob implements ShouldQueue
 
     /** @var list<int> */
     private array $resourceIdsForDataCiteSync = [];
+
+    /** @var list<int> */
+    private array $resourceIdsForFullDataCiteSync = [];
 
     private ?Crc806LegacyRightsService $crc806LegacyRightsService = null;
 
@@ -981,12 +985,16 @@ class ImportFromDataCiteJob implements ShouldQueue
             $legacyMetadata = [
                 'relatedIdentifiers' => [],
                 'subjects' => [],
+                'legacyResourceId' => null,
+                'legacyResourceStatus' => null,
             ];
 
             if ($shouldLookupMetaworks) {
                 try {
-                    $legacyMetadata = app(LegacyResourceLookupService::class)
-                        ->importMetadataByDoi($doi);
+                    $legacyMetadata = array_replace(
+                        $legacyMetadata,
+                        app(LegacyResourceLookupService::class)->importMetadataByDoi($doi),
+                    );
                 } catch (\Throwable $exception) {
                     $metaworksUnavailable = true;
 
@@ -996,6 +1004,20 @@ class ImportFromDataCiteJob implements ShouldQueue
                         'error' => $exception->getMessage(),
                     ]);
                 }
+            }
+
+            $legacyResourceId = is_int($legacyMetadata['legacyResourceId'] ?? null)
+                ? $legacyMetadata['legacyResourceId']
+                : null;
+            $legacyResourceStatus = is_string($legacyMetadata['legacyResourceStatus'] ?? null)
+                ? $legacyMetadata['legacyResourceStatus']
+                : null;
+
+            $legacyBreakReplacements = 0;
+            if ($legacyResourceId !== null) {
+                $normalizedLegacyDescriptions = $this->normalizeLegacyDescriptionBreaks($doiRecord);
+                $doiRecord = $normalizedLegacyDescriptions['record'];
+                $legacyBreakReplacements = $normalizedLegacyDescriptions['replacements'];
             }
 
             $doiRecord = app(DataCiteSubjectMergeService::class)->mergeIntoDoiRecord(
@@ -1023,12 +1045,21 @@ class ImportFromDataCiteJob implements ShouldQueue
             // 2. INSERT IGNORE would silently succeed, making it impossible to track skips
             // 3. The unique constraint on DOI provides protection against race conditions
             // 4. Most imports won't have many duplicates, so the SELECT overhead is minimal
-            $result = DB::transaction(function () use ($transformer, $preparedDoiRecord, $doi) {
+            $result = DB::transaction(function () use ($transformer, $preparedDoiRecord, $doi, $legacyResourceId, $legacyResourceStatus) {
                 if (Resource::where('doi', $doi)->exists()) {
                     return ['status' => 'skipped', 'resource' => null];
                 }
 
                 $resource = $transformer->transform($preparedDoiRecord, $this->userId);
+
+                if ($legacyResourceId !== null) {
+                    $resource->forceFill([
+                        'legacy_source' => 'sumario-pmd',
+                        'legacy_source_id' => $legacyResourceId,
+                        'legacy_source_status' => $legacyResourceStatus,
+                        'legacy_description_breaks_normalized_at' => now(),
+                    ])->save();
+                }
 
                 return ['status' => 'imported', 'resource' => $resource];
             });
@@ -1079,6 +1110,11 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             if ($dataCiteLandingPageSync['sync_eligible'] || $legacyDownloadSync['sync_eligible']) {
                 $this->resourceIdsForDataCiteSync[] = (int) $importedResource->id;
+            }
+
+            if ($legacyBreakReplacements > 0) {
+                $this->resourceIdsForDataCiteSync[] = (int) $importedResource->id;
+                $this->resourceIdsForFullDataCiteSync[] = (int) $importedResource->id;
             }
 
             Log::debug('Imported DOI', ['doi' => $doi]);
@@ -1503,7 +1539,44 @@ class ImportFromDataCiteJob implements ShouldQueue
             ImportProgressService::TYPE_RESOURCE,
             $this->importId,
             $this->resourceIdsForDataCiteSync,
+            fullMetadataResourceIds: $this->resourceIdsForFullDataCiteSync,
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $doiRecord
+     * @return array{record: array<string, mixed>, replacements: int}
+     */
+    private function normalizeLegacyDescriptionBreaks(array $doiRecord): array
+    {
+        $hasAttributes = is_array($doiRecord['attributes'] ?? null);
+        $attributes = $hasAttributes ? $doiRecord['attributes'] : $doiRecord;
+        $descriptions = $attributes['descriptions'] ?? null;
+
+        if (! is_array($descriptions)) {
+            return ['record' => $doiRecord, 'replacements' => 0];
+        }
+
+        $replacements = 0;
+        $normalizer = new LegacyDescriptionBreakNormalizer;
+
+        foreach ($descriptions as $index => $description) {
+            if (! is_array($description) || ! is_string($description['description'] ?? null)) {
+                continue;
+            }
+
+            $normalized = $normalizer->normalizeStoredValue($description['description']);
+            $attributes['descriptions'][$index]['description'] = $normalized['value'];
+            $replacements += $normalized['replacements'];
+        }
+
+        if ($hasAttributes) {
+            $doiRecord['attributes'] = $attributes;
+        } else {
+            $doiRecord = $attributes;
+        }
+
+        return ['record' => $doiRecord, 'replacements' => $replacements];
     }
 
     /**

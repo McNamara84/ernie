@@ -49,10 +49,20 @@ class ImportProgressService
 
     /**
      * @param  list<int>  $resourceIds
+     * @param  list<int>  $fullMetadataResourceIds
      */
-    public function beginSync(string $type, string $importId, array $resourceIds, bool $retry = false): void
-    {
+    public function beginSync(
+        string $type,
+        string $importId,
+        array $resourceIds,
+        bool $retry = false,
+        array $fullMetadataResourceIds = [],
+    ): void {
         $resourceIds = array_values(array_unique(array_map('intval', $resourceIds)));
+        $fullMetadataResourceIds = array_values(array_intersect(
+            $resourceIds,
+            array_unique(array_map('intval', $fullMetadataResourceIds)),
+        ));
 
         if ($retry) {
             Cache::put($this->failureIdsKey($type, $importId), [], now()->addHours(24));
@@ -69,6 +79,7 @@ class ImportProgressService
             'sync_succeeded' => 0,
             'sync_failed' => 0,
             'sync_errors' => [],
+            'sync_full_metadata_resource_ids' => $fullMetadataResourceIds,
             'sync_skipped_test_mode' => false,
             'sync_retry_available' => false,
             'sync_retry' => $retry,
@@ -182,6 +193,19 @@ class ImportProgressService
     public function failedResourceIds(string $type, string $importId): array
     {
         $ids = Cache::get($this->failureIdsKey($type, $importId), []);
+
+        if (! is_array($ids)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    /** @return list<int> */
+    public function fullMetadataResourceIds(string $type, string $importId): array
+    {
+        $progress = $this->get($type, $importId);
+        $ids = $progress['sync_full_metadata_resource_ids'] ?? [];
 
         if (! is_array($ids)) {
             return [];

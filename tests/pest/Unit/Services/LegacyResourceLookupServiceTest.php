@@ -22,6 +22,7 @@ beforeEach(function () {
     Schema::connection('metaworks')->create('resource', function (Blueprint $table): void {
         $table->id();
         $table->string('identifier')->nullable();
+        $table->string('publicstatus')->nullable();
         $table->text('keywords')->nullable();
     });
     Schema::connection('metaworks')->create('relatedidentifier', function (Blueprint $table): void {
@@ -119,6 +120,7 @@ describe('LegacyResourceLookupService', function () {
     it('returns related identifiers and both keyword types as import metadata', function () {
         $resourceId = DB::connection('metaworks')->table('resource')->insertGetId([
             'identifier' => '10.5880/GFZ.LKUT.2026.004',
+            'publicstatus' => 'released',
             'keywords' => 'GNSS, Crustal deformation',
         ]);
         DB::connection('metaworks')->table('relatedidentifier')->insert([
@@ -157,6 +159,8 @@ describe('LegacyResourceLookupService', function () {
                 ['subject' => 'GNSS'],
                 ['subject' => 'Crustal deformation'],
             ],
+            'legacyResourceId' => $resourceId,
+            'legacyResourceStatus' => 'released',
         ]);
     });
 
@@ -164,6 +168,8 @@ describe('LegacyResourceLookupService', function () {
         expect($this->service->importMetadataByDoi('10.5880/missing'))->toBe([
             'relatedIdentifiers' => [],
             'subjects' => [],
+            'legacyResourceId' => null,
+            'legacyResourceStatus' => null,
         ]);
     });
 });
