@@ -115,6 +115,7 @@ describe('index', function () {
                 ->where('fujiHealthy', true)
                 ->where('fujiStatusMessage', null)
                 ->where('canRunAssessments', true)
+                ->where('canAccessAssistance', true)
                 ->where('showImprovementActorLabels', true)
                 ->where('includeExternalResources', false)
                 ->where('includeDraftReviewResources', false)
@@ -156,7 +157,11 @@ describe('index', function () {
             ->assertRedirect('/login');
     });
 
-    it('returns the assessment page to group leaders and curators with role-appropriate display permissions', function (string $role, bool $canRun): void {
+    it('returns the assessment page to group leaders and curators with role-appropriate display permissions', function (
+        string $role,
+        bool $canRun,
+        bool $canAccessAssistance,
+    ): void {
         $user = User::factory()->create(['role' => $role]);
 
         $this->actingAs($user)
@@ -165,11 +170,12 @@ describe('index', function () {
             ->assertInertia(fn ($page) => $page
                 ->where('auth.user.can_access_assessment', true)
                 ->where('canRunAssessments', $canRun)
+                ->where('canAccessAssistance', $canAccessAssistance)
                 ->where('showImprovementActorLabels', false)
             );
     })->with([
-        'group leader' => ['group_leader', true],
-        'curator' => ['curator', false],
+        'group leader' => ['group_leader', true, true],
+        'curator' => ['curator', false, false],
     ]);
 
     it('forbids beginners from accessing assessment', function () {

@@ -704,9 +704,10 @@ reason.
       either assessment summary or the IGSN ranking.
 
 - [ ] A Resource with a Curator action links to its Data Editor record.
-      `Check Assistant` appears only when that Resource also has pending suggestions
-      and opens Assistance with the exact DOI filter; neither action is offered
-      for IGSNs.
+      `Check Assistant` appears only for Admins and Group Leaders when that
+      Resource also has pending suggestions and opens Assistance with the exact
+      DOI filter. Curators retain the Data Editor action without receiving a
+      forbidden Assistance link; neither action is offered for IGSNs.
 
 - [ ] Both Assessment tables show the letter for the largest raw F-UJI gap (`F`,
       `A`, `I`, or `R`) for usable results; color, accessible name, and tooltip

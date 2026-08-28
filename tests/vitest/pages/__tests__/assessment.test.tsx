@@ -75,6 +75,7 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
         fujiStatusMessage: null,
         fujiStatusCode: null,
         canRunAssessments: true,
+        canAccessAssistance: true,
         showImprovementActorLabels: true,
         includeExternalResources: false,
         includeDraftReviewResources: false,
@@ -405,34 +406,31 @@ describe('Assessment page', () => {
             suggestions: [{ key: 'license', actor: 'curator', text: 'Add a license.' }],
         } satisfies FairImprovementOpportunity;
 
-        render(
-            <AssessmentPage
-                {...makeProps({
-                    resourcesNeedingAttention: [
-                        {
-                            ...makeProps().resourcesNeedingAttention[0],
-                            hasPendingSuggestions: true,
-                            improvementOpportunity: curatorOpportunity,
-                        },
-                        {
-                            ...makeProps().resourcesNeedingAttention[0],
-                            id: 3,
-                            doi: '10.5880/test.003',
-                            mainTitle: 'Curator action without pending suggestions',
-                            hasPendingSuggestions: false,
-                            improvementOpportunity: curatorOpportunity,
-                        },
-                    ],
-                    igsnsNeedingAttention: [
-                        {
-                            ...makeProps().igsnsNeedingAttention[0],
-                            hasPendingSuggestions: true,
-                            improvementOpportunity: curatorOpportunity,
-                        },
-                    ],
-                })}
-            />,
-        );
+        const props = makeProps({
+            resourcesNeedingAttention: [
+                {
+                    ...makeProps().resourcesNeedingAttention[0],
+                    hasPendingSuggestions: true,
+                    improvementOpportunity: curatorOpportunity,
+                },
+                {
+                    ...makeProps().resourcesNeedingAttention[0],
+                    id: 3,
+                    doi: '10.5880/test.003',
+                    mainTitle: 'Curator action without pending suggestions',
+                    hasPendingSuggestions: false,
+                    improvementOpportunity: curatorOpportunity,
+                },
+            ],
+            igsnsNeedingAttention: [
+                {
+                    ...makeProps().igsnsNeedingAttention[0],
+                    hasPendingSuggestions: true,
+                    improvementOpportunity: curatorOpportunity,
+                },
+            ],
+        });
+        const view = render(<AssessmentPage {...props} />);
 
         const editorLinks = screen.getAllByRole('link', { name: 'Open in Data Editor' });
 
@@ -441,6 +439,11 @@ describe('Assessment page', () => {
         expect(editorLinks[1]).toHaveAttribute('href', '/editor?resourceId=3');
         expect(screen.getByRole('link', { name: 'Check Assistant' })).toHaveAttribute('href', '/assistance?doi=10.5880%2Ftest.001');
         expect(screen.getAllByRole('link', { name: /Open in Data Editor|Check Assistant/ })).toHaveLength(3);
+
+        view.rerender(<AssessmentPage {...props} canAccessAssistance={false} />);
+
+        expect(screen.getAllByRole('link', { name: 'Open in Data Editor' })).toHaveLength(2);
+        expect(screen.queryByRole('link', { name: 'Check Assistant' })).not.toBeInTheDocument();
     });
 
     it('does not offer Assistant navigation without pending suggestions or a curator action', () => {

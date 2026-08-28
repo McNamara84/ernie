@@ -86,7 +86,16 @@ const igsnEntry: AssessmentEntry = {
 
 describe('Assessment FAIR opportunity integration', () => {
     it('places the FAIR opportunity column between title and score', () => {
-        render(<AssessmentTable entries={[resourceEntry]} summary={summary} scope="resource" canRunAssessments showImprovementActorLabels />);
+        render(
+            <AssessmentTable
+                entries={[resourceEntry]}
+                summary={summary}
+                scope="resource"
+                canRunAssessments
+                canAccessAssistance
+                showImprovementActorLabels
+            />,
+        );
 
         const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
 
@@ -102,6 +111,7 @@ describe('Assessment FAIR opportunity integration', () => {
                 fujiStatusMessage={null}
                 fujiStatusCode={200}
                 canRunAssessments
+                canAccessAssistance
                 showImprovementActorLabels
                 includeExternalResources={false}
                 includeDraftReviewResources={false}
@@ -127,6 +137,7 @@ describe('Assessment FAIR opportunity integration', () => {
             fujiStatusMessage: null,
             fujiStatusCode: 200,
             canRunAssessments: true,
+            canAccessAssistance: true,
             includeExternalResources: false,
             includeDraftReviewResources: false,
             resourcesNeedingAttention: [resourceEntry],

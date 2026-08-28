@@ -55,6 +55,7 @@ class AssessmentController extends Controller
             'fujiStatusMessage' => $fujiHealth['message'],
             'fujiStatusCode' => $fujiHealth['statusCode'],
             'canRunAssessments' => $request->user()?->can('run-assessment') ?? false,
+            'canAccessAssistance' => $request->user()?->can('access-assistance') ?? false,
             'showImprovementActorLabels' => $request->user()?->role === UserRole::ADMIN,
             'includeExternalResources' => $includeExternalResources,
             'includeDraftReviewResources' => $includeDraftReviewResources,

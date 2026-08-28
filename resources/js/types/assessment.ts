@@ -73,6 +73,7 @@ export interface AssessmentPageProps {
     fujiStatusMessage: string | null;
     fujiStatusCode: number | null;
     canRunAssessments: boolean;
+    canAccessAssistance: boolean;
     showImprovementActorLabels: boolean;
     includeExternalResources: boolean;
     includeDraftReviewResources: boolean;

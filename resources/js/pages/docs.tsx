@@ -799,9 +799,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             attention cards and to their assessed, failed, skipped, and remaining summaries.
                         </p>
                         <p>
-                            The DOI and Datacenter filters can be combined with <strong>Include resources with external landing pages</strong>. They
-                            change only the displayed results and summaries: starting a check still assesses its full selected scope, and the FAIR
-                            averages shown in the sidebar remain global.
+                            The DOI and Datacenter filters can be combined with the Resource-only ranking options{' '}
+                            <strong>Include resources with external landing pages</strong> and{' '}
+                            <strong>Include resources with Draft or Review status</strong>. DOI and Datacenter change the displayed results and
+                            summaries; the two Include options change only the Resource attention ranking. Starting a check still assesses its full
+                            selected scope, and the FAIR averages shown in the sidebar remain global.
                         </p>
 
                         <h4>What the Dashboard Shows</h4>
@@ -833,6 +835,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             selects the 10 lowest scores, so the list is refilled with the next eligible Resources instead of becoming empty. The
                             filter does not change the IGSN ranking, scope summaries, or sidebar averages.
                         </p>
+                        <p>
+                            Resources with <strong>Draft</strong> or <strong>Review</strong> status are also excluded from the Resource ranking by
+                            default because records still in those workflow stages may not yet satisfy the FAIR criteria. Use{' '}
+                            <strong>Include resources with Draft or Review status</strong> to include them again. Like the external-landing-page
+                            option, this filter is applied before the 10 lowest scores are selected and does not change the IGSN ranking, scope
+                            summaries, or sidebar averages.
+                        </p>
 
                         <h4>Improvement Guidance</h4>
                         <p>
@@ -846,6 +855,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Digital Resources and physical-sample IGSNs use separate guidance. Dataset-oriented checks for downloads, file sizes, and
                             file formats can still contribute to an IGSN's remaining FAIR opportunity, but ERNIE explains that scope difference
                             instead of asking you to add digital-file metadata to a physical sample.
+                        </p>
+                        <p>
+                            When a Resource has a verified Curator action, use <strong>Open in Data Editor</strong> to load that record directly.
+                            Admins and Group Leaders also see <strong>Check Assistant</strong> when the Resource's DOI has pending Assistance
+                            suggestions; the link opens Assistance with that exact DOI filter. Curators do not see this link because Assistance is
+                            restricted to Admins and Group Leaders. These action links are not shown for IGSNs until a dedicated editor is available.
                         </p>
                         <p>
                             If tracked ERNIE record, landing-page, or IGSN state changed after the stored assessment, the letter keeps showing the

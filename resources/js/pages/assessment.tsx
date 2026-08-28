@@ -131,6 +131,7 @@ export function AssessmentTable({
     summary,
     scope,
     canRunAssessments,
+    canAccessAssistance,
     showImprovementActorLabels,
     hasActiveFilters = false,
 }: {
@@ -138,6 +139,7 @@ export function AssessmentTable({
     summary: AssessmentSummary;
     scope: AssessmentScope;
     canRunAssessments: boolean;
+    canAccessAssistance: boolean;
     showImprovementActorLabels: boolean;
     hasActiveFilters?: boolean;
 }) {
@@ -178,7 +180,7 @@ export function AssessmentTable({
                                     >
                                         Open in Data Editor
                                     </Link>
-                                    {entry.doi !== null && entry.hasPendingSuggestions && (
+                                    {canAccessAssistance && entry.doi !== null && entry.hasPendingSuggestions && (
                                         <Link
                                             href={assistanceUrl(entry.doi)}
                                             className="text-primary underline underline-offset-4 hover:text-primary/80"
@@ -206,6 +208,7 @@ export default function Assessment({
     fujiStatusMessage,
     fujiStatusCode,
     canRunAssessments,
+    canAccessAssistance,
     showImprovementActorLabels,
     includeExternalResources,
     includeDraftReviewResources,
@@ -523,6 +526,7 @@ export default function Assessment({
                                 summary={resourceAssessmentSummary}
                                 scope="resource"
                                 canRunAssessments={canRunAssessments}
+                                canAccessAssistance={canAccessAssistance}
                                 showImprovementActorLabels={showImprovementActorLabels}
                                 hasActiveFilters={hasActiveFilters}
                             />
@@ -553,6 +557,7 @@ export default function Assessment({
                                 summary={igsnAssessmentSummary}
                                 scope="igsn"
                                 canRunAssessments={canRunAssessments}
+                                canAccessAssistance={canAccessAssistance}
                                 showImprovementActorLabels={showImprovementActorLabels}
                                 hasActiveFilters={hasActiveFilters}
                             />

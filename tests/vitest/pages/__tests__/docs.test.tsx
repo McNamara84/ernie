@@ -334,6 +334,7 @@ describe('Docs page', () => {
         expect(screen.getByText('Review current results')).toBeInTheDocument();
         expect(screen.getByText(/Curators have read-only access to the latest results/)).toBeInTheDocument();
         expect(screen.queryByText('Start a check')).not.toBeInTheDocument();
+        expect(screen.getByText(/Curators do not see this link because Assistance is restricted to Admins and Group Leaders/)).toBeInTheDocument();
         expect(
             screen.getByText((_, element) => {
                 if (element?.tagName !== 'P') {
@@ -393,10 +394,10 @@ describe('Docs page', () => {
                 return text.includes('The Datacenter dropdown lists only datacenters represented by stored assessment results');
             }),
         ).toBeInTheDocument();
-        expect(screen.getByText(/starting a check still assesses its full selected scope/)).toBeInTheDocument();
+        expect(screen.getByText(/starting a check still assesses its full selected scope/i)).toBeInTheDocument();
     });
 
-    it('shows group leaders the Assessment run workflow and documents the default external-resource filter', () => {
+    it('shows group leaders the Assessment run workflow and documents both default Resource ranking filters', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         expect(screen.getByText('Start a check')).toBeInTheDocument();
@@ -413,6 +414,36 @@ describe('Docs page', () => {
                     text.includes('external landing page are excluded from the Resource ranking by default') &&
                     text.includes('applies this filter before it selects the 10 lowest scores') &&
                     text.includes('does not change the IGSN ranking')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('Draft or Review status are also excluded from the Resource ranking by default') &&
+                    text.includes('applied before the 10 lowest scores are selected') &&
+                    text.includes('does not change the IGSN ranking, scope summaries, or sidebar averages')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('Open in Data Editor') &&
+                    text.includes('Admins and Group Leaders also see Check Assistant') &&
+                    text.includes('opens Assistance with that exact DOI filter')
                 );
             }),
         ).toBeInTheDocument();

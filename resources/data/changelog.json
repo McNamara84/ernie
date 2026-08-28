@@ -10,7 +10,7 @@
             },
             {
                 "title": "Direct FAIR Improvement Actions",
-                "description": "Assessment results with curator actions now link directly to the Data Editor. Records with matching pending metadata suggestions also link to Assistance with their DOI filter already applied, while IGSNs remain unchanged until a dedicated editor is available."
+                "description": "Assessment results with curator actions now link directly to the Data Editor. Admins and Group Leaders also receive an Assistance link with the DOI filter already applied when matching pending metadata suggestions exist, while Curators remain within their authorized workflow and IGSNs remain unchanged until a dedicated editor is available."
             }
         ],
         "fixes": []
