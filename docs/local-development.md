@@ -8,7 +8,7 @@ ERNIE uses a Docker-first local workflow.
 - Optional profiles are available for assessment-specific and parity-specific work.
 - Canonical validation entry points remain `npm run check:backend`, `npm run check:frontend`, and `npm run check:parity`.
 
-Host-side frontend commands require local `node_modules` in the repository checkout. Run `npm install` once after cloning and again whenever frontend dependencies change.
+Host-side frontend commands require local `node_modules` in the repository checkout. Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm install` only when intentionally adding or updating dependencies so npm can update the lockfile.
 
 | Mode               | Purpose                                                                                                                                                   | Command                         |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
@@ -71,7 +71,7 @@ If the repository stays under `D:\` or another NTFS path:
 3. Install host-side Node dependencies for frontend validation.
 
     ```bash
-    npm install
+    npm ci
     ```
 
     This installs the local `node_modules` required by ESLint, TypeScript, Vitest, OpenAPI linting, and Playwright.
@@ -97,7 +97,7 @@ If the repository stays under `D:\` or another NTFS path:
     npm run artisan -- add-user "Admin Name" admin@example.com SecurePassword
     ```
 
-The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm install` step above.
+The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm ci` step above.
 
 For day-to-day Laravel commands, use the npm wrappers. They run inside the app container, and generated files are written into the bind-mounted repository, so they still appear in your host checkout:
 
@@ -135,14 +135,14 @@ npm run docker:dev:parity
 | Task                                             | Recommended place              | Command                                             |
 | ------------------------------------------------ | ------------------------------ | --------------------------------------------------- |
 | Start the core stack                             | Host shell                     | `npm run docker:dev:up`                             |
-| Install host-side frontend dependencies          | Host shell                     | `npm install`                                       |
+| Install host-side frontend dependencies          | Host shell                     | `npm ci`                                            |
 | Start the backend services needed for PHP checks | Host shell                     | `npm run docker:dev:backend:d`                      |
 | Stop the stack                                   | Host shell                     | `npm run docker:dev:down`                           |
 | Reset Docker volumes                             | Host shell                     | `npm run docker:dev:reset`                          |
 | Laravel Artisan                                  | npm wrapper into app container | `npm run artisan -- <command>`                      |
 | Example controller generator                     | npm wrapper into app container | `npm run artisan -- make:controller TestController` |
 | Composer                                         | npm wrapper into app container | `npm run composer:app -- <command>`                 |
-| Pest                                             | Host shell via npm wrapper     | `npm run test:php`                                  |
+| Pest (2 GB, optimized complete suite)            | Host shell via npm wrapper     | `npm run test:php`                                  |
 | Pest deprecation details                         | Host shell via npm wrapper     | `npm run test:php:deprecations`                     |
 | MySQL-sensitive Pest slice                       | Host shell via npm wrapper     | `npm run test:php:mysql-sensitive`                  |
 | PHPStan                                          | Host shell via npm wrapper     | `npm run phpstan:check`                             |
@@ -162,6 +162,10 @@ npm run docker:dev:parity
 - The development entrypoint copies `.env.docker` to `.env` when `.env` does not already exist.
 - The npm Docker wrappers always pass `--env-file .env.docker` so Compose and Laravel use the same source of truth.
 - Docker-managed `node_modules` live in the named Docker volume, not in your host checkout.
+- Complete Pest runs copy the current checkout into the Docker-managed
+  `ernie-pest-workspace` volume before execution. This avoids repeated
+  Windows/macOS bind-mount reads while leaving the development source mount and
+  focused test workflow unchanged.
 
 ### DataCite import mode
 

@@ -39,6 +39,10 @@ services:
       # Persist vendor/node_modules for better performance
       - ernie-vendor:/var/www/html/vendor
       - ernie-node-modules:/var/www/html/node_modules
+      # Run the complete Pest suite from Linux-native storage. This avoids the
+      # severe per-file bind-mount penalty of Docker Desktop on Windows/macOS.
+      - ernie-pest-workspace:/var/www/pest-workspace
+      - ernie-vendor:/var/www/pest-workspace/vendor
       # PHP config
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
     networks:
@@ -309,4 +313,6 @@ volumes:
   ernie-vendor:
     driver: local
   ernie-node-modules:
+    driver: local
+  ernie-pest-workspace:
     driver: local

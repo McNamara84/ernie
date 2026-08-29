@@ -1,11 +1,41 @@
+import { availableParallelism } from 'node:os';
+
 import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
 
+export function resolveVitestMaxWorkers(
+    isCi = Boolean(process.env.CI),
+    configuredWorkers = process.env.ERNIE_VITEST_WORKERS,
+    availableCpus?: number,
+): number | undefined {
+    if (isCi) {
+        return undefined;
+    }
+
+    const normalizedWorkers = configuredWorkers?.trim();
+
+    if (!normalizedWorkers) {
+        availableCpus ??= availableParallelism();
+
+        return Math.max(1, Math.min(8, Math.floor(availableCpus / 2)));
+    }
+
+    const workers = Number(normalizedWorkers);
+
+    if (!Number.isSafeInteger(workers) || workers < 1) {
+        throw new Error('ERNIE_VITEST_WORKERS must be a positive integer.');
+    }
+
+    return workers;
+}
+
 export default defineConfig(({ command }) => {
     const viteServerPort = parseInt(process.env.VITE_SERVER_PORT ?? '5173');
+    const isCi = Boolean(process.env.CI);
+    const vitestMaxWorkers = resolveVitestMaxWorkers(isCi);
     const isDev = command === 'serve';
     const wayfinderCommand = process.env.WAYFINDER_COMMAND ?? 'php artisan ernie:wayfinder-generate';
 
@@ -77,8 +107,10 @@ export default defineConfig(({ command }) => {
         test: {
             environment: 'jsdom',
             // Threads are 25-30% faster locally, while GitHub-hosted runners
-            // perform better with the process-isolated fork pool.
-            pool: process.env.CI ? 'forks' : 'threads',
+            // perform better with the process-isolated fork pool. Capping the
+            // local pool avoids oversubscribing CPU-heavy jsdom form suites.
+            pool: isCi ? 'forks' : 'threads',
+            maxWorkers: vitestMaxWorkers,
             clearMocks: true,
             environmentOptions: {
                 jsdom: {

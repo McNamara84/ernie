@@ -127,7 +127,7 @@ composer install
 4. Install host-side Node dependencies for frontend validation:
 
 ```
-   npm install
+   npm ci
 ```
 
    This installs the local `node_modules` required by ESLint, TypeScript, Vitest, OpenAPI linting, and Playwright.
@@ -181,7 +181,7 @@ composer install
 
    This one-time download is required after the feature is first deployed. An administrator can alternatively run the first update from the Thesauri card under Editor Settings. Until it succeeds, MSL Laboratories remains unavailable to ERNIE and ELMO even if its consumer toggles are enabled.
 
-The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm install` step above.
+The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm ci` step above.
 
 For day-to-day Laravel commands, use the running app container instead of installing Composer dependencies on the host. For example:
 
@@ -251,7 +251,7 @@ sudo chown -R "$USER":"$USER" storage bootstrap/cache
 
 This is a Linux bind-mount effect. Docker Desktop on macOS and Windows remaps ownership and generally does not need this step.
 
-> **Tip:** Run the host-side `npm` commands as your normal user, never with `sudo`. Installing Node.js via `sudo` is a frequent cause of later `EACCES` errors during `npm install`. If that already happened, reinstall Node.js with a version manager such as `nvm` (or Homebrew on macOS) so it lives in a user-writable location.
+> **Tip:** Run the host-side `npm` commands as your normal user, never with `sudo`. Installing Node.js via `sudo` is a frequent cause of later `EACCES` errors during project dependency installation. If that already happened, reinstall Node.js with a version manager such as `nvm` (or Homebrew on macOS) so it lives in a user-writable location.
 
 ### Daily Commands
 
@@ -269,7 +269,7 @@ Host-side frontend commands in this repository require local `node_modules` in y
 | `npm run docker:dev:parity`     | Start the stack with the parity profile, which currently adds the F-UJI container          |
 | `npm run artisan -- <command>`  | Run a Laravel Artisan command inside the app container                                     |
 | `npm run composer:app -- <cmd>` | Run Composer inside the app container                                                      |
-| `npm run check:backend`         | Run Pest and PHPStan against the Docker-backed backend workflow                            |
+| `npm run check:backend`         | Run optimized 2 GB Pest (parallel) and PHPStan against the Docker backend                  |
 | `npm run check:frontend`        | Run ESLint, OpenAPI linting, TypeScript checks, and one-shot Vitest on the host            |
 | `npm run check:parity`          | Run the parity validation flow, including the MySQL-sensitive backend slice and Playwright |
 
@@ -286,7 +286,7 @@ ERNIE uses a split local validation workflow:
 - PHP, Composer, Artisan, Pest, and PHPStan run against the Docker development stack
 - ESLint, TypeScript, Vitest, and Playwright run from the host shell
 
-Host-side frontend validation requires local `node_modules` in the repository checkout. Run `npm install` once after cloning and again whenever frontend dependencies change.
+Host-side frontend validation requires local `node_modules` in the repository checkout. Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm install` only when intentionally adding or updating dependencies so npm can update the lockfile.
 
 Recommended validation entry points:
 
