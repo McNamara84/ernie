@@ -305,7 +305,8 @@ describe('IgsnDifXmlParser', function () {
             ->with('Skipped unsupported DIF classification', Mockery::on(
                 fn (array $context): bool => $context['resource_id'] === $this->resource->id
                     && $context['material'] === 'Rock'
-                    && $context['classification'] === 'legacy rock term',
+                    && $context['classification'] === 'legacy rock term'
+                    && $context['sample_index'] === 0,
             ));
     });
 
@@ -682,6 +683,33 @@ describe('IgsnDifXmlParser', function () {
         expect($classification)->not->toBeNull();
         expect($classification->value)->toBe('Igneous');
         expect($classification->classification_type)->toBe(IgsnClassificationType::ROCK);
+    });
+
+    it('maps unique classifications from every DIF record in source order', function () {
+        $xml = <<<'XML'
+        <DIF><supplementalMetadata>
+          <record><sample><material>Rock</material><classification>fault related rocks</classification></sample></record>
+          <record><sample><material>Rock</material><classification>FAULT RELATED ROCKS;metamorphic rocks</classification></sample></record>
+          <record><sample><material>Biology</material><classification>vegetation:bark</classification></sample></record>
+        </supplementalMetadata></DIF>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+
+        $classifications = IgsnClassification::query()
+            ->whereBelongsTo($this->resource)
+            ->orderBy('position')
+            ->get();
+
+        expect($classifications->pluck('value')->all())->toBe([
+            'fault related rocks',
+            'metamorphic rocks',
+            'vegetation:bark',
+        ])->and($classifications->pluck('classification_type')->all())->toBe([
+            IgsnClassificationType::ROCK,
+            IgsnClassificationType::ROCK,
+            IgsnClassificationType::BIOLOGY,
+        ]);
     });
 
     it('skips classification when N/A', function () {

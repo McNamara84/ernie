@@ -290,13 +290,21 @@ Authenticated Solr and the direct legacy database remain optional enrichment sou
 
 Both app and queue services must use `QUEUE_CONNECTION=database`, and the worker command must consume `imports`. The single-import start endpoint returns `202 Accepted`; later portal or persistence failures are reported through the import status endpoint.
 
-#### Reimport after legacy IGSN metadata fixes
+#### Repair legacy IGSN classifications
 
-Legacy IGSNs that were imported before a vocabulary or database-schema fix are not updated automatically. Existing IGSNs are deliberately skipped by the DataCite import, so retrying an import without first deleting the incomplete local records does not repair them.
+New legacy imports preserve all supported classifications from every `<sample>` block in their original order. This includes the Medusa, Sonne273, Earth Shape, and ICDP values covered by issues #1191, #1200, #1202, and #1210. Unknown controlled values remain rejected and are reported without rolling back unrelated DIF metadata.
 
-For the Medusa records covered by issues #1191 and #1192, deploy the updated classification catalogs and run the migration that widens `igsn_metadata.user_code` before any affected record is deleted. An administrator must then delete the affected IGSNs, either individually or with the batch action. After deletion, an authorized user can import those records again. Do not begin the reimport while an application instance or queue worker is still running against the previous schema.
+Existing IGSNs are deliberately skipped by the DataCite importer, but they no longer need to be deleted and reimported to recover classifications. The dedicated command audits every imported IGSN, fetches its DIF metadata from the public legacy portal in batches of at most 100, and only appends missing classifications or fills an empty classification type. Existing values, positions, and non-empty types are never removed or overwritten. The command is a dry run unless `--apply` is supplied:
 
-For the Sonne273 and Earth Shape records covered by issues #1200 and #1202, deploy the updated classification catalogs before deleting any affected record; no database migration is required. Delete records individually or in administrator batches of at most 100. Then reimport the affected Sonne273 IGSN through the single-import action, or reimport the affected Earth Shape records through their Datacenter. The importer preserves the reported legacy classification wording. The rejected request in issue #1201 is intentionally not included in the vocabulary.
+```bash
+npm run artisan -- igsn:backfill-classifications --doi=ICDP5054ES1O201
+npm run artisan -- igsn:backfill-classifications --report=storage/app/igsn-classification-dry-run.csv
+npm run artisan -- igsn:backfill-classifications --apply --report=storage/app/igsn-classification-applied.csv
+```
+
+Deploy the updated classification catalogs and application code before running the command. Review rejected values, type conflicts, missing DIF documents, and technical errors in the dry-run report before applying changes globally. Use `--limit` for a bounded run, repeat `--doi` for selected handles or DOIs, and resume after the last completed Resource ID with `--after-id`. A successful apply invalidates only changed published landing-page caches. A second global dry run must report no remaining supported classifications as `would_update`.
+
+The command also repairs still-incomplete classification data from the earlier issues, so their former delete-and-reimport procedure is obsolete. The separate `igsn_metadata.user_code` schema correction from issue #1192 still requires its existing migration. The rejected vocabulary request from issue #1201 remains intentionally excluded.
 
 #### Legacy IGSN sample images
 

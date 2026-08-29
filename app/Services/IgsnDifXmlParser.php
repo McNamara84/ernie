@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\AccessLevel;
+use App\Enums\Igsn\IgsnClassificationType;
 use App\Models\Affiliation;
 use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
@@ -23,7 +24,6 @@ use App\Models\Size;
 use App\Services\Igsn\IgsnDifMetadataExtractor;
 use App\Services\Igsn\IgsnGeometryNormalizer;
 use App\Services\Igsn\IgsnSampleImageUrlService;
-use App\Services\Igsn\IgsnVocabularyNormalizerService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -40,7 +40,6 @@ class IgsnDifXmlParser
     public function __construct(
         private readonly IgsnDifMetadataExtractor $extractor = new IgsnDifMetadataExtractor,
         private readonly IgsnGeometryNormalizer $geometryNormalizer = new IgsnGeometryNormalizer,
-        private readonly IgsnVocabularyNormalizerService $vocabularyNormalizer = new IgsnVocabularyNormalizerService,
         private readonly IgsnSampleImageUrlService $sampleImageUrlService = new IgsnSampleImageUrlService,
     ) {}
 
@@ -66,8 +65,9 @@ class IgsnDifXmlParser
         foreach ($metadata['rejected_classifications'] as $classification) {
             Log::warning('Skipped unsupported DIF classification', [
                 'resource_id' => $resource->id,
-                'material' => $metadata['scalars']['material'],
-                'classification' => $classification,
+                'material' => $classification['material'],
+                'classification' => $classification['value'],
+                'sample_index' => $classification['sample_index'],
             ]);
         }
 
@@ -428,7 +428,6 @@ class IgsnDifXmlParser
     {
         $this->persistClassifications(
             $metadata['classifications'],
-            is_string($metadata['scalars']['material'] ?? null) ? $metadata['scalars']['material'] : null,
             $resource,
         );
         $this->persistPositionedValues(IgsnGeologicalAge::class, $metadata['geological_ages'], $resource);
@@ -436,24 +435,24 @@ class IgsnDifXmlParser
     }
 
     /**
-     * @param  list<string>  $values
+     * @param  list<array{value: string, classification_type: IgsnClassificationType|null}>  $items
      */
-    private function persistClassifications(array $values, ?string $material, Resource $resource): void
+    private function persistClassifications(array $items, Resource $resource): void
     {
-        $type = $this->vocabularyNormalizer->classificationType($material);
         $maximum = IgsnClassification::query()->where('resource_id', $resource->id)->max('position');
         $nextPosition = $maximum === null ? 0 : ((int) $maximum) + 1;
 
-        foreach ($values as $value) {
+        foreach ($items as $item) {
             $classification = IgsnClassification::firstOrCreate(
-                ['resource_id' => $resource->id, 'value' => $value],
-                ['classification_type' => $type, 'position' => $nextPosition],
+                ['resource_id' => $resource->id, 'value' => $item['value']],
+                ['classification_type' => $item['classification_type'], 'position' => $nextPosition],
             );
 
             if ($classification->wasRecentlyCreated) {
                 $nextPosition++;
-            } elseif ($type !== null && $classification->classification_type !== $type) {
-                $classification->classification_type = $type;
+            } elseif ($item['classification_type'] !== null
+                && $classification->classification_type !== $item['classification_type']) {
+                $classification->classification_type = $item['classification_type'];
                 $classification->save();
             }
         }

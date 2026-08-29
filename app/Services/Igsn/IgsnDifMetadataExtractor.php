@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Igsn;
 
+use App\Enums\Igsn\IgsnClassificationType;
+
 /**
  * Extracts legacy DIF XML into a normalized, persistence-free structure.
  */
@@ -63,6 +65,30 @@ class IgsnDifMetadataExtractor
     }
 
     /**
+     * Extract classifications from every sample block without validating or
+     * changing any unrelated DIF metadata.
+     *
+     * @return array{
+     *     items: list<array{value: string, classification_type: IgsnClassificationType|null}>,
+     *     rejected: list<array{value: string, material: string|null, sample_index: int}>
+     * }|null
+     */
+    public function extractClassificationFields(string $difXml): ?array
+    {
+        $root = @simplexml_load_string($difXml, \SimpleXMLElement::class, LIBXML_NONET);
+        if ($root === false) {
+            return null;
+        }
+
+        $samples = $root->xpath('//*[local-name()="sample"]');
+        if (! is_array($samples) || $samples === []) {
+            return null;
+        }
+
+        return $this->classificationFields($samples);
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public function extract(string $difXml): ?array
@@ -97,10 +123,7 @@ class IgsnDifMetadataExtractor
             $this->descendantValues($sample, 'comments', 'comment'),
         );
         $material = $this->vocabularyNormalizer->normalizeMaterial($this->first($sample, ['material']));
-        $classifications = $this->vocabularyNormalizer->partitionClassifications(
-            $material,
-            $this->splitValues($this->directValues($sample, 'classification')),
-        );
+        $classifications = $this->classificationFields($samples);
 
         return [
             'scalars' => [
@@ -155,7 +178,7 @@ class IgsnDifMetadataExtractor
                 'collector' => $this->first($sample, ['collector']) ?? $this->nestedName($root, 'collector'),
                 'collector_detail' => $this->first($sample, ['collector_detail']) ?? $this->nestedName($root, 'collector', 'affiliation'),
             ],
-            'classifications' => $classifications['values'],
+            'classifications' => $classifications['items'],
             'rejected_classifications' => $classifications['rejected'],
             'geological_ages' => $this->splitValues($this->directValues($sample, 'geological_age')),
             'geological_units' => $this->splitValues($this->directValues($sample, 'geological_unit')),
@@ -163,6 +186,100 @@ class IgsnDifMetadataExtractor
                 $this->splitValues($this->directRawValues($sample, 'size'), false),
                 $this->splitValues($this->directRawValues($sample, 'size_unit'), false),
             ),
+        ];
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $samples
+     * @return array{
+     *     items: list<array{value: string, classification_type: IgsnClassificationType|null}>,
+     *     rejected: list<array{value: string, material: string|null, sample_index: int}>
+     * }
+     */
+    private function classificationFields(array $samples): array
+    {
+        $items = [];
+        $rejected = [];
+        $seenValues = [];
+        $seenRejected = [];
+
+        foreach ($samples as $sampleIndex => $sample) {
+            $rawValues = $this->splitValues($this->directValues($sample, 'classification'));
+            if ($rawValues === []) {
+                continue;
+            }
+
+            $rawMaterial = $this->first($sample, ['material']);
+            try {
+                $material = $this->vocabularyNormalizer->normalizeMaterial($rawMaterial);
+            } catch (\InvalidArgumentException) {
+                foreach ($rawValues as $value) {
+                    $this->addRejectedClassification(
+                        $rejected,
+                        $seenRejected,
+                        $value,
+                        $rawMaterial,
+                        $sampleIndex,
+                    );
+                }
+
+                continue;
+            }
+
+            $partition = $this->vocabularyNormalizer->partitionClassifications(
+                $material,
+                $rawValues,
+            );
+            $classificationType = $this->vocabularyNormalizer->classificationType($material);
+
+            foreach ($partition['values'] as $value) {
+                $key = mb_strtolower($value);
+                if (isset($seenValues[$key])) {
+                    continue;
+                }
+
+                $seenValues[$key] = true;
+                $items[] = [
+                    'value' => $value,
+                    'classification_type' => $classificationType,
+                ];
+            }
+
+            foreach ($partition['rejected'] as $value) {
+                $this->addRejectedClassification(
+                    $rejected,
+                    $seenRejected,
+                    $value,
+                    $material,
+                    $sampleIndex,
+                );
+            }
+        }
+
+        return ['items' => $items, 'rejected' => $rejected];
+    }
+
+    /**
+     * @param  list<array{value: string, material: string|null, sample_index: int}>  $rejected
+     * @param  array<string, true>  $seenRejected
+     */
+    private function addRejectedClassification(
+        array &$rejected,
+        array &$seenRejected,
+        string $value,
+        ?string $material,
+        int $sampleIndex,
+    ): void {
+        $key = implode('|', [mb_strtolower((string) $material), mb_strtolower($value)]);
+        if (isset($seenRejected[$key])) {
+            return;
+        }
+
+        $seenRejected[$key] = true;
+        $rejected[] = [
+            'value' => $value,
+            'material' => $material,
+            'sample_index' => $sampleIndex,
         ];
     }
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Igsn\IgsnClassificationType;
 use App\Services\Igsn\IgsnDifMetadataExtractor;
 
 covers(IgsnDifMetadataExtractor::class);
@@ -162,8 +163,14 @@ it('keeps valid legacy classifications and reports unsupported ones separately',
     </sample></resource>
     XML);
 
-    expect($metadata['classifications'])->toBe(['Igneous', 'Igneous>Volcanic'])
-        ->and($metadata['rejected_classifications'])->toBe(['legacy rock term']);
+    expect($metadata['classifications'])->toBe([
+        ['value' => 'Igneous', 'classification_type' => IgsnClassificationType::ROCK],
+        ['value' => 'Igneous>Volcanic', 'classification_type' => IgsnClassificationType::ROCK],
+    ])->and($metadata['rejected_classifications'])->toBe([[
+        'value' => 'legacy rock term',
+        'material' => 'Rock',
+        'sample_index' => 0,
+    ]]);
 });
 
 it('accepts every Medusa legacy classification from issue 1191', function (
@@ -178,7 +185,11 @@ it('accepts every Medusa legacy classification from issue 1191', function (
     </sample></resource>
     XML);
 
-    expect($metadata['classifications'])->toBe($expected)
+    expect(array_column($metadata['classifications'], 'value'))->toBe($expected)
+        ->and(array_map(
+            static fn (array $item): ?string => $item['classification_type']?->value,
+            $metadata['classifications'],
+        ))->toBe(array_fill(0, count($expected), strtolower($material)))
         ->and($metadata['rejected_classifications'])->toBe([]);
 })->with([
     'rock legacy values' => [
@@ -213,7 +224,11 @@ it('accepts every Sonne273 and Earth Shape legacy classification from issues 120
     </sample></resource>
     XML);
 
-    expect($metadata['classifications'])->toBe($expected)
+    expect(array_column($metadata['classifications'], 'value'))->toBe($expected)
+        ->and(array_map(
+            static fn (array $item): ?string => $item['classification_type']?->value,
+            $metadata['classifications'],
+        ))->toBe(array_fill(0, count($expected), strtolower($material)))
         ->and($metadata['rejected_classifications'])->toBe([]);
 })->with([
     'rock legacy values' => [
@@ -250,6 +265,75 @@ it('preserves repeated coordinate components so ordered polygon pairs stay align
         ['latitude' => '1', 'longitude' => '2'],
         ['latitude' => '1', 'longitude' => '3'],
         ['latitude' => '4', 'longitude' => '5'],
+    ]);
+});
+
+it('extracts ordered unique classifications from every sample with per-sample types', function (): void {
+    $xml = <<<'XML'
+    <resource>
+      <supplementalMetadata>
+        <record><sample>
+          <material>Rock</material>
+          <classification>fault related rocks; MYL; future class</classification>
+        </sample></record>
+        <record><sample>
+          <material>Rock</material>
+          <classification>FAULT RELATED ROCKS; metamorphic rocks; FUTURE CLASS</classification>
+        </sample></record>
+        <record><sample>
+          <material>Biology</material>
+          <classification>vegetation:bark</classification>
+        </sample></record>
+      </supplementalMetadata>
+    </resource>
+    XML;
+
+    $extractor = new IgsnDifMetadataExtractor;
+    $expected = [
+        ['value' => 'fault related rocks', 'classification_type' => IgsnClassificationType::ROCK],
+        ['value' => 'MYL', 'classification_type' => IgsnClassificationType::ROCK],
+        ['value' => 'metamorphic rocks', 'classification_type' => IgsnClassificationType::ROCK],
+        ['value' => 'vegetation:bark', 'classification_type' => IgsnClassificationType::BIOLOGY],
+    ];
+    $rejected = [[
+        'value' => 'future class',
+        'material' => 'Rock',
+        'sample_index' => 0,
+    ]];
+
+    expect($extractor->extractClassificationFields($xml))->toBe([
+        'items' => $expected,
+        'rejected' => $rejected,
+    ])->and($extractor->extract($xml)['classifications'])->toBe($expected)
+        ->and($extractor->extract($xml)['rejected_classifications'])->toBe($rejected);
+});
+
+it('returns null from targeted classification extraction for malformed XML or missing samples', function (): void {
+    $extractor = new IgsnDifMetadataExtractor;
+
+    expect($extractor->extractClassificationFields('not xml'))->toBeNull()
+        ->and($extractor->extractClassificationFields('<resource />'))->toBeNull();
+});
+
+it('reports classifications from a later unsupported material without losing valid samples', function (): void {
+    $fields = (new IgsnDifMetadataExtractor)->extractClassificationFields(<<<'XML'
+    <resource>
+      <sample><material>Rock</material><classification>fault related rocks</classification></sample>
+      <sample><material>Unsupported material</material><classification>unmapped value</classification></sample>
+      <sample><material>Also unsupported but empty</material></sample>
+    </resource>
+    XML);
+
+    expect($fields)->toBe([
+        'items' => [[
+            'value' => 'fault related rocks',
+            'classification_type' => IgsnClassificationType::ROCK,
+        ]],
+        'rejected' => [[
+            'value' => 'unmapped value',
+            'material' => 'Unsupported material',
+            'sample_index' => 1,
+        ]],
     ]);
 });
 

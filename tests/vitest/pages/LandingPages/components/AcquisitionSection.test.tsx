@@ -132,6 +132,23 @@ describe('AcquisitionSection', () => {
         ['Biology', 'vegetation:blossom'],
         ['Biology', 'vegetation:lichen'],
         ['Biology', 'vegetation:root'],
+        ['Rock', 'MYL'],
+        ['Rock', 'PROTOMYL'],
+        ['Rock', 'QUAT'],
+        ['Rock', 'SCH'],
+        ['Rock', 'UND'],
+        ['Rock', 'VOL'],
+        ['Rock', 'cataclastic rocks'],
+        ['Rock', 'fault related rocks'],
+        ['Rock', 'igneous rocks'],
+        ['Rock', 'metamorphic rocks'],
+        ['Rock', 'mylonitic rocks'],
+        ['Rock', 'protomylonites'],
+        ['Rock', 'quaternary deposits, metamorphic rocks'],
+        ['Rock', 'sample'],
+        ['Rock', 'sedimentary rocks'],
+        ['Rock', 'undefined'],
+        ['Rock', 'volcanic rocks'],
     ])('renders the imported %s legacy classification verbatim', (material, value) => {
         render(
             <AcquisitionSection
