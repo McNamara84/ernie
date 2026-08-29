@@ -12,4 +12,10 @@ describe('vite configuration', () => {
     it('avoids hardcoding the /ernie base path', () => {
         expect(viteConfigSource).not.toMatch(/base\s*:\s*['"]\/ernie\//);
     });
+
+    it('caps local Vitest parallelism without changing CI worker allocation', () => {
+        expect(viteConfigSource)
+            .toContain('ERNIE_VITEST_WORKERS')
+            .toContain('maxWorkers: process.env.CI ? undefined : localVitestMaxWorkers');
+    });
 });

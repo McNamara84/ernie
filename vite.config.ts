@@ -6,8 +6,13 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig(({ command }) => {
     const viteServerPort = parseInt(process.env.VITE_SERVER_PORT ?? '5173');
+    const localVitestMaxWorkers = Number(process.env.ERNIE_VITEST_WORKERS ?? 8);
     const isDev = command === 'serve';
     const wayfinderCommand = process.env.WAYFINDER_COMMAND ?? 'php artisan ernie:wayfinder-generate';
+
+    if (!Number.isSafeInteger(localVitestMaxWorkers) || localVitestMaxWorkers < 1) {
+        throw new Error('ERNIE_VITEST_WORKERS must be a positive integer.');
+    }
 
     return {
         devtools: isDev,
@@ -77,8 +82,10 @@ export default defineConfig(({ command }) => {
         test: {
             environment: 'jsdom',
             // Threads are 25-30% faster locally, while GitHub-hosted runners
-            // perform better with the process-isolated fork pool.
+            // perform better with the process-isolated fork pool. Capping the
+            // local pool avoids oversubscribing CPU-heavy jsdom form suites.
             pool: process.env.CI ? 'forks' : 'threads',
+            maxWorkers: process.env.CI ? undefined : localVitestMaxWorkers,
             clearMocks: true,
             environmentOptions: {
                 jsdom: {

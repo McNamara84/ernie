@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -25,12 +25,43 @@ if (!configuredNodeOptions.split(/\s+/u).includes(disableWebStorageFlag)) {
     process.exit(result.status ?? 1);
 }
 
-const hostWayfinderCommand = 'php artisan ernie:wayfinder-generate --with-form';
-const hostWayfinderProbeTimeoutMs = 10_000;
+const hostWayfinderProbeTimeoutMs = 20_000;
 const dockerWayfinderCommand =
     'docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app php artisan ernie:wayfinder-generate';
-const hostPhpCommand = process.platform === 'win32' ? 'powershell.exe' : 'php';
-const hostPhpArgs = process.platform === 'win32' ? ['-NoProfile', '-NonInteractive', '-Command', 'php'] : [];
+
+function resolveHostPhpCommand() {
+    if (process.platform !== 'win32') {
+        return 'php';
+    }
+
+    const result = spawnSync(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-Command', '(Get-Command php -ErrorAction Stop).Source'],
+        { encoding: 'utf8' },
+    );
+    const commandPath = result.status === 0 ? result.stdout.trim().split(/\r?\n/u)[0] : '';
+
+    if (commandPath.toLowerCase().endsWith('.exe')) {
+        return commandPath;
+    }
+
+    if (commandPath.toLowerCase().endsWith('.bat')) {
+        try {
+            const executablePath = readFileSync(commandPath, 'utf8').match(/"([^"\r\n]*php\.exe)"/iu)?.[1];
+
+            if (executablePath) {
+                return executablePath;
+            }
+        } catch {
+            return null;
+        }
+    }
+
+    return null;
+}
+
+const hostPhpCommand = resolveHostPhpCommand();
+const hostWayfinderCommand = `${hostPhpCommand ?? 'php'} artisan ernie:wayfinder-generate --with-form`;
 
 function commandFailureReason(result) {
     if (result.error?.code === 'ETIMEDOUT') {
@@ -76,13 +107,18 @@ function canRunHostWayfinder() {
     const outputPath = mkdtempSync(join(tmpdir(), 'ernie-wayfinder-'));
 
     try {
-        // On Windows, resolve `php` through PowerShell as developers do in the
-        // terminal. Calling it directly from Node prefers a later php.exe over
-        // Herd's earlier php.bat shim and can silently select an obsolete Herd
-        // Lite runtime.
+        if (!hostPhpCommand) {
+            warnWayfinderFallback({ error: new Error('Could not resolve the active host PHP executable.') }, outputPath);
+
+            return false;
+        }
+
+        // Resolve Herd's php.bat shim once, then execute its selected php.exe
+        // directly. A bare Node spawn prefers a later php.exe from Herd Lite,
+        // while spawning PowerShell would leave PHP alive after a probe timeout.
         const result = spawnSync(
             hostPhpCommand,
-            [...hostPhpArgs, 'artisan', 'ernie:wayfinder-generate', '--with-form', `--path=${outputPath}`],
+            ['artisan', 'ernie:wayfinder-generate', '--with-form', `--path=${outputPath}`],
             {
                 encoding: 'utf8',
                 maxBuffer: 10 * 1024 * 1024,
@@ -98,7 +134,7 @@ function canRunHostWayfinder() {
 
         return false;
     } finally {
-        rmSync(outputPath, { force: true, recursive: true });
+        rmSync(outputPath, { force: true, maxRetries: 5, recursive: true, retryDelay: 200 });
     }
 }
 

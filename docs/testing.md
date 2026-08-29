@@ -149,7 +149,7 @@ Why backend validation stays Docker-backed:
 Host prerequisite:
 
 ```bash
-npm install
+npm ci
 ```
 
 Recommended commands:
@@ -160,7 +160,7 @@ npm run types
 npm run test:run
 ```
 
-Vitest 5 can repeat a focused test file to expose flaky behavior without multiplying the complete suite:
+Vitest can repeat a focused test file to expose flaky behavior without multiplying the complete suite:
 
 ```bash
 npm run test:run -- tests/vitest/path/to/file.test.tsx --repeats=5
@@ -183,6 +183,12 @@ The cache is intentionally not enabled by default. A representative DataCite run
 
 The large DataCite form suite is registered through six `datacite-form.part-*.test.tsx` entrypoints. They distribute direct tests while keeping nested `describe` groups intact, allowing Vitest to schedule the formerly serial suite across isolated workers. Keep shared tests and setup in `datacite-form.test-suite.tsx`; do not add that support file to the Vitest include pattern.
 
+Local Vitest runs use the faster thread pool but cap it at eight workers. On the
+standard 16-CPU workstation, using all 16 workers oversubscribes the CPU-heavy
+jsdom DataCite form suites and causes otherwise healthy tests to miss their
+timeouts. Override the cap only for a measured reason with
+`ERNIE_VITEST_WORKERS=<n>`; CI keeps its own shard and worker allocation.
+
 If your host cannot start Laravel Artisan locally, start the Docker backend stack before Vitest:
 
 ```bash
@@ -192,9 +198,11 @@ npm run test:run
 
 The Vitest wrapper checks whether the host can run `php artisan ernie:wayfinder-generate --with-form` before starting Vitest. The check writes to a temporary directory, so it does not touch the committed Wayfinder output. It also has a timeout, so a hanging host Artisan process falls back to Docker instead of blocking Vitest startup.
 
-On Windows, the probe resolves `php` through PowerShell. This preserves Laravel
-Herd's `php.bat` version selection even when an older Herd Lite `php.exe` also
-appears later in `PATH`.
+On Windows, the probe resolves PowerShell's active `php` command and executes
+the PHP binary selected by Laravel Herd's `php.bat` shim directly. This
+preserves Herd's version selection even when an older Herd Lite `php.exe` also
+appears later in `PATH`, and ensures a timed-out probe cannot leave a child PHP
+process writing into the temporary directory.
 
 If that host check fails, the wrapper prints the failing command, the exit reason, and any captured output before falling back to the app container for Wayfinder route generation. Keep the Docker backend stack running for that fallback path:
 
