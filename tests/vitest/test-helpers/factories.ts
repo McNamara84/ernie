@@ -13,7 +13,7 @@
  * const paginated = createMockPaginatedResponse(igsns);
  */
 
-import type { PortalFilters, PortalPagination, PortalResource } from '@/types/portal';
+import type { PortalFilters, PortalPageProps, PortalPagination, PortalResource } from '@/types/portal';
 import type { ResourceFilterOptions, ResourceFilterState, ResourceSortState } from '@/types/resources';
 
 // ============================================================================
@@ -325,7 +325,7 @@ export function createMockPortalPageProps(overrides?: {
     resources?: PortalResource[];
     pagination?: Partial<PortalPagination>;
     filters?: Partial<PortalFilters>;
-}) {
+}): PortalPageProps {
     const resources = overrides?.resources ?? [];
     return {
         resources,
@@ -338,6 +338,7 @@ export function createMockPortalPageProps(overrides?: {
         thesaurusFacets: [],
         temporalRange: {},
         resourceTypeFacets: [],
+        datacenterFacets: [],
     };
 }
 
