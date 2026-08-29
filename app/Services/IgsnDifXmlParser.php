@@ -450,10 +450,11 @@ class IgsnDifXmlParser
 
             if ($classification->wasRecentlyCreated) {
                 $nextPosition++;
-            } elseif ($item['classification_type'] !== null
-                && $classification->classification_type !== $item['classification_type']) {
-                $classification->classification_type = $item['classification_type'];
-                $classification->save();
+            } elseif ($item['classification_type'] !== null) {
+                IgsnClassification::query()
+                    ->whereKey($classification->id)
+                    ->whereNull('classification_type')
+                    ->update(['classification_type' => $item['classification_type']]);
             }
         }
     }

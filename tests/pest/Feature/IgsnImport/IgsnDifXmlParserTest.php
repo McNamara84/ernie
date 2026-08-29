@@ -760,6 +760,40 @@ describe('IgsnDifXmlParser', function () {
             ->toBe(['Existing', 'Igneous']);
     });
 
+    it('fills missing classification types without overwriting existing types', function () {
+        IgsnClassification::create([
+            'resource_id' => $this->resource->id,
+            'value' => 'Igneous',
+            'classification_type' => IgsnClassificationType::BIOLOGY,
+            'position' => 0,
+        ]);
+        IgsnClassification::create([
+            'resource_id' => $this->resource->id,
+            'value' => 'metamorphic rocks',
+            'position' => 1,
+        ]);
+
+        $xml = <<<'XML'
+        <DIF><sample>
+            <material>Rock</material>
+            <classification>Igneous;metamorphic rocks</classification>
+        </sample></DIF>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+
+        $classifications = IgsnClassification::query()
+            ->whereBelongsTo($this->resource)
+            ->orderBy('position')
+            ->get();
+
+        expect($classifications)->toHaveCount(2)
+            ->and($classifications->pluck('classification_type')->all())->toBe([
+                IgsnClassificationType::BIOLOGY,
+                IgsnClassificationType::ROCK,
+            ]);
+    });
+
     it('maps geological age from DIF XML', function () {
         $xml = <<<'XML'
         <?xml version="1.0" encoding="UTF-8"?>
