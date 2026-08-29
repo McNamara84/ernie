@@ -6,15 +6,24 @@ import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
 
-export function resolveLocalVitestMaxWorkers(
+export function resolveVitestMaxWorkers(
+    isCi = Boolean(process.env.CI),
     configuredWorkers = process.env.ERNIE_VITEST_WORKERS,
-    availableCpus = availableParallelism(),
-): number {
-    if (configuredWorkers === undefined) {
+    availableCpus?: number,
+): number | undefined {
+    if (isCi) {
+        return undefined;
+    }
+
+    const normalizedWorkers = configuredWorkers?.trim();
+
+    if (!normalizedWorkers) {
+        availableCpus ??= availableParallelism();
+
         return Math.max(1, Math.min(8, Math.floor(availableCpus / 2)));
     }
 
-    const workers = Number(configuredWorkers);
+    const workers = Number(normalizedWorkers);
 
     if (!Number.isSafeInteger(workers) || workers < 1) {
         throw new Error('ERNIE_VITEST_WORKERS must be a positive integer.');
@@ -25,7 +34,8 @@ export function resolveLocalVitestMaxWorkers(
 
 export default defineConfig(({ command }) => {
     const viteServerPort = parseInt(process.env.VITE_SERVER_PORT ?? '5173');
-    const localVitestMaxWorkers = resolveLocalVitestMaxWorkers();
+    const isCi = Boolean(process.env.CI);
+    const vitestMaxWorkers = resolveVitestMaxWorkers(isCi);
     const isDev = command === 'serve';
     const wayfinderCommand = process.env.WAYFINDER_COMMAND ?? 'php artisan ernie:wayfinder-generate';
 
@@ -99,8 +109,8 @@ export default defineConfig(({ command }) => {
             // Threads are 25-30% faster locally, while GitHub-hosted runners
             // perform better with the process-isolated fork pool. Capping the
             // local pool avoids oversubscribing CPU-heavy jsdom form suites.
-            pool: process.env.CI ? 'forks' : 'threads',
-            maxWorkers: process.env.CI ? undefined : localVitestMaxWorkers,
+            pool: isCi ? 'forks' : 'threads',
+            maxWorkers: vitestMaxWorkers,
             clearMocks: true,
             environmentOptions: {
                 jsdom: {

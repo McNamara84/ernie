@@ -4141,6 +4141,13 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
+                initialAuthors={[{ type: 'person', lastName: 'Curator' }]}
+                initialDescriptions={[
+                    {
+                        type: 'Abstract',
+                        description: 'This is a sufficiently long abstract for funding validation coverage.',
+                    },
+                ]}
                 initialDatacenterId={1}
                 initialFundingReferences={[
                     {
@@ -4159,9 +4166,6 @@ describe('DataCiteForm', () => {
                 availableDatacenters={availableDatacenters}
             />,
         );
-
-        await fillRequiredAuthor(user);
-        await fillRequiredAbstract(user, 'This is a sufficiently long abstract for funding validation coverage.');
 
         await user.click(screen.getByRole('button', { name: /^validate$/i }));
 
