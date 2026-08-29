@@ -252,7 +252,12 @@ it('fails clearly when no dump client is installed', function (): void {
 });
 
 it('keeps TLS but disables certificate verification for a self-signed dump target', function (): void {
-    $runner = new FakeDatabaseDumpProcessRunner;
+    $runner = new FakeDatabaseDumpProcessRunner([
+        '--no-tablespaces',
+        '--column-statistics',
+        '--set-gtid-purged',
+        '--ssl-verify-server-cert',
+    ]);
     $service = databaseDumpService($runner);
     $admin = User::factory()->admin()->create();
 
@@ -272,7 +277,58 @@ it('keeps TLS but disables certificate verification for a self-signed dump targe
 
     expect($runner->lastOptionFileContents)->toContain('ssl-verify-server-cert=0')
         ->and($runner->lastOptionFileContents)->toContain('ssl-ca=')
+        ->and($runner->lastCommand)->not->toContain('--ssl-mode=REQUIRED')
         ->and($export->refresh()->dump_options['ssl_verify_server_cert'])->toBeFalse();
+});
+
+it('uses ssl mode instead of a MariaDB option for an Oracle dump client', function (): void {
+    $runner = new FakeDatabaseDumpProcessRunner([
+        '--no-tablespaces',
+        '--column-statistics',
+        '--set-gtid-purged',
+        '--ssl-mode',
+    ]);
+    $runner->client = '/usr/local/bin/mysql-8-mysqldump';
+    $service = databaseDumpService($runner);
+    $admin = User::factory()->admin()->create();
+
+    config()->set('database.connections.dump_test.options', [
+        Mysql::ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
+    ]);
+    config()->set('database_dumps.targets.ernie.ssl_verify_server_cert', false);
+
+    $export = DatabaseDumpExport::factory()->for($admin)->create([
+        'target_key' => 'ernie',
+        'connection_name' => 'dump_test',
+        'database_name' => 'ernie_test',
+        'disk' => 'local',
+    ]);
+
+    $service->createDump($export);
+
+    expect($runner->lastCommand)->toContain('--ssl-mode=REQUIRED')
+        ->and($runner->lastOptionFileContents)->not->toContain('ssl-verify-server-cert')
+        ->and($runner->lastOptionFileContents)->not->toContain('ssl-ca');
+});
+
+it('does not emit unsupported TLS verification options', function (): void {
+    $runner = new FakeDatabaseDumpProcessRunner;
+    $service = databaseDumpService($runner);
+    $admin = User::factory()->admin()->create();
+
+    config()->set('database_dumps.targets.ernie.ssl_verify_server_cert', false);
+
+    $export = DatabaseDumpExport::factory()->for($admin)->create([
+        'target_key' => 'ernie',
+        'connection_name' => 'dump_test',
+        'database_name' => 'ernie_test',
+        'disk' => 'local',
+    ]);
+
+    $service->createDump($export);
+
+    expect($runner->lastCommand)->not->toContain('--ssl-mode=REQUIRED')
+        ->and($runner->lastOptionFileContents)->not->toContain('ssl-verify-server-cert');
 });
 
 it('uses the configured version hint without retrying metadata queries after a connection failure', function (): void {
