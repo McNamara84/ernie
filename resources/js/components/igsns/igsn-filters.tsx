@@ -44,9 +44,11 @@ interface IgsnFiltersProps {
     /** Available filter options provided by the parent via Inertia server props */
     filterOptions: IgsnFilterOptions | null;
     /** Number of results after filtering */
-    resultCount: number;
+    resultCount: number | null;
     /** Total number of results without filtering */
-    totalCount: number;
+    totalCount: number | null;
+    /** State of the separately loaded exact count */
+    countStatus: 'pending' | 'ready' | 'failed';
     /** Disables the controls during loading */
     isLoading?: boolean;
 }
@@ -55,7 +57,7 @@ interface IgsnFiltersProps {
 // Component
 // ============================================================================
 
-export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCount, totalCount, isLoading = false }: IgsnFiltersProps) {
+export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCount, totalCount, countStatus, isLoading = false }: IgsnFiltersProps) {
     // Local state for search input (for immediate UI feedback)
     const [searchInput, setSearchInput] = useState(filters.search || '');
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -273,7 +275,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
     }).length;
 
     const hasActiveFilters = activeFilterCount > 0;
-    const isFiltered = resultCount !== totalCount;
+    const isFiltered = resultCount !== null && totalCount !== null && resultCount !== totalCount;
 
     const formatFilterLabel = useCallback(
         (key: keyof IgsnFilterState, value: unknown): string => {
@@ -384,7 +386,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
             </div>
 
             {/* Active Filters & Result Count Row */}
-            {(hasActiveFilters || isFiltered) && (
+            {(hasActiveFilters || isFiltered || countStatus !== 'ready') && (
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     {/* Active Filter Badges */}
                     {hasActiveFilters && (
@@ -414,8 +416,10 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
                     )}
 
                     {/* Result Counter */}
-                    <div className="ml-auto text-sm text-muted-foreground">
-                        {isFiltered ? (
+                    <div className="ml-auto text-sm text-muted-foreground" aria-live="polite">
+                        {resultCount === null || totalCount === null ? (
+                            <span>{countStatus === 'failed' ? 'Count unavailable' : 'Counting samples...'}</span>
+                        ) : isFiltered ? (
                             <span>
                                 Showing <span className="font-semibold text-foreground">{resultCount}</span> of{' '}
                                 <span className="font-semibold text-foreground">{totalCount}</span> samples

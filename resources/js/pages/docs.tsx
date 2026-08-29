@@ -2792,9 +2792,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Pagination</h4>
                         <p>
-                            Use <strong>Rows per page</strong> to display 10, 100, or 1000 IGSNs at a time; new browsers default to 100. ERNIE stores
-                            this choice only in the current browser and restores it on later visits. Changing the page size returns to the first page
-                            while keeping the active search, filters, and sorting.
+                            Use <strong>Rows per page</strong> to display 10 or 100 IGSNs at a time; new browsers default to 100. ERNIE stores this
+                            choice only in the current browser and restores it on later visits. A previously stored choice of 1000 is migrated to 100.
+                            Changing the page size returns to the first page while keeping the active search, filters, and sorting.
                         </p>
                         <p>
                             The pagination controls show the current page and total page count. Use the arrow buttons to go to the first, previous,

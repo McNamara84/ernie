@@ -67,12 +67,22 @@ interface Igsn {
 
 interface PaginationInfo {
     current_page: number;
-    last_page: number;
+    last_page: number | null;
     per_page: number;
-    total: number;
+    total: number | null;
     from: number | null;
     to: number | null;
     has_more: boolean;
+    count_status: 'pending' | 'ready' | 'failed';
+    filter_fingerprint: string;
+}
+
+interface IgsnCountResponse {
+    filter_fingerprint: string;
+    filtered_total: number;
+    inventory_total: number;
+    last_page: number;
+    count_status: 'ready';
 }
 
 interface IgsnsPageProps {
@@ -86,7 +96,7 @@ interface IgsnsPageProps {
     dataCiteUrlUpdateRun?: DataCiteUrlUpdateRun | null;
     igsnPrefix: string;
     search: string;
-    totalCount: number;
+    totalCount: number | null;
     filters: {
         prefix: string;
         status: string;
@@ -162,12 +172,13 @@ function IgsnsPage({
     dataCiteUrlUpdateRun,
     igsnPrefix,
     search: initialSearch,
-    totalCount,
+    totalCount: initialTotalCount,
     filters: initialFilters,
     filterOptions: initialFilterOptions,
 }: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
+    const [totalCount, setTotalCount] = useState<number | null>(initialTotalCount);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
     const [searchQuery, setSearchQuery] = useState(initialSearch || '');
     const [isNavigating, setIsNavigating] = useState(false);
@@ -206,6 +217,7 @@ function IgsnsPage({
     useEffect(() => {
         setIgsns(initialIgsns);
         setPagination(initialPagination);
+        setTotalCount(initialTotalCount);
         setSortState(initialSort || DEFAULT_SORT);
         setSearchQuery(initialSearch || '');
         setActiveFilters({
@@ -218,7 +230,7 @@ function IgsnsPage({
         setFilterOptions(initialFilterOptions);
         // Clear selection when data changes (e.g., after pagination or sorting)
         setSelectedIds(new Set());
-    }, [initialIgsns, initialPagination, initialSort, initialSearch, initialFilters, initialFilterOptions]);
+    }, [initialIgsns, initialPagination, initialSort, initialSearch, initialFilters, initialFilterOptions, initialTotalCount]);
 
     const handleExportJson = useCallback(async (igsn: Igsn) => {
         // Mark IGSN as exporting
@@ -368,6 +380,64 @@ function IgsnsPage({
     );
 
     useEffect(() => {
+        if (!initialPagination.filter_fingerprint || initialPagination.count_status === 'ready') {
+            return;
+        }
+
+        const controller = new AbortController();
+        const expectedFingerprint = initialPagination.filter_fingerprint;
+        const params = new URLSearchParams({ per_page: String(initialPagination.per_page) });
+
+        if (initialSearch) params.set('search', initialSearch);
+        if (initialFilters.prefix) params.set('prefix', initialFilters.prefix);
+        if (initialFilters.status) params.set('status', initialFilters.status);
+        if (initialFilters.without_datacenter) {
+            params.set('without_datacenter', '1');
+        } else if (initialFilters.datacenter_id) {
+            params.set('datacenter_id', String(initialFilters.datacenter_id));
+        }
+
+        void axios
+            .get<IgsnCountResponse>('/igsns/count', { params, signal: controller.signal })
+            .then(({ data }) => {
+                if (data.filter_fingerprint !== expectedFingerprint) {
+                    return;
+                }
+
+                setPagination((current) =>
+                    current.filter_fingerprint === data.filter_fingerprint
+                        ? {
+                              ...current,
+                              total: data.filtered_total,
+                              last_page: data.last_page,
+                              count_status: 'ready',
+                          }
+                        : current,
+                );
+                setTotalCount(data.inventory_total);
+            })
+            .catch((error: unknown) => {
+                if (controller.signal.aborted || (isAxiosError(error) && error.code === 'ERR_CANCELED')) {
+                    return;
+                }
+
+                setPagination((current) => (current.filter_fingerprint === expectedFingerprint ? { ...current, count_status: 'failed' } : current));
+            });
+
+        return () => controller.abort();
+    }, [
+        initialFilters.datacenter_id,
+        initialFilters.prefix,
+        initialFilters.status,
+        initialFilters.without_datacenter,
+        initialPagination.count_status,
+        initialPagination.current_page,
+        initialPagination.filter_fingerprint,
+        initialPagination.per_page,
+        initialSearch,
+    ]);
+
+    useEffect(() => {
         if (attemptedPreferenceRestoreRef.current || typeof window === 'undefined') {
             return;
         }
@@ -411,7 +481,7 @@ function IgsnsPage({
 
     const handlePageChange = useCallback(
         (page: number) => {
-            if (page < 1 || page > pagination.last_page || page === pagination.current_page) {
+            if (page < 1 || (pagination.last_page !== null && page > pagination.last_page) || page === pagination.current_page) {
                 return;
             }
 
@@ -674,6 +744,7 @@ function IgsnsPage({
                                 filterOptions={filterOptions}
                                 resultCount={pagination.total}
                                 totalCount={totalCount}
+                                countStatus={pagination.count_status}
                                 isLoading={isNavigating}
                             />
 
@@ -885,10 +956,15 @@ function IgsnsPage({
                             )}
 
                             {/* Pagination */}
-                            {pagination.total > 0 && (
+                            {(igsns.length > 0 || pagination.current_page > 1) && (
                                 <div className="flex flex-col gap-4 px-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                                     <span className="flex-1">
-                                        Showing {pagination.from ?? 0} to {pagination.to ?? 0} of {pagination.total} samples
+                                        Showing {pagination.from ?? 0} to {pagination.to ?? 0}{' '}
+                                        {pagination.total === null
+                                            ? pagination.count_status === 'failed'
+                                                ? 'samples (count unavailable)'
+                                                : 'samples (counting total...)'
+                                            : `of ${pagination.total} samples`}
                                     </span>
                                     <div className="flex flex-wrap items-center gap-4 sm:justify-end">
                                         <div className="flex items-center gap-2">
@@ -907,7 +983,8 @@ function IgsnsPage({
                                             </Select>
                                         </div>
                                         <span className="min-w-24 text-center font-medium text-foreground">
-                                            Page {pagination.current_page} of {pagination.last_page}
+                                            Page {pagination.current_page}
+                                            {pagination.last_page === null ? '' : ` of ${pagination.last_page}`}
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <Button
@@ -935,7 +1012,7 @@ function IgsnsPage({
                                                 size="icon"
                                                 className="size-8"
                                                 onClick={() => handlePageChange(pagination.current_page + 1)}
-                                                disabled={isNavigating || pagination.current_page === pagination.last_page}
+                                                disabled={isNavigating || !pagination.has_more}
                                                 aria-label="Go to next page"
                                             >
                                                 <ChevronRight className="size-4" />
@@ -944,8 +1021,10 @@ function IgsnsPage({
                                                 variant="outline"
                                                 size="icon"
                                                 className="hidden size-8 sm:inline-flex"
-                                                onClick={() => handlePageChange(pagination.last_page)}
-                                                disabled={isNavigating || pagination.current_page === pagination.last_page}
+                                                onClick={() => pagination.last_page !== null && handlePageChange(pagination.last_page)}
+                                                disabled={
+                                                    isNavigating || pagination.last_page === null || pagination.current_page === pagination.last_page
+                                                }
                                                 aria-label="Go to last page"
                                             >
                                                 <ChevronsRight className="size-4" />

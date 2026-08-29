@@ -18,6 +18,8 @@ enum CacheKey: string
     case RESOURCE_LIST = 'resources:list';
     case RESOURCE_DETAIL = 'resources:detail';
     case RESOURCE_COUNT = 'resources:count';
+    case RESOURCE_LISTING_COUNT = 'resources:listing_count';
+    case IGSN_LISTING_COUNT = 'igsns:listing_count';
 
     // Vocabulary cache keys
     case GCMD_SCIENCE_KEYWORDS = 'vocabularies:gcmd:science_keywords';
@@ -52,6 +54,7 @@ enum CacheKey: string
     case PORTAL_RESOURCE_TYPE_FACETS = 'portal:resource_type_facets';
     case PORTAL_DATACENTER_FACETS = 'portal:datacenter_facets';
     case PORTAL_PAGE_PAYLOAD = 'portal:page_payload';
+    case PORTAL_LISTING_COUNT = 'portal:listing_count';
     case PORTAL_MAP_PAYLOAD = 'portal:map_payload';
     case PORTAL_MAP_EXTENT = 'portal:map_extent';
 
@@ -109,6 +112,8 @@ enum CacheKey: string
         return match ($this) {
             // Resource listings change frequently - 5 minutes
             self::RESOURCE_LIST, self::RESOURCE_COUNT => 300,
+            self::RESOURCE_LISTING_COUNT,
+            self::IGSN_LISTING_COUNT => (int) config('listing_performance.internal_count_ttl', 300),
 
             // Individual resources - 15 minutes
             self::RESOURCE_DETAIL => 900,
@@ -152,6 +157,7 @@ enum CacheKey: string
 
             // Portal Inertia payloads - very short-lived to absorb crawler bursts
             self::PORTAL_PAGE_PAYLOAD => max(0, (int) config('bot_protection.portal_cache_ttl', 120)),
+            self::PORTAL_LISTING_COUNT => (int) config('listing_performance.portal_count_ttl', 120),
             self::PORTAL_MAP_PAYLOAD => max(0, (int) config('portal_map.cache_ttl', 30)),
             self::PORTAL_MAP_EXTENT => max(0, (int) config('portal_map.extent_cache_ttl', 300)),
 
@@ -191,6 +197,9 @@ enum CacheKey: string
             self::RESOURCE_DETAIL,
             self::RESOURCE_COUNT => ['resources'],
 
+            self::RESOURCE_LISTING_COUNT,
+            self::IGSN_LISTING_COUNT => ['resources', 'internal_listing_counts'],
+
             self::GCMD_SCIENCE_KEYWORDS,
             self::GCMD_INSTRUMENTS,
             self::GCMD_PLATFORMS,
@@ -222,6 +231,8 @@ enum CacheKey: string
             self::PORTAL_RESOURCE_TYPE_FACETS => ['portal', 'resource_types'],
 
             self::PORTAL_DATACENTER_FACETS => ['portal', 'datacenters'],
+
+            self::PORTAL_LISTING_COUNT => ['resources', 'portal_page_payloads'],
 
             self::PORTAL_PAGE_PAYLOAD,
             self::PORTAL_MAP_PAYLOAD,

@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
-import { Map as MapIcon, MapPin, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import axios, { isAxiosError } from 'axios';
+import { Map as MapIcon, MapPin, PanelRightClose, PanelRightOpen, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { PortalFilters } from '@/components/portal/PortalFilters';
@@ -11,8 +12,15 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { useNavigationStatus } from '@/hooks/use-navigation-status';
 import { usePortalFilters } from '@/hooks/use-portal-filters';
 import PortalLayout from '@/layouts/portal-layout';
-import { buildPortalFilterUrl } from '@/lib/portal-filter-url';
+import { buildPortalCountUrl, buildPortalFilterUrl } from '@/lib/portal-filter-url';
 import type { GeoBounds, PortalPageProps, TemporalFilterValue } from '@/types/portal';
+
+interface PortalCountResponse {
+    filter_fingerprint: string;
+    total: number;
+    last_page: number;
+    count_status: 'ready';
+}
 
 const STORAGE_KEY_COLLAPSED = 'portal-map-collapsed';
 const STORAGE_KEY_LAYOUT = 'portal-panel-layout';
@@ -30,7 +38,48 @@ export default function Portal({
     datacenterFacets,
 }: PortalPageProps) {
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
+    const [resolvedPagination, setResolvedPagination] = useState(pagination);
+    const [countAttempt, setCountAttempt] = useState(0);
     const { isNavigating: isRefreshing } = useNavigationStatus('results');
+
+    useEffect(() => {
+        setResolvedPagination(pagination);
+    }, [pagination]);
+
+    useEffect(() => {
+        if (!pagination.filter_fingerprint || pagination.count_status === 'ready') {
+            return;
+        }
+
+        const controller = new AbortController();
+        const expectedFingerprint = pagination.filter_fingerprint;
+        const countUrl = buildPortalCountUrl(window.location.search);
+
+        void axios
+            .get<PortalCountResponse>(countUrl, { signal: controller.signal })
+            .then(({ data }) => {
+                if (data.filter_fingerprint !== expectedFingerprint) {
+                    return;
+                }
+
+                setResolvedPagination((current) =>
+                    current.filter_fingerprint === data.filter_fingerprint
+                        ? { ...current, total: data.total, last_page: data.last_page, count_status: 'ready' }
+                        : current,
+                );
+            })
+            .catch((error: unknown) => {
+                if (controller.signal.aborted || (isAxiosError(error) && error.code === 'ERR_CANCELED')) {
+                    return;
+                }
+
+                setResolvedPagination((current) =>
+                    current.filter_fingerprint === expectedFingerprint ? { ...current, count_status: 'failed' } : current,
+                );
+            });
+
+        return () => controller.abort();
+    }, [countAttempt, filters, pagination.count_status, pagination.filter_fingerprint]);
 
     // Initialize map collapsed state from localStorage
     const [isMapCollapsed, setIsMapCollapsed] = useState(() => {
@@ -237,7 +286,16 @@ export default function Portal({
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline">{pagination.total.toLocaleString()} results</Badge>
+                            {resolvedPagination.total !== null ? (
+                                <Badge variant="outline">{resolvedPagination.total.toLocaleString()} results</Badge>
+                            ) : resolvedPagination.count_status === 'failed' ? (
+                                <Button variant="outline" size="sm" onClick={() => setCountAttempt((attempt) => attempt + 1)}>
+                                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                    Retry count
+                                </Button>
+                            ) : (
+                                <Badge variant="outline">Counting results...</Badge>
+                            )}
                             {hasActiveFilters && <Badge variant="secondary">Filters active</Badge>}
                             {isRefreshing && (
                                 <Badge variant="secondary" data-testid="portal-refresh-badge">
@@ -262,7 +320,8 @@ export default function Portal({
                         hasActiveFilters={hasActiveFilters}
                         isCollapsed={isFilterCollapsed}
                         onToggleCollapse={() => setIsFilterCollapsed(!isFilterCollapsed)}
-                        totalResults={pagination.total}
+                        totalResults={resolvedPagination.total}
+                        countStatus={resolvedPagination.count_status}
                         keywordSuggestions={keywordSuggestions}
                         thesaurusFacets={thesaurusFacets}
                         geoFilterEnabled={geoFilterEnabled}
@@ -282,7 +341,7 @@ export default function Portal({
                         <div className="flex flex-1 flex-col overflow-hidden">
                             <PortalResultList
                                 resources={resources}
-                                pagination={pagination}
+                                pagination={resolvedPagination}
                                 onPageChange={handlePageChange}
                                 isLoading={isRefreshing}
                                 hasActiveFilters={hasActiveFilters}
@@ -310,7 +369,7 @@ export default function Portal({
                                 <div className="flex h-full flex-col overflow-hidden">
                                     <PortalResultList
                                         resources={resources}
-                                        pagination={pagination}
+                                        pagination={resolvedPagination}
                                         onPageChange={handlePageChange}
                                         isLoading={isRefreshing}
                                         hasActiveFilters={hasActiveFilters}

@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Services\Resources;
 
 use App\Enums\AccessLevel;
+use App\Enums\CacheKey;
 use App\Enums\ResourceWorkflowStatus;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Services\ListingCountService;
 use App\Services\ResourceCacheService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -25,6 +28,7 @@ final readonly class ResourceQueryBuilder
 {
     public function __construct(
         private ResourceCacheService $cacheService,
+        private ListingCountService $countService,
     ) {}
 
     /**
@@ -56,6 +60,56 @@ final readonly class ResourceQueryBuilder
             $criteria['perPage'],
             $criteria['page'],
             $cacheFilters
+        );
+    }
+
+    /**
+     * Load one result page without running an exact COUNT query.
+     *
+     * @param  array{
+     *     page:int,
+     *     perPage:int,
+     *     sortKey:string,
+     *     sortDirection:string,
+     *     filters:array<string,mixed>
+     * }  $criteria
+     * @return Paginator<int, Resource>
+     */
+    public function simplePaginate(array $criteria): Paginator
+    {
+        $query = $this->baseQuery();
+
+        $this->applyFilters($query, $criteria['filters']);
+        $this->applySorting($query, $criteria['sortKey'], $criteria['sortDirection']);
+
+        return $this->cacheService->cacheSimpleResourceList(
+            $query,
+            $criteria['perPage'],
+            $criteria['page'],
+            [
+                ...$criteria['filters'],
+                'sort' => $criteria['sortKey'],
+                'direction' => $criteria['sortDirection'],
+            ],
+        );
+    }
+
+    /**
+     * Resolve the exact filtered total independently from result pages.
+     *
+     * @param  array{filters:array<string,mixed>}  $criteria
+     */
+    public function count(array $criteria): int
+    {
+        return $this->countService->remember(
+            CacheKey::RESOURCE_LISTING_COUNT,
+            $criteria['filters'],
+            function () use ($criteria): int {
+                $query = $this->baseQuery();
+                $this->applyFilters($query, $criteria['filters']);
+
+                return $query->count();
+            },
         );
     }
 

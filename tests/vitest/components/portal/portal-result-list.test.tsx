@@ -38,6 +38,9 @@ function createMockPagination(overrides: Partial<PortalPagination> = {}): Portal
         from: 1,
         to: 10,
         total: 10,
+        has_more: false,
+        count_status: 'ready',
+        filter_fingerprint: 'default-fingerprint',
         ...overrides,
     };
 }
@@ -80,11 +83,51 @@ describe('PortalResultList', () => {
             // Should show localized number (1,500 in en-US or 1.500 in de-DE)
             expect(screen.getByText(/showing 1-12 of 1[,.]500 results/i)).toBeInTheDocument();
         });
+
+        it('keeps next-page navigation available while the total is pending', () => {
+            render(
+                <PortalResultList
+                    {...defaultProps}
+                    pagination={createMockPagination({
+                        total: null,
+                        last_page: null,
+                        has_more: true,
+                        count_status: 'pending',
+                    })}
+                />,
+            );
+
+            expect(screen.getByText(/counting total/i)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /next/i })).toBeEnabled();
+        });
+
+        it('keeps results visible when the total count failed', () => {
+            render(
+                <PortalResultList
+                    {...defaultProps}
+                    pagination={createMockPagination({
+                        total: null,
+                        last_page: null,
+                        count_status: 'failed',
+                    })}
+                />,
+            );
+
+            expect(screen.getByText(/count unavailable/i)).toBeInTheDocument();
+            expect(screen.getByText('Resource 1')).toBeInTheDocument();
+        });
     });
 
     describe('Loading State', () => {
         it('shows skeleton loaders when loading without any results yet', () => {
-            render(<PortalResultList {...defaultProps} resources={[]} pagination={createMockPagination({ total: 0, from: 0, to: 0 })} isLoading={true} />);
+            render(
+                <PortalResultList
+                    {...defaultProps}
+                    resources={[]}
+                    pagination={createMockPagination({ total: 0, from: 0, to: 0 })}
+                    isLoading={true}
+                />,
+            );
 
             // Skeletons should be rendered
             const skeletons = document.querySelectorAll('[class*="animate-pulse"]');
@@ -145,6 +188,7 @@ describe('PortalResultList', () => {
                 from: 13,
                 to: 24,
                 total: 60,
+                has_more: true,
             }),
         };
 

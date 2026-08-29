@@ -1,5 +1,6 @@
 export const IGSNS_PAGE_SIZE_STORAGE_KEY = 'ernie.igsns.page-size.v1';
-export const IGSNS_PAGE_SIZE_OPTIONS = [10, 100, 1000] as const;
+export const IGSNS_PAGE_SIZE_OPTIONS = [10, 100] as const;
+const LEGACY_IGSNS_PAGE_SIZE_OPTIONS = [25, 50, 1000] as const;
 
 export type IgsnsPageSize = (typeof IGSNS_PAGE_SIZE_OPTIONS)[number];
 
@@ -34,6 +35,11 @@ export function readStoredIgsnsPageSize(): IgsnsPageSize | null {
         const parsedValue: unknown = JSON.parse(storedValue);
         if (isIgsnsPageSize(parsedValue)) {
             return parsedValue;
+        }
+
+        if (typeof parsedValue === 'number' && LEGACY_IGSNS_PAGE_SIZE_OPTIONS.some((option) => option === parsedValue)) {
+            storage.setItem(IGSNS_PAGE_SIZE_STORAGE_KEY, JSON.stringify(100));
+            return 100;
         }
 
         storage.removeItem(IGSNS_PAGE_SIZE_STORAGE_KEY);

@@ -9,6 +9,7 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -57,6 +58,32 @@ class ResourceCacheService
                 $cacheKey,
                 CacheKey::RESOURCE_LIST->ttl(),
                 fn () => $query->paginate($perPage, ['*'], 'page', $currentPage)
+            );
+    }
+
+    /**
+     * Cache a result page without coupling it to an exact total count.
+     *
+     * @param  Builder<Resource>  $query
+     * @param  array<string, mixed>  $filters
+     * @return Paginator<int, Resource>
+     */
+    public function cacheSimpleResourceList(
+        Builder $query,
+        int $perPage,
+        int $currentPage,
+        array $filters = [],
+    ): Paginator {
+        $cacheKey = $this->buildListCacheKey($perPage, $currentPage, [
+            ...$filters,
+            '_pagination_mode' => 'simple',
+        ]);
+
+        return $this->getCacheInstance(CacheKey::RESOURCE_LIST->tags())
+            ->remember(
+                $cacheKey,
+                CacheKey::RESOURCE_LIST->ttl(),
+                fn () => $query->simplePaginate($perPage, ['*'], 'page', $currentPage),
             );
     }
 

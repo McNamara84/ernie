@@ -29,7 +29,7 @@ class ResourceFilterController extends Controller
     public function loadMore(LoadMoreResourcesRequest $request): JsonResponse
     {
         $criteria = $request->toCriteria();
-        $resources = $this->queryBuilder->paginate($criteria);
+        $resources = $this->queryBuilder->simplePaginate($criteria);
 
         /** @var array<int, Resource> $items */
         $items = $resources->items();
@@ -40,9 +40,7 @@ class ResourceFilterController extends Controller
             'resources' => $resourcesData,
             'pagination' => [
                 'current_page' => $resources->currentPage(),
-                'last_page' => $resources->lastPage(),
                 'per_page' => $resources->perPage(),
-                'total' => $resources->total(),
                 'from' => $resources->firstItem(),
                 'to' => $resources->lastItem(),
                 'has_more' => $resources->hasMorePages(),

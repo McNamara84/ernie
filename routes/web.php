@@ -31,6 +31,7 @@ use App\Http\Controllers\OaiPmh\OaiPmhDocsController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\PortalCountController;
 use App\Http\Controllers\PortalMapController;
 use App\Http\Controllers\PortalSearchAnalyticsController;
 use App\Http\Controllers\PublicMetadataExportController;
@@ -110,6 +111,10 @@ Route::get('/changelog', function () {
 Route::get('/portal', [PortalController::class, 'index'])
     ->middleware('throttle:public-portal')
     ->name('portal');
+
+Route::get('/portal/count', PortalCountController::class)
+    ->middleware('throttle:public-portal')
+    ->name('portal.count');
 
 Route::get('/portal/map', PortalMapController::class)
     ->middleware('throttle:public-portal-map')
@@ -572,6 +577,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('igsns.index');
     Route::get('igsns/filter-options', [IgsnController::class, 'filterOptions'])
         ->name('igsns.filter-options');
+    Route::get('igsns/count', [IgsnController::class, 'count'])
+        ->name('igsns.count');
     Route::get('igsns-map', [IgsnMapController::class, 'index'])
         ->name('igsns.map');
     // IGSN Import from DataCite

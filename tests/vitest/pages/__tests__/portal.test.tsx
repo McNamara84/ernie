@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { act, fireEvent, render, screen } from '@tests/vitest/utils/render';
+import { act, fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,10 +9,16 @@ import Portal from '@/pages/portal';
 import type { PortalPageProps } from '@/types/portal';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
+const axiosGetMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     router: routerMock,
+}));
+
+vi.mock('axios', () => ({
+    default: { get: axiosGetMock },
+    isAxiosError: (error: unknown) => Boolean(error && typeof error === 'object' && 'isAxiosError' in error),
 }));
 
 vi.mock('@/layouts/portal-layout', () => ({
@@ -57,6 +63,7 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         filters,
         totalResults,
+        countStatus,
         onSearchChange,
         onKeywordsChange,
         onClearFilters,
@@ -68,7 +75,8 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         onTemporalChange,
     }: {
         filters: PortalPageProps['filters'];
-        totalResults: number;
+        totalResults: number | null;
+        countStatus: PortalPageProps['pagination']['count_status'];
         onSearchChange: (s: string) => void;
         onKeywordsChange?: (keywords: string[]) => void;
         onClearFilters: () => void;
@@ -81,6 +89,7 @@ vi.mock('@/components/portal/PortalFilters', () => ({
     }) => (
         <div data-testid="portal-filters">
             <span data-testid="total-results">{totalResults}</span>
+            <span data-testid="count-status">{countStatus}</span>
             <input data-testid="search-input" onChange={(e) => onSearchChange(e.target.value)} />
             {onKeywordsChange && (
                 <button data-testid="keyword-change" onClick={() => onKeywordsChange(['Updated Keyword'])}>
@@ -235,6 +244,9 @@ const defaultProps: PortalPageProps = {
         total: 50,
         from: 1,
         to: 25,
+        has_more: true,
+        count_status: 'ready',
+        filter_fingerprint: 'default-fingerprint',
     },
     filters: {
         query: '',
@@ -257,7 +269,9 @@ const defaultProps: PortalPageProps = {
 describe('Portal', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        axiosGetMock.mockReset();
         localStorage.clear();
+        window.history.replaceState(null, '', '/portal');
         useNavigationStatusMock.mockReturnValue({ isNavigating: false, statusText: 'Ready' });
     });
 
@@ -270,6 +284,126 @@ describe('Portal', () => {
         render(<Portal {...defaultProps} />);
         const resultCounts = screen.getAllByTestId('result-count');
         expect(resultCounts.some((el) => el.textContent === '2')).toBe(true);
+    });
+
+    it('renders results while counting and applies a matching count response', async () => {
+        axiosGetMock.mockResolvedValueOnce({
+            data: {
+                filter_fingerprint: 'current-filter',
+                total: 7,
+                last_page: 1,
+                count_status: 'ready',
+            },
+        });
+
+        render(
+            <Portal
+                {...defaultProps}
+                pagination={{
+                    ...defaultProps.pagination,
+                    total: null,
+                    last_page: null,
+                    count_status: 'pending',
+                    filter_fingerprint: 'current-filter',
+                }}
+            />,
+        );
+
+        expect(screen.getAllByTestId('result-count')[0]).toHaveTextContent('2');
+        expect(screen.getByText('Counting results...')).toBeInTheDocument();
+        await waitFor(() => expect(screen.getByTestId('total-results')).toHaveTextContent('7'));
+        expect(screen.getByText('7 results')).toBeInTheDocument();
+    });
+
+    it('ignores a portal count response from a stale filter', async () => {
+        axiosGetMock.mockResolvedValueOnce({
+            data: {
+                filter_fingerprint: 'stale-filter',
+                total: 99,
+                last_page: 5,
+                count_status: 'ready',
+            },
+        });
+
+        render(
+            <Portal
+                {...defaultProps}
+                pagination={{
+                    ...defaultProps.pagination,
+                    total: null,
+                    last_page: null,
+                    count_status: 'pending',
+                    filter_fingerprint: 'current-filter',
+                }}
+            />,
+        );
+
+        await waitFor(() => expect(axiosGetMock).toHaveBeenCalled());
+        expect(screen.getByText('Counting results...')).toBeInTheDocument();
+        expect(screen.getByTestId('total-results')).toBeEmptyDOMElement();
+    });
+
+    it('preserves exact direct-URL filters in the asynchronous count request', async () => {
+        window.history.replaceState(
+            null,
+            '',
+            '/portal?q=%20climate%20&north=53.123456789&south=50.987654321&east=15.000000009&west=11.000000001&page=4',
+        );
+        axiosGetMock.mockResolvedValueOnce({
+            data: {
+                filter_fingerprint: 'current-filter',
+                total: 7,
+                last_page: 1,
+                count_status: 'ready',
+            },
+        });
+
+        render(
+            <Portal
+                {...defaultProps}
+                filters={{
+                    ...defaultProps.filters,
+                    query: ' climate ',
+                    bounds: { north: 53.123456789, south: 50.987654321, east: 15.000000009, west: 11.000000001 },
+                }}
+                pagination={{
+                    ...defaultProps.pagination,
+                    total: null,
+                    last_page: null,
+                    count_status: 'pending',
+                    filter_fingerprint: 'current-filter',
+                }}
+            />,
+        );
+
+        await waitFor(() => expect(axiosGetMock).toHaveBeenCalledTimes(1));
+        const countUrl = new URL(String(axiosGetMock.mock.calls[0][0]), 'https://ernie.test');
+
+        expect(countUrl.pathname).toBe('/portal/count');
+        expect(countUrl.searchParams.get('q')).toBe(' climate ');
+        expect(countUrl.searchParams.get('north')).toBe('53.123456789');
+        expect(countUrl.searchParams.has('page')).toBe(false);
+    });
+
+    it('keeps portal results visible and offers a retry after a count failure', async () => {
+        axiosGetMock.mockRejectedValueOnce(new Error('count failed'));
+
+        render(
+            <Portal
+                {...defaultProps}
+                pagination={{
+                    ...defaultProps.pagination,
+                    total: null,
+                    last_page: null,
+                    count_status: 'pending',
+                    filter_fingerprint: 'current-filter',
+                }}
+            />,
+        );
+
+        expect(await screen.findByRole('button', { name: /retry count/i })).toBeInTheDocument();
+        expect(screen.getAllByTestId('result-count')[0]).toHaveTextContent('2');
+        expect(screen.getByTestId('count-status')).toHaveTextContent('failed');
     });
 
     it('shows refresh feedback when portal navigation is pending', () => {

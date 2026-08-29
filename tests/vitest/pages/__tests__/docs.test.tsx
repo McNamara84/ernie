@@ -733,8 +733,9 @@ describe('Docs page', () => {
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
                 return (
-                    text.includes('display 10, 100, or 1000 IGSNs at a time') &&
+                    text.includes('display 10 or 100 IGSNs at a time') &&
                     text.includes('stores this choice only in the current browser') &&
+                    text.includes('stored choice of 1000 is migrated to 100') &&
                     text.includes('returns to the first page')
                 );
             }),

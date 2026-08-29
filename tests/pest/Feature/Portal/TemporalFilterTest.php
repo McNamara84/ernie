@@ -370,8 +370,12 @@ describe('Temporal Filter - Controller URL Parsing', function () {
                 ->where('filters.temporal.dateType', 'Created')
                 ->where('filters.temporal.yearFrom', 2023)
                 ->where('filters.temporal.yearTo', 2023)
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
             );
+
+        $this->getJson('/portal/count?date_type=Created&year_from=2020&year_to=2025')
+            ->assertOk()
+            ->assertJsonPath('total', 1);
     });
 
     it('ignores temporal filter when date_type is invalid', function () {
@@ -384,7 +388,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
             );
     });
 

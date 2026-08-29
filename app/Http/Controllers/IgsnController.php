@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CacheKey;
 use App\Enums\DataCiteUrlUpdateScope;
 use App\Enums\UserRole;
 use App\Exceptions\JsonValidationException;
@@ -24,6 +25,7 @@ use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteUrlUpdateRunPresenter;
 use App\Services\JsonSchemaValidator;
+use App\Services\ListingCountService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
@@ -44,6 +46,7 @@ class IgsnController extends Controller
 {
     public function __construct(
         private readonly DataCiteUrlUpdateRunPresenter $dataCiteUrlUpdateRunPresenter,
+        private readonly ListingCountService $listingCountService,
     ) {}
 
     private const DEFAULT_SORT_KEY = 'updated_at';
@@ -75,44 +78,34 @@ class IgsnController extends Controller
      */
     public function index(IndexIgsnsRequest $request): Response
     {
-        $page = max(1, (int) $request->query('page', 1));
-        $perPage = $request->perPage();
-        $search = trim((string) $request->query('search', ''));
-
-        // Enforce minimum search length to avoid expensive full-table LIKE scans.
-        // Must stay in sync with the frontend MIN_SEARCH_LENGTH constant.
-        if (mb_strlen($search) < self::MIN_SEARCH_LENGTH) {
-            $search = '';
-        }
-
-        // Extract filter parameters
-        $prefix = trim((string) $request->query('prefix', ''));
-        $status = trim((string) $request->query('status', ''));
-        $datacenterId = $request->datacenterId();
-        $withoutDatacenter = $request->withoutDatacenter();
-
-        // Validate status against known values
-        if ($status !== '' && ! in_array($status, IgsnMetadata::getValidStatuses(), true)) {
-            $status = '';
-        }
-
-        [$sortKey, $sortDirection] = $this->resolveSortState($request);
+        $criteria = $this->resolveListingCriteria($request);
+        $page = $criteria['page'];
+        $perPage = $criteria['per_page'];
+        $search = $criteria['search'];
+        $prefix = $criteria['prefix'];
+        $status = $criteria['status'];
+        $datacenterId = $criteria['datacenter_id'];
+        $withoutDatacenter = $criteria['without_datacenter'];
+        $sortKey = $criteria['sort'];
+        $sortDirection = $criteria['direction'];
 
         $base = $this->baseQuery();
         $query = $this->buildQueryFrom($base);
-
-        // Get total count before applying any filters/search (for "Showing X of Y" display)
-        $hasFilters = $search !== '' || $prefix !== '' || $status !== '' || $datacenterId !== null || $withoutDatacenter;
-        $totalCount = $hasFilters ? $query->count() : null;
 
         $this->applyFilters($query, $prefix, $status, $datacenterId, $withoutDatacenter);
         $this->applySearch($query, $search);
         $this->applySorting($query, $sortKey, $sortDirection);
 
-        $paginated = $query->paginate($perPage, ['*'], 'page', $page);
+        $paginated = $query->simplePaginate($perPage, ['*'], 'page', $page);
+        $filterFingerprint = $this->listingCountService->fingerprint($this->countCriteria($criteria));
 
-        $igsns = $paginated->getCollection()->map(function (Resource $resource) {
-            return $this->transformResource($resource);
+        // Resolve global vocabulary IDs once per request. Resolving these inside
+        // transformResource() would add two identical queries per list row.
+        $mainTitleTypeId = TitleType::query()->where('slug', 'MainTitle')->value('id');
+        $collectedDateTypeId = DateType::query()->where('slug', 'Collected')->value('id');
+
+        $igsns = $paginated->getCollection()->map(function (Resource $resource) use ($mainTitleTypeId, $collectedDateTypeId) {
+            return $this->transformResource($resource, $mainTitleTypeId, $collectedDateTypeId);
         });
 
         // Check if current user is admin (only admins can delete IGSNs)
@@ -131,19 +124,21 @@ class IgsnController extends Controller
             'igsns' => $igsns,
             'pagination' => [
                 'current_page' => $paginated->currentPage(),
-                'last_page' => $paginated->lastPage(),
+                'last_page' => null,
                 'per_page' => $paginated->perPage(),
-                'total' => $paginated->total(),
+                'total' => null,
                 'from' => $paginated->firstItem(),
                 'to' => $paginated->lastItem(),
                 'has_more' => $paginated->hasMorePages(),
+                'count_status' => 'pending',
+                'filter_fingerprint' => $filterFingerprint,
             ],
             'sort' => [
                 'key' => $sortKey,
                 'direction' => $sortDirection,
             ],
             'search' => $search,
-            'totalCount' => $totalCount ?? $paginated->total(),
+            'totalCount' => null,
             'canDelete' => $canDelete,
             'canRegister' => $canRegister,
             'canImport' => $canImport,
@@ -157,6 +152,56 @@ class IgsnController extends Controller
                 'without_datacenter' => $withoutDatacenter ?: null,
             ], static fn (mixed $value): bool => $value !== null),
             'filterOptions' => $this->getFilterOptionsData($base),
+        ]);
+    }
+
+    /**
+     * Resolve exact IGSN totals independently from the result-page request.
+     */
+    public function count(IndexIgsnsRequest $request): JsonResponse
+    {
+        $criteria = $this->resolveListingCriteria($request);
+        $countCriteria = $this->countCriteria($criteria);
+        $fingerprint = $this->listingCountService->fingerprint($countCriteria);
+
+        $filteredTotal = $this->listingCountService->remember(
+            CacheKey::IGSN_LISTING_COUNT,
+            ['scope' => 'filtered', ...$countCriteria],
+            function () use ($criteria): int {
+                $query = $this->baseQuery();
+                $this->applyFilters(
+                    $query,
+                    $criteria['prefix'],
+                    $criteria['status'],
+                    $criteria['datacenter_id'],
+                    $criteria['without_datacenter'],
+                );
+                $this->applySearch($query, $criteria['search']);
+
+                return $query->count();
+            },
+        );
+
+        $hasFilters = $criteria['search'] !== ''
+            || $criteria['prefix'] !== ''
+            || $criteria['status'] !== ''
+            || $criteria['datacenter_id'] !== null
+            || $criteria['without_datacenter'];
+
+        $inventoryTotal = $hasFilters
+            ? $this->listingCountService->remember(
+                CacheKey::IGSN_LISTING_COUNT,
+                ['scope' => 'inventory'],
+                fn (): int => $this->baseQuery()->count(),
+            )
+            : $filteredTotal;
+
+        return response()->json([
+            'filter_fingerprint' => $fingerprint,
+            'filtered_total' => $filteredTotal,
+            'inventory_total' => $inventoryTotal,
+            'last_page' => max(1, (int) ceil($filteredTotal / $criteria['per_page'])),
+            'count_status' => 'ready',
         ]);
     }
 
@@ -570,21 +615,21 @@ class IgsnController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function transformResource(Resource $resource): array
+    private function transformResource(Resource $resource, ?int $mainTitleTypeId, ?int $collectedDateTypeId): array
     {
-        // Get MainTitle type ID dynamically (don't hardcode ID)
-        $mainTitleTypeId = TitleType::where('slug', 'MainTitle')->value('id');
-
         // Find the main title by type, fallback to first title, then 'Untitled'
-        $mainTitleRecord = $resource->titles->firstWhere('title_type_id', $mainTitleTypeId)
+        $mainTitleRecord = ($mainTitleTypeId === null
+            ? null
+            : $resource->titles->firstWhere('title_type_id', $mainTitleTypeId))
             ?? $resource->titles->first();
         $mainTitle = $mainTitleRecord !== null ? $mainTitleRecord->value : 'Untitled';
 
         $metadata = $resource->igsnMetadata;
 
         // Get collection date from dates relation (using date_type_id for reliable filtering)
-        $collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
-        $collectionDate = $resource->dates->firstWhere('date_type_id', $collectedDateTypeId);
+        $collectionDate = $collectedDateTypeId === null
+            ? null
+            : $resource->dates->firstWhere('date_type_id', $collectedDateTypeId);
 
         // Get first geo location
         $geoLocation = $resource->geoLocations->first();
@@ -686,6 +731,63 @@ class IgsnController extends Controller
         }
 
         return [$sortKey, $sortDirection];
+    }
+
+    /**
+     * @return array{
+     *     page:int,
+     *     per_page:int,
+     *     search:string,
+     *     prefix:string,
+     *     status:string,
+     *     datacenter_id:int|null,
+     *     without_datacenter:bool,
+     *     sort:string,
+     *     direction:string
+     * }
+     */
+    private function resolveListingCriteria(IndexIgsnsRequest $request): array
+    {
+        $search = trim((string) $request->query('search', ''));
+
+        if (mb_strlen($search) < self::MIN_SEARCH_LENGTH) {
+            $search = '';
+        }
+
+        $status = trim((string) $request->query('status', ''));
+
+        if ($status !== '' && ! in_array($status, IgsnMetadata::getValidStatuses(), true)) {
+            $status = '';
+        }
+
+        [$sortKey, $sortDirection] = $this->resolveSortState($request);
+
+        return [
+            'page' => max(1, (int) $request->query('page', 1)),
+            'per_page' => $request->perPage(),
+            'search' => $search,
+            'prefix' => trim((string) $request->query('prefix', '')),
+            'status' => $status,
+            'datacenter_id' => $request->datacenterId(),
+            'without_datacenter' => $request->withoutDatacenter(),
+            'sort' => $sortKey,
+            'direction' => $sortDirection,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $criteria
+     * @return array<string, mixed>
+     */
+    private function countCriteria(array $criteria): array
+    {
+        return [
+            'search' => $criteria['search'],
+            'prefix' => $criteria['prefix'],
+            'status' => $criteria['status'],
+            'datacenter_id' => $criteria['datacenter_id'],
+            'without_datacenter' => $criteria['without_datacenter'],
+        ];
     }
 
     /**

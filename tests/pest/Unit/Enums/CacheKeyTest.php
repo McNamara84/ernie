@@ -9,6 +9,9 @@ covers(CacheKey::class);
 it('generates correct cache keys without suffix', function () {
     expect(CacheKey::RESOURCE_LIST->key())->toBe('resources:list');
     expect(CacheKey::RESOURCE_DETAIL->key())->toBe('resources:detail');
+    expect(CacheKey::RESOURCE_LISTING_COUNT->key())->toBe('resources:listing_count');
+    expect(CacheKey::IGSN_LISTING_COUNT->key())->toBe('igsns:listing_count');
+    expect(CacheKey::PORTAL_LISTING_COUNT->key())->toBe('portal:listing_count');
     expect(CacheKey::GCMD_SCIENCE_KEYWORDS->key())->toBe('vocabularies:gcmd:science_keywords');
     expect(CacheKey::RAID_PROJECTS->key())->toBe('vocabularies:raid:projects');
     expect(CacheKey::ROR_AFFILIATION->key())->toBe('ror:affiliation');
@@ -30,12 +33,17 @@ it('versions landing page render data cache keys', function () {
 });
 
 it('returns correct TTL for resources', function () {
+    config(['listing_performance.internal_count_ttl' => 180]);
+
     // Resource listings - 5 minutes (300 seconds)
     expect(CacheKey::RESOURCE_LIST->ttl())->toBe(300);
     expect(CacheKey::RESOURCE_COUNT->ttl())->toBe(300);
 
     // Individual resources - 15 minutes (900 seconds)
     expect(CacheKey::RESOURCE_DETAIL->ttl())->toBe(900);
+
+    expect(CacheKey::RESOURCE_LISTING_COUNT->ttl())->toBe(180);
+    expect(CacheKey::IGSN_LISTING_COUNT->ttl())->toBe(180);
 });
 
 it('returns correct TTL for vocabularies', function () {
@@ -88,6 +96,9 @@ it('returns correct tags for resources', function () {
     expect(CacheKey::RESOURCE_LIST->tags())->toBe(['resources']);
     expect(CacheKey::RESOURCE_DETAIL->tags())->toBe(['resources']);
     expect(CacheKey::RESOURCE_COUNT->tags())->toBe(['resources']);
+    expect(CacheKey::RESOURCE_LISTING_COUNT->tags())->toBe(['resources', 'internal_listing_counts']);
+    expect(CacheKey::IGSN_LISTING_COUNT->tags())->toBe(['resources', 'internal_listing_counts']);
+    expect(CacheKey::PORTAL_LISTING_COUNT->tags())->toBe(['resources', 'portal_page_payloads']);
 });
 
 it('returns correct tags for vocabularies', function () {

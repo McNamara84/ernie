@@ -62,11 +62,14 @@ export interface PortalResource {
  */
 export interface PortalPagination {
     current_page: number;
-    last_page: number;
+    last_page: number | null;
     per_page: number;
-    total: number;
+    total: number | null;
     from: number;
     to: number;
+    has_more: boolean;
+    count_status: 'pending' | 'ready' | 'failed';
+    filter_fingerprint: string;
 }
 
 /**

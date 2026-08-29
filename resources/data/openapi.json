@@ -1756,6 +1756,165 @@
                 }
             }
         },
+        "/portal/count": {
+            "get": {
+                "tags": ["Portal"],
+                "summary": "Count records matching the public portal filters",
+                "description": "Returns the cached exact result total, final page, and semantic filter fingerprint for the public portal. Pagination is intentionally excluded from the fingerprint so the same count can be reused across result pages.",
+                "operationId": "getPortalCount",
+                "security": [],
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "description": "Portal full-text search term.",
+                        "schema": { "type": "string", "maxLength": 500 }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "description": "Legacy resource-type shortcut. `doi` excludes physical objects; `igsn` selects physical objects.",
+                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                    },
+                    {
+                        "name": "type[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Selected resource-type slugs.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "datacenter[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Selected datacenter names.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "keywords[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Legacy combined keyword filters.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "free_keywords[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact free-keyword filters.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "thesaurus_keywords[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Selected controlled-vocabulary term identifiers.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 2048 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "north",
+                        "in": "query",
+                        "required": false,
+                        "description": "Northern latitude of the optional semantic spatial filter. Supply all four spatial filter bounds together.",
+                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                    },
+                    {
+                        "name": "south",
+                        "in": "query",
+                        "required": false,
+                        "description": "Southern latitude of the optional semantic spatial filter.",
+                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                    },
+                    {
+                        "name": "east",
+                        "in": "query",
+                        "required": false,
+                        "description": "Eastern longitude of the optional semantic spatial filter.",
+                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                    },
+                    {
+                        "name": "west",
+                        "in": "query",
+                        "required": false,
+                        "description": "Western longitude of the optional semantic spatial filter.",
+                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                    },
+                    {
+                        "name": "date_type",
+                        "in": "query",
+                        "required": false,
+                        "description": "Date field used by the optional temporal filter.",
+                        "schema": { "type": "string", "enum": ["Created", "Collected", "Coverage"] }
+                    },
+                    {
+                        "name": "year_from",
+                        "in": "query",
+                        "required": false,
+                        "description": "Inclusive first year of the optional temporal filter.",
+                        "schema": { "type": "integer", "minimum": 1900, "example": 2000 }
+                    },
+                    {
+                        "name": "year_to",
+                        "in": "query",
+                        "required": false,
+                        "description": "Inclusive last year of the optional temporal filter.",
+                        "schema": { "type": "integer", "minimum": 1900, "example": 2026 }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Exact count and pagination metadata for the normalized portal filters.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/PortalCountResponse" }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Public portal rate limit exceeded.",
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until the client may retry.",
+                                "schema": { "type": "integer", "minimum": 0 }
+                            },
+                            "X-RateLimit-Limit": {
+                                "description": "Configured request limit for the current window.",
+                                "schema": { "type": "integer", "minimum": 1 }
+                            },
+                            "X-RateLimit-Remaining": {
+                                "description": "Requests remaining in the current window.",
+                                "schema": { "type": "integer", "minimum": 0 }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "The exact count could not be completed, for example because another count still holds the cache lock.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/portal/map": {
             "get": {
                 "tags": ["Portal"],
@@ -2058,6 +2217,22 @@
             }
         },
         "schemas": {
+            "PortalCountResponse": {
+                "type": "object",
+                "description": "Exact public portal result count for one normalized semantic filter combination.",
+                "properties": {
+                    "filter_fingerprint": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$",
+                        "description": "SHA-256 fingerprint of the count-relevant normalized filters."
+                    },
+                    "total": { "type": "integer", "minimum": 0 },
+                    "last_page": { "type": "integer", "minimum": 1 },
+                    "count_status": { "type": "string", "enum": ["ready"] }
+                },
+                "required": ["filter_fingerprint", "total", "last_page", "count_status"],
+                "additionalProperties": false
+            },
             "PortalMapBounds": {
                 "type": "object",
                 "description": "Geographic bounds. A west value greater than east denotes an antimeridian-crossing interval.",

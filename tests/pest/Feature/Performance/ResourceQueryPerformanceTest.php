@@ -8,6 +8,7 @@ use App\Models\Resource;
 use App\Models\Title;
 use App\Models\User;
 use App\Services\Resources\ResourceQueryBuilder;
+use Illuminate\Database\Events\QueryExecuted;
 
 covers(ResourceQueryBuilder::class, ResourceListItemResource::class);
 
@@ -213,4 +214,25 @@ it('does not eager-load contributors on list endpoints (Issue: PR #679 review)',
     expect($loaded)->not->toBeNull();
     expect($loaded->relationLoaded('contributors'))
         ->toBeFalse('contributors must not be eager-loaded by the list query builder');
+});
+
+it('does not count resources while loading an infinite-scroll page', function () {
+    Resource::factory()->count(3)->create();
+    $queries = [];
+
+    DB::listen(function (QueryExecuted $query) use (&$queries): void {
+        $queries[] = mb_strtolower($query->sql);
+    });
+
+    $this->actingAs(User::factory()->create())
+        ->getJson('/resources/load-more?page=1&per_page=2')
+        ->assertOk()
+        ->assertJsonMissingPath('pagination.total')
+        ->assertJsonMissingPath('pagination.last_page')
+        ->assertJsonPath('pagination.has_more', true);
+
+    expect(array_filter(
+        $queries,
+        static fn (string $sql): bool => preg_match('/\bcount\s*\(/', $sql) === 1,
+    ))->toBeEmpty('The load-more result path must not execute COUNT queries.');
 });

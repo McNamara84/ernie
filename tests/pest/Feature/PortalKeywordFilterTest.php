@@ -214,10 +214,16 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['keywords' => ['Seismology']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
                 ->where('resources.0.title', 'Earthquake Study')
                 ->where('filters.keywords', ['Seismology'])
             );
+
+        $this->getJson(route('portal.count', ['keywords' => ['Seismology']]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('last_page', 1)
+            ->assertJsonStructure(['filter_fingerprint']);
     });
 
     it('filters resources by multiple keywords with AND logic', function () {
@@ -242,7 +248,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['keywords' => ['Seismology', 'GNSS']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
                 ->where('resources.0.title', 'Complete Study')
             );
     });
@@ -264,7 +270,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['q' => 'Earthquake', 'keywords' => ['Seismology']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
                 ->where('resources.0.title', 'Earthquake Analysis')
             );
     });
@@ -291,7 +297,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['keywords' => ['Seismology'], 'type' => 'dataset']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
                 ->where('resources.0.title', 'Dataset with Seismology')
             );
     });
@@ -313,7 +319,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['keywords' => ['Seismology', 'GNSS']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 0)
+                ->has('resources', 0)
             );
     });
 
@@ -328,7 +334,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['keywords' => []]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
             );
     });
 
@@ -343,7 +349,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['q' => 'Paleoclimate']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
             );
     });
 
@@ -363,7 +369,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['free_keywords' => ['Seismology']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
                 ->where('resources.0.title', 'Free Keyword Match')
                 ->where('filters.freeKeywords', ['Seismology'])
             );
@@ -385,7 +391,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['free_keywords' => ['Seismology']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
                 ->where('resources.0.title', 'Imported Free Keyword Match')
                 ->where('filters.freeKeywords', ['Seismology'])
             );
@@ -408,7 +414,7 @@ describe('Portal Keyword Filter', function () {
         ]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
                 ->where('resources.0.title', 'Normalized Split Match')
                 ->where('filters.keywords', [])
                 ->where('filters.freeKeywords', ['Seismology'])
@@ -432,7 +438,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['thesaurus_keywords' => ['science-earth']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
                 ->where('resources.0.title', 'GNSS Dataset')
                 ->where('filters.thesaurusKeywords', ['science-earth'])
             );
@@ -448,7 +454,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['thesaurus_keywords' => ['science-earth']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
                 ->where('resources.0.title', 'Imported GNSS Dataset')
             );
     });
@@ -472,7 +478,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['thesaurus_keywords' => ['science-earth', 'platforms-root']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
                 ->where('resources.0.title', 'Complete Controlled Study')
             );
     });
@@ -487,7 +493,7 @@ describe('Portal Keyword Filter', function () {
         $this->get(route('portal', ['thesaurus_keywords' => ['missing-node']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 0)
+                ->has('resources', 0)
             );
     });
 });

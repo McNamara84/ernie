@@ -82,6 +82,15 @@ interface PaginationInfo {
     has_more: boolean;
 }
 
+export function mergeLoadMorePagination(current: PaginationInfo, next: Partial<PaginationInfo>): PaginationInfo {
+    return {
+        ...current,
+        ...next,
+        total: current.total,
+        last_page: current.last_page,
+    };
+}
+
 interface ResourcesProps {
     resources: Resource[];
     pagination: PaginationInfo;
@@ -796,7 +805,9 @@ function ResourcesPage({
             const response = await axios.get('/resources/load-more', { params });
 
             setResources((prev) => [...prev, ...(response.data.resources || [])]);
-            setPagination(response.data.pagination);
+            // The load-more endpoint deliberately omits exact counts. Keep the
+            // independently resolved initial values stable.
+            setPagination((current) => mergeLoadMorePagination(current, response.data.pagination));
         } catch (err) {
             console.error('Error loading more resources:', err);
 

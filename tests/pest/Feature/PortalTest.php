@@ -96,8 +96,14 @@ describe('Portal Search', function () {
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.query', 'Earthquake')
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
+                ->where('pagination.count_status', 'pending')
             );
+
+        $this->getJson(route('portal.count', ['q' => 'Earthquake']))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('last_page', 1);
     });
 
     it('can search by DOI', function () {
@@ -107,8 +113,12 @@ describe('Portal Search', function () {
         $this->get(route('portal', ['q' => '10.5880/test']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
             );
+
+        $this->getJson(route('portal.count', ['q' => '10.5880/test']))
+            ->assertOk()
+            ->assertJsonPath('total', 1);
     });
 
     it('returns empty results for non-matching search', function () {
@@ -117,8 +127,12 @@ describe('Portal Search', function () {
         $this->get(route('portal', ['q' => 'NonExistentTerm12345']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 0)
+                ->has('resources', 0)
             );
+
+        $this->getJson(route('portal.count', ['q' => 'NonExistentTerm12345']))
+            ->assertOk()
+            ->assertJsonPath('total', 0);
     });
 });
 
@@ -131,8 +145,12 @@ describe('Portal Type Filter', function () {
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.type', [])
-                ->where('pagination.total', 2)
+                ->has('resources', 2)
             );
+
+        $this->getJson(route('portal.count'))
+            ->assertOk()
+            ->assertJsonPath('total', 2);
     });
 
     it('can filter by dataset type only', function () {
@@ -143,8 +161,12 @@ describe('Portal Type Filter', function () {
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.type', ['dataset'])
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
             );
+
+        $this->getJson(route('portal.count', ['type' => 'dataset']))
+            ->assertOk()
+            ->assertJsonPath('total', 1);
     });
 
     it('can filter by physical-object type only', function () {
@@ -155,8 +177,12 @@ describe('Portal Type Filter', function () {
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.type', ['physical-object'])
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
             );
+
+        $this->getJson(route('portal.count', ['type' => 'physical-object']))
+            ->assertOk()
+            ->assertJsonPath('total', 1);
     });
 });
 
@@ -170,11 +196,18 @@ describe('Portal Pagination', function () {
         $this->get(route('portal'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 25)
+                ->has('resources', 20)
                 ->where('pagination.per_page', 20)
                 ->where('pagination.current_page', 1)
-                ->where('pagination.last_page', 2)
+                ->where('pagination.last_page', null)
+                ->where('pagination.total', null)
+                ->where('pagination.has_more', true)
             );
+
+        $this->getJson(route('portal.count'))
+            ->assertOk()
+            ->assertJsonPath('total', 25)
+            ->assertJsonPath('last_page', 2);
     });
 
     it('can navigate to second page', function () {
@@ -223,7 +256,7 @@ describe('Portal Only Shows Published Resources', function () {
         $this->get(route('portal'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
             );
     });
 
@@ -249,7 +282,7 @@ describe('Portal Only Shows Published Resources', function () {
         $this->get(route('portal'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
             );
     });
 });

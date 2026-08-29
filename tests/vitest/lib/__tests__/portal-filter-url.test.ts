@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildPortalFilterUrl, buildPortalMapUrl, mergePortalFilters } from '@/lib/portal-filter-url';
+import { buildPortalCountUrl, buildPortalFilterUrl, buildPortalMapUrl, mergePortalFilters } from '@/lib/portal-filter-url';
 import type { PortalFilters } from '@/types/portal';
 
 const filters: PortalFilters = {
@@ -52,6 +52,16 @@ describe('portal filter URL builders', () => {
         expect(url.searchParams.get('viewport[height]')).toBe('699');
         expect(url.searchParams.get('zoom')).toBe('12');
         expect(url.searchParams.get('include_extent')).toBe('1');
+    });
+
+    it('preserves exact direct-URL filters for counts while dropping pagination', () => {
+        const url = new URL(buildPortalCountUrl('?q=%20climate%20&north=53.123456789&type%5B%5D=dataset&page=4'), 'https://ernie.test');
+
+        expect(url.pathname).toBe('/portal/count');
+        expect(url.searchParams.get('q')).toBe(' climate ');
+        expect(url.searchParams.get('north')).toBe('53.123456789');
+        expect(url.searchParams.getAll('type[]')).toEqual(['dataset']);
+        expect(url.searchParams.has('page')).toBe(false);
     });
 
     it('preserves the legacy DOI exclusion filter for map requests', () => {

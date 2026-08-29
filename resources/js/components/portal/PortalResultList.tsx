@@ -69,14 +69,20 @@ export function PortalResultList({
         );
     }
 
-    const { current_page, last_page, from, to, total } = pagination;
+    const { current_page, last_page, from, to, total, has_more, count_status } = pagination;
+    const showPagination = current_page > 1 || has_more || (last_page !== null && last_page > 1);
 
     return (
         <div className="flex flex-1 flex-col" data-testid="portal-results-list" aria-busy={isLoading}>
             {/* Results Header */}
             <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
                 <p className="text-sm text-muted-foreground" aria-live="polite">
-                    Showing {from}-{to} of {total.toLocaleString()} results
+                    Showing {from}-{to}{' '}
+                    {total === null
+                        ? count_status === 'failed'
+                            ? 'results (count unavailable)'
+                            : 'results (counting total...)'
+                        : `of ${total.toLocaleString()} results`}
                 </p>
                 {isLoading && (
                     <Badge variant="secondary" data-testid="portal-results-refreshing">
@@ -95,40 +101,37 @@ export function PortalResultList({
             </ScrollArea>
 
             {/* Pagination */}
-            {last_page > 1 && (
+            {showPagination && (
                 <div className="flex items-center justify-center gap-2 border-t px-4 py-3">
                     <Button variant="outline" size="sm" onClick={() => onPageChange(current_page - 1)} disabled={current_page === 1 || isLoading}>
                         <ChevronLeft className="mr-1 h-4 w-4" />
                         Previous
                     </Button>
 
-                    <div className="flex items-center gap-1">
-                        {generatePageNumbers(current_page, last_page).map((page, index) =>
-                            page === '...' ? (
-                                <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
-                                    ...
-                                </span>
-                            ) : (
-                                <Button
-                                    key={page}
-                                    variant={page === current_page ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => onPageChange(page as number)}
-                                    disabled={isLoading}
-                                    className="min-w-[2.5rem]"
-                                >
-                                    {page}
-                                </Button>
-                            ),
-                        )}
-                    </div>
+                    {last_page !== null && (
+                        <div className="flex items-center gap-1">
+                            {generatePageNumbers(current_page, last_page).map((page, index) =>
+                                page === '...' ? (
+                                    <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
+                                        ...
+                                    </span>
+                                ) : (
+                                    <Button
+                                        key={page}
+                                        variant={page === current_page ? 'default' : 'outline'}
+                                        size="sm"
+                                        onClick={() => onPageChange(page as number)}
+                                        disabled={isLoading}
+                                        className="min-w-[2.5rem]"
+                                    >
+                                        {page}
+                                    </Button>
+                                ),
+                            )}
+                        </div>
+                    )}
 
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onPageChange(current_page + 1)}
-                        disabled={current_page === last_page || isLoading}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => onPageChange(current_page + 1)} disabled={!has_more || isLoading}>
                         Next
                         <ChevronRight className="ml-1 h-4 w-4" />
                     </Button>

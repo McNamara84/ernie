@@ -93,7 +93,7 @@ describe('IGSN Pagination', function () {
                 ->component('igsns/index')
                 ->where('pagination.per_page', $perPage)
             );
-    })->with([10, 100, 1000]);
+    })->with([10, 100]);
 
     it('normalizes unsupported legacy page sizes to the default', function (int $perPage) {
         $this->actingAs($this->user)
@@ -103,7 +103,7 @@ describe('IGSN Pagination', function () {
                 ->component('igsns/index')
                 ->where('pagination.per_page', 100)
             );
-    })->with([25, 50]);
+    })->with([25, 50, 1000]);
 
     it('rejects unsupported page sizes', function (int $perPage) {
         $this->actingAs($this->user)
@@ -124,10 +124,17 @@ describe('IGSN Pagination', function () {
                 ->component('igsns/index')
                 ->has('igsns', 1)
                 ->where('pagination.current_page', 2)
-                ->where('pagination.last_page', 2)
+                ->where('pagination.last_page', null)
                 ->where('pagination.per_page', 10)
-                ->where('pagination.total', 11)
+                ->where('pagination.total', null)
+                ->where('pagination.has_more', false)
             );
+
+        $this->actingAs($this->user)
+            ->getJson('/igsns/count?per_page=10')
+            ->assertOk()
+            ->assertJsonPath('filtered_total', 11)
+            ->assertJsonPath('last_page', 2);
     });
 });
 
@@ -334,9 +341,15 @@ describe('IGSN Datacenter Filter', function () {
                 ->where('igsns.0.id', $selectedIgsn->id)
                 ->where('filters.datacenter_id', $selectedDatacenter->id)
                 ->missing('filters.without_datacenter')
-                ->where('pagination.total', 1)
-                ->where('totalCount', 3)
+                ->where('pagination.total', null)
+                ->where('totalCount', null)
             );
+
+        $this->actingAs($this->user)
+            ->getJson('/igsns/count?datacenter_id='.$selectedDatacenter->id)
+            ->assertOk()
+            ->assertJsonPath('filtered_total', 1)
+            ->assertJsonPath('inventory_total', 3);
     });
 
     it('filters IGSNs without a datacenter', function () {
@@ -354,9 +367,15 @@ describe('IGSN Datacenter Filter', function () {
                 ->where('igsns.0.id', $unassignedIgsn->id)
                 ->where('filters.without_datacenter', true)
                 ->missing('filters.datacenter_id')
-                ->where('pagination.total', 1)
-                ->where('totalCount', 2)
+                ->where('pagination.total', null)
+                ->where('totalCount', null)
             );
+
+        $this->actingAs($this->user)
+            ->getJson('/igsns/count?without_datacenter=1')
+            ->assertOk()
+            ->assertJsonPath('filtered_total', 1)
+            ->assertJsonPath('inventory_total', 2);
     });
 
     it('combines datacenter, prefix, status, and search filters', function () {
@@ -385,9 +404,15 @@ describe('IGSN Datacenter Filter', function () {
                 ->where('filters.prefix', '10.60516')
                 ->where('filters.status', 'pending')
                 ->where('search', 'Granite')
-                ->where('pagination.total', 1)
-                ->where('totalCount', 5)
+                ->where('pagination.total', null)
+                ->where('totalCount', null)
             );
+
+        $this->actingAs($this->user)
+            ->getJson('/igsns/count?datacenter_id='.$selectedDatacenter->id.'&prefix=10.60516&status=pending&search=Granite')
+            ->assertOk()
+            ->assertJsonPath('filtered_total', 1)
+            ->assertJsonPath('inventory_total', 5);
     });
 
     it('rejects unknown and mutually exclusive datacenter filters', function () {
@@ -470,8 +495,14 @@ describe('IGSN Combined Filters', function () {
         $response->assertInertia(fn ($page) => $page
             ->component('igsns/index')
             ->has('igsns', 2)
-            ->where('totalCount', 3)
-            ->where('pagination.total', 2)
+            ->where('totalCount', null)
+            ->where('pagination.total', null)
         );
+
+        $this->actingAs($this->user)
+            ->getJson('/igsns/count?status=pending')
+            ->assertOk()
+            ->assertJsonPath('filtered_total', 2)
+            ->assertJsonPath('inventory_total', 3);
     });
 });

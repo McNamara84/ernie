@@ -20,6 +20,7 @@ use App\Models\Title;
 use App\Support\LanguageTag;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -101,7 +102,45 @@ class PortalSearchService
         );
 
         /** @var LengthAwarePaginator<int, Resource> */
-        return $query->paginate($perPage);
+        return $query->paginate(
+            $perPage,
+            ['*'],
+            'page',
+            max(1, (int) ($filters['page'] ?? 1)),
+        );
+    }
+
+    /**
+     * Load a portal result page without waiting for an exact count.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return Paginator<int, Resource>
+     */
+    public function simpleSearch(array $filters = []): Paginator
+    {
+        $query = $this->buildQuery($filters, includeAbstractPreview: true);
+        $perPage = min(
+            $filters['per_page'] ?? self::DEFAULT_PER_PAGE,
+            self::MAX_PER_PAGE,
+        );
+
+        /** @var Paginator<int, Resource> */
+        return $query->simplePaginate(
+            $perPage,
+            ['*'],
+            'page',
+            max(1, (int) ($filters['page'] ?? 1)),
+        );
+    }
+
+    /**
+     * Count matching published resources without eager loading or sorting.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function count(array $filters = []): int
+    {
+        return $this->buildFilteredResourceQuery($filters)->count();
     }
 
     /**

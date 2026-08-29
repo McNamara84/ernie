@@ -63,6 +63,7 @@ describe('IgsnFilters Component', () => {
         filterOptions: defaultFilterOptions,
         resultCount: 50,
         totalCount: 50,
+        countStatus: 'ready' as const,
         isLoading: false,
     };
 
@@ -221,6 +222,17 @@ describe('IgsnFilters Component', () => {
         // When resultCount === totalCount and no filters are active,
         // the result count row is not rendered
         expect(screen.queryByText(/samples total/i)).not.toBeInTheDocument();
+    });
+
+    it('distinguishes a failed sample count from a pending count', () => {
+        const { rerender } = render(<IgsnFilters {...defaultProps} resultCount={null} totalCount={null} countStatus="pending" />);
+
+        expect(screen.getByText('Counting samples...')).toBeInTheDocument();
+
+        rerender(<IgsnFilters {...defaultProps} resultCount={null} totalCount={null} countStatus="failed" />);
+
+        expect(screen.getByText('Count unavailable')).toBeInTheDocument();
+        expect(screen.queryByText('Counting samples...')).not.toBeInTheDocument();
     });
 
     it('removes individual filter on badge close button click', async () => {

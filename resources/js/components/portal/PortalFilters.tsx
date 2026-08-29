@@ -35,7 +35,8 @@ interface PortalFiltersProps {
     hasActiveFilters: boolean;
     isCollapsed: boolean;
     onToggleCollapse: () => void;
-    totalResults: number;
+    totalResults: number | null;
+    countStatus: 'pending' | 'ready' | 'failed';
     keywordSuggestions: KeywordSuggestion[];
     thesaurusFacets?: PortalThesaurusFacet[];
     geoFilterEnabled: boolean;
@@ -61,6 +62,7 @@ export function PortalFilters({
     isCollapsed,
     onToggleCollapse,
     totalResults,
+    countStatus,
     keywordSuggestions,
     thesaurusFacets = [],
     geoFilterEnabled,
@@ -233,8 +235,12 @@ export function PortalFilters({
 
             {/* Footer with result count */}
             <div className="border-t px-4 py-3">
-                <p className={cn('text-sm', hasActiveFilters ? 'font-medium text-primary' : 'text-muted-foreground')}>
-                    {totalResults.toLocaleString()} {totalResults === 1 ? 'result' : 'results'}
+                <p className={cn('text-sm', hasActiveFilters ? 'font-medium text-primary' : 'text-muted-foreground')} aria-live="polite">
+                    {totalResults !== null
+                        ? `${totalResults.toLocaleString()} ${totalResults === 1 ? 'result' : 'results'}`
+                        : countStatus === 'failed'
+                          ? 'Count unavailable'
+                          : 'Counting results...'}
                 </p>
             </div>
         </div>
