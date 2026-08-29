@@ -4,35 +4,67 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
-it('runs architecture tests outside the parallel coverage workers', function (): void {
+it('splits CI tests into isolated coverage and architecture slices', function (): void {
     $workflow = Yaml::parseFile(base_path('.github/workflows/tests.yml'));
 
     expect($workflow)->toBeArray();
 
-    $steps = $workflow['jobs']['ci']['steps'] ?? null;
-    expect($steps)->toBeArray();
+    $pestJob = $workflow['jobs']['pest'] ?? null;
+    expect($pestJob)->toBeArray();
 
-    $testsStep = collect($steps)->first(
-        static fn (mixed $step): bool => is_array($step) && ($step['name'] ?? null) === 'Tests',
-    );
+    $matrix = $pestJob['strategy']['matrix']['include'] ?? null;
+    expect($matrix)->toBeArray();
 
-    expect($testsStep)->toBeArray();
+    $slices = collect($matrix)->keyBy('slice');
+    expect($slices->keys()->all())
+        ->toBe(['serial', 'architecture', 'parallel-1', 'parallel-2'])
+        ->and($slices->get('serial')['coverage'] ?? null)->toBe('pcov')
+        ->and($slices->get('architecture')['coverage'] ?? null)->toBe('none')
+        ->and($slices->get('parallel-1')['shard'] ?? null)->toBe('1/2')
+        ->and($slices->get('parallel-2')['shard'] ?? null)->toBe('2/2');
 
-    $commands = $testsStep['run'] ?? null;
-    expect($commands)
+    $steps = collect($pestJob['steps'] ?? [])->keyBy('name');
+
+    $serialStep = $steps->get('Run serial tests with coverage');
+    $architectureStep = $steps->get('Run architecture tests');
+    $parallelStep = $steps->get('Run parallel test shard with coverage');
+
+    expect($serialStep)
+        ->toBeArray()
+        ->and($architectureStep)->toBeArray()
+        ->and($parallelStep)->toBeArray();
+
+    expect($serialStep['run'] ?? null)
         ->toBeString()
-        ->toContain('./vendor/bin/pest --group=serial --exclude-testsuite=Arch')
-        ->toContain('XDEBUG_MODE=off ./vendor/bin/pest --testsuite=Arch --no-coverage')
-        ->toContain('php -d memory_limit=4G ./vendor/bin/pest --parallel')
-        ->toContain('--passthru-php="\'-d\' \'memory_limit=1G\'"')
-        ->toContain('--exclude-group=serial --exclude-testsuite=Arch');
+        ->toContain('--group=serial')
+        ->toContain('--exclude-testsuite=Arch')
+        ->and($architectureStep['run'] ?? null)
+        ->toBeString()
+        ->toContain('--testsuite=Arch')
+        ->toContain('--no-coverage')
+        ->not->toContain('--parallel')
+        ->and($parallelStep['run'] ?? null)
+        ->toBeString()
+        ->toContain('--parallel')
+        ->toContain('--shard=${{ matrix.shard }}')
+        ->toContain('--exclude-group=serial')
+        ->toContain('--exclude-testsuite=Arch');
 
-    $architecturePosition = strpos($commands, '--testsuite=Arch --no-coverage');
-    $parallelPosition = strpos($commands, 'php -d memory_limit=4G ./vendor/bin/pest --parallel');
+    $coverageJob = $workflow['jobs']['coverage'] ?? null;
+    expect($coverageJob)
+        ->toBeArray()
+        ->and($coverageJob['needs'] ?? null)->toBe('pest');
 
-    expect($architecturePosition)
-        ->toBeInt()
-        ->toBeLessThan($parallelPosition);
+    $coverageSteps = collect($coverageJob['steps'] ?? [])->keyBy('name');
+    $uploadStep = $coverageSteps->get('Upload coverage to Codecov');
+
+    expect($uploadStep)
+        ->toBeArray()
+        ->and($uploadStep['with']['files'] ?? null)
+        ->toBeString()
+        ->toContain('coverage-serial.xml')
+        ->toContain('coverage-parallel-1.xml')
+        ->toContain('coverage-parallel-2.xml');
 });
 
 it('keeps local backend validation parallel, Linux-native, and on the two gigabyte memory floor', function (): void {
