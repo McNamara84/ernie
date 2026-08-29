@@ -22,7 +22,7 @@ Run `npm install` once after cloning and again whenever frontend dependencies ch
 
 | Check                      | Where to run it            | Command                                     | Notes                                                          |
 | -------------------------- | -------------------------- | ------------------------------------------- | -------------------------------------------------------------- |
-| Pest fast path             | Host shell via npm wrapper | `npm run test:php`                          | Starts backend containers if needed                            |
+| Pest complete suite        | Host shell via npm wrapper | `npm run test:php`                          | Linux-native workspace; serial/Arch split; parallel remainder  |
 | Pest TIA                   | Host shell via npm wrapper | `npm run test:php:tia`                      | Local-only affected-test loop; records a baseline on first use |
 | Pest deprecation details   | Host shell via npm wrapper | `npm run test:php:deprecations`             | Use this instead of forwarding `--display-*` flags through npm |
 | Pest Agent probe           | Host shell via npm wrapper | `npm run test:php:agent -- '<PHP snippet>'` | One-off verification; not a replacement for a regression test  |
@@ -72,6 +72,43 @@ npm run phpstan:check
 npm run test:php:mysql-sensitive
 ```
 
+### Optimized complete Pest suite
+
+`npm run test:php` is the only supported entry point for the routine complete
+PHP suite. The wrapper always applies a 2 GB PHP memory limit, including to
+ParaTest workers, and reports the duration of every phase plus the total.
+
+On Docker Desktop, the checked-out source is a Windows/macOS bind mount. Pest
+and Laravel load hundreds of PHP files in every worker, so running directly
+from `/var/www/html` makes filesystem I/O dominate the suite. Before a complete
+run, the wrapper copies the current checkout once to the Linux-native
+`ernie-pest-workspace` Docker volume. It then follows the CI-safe split:
+
+1. tests marked `serial`
+2. the `Arch` testsuite without coverage
+3. all remaining Unit and Feature tests in parallel without coverage
+
+The default worker count is half of the available CPUs, capped at eight. Use a
+measured override only when the local Docker resource allocation differs
+substantially:
+
+```bash
+ERNIE_PEST_PROCESSES=4 npm run test:php
+```
+
+Set `ERNIE_PEST_PROFILE=1` to add Pest's slowest-test report to every complete
+suite phase. Focused paths and filters still run directly against the checkout,
+so generated snapshots and other intentional source changes are not trapped in
+the disposable test workspace:
+
+```bash
+npm run test:php -- tests/pest/Unit/Support/UrlNormalizerTest.php
+```
+
+After a failure, rerun the failing path first. Run the complete suite again only
+after the focused failure passes; the 2 GB wrapper settings must not be replaced
+with the container's former 512 MB limit.
+
 ### Pest 5 development tools
 
 Use TIA for the short local feedback loop after the first baseline has been recorded:
@@ -103,6 +140,8 @@ Why backend validation stays Docker-backed:
 - PHP version and extensions remain aligned with the local app container.
 - Laravel configuration matches the local Docker runtime.
 - Windows developers do not need a separate local PHP installation.
+- Complete runs avoid Docker Desktop bind-mount overhead through a Linux-native
+  synchronized test workspace.
 - Deprecation detail mode has a dedicated npm script because some npm versions treat forwarded `--display-*` flags as npm config and emit warning noise.
 
 ## Frontend Validation

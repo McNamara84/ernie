@@ -142,7 +142,7 @@ npm run docker:dev:parity
 | Laravel Artisan                                  | npm wrapper into app container | `npm run artisan -- <command>`                      |
 | Example controller generator                     | npm wrapper into app container | `npm run artisan -- make:controller TestController` |
 | Composer                                         | npm wrapper into app container | `npm run composer:app -- <command>`                 |
-| Pest                                             | Host shell via npm wrapper     | `npm run test:php`                                  |
+| Pest (2 GB, optimized complete suite)            | Host shell via npm wrapper     | `npm run test:php`                                  |
 | Pest deprecation details                         | Host shell via npm wrapper     | `npm run test:php:deprecations`                     |
 | MySQL-sensitive Pest slice                       | Host shell via npm wrapper     | `npm run test:php:mysql-sensitive`                  |
 | PHPStan                                          | Host shell via npm wrapper     | `npm run phpstan:check`                             |
@@ -162,6 +162,10 @@ npm run docker:dev:parity
 - The development entrypoint copies `.env.docker` to `.env` when `.env` does not already exist.
 - The npm Docker wrappers always pass `--env-file .env.docker` so Compose and Laravel use the same source of truth.
 - Docker-managed `node_modules` live in the named Docker volume, not in your host checkout.
+- Complete Pest runs copy the current checkout into the Docker-managed
+  `ernie-pest-workspace` volume before execution. This avoids repeated
+  Windows/macOS bind-mount reads while leaving the development source mount and
+  focused test workflow unchanged.
 
 ### DataCite import mode
 

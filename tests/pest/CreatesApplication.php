@@ -21,18 +21,33 @@ trait CreatesApplication
     {
         $driver = (string) (getenv('ERNIE_TEST_DB_CONNECTION') ?: 'sqlite');
 
+        $environment = [
+            'APP_ENV' => 'testing',
+            'APP_URL' => 'http://localhost',
+            'APP_MAINTENANCE_DRIVER' => 'file',
+            'BCRYPT_ROUNDS' => '4',
+            'CACHE_DRIVER' => 'array',
+            'CACHE_STORE' => 'array',
+            'DATACITE_CREDENTIAL_VALIDATION_INTERVAL_SECONDS' => '0',
+            'ERNIE_API_KEY' => 'test-api-key',
+            'INERTIA_SSR_ENABLED' => 'false',
+            'MAIL_MAILER' => 'array',
+            'PULSE_ENABLED' => 'false',
+            'QUEUE_CONNECTION' => 'sync',
+            'SESSION_DRIVER' => 'array',
+            'TELESCOPE_ENABLED' => 'false',
+        ];
+
         if ($driver === 'sqlite') {
             return [
-                'APP_ENV' => 'testing',
-                'APP_URL' => 'http://localhost',
+                ...$environment,
                 'DB_CONNECTION' => 'sqlite',
                 'DB_DATABASE' => ':memory:',
             ];
         }
 
         return [
-            'APP_ENV' => 'testing',
-            'APP_URL' => 'http://localhost',
+            ...$environment,
             'DB_CONNECTION' => $driver,
             'DB_HOST' => (string) (getenv('ERNIE_TEST_DB_HOST') ?: 'db'),
             'DB_PORT' => (string) (getenv('ERNIE_TEST_DB_PORT') ?: '3306'),
@@ -49,11 +64,11 @@ trait CreatesApplication
     {
         // Force test environment variables before Laravel bootstraps. This is required
         // because Docker containers (e.g. ernie-app-dev) inject runtime env vars such as
-        // APP_ENV=local and DB_CONNECTION=mysql at the OS level, which take precedence
+        // APP_ENV=local, DB_CONNECTION=mysql and CACHE_STORE=redis at the OS level, which take precedence
         // over PHPUnit's <env> declarations in phpunit.xml (those are not applied with
         // force="true" reliably across Pest/PHPUnit versions). Forcing here keeps the
-        // default local loop on in-memory SQLite while still allowing the dedicated
-        // MySQL-sensitive slice to opt in via ERNIE_TEST_DB_* variables.
+        // default local loop on in-memory SQLite with process-local cache/session stores.
+        // The dedicated MySQL-sensitive slice can still opt in via ERNIE_TEST_DB_* variables.
         $forced = $this->forcedEnvironment();
 
         foreach ($forced as $key => $value) {

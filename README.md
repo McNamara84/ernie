@@ -269,7 +269,7 @@ Host-side frontend commands in this repository require local `node_modules` in y
 | `npm run docker:dev:parity`     | Start the stack with the parity profile, which currently adds the F-UJI container          |
 | `npm run artisan -- <command>`  | Run a Laravel Artisan command inside the app container                                     |
 | `npm run composer:app -- <cmd>` | Run Composer inside the app container                                                      |
-| `npm run check:backend`         | Run Pest and PHPStan against the Docker-backed backend workflow                            |
+| `npm run check:backend`         | Run optimized 2 GB Pest (parallel) and PHPStan against the Docker backend                  |
 | `npm run check:frontend`        | Run ESLint, OpenAPI linting, TypeScript checks, and one-shot Vitest on the host            |
 | `npm run check:parity`          | Run the parity validation flow, including the MySQL-sensitive backend slice and Playwright |
 
