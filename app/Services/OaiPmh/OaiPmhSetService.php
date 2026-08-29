@@ -42,7 +42,7 @@ class OaiPmhSetService
 
         foreach ($types as $type) {
             $sets[] = [
-                'spec' => 'resourcetype:' . $type->slug,
+                'spec' => 'resourcetype:'.$type->slug,
                 'name' => $type->name,
             ];
         }
@@ -62,8 +62,8 @@ class OaiPmhSetService
 
         foreach ($years as $year) {
             $sets[] = [
-                'spec' => 'year:' . $year,
-                'name' => 'Publication Year ' . $year,
+                'spec' => 'year:'.$year,
+                'name' => 'Publication Year '.$year,
             ];
         }
 
@@ -102,11 +102,11 @@ class OaiPmhSetService
 
         $typeSlug = $resource->resourceType?->slug;
         if ($typeSlug !== null && $typeSlug !== '') {
-            $sets[] = 'resourcetype:' . $typeSlug;
+            $sets[] = 'resourcetype:'.$typeSlug;
         }
 
         if ($resource->publication_year !== null) {
-            $sets[] = 'year:' . $resource->publication_year;
+            $sets[] = 'year:'.$resource->publication_year;
         }
 
         return $sets;

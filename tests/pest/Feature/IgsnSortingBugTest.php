@@ -189,7 +189,7 @@ describe('IGSN List Sorting Bug', function () {
             }
         }
 
-        expect($errors)->toBeEmpty("Failed columns: " . implode(', ', $errors));
+        expect($errors)->toBeEmpty('Failed columns: '.implode(', ', $errors));
     });
 
     it('handles resources with date ranges in collection date', function () {

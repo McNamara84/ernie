@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\UserRole;
 use App\Models\ThesaurusSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -167,7 +168,7 @@ describe('ThesaurusSettingsController - Analytical Methods', function () {
     });
 
     it('prevents curators from updating version', function () {
-        $curator = User::factory()->create(['role' => \App\Enums\UserRole::CURATOR]);
+        $curator = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $this->actingAs($curator)
             ->patchJson('/thesauri/analytical_methods/version', [
@@ -177,12 +178,12 @@ describe('ThesaurusSettingsController - Analytical Methods', function () {
     });
 
     it('allows group leaders to update version', function () {
-        \App\Models\ThesaurusSetting::updateOrCreate(
+        ThesaurusSetting::updateOrCreate(
             ['type' => 'analytical_methods'],
             ['version' => '1-4', 'display_name' => 'Analytical Methods', 'is_active' => true, 'is_elmo_active' => true],
         );
 
-        $groupLeader = User::factory()->create(['role' => \App\Enums\UserRole::GROUP_LEADER]);
+        $groupLeader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
 
         $this->actingAs($groupLeader)
             ->patchJson('/thesauri/analytical_methods/version', [

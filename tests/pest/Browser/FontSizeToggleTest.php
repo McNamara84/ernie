@@ -23,7 +23,6 @@ uses(RefreshDatabase::class);
  *
  * @see https://pestphp.com/docs/browser-testing
  */
-
 describe('Font Size Toggle', function (): void {
 
     it('loads dashboard without JavaScript errors when user preference is large', function (): void {

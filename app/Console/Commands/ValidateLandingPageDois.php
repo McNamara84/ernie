@@ -25,7 +25,6 @@ use Illuminate\Console\Command;
                             {--strict : Exit with error code if any invalid DOIs are found (for CI/deployment)}')]
 class ValidateLandingPageDois extends Command
 {
-
     /**
      * DOI format pattern matching LandingPagePublicController::validateDoiPrefixFormat()
      *

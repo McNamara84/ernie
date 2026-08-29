@@ -50,9 +50,7 @@ export async function fetchRorAffiliations(signal?: AbortSignal): Promise<Affili
         return [];
     }
 
-    return payload
-        .map((item) => normalizeSuggestion(item))
-        .filter((item): item is AffiliationSuggestion => item !== null);
+    return payload.map((item) => normalizeSuggestion(item)).filter((item): item is AffiliationSuggestion => item !== null);
 }
 
 /**

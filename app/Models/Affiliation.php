@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Affiliation Model (DataCite Creator/Contributor Affiliation)
@@ -21,8 +23,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string|null $identifier
  * @property string|null $identifier_scheme
  * @property string|null $scheme_uri
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read ResourceCreator|ResourceContributor $affiliatable
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/creator/#affiliation
@@ -30,7 +32,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 #[Fillable(['affiliatable_type', 'affiliatable_id', 'name', 'identifier', 'identifier_scheme', 'scheme_uri'])]
 class Affiliation extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     /** @return MorphTo<Model, static> */

@@ -170,9 +170,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                                     className="group ml-1 inline-flex h-9 w-9 items-center justify-center rounded-md bg-transparent p-0 text-sm font-medium text-[var(--header-foreground)] ring-offset-background transition-colors hover:bg-[var(--header-hover)] hover:text-[var(--header-foreground)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
                                                 >
                                                     <span className="sr-only">{item.title}</span>
-                                                    {item.icon && (
-                                                        <Icon iconNode={item.icon} className="size-5 opacity-80 group-hover:opacity-100" />
-                                                    )}
+                                                    {item.icon && <Icon iconNode={item.icon} className="size-5 opacity-80 group-hover:opacity-100" />}
                                                 </Link>
                                             </TooltipTrigger>
                                             <TooltipContent>

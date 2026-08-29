@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Services\LogService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -86,7 +87,7 @@ class LogController extends Controller
      * Delete a specific log entry.
      * Only admins can delete logs (enforced by 'can:delete-logs' route middleware).
      */
-    public function destroy(Request $request): \Illuminate\Http\RedirectResponse
+    public function destroy(Request $request): RedirectResponse
     {
         $lineNumber = $request->input('line_number');
         $timestamp = $request->input('timestamp');
@@ -114,7 +115,7 @@ class LogController extends Controller
      * Clear all logs.
      * Only admins can clear logs (enforced by 'can:delete-logs' route middleware).
      */
-    public function clear(): \Illuminate\Http\RedirectResponse
+    public function clear(): RedirectResponse
     {
         $success = $this->logService->clearLogs();
 

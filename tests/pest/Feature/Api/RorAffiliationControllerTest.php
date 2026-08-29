@@ -50,7 +50,7 @@ it('responds with an empty array when the cache is invalid', function () {
 it('responds with an empty array when the storage adapter returns non-string contents', function () {
     Log::spy();
 
-    $filesystem = \Mockery::mock(Filesystem::class);
+    $filesystem = Mockery::mock(Filesystem::class);
     $filesystem->shouldReceive('exists')->once()->with('ror/ror-affiliations.json')->andReturnTrue();
     $filesystem->shouldReceive('get')->once()->with('ror/ror-affiliations.json')->andReturn(null);
 

@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Resource;
+use App\Models\Title;
+use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
 
 beforeEach(function () {
@@ -210,11 +212,11 @@ describe('DoiSuggestionService - Get Resource By DOI', function () {
         $resource = Resource::factory()->create(['doi' => '10.5880/resource.001']);
 
         // Create main title type and title
-        $mainTitleType = \App\Models\TitleType::firstOrCreate(
+        $mainTitleType = TitleType::firstOrCreate(
             ['slug' => 'main-title'],
             ['name' => 'Main Title']
         );
-        \App\Models\Title::factory()->create([
+        Title::factory()->create([
             'resource_id' => $resource->id,
             'title_type_id' => $mainTitleType->id,
             'value' => 'Test Resource Title',

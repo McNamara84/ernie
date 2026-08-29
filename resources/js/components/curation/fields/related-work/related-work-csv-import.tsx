@@ -73,220 +73,223 @@ export default function RelatedWorkCsvImport({ onImport, onClose, activeRelation
     const [errors, setErrors] = useState<ValidationError[]>([]);
     const [parsedData, setParsedData] = useState<RelatedIdentifierFormData[]>([]);
 
-    const parseCSV = useCallback(async (csvFile: File) => {
-        const defaultIdentifierTypes = [
-            'ARK',
-            'arXiv',
-            'bibcode',
-            'CSTR',
-            'DOI',
-            'EAN13',
-            'EISSN',
-            'Handle',
-            'IGSN',
-            'ISBN',
-            'ISSN',
-            'ISTC',
-            'LISSN',
-            'LSID',
-            'PMID',
-            'PURL',
-            'RAiD',
-            'RRID',
-            'SWHID',
-            'UPC',
-            'URL',
-            'URN',
-            'w3id',
-        ];
+    const parseCSV = useCallback(
+        async (csvFile: File) => {
+            const defaultIdentifierTypes = [
+                'ARK',
+                'arXiv',
+                'bibcode',
+                'CSTR',
+                'DOI',
+                'EAN13',
+                'EISSN',
+                'Handle',
+                'IGSN',
+                'ISBN',
+                'ISSN',
+                'ISTC',
+                'LISSN',
+                'LSID',
+                'PMID',
+                'PURL',
+                'RAiD',
+                'RRID',
+                'SWHID',
+                'UPC',
+                'URL',
+                'URN',
+                'w3id',
+            ];
 
-        const defaultRelationTypes = [
-            'Cites',
-            'IsCitedBy',
-            'References',
-            'IsReferencedBy',
-            'IsSupplementTo',
-            'IsSupplementedBy',
-            'IsContinuedBy',
-            'Continues',
-            'Describes',
-            'IsDescribedBy',
-            'HasMetadata',
-            'IsMetadataFor',
-            'HasVersion',
-            'IsVersionOf',
-            'IsNewVersionOf',
-            'IsPreviousVersionOf',
-            'IsPartOf',
-            'HasPart',
-            'IsPublishedIn',
-            'IsReferencedBy',
-            'References',
-            'IsDocumentedBy',
-            'Documents',
-            'IsCompiledBy',
-            'Compiles',
-            'IsVariantFormOf',
-            'IsOriginalFormOf',
-            'IsIdenticalTo',
-            'IsReviewedBy',
-            'Reviews',
-            'IsDerivedFrom',
-            'IsSourceOf',
-            'IsRequiredBy',
-            'Requires',
-        ];
+            const defaultRelationTypes = [
+                'Cites',
+                'IsCitedBy',
+                'References',
+                'IsReferencedBy',
+                'IsSupplementTo',
+                'IsSupplementedBy',
+                'IsContinuedBy',
+                'Continues',
+                'Describes',
+                'IsDescribedBy',
+                'HasMetadata',
+                'IsMetadataFor',
+                'HasVersion',
+                'IsVersionOf',
+                'IsNewVersionOf',
+                'IsPreviousVersionOf',
+                'IsPartOf',
+                'HasPart',
+                'IsPublishedIn',
+                'IsReferencedBy',
+                'References',
+                'IsDocumentedBy',
+                'Documents',
+                'IsCompiledBy',
+                'Compiles',
+                'IsVariantFormOf',
+                'IsOriginalFormOf',
+                'IsIdenticalTo',
+                'IsReviewedBy',
+                'Reviews',
+                'IsDerivedFrom',
+                'IsSourceOf',
+                'IsRequiredBy',
+                'Requires',
+            ];
 
-        const validIdentifierTypes = activeIdentifierTypes ?? defaultIdentifierTypes;
-        const validRelationTypes = activeRelationTypes ?? defaultRelationTypes;
+            const validIdentifierTypes = activeIdentifierTypes ?? defaultIdentifierTypes;
+            const validRelationTypes = activeRelationTypes ?? defaultRelationTypes;
 
-        setIsProcessing(true);
-        setErrors([]);
-        setParsedData([]);
-        setProgress(0);
+            setIsProcessing(true);
+            setErrors([]);
+            setParsedData([]);
+            setProgress(0);
 
-        try {
-            const text = await csvFile.text();
-            const lines = text.split('\n').filter((line) => line.trim());
+            try {
+                const text = await csvFile.text();
+                const lines = text.split('\n').filter((line) => line.trim());
 
-            if (lines.length < 2) {
+                if (lines.length < 2) {
+                    setErrors([
+                        {
+                            row: 0,
+                            field: 'file',
+                            value: '',
+                            message: 'CSV file is empty or has no data rows',
+                        },
+                    ]);
+                    setIsProcessing(false);
+                    return;
+                }
+
+                // Parse header
+                const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
+
+                // Required: identifier and relation_type
+                // Optional: identifier_type (will be auto-detected if missing)
+                const requiredColumns = ['identifier', 'relation_type'];
+                const missingColumns = requiredColumns.filter((col) => !header.includes(col));
+
+                if (missingColumns.length > 0) {
+                    setErrors([
+                        {
+                            row: 0,
+                            field: 'header',
+                            value: header.join(', '),
+                            message: `Missing required columns: ${missingColumns.join(', ')}. Optional: identifier_type (auto-detected if not provided)`,
+                        },
+                    ]);
+                    setIsProcessing(false);
+                    return;
+                }
+
+                const hasIdentifierType = header.includes('identifier_type');
+                const identifierTypeIndex = header.indexOf('identifier_type');
+
+                // Parse data rows
+                const validationErrors: ValidationError[] = [];
+                const data: RelatedIdentifierFormData[] = [];
+
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i];
+                    const values = line.split(',').map((v) => v.trim());
+
+                    const minColumns = hasIdentifierType ? 3 : 2;
+                    if (values.length < minColumns) {
+                        validationErrors.push({
+                            row: i + 1,
+                            field: 'row',
+                            value: line,
+                            message: 'Row has insufficient columns',
+                        });
+                        continue;
+                    }
+
+                    const identifier = values[header.indexOf('identifier')];
+                    const providedType = hasIdentifierType ? values[identifierTypeIndex] : null;
+                    const relationType = values[header.indexOf('relation_type')];
+
+                    // Auto-detect identifier type if not provided
+                    const identifierType = providedType || detectIdentifierType(identifier);
+
+                    // Normalize DOI if it has URL prefix
+                    let normalizedIdentifier = identifier;
+                    if (identifierType === 'DOI') {
+                        const doiUrlMatch = identifier.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
+                        if (doiUrlMatch) {
+                            normalizedIdentifier = doiUrlMatch[1];
+                        }
+                    }
+
+                    const row: CsvRow = {
+                        identifier: normalizedIdentifier,
+                        identifier_type: identifierType,
+                        relation_type: relationType,
+                    };
+
+                    // Validate identifier
+                    if (!row.identifier || row.identifier.length === 0) {
+                        validationErrors.push({
+                            row: i + 1,
+                            field: 'identifier',
+                            value: row.identifier,
+                            message: 'Identifier is required',
+                        });
+                    }
+
+                    // Validate identifier_type (whether auto-detected or provided)
+                    if (!validIdentifierTypes.includes(row.identifier_type)) {
+                        validationErrors.push({
+                            row: i + 1,
+                            field: 'identifier_type',
+                            value: row.identifier_type,
+                            message: hasIdentifierType
+                                ? `Invalid identifier type. Must be one of: ${validIdentifierTypes.join(', ')}`
+                                : `Could not auto-detect identifier type. Please provide identifier_type column.`,
+                        });
+                    }
+
+                    // Validate relation_type
+                    if (!validRelationTypes.includes(row.relation_type)) {
+                        validationErrors.push({
+                            row: i + 1,
+                            field: 'relation_type',
+                            value: row.relation_type,
+                            message: `Invalid relation type. Must be one of DataCite Schema 4.6 types`,
+                        });
+                    }
+
+                    // If valid, add to data
+                    if (validationErrors.length === 0 || validationErrors.every((e) => e.row !== i + 1)) {
+                        data.push({
+                            identifier: row.identifier,
+                            identifierType: row.identifier_type as IdentifierType,
+                            relationType: row.relation_type as RelationType,
+                        });
+                    }
+
+                    setProgress(Math.round((i / lines.length) * 100));
+                }
+
+                setErrors(validationErrors);
+                setParsedData(data);
+                setProgress(100);
+            } catch (error) {
                 setErrors([
                     {
                         row: 0,
                         field: 'file',
                         value: '',
-                        message: 'CSV file is empty or has no data rows',
+                        message: error instanceof Error ? error.message : 'Failed to parse CSV file',
                     },
                 ]);
+            } finally {
                 setIsProcessing(false);
-                return;
             }
-
-            // Parse header
-            const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
-
-            // Required: identifier and relation_type
-            // Optional: identifier_type (will be auto-detected if missing)
-            const requiredColumns = ['identifier', 'relation_type'];
-            const missingColumns = requiredColumns.filter((col) => !header.includes(col));
-
-            if (missingColumns.length > 0) {
-                setErrors([
-                    {
-                        row: 0,
-                        field: 'header',
-                        value: header.join(', '),
-                        message: `Missing required columns: ${missingColumns.join(', ')}. Optional: identifier_type (auto-detected if not provided)`,
-                    },
-                ]);
-                setIsProcessing(false);
-                return;
-            }
-
-            const hasIdentifierType = header.includes('identifier_type');
-            const identifierTypeIndex = header.indexOf('identifier_type');
-
-            // Parse data rows
-            const validationErrors: ValidationError[] = [];
-            const data: RelatedIdentifierFormData[] = [];
-
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i];
-                const values = line.split(',').map((v) => v.trim());
-
-                const minColumns = hasIdentifierType ? 3 : 2;
-                if (values.length < minColumns) {
-                    validationErrors.push({
-                        row: i + 1,
-                        field: 'row',
-                        value: line,
-                        message: 'Row has insufficient columns',
-                    });
-                    continue;
-                }
-
-                const identifier = values[header.indexOf('identifier')];
-                const providedType = hasIdentifierType ? values[identifierTypeIndex] : null;
-                const relationType = values[header.indexOf('relation_type')];
-
-                // Auto-detect identifier type if not provided
-                const identifierType = providedType || detectIdentifierType(identifier);
-
-                // Normalize DOI if it has URL prefix
-                let normalizedIdentifier = identifier;
-                if (identifierType === 'DOI') {
-                    const doiUrlMatch = identifier.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
-                    if (doiUrlMatch) {
-                        normalizedIdentifier = doiUrlMatch[1];
-                    }
-                }
-
-                const row: CsvRow = {
-                    identifier: normalizedIdentifier,
-                    identifier_type: identifierType,
-                    relation_type: relationType,
-                };
-
-                // Validate identifier
-                if (!row.identifier || row.identifier.length === 0) {
-                    validationErrors.push({
-                        row: i + 1,
-                        field: 'identifier',
-                        value: row.identifier,
-                        message: 'Identifier is required',
-                    });
-                }
-
-                // Validate identifier_type (whether auto-detected or provided)
-                if (!validIdentifierTypes.includes(row.identifier_type)) {
-                    validationErrors.push({
-                        row: i + 1,
-                        field: 'identifier_type',
-                        value: row.identifier_type,
-                        message: hasIdentifierType
-                            ? `Invalid identifier type. Must be one of: ${validIdentifierTypes.join(', ')}`
-                            : `Could not auto-detect identifier type. Please provide identifier_type column.`,
-                    });
-                }
-
-                // Validate relation_type
-                if (!validRelationTypes.includes(row.relation_type)) {
-                    validationErrors.push({
-                        row: i + 1,
-                        field: 'relation_type',
-                        value: row.relation_type,
-                        message: `Invalid relation type. Must be one of DataCite Schema 4.6 types`,
-                    });
-                }
-
-                // If valid, add to data
-                if (validationErrors.length === 0 || validationErrors.every((e) => e.row !== i + 1)) {
-                    data.push({
-                        identifier: row.identifier,
-                        identifierType: row.identifier_type as IdentifierType,
-                        relationType: row.relation_type as RelationType,
-                    });
-                }
-
-                setProgress(Math.round((i / lines.length) * 100));
-            }
-
-            setErrors(validationErrors);
-            setParsedData(data);
-            setProgress(100);
-        } catch (error) {
-            setErrors([
-                {
-                    row: 0,
-                    field: 'file',
-                    value: '',
-                    message: error instanceof Error ? error.message : 'Failed to parse CSV file',
-                },
-            ]);
-        } finally {
-            setIsProcessing(false);
-        }
-    }, [activeRelationTypes, activeIdentifierTypes]);
+        },
+        [activeRelationTypes, activeIdentifierTypes],
+    );
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = event.target.files?.[0];

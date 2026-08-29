@@ -32,7 +32,7 @@ function createValidResource(array $attributes = []): Resource
     $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
 
     $resource = Resource::factory()->create(array_merge([
-        'doi' => '10.5880/test.2026.' . str_pad((string) random_int(1, 999), 3, '0', STR_PAD_LEFT),
+        'doi' => '10.5880/test.2026.'.str_pad((string) random_int(1, 999), 3, '0', STR_PAD_LEFT),
         'publication_year' => 2026,
     ], $attributes));
 

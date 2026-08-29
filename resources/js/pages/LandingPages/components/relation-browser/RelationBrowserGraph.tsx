@@ -30,9 +30,7 @@ function buildCentralLabel(resource: LandingPageResource): { shortLabel: string;
 
     let authorName = '';
     if (firstCreator?.creatorable) {
-        authorName = firstCreator.creatorable.family_name
-            ?? firstCreator.creatorable.name
-            ?? '';
+        authorName = firstCreator.creatorable.family_name ?? firstCreator.creatorable.name ?? '';
     }
 
     if (authorName && year) {
@@ -60,10 +58,7 @@ function buildCentralLabel(resource: LandingPageResource): { shortLabel: string;
  * Build graph nodes from pre-filtered related identifiers.
  * Callers must ensure identifiers have resolvable URLs before passing them here.
  */
-function buildNodes(
-    resource: LandingPageResource,
-    relatedIdentifiers: LandingPageRelatedIdentifier[],
-): GraphNode[] {
+function buildNodes(resource: LandingPageResource, relatedIdentifiers: LandingPageRelatedIdentifier[]): GraphNode[] {
     const centralLabel = buildCentralLabel(resource);
 
     const centralNode: GraphNode = {
@@ -80,9 +75,7 @@ function buildNodes(
     };
 
     const relatedNodes: GraphNode[] = relatedIdentifiers.map((rel) => {
-        const displayId = rel.identifier_type === 'DOI'
-            ? normalizeDoiKey(rel.identifier)
-            : rel.identifier;
+        const displayId = rel.identifier_type === 'DOI' ? normalizeDoiKey(rel.identifier) : rel.identifier;
         return {
             id: `related-${rel.id}`,
             label: displayId,
@@ -127,12 +120,7 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
     const citationLabels = useCitationLabels(relatedIdentifiers, citationTexts);
     const { creatorNodes, creatorLinks, creatorNodeIdMap, apiAuthorsWithAffiliations } = useCreatorNodes(resource, relatedIdentifiers);
     const { contributorNodes, contributorLinks, contributorNodeIdMap } = useContributorNodes(resource);
-    const { institutionNodes, institutionLinks } = useInstitutionNodes(
-        resource,
-        creatorNodeIdMap,
-        contributorNodeIdMap,
-        apiAuthorsWithAffiliations,
-    );
+    const { institutionNodes, institutionLinks } = useInstitutionNodes(resource, creatorNodeIdMap, contributorNodeIdMap, apiAuthorsWithAffiliations);
 
     // Collect actual relation types from person/institution links for legend
     const personLinkRelationTypes = useMemo(
@@ -147,10 +135,7 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
 
     // Stable node/link references: only rebuild when identifiers change, not on every citation update.
     // Citation labels are patched into existing nodes separately to avoid restarting the simulation.
-    const resourceNodes = useMemo(
-        () => buildNodes(resource, relatedIdentifiers),
-        [resource, relatedIdentifiers],
-    );
+    const resourceNodes = useMemo(() => buildNodes(resource, relatedIdentifiers), [resource, relatedIdentifiers]);
 
     // Merge resource nodes with creator, contributor, and institution nodes
     const nodes = useMemo(
@@ -178,10 +163,7 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
         }
     }, [citationLabels, resourceNodes, svgRef]);
 
-    const resourceLinks = useMemo(
-        () => buildLinks(relatedIdentifiers),
-        [relatedIdentifiers],
-    );
+    const resourceLinks = useMemo(() => buildLinks(relatedIdentifiers), [relatedIdentifiers]);
 
     // Merge resource links with creator, contributor, and institution links
     const links = useMemo(
@@ -210,11 +192,7 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
     const containerRect = containerRef.current?.getBoundingClientRect() ?? null;
 
     return (
-        <div
-            ref={containerRef}
-            className="absolute inset-0 overflow-hidden"
-            data-testid="relation-browser-graph"
-        >
+        <div ref={containerRef} className="absolute inset-0 overflow-hidden" data-testid="relation-browser-graph">
             <svg
                 ref={svgRef}
                 viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`}

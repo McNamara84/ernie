@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 use App\Http\Middleware\EnsureValidApiKey;
 use App\Http\Middleware\EnsureValidErnieApiKey;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 covers(EnsureValidApiKey::class, EnsureValidErnieApiKey::class);
 
 describe('EnsureValidErnieApiKey middleware', function (): void {
     beforeEach(function (): void {
-        $this->middleware = new EnsureValidErnieApiKey();
-        $this->next = fn () => new \Illuminate\Http\Response('OK');
+        $this->middleware = new EnsureValidErnieApiKey;
+        $this->next = fn () => new Illuminate\Http\Response('OK');
     });
 
     it('rejects requests when API key is not configured', function (): void {
@@ -106,7 +106,7 @@ describe('EnsureValidErnieApiKey middleware', function (): void {
 
 describe('EnsureValidErnieApiKey service name', function (): void {
     it('uses ernie as service name', function (): void {
-        $middleware = new EnsureValidErnieApiKey();
+        $middleware = new EnsureValidErnieApiKey;
         $reflection = new ReflectionMethod($middleware, 'serviceName');
 
         expect($reflection->invoke($middleware))->toBe('ernie');

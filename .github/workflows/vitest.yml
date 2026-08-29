@@ -13,12 +13,12 @@ permissions:
 
 jobs:
   vitest-shard:
-    name: Vitest shard ${{ matrix.shard }}/2
+    name: Vitest shard ${{ matrix.shard }}/3
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,7 +56,7 @@ jobs:
           LARAVEL_BYPASS_ENV_CHECK: 1
           VITE_APP_URL: ''
           APP_URL: ''
-        run: npm run test:coverage -- --reporter=blob --coverage.reporter=json-summary --shard=${{ matrix.shard }}/2
+        run: npm run test:coverage -- --reporter=blob --coverage.reporter=json-summary --shard=${{ matrix.shard }}/3
 
       - name: Upload Vitest shard results
         if: ${{ !cancelled() }}

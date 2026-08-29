@@ -18,14 +18,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -260,11 +253,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
                                 </AlertDialog>
                             )}
                             {can_delete_all_resources && (
-                                <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => setShowDeleteAllDialog(true)}
-                                >
+                                <Button variant="destructive" size="sm" onClick={() => setShowDeleteAllDialog(true)}>
                                     <Database className="mr-2 size-4" />
                                     Delete all Test Datasets
                                 </Button>
@@ -451,8 +440,8 @@ export default function Index({ logs, pagination, filters, available_levels, can
                     <DialogHeader>
                         <DialogTitle>Delete All Test Datasets</DialogTitle>
                         <DialogDescription>
-                            This action is irreversible. All resources (datasets and IGSNs) will be permanently deleted from the database.
-                            Settings, user accounts, and lookup data will not be affected.
+                            This action is irreversible. All resources (datasets and IGSNs) will be permanently deleted from the database. Settings,
+                            user accounts, and lookup data will not be affected.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -479,11 +468,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
                         >
                             Cancel
                         </Button>
-                        <Button
-                            variant="destructive"
-                            disabled={deleteConfirmation !== 'delete' || isDeletingAll}
-                            onClick={handleDeleteAllResources}
-                        >
+                        <Button variant="destructive" disabled={deleteConfirmation !== 'delete' || isDeletingAll} onClick={handleDeleteAllResources}>
                             {isDeletingAll && <Spinner size="sm" className="mr-2" />}
                             Delete All Resources
                         </Button>

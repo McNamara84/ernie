@@ -90,7 +90,7 @@ class ScholExplorerService
             do {
                 /** @var string $baseUrl */
                 $response = Http::timeout((int) $timeout)
-                    ->get($baseUrl . '/Links', [
+                    ->get($baseUrl.'/Links', [
                         'sourcePid' => $doi,
                         'page' => $page,
                         'size' => 100,

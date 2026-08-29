@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\RelatedItem;
+use App\Models\RelatedItemTitle;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceType;
@@ -81,7 +82,7 @@ describe('RelatedItemController', function () {
             'resource_id' => $resource->id,
             'relation_type_id' => $relationType->id,
         ]);
-        \App\Models\RelatedItemTitle::factory()->create([
+        RelatedItemTitle::factory()->create([
             'related_item_id' => $item->id,
             'title' => 'Hello World',
             'title_type' => 'MainTitle',
@@ -170,7 +171,7 @@ describe('RelatedItemController', function () {
         $resourceA = Resource::factory()->create();
         $resourceB = Resource::factory()->create();
         $item = RelatedItem::factory()->create(['resource_id' => $resourceA->id, 'relation_type_id' => $relationType->id]);
-        \App\Models\RelatedItemTitle::factory()->create(['related_item_id' => $item->id, 'title_type' => 'MainTitle']);
+        RelatedItemTitle::factory()->create(['related_item_id' => $item->id, 'title_type' => 'MainTitle']);
 
         $this->actingAs($user)
             ->putJson("/resources/{$resourceB->id}/related-items/{$item->id}", validStorePayload($relationType->id))

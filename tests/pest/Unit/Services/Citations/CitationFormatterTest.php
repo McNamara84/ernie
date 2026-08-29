@@ -6,10 +6,11 @@ use App\Models\RelatedItem;
 use App\Models\RelatedItemCreator;
 use App\Models\RelatedItemTitle;
 use App\Services\Citations\CitationFormatter;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 covers(CitationFormatter::class);
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('formats APA with two authors using ampersand', function () {
     $item = RelatedItem::factory()->create([
@@ -41,7 +42,7 @@ it('formats APA with two authors using ampersand', function () {
         'position' => 1,
     ]);
 
-    $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+    $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
 
     expect($out)
         ->toContain('Müller, A., & Schmidt, B.')
@@ -76,7 +77,7 @@ it('formats an APA citation for a single-author journal article with DOI', funct
         'family_name' => 'Doe',
     ]);
 
-    $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+    $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
 
     expect($out)->toContain('Doe, J.')
         ->toContain('(2021)')
@@ -104,7 +105,7 @@ it('formats APA with (n.d.) when publication year missing', function () {
         'family_name' => 'Smith',
     ]);
 
-    $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+    $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
     expect($out)->toContain('(n.d.)')
         ->toContain('Geology')
         ->toContain('GFZ Press');
@@ -113,7 +114,7 @@ it('formats APA with (n.d.) when publication year missing', function () {
 it('formats APA with [untitled] when main title missing', function () {
     $item = RelatedItem::factory()->create();
 
-    $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+    $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
     expect($out)->toContain('[untitled]');
 });
 
@@ -134,7 +135,7 @@ it('uses et al. for more than 20 authors in APA', function () {
         ]);
     }
 
-    $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+    $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
     expect($out)->toContain('…'); // APA 7: ellipsis for >20 authors
 });
 
@@ -151,7 +152,7 @@ it('formats an organizational creator correctly', function () {
         'name' => 'GFZ Helmholtz Centre',
     ]);
 
-    $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+    $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
     expect($out)->toContain('GFZ Helmholtz Centre');
 });
 
@@ -180,7 +181,7 @@ describe('IEEE formatting', function () {
             'family_name' => 'Doe',
         ]);
 
-        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']), CitationFormatter::STYLE_IEEE);
+        $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']), CitationFormatter::STYLE_IEEE);
 
         expect($out)->toContain('J. Doe')
             ->toContain('"Subduction,"')
@@ -208,7 +209,7 @@ describe('IEEE formatting', function () {
             ]);
         }
 
-        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']), CitationFormatter::STYLE_IEEE);
+        $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']), CitationFormatter::STYLE_IEEE);
         expect($out)->toContain('et al.');
     });
 
@@ -230,7 +231,7 @@ describe('IEEE formatting', function () {
             'family_name' => 'Smith',
         ]);
 
-        $out = (new CitationFormatter())->format(
+        $out = (new CitationFormatter)->format(
             $item->fresh(['titles', 'creators']),
             CitationFormatter::STYLE_IEEE
         );
@@ -254,7 +255,7 @@ describe('IEEE formatting', function () {
             'title_type' => 'MainTitle',
         ]);
 
-        $out = (new CitationFormatter())->format(
+        $out = (new CitationFormatter)->format(
             $item->fresh(['titles', 'creators']),
             CitationFormatter::STYLE_IEEE
         );
@@ -281,7 +282,7 @@ describe('APA edge cases', function () {
             'title_type' => 'MainTitle',
         ]);
 
-        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+        $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
 
         expect($out)->toContain('Report Title (5).')
             ->toContain('GFZ.');
@@ -303,7 +304,7 @@ describe('APA edge cases', function () {
             'title_type' => 'MainTitle',
         ]);
 
-        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+        $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
 
         expect($out)->toContain('X ((7)).');
     });
@@ -324,7 +325,7 @@ describe('APA edge cases', function () {
             'title_type' => 'MainTitle',
         ]);
 
-        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+        $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
 
         expect($out)->toContain('Y, 42.');
     });
@@ -342,7 +343,7 @@ describe('APA edge cases', function () {
             'title_type' => 'MainTitle',
         ]);
 
-        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+        $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
 
         expect($out)->toContain('https://doi.org/10.1/already')
             ->not->toContain('https://doi.org/https://');
@@ -361,7 +362,7 @@ describe('APA edge cases', function () {
             'title_type' => 'MainTitle',
         ]);
 
-        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+        $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
 
         expect($out)->toContain('https://doi.org/10.1234/slash');
     });
@@ -378,7 +379,7 @@ describe('APA edge cases', function () {
             'title_type' => 'MainTitle',
         ]);
 
-        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+        $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
 
         expect($out)->toStartWith('(2024).')
             ->toContain('Anon');
@@ -402,7 +403,7 @@ describe('APA edge cases', function () {
             'family_name' => null,
         ]);
 
-        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+        $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
 
         expect($out)->toContain('Madonna (2024).');
     });
@@ -425,7 +426,7 @@ describe('APA edge cases', function () {
             'family_name' => 'Picard',
         ]);
 
-        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+        $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
 
         expect($out)->toContain('Picard, J. L.');
     });
@@ -448,9 +449,8 @@ describe('APA edge cases', function () {
             'family_name' => 'Ångström',
         ]);
 
-        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+        $out = (new CitationFormatter)->format($item->fresh(['titles', 'creators']));
 
         expect($out)->toContain('Ångström, Ö.');
     });
 });
-

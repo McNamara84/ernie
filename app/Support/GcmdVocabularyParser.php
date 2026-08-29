@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\Log;
+
 class GcmdVocabularyParser
 {
     /**
@@ -20,7 +22,7 @@ class GcmdVocabularyParser
         // It may also return null in some edge cases depending on PHP version
         if ($hits === false || $hits === null || $hits === []) {
             if ($hits === false) {
-                \Illuminate\Support\Facades\Log::warning('XPath evaluation error in extractTotalHits');
+                Log::warning('XPath evaluation error in extractTotalHits');
             }
 
             return 0;

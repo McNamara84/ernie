@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Mail\WelcomeNewUser;
 use App\Models\User;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\URL;
 
 covers(WelcomeNewUser::class);
 
@@ -92,6 +92,6 @@ describe('rendering', function () {
         $mailable = new WelcomeNewUser($this->user);
 
         // WelcomeNewUser does not implement ShouldQueue
-        expect($mailable)->not->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class);
+        expect($mailable)->not->toBeInstanceOf(ShouldQueue::class);
     });
 });

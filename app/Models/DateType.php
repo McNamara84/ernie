@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['name', 'slug', 'is_active'])]
 class DateType extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     protected $casts = [
@@ -45,11 +46,11 @@ class DateType extends Model
     /**
      * Get the resource dates with this date type.
      *
-     * @return HasMany<\App\Models\ResourceDate, static>
+     * @return HasMany<ResourceDate, static>
      */
     public function dates(): HasMany
     {
-        /** @var HasMany<\App\Models\ResourceDate, static> $relation */
+        /** @var HasMany<ResourceDate, static> $relation */
         $relation = $this->hasMany(ResourceDate::class);
 
         return $relation;

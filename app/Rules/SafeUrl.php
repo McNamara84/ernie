@@ -7,6 +7,7 @@ namespace App\Rules;
 use App\Support\UriHelper;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Translation\PotentiallyTranslatedString;
 
 /**
  * Validates that a URL uses only safe HTTP/HTTPS schemes.
@@ -38,7 +39,7 @@ final class SafeUrl implements ValidationRule
     /**
      * Run the validation rule.
      *
-     * @param  Closure(string, ?string=): \Illuminate\Translation\PotentiallyTranslatedString  $fail
+     * @param  Closure(string, ?string=): PotentiallyTranslatedString  $fail
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -92,7 +93,7 @@ final class SafeUrl implements ValidationRule
     }
 
     /**
-     * @param  Closure(string, ?string=): \Illuminate\Translation\PotentiallyTranslatedString  $fail
+     * @param  Closure(string, ?string=): PotentiallyTranslatedString  $fail
      */
     private function fail(Closure $fail, string $message): void
     {

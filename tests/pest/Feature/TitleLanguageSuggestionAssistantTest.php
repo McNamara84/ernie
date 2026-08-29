@@ -71,8 +71,7 @@ it('creates a title language suggestion through discovery with source verificati
             'value' => 'Groundwater recharge analysis and hydrological modeling for regional climate studies',
         ]);
 
-    $discovered = $assistant->runDiscovery(static function (): void {
-    });
+    $discovered = $assistant->runDiscovery(static function (): void {});
 
     $suggestion = AssistantSuggestion::query()
         ->where('assistant_id', 'title-language-suggestion')

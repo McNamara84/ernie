@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\PidSetting;
 use App\Services\RorStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -181,13 +182,13 @@ describe('getRemoteCount', function () {
 
     test('throws exception on timeout', function () {
         Http::fake([
-            'api.ror.org/v2/organizations*' => fn () => throw new \Illuminate\Http\Client\ConnectionException('Connection timed out'),
+            'api.ror.org/v2/organizations*' => fn () => throw new ConnectionException('Connection timed out'),
         ]);
 
         $service = new RorStatusService;
 
         expect(fn () => $service->getRemoteCount())
-            ->toThrow(\Illuminate\Http\Client\ConnectionException::class);
+            ->toThrow(ConnectionException::class);
     });
 });
 

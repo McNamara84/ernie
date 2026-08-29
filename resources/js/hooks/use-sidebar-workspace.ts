@@ -86,7 +86,12 @@ function persistSidebarWorkspace(workspace: SidebarWorkspace, storageKey: string
     }
 }
 
-export function useSidebarWorkspace({ currentPath, enabled, workspacePaths, storageKey = SIDEBAR_WORKSPACE_STORAGE_KEY }: UseSidebarWorkspaceOptions) {
+export function useSidebarWorkspace({
+    currentPath,
+    enabled,
+    workspacePaths,
+    storageKey = SIDEBAR_WORKSPACE_STORAGE_KEY,
+}: UseSidebarWorkspaceOptions) {
     const routeWorkspace = useMemo(
         () => (enabled ? resolveSidebarWorkspaceForPath(currentPath, workspacePaths) : null),
         [currentPath, enabled, workspacePaths],

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Affiliation;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 covers(Affiliation::class);
 
@@ -25,7 +26,7 @@ describe('relationships', function () {
     it('defines affiliatable morphTo relationship', function () {
         $model = new Affiliation;
 
-        expect($model->affiliatable())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphTo::class);
+        expect($model->affiliatable())->toBeInstanceOf(MorphTo::class);
     });
 });
 

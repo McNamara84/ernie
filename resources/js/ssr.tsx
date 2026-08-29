@@ -14,10 +14,7 @@ createServer((page) =>
         render: ReactDOMServer.renderToString,
         title: (title) => (title ? `${title} - ${appName}` : appName),
         resolve: (name) =>
-            resolvePageComponent(
-                `./pages/${name}.tsx`,
-                import.meta.glob<ResolvedComponent>('./pages/**/*.tsx', { import: 'default' }),
-            ),
+            resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob<ResolvedComponent>('./pages/**/*.tsx', { import: 'default' })),
         setup: ({ App, props }) => {
             // Create a fresh QueryClient per request so SSR caches do not leak
             // between concurrent requests on the Node SSR server.

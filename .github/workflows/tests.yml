@@ -8,10 +8,32 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
-  ci:
+  pest:
     runs-on: ubuntu-latest
-    name: Pest PHP Tests
+    name: Pest ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - slice: serial
+            label: serial tests
+            coverage: pcov
+          - slice: architecture
+            label: architecture tests
+            coverage: none
+            shard: ''
+          - slice: parallel-1
+            label: parallel tests (shard 1/2)
+            coverage: pcov
+            shard: 1/2
+          - slice: parallel-2
+            label: parallel tests (shard 2/2)
+            coverage: pcov
+            shard: 2/2
 
     steps:
       - name: Checkout
@@ -21,9 +43,9 @@ jobs:
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: 8.5
-          ini-values: memory_limit=1G
+          ini-values: memory_limit=1G, pcov.directory=., pcov.exclude="~/(?:vendor|tests)/~"
           tools: composer:v2
-          coverage: xdebug
+          coverage: ${{ matrix.coverage }}
 
       - name: Cache Composer
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -32,21 +54,25 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
 
       - name: Setup Node
+        if: ${{ matrix.slice != 'architecture' }}
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: '.node-version'
           cache: 'npm'
 
       - name: Setup npm
+        if: ${{ matrix.slice != 'architecture' }}
         run: npm install --global npm@12.0.2
 
-      - name: Install Node Dependencies
+      - name: Install Node dependencies
+        if: ${{ matrix.slice != 'architecture' }}
         run: npm ci
 
-      - name: Install Dependencies
+      - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Build Assets
+      - name: Build assets
+        if: ${{ matrix.slice != 'architecture' }}
         run: npm run build
         env:
           NODE_ENV: production
@@ -54,14 +80,14 @@ jobs:
           APP_URL: http://localhost
           ASSET_URL: http://localhost
 
-      - name: Copy Environment File
+      - name: Copy environment file
         run: cp .env.example .env
 
       - name: Configure test environment
         run: |
           sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
           sed -i '/^DB_HOST=/d' .env
-          sed -i '/^DB_PORT=/d' .env  
+          sed -i '/^DB_PORT=/d' .env
           sed -i '/^DB_DATABASE=/d' .env
           sed -i '/^DB_USERNAME=/d' .env
           sed -i '/^DB_PASSWORD=/d' .env
@@ -77,55 +103,62 @@ jobs:
           mkdir -p database
           touch database/database.sqlite
           chmod 666 database/database.sqlite
-          echo "=== .env configuration for tests ==="
-          cat .env | grep -E "(APP_|DB_|SESSION_|CACHE_|QUEUE_|ASSET_|BROADCAST_)"
-          echo "============================="
 
-      - name: Setup database
+      - name: Generate application key
+        run: php artisan key:generate
+
+      - name: Verify migrations and seeders
+        if: ${{ matrix.slice == 'serial' }}
         run: |
           php artisan config:clear
           php artisan cache:clear
           php artisan migrate:fresh --seed --force
 
-      - name: Generate Application Key
-        run: php artisan key:generate
+      - name: Run serial tests with coverage
+        if: ${{ matrix.slice == 'serial' }}
+        run: ./vendor/bin/pest --group=serial --exclude-testsuite=Arch --coverage-clover=coverage-serial.xml
 
-      - name: Debug Vite manifest
-        run: |
-          echo "=== Vite build output ==="
-          ls -la public/build/ || echo "No build directory found"
-          echo "=== Vite manifest content ==="
-          cat public/build/manifest.json | head -30 || echo "No manifest found"
-          echo "=== Total entries in manifest ==="
-          grep -c '"file"' public/build/manifest.json || echo "Could not count entries"
+      - name: Run architecture tests
+        if: ${{ matrix.slice == 'architecture' }}
+        run: php -d memory_limit=2G ./vendor/bin/pest --testsuite=Arch --no-coverage
 
-      - name: Debug routing
-        run: |
-          echo "=== Available routes ==="
-          php artisan route:list | head -20 || echo "Could not list routes"
-          echo "=== Application configuration ==="
-          php artisan config:show app.url || echo "Could not show app.url"
+      - name: Run parallel test shard with coverage
+        if: ${{ startsWith(matrix.slice, 'parallel-') }}
+        run: php -d memory_limit=4G ./vendor/bin/pest --parallel --shard=${{ matrix.shard }} --exclude-group=serial --exclude-testsuite=Arch --coverage-clover=coverage-${{ matrix.slice }}.xml
 
-      - name: Tests
-        env:
-          XDEBUG_MODE: coverage
-        run: |
-          # Run serial tests first (tests that modify shared resources like log files)
-          ./vendor/bin/pest --group=serial --exclude-testsuite=Arch --coverage-clover=coverage-serial.xml
-          # Architecture tests parse the complete application and do not produce meaningful runtime coverage.
-          # Keep them out of persistent ParaTest workers to avoid exhausting their 1 GiB memory limit.
-          XDEBUG_MODE=off ./vendor/bin/pest --testsuite=Arch --no-coverage
-          # Run remaining tests in parallel (excluding serial and architecture tests).
-          # The parent process needs extra headroom when merging per-worker coverage;
-          # explicitly pass the 1 GiB limit to ParaTest workers as parent CLI
-          # options are not inherited by their child PHP processes.
-          php -d memory_limit=4G ./vendor/bin/pest --parallel --passthru-php="'-d' 'memory_limit=1G'" --exclude-group=serial --exclude-testsuite=Arch --coverage-clover=coverage-parallel.xml
+      - name: Upload coverage result
+        if: ${{ matrix.slice != 'architecture' && success() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pest-coverage-${{ matrix.slice }}
+          path: coverage-${{ matrix.slice }}.xml
+          if-no-files-found: error
+          retention-days: 1
+
+  coverage:
+    name: Pest PHP Tests
+    if: ${{ !cancelled() }}
+    needs: pest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify Pest slices
+        if: ${{ needs.pest.result != 'success' }}
+        run: exit 1
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download coverage results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: pest-coverage-*
+          merge-multiple: true
 
       - name: Upload coverage to Codecov
-        if: always()
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage-serial.xml,coverage-parallel.xml
+          files: coverage-serial.xml,coverage-parallel-1.xml,coverage-parallel-2.xml
           flags: backend
           fail_ci_if_error: false

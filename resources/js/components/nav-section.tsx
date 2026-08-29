@@ -1,6 +1,14 @@
 import { Link, usePage } from '@inertiajs/react';
 
-import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from '@/components/ui/sidebar';
+import {
+    SidebarGroup,
+    SidebarGroupLabel,
+    SidebarMenu,
+    SidebarMenuBadge,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarSeparator,
+} from '@/components/ui/sidebar';
 import { buildExternalLinkRel } from '@/lib/external-link-rel';
 import { cn } from '@/lib/utils';
 import { type NavItem } from '@/types';
@@ -44,12 +52,9 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
             <SidebarMenu>
                 {items.map((item) => {
                     const href = typeof item.href === 'string' ? item.href : item.href.url;
-                    const isActive = !item.openInNewTab && (
-                        page.url === href ||
-                        page.url.startsWith(href + '/') ||
-                        page.url.startsWith(href + '?') ||
-                        page.url.startsWith(href + '#')
-                    );
+                    const isActive =
+                        !item.openInNewTab &&
+                        (page.url === href || page.url.startsWith(href + '/') || page.url.startsWith(href + '?') || page.url.startsWith(href + '#'));
 
                     const linkContent = (
                         <>
@@ -61,18 +66,19 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                     return (
                         <SidebarMenuItem key={item.title}>
                             {item.disabled ? (
-                                <SidebarMenuButton disabled tooltip={{ children: item.title }} className="cursor-not-allowed opacity-50" data-tour={item.tourId}>
+                                <SidebarMenuButton
+                                    disabled
+                                    tooltip={{ children: item.title }}
+                                    className="cursor-not-allowed opacity-50"
+                                    data-tour={item.tourId}
+                                >
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </SidebarMenuButton>
                             ) : (
                                 // Check if current URL starts with href and is followed by '/', '?', '#', or end of string
                                 // This prevents '/user' from matching when on '/users' (path boundary check)
-                                <SidebarMenuButton
-                                    asChild
-                                    isActive={isActive}
-                                    tooltip={{ children: item.title }}
-                                >
+                                <SidebarMenuButton asChild isActive={isActive} tooltip={{ children: item.title }}>
                                     {item.openInNewTab ? (
                                         <a
                                             href={href}
@@ -85,7 +91,14 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                                             {linkContent}
                                         </a>
                                     ) : (
-                                        <Link href={href} prefetch onMouseEnter={item.onPrefetch} onFocus={item.onPrefetch} data-tour={item.tourId} aria-current={isActive ? 'page' : undefined}>
+                                        <Link
+                                            href={href}
+                                            prefetch
+                                            onMouseEnter={item.onPrefetch}
+                                            onFocus={item.onPrefetch}
+                                            data-tour={item.tourId}
+                                            aria-current={isActive ? 'page' : undefined}
+                                        >
                                             {linkContent}
                                         </Link>
                                     )}

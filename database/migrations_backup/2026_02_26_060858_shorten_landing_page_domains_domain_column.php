@@ -49,9 +49,9 @@ return new class extends Migration
                         'collision_groups' => $collisionCount,
                         'affected_ids' => $oversizedIds->all(),
                     ]);
-                    throw new \RuntimeException(
+                    throw new RuntimeException(
                         "Cannot shorten domain column: {$collisionCount} collision group(s) detected. "
-                        . 'Resolve duplicate domains manually before re-running this migration.'
+                        .'Resolve duplicate domains manually before re-running this migration.'
                     );
                 }
 

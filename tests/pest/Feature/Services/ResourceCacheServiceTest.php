@@ -1,12 +1,12 @@
 <?php
 
-use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Services\ResourceCacheService;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->cacheService = new ResourceCacheService;
@@ -24,7 +24,7 @@ describe('ResourceCacheService - Resource List Caching', function () {
         $query = Resource::query();
         $result = $this->cacheService->cacheResourceList($query, 10, 1);
 
-        expect($result)->toBeInstanceOf(\Illuminate\Pagination\LengthAwarePaginator::class)
+        expect($result)->toBeInstanceOf(LengthAwarePaginator::class)
             ->and($result->total())->toBe(5)
             ->and($result->perPage())->toBe(10)
             ->and($result->currentPage())->toBe(1);
@@ -44,8 +44,8 @@ describe('ResourceCacheService - Resource List Caching', function () {
         $result2 = $this->cacheService->cacheResourceList($query2, 10, 1, ['status' => 'published']);
 
         // Both should work independently
-        expect($result1)->toBeInstanceOf(\Illuminate\Pagination\LengthAwarePaginator::class)
-            ->and($result2)->toBeInstanceOf(\Illuminate\Pagination\LengthAwarePaginator::class);
+        expect($result1)->toBeInstanceOf(LengthAwarePaginator::class)
+            ->and($result2)->toBeInstanceOf(LengthAwarePaginator::class);
     });
 
     test('supports pagination with different pages', function () {

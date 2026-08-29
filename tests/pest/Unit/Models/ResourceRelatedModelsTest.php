@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 use App\Models\AlternateIdentifier;
 use App\Models\RelatedIdentifier;
-use App\Models\Resource;
 use App\Models\Right;
 use App\Models\Subject;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 covers(
     AlternateIdentifier::class,
@@ -32,7 +33,7 @@ describe('AlternateIdentifier model', function () {
         $model = new AlternateIdentifier;
 
         expect($model->resource())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+            ->toBeInstanceOf(BelongsTo::class);
     });
 });
 
@@ -79,21 +80,21 @@ describe('RelatedIdentifier model', function () {
         $model = new RelatedIdentifier;
 
         expect($model->resource())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+            ->toBeInstanceOf(BelongsTo::class);
     });
 
     it('has identifierType relationship', function () {
         $model = new RelatedIdentifier;
 
         expect($model->identifierType())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+            ->toBeInstanceOf(BelongsTo::class);
     });
 
     it('has relationType relationship', function () {
         $model = new RelatedIdentifier;
 
         expect($model->relationType())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+            ->toBeInstanceOf(BelongsTo::class);
     });
 
     it('covers all bidirectional pairs symmetrically', function () {
@@ -145,7 +146,7 @@ describe('Right model', function () {
         $right = Right::factory()->create();
 
         expect($right->resources())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsToMany::class);
+            ->toBeInstanceOf(BelongsToMany::class);
     });
 });
 
@@ -160,6 +161,6 @@ describe('Subject model', function () {
         $model = new Subject;
 
         expect($model->resource())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+            ->toBeInstanceOf(BelongsTo::class);
     });
 });

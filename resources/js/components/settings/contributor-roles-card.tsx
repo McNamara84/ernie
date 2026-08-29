@@ -81,10 +81,7 @@ export function ContributorRolesCard({ title, description, roles, dataKey, onRol
                                     <TableCell>{role.name}</TableCell>
                                     <TableCell>{role.slug}</TableCell>
                                     <TableCell>
-                                        <Select
-                                            value={role.category}
-                                            onValueChange={(value) => onRoleChange(index, 'category', value)}
-                                        >
+                                        <Select value={role.category} onValueChange={(value) => onRoleChange(index, 'category', value)}>
                                             <SelectTrigger className="w-[130px]" aria-label={`Category for ${role.name}`}>
                                                 <SelectValue />
                                             </SelectTrigger>

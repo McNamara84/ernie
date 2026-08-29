@@ -6,9 +6,8 @@ namespace App\Services\DateType;
 
 use App\Models\Resource;
 use App\Models\ResourceDate;
-use Illuminate\Database\Eloquent\Builder;
-use App\Services\DateType\DateTypeSchemaorgExtractionService;
 use Closure;
+use Illuminate\Database\Eloquent\Builder;
 
 final class DateTypeDiscoveryService
 {
@@ -42,7 +41,7 @@ final class DateTypeDiscoveryService
     /**
      * @param  Closure(int, string, int, string, string, float|null, array<string, mixed>|null): bool  $storeSuggestion
      * @param  Closure(string): void  $onProgress
-     */      
+     */
     public function discover(string $assistantId, Closure $storeSuggestion, Closure $onProgress): int
     {
         $count = 0;
@@ -58,10 +57,10 @@ final class DateTypeDiscoveryService
                 'geoLocations as geo_locations_count',
             ])
             ->orderBy('id')
-            ->chunkById(self::CHUNK_SIZE, function ($resources) use ( &$count, &$processed, $total, $assistantId, $storeSuggestion, $onProgress) : void {
+            ->chunkById(self::CHUNK_SIZE, function ($resources) use (&$count, &$processed, $total, $assistantId, $storeSuggestion, $onProgress): void {
                 /** @var iterable<int, Resource> $resources */
                 foreach ($resources as $resource) {
-                    $processed++; 
+                    $processed++;
                     $onProgress("Checking resource {$processed} of {$total}");
                     $count += $this->discoverForResource($assistantId, $resource, $storeSuggestion);
                     if ($this->storeMatchedCountSuggestion($resource, $storeSuggestion)) {
@@ -89,11 +88,9 @@ final class DateTypeDiscoveryService
         foreach ($existingDates as $date) {
             $dateType = $date->dateType->slug;
 
-            if ($date->start_date !== null && $date->end_date !== null) 
-            {
+            if ($date->start_date !== null && $date->end_date !== null) {
                 $value = $date->start_date.'/'.$date->end_date;
-            } else 
-            {
+            } else {
                 $value = $date->date_value ?? $date->start_date;
             }
 
@@ -120,34 +117,33 @@ final class DateTypeDiscoveryService
         $hasCreated = in_array('Created', $existingDateTypes, true) || in_array('created', $existingDateTypes, true);
         $hasIssued = in_array('Issued', $existingDateTypes, true) || in_array('issued', $existingDateTypes, true);
 
-        foreach ($suggestions as $suggestion) 
-        {
+        foreach ($suggestions as $suggestion) {
             if (($suggestion['probe_method'] ?? null) === 'SKIP') {
                 continue;
             }
 
-            if (($suggestion['suggestion_kind'] ?? null) === 'hint') 
-                {
-                    $stored = $storeSuggestion(
-                        $resource->id,
-                        self::TARGET_TYPE,
-                        $resource->id,
-                        (string) $suggestion['message'],
-                        (string) $suggestion['message'],
-                        $this->confidenceToScore($suggestion['confidence'] ?? null),
-                        $suggestion,
-                    );
+            if (($suggestion['suggestion_kind'] ?? null) === 'hint') {
+                $stored = $storeSuggestion(
+                    $resource->id,
+                    self::TARGET_TYPE,
+                    $resource->id,
+                    (string) $suggestion['message'],
+                    (string) $suggestion['message'],
+                    $this->confidenceToScore($suggestion['confidence'] ?? null),
+                    $suggestion,
+                );
 
-                    if ($stored) {
-                        $storedCount++;
-                    }
-                    continue;
-
+                if ($stored) {
+                    $storedCount++;
                 }
+
+                continue;
+
+            }
 
             $type = (string) ($suggestion['target_date_type'] ?? '');
 
-            if ($type === 'Created' && $hasCreated ) {
+            if ($type === 'Created' && $hasCreated) {
                 continue;
             }
 
@@ -193,27 +189,21 @@ final class DateTypeDiscoveryService
             ->whereDoesntHave('igsnMetadata')
             ->whereDoesntHave('resourceType', fn (Builder $query): Builder => $query->where('slug', 'physical-object'))
             ->where(function (Builder $query): void {
-                $query->whereDoesntHave('dates', function (Builder $query): void 
-                {
-                    $query->whereHas('dateType', function (Builder $query): void  
-                    {
+                $query->whereDoesntHave('dates', function (Builder $query): void {
+                    $query->whereHas('dateType', function (Builder $query): void {
                         $query->whereIn('slug', ['Created', 'created']);
                     });
                 })
-                ->orWhereDoesntHave('dates', function (Builder $query): void 
-                {
-                    $query->whereHas('dateType', function (Builder $query): void  
-                    {
-                        $query->whereIn('slug', ['Issued', 'issued']); 
+                    ->orWhereDoesntHave('dates', function (Builder $query): void {
+                        $query->whereHas('dateType', function (Builder $query): void {
+                            $query->whereIn('slug', ['Issued', 'issued']);
+                        });
+                    })
+                    ->orWhereHas('dates', function (Builder $query): void {
+                        $query->whereHas('dateType', function (Builder $query): void {
+                            $query->whereIn('slug', self::COLLECTED_DATE_TYPES);
+                        });
                     });
-                })
-                ->orWhereHas('dates', function (Builder $query): void 
-                {
-                    $query->whereHas('dateType', function (Builder $query): void 
-                    {
-                        $query->whereIn('slug', self::COLLECTED_DATE_TYPES);
-                    });
-                });
             });
 
         return $query;
@@ -297,16 +287,14 @@ final class DateTypeDiscoveryService
         );
     }
 
-
-     /** 
-      * @return array<int, array<string, mixed>>
+    /**
+     * @return array<int, array<string, mixed>>
      */
     private function lookupSchemaorgDates(Resource $resource): array
     {
         $doi = trim((string) $resource->doi);
 
-        if ($doi === '') 
-        {
+        if ($doi === '') {
             return [];
         }
 

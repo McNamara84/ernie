@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Services\Citations\CitationLookupResult;
 use App\Services\Citations\CrossrefClient;
 use App\Services\Citations\CrossrefTypeMapper;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
 covers(CrossrefClient::class, CitationLookupResult::class);
@@ -18,7 +20,7 @@ beforeEach(function () {
 
 function makeClient(): CrossrefClient
 {
-    return new CrossrefClient(app(HttpFactory::class), new CrossrefTypeMapper());
+    return new CrossrefClient(app(HttpFactory::class), new CrossrefTypeMapper);
 }
 
 it('returns an error for empty DOIs', function () {
@@ -119,7 +121,7 @@ it('sends the polite pool user agent when mailto is configured', function () {
     makeClient()->lookup('10.1/polite');
 
     Http::assertSent(function ($request) {
-        /** @var \Illuminate\Http\Client\Request $request */
+        /** @var Request $request */
         return str_contains((string) $request->header('User-Agent')[0], 'mailto:test@example.org');
     });
 });
@@ -158,7 +160,7 @@ describe('CitationLookupResult', function () {
 describe('CrossrefClient edge cases', function () {
     it('returns an error when the HTTP client throws', function () {
         Http::fake(function () {
-            throw new \Illuminate\Http\Client\ConnectionException('timeout');
+            throw new ConnectionException('timeout');
         });
 
         $result = makeClient()->lookup('10.1/timeout');

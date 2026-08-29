@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\LandingPageTemplate;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
@@ -20,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  *
  * The canonical key lists are inlined here on purpose: migrations must remain
  * stable historical artifacts and must not depend on the current state of
- * application code (e.g. {@see \App\Models\LandingPageTemplate} constants),
+ * application code (e.g. {@see LandingPageTemplate} constants),
  * which may evolve in future releases and would otherwise change the meaning
  * of this migration when run on a fresh database.
  */

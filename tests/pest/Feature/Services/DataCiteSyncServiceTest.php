@@ -4,9 +4,10 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteSyncResult;
 use App\Services\DataCiteSyncService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     // Configure DataCite test mode

@@ -131,8 +131,6 @@ class AnalyticalMethodsVocabularyParser
 
     /**
      * Extract the English label from a prefLabel array or object.
-     *
-     * @param  mixed  $prefLabel
      */
     private function extractEnglishLabel(mixed $prefLabel): ?string
     {
@@ -164,8 +162,6 @@ class AnalyticalMethodsVocabularyParser
      *
      * Takes the first broader URI as the canonical parent.
      * Multi-parent concepts are placed under their first listed parent.
-     *
-     * @param  mixed  $broader
      */
     private function extractBroaderUri(mixed $broader): ?string
     {

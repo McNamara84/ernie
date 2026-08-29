@@ -1,8 +1,9 @@
 <?php
 
 use App\Services\DataCiteApiService;
-use Illuminate\Support\Facades\Config;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
@@ -90,7 +91,7 @@ describe('DataCiteApiService', function () {
 
         it('returns null on network timeout', function () {
             Http::fake([
-                'doi.org/*' => fn () => throw new \Illuminate\Http\Client\ConnectionException('Connection timed out'),
+                'doi.org/*' => fn () => throw new ConnectionException('Connection timed out'),
             ]);
 
             $result = $this->service->getMetadata('10.1234/timeout');

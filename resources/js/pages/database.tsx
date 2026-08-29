@@ -105,7 +105,10 @@ export default function DatabasePage({ targets: initialTargets }: DatabasePagePr
     const [targets, setTargets] = useState(initialTargets);
     const [busyTarget, setBusyTarget] = useState<string | null>(null);
     const activeExports = useMemo(
-        () => targets.map((target) => target.latestExport).filter((exportItem): exportItem is DatabaseDumpExport => exportItem !== null && activeStatuses.includes(exportItem.status)),
+        () =>
+            targets
+                .map((target) => target.latestExport)
+                .filter((exportItem): exportItem is DatabaseDumpExport => exportItem !== null && activeStatuses.includes(exportItem.status)),
         [targets],
     );
 
@@ -225,9 +228,13 @@ export default function DatabasePage({ targets: initialTargets }: DatabasePagePr
                                             </TableCell>
                                             <TableCell>
                                                 <div className="max-w-72 text-sm">
-                                                    <p className="text-foreground">{latestExport?.serverVersion ?? target.serverVersionHint ?? '-'}</p>
+                                                    <p className="text-foreground">
+                                                        {latestExport?.serverVersion ?? target.serverVersionHint ?? '-'}
+                                                    </p>
                                                     {target.requiresLegacySslProbe && (
-                                                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Legacy SSL check required before production use.</p>
+                                                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                                            Legacy SSL check required before production use.
+                                                        </p>
                                                     )}
                                                 </div>
                                             </TableCell>
@@ -236,10 +243,13 @@ export default function DatabasePage({ targets: initialTargets }: DatabasePagePr
                                                     <div className="space-y-1 text-sm">
                                                         <p>{latestExport.filename ?? '-'}</p>
                                                         <p className="text-muted-foreground">
-                                                            {formatBytes(latestExport.sizeBytes)} - requested {formatDateTime(latestExport.requestedAt)}
+                                                            {formatBytes(latestExport.sizeBytes)} - requested{' '}
+                                                            {formatDateTime(latestExport.requestedAt)}
                                                         </p>
                                                         {latestExport.expiresAt && (
-                                                            <p className="text-xs text-muted-foreground">Expires {formatDateTime(latestExport.expiresAt)}</p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Expires {formatDateTime(latestExport.expiresAt)}
+                                                            </p>
                                                         )}
                                                         {latestExport.errorMessage && (
                                                             <p className="max-w-md text-xs text-destructive">{latestExport.errorMessage}</p>
@@ -260,7 +270,10 @@ export default function DatabasePage({ targets: initialTargets }: DatabasePagePr
                                                 <div className="flex justify-end gap-2">
                                                     {canDownload && (
                                                         <Button asChild variant="outline" size="sm">
-                                                            <a href={latestExport.downloadUrl ?? '#'} aria-label={`Download ${target.label} database dump`}>
+                                                            <a
+                                                                href={latestExport.downloadUrl ?? '#'}
+                                                                aria-label={`Download ${target.label} database dump`}
+                                                            >
                                                                 <Download aria-hidden="true" className="size-4" />
                                                                 Download
                                                             </a>

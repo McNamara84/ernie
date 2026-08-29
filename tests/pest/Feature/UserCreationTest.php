@@ -4,6 +4,7 @@ use App\Enums\UserRole;
 use App\Mail\WelcomeNewUser;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
+use Symfony\Component\Mailer\Exception\TransportException;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => UserRole::ADMIN]);
@@ -143,7 +144,7 @@ describe('User Creation', function () {
             ->andReturnSelf();
         Mail::shouldReceive('send')
             ->once()
-            ->andThrow(new \Symfony\Component\Mailer\Exception\TransportException('SMTP error'));
+            ->andThrow(new TransportException('SMTP error'));
 
         $response = $this->actingAs($this->admin)->post('/users', [
             'name' => 'New User',

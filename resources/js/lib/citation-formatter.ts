@@ -44,7 +44,10 @@ function formatApa(item: RelatedItem): string {
 
     if (doi !== null) parts.push(doi);
 
-    return parts.filter((p) => p !== '').join(' ').trim();
+    return parts
+        .filter((p) => p !== '')
+        .join(' ')
+        .trim();
 }
 
 function formatIeee(item: RelatedItem): string {

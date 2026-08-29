@@ -90,7 +90,7 @@ final readonly class UploadError
     /**
      * Convert legacy error format to UploadError.
      *
-     * @param array{row?: int, igsn?: string, message?: string} $legacyError
+     * @param  array{row?: int, igsn?: string, message?: string}  $legacyError
      */
     public static function fromLegacyError(array $legacyError, UploadErrorCode $code): self
     {

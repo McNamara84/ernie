@@ -2,7 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Console\Commands\AddUserCommand;
+use App\Models\LandingPage;
+use App\Models\Resource;
 use App\Models\User;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -48,8 +52,8 @@ class DatabaseSeeder extends Seeder
      * DO NOT use this seeder in production or with APP_ENV != testing.
      * For production user creation, use the `add-user` Artisan command with secure passwords.
      *
-     * @see \Database\Factories\UserFactory::definition() - default password definition
-     * @see \App\Console\Commands\AddUserCommand - proper user creation for production
+     * @see UserFactory::definition() - default password definition
+     * @see AddUserCommand - proper user creation for production
      */
     private function createTestDataForAutomatedTests(): void
     {
@@ -108,7 +112,7 @@ class DatabaseSeeder extends Seeder
                 'updated_by_user_id' => $user->id,
             ]);
 
-        \App\Models\LandingPage::create([
+        LandingPage::create([
             'resource_id' => $curationResource->id,
             'slug' => 'test-resource-1',
             'is_published' => true,
@@ -123,7 +127,7 @@ class DatabaseSeeder extends Seeder
                 'updated_by_user_id' => $user->id,
             ]);
 
-        \App\Models\LandingPage::create([
+        LandingPage::create([
             'resource_id' => $curationResource2->id,
             'slug' => 'test-resource-2',
             'is_published' => true,
@@ -138,7 +142,7 @@ class DatabaseSeeder extends Seeder
                 'updated_by_user_id' => $user->id,
             ]);
 
-        \App\Models\LandingPage::create([
+        LandingPage::create([
             'resource_id' => $publishedResource->id,
             'slug' => 'test-playwright',
             'is_published' => true,

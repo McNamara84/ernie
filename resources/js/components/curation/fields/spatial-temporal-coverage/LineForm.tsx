@@ -341,9 +341,7 @@ export default function LineForm({ entry, apiKey, onBatchChange }: LineFormProps
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Import Line Coordinates from CSV</DialogTitle>
-                        <DialogDescription>
-                            Upload a CSV file containing latitude and longitude coordinate pairs for your line.
-                        </DialogDescription>
+                        <DialogDescription>Upload a CSV file containing latitude and longitude coordinate pairs for your line.</DialogDescription>
                     </DialogHeader>
                     <CoordinateCsvImport
                         onImport={handleCsvImport}

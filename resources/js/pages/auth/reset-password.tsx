@@ -29,14 +29,18 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
 
     const onSubmit = (data: ResetPasswordInput) => {
         setProcessing(true);
-        router.post(NewPasswordController.store.url(), { ...data, token }, {
-            onError: (errors) => {
-                Object.entries(errors).forEach(([key, message]) => {
-                    form.setError(key as keyof ResetPasswordInput, { message });
-                });
+        router.post(
+            NewPasswordController.store.url(),
+            { ...data, token },
+            {
+                onError: (errors) => {
+                    Object.entries(errors).forEach(([key, message]) => {
+                        form.setError(key as keyof ResetPasswordInput, { message });
+                    });
+                },
+                onFinish: () => setProcessing(false),
             },
-            onFinish: () => setProcessing(false),
-        });
+        );
     };
 
     return (

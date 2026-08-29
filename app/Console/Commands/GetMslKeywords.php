@@ -13,7 +13,6 @@ use Illuminate\Console\Command;
 #[Signature('get-msl-keywords')]
 class GetMslKeywords extends Command
 {
-
     /**
      * Execute the console command.
      */

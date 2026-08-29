@@ -72,13 +72,13 @@ class RelationDiscoveryService
                 $existingKeys = RelatedIdentifier::whereIn('resource_id', $resourceIds)
                     ->get(['resource_id', 'identifier', 'relation_type_id'])
                     ->groupBy('resource_id')
-                    ->map(fn ($items) => $items->map(fn (RelatedIdentifier $ri) => mb_strtolower($ri->identifier) . '|' . $ri->relation_type_id)->all())
+                    ->map(fn ($items) => $items->map(fn (RelatedIdentifier $ri) => mb_strtolower($ri->identifier).'|'.$ri->relation_type_id)->all())
                     ->all();
 
                 $dismissedKeys = DismissedRelation::whereIn('resource_id', $resourceIds)
                     ->get(['resource_id', 'identifier', 'relation_type_id'])
                     ->groupBy('resource_id')
-                    ->map(fn ($items) => $items->map(fn (DismissedRelation $dr) => mb_strtolower($dr->identifier) . '|' . $dr->relation_type_id)->all())
+                    ->map(fn ($items) => $items->map(fn (DismissedRelation $dr) => mb_strtolower($dr->identifier).'|'.$dr->relation_type_id)->all())
                     ->all();
 
                 $pendingSuggestions = SuggestedRelation::whereIn('resource_id', $resourceIds)
@@ -145,7 +145,7 @@ class RelationDiscoveryService
         // Primary source: ScholExplorer
         $scholexResults = $this->scholExplorerService->findRelationsForDoi($doi);
         foreach ($scholexResults as $relation) {
-            $key = mb_strtolower($relation['identifier']) . '|' . $relation['relation_type'];
+            $key = mb_strtolower($relation['identifier']).'|'.$relation['relation_type'];
             if (! isset($seen[$key])) {
                 $seen[$key] = true;
                 $allRelations[] = [
@@ -158,7 +158,7 @@ class RelationDiscoveryService
         // Supplementary source: DataCite Event Data
         $dataciteResults = $this->dataCiteEventDataService->findRelationsForDoi($doi);
         foreach ($dataciteResults as $relation) {
-            $key = mb_strtolower($relation['identifier']) . '|' . $relation['relation_type'];
+            $key = mb_strtolower($relation['identifier']).'|'.$relation['relation_type'];
             if (! isset($seen[$key])) {
                 $seen[$key] = true;
                 $allRelations[] = [
@@ -297,8 +297,8 @@ class RelationDiscoveryService
     /**
      * Accept a suggested relation: creates a RelatedIdentifier and syncs to DataCite.
      *
-    * Uses a DB transaction for atomicity and re-checks duplicates under a
-    * resource-level lock before assigning the next position.
+     * Uses a DB transaction for atomicity and re-checks duplicates under a
+     * resource-level lock before assigning the next position.
      *
      * @return array{success: bool, datacite_synced: bool, message: string}
      */
@@ -384,7 +384,7 @@ class RelationDiscoveryService
         return [
             'success' => true,
             'datacite_synced' => false,
-            'message' => 'Relation accepted but DataCite sync failed: ' . ($syncResult->errorMessage ?? 'Unknown error'),
+            'message' => 'Relation accepted but DataCite sync failed: '.($syncResult->errorMessage ?? 'Unknown error'),
         ];
     }
 
@@ -424,7 +424,7 @@ class RelationDiscoveryService
             $label .= ". {$publisher}";
         }
 
-        return rtrim($label, ". ") . '.';
+        return rtrim($label, '. ').'.';
     }
 
     private function extractPublicationYear(?string $publicationDate): ?string

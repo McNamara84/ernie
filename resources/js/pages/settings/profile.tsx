@@ -89,7 +89,13 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <FormItem className="grid gap-2">
                                         <FormLabel>Email address</FormLabel>
                                         <FormControl>
-                                            <Input {...field} type="email" className="mt-1 block w-full" autoComplete="username" placeholder="Email address" />
+                                            <Input
+                                                {...field}
+                                                type="email"
+                                                className="mt-1 block w-full"
+                                                autoComplete="username"
+                                                placeholder="Email address"
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Statistics;
 
 use App\Models\LandingPage;
-use App\Models\LandingPageDailyStatistic;
 use App\Models\PortalSearchDailyStatistic;
+use App\Models\ResourceType;
 use App\Models\Title;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
@@ -149,7 +149,7 @@ class StatisticsDashboardService
                     'landingPageId' => $landingPage->id,
                     'title' => $this->resolveLandingPageTitle($landingPage),
                     'identifier' => $landingPage->doi_prefix ?? ('draft-'.$landingPage->resource_id),
-                    'resourceTypeLabel' => $resourceType instanceof \App\Models\ResourceType ? $resourceType->name : 'Other',
+                    'resourceTypeLabel' => $resourceType instanceof ResourceType ? $resourceType->name : 'Other',
                     'total' => (int) ($landingPage->{$sumAlias} ?? 0),
                     'publicUrl' => $landingPage->public_url,
                     'isExternal' => $landingPage->isExternal(),

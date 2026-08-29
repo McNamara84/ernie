@@ -14,40 +14,40 @@ declare module 'leaflet' {
  * Hand-tuned for visibility on OSM tiles and mutual distinguishability.
  */
 export const RESOURCE_TYPE_COLORS: Record<string, string> = {
-    'audiovisual': '#8B5CF6',
-    'award': '#06B6D4',
-    'book': '#A16207',
+    audiovisual: '#8B5CF6',
+    award: '#06B6D4',
+    book: '#A16207',
     'book-chapter': '#CA8A04',
-    'collection': '#0891B2',
+    collection: '#0891B2',
     'computational-notebook': '#7C3AED',
     'conference-paper': '#2563EB',
     'conference-proceeding': '#3B82F6',
     'data-paper': '#0EA5E9',
-    'dataset': '#0C2A63',
-    'dissertation': '#4F46E5',
-    'event': '#DB2777',
-    'image': '#059669',
-    'instrument': '#475569',
+    dataset: '#0C2A63',
+    dissertation: '#4F46E5',
+    event: '#DB2777',
+    image: '#059669',
+    instrument: '#475569',
     'interactive-resource': '#6366F1',
-    'journal': '#9333EA',
+    journal: '#9333EA',
     'journal-article': '#A855F7',
-    'model': '#14B8A6',
-    'other': '#78716C',
+    model: '#14B8A6',
+    other: '#78716C',
     'output-management-plan': '#64748B',
     'peer-review': '#EC4899',
     'physical-object': '#F97316',
-    'poster': '#F59E0B',
-    'preprint': '#6D28D9',
-    'presentation': '#D946EF',
-    'project': '#10B981',
-    'report': '#0D9488',
-    'service': '#EF4444',
-    'software': '#22C55E',
-    'sound': '#E11D48',
-    'standard': '#334155',
+    poster: '#F59E0B',
+    preprint: '#6D28D9',
+    presentation: '#D946EF',
+    project: '#10B981',
+    report: '#0D9488',
+    service: '#EF4444',
+    software: '#22C55E',
+    sound: '#E11D48',
+    standard: '#334155',
     'study-registration': '#84CC16',
-    'text': '#F43F5E',
-    'workflow': '#FB923C',
+    text: '#F43F5E',
+    workflow: '#FB923C',
 };
 
 /** Fallback color for unknown resource type slugs. */
@@ -149,12 +149,7 @@ export function getShapePathOptions(slug: string | null, type: 'box' | 'polygon'
  * Escape a string for safe use inside an HTML attribute value (double-quoted).
  */
 export function escapeHtmlAttr(text: string): string {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+    return text.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /**
@@ -181,9 +176,10 @@ export function renderPopupHtml(resource: PortalResource): string {
 
     const authors = escapeHtml(formatAuthorsShort(resource.creators));
     const year = resource.year ? ` \u2022 ${resource.year}` : '';
-    const link = resource.landingPageUrl && isSafeUrl(resource.landingPageUrl)
-        ? `<a href="${escapeHtmlAttr(resource.landingPageUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;font-weight:500;color:#2563eb;text-decoration:none;">View Details \u2192</a>`
-        : '';
+    const link =
+        resource.landingPageUrl && isSafeUrl(resource.landingPageUrl)
+            ? `<a href="${escapeHtmlAttr(resource.landingPageUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;font-weight:500;color:#2563eb;text-decoration:none;">View Details \u2192</a>`
+            : '';
 
     return `<div style="min-width:200px;max-width:280px;"><span style="${badgeStyle}">${escapeHtml(resource.resourceType)}</span><h4 style="margin:8px 0 4px;font-size:13px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escapeHtml(resource.title)}</h4><p style="margin:0 0 8px;font-size:11px;color:#6b7280;">${authors}${year}</p>${link}</div>`;
 }

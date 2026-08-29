@@ -1,11 +1,11 @@
 <?php
 
 // Enforce strict scalar types to catch hidden type coercion bugs.
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace App\Services\DateType; 
+namespace App\Services\DateType;
 
-use Illuminate\Support\Facades\Http; 
+use Illuminate\Support\Facades\Http;
 
 class DateTypeSchemaorgExtractionService
 {
@@ -21,14 +21,12 @@ class DateTypeSchemaorgExtractionService
         'datePublished' => 'Issued',
     ];
 
-
     /**
      * @return array<int, array<string, mixed>>
      */
-
-    public function loadAllowedSchemaorg(string $doi): array 
+    public function loadAllowedSchemaorg(string $doi): array
     {
-        
+
         $doi = trim($doi);
 
         $url = self::SCHEMA_ORG_BASE_URL.$doi;
@@ -44,15 +42,15 @@ class DateTypeSchemaorgExtractionService
                 ->connectTimeout(5)
                 ->withoutRedirecting()
                 ->get($url);
-            
-            if (!$response -> successful()) {
+
+            if (! $response->successful()) {
                 return [$this->skip($url, 'schemaorg_unreachable')];
             }
         } catch (\Throwable $e) {
             return [$this->skip($url, 'schemaorg_direct_failed', $e->getMessage())];
         }
 
-        $data = $response -> json();
+        $data = $response->json();
 
         $sourceUrl = $data['url'] ?? null;
 
@@ -70,18 +68,18 @@ class DateTypeSchemaorgExtractionService
         return str_starts_with($url, 'http://') || str_starts_with($url, 'https://');
     }
 
-    private function isAllowedGfzUrl(string $url): bool 
+    private function isAllowedGfzUrl(string $url): bool
     {
         $parts = parse_url($url);
 
         if (! is_array($parts)) {
-        return false;
+            return false;
         }
 
         $scheme = strtolower((string) ($parts['scheme'] ?? ''));
 
         if (! in_array($scheme, ['http', 'https'], true)) {
-        return false;
+            return false;
         }
 
         $host = $parts['host'] ?? null;
@@ -94,10 +92,10 @@ class DateTypeSchemaorgExtractionService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      * @return array<int, array<string, mixed>>
      */
-    private function extractSchemaorgDateSuggestions (array $data, string $sourceUrl, string $url): array 
+    private function extractSchemaorgDateSuggestions(array $data, string $sourceUrl, string $url): array
     {
         $suggestions = [];
 
@@ -109,32 +107,30 @@ class DateTypeSchemaorgExtractionService
             }
 
             if (! is_string($value) || trim($value) === '') {
-            continue;
+                continue;
             }
             $normalizedValue = DateTypeNormalizerService::normalize($value);
 
-            if ($normalizedValue === null) 
-            {
+            if ($normalizedValue === null) {
                 continue;
             }
 
             $suggestions[] = [
-            'suggestion_kind' => 'addition',
-            'target_date_type' => $dateType,
-            'normalized_value' => $normalizedValue,
-            'source_url' => $sourceUrl,
-            'evidence_source' => 'schema.org',
-            'evidence_url' => $url,
-            'schema_org_field' => $field,
-            'confidence' => 'high',
-            'is_ambiguous' => false,
+                'suggestion_kind' => 'addition',
+                'target_date_type' => $dateType,
+                'normalized_value' => $normalizedValue,
+                'source_url' => $sourceUrl,
+                'evidence_source' => 'schema.org',
+                'evidence_url' => $url,
+                'schema_org_field' => $field,
+                'confidence' => 'high',
+                'is_ambiguous' => false,
             ];
         }
 
         return $this->deduplicateSuggestions($suggestions);
 
     }
-
 
     /**
      * @param  array<int, array<string, mixed>>  $suggestions
@@ -162,17 +158,16 @@ class DateTypeSchemaorgExtractionService
     /**
      * @return array<string, mixed>
      */
-
-    private function skip(string $url, string $reason, ?string $error = null): array 
+    private function skip(string $url, string $reason, ?string $error = null): array
     {
         return [
             'source_url' => trim($url),
             'probe_method' => 'SKIP',
             'skip_reason' => $reason,
             'error' => $error,
-            'raw_evidence' => [], 
+            'raw_evidence' => [],
             'suggestions' => [],
         ];
-    
+
     }
 }

@@ -47,13 +47,7 @@ export function OrcidSuggestionsButton({ pendingData, onAccept, onDiscard }: Orc
                 <TooltipContent side="top">Review additional data from the ORCID profile</TooltipContent>
             </Tooltip>
 
-            <OrcidSuggestionsModal
-                open={modalOpen}
-                onOpenChange={setModalOpen}
-                pendingData={pendingData}
-                onAccept={onAccept}
-                onDiscard={onDiscard}
-            />
+            <OrcidSuggestionsModal open={modalOpen} onOpenChange={setModalOpen} pendingData={pendingData} onAccept={onAccept} onDiscard={onDiscard} />
         </>
     );
 }

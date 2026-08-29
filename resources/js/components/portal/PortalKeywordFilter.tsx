@@ -61,9 +61,7 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
 
     const handleSelect = useCallback(
         (keyword: string) => {
-            const newKeywords = selectedKeywords.includes(keyword)
-                ? selectedKeywords.filter((k) => k !== keyword)
-                : [...selectedKeywords, keyword];
+            const newKeywords = selectedKeywords.includes(keyword) ? selectedKeywords.filter((k) => k !== keyword) : [...selectedKeywords, keyword];
             onKeywordsChange(newKeywords);
         },
         [selectedKeywords, onKeywordsChange],
@@ -108,12 +106,7 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
             {/* Combobox dropdown */}
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
-                    <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={open}
-                        className="w-full justify-between text-sm font-normal"
-                    >
+                    <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between text-sm font-normal">
                         <span className="flex items-center gap-2 text-muted-foreground">
                             <Search className="h-3.5 w-3.5" />
                             {selectedKeywords.length > 0
@@ -146,9 +139,7 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
                                                 value={`${suggestion.scheme ?? ''}::${suggestion.value}`}
                                                 onSelect={() => handleSelect(suggestion.value)}
                                             >
-                                                <Check
-                                                    className={cn('mr-2 h-4 w-4', isSelected ? 'opacity-100' : 'opacity-0')}
-                                                />
+                                                <Check className={cn('mr-2 h-4 w-4', isSelected ? 'opacity-100' : 'opacity-0')} />
                                                 <span className="flex-1 truncate">{suggestion.value}</span>
                                                 <span className="ml-2 text-xs text-muted-foreground">({suggestion.count})</span>
                                             </CommandItem>

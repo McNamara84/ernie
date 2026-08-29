@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Funder Identifier Type Lookup Model (DataCite #19)
@@ -16,15 +17,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $name
  * @property string $slug
  * @property bool $is_active
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/fundingreference/
  */
 #[Fillable(['name', 'slug', 'is_active'])]
 class FunderIdentifierType extends Model
 {
-
     protected $casts = [
         'is_active' => 'boolean',
     ];

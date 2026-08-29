@@ -103,12 +103,7 @@ export const yearSchema = z
 // Version Schema
 // =============================================================================
 
-export const versionSchema = z
-    .string()
-    .trim()
-    .max(50, 'Version must not exceed 50 characters')
-    .optional()
-    .or(z.literal(''));
+export const versionSchema = z.string().trim().max(50, 'Version must not exceed 50 characters').optional().or(z.literal(''));
 
 // =============================================================================
 // Coordinate Schemas

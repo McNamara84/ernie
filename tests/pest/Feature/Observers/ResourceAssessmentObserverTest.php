@@ -7,10 +7,11 @@ use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Observers\ResourceAssessmentObserver;
 use App\Services\Assessment\AssessmentAverageSummaryVersionService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 covers(ResourceAssessmentObserver::class, AssessmentAverageSummaryVersionService::class);
 
@@ -20,7 +21,7 @@ beforeEach(function (): void {
 
 function makeResourceAssessmentObserver(): ResourceAssessmentObserver
 {
-    return new ResourceAssessmentObserver();
+    return new ResourceAssessmentObserver;
 }
 
 function createAssessmentForObserverTest(): ResourceAssessment
@@ -69,7 +70,7 @@ it('falls back to a best-effort version increment when the version lock is busy'
 
     Cache::shouldReceive('add')
         ->once()
-        ->withArgs(fn (string $key, int $value, mixed $ttl): bool => $key === $versionKey && $value === 1 && $ttl instanceof \DateTimeInterface)
+        ->withArgs(fn (string $key, int $value, mixed $ttl): bool => $key === $versionKey && $value === 1 && $ttl instanceof DateTimeInterface)
         ->andReturn(true);
 
     Cache::shouldReceive('increment')

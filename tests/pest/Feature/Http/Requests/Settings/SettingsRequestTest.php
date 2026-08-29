@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Http\Requests\Settings\UpdateFontSizeRequest;
 use App\Http\Requests\Settings\UpdatePasswordRequest;
-use App\Models\User;
 
 /*
 |--------------------------------------------------------------------------

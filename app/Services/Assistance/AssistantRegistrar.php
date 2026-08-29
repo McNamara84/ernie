@@ -35,7 +35,7 @@ class AssistantRegistrar
             return;
         }
 
-        $manifests = glob($basePath . '/*/manifest.json');
+        $manifests = glob($basePath.'/*/manifest.json');
 
         if ($manifests === false) {
             return;
@@ -97,7 +97,7 @@ class AssistantRegistrar
 
         if (! $instance instanceof AssistantContract) {
             throw new \RuntimeException(
-                "Class {$class} must implement " . AssistantContract::class,
+                "Class {$class} must implement ".AssistantContract::class,
             );
         }
 

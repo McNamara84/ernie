@@ -33,7 +33,6 @@ it('normalizes non DataCite date formats', function () {
         ->and(DateTypeNormalizerService::normalize('2016-7-3'))->toBe('2016-07-03');
 });
 
-
 it('normalizes complete date ranges', function () {
     expect(DateTypeNormalizerService::normalize('2010/2016'))->toBe('2010/2016')
         ->and(DateTypeNormalizerService::normalize('2010-05/2016-06'))->toBe('2010-05/2016-06')

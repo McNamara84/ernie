@@ -51,7 +51,7 @@ export async function fetchPid4instInstruments(signal?: AbortSignal): Promise<Pi
         if (err instanceof ApiError && err.status === 404) {
             const backendMessage =
                 err.body && typeof err.body === 'object' && 'error' in err.body && typeof (err.body as { error?: unknown }).error === 'string'
-                    ? ((err.body as { error: string }).error)
+                    ? (err.body as { error: string }).error
                     : null;
             throw new Error(backendMessage ?? DEFAULT_404_MESSAGE, { cause: err });
         }

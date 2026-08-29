@@ -406,10 +406,7 @@ export default function Changelog() {
                 >
                     <h2 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-400">Failed to load changelog</h2>
                     <p className="mb-4 text-red-700 dark:text-red-300">{error}</p>
-                    <Button
-                        onClick={() => browserNavigation.reload()}
-                        variant="destructive"
-                    >
+                    <Button onClick={() => browserNavigation.reload()} variant="destructive">
                         Reload page
                     </Button>
                 </div>
@@ -468,9 +465,7 @@ export default function Changelog() {
                                             const nextIsOpen = !wasOpen;
 
                                             // Announce for screen readers
-                                            setAnnouncement(
-                                                wasOpen ? `Version ${release.version} collapsed` : `Version ${release.version} expanded`,
-                                            );
+                                            setAnnouncement(wasOpen ? `Version ${release.version} collapsed` : `Version ${release.version} expanded`);
 
                                             if (nextIsOpen) {
                                                 navigateToRelease(index);

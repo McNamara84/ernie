@@ -3,14 +3,15 @@
 declare(strict_types=1);
 
 use App\Models\ResourceType;
-use App\Models\Resource;
 use App\Models\Right;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 covers(ResourceType::class);
 
 describe('ResourceType model attributes', function (): void {
     it('has correct fillable attributes', function (): void {
-        $model = new ResourceType();
+        $model = new ResourceType;
 
         expect($model->getFillable())->toBe([
             'name',
@@ -72,14 +73,14 @@ describe('ResourceType relationships', function (): void {
     it('has many resources', function (): void {
         $type = ResourceType::factory()->create();
 
-        expect($type->resources())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+        expect($type->resources())->toBeInstanceOf(HasMany::class);
     });
 
     it('has excluded from rights relationship', function (): void {
         $type = ResourceType::factory()->create();
 
         expect($type->excludedFromRights())->toBeInstanceOf(
-            \Illuminate\Database\Eloquent\Relations\BelongsToMany::class
+            BelongsToMany::class
         );
     });
 

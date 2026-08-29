@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
+use App\Http\Controllers\LandingPageController;
 use Exception;
 
 /**
@@ -13,7 +14,7 @@ use Exception;
  * duplicate resource was detected, allowing proper transaction semantics
  * while still communicating the conflict to the caller.
  *
- * @see \App\Http\Controllers\LandingPageController::store()
+ * @see LandingPageController::store()
  */
 class ResourceAlreadyExistsException extends Exception
 {

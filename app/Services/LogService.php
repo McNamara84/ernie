@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Service for parsing and managing Laravel log files.
@@ -101,7 +102,7 @@ class LogService
         if ($fileSize > self::MAX_FILE_SIZE) {
             $handle = fopen($logPath, 'r');
             if ($handle === false) {
-                \Illuminate\Support\Facades\Log::warning('LogService: Failed to open log file for reading', ['path' => $logPath]);
+                Log::warning('LogService: Failed to open log file for reading', ['path' => $logPath]);
 
                 return [];
             }
@@ -117,7 +118,7 @@ class LogService
             }
 
             if ($content === false) {
-                \Illuminate\Support\Facades\Log::warning('LogService: Failed to read from large log file', [
+                Log::warning('LogService: Failed to read from large log file', [
                     'path' => $logPath,
                     'file_size' => $fileSize,
                 ]);
@@ -254,7 +255,7 @@ class LogService
                 if ($handle !== false) {
                     fclose($handle);
                 }
-                \Illuminate\Support\Facades\Log::warning('LogService: Failed to acquire lock for log file deletion', ['path' => $logPath]);
+                Log::warning('LogService: Failed to acquire lock for log file deletion', ['path' => $logPath]);
 
                 return false;
             }
@@ -290,7 +291,7 @@ class LogService
             fclose($handle);
         }
 
-        \Illuminate\Support\Facades\Log::warning('LogService: Failed to acquire lock for clearing logs', ['path' => $logPath]);
+        Log::warning('LogService: Failed to acquire lock for clearing logs', ['path' => $logPath]);
 
         return false;
     }

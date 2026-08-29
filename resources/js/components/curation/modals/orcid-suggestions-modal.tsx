@@ -159,11 +159,7 @@ export function OrcidSuggestionsModal({ open, onOpenChange, pendingData, onAccep
                             <div className="space-y-3">
                                 <h4 className="text-sm font-semibold text-foreground">Email</h4>
                                 <div className="flex items-start gap-3 rounded-md border p-3">
-                                    <Checkbox
-                                        id="orcid-email"
-                                        checked={applyEmail}
-                                        onCheckedChange={(checked) => setApplyEmail(checked === true)}
-                                    />
+                                    <Checkbox id="orcid-email" checked={applyEmail} onCheckedChange={(checked) => setApplyEmail(checked === true)} />
                                     <Label htmlFor="orcid-email" className="cursor-pointer text-sm leading-relaxed">
                                         <span className="font-medium">{pendingData.emailSuggestion}</span>
                                     </Label>

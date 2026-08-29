@@ -22,7 +22,6 @@ uses(RefreshDatabase::class);
  *
  * @see https://pestphp.com/docs/browser-testing
  */
-
 describe('DOI Validation Editor Pages', function (): void {
 
     it('loads editor page without JavaScript errors', function (): void {

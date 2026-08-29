@@ -11,7 +11,6 @@ use Illuminate\Console\Attributes\Signature;
 #[Signature('get-gcmd-science-keywords')]
 class GetGcmdScienceKeywords extends BaseGcmdCommand
 {
-
     /**
      * Get the vocabulary type
      */

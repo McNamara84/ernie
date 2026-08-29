@@ -117,13 +117,13 @@ return new class extends Migration
         }
 
         for ($index = 2; $index <= 1000; $index++) {
-            $candidate = $preferredName . ' ' . $index;
+            $candidate = $preferredName.' '.$index;
             if (! DB::table('landing_page_templates')->where('name', $candidate)->exists()) {
                 return $candidate;
             }
         }
 
-        return $preferredName . ' ' . strtoupper(bin2hex(random_bytes(3)));
+        return $preferredName.' '.strtoupper(bin2hex(random_bytes(3)));
     }
 
     private function isUniqueConstraintViolation(QueryException $exception): bool

@@ -37,7 +37,7 @@ describe('EditorController - JSON session loading', function () {
 
         session()->put($sessionKey, $sessionData);
 
-        $response = $this->actingAs($user)->get('/editor?jsonSession=' . $sessionKey);
+        $response = $this->actingAs($user)->get('/editor?jsonSession='.$sessionKey);
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
@@ -64,7 +64,7 @@ describe('EditorController - JSON session loading', function () {
         $sessionKey = 'json_upload_expired1234567890abc';
         // Do not put anything in the session → simulates expired
 
-        $response = $this->actingAs($user)->get('/editor?jsonSession=' . $sessionKey);
+        $response = $this->actingAs($user)->get('/editor?jsonSession='.$sessionKey);
 
         $response->assertRedirect(route('dashboard'));
         $response->assertSessionHas('error');

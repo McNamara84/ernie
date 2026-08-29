@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\UserRole;
 use App\Models\LandingPage;
 use App\Models\User;
+use Database\Seeders\PlaywrightTestSeeder;
 use Tests\TestCase;
 
 /**
@@ -21,7 +22,6 @@ use Tests\TestCase;
  *
  * @see https://pestphp.com/docs/browser-testing#visual-regression
  */
-
 describe('Welcome Page Visual Regression', function (): void {
     it('matches welcome page screenshot on desktop', function (): void {
         visit('/')
@@ -70,7 +70,7 @@ describe('Landing Page Visual Regression', function (): void {
     beforeEach(function (): void {
         // Ensure test landing page exists
         /** @var TestCase $this */
-        $this->seed(\Database\Seeders\PlaywrightTestSeeder::class);
+        $this->seed(PlaywrightTestSeeder::class);
     });
 
     it('matches published landing page screenshot', function (): void {

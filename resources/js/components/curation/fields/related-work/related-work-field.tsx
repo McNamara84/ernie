@@ -151,10 +151,10 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
 
             const updated = relatedWorksRef.current.map((item) => {
                 if (
-                    item.identifier === identifier
-                    && item.identifier_type === itemIdentifierType
-                    && item.relation_type === itemRelationType
-                    && !item.citation_label?.trim()
+                    item.identifier === identifier &&
+                    item.identifier_type === itemIdentifierType &&
+                    item.relation_type === itemRelationType &&
+                    !item.citation_label?.trim()
                 ) {
                     didUpdate = true;
 
@@ -315,8 +315,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         setDuplicateError(null);
 
         const previousItem = relatedWorks[index];
-        const identifierChanged =
-            previousItem.identifier !== updatedItem.identifier || previousItem.identifier_type !== updatedItem.identifier_type;
+        const identifierChanged = previousItem.identifier !== updatedItem.identifier || previousItem.identifier_type !== updatedItem.identifier_type;
 
         const updated = relatedWorks.map((item, itemIndex) => {
             if (itemIndex !== index) {
@@ -325,9 +324,9 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
 
             return {
                 ...updatedItem,
-                citation_label: identifierChanged ? null : updatedItem.citation_label ?? null,
-                related_title: identifierChanged ? null : updatedItem.related_title ?? null,
-                related_metadata: identifierChanged ? null : updatedItem.related_metadata ?? null,
+                citation_label: identifierChanged ? null : (updatedItem.citation_label ?? null),
+                related_title: identifierChanged ? null : (updatedItem.related_title ?? null),
+                related_metadata: identifierChanged ? null : (updatedItem.related_metadata ?? null),
                 position: itemIndex,
             };
         });

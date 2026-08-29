@@ -67,7 +67,7 @@ export function ExternalLandingPageFields({
             {computedExternalUrl && (
                 <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Resulting URL</Label>
-                    <p className="break-all rounded bg-white/80 px-2 py-1 font-mono text-xs text-blue-800 dark:bg-gray-900/50 dark:text-blue-200">
+                    <p className="rounded bg-white/80 px-2 py-1 font-mono text-xs break-all text-blue-800 dark:bg-gray-900/50 dark:text-blue-200">
                         {computedExternalUrl}
                     </p>
                 </div>

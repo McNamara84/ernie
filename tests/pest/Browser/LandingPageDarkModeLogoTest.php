@@ -3,12 +3,13 @@
 declare(strict_types=1);
 
 use App\Models\LandingPage;
+use Database\Seeders\PlaywrightTestSeeder;
 use Tests\TestCase;
 
 describe('Landing Page Dark Mode Logos', function (): void {
     beforeEach(function (): void {
         /** @var TestCase $this */
-        $this->seed(\Database\Seeders\PlaywrightTestSeeder::class);
+        $this->seed(PlaywrightTestSeeder::class);
     });
 
     it('uses the dedicated DataCite dark-mode asset on the published landing page', function (): void {

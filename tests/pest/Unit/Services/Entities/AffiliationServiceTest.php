@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Models\Affiliation;
-use App\Models\Person;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Services\Entities\AffiliationService;

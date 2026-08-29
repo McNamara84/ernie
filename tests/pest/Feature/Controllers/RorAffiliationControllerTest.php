@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\RorAffiliationController;
-use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 

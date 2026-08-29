@@ -290,9 +290,7 @@
         border: 1px solid color-mix(in oklch, var(--color-border) 90%, transparent);
         border-radius: 1rem;
         box-shadow: 0 24px 60px color-mix(in oklch, var(--color-foreground) 12%, transparent);
-        background:
-            linear-gradient(180deg, color-mix(in oklch, white 88%, var(--color-secondary) 12%), white),
-            white;
+        background: linear-gradient(180deg, color-mix(in oklch, white 88%, var(--color-secondary) 12%), white), white;
         color: var(--color-foreground);
         min-width: 20rem;
     }

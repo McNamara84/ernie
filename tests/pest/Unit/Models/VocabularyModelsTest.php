@@ -10,6 +10,8 @@ use App\Models\IdentifierType;
 use App\Models\RelationType;
 use App\Models\ResourceType;
 use App\Models\TitleType;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 covers(
     DateType::class,
@@ -58,7 +60,7 @@ describe('DateType model', function () {
         $type = DateType::factory()->create();
 
         expect($type->dates())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+            ->toBeInstanceOf(HasMany::class);
     });
 });
 
@@ -93,7 +95,7 @@ describe('DescriptionType model', function () {
         $type = DescriptionType::create(['name' => 'Test', 'slug' => 'test_desc']);
 
         expect($type->descriptions())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+            ->toBeInstanceOf(HasMany::class);
     });
 });
 
@@ -127,7 +129,7 @@ describe('ResourceType model', function () {
         );
 
         expect($type->resources())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+            ->toBeInstanceOf(HasMany::class);
     });
 
     it('has excludedFromRights relationship', function () {
@@ -137,7 +139,7 @@ describe('ResourceType model', function () {
         );
 
         expect($type->excludedFromRights())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsToMany::class);
+            ->toBeInstanceOf(BelongsToMany::class);
     });
 });
 
@@ -180,7 +182,7 @@ describe('RelationType model', function () {
         $type = RelationType::create(['name' => 'Test', 'slug' => 'test_rel']);
 
         expect($type->relatedIdentifiers())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+            ->toBeInstanceOf(HasMany::class);
     });
 });
 
@@ -205,14 +207,14 @@ describe('IdentifierType model', function () {
         $type = IdentifierType::create(['name' => 'Test', 'slug' => 'test_id']);
 
         expect($type->patterns())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+            ->toBeInstanceOf(HasMany::class);
     });
 
     it('has relatedIdentifiers relationship', function () {
         $type = IdentifierType::create(['name' => 'Test2', 'slug' => 'test_id2']);
 
         expect($type->relatedIdentifiers())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+            ->toBeInstanceOf(HasMany::class);
     });
 });
 
@@ -237,7 +239,7 @@ describe('FunderIdentifierType model', function () {
         $type = FunderIdentifierType::create(['name' => 'Test', 'slug' => 'test_fit']);
 
         expect($type->fundingReferences())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+            ->toBeInstanceOf(HasMany::class);
     });
 });
 
@@ -255,6 +257,6 @@ describe('ContributorType model', function () {
         );
 
         expect($type->contributors())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+            ->toBeInstanceOf(HasMany::class);
     });
 });

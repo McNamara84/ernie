@@ -225,6 +225,8 @@ Why frontend validation stays on the host:
 - `npm run test` remains available for watch mode, but it is not the default validation command.
 - `npm run lint` remains the auto-fix command, while `npm run lint:check` is the safe validation path.
 
+CI formatter jobs are non-mutating and check the complete frontend and PHP codebases. Use `npm run format` and `npm run lint` for frontend auto-fixes; run Pint without `--test` when intentionally applying PHP formatting changes.
+
 ## Browser Validation
 
 ### Local browser verification
@@ -251,8 +253,9 @@ npm run test:e2e:stage
 - Run local coverage only when targeted feedback is needed.
 - Keep day-to-day backend runs on `--no-coverage`.
 - Let CI remain the primary source of complete coverage reporting.
-- CI runs the Vitest coverage suite on two machines with `--shard=1/2` and `--shard=2/2`. Each machine uploads a Vitest blob report; the final `vitest` job merges both test and V8 coverage results before uploading the single complete `coverage/lcov.info` to Codecov.
+- CI runs the Vitest coverage suite on three machines with `--shard=1/3`, `--shard=2/3`, and `--shard=3/3`. Each machine uploads a Vitest blob report; the final `vitest` job merges all test and V8 coverage results before uploading the single complete `coverage/lcov.info` to Codecov.
 - Keep the blob upload and merge job together when changing the workflow. Uploading either shard's partial LCOV report would make the Codecov result incomplete.
+- CI runs the serial and architecture Pest slices alongside two disjoint shards of the remaining test suite. Serial and parallel tests collect the configured line coverage with PCOV into separate Clover reports; the final `Pest PHP Tests` job uploads all three reports together. PCOV remains rooted at the repository so `routes/`, `config/`, and `database/` can contribute coverage, while `vendor/` and `tests/` are excluded before instrumentation. Each parallel shard gives the coverage-merging parent process 4 GB of memory while its ParaTest workers retain the configured 1 GB limit. Architecture tests remain coverage-free because their structural assertions do not produce meaningful runtime coverage.
 
 ## Suggested Validation Sets
 

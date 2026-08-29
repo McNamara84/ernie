@@ -43,7 +43,7 @@ class CrossrefClient
                         ? "ERNIE/1.0 (mailto:{$mailto})"
                         : 'ERNIE/1.0'
                 )
-                ->get(rtrim($baseUrl, '/') . '/' . rawurlencode($doi));
+                ->get(rtrim($baseUrl, '/').'/'.rawurlencode($doi));
         } catch (\Throwable $e) {
             Log::warning('Crossref lookup failed', ['doi' => $doi, 'error' => $e->getMessage()]);
 
@@ -54,13 +54,13 @@ class CrossrefClient
             return CitationLookupResult::notFound('crossref');
         }
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return CitationLookupResult::error('crossref', "HTTP {$response->status()}");
         }
 
         /** @var array<string, mixed>|null $json */
         $json = $response->json();
-        if (!is_array($json) || !isset($json['message']) || !is_array($json['message'])) {
+        if (! is_array($json) || ! isset($json['message']) || ! is_array($json['message'])) {
             return CitationLookupResult::notFound('crossref');
         }
 
@@ -68,7 +68,7 @@ class CrossrefClient
     }
 
     /**
-     * @param array<string, mixed> $message
+     * @param  array<string, mixed>  $message
      * @return array<string, mixed>
      */
     private function transform(array $message, string $doi): array
@@ -88,7 +88,7 @@ class CrossrefClient
 
         $creators = [];
         foreach ((array) ($message['author'] ?? []) as $author) {
-            if (!is_array($author)) {
+            if (! is_array($author)) {
                 continue;
             }
 
@@ -106,6 +106,7 @@ class CrossrefClient
                     'nameIdentifierScheme' => null,
                     'affiliations' => [],
                 ];
+
                 continue;
             }
 
@@ -120,7 +121,7 @@ class CrossrefClient
 
             $creators[] = [
                 'nameType' => 'Personal',
-                'name' => trim(($family ?? '') . ($given !== null ? ", {$given}" : '')),
+                'name' => trim(($family ?? '').($given !== null ? ", {$given}" : '')),
                 'givenName' => $given,
                 'familyName' => $family,
                 'nameIdentifier' => $orcid,
@@ -177,18 +178,17 @@ class CrossrefClient
     }
 
     /**
-     * @param mixed $raw
      * @return list<array{name: string, affiliationIdentifier: ?string, scheme: ?string}>
      */
     private function extractAffiliations(mixed $raw): array
     {
-        if (!is_array($raw)) {
+        if (! is_array($raw)) {
             return [];
         }
 
         $result = [];
         foreach ($raw as $aff) {
-            if (!is_array($aff) || !isset($aff['name']) || !is_string($aff['name'])) {
+            if (! is_array($aff) || ! isset($aff['name']) || ! is_string($aff['name'])) {
                 continue;
             }
             $result[] = [
@@ -202,7 +202,7 @@ class CrossrefClient
     }
 
     /**
-     * @param array<string, mixed> $message
+     * @param  array<string, mixed>  $message
      */
     private function extractYear(array $message): ?int
     {
@@ -220,7 +220,7 @@ class CrossrefClient
     }
 
     /**
-     * @param array<string, mixed> $message
+     * @param  array<string, mixed>  $message
      * @return array{first: ?string, last: ?string}
      */
     private function extractPages(array $message): array

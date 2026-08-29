@@ -56,14 +56,14 @@ describe('registerDoi', function () {
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
         expect(fn () => $this->service->registerDoi($resource, '10.99999'))
-            ->toThrow(\InvalidArgumentException::class, 'Invalid prefix');
+            ->toThrow(InvalidArgumentException::class, 'Invalid prefix');
     });
 
     it('throws RuntimeException when resource has no landing page', function () {
         $resource = Resource::factory()->create();
 
         expect(fn () => $this->service->registerDoi($resource, '10.83279'))
-            ->toThrow(\RuntimeException::class, 'must have a landing page');
+            ->toThrow(RuntimeException::class, 'must have a landing page');
     });
 
     it('uses public_url from landing page accessor', function () {
@@ -110,14 +110,14 @@ describe('updateMetadata', function () {
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
         expect(fn () => $this->service->updateMetadata($resource))
-            ->toThrow(\RuntimeException::class, 'must have a DOI');
+            ->toThrow(RuntimeException::class, 'must have a DOI');
     });
 
     it('throws RuntimeException when resource has no landing page', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/test.123']);
 
         expect(fn () => $this->service->updateMetadata($resource))
-            ->toThrow(\RuntimeException::class, 'must have a landing page');
+            ->toThrow(RuntimeException::class, 'must have a landing page');
     });
 
     it('uses public_url from landing page accessor', function () {

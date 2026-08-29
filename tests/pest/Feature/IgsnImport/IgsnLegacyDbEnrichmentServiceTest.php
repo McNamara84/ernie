@@ -19,7 +19,7 @@ describe('IgsnLegacyDbEnrichmentService', function () {
     it('returns false when legacy DB query throws connection error', function () {
         DB::shouldReceive('connection')
             ->with('igsn_legacy')
-            ->andThrow(new \Exception('Connection refused'));
+            ->andThrow(new Exception('Connection refused'));
 
         $resource = Resource::factory()->create(['doi' => '10.60510/GFLEGACY001']);
         $igsnMetadata = IgsnMetadata::create([
@@ -34,7 +34,7 @@ describe('IgsnLegacyDbEnrichmentService', function () {
     it('records failures and disables after MAX_CONSECUTIVE_FAILURES', function () {
         DB::shouldReceive('connection')
             ->with('igsn_legacy')
-            ->andThrow(new \Exception('Connection refused'));
+            ->andThrow(new Exception('Connection refused'));
 
         $resource = Resource::factory()->create(['doi' => '10.60510/GFLEGACYFAIL']);
         $igsnMetadata = IgsnMetadata::create([
@@ -53,7 +53,7 @@ describe('IgsnLegacyDbEnrichmentService', function () {
     it('returns false when not available', function () {
         DB::shouldReceive('connection')
             ->with('igsn_legacy')
-            ->andThrow(new \Exception('Connection refused'));
+            ->andThrow(new Exception('Connection refused'));
 
         $resource = Resource::factory()->create(['doi' => '10.60510/GFLEGACYNA']);
         $igsnMetadata = IgsnMetadata::create([

@@ -89,9 +89,9 @@ function makeResourceWithRelatedItem(): Resource
 describe('DataCiteXmlExporter — relatedItems', function () {
     test('emits <relatedItems> with a complete <relatedItem> block', function () {
         $resource = makeResourceWithRelatedItem();
-        $xml = (new DataCiteXmlExporter())->export($resource);
+        $xml = (new DataCiteXmlExporter)->export($resource);
 
-        $dom = new DOMDocument();
+        $dom = new DOMDocument;
         expect($dom->loadXML($xml))->toBeTrue();
 
         expect($xml)->toContain('<relatedItems>')
@@ -118,7 +118,7 @@ describe('DataCiteXmlExporter — relatedItems', function () {
 
     test('omits <relatedItems> when resource has none', function () {
         $resource = Resource::factory()->create();
-        $xml = (new DataCiteXmlExporter())->export($resource);
+        $xml = (new DataCiteXmlExporter)->export($resource);
 
         expect($xml)->not->toContain('<relatedItems>');
     });
@@ -131,7 +131,7 @@ describe('DataCiteXmlExporter — relatedItems', function () {
         $item->scheme_type = 'JSON';
         $item->save();
 
-        $xml = (new DataCiteXmlExporter())->export($resource->fresh());
+        $xml = (new DataCiteXmlExporter)->export($resource->fresh());
 
         expect($xml)
             ->toContain('relatedMetadataScheme="citeproc-json"')
@@ -143,7 +143,7 @@ describe('DataCiteXmlExporter — relatedItems', function () {
 describe('DataCiteJsonExporter — relatedItems', function () {
     test('includes relatedItems in the attributes block', function () {
         $resource = makeResourceWithRelatedItem();
-        $json = (new DataCiteJsonExporter())->export($resource);
+        $json = (new DataCiteJsonExporter)->export($resource);
 
         $attrs = $json['data']['attributes'];
         expect($attrs)->toHaveKey('relatedItems');
@@ -176,14 +176,14 @@ describe('DataCiteJsonExporter — relatedItems', function () {
 
     test('omits relatedItems when resource has none', function () {
         $resource = Resource::factory()->create();
-        $json = (new DataCiteJsonExporter())->export($resource);
+        $json = (new DataCiteJsonExporter)->export($resource);
 
         expect($json['data']['attributes'])->not->toHaveKey('relatedItems');
     });
 
     test('omits person identifiers and affiliations unsupported by DataCite relatedItem', function () {
         $resource = makeResourceWithRelatedItem();
-        $json = (new DataCiteJsonExporter())->export($resource);
+        $json = (new DataCiteJsonExporter)->export($resource);
         $ri = $json['data']['attributes']['relatedItems'][0];
 
         expect($ri['creators'][0])->not->toHaveKeys(['nameIdentifiers', 'affiliation'])
@@ -198,7 +198,7 @@ describe('DataCiteJsonExporter — relatedItems', function () {
         $item->scheme_type = 'JSON';
         $item->save();
 
-        $json = (new DataCiteJsonExporter())->export($resource->fresh());
+        $json = (new DataCiteJsonExporter)->export($resource->fresh());
         $ri = $json['data']['attributes']['relatedItems'][0];
 
         expect($ri['relatedItemIdentifier'])->toMatchArray([
@@ -214,7 +214,7 @@ describe('DataCiteJsonExporter — relatedItems', function () {
 describe('DataCiteLinkedDataExporter — relatedItems', function () {
     test('includes relatedItems block with attrs + value', function () {
         $resource = makeResourceWithRelatedItem();
-        $ld = (new DataCiteLinkedDataExporter())->export($resource);
+        $ld = (new DataCiteLinkedDataExporter)->export($resource);
 
         expect($ld)->toHaveKey('relatedItems');
         $ri = $ld['relatedItems']['relatedItem'];
@@ -237,7 +237,7 @@ describe('DataCiteLinkedDataExporter — relatedItems', function () {
 describe('SchemaOrgJsonLdExporter — citations', function () {
     test('emits schema:citation CreativeWork for relatedItems', function () {
         $resource = makeResourceWithRelatedItem();
-        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
 
         expect($schema)->toHaveKey('citation');
         $citation = $schema['citation'][0];
@@ -302,7 +302,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'identifier' => 'https://example.org/paper',
             'identifier_type' => 'URL',
         ]);
-        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation['url'])->toBe('https://example.org/paper');
@@ -314,7 +314,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'identifier' => 'urn:isbn:9781234567890',
             'identifier_type' => 'ISBN',
         ]);
-        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation['identifier'])->toMatchArray([
@@ -337,7 +337,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'family_name' => null,
             'position' => 0,
         ]);
-        $schema = (new SchemaOrgJsonLdExporter())->export($resource->fresh());
+        $schema = (new SchemaOrgJsonLdExporter)->export($resource->fresh());
 
         $citation = $schema['citation'][0];
         expect($citation['author'])->toMatchArray([
@@ -367,7 +367,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'family_name' => 'Beta',
             'position' => 1,
         ]);
-        $schema = (new SchemaOrgJsonLdExporter())->export($resource->fresh());
+        $schema = (new SchemaOrgJsonLdExporter)->export($resource->fresh());
 
         $authors = $schema['citation'][0]['author'];
         expect($authors)->toBeArray()->toHaveCount(2);
@@ -377,7 +377,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
 
     test('omits publisher when not set', function () {
         $resource = makeMinimalRelatedItemResource();
-        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation)->not->toHaveKey('publisher');
@@ -385,7 +385,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
 
     test('omits datePublished when publicationYear is null', function () {
         $resource = makeMinimalRelatedItemResource();
-        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation)->not->toHaveKey('datePublished');
@@ -396,7 +396,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'first_page' => '42',
             'last_page' => null,
         ]);
-        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation['description'])->toBe('pp. 42');
@@ -405,7 +405,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
 
     test('omits citation key entirely when no relatedItems exist', function () {
         $resource = Resource::factory()->create();
-        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
 
         expect($schema)->not->toHaveKey('citation');
     });
@@ -415,7 +415,7 @@ describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
             'title' => 'Only Subtitle',
             'title_type' => 'Subtitle',
         ]);
-        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+        $schema = (new SchemaOrgJsonLdExporter)->export($resource);
 
         $citation = $schema['citation'][0];
         expect($citation['name'])->toBe('Only Subtitle');

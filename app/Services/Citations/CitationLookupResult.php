@@ -12,7 +12,7 @@ namespace App\Services\Citations;
 final readonly class CitationLookupResult
 {
     /**
-     * @param array<string, mixed>|null $data
+     * @param  array<string, mixed>|null  $data
      */
     public function __construct(
         public string $source,
@@ -32,7 +32,7 @@ final readonly class CitationLookupResult
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public static function hit(string $source, array $data): self
     {

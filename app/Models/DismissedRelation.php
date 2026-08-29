@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * DismissedRelation Model
@@ -20,8 +21,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $relation_type_id
  * @property int|null $dismissed_by
  * @property string|null $reason
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  * @property-read RelationType $relationType
  * @property-read User|null $dismissedBy

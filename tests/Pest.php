@@ -1,5 +1,9 @@
 <?php
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Pest\Browser\Configuration;
+use Tests\TestCase;
+
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -11,8 +15,8 @@
 |
 */
 
-pest()->extend(Tests\TestCase::class)
-    ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+pest()->extend(TestCase::class)
+    ->use(RefreshDatabase::class)
     ->beforeEach(function () {
         // Non-browser tests do not need the frontend bundle and should not depend
         // on a Vite dev server or built assets being present.
@@ -20,8 +24,8 @@ pest()->extend(Tests\TestCase::class)
     })
     ->in('pest/Feature', 'pest/Unit', 'pest/Arch', 'pest/Debug');
 
-pest()->extend(Tests\TestCase::class)
-    ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+pest()->extend(TestCase::class)
+    ->use(RefreshDatabase::class)
     ->in('pest/Browser');
 
 /*
@@ -35,7 +39,7 @@ pest()->extend(Tests\TestCase::class)
 |
 */
 
-if (class_exists(\Pest\Browser\Configuration::class)) {
+if (class_exists(Configuration::class)) {
     pest()->browser()
         ->timeout(15000);  // 15s timeout for browser operations
 }

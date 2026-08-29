@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\IgsnMetadata;
-use App\Models\Language;
 use App\Models\LandingPage;
+use App\Models\Language;
 use App\Models\Person;
 use App\Models\Publisher;
 use App\Models\Resource;
@@ -165,7 +165,7 @@ class IgsnTestDataSeeder extends Seeder
 
             // Creator (Person)
             $person = Person::create([
-                'family_name' => 'Sample Collector ' . ($index + 1),
+                'family_name' => 'Sample Collector '.($index + 1),
                 'given_name' => 'Dr.',
             ]);
             $resource->creators()->create([
@@ -187,7 +187,7 @@ class IgsnTestDataSeeder extends Seeder
             LandingPage::create([
                 'resource_id' => $resource->id,
                 'doi_prefix' => '10.5880/IGSN',
-                'slug' => 'igsn-test-' . ($index + 1),
+                'slug' => 'igsn-test-'.($index + 1),
                 'template' => 'gfz',
                 'is_published' => true,
                 'published_at' => now(),
@@ -204,6 +204,6 @@ class IgsnTestDataSeeder extends Seeder
         }
 
         $this->command->newLine();
-        $this->command->info('✓ Created ' . count($samples) . ' IGSN samples.');
+        $this->command->info('✓ Created '.count($samples).' IGSN samples.');
     }
 }

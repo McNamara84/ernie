@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 use App\Models\IdentifierType;
 use App\Models\IdentifierTypePattern;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     config(['services.ernie.api_key' => 'test-api-key']);

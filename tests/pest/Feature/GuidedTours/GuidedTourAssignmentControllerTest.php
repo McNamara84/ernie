@@ -5,8 +5,9 @@ declare(strict_types=1);
 use App\Models\GuidedTour;
 use App\Models\User;
 use App\Models\UserGuidedTourAssignment;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 test('users can mark their guided tour assignment as started', function () {
     $user = User::factory()->beginner()->create();

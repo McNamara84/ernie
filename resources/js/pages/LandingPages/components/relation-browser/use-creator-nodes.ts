@@ -148,11 +148,8 @@ function mergeCreator(
         datasetNodeIds: new Set([datasetNodeId]),
     };
 
-    const key = nameKey !== '|'
-        ? nameKey
-        : creator.institutionName
-            ? `inst-${creator.institutionName.trim().toLowerCase()}`
-            : `unknown-${counter.value++}`;
+    const key =
+        nameKey !== '|' ? nameKey : creator.institutionName ? `inst-${creator.institutionName.trim().toLowerCase()}` : `unknown-${counter.value++}`;
     map.set(key, info);
     if (creator.orcid) {
         orcidIndex.set(creator.orcid, key);
@@ -207,10 +204,7 @@ function fromApiAuthor(author: ApiAuthor): {
  * Related DOI creators are fetched asynchronously via /api/datacite/authors?doi=...
  * Creators are deduplicated by ORCID first, then by normalized name.
  */
-export function useCreatorNodes(
-    resource: LandingPageResource,
-    relatedIdentifiers: LandingPageRelatedIdentifier[],
-): UseCreatorNodesResult {
+export function useCreatorNodes(resource: LandingPageResource, relatedIdentifiers: LandingPageRelatedIdentifier[]): UseCreatorNodesResult {
     const [apiAuthors, setApiAuthors] = useState<Map<string, ApiAuthor[]>>(new Map());
     const [loading, setLoading] = useState(false);
     const controllerRef = useRef<AbortController | null>(null);
@@ -352,7 +346,12 @@ export function useCreatorNodes(
             }
         }
 
-        return { creatorNodes: nodes, creatorLinks: links, creatorNodeIdMap: nodeIdMap, apiAuthorsWithAffiliations: apiAuthors as Map<string, ApiAuthorWithAffiliations[]> };
+        return {
+            creatorNodes: nodes,
+            creatorLinks: links,
+            creatorNodeIdMap: nodeIdMap,
+            apiAuthorsWithAffiliations: apiAuthors as Map<string, ApiAuthorWithAffiliations[]>,
+        };
     }, [resource.creators, apiAuthors]);
 
     return { creatorNodes, creatorLinks, creatorNodeIdMap, apiAuthorsWithAffiliations, loading };

@@ -33,10 +33,13 @@ export function useCitationLookup(options: UseCitationLookupOptions = {}): UseCi
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const abortRef = useRef<AbortController | null>(null);
 
-    useEffect(() => () => {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        abortRef.current?.abort();
-    }, []);
+    useEffect(
+        () => () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            abortRef.current?.abort();
+        },
+        [],
+    );
 
     const reset = useCallback(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -80,10 +83,7 @@ export function useCitationLookup(options: UseCitationLookupOptions = {}): UseCi
                 const controller = new AbortController();
                 abortRef.current = controller;
 
-                apiRequest<CitationLookupResult>(
-                    `/api/v1/citation-lookup?doi=${encodeURIComponent(normalized)}`,
-                    { signal: controller.signal },
-                )
+                apiRequest<CitationLookupResult>(`/api/v1/citation-lookup?doi=${encodeURIComponent(normalized)}`, { signal: controller.signal })
                     .then((data) => {
                         cacheRef.current.set(normalized, data);
                         setResult(data);
@@ -92,11 +92,7 @@ export function useCitationLookup(options: UseCitationLookupOptions = {}): UseCi
                     .catch((err: unknown) => {
                         if (err instanceof DOMException && err.name === 'AbortError') return;
                         if (err instanceof ApiError) {
-                            setError(
-                                err.status === 429
-                                    ? 'Too many lookup requests — please wait a moment.'
-                                    : err.message,
-                            );
+                            setError(err.status === 429 ? 'Too many lookup requests — please wait a moment.' : err.message);
                         } else if (err instanceof Error) {
                             setError(err.message);
                         } else {

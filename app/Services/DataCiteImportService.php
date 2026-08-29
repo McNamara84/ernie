@@ -6,6 +6,8 @@ namespace App\Services;
 
 use App\Support\UriHelper;
 use Generator;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\TransferException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Config;
@@ -142,12 +144,12 @@ class DataCiteImportService
                     // These provide more precise retry control when the default HTTP client is Guzzle.
                     // We use class_exists() checks to gracefully handle cases where Guzzle
                     // is not installed (e.g., Laravel configured with a different HTTP client).
-                    if (class_exists(\GuzzleHttp\Exception\ConnectException::class)
-                        && $exception instanceof \GuzzleHttp\Exception\ConnectException) {
+                    if (class_exists(ConnectException::class)
+                        && $exception instanceof ConnectException) {
                         return true;
                     }
-                    if (class_exists(\GuzzleHttp\Exception\TransferException::class)
-                        && $exception instanceof \GuzzleHttp\Exception\TransferException) {
+                    if (class_exists(TransferException::class)
+                        && $exception instanceof TransferException) {
                         return true;
                     }
 

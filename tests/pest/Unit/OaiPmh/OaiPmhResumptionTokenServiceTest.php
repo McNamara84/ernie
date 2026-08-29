@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\OaiPmhResumptionToken;
 use App\Services\OaiPmh\OaiPmhResumptionTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
@@ -29,7 +30,7 @@ describe('create', function () {
             ->and($token->cursor)->toBe(100)
             ->and($token->complete_list_size)->toBe(500)
             ->and($token->token)->toHaveLength(64)
-            ->and($token->expires_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+            ->and($token->expires_at)->toBeInstanceOf(Carbon::class);
     });
 });
 

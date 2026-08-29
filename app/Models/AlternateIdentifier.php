@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Represents a DataCite alternateIdentifier element.
@@ -23,8 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $value
  * @property string $type
  * @property int $position
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  */
 #[Fillable(['resource_id', 'value', 'type', 'position'])]

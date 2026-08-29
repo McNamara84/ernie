@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Log;
+
 /**
  * Service for generating URL-friendly slugs from titles.
  *
@@ -210,7 +212,7 @@ class SlugGeneratorService
             // Log that we couldn't set a UTF-8 locale - transliteration may be inconsistent.
             // This is a warning rather than an error because the transliteration map
             // handles most common cases, and iconv may still work with the current locale.
-            \Illuminate\Support\Facades\Log::warning(
+            Log::warning(
                 'SlugGeneratorService: Failed to set UTF-8 locale for transliteration',
                 [
                     'original_locale' => $originalLocale,
@@ -247,7 +249,7 @@ class SlugGeneratorService
                 // The critical log will alert operations/monitoring systems to investigate.
                 // PHP-FPM process recycling will eventually restore clean state.
                 $currentLocale = setlocale(LC_CTYPE, '0');
-                \Illuminate\Support\Facades\Log::critical(
+                Log::critical(
                     'SlugGeneratorService: Failed to restore locale after transliteration. '.
                     'Subsequent locale-dependent operations in this process may behave unexpectedly.',
                     [
@@ -265,7 +267,7 @@ class SlugGeneratorService
                 ? $currentError['message']
                 : 'Unknown error (possibly locale-dependent)';
 
-            \Illuminate\Support\Facades\Log::debug(
+            Log::debug(
                 'SlugGeneratorService: iconv transliteration failed',
                 [
                     'original_text_length' => mb_strlen($text),

@@ -103,9 +103,7 @@ export function isUploadError(response: UploadResponse): response is UploadError
  * Type guard to check if an XML or JSON metadata upload succeeded.
  * New responses return resourceId; older responses may only include sessionKey.
  */
-export function isSessionUploadSuccess(
-    response: UploadResponse,
-): response is XmlUploadSuccessResponse | JsonUploadSuccessResponse {
+export function isSessionUploadSuccess(response: UploadResponse): response is XmlUploadSuccessResponse | JsonUploadSuccessResponse {
     return !isUploadError(response) && ('resourceId' in response || 'sessionKey' in response);
 }
 

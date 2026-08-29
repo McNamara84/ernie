@@ -125,7 +125,7 @@ describe('IGSN Search', function () {
         createSearchableIgsn('IGSN-002', 'Rock Sample from Alps');
         createSearchableIgsn('IGSN-003', 'Soil Sample from Black Forest');
 
-        $response = $this->actingAs($this->user)->get('/igsns?' . http_build_query(['search' => 'Lake Constance']));
+        $response = $this->actingAs($this->user)->get('/igsns?'.http_build_query(['search' => 'Lake Constance']));
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -213,7 +213,7 @@ describe('IGSN Search', function () {
         createSearchableIgsn('IGSN-v2-CORE', 'Dash Sample');
 
         // "10.5%" should match only the literal percent, not act as a wildcard
-        $response = $this->actingAs($this->user)->get('/igsns?' . http_build_query(['search' => '10.5%']));
+        $response = $this->actingAs($this->user)->get('/igsns?'.http_build_query(['search' => '10.5%']));
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -223,7 +223,7 @@ describe('IGSN Search', function () {
         );
 
         // "_v2_" should match only the literal underscore, not any single character
-        $response = $this->actingAs($this->user)->get('/igsns?' . http_build_query(['search' => '_v2_']));
+        $response = $this->actingAs($this->user)->get('/igsns?'.http_build_query(['search' => '_v2_']));
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page

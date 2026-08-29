@@ -29,8 +29,6 @@ class UploadIgsnCsvController extends Controller
 
     /**
      * Handle IGSN CSV file upload.
-     *
-     * @return JsonResponse
      */
     public function __invoke(UploadIgsnCsvRequest $request): JsonResponse
     {

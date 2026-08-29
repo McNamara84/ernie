@@ -13,7 +13,6 @@ use Tests\TestCase;
  * Validates that the Quote icon on /resources opens the CitationManagerModal
  * wired against the vocabularies endpoint end-to-end.
  */
-
 uses()->group('citations', 'browser');
 
 describe('Related Item Manager modal', function (): void {

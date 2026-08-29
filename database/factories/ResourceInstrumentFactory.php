@@ -24,7 +24,7 @@ class ResourceInstrumentFactory extends Factory
     {
         return [
             'resource_id' => Resource::factory(),
-            'instrument_pid' => 'http://hdl.handle.net/21.12132/' . $this->faker->unique()->regexify('[A-Z0-9]{8}'),
+            'instrument_pid' => 'http://hdl.handle.net/21.12132/'.$this->faker->unique()->regexify('[A-Z0-9]{8}'),
             'instrument_pid_type' => 'Handle',
             'instrument_name' => $this->faker->sentence(3),
             'position' => 0,

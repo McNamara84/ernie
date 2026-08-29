@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * IGSN Geological Age Model
@@ -19,15 +20,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $resource_id
  * @property string $value
  * @property int $position
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  */
 #[Fillable(['resource_id', 'value', 'position'])]
 #[Table('igsn_geological_ages')]
 class IgsnGeologicalAge extends Model
 {
-
     /**
      * The attributes that should be cast.
      *

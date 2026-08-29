@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 use function Pest\Laravel\withoutVite;
 
@@ -188,7 +189,7 @@ LOG;
 
         // Write a log entry with the unique identifier using Laravel's Log facade
         // This ensures the log is written to the correct location
-        \Illuminate\Support\Facades\Log::warning("Test warning message {$uniqueId}");
+        Log::warning("Test warning message {$uniqueId}");
 
         $admin = User::factory()->admin()->create();
 

@@ -103,11 +103,7 @@ export function DateField({
             {/* Main row: Date(s) + DateType + Date mode + Add/Remove button */}
             <div className={cn('grid gap-4', modeGridClass)}>
                 <div className="space-y-2">
-                    {isFirst && (
-                        <Label htmlFor={`${id}-${isDateRange ? 'startDate' : 'date'}`}>
-                            {isDateRange ? 'Start Date' : 'Date'}
-                        </Label>
-                    )}
+                    {isFirst && <Label htmlFor={`${id}-${isDateRange ? 'startDate' : 'date'}`}>{isDateRange ? 'Start Date' : 'Date'}</Label>}
                     {isPartialDate(startDate) ? (
                         <div className="flex gap-2">
                             <Input

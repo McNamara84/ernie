@@ -136,11 +136,12 @@ function mergeContributor(
         datasetNodeIds: new Set([datasetNodeId]),
     };
 
-    const key = nameKey !== '|'
-        ? nameKey
-        : contributor.institutionName
-            ? `inst-${contributor.institutionName.trim().toLowerCase()}`
-            : `unknown-${counter.value++}`;
+    const key =
+        nameKey !== '|'
+            ? nameKey
+            : contributor.institutionName
+              ? `inst-${contributor.institutionName.trim().toLowerCase()}`
+              : `unknown-${counter.value++}`;
     map.set(key, info);
     if (contributor.orcid) {
         orcidIndex.set(contributor.orcid, key);
@@ -191,13 +192,7 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
         for (const contributor of contributors) {
             // Skip institutional contributors — handled by useInstitutionNodes
             if (contributor.contributorable.type === 'Institution') continue;
-            mergeContributor(
-                contributorMap,
-                orcidIndex,
-                fromLandingPageContributor(contributor),
-                'central',
-                counter,
-            );
+            mergeContributor(contributorMap, orcidIndex, fromLandingPageContributor(contributor), 'central', counter);
         }
 
         const contributorNodes: GraphNode[] = [];
@@ -250,12 +245,5 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
 }
 
 // Export helpers for testing
-export {
-    buildContributorId,
-    buildContributorLabel,
-    fromLandingPageContributor,
-    humanizeContributorType,
-    mergeContributor,
-    normalizeNameKey,
-};
+export { buildContributorId, buildContributorLabel, fromLandingPageContributor, humanizeContributorType, mergeContributor, normalizeNameKey };
 export type { ContributorInfo };

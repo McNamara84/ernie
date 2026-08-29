@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 use App\Models\Language;
-use App\Models\Resource;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 covers(Language::class);
 
 describe('Language model attributes', function (): void {
     it('has correct fillable attributes', function (): void {
-        $language = new Language();
+        $language = new Language;
 
         expect($language->getFillable())->toBe([
             'code',
@@ -69,6 +69,6 @@ describe('Language relationships', function (): void {
     it('has many resources', function (): void {
         $language = Language::factory()->create();
 
-        expect($language->resources())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+        expect($language->resources())->toBeInstanceOf(HasMany::class);
     });
 });

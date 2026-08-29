@@ -101,7 +101,7 @@ describe('Pid4instStatusService', function () {
     describe('getRemoteCount', function () {
         it('returns total hits from b2inst API', function () {
             Http::fake([
-                pid4instStatusHost() . '/api/records*' => Http::response([
+                pid4instStatusHost().'/api/records*' => Http::response([
                     'hits' => ['total' => 500],
                 ]),
             ]);
@@ -116,7 +116,7 @@ describe('Pid4instStatusService', function () {
                 parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
 
                 return $request->method() === 'GET'
-                    && str_starts_with($request->url(), pid4instStatusHost() . '/api/records?')
+                    && str_starts_with($request->url(), pid4instStatusHost().'/api/records?')
                     && ($query['size'] ?? null) === '1'
                     && ($query['page'] ?? null) === '1'
                     && ! array_key_exists('sort', $query);
@@ -125,10 +125,10 @@ describe('Pid4instStatusService', function () {
 
         it('throws RuntimeException on API failure', function () {
             Http::fake([
-                pid4instStatusHost() . '/api/records*' => Http::response('Server Error', 500),
+                pid4instStatusHost().'/api/records*' => Http::response('Server Error', 500),
             ]);
 
             $this->service->getRemoteCount();
-        })->throws(\RuntimeException::class, 'Failed to fetch from b2inst API');
+        })->throws(RuntimeException::class, 'Failed to fetch from b2inst API');
     });
 });

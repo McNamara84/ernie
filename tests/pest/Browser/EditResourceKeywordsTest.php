@@ -21,7 +21,6 @@ uses(RefreshDatabase::class);
  * @see https://github.com/McNamara84/ernie/issues/600
  * @see https://pestphp.com/docs/browser-testing
  */
-
 describe('Edit Resource with Keywords', function (): void {
 
     it('loads editor without JS errors for resource with mixed subject types', function (): void {

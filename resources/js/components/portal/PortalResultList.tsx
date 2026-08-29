@@ -54,7 +54,7 @@ export function PortalResultList({
                     description={
                         hasActiveFilters
                             ? 'Try clearing one or more filters to widen the result set.'
-                            : 'Try adjusting your search or filters to find what you\'re looking for.'
+                            : "Try adjusting your search or filters to find what you're looking for."
                     }
                     action={
                         hasActiveFilters && onClearFilters
@@ -97,12 +97,7 @@ export function PortalResultList({
             {/* Pagination */}
             {last_page > 1 && (
                 <div className="flex items-center justify-center gap-2 border-t px-4 py-3">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onPageChange(current_page - 1)}
-                        disabled={current_page === 1 || isLoading}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => onPageChange(current_page - 1)} disabled={current_page === 1 || isLoading}>
                         <ChevronLeft className="mr-1 h-4 w-4" />
                         Previous
                     </Button>

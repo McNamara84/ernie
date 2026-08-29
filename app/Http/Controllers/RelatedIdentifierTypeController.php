@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\IdentifierType;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 
 class RelatedIdentifierTypeController extends Controller
@@ -53,7 +54,7 @@ class RelatedIdentifierTypeController extends Controller
     /**
      * Format the response with grouped patterns.
      *
-     * @param  \Illuminate\Database\Eloquent\Collection<int, IdentifierType>  $types
+     * @param  Collection<int, IdentifierType>  $types
      * @return array<int, array{id: int, name: string, slug: string, patterns: array{validation: array<int, array{pattern: string, priority: int}>, detection: array<int, array{pattern: string, priority: int}>}}>
      */
     private function formatResponse($types): array

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -1218,7 +1219,7 @@ class OldDataStatisticsController extends Controller
                     // Batch fetch all resource identifiers in one query
                     $resourceIds = $topResourceIds->pluck('resource_id')->toArray();
 
-                    /** @var \Illuminate\Support\Collection<int, object{id: int, identifier: string}> $resources */
+                    /** @var Collection<int, object{id: int, identifier: string}> $resources */
                     $resources = $db->table('resource')
                         ->select(['id', 'identifier'])
                         ->whereIn('id', $resourceIds)
@@ -1226,7 +1227,7 @@ class OldDataStatisticsController extends Controller
                         ->keyBy('id');
 
                     // Batch fetch first title for each resource in one query using MIN to get one title per resource
-                    /** @var \Illuminate\Support\Collection<int, object{resource_id: int, title: string}> $titles */
+                    /** @var Collection<int, object{resource_id: int, title: string}> $titles */
                     $titles = $db->table('title')
                         ->select(['resource_id', DB::raw('MIN(title) as title')])
                         ->whereIn('resource_id', $resourceIds)

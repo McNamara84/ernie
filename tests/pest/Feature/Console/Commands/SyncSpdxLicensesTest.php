@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Console\Commands\SyncSpdxLicenses;
 use App\Models\Right;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
 covers(SyncSpdxLicenses::class);
@@ -72,7 +73,7 @@ describe('spdx:sync-licenses', function () {
 
     it('handles connection exception gracefully', function () {
         Http::fake([
-            'spdx.org/licenses/licenses.json' => fn () => throw new \Illuminate\Http\Client\ConnectionException('Timeout'),
+            'spdx.org/licenses/licenses.json' => fn () => throw new ConnectionException('Timeout'),
         ]);
 
         $this->artisan('spdx:sync-licenses')

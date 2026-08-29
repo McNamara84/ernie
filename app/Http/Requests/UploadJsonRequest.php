@@ -9,6 +9,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 
 class UploadJsonRequest extends FormRequest
@@ -24,7 +25,7 @@ class UploadJsonRequest extends FormRequest
                 'file',
                 'max:8192',
                 function (string $attribute, mixed $value, Closure $fail): void {
-                    if (! ($value instanceof \Illuminate\Http\UploadedFile)) {
+                    if (! ($value instanceof UploadedFile)) {
                         return;
                     }
                     $extension = strtolower($value->getClientOriginalExtension());

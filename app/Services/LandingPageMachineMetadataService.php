@@ -73,8 +73,7 @@ final class LandingPageMachineMetadataService
         ?string $license,
         LandingPage $landingPage,
         Resource $resource,
-    ): array
-    {
+    ): array {
         $tags = [];
         $doiUrl = 'https://doi.org/'.$landingPage->doi_prefix;
         $this->appendTag($tags, 'DC.identifier', $doiUrl);

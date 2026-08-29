@@ -128,221 +128,214 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
     const minPoints = geoType === 'polygon' ? 3 : 2;
     const geoLabel = geoType === 'polygon' ? 'polygon' : 'line';
 
-    const effectiveTotal =
-        importMode === 'append' && existingPointCount > 0
-            ? existingPointCount + parsedData.length
-            : parsedData.length;
+    const effectiveTotal = importMode === 'append' && existingPointCount > 0 ? existingPointCount + parsedData.length : parsedData.length;
     const meetsMinPoints = effectiveTotal >= minPoints;
 
-    const parseCSV = useCallback(
-        (csvFile: File) => {
-            const generation = ++parseGenerationRef.current;
-            setIsProcessing(true);
-            setErrors([]);
-            setParsedData([]);
-            setDuplicatesRemoved(0);
-            setHeaderFallback(false);
-            setProgress(0);
+    const parseCSV = useCallback((csvFile: File) => {
+        const generation = ++parseGenerationRef.current;
+        setIsProcessing(true);
+        setErrors([]);
+        setParsedData([]);
+        setDuplicatesRemoved(0);
+        setHeaderFallback(false);
+        setProgress(0);
 
-            const validationErrors: ValidationError[] = [];
-            const rawPoints: PolygonPoint[] = [];
-            let columnsDetected = false;
-            let columns: { latKey: string; lonKey: string } | null = null;
-            let usedFallback = false;
-            let rowCount = 0;
-            let aborted = false;
+        const validationErrors: ValidationError[] = [];
+        const rawPoints: PolygonPoint[] = [];
+        let columnsDetected = false;
+        let columns: { latKey: string; lonKey: string } | null = null;
+        let usedFallback = false;
+        let rowCount = 0;
+        let aborted = false;
 
-            try {
-                Papa.parse<CsvRow>(csvFile, {
-                    header: true,
-                    skipEmptyLines: true,
-                    chunkSize: 64 * 1024,
-                    chunk: (results, parser) => {
-                        if (generation !== parseGenerationRef.current) {
+        try {
+            Papa.parse<CsvRow>(csvFile, {
+                header: true,
+                skipEmptyLines: true,
+                chunkSize: 64 * 1024,
+                chunk: (results, parser) => {
+                    if (generation !== parseGenerationRef.current) {
+                        parser.abort();
+                        return;
+                    }
+
+                    // Detect column mapping from first chunk's headers
+                    if (!columnsDetected) {
+                        columnsDetected = true;
+                        const headers = results.meta.fields || [];
+                        columns = detectColumns(headers);
+
+                        if (!columns) {
+                            aborted = true;
+                            setErrors([
+                                {
+                                    row: 0,
+                                    field: 'headers',
+                                    value: headers.join(', '),
+                                    message: 'Could not detect latitude/longitude columns. Use headers like "latitude,longitude" or "lat,lon"',
+                                },
+                            ]);
+                            setIsProcessing(false);
                             parser.abort();
                             return;
                         }
 
-                        // Detect column mapping from first chunk's headers
-                        if (!columnsDetected) {
-                            columnsDetected = true;
-                            const headers = results.meta.fields || [];
-                            columns = detectColumns(headers);
-
-                            if (!columns) {
-                                aborted = true;
-                                setErrors([
-                                    {
-                                        row: 0,
-                                        field: 'headers',
-                                        value: headers.join(', '),
-                                        message:
-                                            'Could not detect latitude/longitude columns. Use headers like "latitude,longitude" or "lat,lon"',
-                                    },
-                                ]);
-                                setIsProcessing(false);
-                                parser.abort();
-                                return;
-                            }
-
-                            const latLower = columns.latKey.trim().toLowerCase();
-                            const lonLower = columns.lonKey.trim().toLowerCase();
-                            if (!LAT_HEADERS.includes(latLower) && !LON_HEADERS.includes(lonLower)) {
-                                usedFallback = true;
-                            }
+                        const latLower = columns.latKey.trim().toLowerCase();
+                        const lonLower = columns.lonKey.trim().toLowerCase();
+                        if (!LAT_HEADERS.includes(latLower) && !LON_HEADERS.includes(lonLower)) {
+                            usedFallback = true;
                         }
+                    }
 
-                        for (const row of results.data) {
-                            rowCount++;
+                    for (const row of results.data) {
+                        rowCount++;
 
-                            if (rowCount > MAX_POINTS_COUNT) {
-                                aborted = true;
-                                setErrors([
-                                    {
-                                        row: 0,
-                                        field: 'file',
-                                        value: '',
-                                        message: `Too many coordinate pairs. Maximum is ${MAX_POINTS_COUNT.toLocaleString()}, file contains more than ${MAX_POINTS_COUNT.toLocaleString()} rows`,
-                                    },
-                                ]);
-                                setIsProcessing(false);
-                                parser.abort();
-                                return;
-                            }
-
-                            const rowNum = rowCount + 1; // +1 for header row
-
-                            const latStr = row[columns!.latKey]?.trim();
-                            const lonStr = row[columns!.lonKey]?.trim();
-
-                            // Skip only rows where ALL fields are empty/whitespace
-                            const allFieldsEmpty = Object.values(row).every((v) => !v?.trim());
-                            if (allFieldsEmpty) continue;
-
-                            // Validate latitude
-                            if (!latStr) {
-                                validationErrors.push({
-                                    row: rowNum,
-                                    field: 'latitude',
+                        if (rowCount > MAX_POINTS_COUNT) {
+                            aborted = true;
+                            setErrors([
+                                {
+                                    row: 0,
+                                    field: 'file',
                                     value: '',
-                                    message: 'Latitude is empty',
-                                });
-                                continue;
-                            }
-
-                            const lat = parseFloat(latStr);
-                            if (isNaN(lat)) {
-                                validationErrors.push({
-                                    row: rowNum,
-                                    field: 'latitude',
-                                    value: latStr,
-                                    message: `"${latStr}" is not a valid number`,
-                                });
-                                continue;
-                            }
-
-                            if (lat < -90 || lat > 90) {
-                                validationErrors.push({
-                                    row: rowNum,
-                                    field: 'latitude',
-                                    value: latStr,
-                                    message: `${lat} is out of range (must be -90 to +90)`,
-                                });
-                                continue;
-                            }
-
-                            // Validate longitude
-                            if (!lonStr) {
-                                validationErrors.push({
-                                    row: rowNum,
-                                    field: 'longitude',
-                                    value: '',
-                                    message: 'Longitude is empty',
-                                });
-                                continue;
-                            }
-
-                            const lon = parseFloat(lonStr);
-                            if (isNaN(lon)) {
-                                validationErrors.push({
-                                    row: rowNum,
-                                    field: 'longitude',
-                                    value: lonStr,
-                                    message: `"${lonStr}" is not a valid number`,
-                                });
-                                continue;
-                            }
-
-                            if (lon < -180 || lon > 180) {
-                                validationErrors.push({
-                                    row: rowNum,
-                                    field: 'longitude',
-                                    value: lonStr,
-                                    message: `${lon} is out of range (must be -180 to +180)`,
-                                });
-                                continue;
-                            }
-
-                            rawPoints.push({
-                                lat: Number(lat.toFixed(6)),
-                                lon: Number(lon.toFixed(6)),
-                            });
-                        }
-
-                        // Update progress between chunks (byte-based)
-                        if (csvFile.size > 0) {
-                            const percent = Math.round((results.meta.cursor / csvFile.size) * 100);
-                            setProgress(Math.min(percent, 99));
-                        }
-                    },
-                    complete: () => {
-                        if (generation !== parseGenerationRef.current || aborted) return;
-
-                        if (rowCount === 0) {
-                            setErrors([{ row: 0, field: 'file', value: '', message: 'CSV file is empty or has no data rows' }]);
+                                    message: `Too many coordinate pairs. Maximum is ${MAX_POINTS_COUNT.toLocaleString()}, file contains more than ${MAX_POINTS_COUNT.toLocaleString()} rows`,
+                                },
+                            ]);
                             setIsProcessing(false);
+                            parser.abort();
                             return;
                         }
 
-                        // Remove consecutive duplicates
-                        let duplicatesCount = 0;
-                        const dedupedPoints: PolygonPoint[] = [];
-                        for (let i = 0; i < rawPoints.length; i++) {
-                            if (i > 0 && isConsecutiveDuplicate(rawPoints[i], rawPoints[i - 1])) {
-                                duplicatesCount++;
-                            } else {
-                                dedupedPoints.push(rawPoints[i]);
-                            }
+                        const rowNum = rowCount + 1; // +1 for header row
+
+                        const latStr = row[columns!.latKey]?.trim();
+                        const lonStr = row[columns!.lonKey]?.trim();
+
+                        // Skip only rows where ALL fields are empty/whitespace
+                        const allFieldsEmpty = Object.values(row).every((v) => !v?.trim());
+                        if (allFieldsEmpty) continue;
+
+                        // Validate latitude
+                        if (!latStr) {
+                            validationErrors.push({
+                                row: rowNum,
+                                field: 'latitude',
+                                value: '',
+                                message: 'Latitude is empty',
+                            });
+                            continue;
                         }
 
-                        setHeaderFallback(usedFallback);
-                        setErrors(validationErrors);
-                        setParsedData(dedupedPoints);
-                        setDuplicatesRemoved(duplicatesCount);
-                        setProgress(100);
+                        const lat = parseFloat(latStr);
+                        if (isNaN(lat)) {
+                            validationErrors.push({
+                                row: rowNum,
+                                field: 'latitude',
+                                value: latStr,
+                                message: `"${latStr}" is not a valid number`,
+                            });
+                            continue;
+                        }
+
+                        if (lat < -90 || lat > 90) {
+                            validationErrors.push({
+                                row: rowNum,
+                                field: 'latitude',
+                                value: latStr,
+                                message: `${lat} is out of range (must be -90 to +90)`,
+                            });
+                            continue;
+                        }
+
+                        // Validate longitude
+                        if (!lonStr) {
+                            validationErrors.push({
+                                row: rowNum,
+                                field: 'longitude',
+                                value: '',
+                                message: 'Longitude is empty',
+                            });
+                            continue;
+                        }
+
+                        const lon = parseFloat(lonStr);
+                        if (isNaN(lon)) {
+                            validationErrors.push({
+                                row: rowNum,
+                                field: 'longitude',
+                                value: lonStr,
+                                message: `"${lonStr}" is not a valid number`,
+                            });
+                            continue;
+                        }
+
+                        if (lon < -180 || lon > 180) {
+                            validationErrors.push({
+                                row: rowNum,
+                                field: 'longitude',
+                                value: lonStr,
+                                message: `${lon} is out of range (must be -180 to +180)`,
+                            });
+                            continue;
+                        }
+
+                        rawPoints.push({
+                            lat: Number(lat.toFixed(6)),
+                            lon: Number(lon.toFixed(6)),
+                        });
+                    }
+
+                    // Update progress between chunks (byte-based)
+                    if (csvFile.size > 0) {
+                        const percent = Math.round((results.meta.cursor / csvFile.size) * 100);
+                        setProgress(Math.min(percent, 99));
+                    }
+                },
+                complete: () => {
+                    if (generation !== parseGenerationRef.current || aborted) return;
+
+                    if (rowCount === 0) {
+                        setErrors([{ row: 0, field: 'file', value: '', message: 'CSV file is empty or has no data rows' }]);
                         setIsProcessing(false);
-                    },
-                    error: (error: Error) => {
-                        if (generation !== parseGenerationRef.current) return;
-                        setErrors([{ row: 0, field: 'file', value: '', message: error.message || 'Failed to parse CSV file' }]);
-                        setIsProcessing(false);
-                    },
-                });
-            } catch (error) {
-                if (generation !== parseGenerationRef.current) return;
-                setErrors([
-                    {
-                        row: 0,
-                        field: 'file',
-                        value: '',
-                        message: error instanceof Error ? error.message : 'Failed to parse CSV file',
-                    },
-                ]);
-                setIsProcessing(false);
-            }
-        },
-        [],
-    );
+                        return;
+                    }
+
+                    // Remove consecutive duplicates
+                    let duplicatesCount = 0;
+                    const dedupedPoints: PolygonPoint[] = [];
+                    for (let i = 0; i < rawPoints.length; i++) {
+                        if (i > 0 && isConsecutiveDuplicate(rawPoints[i], rawPoints[i - 1])) {
+                            duplicatesCount++;
+                        } else {
+                            dedupedPoints.push(rawPoints[i]);
+                        }
+                    }
+
+                    setHeaderFallback(usedFallback);
+                    setErrors(validationErrors);
+                    setParsedData(dedupedPoints);
+                    setDuplicatesRemoved(duplicatesCount);
+                    setProgress(100);
+                    setIsProcessing(false);
+                },
+                error: (error: Error) => {
+                    if (generation !== parseGenerationRef.current) return;
+                    setErrors([{ row: 0, field: 'file', value: '', message: error.message || 'Failed to parse CSV file' }]);
+                    setIsProcessing(false);
+                },
+            });
+        } catch (error) {
+            if (generation !== parseGenerationRef.current) return;
+            setErrors([
+                {
+                    row: 0,
+                    field: 'file',
+                    value: '',
+                    message: error instanceof Error ? error.message : 'Failed to parse CSV file',
+                },
+            ]);
+            setIsProcessing(false);
+        }
+    }, []);
 
     const resetParsedState = () => {
         parseGenerationRef.current++;
@@ -440,9 +433,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
             <div className="flex items-center justify-between">
                 <div className="space-y-1">
                     <Label className="text-base font-semibold">CSV Coordinate Import</Label>
-                    <p className="text-sm text-muted-foreground">
-                        Import coordinate pairs for your {geoLabel} from a CSV file
-                    </p>
+                    <p className="text-sm text-muted-foreground">Import coordinate pairs for your {geoLabel} from a CSV file</p>
                 </div>
                 <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close CSV import">
                     <X className="h-4 w-4" />
@@ -478,23 +469,14 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
             >
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    id={fileInputId}
-                    accept=".csv,text/csv"
-                    onChange={handleFileSelect}
-                    className="sr-only"
-                />
+                <input ref={fileInputRef} type="file" id={fileInputId} accept=".csv,text/csv" onChange={handleFileSelect} className="sr-only" />
 
                 {!file ? (
                     <label htmlFor={fileInputId} className="flex cursor-pointer flex-col items-center gap-2">
                         <Upload className="h-10 w-10 text-muted-foreground" />
                         <div className="space-y-1">
                             <p className="text-sm font-medium">Drop your CSV file here or click to browse</p>
-                            <p className="text-xs text-muted-foreground">
-                                One coordinate pair per row with latitude and longitude columns
-                            </p>
+                            <p className="text-xs text-muted-foreground">One coordinate pair per row with latitude and longitude columns</p>
                         </div>
                     </label>
                 ) : (
@@ -533,8 +515,8 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                 <Alert>
                     <Info className="h-4 w-4" />
                     <AlertDescription className="text-sm">
-                        No recognized column headers found. Assuming column order: <strong>latitude</strong>, <strong>longitude</strong>.
-                        For explicit mapping, use headers like &quot;latitude,longitude&quot; or &quot;lat,lon&quot;.
+                        No recognized column headers found. Assuming column order: <strong>latitude</strong>, <strong>longitude</strong>. For explicit
+                        mapping, use headers like &quot;latitude,longitude&quot; or &quot;lat,lon&quot;.
                     </AlertDescription>
                 </Alert>
             )}
@@ -571,9 +553,8 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                         <p className="text-sm text-green-800 dark:text-green-200">
                             ✓ Successfully parsed {parsedData.length.toLocaleString()} coordinate pair
                             {parsedData.length > 1 ? 's' : ''}
-                            {duplicatesRemoved > 0 &&
-                                ` (${duplicatesRemoved} consecutive duplicate${duplicatesRemoved > 1 ? 's' : ''} removed)`}
-                            . Ready to import!
+                            {duplicatesRemoved > 0 && ` (${duplicatesRemoved} consecutive duplicate${duplicatesRemoved > 1 ? 's' : ''} removed)`}.
+                            Ready to import!
                         </p>
                         {!meetsMinPoints && (
                             <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
@@ -640,9 +621,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                     Cancel
                 </Button>
                 <Button type="button" onClick={handleImport} disabled={parsedData.length === 0 || !meetsMinPoints || isProcessing}>
-                    {parsedData.length > 0
-                        ? `Import ${parsedData.length.toLocaleString()} Point${parsedData.length > 1 ? 's' : ''}`
-                        : 'Import'}
+                    {parsedData.length > 0 ? `Import ${parsedData.length.toLocaleString()} Point${parsedData.length > 1 ? 's' : ''}` : 'Import'}
                 </Button>
             </div>
         </div>

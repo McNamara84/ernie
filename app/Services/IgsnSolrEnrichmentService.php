@@ -69,7 +69,7 @@ class IgsnSolrEnrichmentService
                 ]);
 
             if (! $response->successful()) {
-                $this->recordFailure('Solr HTTP error: ' . $response->status());
+                $this->recordFailure('Solr HTTP error: '.$response->status());
 
                 return false;
             }

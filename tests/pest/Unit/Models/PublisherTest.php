@@ -9,7 +9,7 @@ covers(Publisher::class);
 
 describe('Publisher model attributes', function (): void {
     it('has correct fillable attributes', function (): void {
-        $publisher = new Publisher();
+        $publisher = new Publisher;
 
         expect($publisher->getFillable())->toBe([
             'name',

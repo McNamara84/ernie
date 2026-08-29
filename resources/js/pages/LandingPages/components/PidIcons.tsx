@@ -13,12 +13,7 @@ interface PidIconProps {
 export function OrcidIcon({ className }: PidIconProps) {
     return (
         <>
-            <svg
-                data-slot="orcid-icon"
-                className={cn('h-4 w-4 dark:hidden', className)}
-                viewBox="0 0 32 32"
-                aria-hidden="true"
-            >
+            <svg data-slot="orcid-icon" className={cn('h-4 w-4 dark:hidden', className)} viewBox="0 0 32 32" aria-hidden="true">
                 <path
                     fillRule="evenodd"
                     clipRule="evenodd"
@@ -32,12 +27,7 @@ export function OrcidIcon({ className }: PidIconProps) {
                     fill="#fff"
                 />
             </svg>
-            <svg
-                data-slot="orcid-icon"
-                className={cn('hidden h-4 w-4 dark:block', className)}
-                viewBox="0 0 32 32"
-                aria-hidden="true"
-            >
+            <svg data-slot="orcid-icon" className={cn('hidden h-4 w-4 dark:block', className)} viewBox="0 0 32 32" aria-hidden="true">
                 <path
                     fillRule="evenodd"
                     clipRule="evenodd"
@@ -58,12 +48,7 @@ export function OrcidIcon({ className }: PidIconProps) {
 export function RorIcon({ className }: PidIconProps) {
     return (
         <>
-            <svg
-                data-slot="ror-icon"
-                className={cn('h-4 dark:hidden', className, 'w-auto')}
-                viewBox="0 0 164 118"
-                aria-hidden="true"
-            >
+            <svg data-slot="ror-icon" className={cn('h-4 dark:hidden', className, 'w-auto')} viewBox="0 0 164 118" aria-hidden="true">
                 <g transform="matrix(1,0,0,1,-0.945,-0.815)">
                     <path d="M68.65,4.16L56.52,22.74L44.38,4.16L68.65,4.16Z" fill="#53BAA1" />
                     <path d="M119.41,4.16L107.28,22.74L95.14,4.16L119.41,4.16Z" fill="#53BAA1" />
@@ -75,12 +60,7 @@ export function RorIcon({ className }: PidIconProps) {
                     />
                 </g>
             </svg>
-            <svg
-                data-slot="ror-icon"
-                className={cn('hidden h-4 dark:block', className, 'w-auto')}
-                viewBox="0 0 164 118"
-                aria-hidden="true"
-            >
+            <svg data-slot="ror-icon" className={cn('hidden h-4 dark:block', className, 'w-auto')} viewBox="0 0 164 118" aria-hidden="true">
                 <g transform="matrix(1,0,0,1,-0.945,-0.815)">
                     <path d="M68.65,4.16L56.52,22.74L44.38,4.16L68.65,4.16Z" fill="#fff" />
                     <path d="M119.41,4.16L107.28,22.74L95.14,4.16L119.41,4.16Z" fill="#fff" />

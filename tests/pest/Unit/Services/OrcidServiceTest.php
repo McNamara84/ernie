@@ -432,8 +432,8 @@ describe('Retries', function () {
 
         $result = $this->service->validateOrcid(
             '0000-0002-1825-0097',
-            maxAttempts: \App\Services\OrcidService::PREFLIGHT_MAX_ATTEMPTS,
-            timeoutSeconds: \App\Services\OrcidService::PREFLIGHT_VALIDATION_TIMEOUT,
+            maxAttempts: OrcidService::PREFLIGHT_MAX_ATTEMPTS,
+            timeoutSeconds: OrcidService::PREFLIGHT_VALIDATION_TIMEOUT,
         );
 
         // No retry → first 500 immediately surfaces as api_error.
@@ -450,8 +450,8 @@ describe('Retries', function () {
 
         $result = $this->service->validateOrcid(
             '0000-0002-1825-0097',
-            maxAttempts: \App\Services\OrcidService::PREFLIGHT_MAX_ATTEMPTS,
-            timeoutSeconds: \App\Services\OrcidService::PREFLIGHT_VALIDATION_TIMEOUT,
+            maxAttempts: OrcidService::PREFLIGHT_MAX_ATTEMPTS,
+            timeoutSeconds: OrcidService::PREFLIGHT_VALIDATION_TIMEOUT,
         );
 
         expect($result['errorType'])->toBe('timeout');

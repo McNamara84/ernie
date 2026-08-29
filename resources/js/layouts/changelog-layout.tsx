@@ -10,7 +10,10 @@ import { changelog as changelogRoute, dashboard, portal } from '@/routes';
 import { type SharedData } from '@/types';
 
 export default function ChangelogLayout({ children }: PropsWithChildren) {
-    const { props: { auth }, url: currentUrl } = usePage<SharedData>();
+    const {
+        props: { auth },
+        url: currentUrl,
+    } = usePage<SharedData>();
 
     const navLinks = [
         { label: 'Portal', href: portal().url },
@@ -40,14 +43,10 @@ export default function ChangelogLayout({ children }: PropsWithChildren) {
                             {navLinks.map((link) => {
                                 const isActive = currentUrl.startsWith(link.href);
                                 return (
-                                    <Button
-                                        key={link.href}
-                                        variant="ghost"
-                                        size="sm"
-                                        asChild
-                                        className={cn(isActive && 'bg-accent font-medium')}
-                                    >
-                                        <Link href={link.href} aria-current={isActive ? 'page' : undefined}>{link.label}</Link>
+                                    <Button key={link.href} variant="ghost" size="sm" asChild className={cn(isActive && 'bg-accent font-medium')}>
+                                        <Link href={link.href} aria-current={isActive ? 'page' : undefined}>
+                                            {link.label}
+                                        </Link>
                                     </Button>
                                 );
                             })}
