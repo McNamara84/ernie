@@ -29,6 +29,8 @@ const hostWayfinderCommand = 'php artisan ernie:wayfinder-generate --with-form';
 const hostWayfinderProbeTimeoutMs = 10_000;
 const dockerWayfinderCommand =
     'docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app php artisan ernie:wayfinder-generate';
+const hostPhpCommand = process.platform === 'win32' ? 'powershell.exe' : 'php';
+const hostPhpArgs = process.platform === 'win32' ? ['-NoProfile', '-NonInteractive', '-Command', 'php'] : [];
 
 function commandFailureReason(result) {
     if (result.error?.code === 'ETIMEDOUT') {
@@ -74,11 +76,19 @@ function canRunHostWayfinder() {
     const outputPath = mkdtempSync(join(tmpdir(), 'ernie-wayfinder-'));
 
     try {
-        const result = spawnSync('php', ['artisan', 'ernie:wayfinder-generate', '--with-form', `--path=${outputPath}`], {
-            encoding: 'utf8',
-            maxBuffer: 10 * 1024 * 1024,
-            timeout: hostWayfinderProbeTimeoutMs,
-        });
+        // On Windows, resolve `php` through PowerShell as developers do in the
+        // terminal. Calling it directly from Node prefers a later php.exe over
+        // Herd's earlier php.bat shim and can silently select an obsolete Herd
+        // Lite runtime.
+        const result = spawnSync(
+            hostPhpCommand,
+            [...hostPhpArgs, 'artisan', 'ernie:wayfinder-generate', '--with-form', `--path=${outputPath}`],
+            {
+                encoding: 'utf8',
+                maxBuffer: 10 * 1024 * 1024,
+                timeout: hostWayfinderProbeTimeoutMs,
+            },
+        );
 
         if (!result.error && result.status === 0) {
             return true;
