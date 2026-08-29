@@ -1,18 +1,33 @@
+import { availableParallelism } from 'node:os';
+
 import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig(({ command }) => {
-    const viteServerPort = parseInt(process.env.VITE_SERVER_PORT ?? '5173');
-    const localVitestMaxWorkers = Number(process.env.ERNIE_VITEST_WORKERS ?? 8);
-    const isDev = command === 'serve';
-    const wayfinderCommand = process.env.WAYFINDER_COMMAND ?? 'php artisan ernie:wayfinder-generate';
+export function resolveLocalVitestMaxWorkers(
+    configuredWorkers = process.env.ERNIE_VITEST_WORKERS,
+    availableCpus = availableParallelism(),
+): number {
+    if (configuredWorkers === undefined) {
+        return Math.max(1, Math.min(8, Math.floor(availableCpus / 2)));
+    }
 
-    if (!Number.isSafeInteger(localVitestMaxWorkers) || localVitestMaxWorkers < 1) {
+    const workers = Number(configuredWorkers);
+
+    if (!Number.isSafeInteger(workers) || workers < 1) {
         throw new Error('ERNIE_VITEST_WORKERS must be a positive integer.');
     }
+
+    return workers;
+}
+
+export default defineConfig(({ command }) => {
+    const viteServerPort = parseInt(process.env.VITE_SERVER_PORT ?? '5173');
+    const localVitestMaxWorkers = resolveLocalVitestMaxWorkers();
+    const isDev = command === 'serve';
+    const wayfinderCommand = process.env.WAYFINDER_COMMAND ?? 'php artisan ernie:wayfinder-generate';
 
     return {
         devtools: isDev,

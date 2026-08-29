@@ -183,10 +183,11 @@ The cache is intentionally not enabled by default. A representative DataCite run
 
 The large DataCite form suite is registered through six `datacite-form.part-*.test.tsx` entrypoints. They distribute direct tests while keeping nested `describe` groups intact, allowing Vitest to schedule the formerly serial suite across isolated workers. Keep shared tests and setup in `datacite-form.test-suite.tsx`; do not add that support file to the Vitest include pattern.
 
-Local Vitest runs use the faster thread pool but cap it at eight workers. On the
-standard 16-CPU workstation, using all 16 workers oversubscribes the CPU-heavy
-jsdom DataCite form suites and causes otherwise healthy tests to miss their
-timeouts. Override the cap only for a measured reason with
+Local Vitest runs use the faster thread pool and default to half of the
+available CPUs, rounded down, with a minimum of one and a maximum of eight. On
+the standard 16-CPU workstation, using all 16 workers oversubscribes the
+CPU-heavy jsdom DataCite form suites and causes otherwise healthy tests to miss
+their timeouts. Override the calculated limit only for a measured reason with
 `ERNIE_VITEST_WORKERS=<n>`; CI keeps its own shard and worker allocation.
 
 If your host cannot start Laravel Artisan locally, start the Docker backend stack before Vitest:
