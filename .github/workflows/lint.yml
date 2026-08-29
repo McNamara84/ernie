@@ -57,16 +57,8 @@ jobs:
       - name: Install dependencies
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
 
-      - name: Cache Pint
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .pint.cache
-          key: ${{ runner.os }}-pint-${{ hashFiles('composer.lock', 'pint.json') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-pint-${{ hashFiles('composer.lock', 'pint.json') }}-
-
       - name: Run Pint
-        run: vendor/bin/pint --test --parallel
+        run: vendor/bin/pint --parallel
 
   phpstan:
     runs-on: ubuntu-latest

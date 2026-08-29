@@ -25,9 +25,15 @@ jobs:
           - slice: architecture
             label: architecture tests
             coverage: none
-          - slice: parallel
-            label: parallel tests
+            shard: ''
+          - slice: parallel-1
+            label: parallel tests (shard 1/2)
             coverage: pcov
+            shard: 1/2
+          - slice: parallel-2
+            label: parallel tests (shard 2/2)
+            coverage: pcov
+            shard: 2/2
 
     steps:
       - name: Checkout
@@ -116,9 +122,9 @@ jobs:
         if: ${{ matrix.slice == 'architecture' }}
         run: php -d memory_limit=2G ./vendor/bin/pest --testsuite=Arch --no-coverage
 
-      - name: Run parallel tests with coverage
-        if: ${{ matrix.slice == 'parallel' }}
-        run: php -d memory_limit=4G ./vendor/bin/pest --parallel --passthru-php="'-d' 'memory_limit=1G'" --exclude-group=serial --exclude-testsuite=Arch --coverage-clover=coverage-parallel.xml
+      - name: Run parallel test shard with coverage
+        if: ${{ startsWith(matrix.slice, 'parallel-') }}
+        run: php ./vendor/bin/pest --parallel --shard=${{ matrix.shard }} --exclude-group=serial --exclude-testsuite=Arch --coverage-clover=coverage-${{ matrix.slice }}.xml
 
       - name: Upload coverage result
         if: ${{ matrix.slice != 'architecture' && success() }}
@@ -153,6 +159,6 @@ jobs:
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage-serial.xml,coverage-parallel.xml
+          files: coverage-serial.xml,coverage-parallel-1.xml,coverage-parallel-2.xml
           flags: backend
           fail_ci_if_error: false

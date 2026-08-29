@@ -253,7 +253,7 @@ npm run test:e2e:stage
 - Let CI remain the primary source of complete coverage reporting.
 - CI runs the Vitest coverage suite on three machines with `--shard=1/3`, `--shard=2/3`, and `--shard=3/3`. Each machine uploads a Vitest blob report; the final `vitest` job merges all test and V8 coverage results before uploading the single complete `coverage/lcov.info` to Codecov.
 - Keep the blob upload and merge job together when changing the workflow. Uploading either shard's partial LCOV report would make the Codecov result incomplete.
-- CI runs the serial, architecture, and parallel Pest slices on isolated machines at the same time. Serial and parallel tests collect the configured line coverage with PCOV into separate Clover reports; the final `Pest PHP Tests` job uploads both reports together. Architecture tests remain coverage-free because their structural assertions do not produce meaningful runtime coverage.
+- CI runs the serial and architecture Pest slices alongside two disjoint shards of the remaining test suite. Serial and parallel tests collect the configured line coverage with PCOV into separate Clover reports; the final `Pest PHP Tests` job uploads all three reports together. Architecture tests remain coverage-free because their structural assertions do not produce meaningful runtime coverage.
 
 ## Suggested Validation Sets
 
