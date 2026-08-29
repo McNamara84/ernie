@@ -225,6 +225,8 @@ Why frontend validation stays on the host:
 - `npm run test` remains available for watch mode, but it is not the default validation command.
 - `npm run lint` remains the auto-fix command, while `npm run lint:check` is the safe validation path.
 
+CI formatter jobs are non-mutating. Until the existing formatting backlog is cleaned up globally, Prettier and Pint check every file changed relative to the pull request base or the previous `main` revision. Any modified file must therefore satisfy the current formatter rules, while unrelated legacy formatting does not create noise in feature and maintenance pull requests.
+
 ## Browser Validation
 
 ### Local browser verification
