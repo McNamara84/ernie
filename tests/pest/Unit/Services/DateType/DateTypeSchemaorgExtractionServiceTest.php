@@ -287,10 +287,10 @@ it('skips missing responses as unreachable', function () {
 
 it('skips schema.org source urls with unsupported protocols', function () {
     Http::fake([
-       'https://data.crosscite.org/application/vnd.schemaorg.ld+json/105880.test.2026.001' => Http::response([
-           'url' => 'ftp://dataservices.gfz.de/example-dataset',
-           'dateCreated' => '2016-07-03',
-       ], 200),
+        'https://data.crosscite.org/application/vnd.schemaorg.ld+json/105880.test.2026.001' => Http::response([
+            'url' => 'ftp://dataservices.gfz.de/example-dataset',
+            'dateCreated' => '2016-07-03',
+        ], 200),
     ]);
 
     $service = app(DateTypeSchemaorgExtractionService::class);
