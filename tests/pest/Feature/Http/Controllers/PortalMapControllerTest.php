@@ -125,6 +125,60 @@ it('infers legacy geometry details when geo type is missing', function (): void 
         ->all())->toBe(['box', 'point', 'polygon']);
 });
 
+it('uses the authoritative polygon geometry when other geometry fields contain a global box', function (): void {
+    config(['portal_map.shape_detail_zoom' => 8]);
+    $resource = createPublishedPortalMapResource($this->datasetType, 'Mixed DataCite geometry');
+    GeoLocation::factory()->create([
+        'resource_id' => $resource->id,
+        'geo_type' => 'polygon',
+        'point_latitude' => 0,
+        'point_longitude' => 0,
+        'south_bound_latitude' => -90,
+        'west_bound_longitude' => -180,
+        'north_bound_latitude' => 90,
+        'east_bound_longitude' => 180,
+        'polygon_points' => [
+            ['longitude' => 12.0, 'latitude' => 51.0],
+            ['longitude' => 14.0, 'latitude' => 51.0],
+            ['longitude' => 13.0, 'latitude' => 53.0],
+        ],
+    ]);
+
+    $feature = $this->getJson(route('portal.map', portalMapRequestQuery(['zoom' => 12, 'include_extent' => 1])))
+        ->assertOk()
+        ->assertJsonCount(1, 'features')
+        ->assertJsonPath('features.0.kind', 'resource')
+        ->assertJsonPath('features.0.geometry.type', 'polygon')
+        ->assertJsonPath('meta.totalLocations', 1)
+        ->json('features.0');
+
+    expect(abs((float) $feature['position']['lng'] - 13.0))->toBeLessThan(0.000001);
+});
+
+it('infers a polygon before rejecting an additional global box', function (): void {
+    config(['portal_map.shape_detail_zoom' => 0]);
+    $resource = createPublishedPortalMapResource($this->datasetType, 'Legacy mixed geometry');
+    GeoLocation::factory()->create([
+        'resource_id' => $resource->id,
+        'geo_type' => null,
+        'south_bound_latitude' => -90,
+        'west_bound_longitude' => -180,
+        'north_bound_latitude' => 90,
+        'east_bound_longitude' => 180,
+        'polygon_points' => [
+            ['longitude' => 12.0, 'latitude' => 51.0],
+            ['longitude' => 14.0, 'latitude' => 51.0],
+            ['longitude' => 13.0, 'latitude' => 53.0],
+        ],
+    ]);
+
+    $this->getJson(route('portal.map', portalMapRequestQuery(['zoom' => 12])))
+        ->assertOk()
+        ->assertJsonCount(1, 'features')
+        ->assertJsonPath('features.0.kind', 'resource')
+        ->assertJsonPath('features.0.geometry.type', 'polygon');
+});
+
 it('excludes drafts, locations outside the viewport, and whole-world coverage boxes', function (): void {
     $published = createPublishedPortalMapResource($this->datasetType, 'Visible');
     GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $published->id]);
@@ -216,6 +270,42 @@ it('supports technical and filter viewports that cross the antimeridian', functi
     $this->getJson(route('portal.map', $query))
         ->assertOk()
         ->assertJsonPath('meta.visibleLocations', 2);
+});
+
+it('anchors an antimeridian polygon near its vertices instead of Greenwich', function (): void {
+    config(['portal_map.shape_detail_zoom' => 0]);
+    $resource = createPublishedPortalMapResource($this->datasetType, 'Dateline polygon');
+    GeoLocation::factory()->create([
+        'resource_id' => $resource->id,
+        'geo_type' => 'polygon',
+        'polygon_points' => [
+            ['longitude' => 179.0, 'latitude' => -1.0],
+            ['longitude' => -179.0, 'latitude' => -1.0],
+            ['longitude' => 179.5, 'latitude' => 1.0],
+        ],
+        'in_polygon_point_latitude' => null,
+        'in_polygon_point_longitude' => null,
+    ]);
+    $query = portalMapRequestQuery([
+        'viewport' => [
+            'north' => 10,
+            'south' => -10,
+            'east' => -170,
+            'west' => 170,
+            'width' => 800,
+            'height' => 600,
+        ],
+        'zoom' => 12,
+    ]);
+
+    $feature = $this->getJson(route('portal.map', $query))
+        ->assertOk()
+        ->assertJsonCount(1, 'features')
+        ->assertJsonPath('features.0.geometry.type', 'polygon')
+        ->json('features.0');
+
+    expect(abs((float) $feature['position']['lng']))->toBeGreaterThan(170.0)
+        ->and($feature['bounds']['west'])->toBeGreaterThan($feature['bounds']['east']);
 });
 
 it('returns full box and polygon geometry only at detail zoom', function (): void {

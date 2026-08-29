@@ -26,6 +26,8 @@ interface PortalMapProps {
     flyToBounds?: GeoBounds | null;
 }
 
+const VIEWPORT_RESIZE_DEBOUNCE_MS = 250;
+
 function normalizeLongitude(longitude: number): number {
     if (longitude === 180) return 180;
     return ((((longitude + 180) % 360) + 360) % 360) - 180;
@@ -84,7 +86,9 @@ function ViewportTracker({
     }, [onTechnicalViewport, onFilterViewport]);
 
     useEffect(() => {
-        const reportViewport = () => {
+        let resizeTimer: number | null = null;
+
+        const reportViewport = (updateFilter: boolean) => {
             const container = map.getContainer();
             if (container.clientWidth === 0 || container.clientHeight === 0) return;
 
@@ -104,21 +108,33 @@ function ViewportTracker({
                 zoom: map.getZoom(),
             });
 
-            if (skipFilterUpdate.current) {
-                skipFilterUpdate.current = false;
-            } else {
-                filterRef.current?.(bounds);
+            if (updateFilter) {
+                if (skipFilterUpdate.current) {
+                    skipFilterUpdate.current = false;
+                } else {
+                    filterRef.current?.(bounds);
+                }
             }
         };
 
-        map.on('moveend', reportViewport);
-        map.on('resize', reportViewport);
-        const initialTimer = window.setTimeout(reportViewport, 0);
+        const reportMoveEnd = () => reportViewport(true);
+        const reportResize = () => {
+            if (resizeTimer !== null) window.clearTimeout(resizeTimer);
+            resizeTimer = window.setTimeout(() => {
+                resizeTimer = null;
+                reportViewport(false);
+            }, VIEWPORT_RESIZE_DEBOUNCE_MS);
+        };
+
+        map.on('moveend', reportMoveEnd);
+        map.on('resize', reportResize);
+        const initialTimer = window.setTimeout(() => reportViewport(false), 0);
 
         return () => {
             window.clearTimeout(initialTimer);
-            map.off('moveend', reportViewport);
-            map.off('resize', reportViewport);
+            if (resizeTimer !== null) window.clearTimeout(resizeTimer);
+            map.off('moveend', reportMoveEnd);
+            map.off('resize', reportResize);
         };
     }, [map, skipFilterUpdate]);
 
@@ -339,9 +355,9 @@ export function PortalMap({
                     role="alert"
                 >
                     Map data could not be loaded.{' '}
-                    <button className="font-medium text-primary underline" onClick={() => void mapQuery.refetch()}>
+                    <Button variant="link" size="xs" className="h-auto px-1 py-0 align-baseline" onClick={() => void mapQuery.refetch()}>
                         Try again
-                    </button>
+                    </Button>
                 </div>
             )}
 

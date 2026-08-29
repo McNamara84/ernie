@@ -1780,6 +1780,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             bookmarked and shared.
                         </p>
 
+                        <h4>Exploring Results on the Map</h4>
+                        <p>
+                            The map loads the records in the currently visible area. Pan or zoom to explore another region. Nearby records are
+                            combined into numbered, color-coded clusters to keep large result sets easy to navigate.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Click a cluster, or zoom in, to separate it into smaller clusters and individual records</li>
+                            <li>Click an individual marker or shape to open its record preview</li>
+                            <li>Boxes, polygons, and lines appear when you zoom in far enough to inspect their geographic detail</li>
+                            <li>Enable the spatial filter when you want the result list to follow the selected map area</li>
+                        </ul>
+
                         <h4>Free Keywords</h4>
                         <p>
                             The <strong>Free Keywords</strong> filter is a searchable multi-select for uncontrolled keywords that were entered as

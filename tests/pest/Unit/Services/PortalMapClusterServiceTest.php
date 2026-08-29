@@ -123,6 +123,67 @@ it('handles a viewport that crosses the antimeridian', function (): void {
         ->and($result['features'])->not->toBeEmpty();
 });
 
+it('uses a circular longitude mean for antimeridian clusters', function (): void {
+    config([
+        'portal_map.max_features' => 1,
+        'portal_map.cluster_radius' => 20,
+    ]);
+
+    $result = (new PortalMapClusterService)->cluster([
+        portalMapClusterLocation(1, 0, 179.0),
+        portalMapClusterLocation(2, 0, -179.0),
+    ], portalMapClusterViewport([
+        'north' => 85.0,
+        'south' => -85.0,
+        'west' => -180.0,
+        'east' => 180.0,
+        'width' => 800,
+        'height' => 600,
+    ]), 0);
+
+    expect($result['features'])->toHaveCount(1)
+        ->and($result['features'][0]['kind'])->toBe('cluster')
+        ->and(abs((float) $result['features'][0]['position']['lng']))->toBeGreaterThan(170.0);
+});
+
+it('continues terminal aggregation at zoom zero until the feature bound is met', function (): void {
+    config([
+        'portal_map.max_features' => 100,
+        'portal_map.cluster_radius' => 20,
+    ]);
+
+    $locations = [];
+    $id = 1;
+    for ($cellY = 0; $cellY < 13; $cellY++) {
+        $pixelY = ($cellY * 20) + 10;
+        $latitude = rad2deg(atan(sinh(M_PI - ((2 * M_PI * $pixelY) / 256))));
+
+        for ($cellX = 0; $cellX < 13; $cellX++) {
+            $pixelX = ($cellX * 20) + 10;
+            $longitude = (($pixelX / 256) * 360) - 180;
+            $locations[] = portalMapClusterLocation($id++, $latitude, $longitude);
+        }
+    }
+
+    $result = (new PortalMapClusterService)->cluster($locations, portalMapClusterViewport([
+        'north' => 85.0,
+        'south' => -85.0,
+        'west' => -180.0,
+        'east' => 180.0,
+        'width' => 800,
+        'height' => 600,
+    ]), 0);
+    $representedLocations = array_sum(array_map(
+        fn (array $feature): int => $feature['kind'] === 'cluster' ? $feature['count'] : 1,
+        $result['features'],
+    ));
+
+    expect($result['features'])->toHaveCount(49)
+        ->and($result['meta']['effectiveZoom'])->toBe(0)
+        ->and($result['meta']['coarsened'])->toBeTrue()
+        ->and($representedLocations)->toBe(169);
+});
+
 it('keeps a forty-thousand-location world view bounded without retaining resource models', function (): void {
     $locations = (function (): Generator {
         for ($index = 0; $index < 40_000; $index++) {

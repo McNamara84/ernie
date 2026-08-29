@@ -31,12 +31,18 @@ final class PortalMapController extends Controller
                 $request,
                 $this->portalSearchService->getTemporalRange(),
             );
+            $extentSummary = $request->includeExtent()
+                ? $this->cacheService->rememberExtent(
+                    $filters,
+                    fn (): array => $this->portalMapService->calculateExtent($filters),
+                )
+                : null;
 
             return $this->portalMapService->getMapData(
                 $filters,
                 $request->viewport(),
                 $request->zoom(),
-                $request->includeExtent(),
+                $extentSummary,
             );
         });
 

@@ -21,9 +21,10 @@ class PortalMapService
     /**
      * @param  array<string, mixed>  $filters
      * @param  array{north: float, south: float, east: float, west: float, width: int, height: int}  $viewport
+     * @param  array{0: int, 1: array{south: float, west: float, north: float, east: float}|null}|null  $extentSummary
      * @return array<string, mixed>
      */
-    public function getMapData(array $filters, array $viewport, int $zoom, bool $includeExtent = false): array
+    public function getMapData(array $filters, array $viewport, int $zoom, ?array $extentSummary = null): array
     {
         $clustered = $this->clusterService->cluster(
             $this->visibleLocations($filters, $viewport),
@@ -32,9 +33,7 @@ class PortalMapService
         );
 
         $features = $this->hydrateResourceCandidates($clustered['features']);
-        [$totalLocations, $extent] = $includeExtent
-            ? $this->calculateExtent($filters)
-            : [null, null];
+        [$totalLocations, $extent] = $extentSummary ?? [null, null];
 
         return [
             'schemaVersion' => 1,
@@ -147,14 +146,31 @@ class PortalMapService
         $inPolygonLatitude = $this->nullableFloat($attributes['in_polygon_point_latitude'] ?? null);
         $inPolygonLongitude = $this->nullableFloat($attributes['in_polygon_point_longitude'] ?? null);
         $explicitType = strtolower((string) ($attributes['geo_type'] ?? ''));
+        $geometryType = $this->resolveGeometryType(
+            $explicitType,
+            $pointLatitude,
+            $pointLongitude,
+            $south,
+            $west,
+            $north,
+            $east,
+            $polygonPoints,
+            $inPolygonLatitude,
+            $inPolygonLongitude,
+        );
 
-        if ($this->isGlobalCoverageBox($south, $west, $north, $east)) {
+        if ($geometryType === 'box' && $this->isGlobalCoverageBox($south, $west, $north, $east)) {
             return null;
         }
 
-        if ($explicitType === 'point' || ($pointLatitude !== null && $pointLongitude !== null)) {
+        if ($geometryType === 'point') {
             if ($pointLatitude === null || $pointLongitude === null) {
-                return null;
+                if ($inPolygonLatitude === null || $inPolygonLongitude === null) {
+                    return null;
+                }
+
+                $pointLatitude = $inPolygonLatitude;
+                $pointLongitude = $inPolygonLongitude;
             }
 
             return $this->normalizedResult($attributes, 'point', $pointLatitude, $pointLongitude, [
@@ -165,7 +181,7 @@ class PortalMapService
             ]);
         }
 
-        if ($explicitType === 'box' || ($south !== null && $west !== null && $north !== null && $east !== null)) {
+        if ($geometryType === 'box') {
             if ($south === null || $west === null || $north === null || $east === null) {
                 return null;
             }
@@ -179,8 +195,8 @@ class PortalMapService
             );
         }
 
-        if (in_array($explicitType, ['polygon', 'line'], true) || count($polygonPoints) >= 2) {
-            $minimumPoints = $explicitType === 'line' ? 2 : 3;
+        if (in_array($geometryType, ['polygon', 'line'], true)) {
+            $minimumPoints = $geometryType === 'line' ? 2 : 3;
 
             if (count($polygonPoints) < $minimumPoints) {
                 return null;
@@ -188,25 +204,58 @@ class PortalMapService
 
             $latitudes = array_column($polygonPoints, 'latitude');
             $longitudes = array_column($polygonPoints, 'longitude');
-            $geometryType = $explicitType === 'line' ? 'line' : 'polygon';
             $anchorLatitude = $inPolygonLatitude ?? array_sum($latitudes) / count($latitudes);
-            $anchorLongitude = $inPolygonLongitude ?? array_sum($longitudes) / count($longitudes);
+            $anchorLongitude = $inPolygonLongitude ?? $this->circularLongitudeMean($longitudes);
+            [$longitudeWest, $longitudeEast] = $this->minimalLongitudeBounds($longitudes);
 
             return $this->normalizedResult($attributes, $geometryType, $anchorLatitude, $anchorLongitude, [
                 'south' => min($latitudes),
-                'west' => min($longitudes),
+                'west' => $longitudeWest,
                 'north' => max($latitudes),
-                'east' => max($longitudes),
+                'east' => $longitudeEast,
             ]);
         }
 
+        return null;
+    }
+
+    /**
+     * Respect an explicit DataCite geometry type before falling back to legacy
+     * field inference. A geolocation may legitimately contain fields for more
+     * than one geometry representation.
+     *
+     * @param  list<array{latitude: float, longitude: float}>  $polygonPoints
+     */
+    private function resolveGeometryType(
+        string $explicitType,
+        ?float $pointLatitude,
+        ?float $pointLongitude,
+        ?float $south,
+        ?float $west,
+        ?float $north,
+        ?float $east,
+        array $polygonPoints,
+        ?float $inPolygonLatitude,
+        ?float $inPolygonLongitude,
+    ): ?string {
+        if (in_array($explicitType, ['point', 'box', 'polygon', 'line'], true)) {
+            return $explicitType;
+        }
+
+        if (count($polygonPoints) >= 3) {
+            return 'polygon';
+        }
+
+        if ($south !== null && $west !== null && $north !== null && $east !== null) {
+            return 'box';
+        }
+
+        if ($pointLatitude !== null && $pointLongitude !== null) {
+            return 'point';
+        }
+
         if ($inPolygonLatitude !== null && $inPolygonLongitude !== null) {
-            return $this->normalizedResult($attributes, 'point', $inPolygonLatitude, $inPolygonLongitude, [
-                'south' => $inPolygonLatitude,
-                'west' => $inPolygonLongitude,
-                'north' => $inPolygonLatitude,
-                'east' => $inPolygonLongitude,
-            ]);
+            return 'point';
         }
 
         return null;
@@ -297,6 +346,77 @@ class PortalMapService
         $midpoint = ($west + ($east + 360.0)) / 2;
 
         return $midpoint > 180.0 ? $midpoint - 360.0 : $midpoint;
+    }
+
+    /**
+     * @param  list<float>  $longitudes
+     */
+    private function circularLongitudeMean(array $longitudes): float
+    {
+        $sine = 0.0;
+        $cosine = 0.0;
+
+        foreach ($longitudes as $longitude) {
+            $radians = deg2rad($longitude);
+            $sine += sin($radians);
+            $cosine += cos($radians);
+        }
+
+        if (abs($sine) < 1.0E-12 && abs($cosine) < 1.0E-12) {
+            return $this->normalizeLongitude($longitudes[0] ?? 0.0);
+        }
+
+        return $this->normalizeLongitude(rad2deg(atan2($sine, $cosine)));
+    }
+
+    /**
+     * Return the shortest longitude interval containing every point. A west
+     * value greater than east represents an antimeridian-crossing interval.
+     *
+     * @param  list<float>  $longitudes
+     * @return array{0: float, 1: float}
+     */
+    private function minimalLongitudeBounds(array $longitudes): array
+    {
+        if ($longitudes === []) {
+            return [0.0, 0.0];
+        }
+
+        $normalized = array_map(
+            fn (float $longitude): float => fmod($this->normalizeLongitude($longitude) + 360.0, 360.0),
+            $longitudes,
+        );
+        sort($normalized, SORT_NUMERIC);
+
+        $largestGap = -1.0;
+        $gapIndex = 0;
+        $count = count($normalized);
+
+        for ($index = 0; $index < $count; $index++) {
+            $next = $index === $count - 1 ? $normalized[0] + 360.0 : $normalized[$index + 1];
+            $gap = $next - $normalized[$index];
+
+            if ($gap > $largestGap) {
+                $largestGap = $gap;
+                $gapIndex = $index;
+            }
+        }
+
+        $west = $normalized[($gapIndex + 1) % $count];
+        $east = $normalized[$gapIndex];
+
+        return [$this->normalizeLongitude($west), $this->normalizeLongitude($east)];
+    }
+
+    private function normalizeLongitude(float $longitude): float
+    {
+        $normalized = fmod($longitude + 180.0, 360.0);
+
+        if ($normalized < 0.0) {
+            $normalized += 360.0;
+        }
+
+        return $normalized - 180.0;
     }
 
     /**
@@ -396,23 +516,38 @@ class PortalMapService
      */
     private function formatGeometry(GeoLocation $location): array
     {
-        $type = strtolower((string) $location->geo_type);
+        $explicitType = strtolower((string) $location->geo_type);
         $pointLatitude = $this->nullableFloat($location->point_latitude);
         $pointLongitude = $this->nullableFloat($location->point_longitude);
         $south = $this->nullableFloat($location->south_bound_latitude);
         $west = $this->nullableFloat($location->west_bound_longitude);
         $north = $this->nullableFloat($location->north_bound_latitude);
         $east = $this->nullableFloat($location->east_bound_longitude);
+        $points = $this->decodePolygonPoints($location->polygon_points);
+        $inPolygonLatitude = $this->nullableFloat($location->in_polygon_point_latitude);
+        $inPolygonLongitude = $this->nullableFloat($location->in_polygon_point_longitude);
+        $type = $this->resolveGeometryType(
+            $explicitType,
+            $pointLatitude,
+            $pointLongitude,
+            $south,
+            $west,
+            $north,
+            $east,
+            $points,
+            $inPolygonLatitude,
+            $inPolygonLongitude,
+        );
 
-        if ($type === 'point' || ($pointLatitude !== null && $pointLongitude !== null)) {
+        if ($type === 'point') {
             return [
                 'type' => 'point',
-                'latitude' => $pointLatitude,
-                'longitude' => $pointLongitude,
+                'latitude' => $pointLatitude ?? $inPolygonLatitude,
+                'longitude' => $pointLongitude ?? $inPolygonLongitude,
             ];
         }
 
-        if ($type === 'box' || ($south !== null && $west !== null && $north !== null && $east !== null)) {
+        if ($type === 'box') {
             return [
                 'type' => 'box',
                 'south' => $south,
@@ -422,13 +557,11 @@ class PortalMapService
             ];
         }
 
-        $points = $this->decodePolygonPoints($location->polygon_points);
-
         if ($points === []) {
             return [
                 'type' => 'point',
-                'latitude' => (float) $location->in_polygon_point_latitude,
-                'longitude' => (float) $location->in_polygon_point_longitude,
+                'latitude' => $inPolygonLatitude,
+                'longitude' => $inPolygonLongitude,
             ];
         }
 
@@ -484,7 +617,7 @@ class PortalMapService
      * @param  array<string, mixed>  $filters
      * @return array{0: int, 1: array{south: float, west: float, north: float, east: float}|null}
      */
-    private function calculateExtent(array $filters): array
+    public function calculateExtent(array $filters): array
     {
         $total = 0;
         $extent = null;

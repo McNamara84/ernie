@@ -34,8 +34,8 @@ final class PortalMapClusterService
      */
     public function cluster(iterable $locations, array $viewport, int $requestedZoom): array
     {
-        $maxFeatures = (int) config('portal_map.max_features', 1000);
-        $clusterRadius = (int) config('portal_map.cluster_radius', 60);
+        $maxFeatures = max(1, (int) config('portal_map.max_features', 1000));
+        $clusterRadius = max(1, (int) config('portal_map.cluster_radius', 60));
         $shapeDetailZoom = (int) config('portal_map.shape_detail_zoom', 10);
         $effectiveZoom = $this->plausibleZoom($requestedZoom, $viewport);
         $coarsened = $effectiveZoom !== $requestedZoom;
@@ -70,6 +70,17 @@ final class PortalMapClusterService
             $coarsened = true;
         }
 
+        // Zoom zero is not a natural lower bound for a configurable response
+        // limit: small cluster radii can still produce more terminal cells
+        // than the contract permits. Continue folding the terminal grid until
+        // the hard bound is satisfied.
+        $terminalAggregationDepth = 0;
+        while (count($cells) > $maxFeatures) {
+            $cells = $this->mergeParentCells($cells);
+            $terminalAggregationDepth++;
+            $coarsened = true;
+        }
+
         ksort($cells);
         $features = [];
 
@@ -80,7 +91,11 @@ final class PortalMapClusterService
 
             $position = [
                 'lat' => $cell['latitude_sum'] / $cell['count'],
-                'lng' => $cell['longitude_sum'] / $cell['count'],
+                'lng' => $this->circularLongitudeMean(
+                    $cell['longitude_sine_sum'],
+                    $cell['longitude_cosine_sum'],
+                    $cell['fallback_longitude'],
+                ),
             ];
             $bounds = [
                 'north' => $cell['north'],
@@ -105,7 +120,7 @@ final class PortalMapClusterService
 
             $features[] = [
                 'kind' => 'cluster',
-                'id' => 'z'.$effectiveZoom.':'.$cell['cell_x'].':'.$cell['cell_y'],
+                'id' => 'z'.$effectiveZoom.($terminalAggregationDepth > 0 ? '-t'.$terminalAggregationDepth : '').':'.$cell['cell_x'].':'.$cell['cell_y'],
                 'position' => $position,
                 'bounds' => $bounds,
                 'count' => $cell['count'],
@@ -177,13 +192,16 @@ final class PortalMapClusterService
     private function newCell(int $cellX, int $cellY, array $location): array
     {
         $slug = $location['resource_type_slug'] ?? 'other';
+        $longitudeRadians = deg2rad($location['longitude']);
 
         return [
             'cell_x' => $cellX,
             'cell_y' => $cellY,
             'count' => 1,
             'latitude_sum' => $location['latitude'],
-            'longitude_sum' => $location['longitude'],
+            'longitude_sine_sum' => sin($longitudeRadians),
+            'longitude_cosine_sum' => cos($longitudeRadians),
+            'fallback_longitude' => $location['longitude'],
             'north' => $location['bounds']['north'],
             'south' => $location['bounds']['south'],
             'east' => $location['bounds']['east'],
@@ -202,9 +220,11 @@ final class PortalMapClusterService
     private function addLocation(array $cell, array $location): array
     {
         $slug = $location['resource_type_slug'] ?? 'other';
+        $longitudeRadians = deg2rad($location['longitude']);
         $cell['count']++;
         $cell['latitude_sum'] += $location['latitude'];
-        $cell['longitude_sum'] += $location['longitude'];
+        $cell['longitude_sine_sum'] += sin($longitudeRadians);
+        $cell['longitude_cosine_sum'] += cos($longitudeRadians);
         $cell['north'] = max($cell['north'], $location['bounds']['north']);
         $cell['south'] = min($cell['south'], $location['bounds']['south']);
         $cell['east'] = max($cell['east'], $location['bounds']['east']);
@@ -240,7 +260,8 @@ final class PortalMapClusterService
             $parent = $parents[$key];
             $parent['count'] += $cell['count'];
             $parent['latitude_sum'] += $cell['latitude_sum'];
-            $parent['longitude_sum'] += $cell['longitude_sum'];
+            $parent['longitude_sine_sum'] += $cell['longitude_sine_sum'];
+            $parent['longitude_cosine_sum'] += $cell['longitude_cosine_sum'];
             $parent['north'] = max($parent['north'], $cell['north']);
             $parent['south'] = min($parent['south'], $cell['south']);
             $parent['east'] = max($parent['east'], $cell['east']);
@@ -256,5 +277,16 @@ final class PortalMapClusterService
         }
 
         return $parents;
+    }
+
+    private function circularLongitudeMean(float $sine, float $cosine, float $fallback): float
+    {
+        if (abs($sine) < 1.0E-12 && abs($cosine) < 1.0E-12) {
+            return $fallback;
+        }
+
+        $longitude = rad2deg(atan2($sine, $cosine));
+
+        return abs($longitude + 180.0) < 1.0E-12 ? 180.0 : $longitude;
     }
 }

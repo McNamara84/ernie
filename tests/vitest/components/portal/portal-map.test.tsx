@@ -191,6 +191,36 @@ describe('PortalMap', () => {
         expect(usePortalMapDataMock).toHaveBeenLastCalledWith(filters, expect.objectContaining({ width: 800, height: 600 }), false);
     });
 
+    it('debounces resize-driven technical viewport requests', () => {
+        vi.useFakeTimers();
+
+        try {
+            render(<PortalMap filters={filters} hideHeader />);
+            act(() => vi.runOnlyPendingTimers());
+            usePortalMapDataMock.mockClear();
+
+            act(() => {
+                mapEvents.get('resize')?.();
+                mapEvents.get('resize')?.();
+                mapEvents.get('resize')?.();
+            });
+
+            expect(usePortalMapDataMock).not.toHaveBeenCalled();
+            act(() => vi.advanceTimersByTime(249));
+            expect(usePortalMapDataMock).not.toHaveBeenCalled();
+
+            act(() => vi.advanceTimersByTime(1));
+            expect(usePortalMapDataMock).toHaveBeenCalledTimes(1);
+            expect(usePortalMapDataMock).toHaveBeenLastCalledWith(
+                filters,
+                expect.objectContaining({ north: 53, south: 51, east: 14, west: 12, width: 800, height: 600, zoom: 4 }),
+                false,
+            );
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('shows loading, empty, and recoverable error feedback', () => {
         mapQueryState.result.data = response();
         mapQueryState.result.isFetching = true;
@@ -201,7 +231,9 @@ describe('PortalMap', () => {
         mapQueryState.result.isFetching = false;
         mapQueryState.result.isError = true;
         rerender(<PortalMap filters={filters} />);
-        fireEvent.click(screen.getAllByRole('button', { name: /try again/i })[0]);
+        const retryButton = screen.getAllByRole('button', { name: /try again/i })[0];
+        expect(retryButton).toHaveAttribute('data-slot', 'button');
+        fireEvent.click(retryButton);
         expect(mapQueryState.result.refetch).toHaveBeenCalled();
     });
 

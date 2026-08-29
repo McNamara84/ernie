@@ -52,6 +52,7 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('tags.1.name', 'Vocabularies')
         ->assertJsonPath('tags.0.summary', 'Metadata types and editor option endpoints')
         ->assertJsonPath('tags.3.name', 'IGSN Imports')
+        ->assertJsonPath('tags.4.name', 'Portal')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.tags.0', 'Editor Configuration')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.security.0.ElmoApiKey', [])
         ->assertJsonPath('paths./api/v1/title-types/elmo.get.tags.0', 'Editor Configuration')
@@ -123,6 +124,16 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.403.$ref', '#/components/responses/ForbiddenError')
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
+        // Public portal map endpoint
+        ->assertJsonPath('paths./portal/map.get.tags.0', 'Portal')
+        ->assertJsonPath('paths./portal/map.get.security', [])
+        ->assertJsonPath('paths./portal/map.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/PortalMapResponse')
+        ->assertJsonPath('paths./portal/map.get.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
+        ->assertJsonPath('paths./portal/map.get.responses.429.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
+        ->assertJsonPath('paths./portal/map.get.responses.500.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
+        ->assertJsonPath('paths./portal/map.get.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
+        ->assertJsonPath('components.schemas.PortalMapResponse.properties.features.items.$ref', '#/components/schemas/PortalMapFeature')
+        ->assertJsonPath('components.schemas.PortalMapMeta.properties.coarsened.type', 'boolean')
         ->assertJsonPath('components.schemas.DatacenterIgsnImportRequest.properties.datacenter_id.pattern', '^IGSNDB\\.[A-Z0-9_-]+$')
         ->assertJsonPath('components.schemas.DatacenterIgsnImportRequest.properties.datacenter_id.maxLength', 100)
         ->assertJsonPath('components.schemas.LegacyIgsnDatacenter.properties.name.type', 'string')
@@ -228,6 +239,9 @@ it('returns the OpenAPI documentation as JSON', function () {
     expect(data_get($spec, 'components.schemas.DateType.properties.description.type'))
         ->toBeArray()
         ->toContain('string', 'null');
+
+    expect(collect(data_get($spec, 'paths./portal/map.get.parameters'))->pluck('name')->all())
+        ->toContain('viewport[north]', 'viewport[width]', 'zoom', 'include_extent', 'type[]', 'north', 'date_type');
 });
 
 it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {
