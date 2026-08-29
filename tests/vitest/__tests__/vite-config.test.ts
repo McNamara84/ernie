@@ -22,7 +22,7 @@ describe('vite configuration', () => {
         [16, 8],
         [32, 8],
     ])('uses %i available CPUs to select %i local workers', (availableCpus, expectedWorkers) => {
-        expect(resolveVitestMaxWorkers(false, undefined, availableCpus)).toBe(expectedWorkers);
+        expect(resolveVitestMaxWorkers(false, '', availableCpus)).toBe(expectedWorkers);
     });
 
     it('accepts an explicit positive worker override', () => {
