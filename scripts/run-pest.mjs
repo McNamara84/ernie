@@ -6,7 +6,7 @@ const composeArgs = ['compose', '--env-file', '.env.docker', '-f', 'docker-compo
 const pestArgs = process.argv.slice(2);
 const phpMemoryLimit = '2G';
 const pestWorkspace = '/var/www/pest-workspace';
-const defaultProcessCount = Math.max(2, Math.min(8, Math.floor(availableParallelism() / 2)));
+const defaultProcessCount = Math.max(1, Math.min(8, Math.floor(availableParallelism() / 2)));
 const configuredProcessCount = process.env.ERNIE_PEST_PROCESSES?.trim();
 const processCount = configuredProcessCount === undefined ? defaultProcessCount : Number(configuredProcessCount);
 const profileArgs = process.env.ERNIE_PEST_PROFILE === '1' ? ['--profile'] : [];

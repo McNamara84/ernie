@@ -45,7 +45,7 @@ it('keeps local backend validation parallel, Linux-native, and on the two gigaby
         ->toBeString()
         ->toContain("const phpMemoryLimit = '2G';")
         ->toContain("const pestWorkspace = '/var/www/pest-workspace';")
-        ->toContain('Math.min(8, Math.floor(availableParallelism() / 2))')
+        ->toContain('Math.max(1, Math.min(8, Math.floor(availableParallelism() / 2)))')
         ->toContain("'--parallel'")
         ->toContain("'--no-progress'")
         ->toContain("'--exclude-group=serial'")

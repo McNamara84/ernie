@@ -88,9 +88,9 @@ run, the wrapper copies the current checkout once to the Linux-native
 2. the `Arch` testsuite without coverage
 3. all remaining Unit and Feature tests in parallel without coverage
 
-The default worker count is half of the available CPUs, capped at eight. Use a
-measured override only when the local Docker resource allocation differs
-substantially:
+The default worker count is half of the available CPUs, rounded down, with a
+minimum of one and a maximum of eight. Use a measured override only when the
+local Docker resource allocation differs substantially:
 
 ```bash
 ERNIE_PEST_PROCESSES=4 npm run test:php
