@@ -200,7 +200,7 @@ class IgsnDifMetadataExtractor
     {
         $items = [];
         $rejected = [];
-        $seenValues = [];
+        $itemIndexesByValue = [];
         $seenRejected = [];
 
         foreach ($samples as $sampleIndex => $sample) {
@@ -234,11 +234,16 @@ class IgsnDifMetadataExtractor
 
             foreach ($partition['values'] as $value) {
                 $key = mb_strtolower($value);
-                if (isset($seenValues[$key])) {
+                $itemIndex = $itemIndexesByValue[$key] ?? null;
+                if ($itemIndex !== null) {
+                    if ($items[$itemIndex]['classification_type'] === null && $classificationType !== null) {
+                        $items[$itemIndex]['classification_type'] = $classificationType;
+                    }
+
                     continue;
                 }
 
-                $seenValues[$key] = true;
+                $itemIndexesByValue[$key] = count($items);
                 $items[] = [
                     'value' => $value,
                     'classification_type' => $classificationType,

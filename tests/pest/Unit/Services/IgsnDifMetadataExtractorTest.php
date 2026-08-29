@@ -308,6 +308,25 @@ it('extracts ordered unique classifications from every sample with per-sample ty
         ->and($extractor->extract($xml)['rejected_classifications'])->toBe($rejected);
 });
 
+it('fills a missing classification type from a later sample without changing first occurrence order', function (): void {
+    $fields = (new IgsnDifMetadataExtractor)->extractClassificationFields(<<<'XML'
+    <resource>
+      <sample><material>N/A</material><classification>fault related rocks;untyped only</classification></sample>
+      <sample><material>Rock</material><classification>FAULT RELATED ROCKS;metamorphic rocks</classification></sample>
+      <sample><material>N/A</material><classification>METAMORPHIC ROCKS</classification></sample>
+    </resource>
+    XML);
+
+    expect($fields)->toBe([
+        'items' => [
+            ['value' => 'fault related rocks', 'classification_type' => IgsnClassificationType::ROCK],
+            ['value' => 'untyped only', 'classification_type' => null],
+            ['value' => 'metamorphic rocks', 'classification_type' => IgsnClassificationType::ROCK],
+        ],
+        'rejected' => [],
+    ]);
+});
+
 it('returns null from targeted classification extraction for malformed XML or missing samples', function (): void {
     $extractor = new IgsnDifMetadataExtractor;
 

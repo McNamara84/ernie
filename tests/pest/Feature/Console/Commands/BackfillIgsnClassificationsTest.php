@@ -90,7 +90,7 @@ it('is dry-run first then applies additively and idempotently with targeted cach
     issue1210FakePortal([
         'ICDP5054ES1O201' => <<<'XML'
         <resource><supplementalMetadata>
-          <record><sample><material>Rock</material><classification>fault related rocks</classification></sample></record>
+          <record><sample><material>N/A</material><classification>fault related rocks</classification></sample></record>
           <record><sample><material>Rock</material><classification>FAULT RELATED ROCKS;Igneous;Unknown</classification></sample></record>
         </supplementalMetadata></resource>
         XML,
@@ -128,6 +128,7 @@ it('is dry-run first then applies additively and idempotently with targeted cach
         'fault related rocks',
     ])->and($stored->pluck('position')->all())->toBe([2, 4, 5, 6])
         ->and($untyped->fresh()->classification_type)->toBe(IgsnClassificationType::ROCK)
+        ->and($stored->firstWhere('value', 'fault related rocks')?->classification_type)->toBe(IgsnClassificationType::ROCK)
         ->and($cache->has($cacheKey))->toBeFalse();
 
     $cache->put($cacheKey, ['cached' => true], 600);
