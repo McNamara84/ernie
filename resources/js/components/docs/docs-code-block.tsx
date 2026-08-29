@@ -20,7 +20,7 @@ export function DocsCodeBlock({ code, language = 'bash', className }: DocsCodeBl
     };
 
     return (
-        <div className={cn('group relative', className)}>
+        <div className={cn('group relative max-w-full min-w-0', className)}>
             <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
                 <Button
                     variant="ghost"
@@ -32,7 +32,7 @@ export function DocsCodeBlock({ code, language = 'bash', className }: DocsCodeBl
                     {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
                 </Button>
             </div>
-            <pre className="overflow-x-auto rounded-lg bg-muted p-4">
+            <pre className="max-w-full overflow-x-auto rounded-lg bg-muted p-4">
                 <code className={`language-${language} text-sm`}>{code}</code>
             </pre>
         </div>

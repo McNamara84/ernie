@@ -23,6 +23,14 @@
         ],
         "fixes": [
             {
+                "title": "Complete ICDP Legacy Classifications",
+                "description": "New ICDP IGSN imports now recognize all seventeen reported Rock classification values from projects 5052, 5054, and 5059, including legacy codes and placeholders, and preserve unique classifications from every sample block in source order instead of silently discarding them. Unknown future controlled values remain rejected without losing unrelated legacy metadata."
+            },
+            {
+                "title": "Existing IGSN Classification Repair",
+                "description": "A dry-run-first igsn:backfill-classifications command can now repair missing classifications across all IGSNs already stored in ERNIE without deletion or reimport. It uses resumable portal batches, DOI filters, CSV reporting, additive updates, type-conflict reporting, idempotent reruns, and targeted published landing-page cache invalidation while preserving every existing classification."
+            },
+            {
                 "title": "Correct Legacy Description Spacing",
                 "description": "New SUMARIO imports now reduce systematically duplicated description breaks exactly once while preserving intentional paragraphs. A dry-run-first resources:repair-legacy-description-breaks command can repair marked and DOI-matched historical imports in resumable batches, with CSV reporting, concurrent-edit protection, landing-page cache invalidation, and automatic full-metadata DataCite synchronization outside test mode."
             },

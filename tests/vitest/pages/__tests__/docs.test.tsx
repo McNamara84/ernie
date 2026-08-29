@@ -159,6 +159,22 @@ describe('Docs page', () => {
         expect(screen.queryByText('php artisan igsn:audit-legacy-handles')).not.toBeInTheDocument();
     });
 
+    it('documents the legacy IGSN classification repair workflow only for admins', () => {
+        const { unmount } = render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByText('Repair Legacy IGSN Classifications')).toBeInTheDocument();
+        expect(screen.getByText(/igsn:backfill-classifications --report=.*igsn-classification-audit\.csv/)).toBeInTheDocument();
+        expect(screen.getByText(/igsn:backfill-classifications --apply .*igsn-classification-apply\.csv/)).toBeInTheDocument();
+        expect(screen.getByText(/The default is always a dry run and does not change database records/i)).toBeInTheDocument();
+        expect(screen.getByText(/Review the CSV before applying changes/i)).toBeInTheDocument();
+
+        unmount();
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.queryByText('Repair Legacy IGSN Classifications')).not.toBeInTheDocument();
+        expect(screen.queryByText(/igsn:backfill-classifications/)).not.toBeInTheDocument();
+    });
+
     it('shows the complete DataCite landing-page URL migration workflow only to admins', async () => {
         const { user } = renderDocsPage('admin');
         await openDatasetsTab(user);

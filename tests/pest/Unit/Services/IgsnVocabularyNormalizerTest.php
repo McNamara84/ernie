@@ -56,7 +56,7 @@ it('rejects unsupported material values', function (): void {
 it('loads all versioned material-specific classification values', function (): void {
     $vocabulary = new IgsnClassificationVocabularyService;
 
-    expect($vocabulary->values(IgsnClassificationType::ROCK))->toHaveCount(83)
+    expect($vocabulary->values(IgsnClassificationType::ROCK))->toHaveCount(100)
         ->and($vocabulary->values(IgsnClassificationType::MINERAL))->toHaveCount(4172)
         ->and($vocabulary->values(IgsnClassificationType::BIOLOGY))->toHaveCount(39)
         ->and($vocabulary->contains(IgsnClassificationType::ROCK, 'Igneous>Volcanic'))->toBeTrue()
@@ -67,6 +67,44 @@ it('loads all versioned material-specific classification values', function (): v
         ->and($vocabulary->contains(IgsnClassificationType::BIOLOGY, 'whole plant'))->toBeTrue()
         ->and($vocabulary->contains(IgsnClassificationType::BIOLOGY, 'vegetation:leaves/needles'))->toBeTrue()
         ->and($vocabulary->contains(IgsnClassificationType::BIOLOGY, 'vegetation:other plant litter'))->toBeTrue();
+});
+
+it('marks every issue 1210 ICDP classification as legacy', function (): void {
+    $contents = file_get_contents(resource_path('data/igsn/classification-rock.json'));
+    if ($contents === false) {
+        throw new RuntimeException('Unable to read the rock classification catalog.');
+    }
+
+    $entries = json_decode($contents, true, flags: JSON_THROW_ON_ERROR)['values'];
+    $byValue = [];
+    foreach ($entries as $entry) {
+        if (is_array($entry) && is_string($entry['value'] ?? null)) {
+            $byValue[$entry['value']] = $entry;
+        }
+    }
+
+    foreach ([
+        'MYL',
+        'PROTOMYL',
+        'QUAT',
+        'SCH',
+        'UND',
+        'VOL',
+        'cataclastic rocks',
+        'fault related rocks',
+        'igneous rocks',
+        'metamorphic rocks',
+        'mylonitic rocks',
+        'protomylonites',
+        'quaternary deposits, metamorphic rocks',
+        'sample',
+        'sedimentary rocks',
+        'undefined',
+        'volcanic rocks',
+    ] as $value) {
+        expect($byValue)->toHaveKey($value)
+            ->and($byValue[$value]['legacy'] ?? null)->toBeTrue();
+    }
 });
 
 it('keeps the versioned classification catalogs structurally valid', function (): void {
@@ -284,6 +322,32 @@ it('canonicalizes every issue 1200 and 1202 legacy classification without changi
     ['Biology', 'VEGETATION:BLOSSOM', 'vegetation:blossom'],
     ['Biology', 'VEGETATION:LICHEN', 'vegetation:lichen'],
     ['Biology', 'VEGETATION:ROOT', 'vegetation:root'],
+]);
+
+it('canonicalizes every issue 1210 ICDP classification without changing its value', function (
+    string $raw,
+    string $canonical,
+): void {
+    expect((new IgsnVocabularyNormalizerService)->normalizeClassifications('Rock', [$raw]))
+        ->toBe([$canonical]);
+})->with([
+    [' myl ', 'MYL'],
+    ['protomyl', 'PROTOMYL'],
+    ['quat', 'QUAT'],
+    ['sch', 'SCH'],
+    ['und', 'UND'],
+    ['vol', 'VOL'],
+    ['CATACLASTIC ROCKS', 'cataclastic rocks'],
+    ['FAULT   RELATED ROCKS', 'fault related rocks'],
+    ['IGNEOUS ROCKS', 'igneous rocks'],
+    ['METAMORPHIC ROCKS', 'metamorphic rocks'],
+    ['MYLONITIC ROCKS', 'mylonitic rocks'],
+    ['PROTOMYLONITES', 'protomylonites'],
+    ['QUATERNARY DEPOSITS, METAMORPHIC ROCKS', 'quaternary deposits, metamorphic rocks'],
+    ['SAMPLE', 'sample'],
+    ['SEDIMENTARY ROCKS', 'sedimentary rocks'],
+    ['UNDEFINED', 'undefined'],
+    ['VOLCANIC ROCKS', 'volcanic rocks'],
 ]);
 
 it('rejects a classification outside the material-specific vocabulary', function (): void {

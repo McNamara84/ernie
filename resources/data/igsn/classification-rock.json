@@ -106,6 +106,74 @@
         {
             "value": "rock:skeleton",
             "legacy": true
+        },
+        {
+            "value": "MYL",
+            "legacy": true
+        },
+        {
+            "value": "PROTOMYL",
+            "legacy": true
+        },
+        {
+            "value": "QUAT",
+            "legacy": true
+        },
+        {
+            "value": "SCH",
+            "legacy": true
+        },
+        {
+            "value": "UND",
+            "legacy": true
+        },
+        {
+            "value": "VOL",
+            "legacy": true
+        },
+        {
+            "value": "cataclastic rocks",
+            "legacy": true
+        },
+        {
+            "value": "fault related rocks",
+            "legacy": true
+        },
+        {
+            "value": "igneous rocks",
+            "legacy": true
+        },
+        {
+            "value": "metamorphic rocks",
+            "legacy": true
+        },
+        {
+            "value": "mylonitic rocks",
+            "legacy": true
+        },
+        {
+            "value": "protomylonites",
+            "legacy": true
+        },
+        {
+            "value": "quaternary deposits, metamorphic rocks",
+            "legacy": true
+        },
+        {
+            "value": "sample",
+            "legacy": true
+        },
+        {
+            "value": "sedimentary rocks",
+            "legacy": true
+        },
+        {
+            "value": "undefined",
+            "legacy": true
+        },
+        {
+            "value": "volcanic rocks",
+            "legacy": true
         }
     ]
 }

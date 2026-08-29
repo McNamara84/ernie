@@ -305,7 +305,8 @@ describe('IgsnDifXmlParser', function () {
             ->with('Skipped unsupported DIF classification', Mockery::on(
                 fn (array $context): bool => $context['resource_id'] === $this->resource->id
                     && $context['material'] === 'Rock'
-                    && $context['classification'] === 'legacy rock term',
+                    && $context['classification'] === 'legacy rock term'
+                    && $context['sample_index'] === 0,
             ));
     });
 
@@ -684,6 +685,33 @@ describe('IgsnDifXmlParser', function () {
         expect($classification->classification_type)->toBe(IgsnClassificationType::ROCK);
     });
 
+    it('maps unique classifications from every DIF record in source order', function () {
+        $xml = <<<'XML'
+        <DIF><supplementalMetadata>
+          <record><sample><material>Rock</material><classification>fault related rocks</classification></sample></record>
+          <record><sample><material>Rock</material><classification>FAULT RELATED ROCKS;metamorphic rocks</classification></sample></record>
+          <record><sample><material>Biology</material><classification>vegetation:bark</classification></sample></record>
+        </supplementalMetadata></DIF>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+
+        $classifications = IgsnClassification::query()
+            ->whereBelongsTo($this->resource)
+            ->orderBy('position')
+            ->get();
+
+        expect($classifications->pluck('value')->all())->toBe([
+            'fault related rocks',
+            'metamorphic rocks',
+            'vegetation:bark',
+        ])->and($classifications->pluck('classification_type')->all())->toBe([
+            IgsnClassificationType::ROCK,
+            IgsnClassificationType::ROCK,
+            IgsnClassificationType::BIOLOGY,
+        ]);
+    });
+
     it('skips classification when N/A', function () {
         $xml = <<<'XML'
         <?xml version="1.0" encoding="UTF-8"?>
@@ -730,6 +758,47 @@ describe('IgsnDifXmlParser', function () {
 
         expect(IgsnClassification::where('resource_id', $this->resource->id)->pluck('value')->all())
             ->toBe(['Existing', 'Igneous']);
+    });
+
+    it('fills missing classification types without overwriting existing types', function () {
+        $curatedClassification = IgsnClassification::create([
+            'resource_id' => $this->resource->id,
+            'value' => 'Igneous',
+            'classification_type' => IgsnClassificationType::BIOLOGY,
+            'position' => 0,
+        ]);
+        $untypedClassification = IgsnClassification::create([
+            'resource_id' => $this->resource->id,
+            'value' => 'metamorphic rocks',
+            'position' => 1,
+        ]);
+        $originalTimestamp = now()->subDay()->startOfSecond();
+        IgsnClassification::withoutTimestamps(function () use ($curatedClassification, $untypedClassification, $originalTimestamp): void {
+            $curatedClassification->forceFill(['updated_at' => $originalTimestamp])->saveQuietly();
+            $untypedClassification->forceFill(['updated_at' => $originalTimestamp])->saveQuietly();
+        });
+
+        $xml = <<<'XML'
+        <DIF><sample>
+            <material>Rock</material>
+            <classification>Igneous;metamorphic rocks</classification>
+        </sample></DIF>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+
+        $classifications = IgsnClassification::query()
+            ->whereBelongsTo($this->resource)
+            ->orderBy('position')
+            ->get();
+
+        expect($classifications)->toHaveCount(2)
+            ->and($classifications->pluck('classification_type')->all())->toBe([
+                IgsnClassificationType::BIOLOGY,
+                IgsnClassificationType::ROCK,
+            ])
+            ->and($classifications[0]->updated_at?->equalTo($originalTimestamp))->toBeTrue()
+            ->and($classifications[1]->updated_at?->greaterThan($originalTimestamp))->toBeTrue();
     });
 
     it('maps geological age from DIF XML', function () {

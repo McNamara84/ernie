@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach,describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DocsCodeBlock } from '@/components/docs/docs-code-block';
 
@@ -72,5 +72,12 @@ describe('DocsCodeBlock', () => {
 
         const preElement = container.querySelector('pre');
         expect(preElement).toBeInTheDocument();
+    });
+
+    it('constrains long code lines to the available content width', () => {
+        const { container } = render(<DocsCodeBlock code={'x'.repeat(300)} />);
+
+        expect(container.firstChild).toHaveClass('min-w-0', 'max-w-full');
+        expect(container.querySelector('pre')).toHaveClass('max-w-full', 'overflow-x-auto');
     });
 });

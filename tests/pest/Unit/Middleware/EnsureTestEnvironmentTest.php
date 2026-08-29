@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Middleware\EnsureTestEnvironment;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 covers(EnsureTestEnvironment::class);
@@ -18,7 +19,7 @@ describe('EnsureTestEnvironment middleware', function (): void {
         $response = $middleware->handle($request, function () use (&$called) {
             $called = true;
 
-            return new Illuminate\Http\Response('OK');
+            return new Response('OK');
         });
 
         expect($called)->toBeTrue();
@@ -34,7 +35,7 @@ describe('EnsureTestEnvironment middleware', function (): void {
         $response = $middleware->handle($request, function () use (&$called) {
             $called = true;
 
-            return new Illuminate\Http\Response('OK');
+            return new Response('OK');
         });
 
         expect($called)->toBeTrue();
@@ -46,7 +47,7 @@ describe('EnsureTestEnvironment middleware', function (): void {
         $request = Request::create('/test-route');
 
         $middleware->handle($request, function () {
-            return new Illuminate\Http\Response('OK');
+            return new Response('OK');
         });
     })->throws(HttpException::class);
 
@@ -56,7 +57,7 @@ describe('EnsureTestEnvironment middleware', function (): void {
         $request = Request::create('/test-route');
 
         $middleware->handle($request, function () {
-            return new Illuminate\Http\Response('OK');
+            return new Response('OK');
         });
     })->throws(HttpException::class);
 });
