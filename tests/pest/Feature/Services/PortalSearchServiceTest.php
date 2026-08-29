@@ -1008,54 +1008,6 @@ describe('transformForPortal', function () {
 });
 
 // =========================================================================
-// getMapData()
-// =========================================================================
-
-describe('getMapData', function () {
-    it('returns only resources with geo locations', function () {
-        // Resource with geo location
-        $resourceWithGeo = createPublishedResourceForSearch('Geo Paper', $this->titleType);
-        GeoLocation::factory()->create([
-            'resource_id' => $resourceWithGeo->id,
-            'point_latitude' => 52.3906,
-            'point_longitude' => 13.0645,
-        ]);
-
-        // Resource without geo location
-        createPublishedResourceForSearch('No Geo Paper', $this->titleType);
-
-        $results = $this->service->getMapData();
-
-        expect($results)->toHaveCount(1)
-            ->and($results->first()->id)->toBe($resourceWithGeo->id);
-    });
-
-    it('does NOT apply bounds filter to map data', function () {
-        // Two resources with different geo locations
-        $insideBounds = createPublishedResourceForSearch('Inside', $this->titleType);
-        GeoLocation::factory()->create([
-            'resource_id' => $insideBounds->id,
-            'point_latitude' => 52.5,
-            'point_longitude' => 13.4,
-        ]);
-
-        $outsideBounds = createPublishedResourceForSearch('Outside', $this->titleType);
-        GeoLocation::factory()->create([
-            'resource_id' => $outsideBounds->id,
-            'point_latitude' => 10.0,
-            'point_longitude' => -50.0,
-        ]);
-
-        // Map data should return BOTH resources (bounds are not applied)
-        $results = $this->service->getMapData([
-            'bounds' => ['north' => 54, 'south' => 50, 'east' => 15, 'west' => 11],
-        ]);
-
-        expect($results)->toHaveCount(2);
-    });
-});
-
-// =========================================================================
 // Spatial bounds filtering
 // =========================================================================
 

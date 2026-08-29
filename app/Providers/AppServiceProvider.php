@@ -171,6 +171,10 @@ class AppServiceProvider extends ServiceProvider
             return $this->publicDiscoveryLimit($request, 'portal', 'public_portal_per_minute', 20);
         });
 
+        RateLimiter::for('public-portal-map', function (Request $request) {
+            return $this->publicDiscoveryLimit($request, 'portal-map', 'public_portal_map_per_minute', 120);
+        });
+
         RateLimiter::for('public-landing-page', function (Request $request) {
             return $this->publicDiscoveryLimit($request, 'landing-page', 'public_landing_per_minute', 60);
         });

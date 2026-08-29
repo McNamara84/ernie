@@ -133,7 +133,6 @@ export interface PortalThesaurusFacet {
  */
 export interface PortalPageProps {
     resources: PortalResource[];
-    mapData: PortalResource[];
     pagination: PortalPagination;
     filters: PortalFilters;
     keywordSuggestions: KeywordSuggestion[];
@@ -141,6 +140,61 @@ export interface PortalPageProps {
     temporalRange: TemporalRange;
     resourceTypeFacets: ResourceTypeFacet[];
     datacenterFacets: DatacenterFacet[];
+}
+
+/** Technical map viewport used by the asynchronous map endpoint. */
+export interface PortalMapViewport extends GeoBounds {
+    width: number;
+    height: number;
+    zoom: number;
+}
+
+export interface PortalMapResourceSummary {
+    id: number;
+    identifier: string | null;
+    title: string;
+    resourceType: { slug: string; name: string } | null;
+    creators: PortalCreator[];
+    landingPageUrl: string | null;
+}
+
+export type PortalMapGeometry =
+    | { type: 'point'; latitude: number; longitude: number }
+    | { type: 'box'; south: number; west: number; north: number; east: number }
+    | { type: 'polygon' | 'line'; points: Array<{ latitude: number; longitude: number }> };
+
+export interface PortalMapClusterFeature {
+    kind: 'cluster';
+    id: string;
+    position: GeoPoint;
+    bounds: GeoBounds;
+    count: number;
+    resourceTypeCounts: Record<string, number>;
+}
+
+export interface PortalMapResourceFeature {
+    kind: 'resource';
+    id: string;
+    position: GeoPoint;
+    bounds: GeoBounds;
+    geometry: PortalMapGeometry;
+    resource: PortalMapResourceSummary;
+}
+
+export type PortalMapFeature = PortalMapClusterFeature | PortalMapResourceFeature;
+
+export interface PortalMapResponse {
+    schemaVersion: 1;
+    features: PortalMapFeature[];
+    meta: {
+        requestedZoom: number;
+        effectiveZoom: number;
+        visibleLocations: number;
+        returnedFeatures: number;
+        totalLocations: number | null;
+        extent: GeoBounds | null;
+        coarsened: boolean;
+    };
 }
 
 /**

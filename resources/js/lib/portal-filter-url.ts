@@ -1,4 +1,4 @@
-import type { PortalFilters } from '@/types/portal';
+import type { PortalFilters, PortalMapViewport } from '@/types/portal';
 
 function appendArrayParams(params: URLSearchParams, key: string, values: string[]): void {
     values.forEach((value) => {
@@ -8,19 +8,14 @@ function appendArrayParams(params: URLSearchParams, key: string, values: string[
 
 export function mergePortalFilters(filters: PortalFilters, nextFilters: Partial<PortalFilters>): PortalFilters {
     const freeKeywords = nextFilters.freeKeywords !== undefined ? nextFilters.freeKeywords : (filters.freeKeywords ?? []);
-    const thesaurusKeywords =
-        nextFilters.thesaurusKeywords !== undefined ? nextFilters.thesaurusKeywords : (filters.thesaurusKeywords ?? []);
+    const thesaurusKeywords = nextFilters.thesaurusKeywords !== undefined ? nextFilters.thesaurusKeywords : (filters.thesaurusKeywords ?? []);
     const keywords =
-        nextFilters.keywords !== undefined
-            ? nextFilters.keywords
-            : freeKeywords.length > 0 || thesaurusKeywords.length > 0
-              ? []
-              : filters.keywords;
+        nextFilters.keywords !== undefined ? nextFilters.keywords : freeKeywords.length > 0 || thesaurusKeywords.length > 0 ? [] : filters.keywords;
 
     return {
         ...filters,
         ...nextFilters,
-        exclude_type: nextFilters.type !== undefined && nextFilters.type.length === 0 ? null : filters.exclude_type,
+        exclude_type: nextFilters.type !== undefined ? null : filters.exclude_type,
         keywords,
         freeKeywords,
         thesaurusKeywords,
@@ -77,4 +72,25 @@ export function buildPortalFilterUrl(filters: PortalFilters, page: number | null
     const queryString = params.toString();
 
     return queryString ? `/portal?${queryString}` : '/portal';
+}
+
+/** Build the lightweight map request while preserving the list's active filters. */
+export function buildPortalMapUrl(filters: PortalFilters, viewport: PortalMapViewport, includeExtent = false): string {
+    const filterUrl = buildPortalFilterUrl(filters);
+    const queryString = filterUrl.includes('?') ? filterUrl.slice(filterUrl.indexOf('?') + 1) : '';
+    const params = new URLSearchParams(queryString);
+
+    params.set('viewport[north]', viewport.north.toFixed(6));
+    params.set('viewport[south]', viewport.south.toFixed(6));
+    params.set('viewport[east]', viewport.east.toFixed(6));
+    params.set('viewport[west]', viewport.west.toFixed(6));
+    params.set('viewport[width]', String(Math.max(1, Math.round(viewport.width))));
+    params.set('viewport[height]', String(Math.max(1, Math.round(viewport.height))));
+    params.set('zoom', String(Math.max(0, Math.min(18, Math.round(viewport.zoom)))));
+
+    if (includeExtent) {
+        params.set('include_extent', '1');
+    }
+
+    return `/portal/map?${params.toString()}`;
 }

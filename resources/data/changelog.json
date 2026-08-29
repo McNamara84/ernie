@@ -1,9 +1,13 @@
 [
     {
         "version": "1.0.5",
-        "date": "2026-08-28",
+        "date": "2026-08-31",
         "features": [],
         "improvements": [
+            {
+                "title": "Faster and More Reliable Data Portal Map",
+                "description": "The public Data Portal now opens reliably even with very large collections. Its map loads the area currently in view, groups nearby locations into clear clusters, and reveals individual points and geographic shapes as users zoom in. Searching, filtering, moving, and zooming the map remain responsive while the result list and map stay in sync."
+            },
             {
                 "title": "Focused FAIR Assessment Results",
                 "description": "The Assessment resource ranking now excludes Draft and Review records by default while retaining an opt-in filter. Assessment summaries and the IGSN ranking remain unchanged."

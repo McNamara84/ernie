@@ -1,17 +1,18 @@
 import { useMemo } from 'react';
 
 import { getResourceTypeColor, isIgsnType } from '@/lib/portal-map-config';
-import type { PortalResource } from '@/types/portal';
+import type { PortalMapFeature, PortalResource } from '@/types/portal';
 
 interface PortalMapLegendProps {
-    resources: PortalResource[];
+    resources?: PortalResource[];
+    features?: PortalMapFeature[];
 }
 
 /**
  * Dynamic map legend showing only the resource types currently visible on the map.
  * Positioned as an overlay in the bottom-right corner of the map container.
  */
-export function PortalMapLegend({ resources }: PortalMapLegendProps) {
+export function PortalMapLegend({ resources = [], features = [] }: PortalMapLegendProps) {
     const visibleTypes = useMemo(() => {
         const typeMap = new Map<string, string>();
         for (const r of resources) {
@@ -20,12 +21,35 @@ export function PortalMapLegend({ resources }: PortalMapLegendProps) {
                 typeMap.set(slug, r.resourceType);
             }
         }
+
+        for (const feature of features) {
+            if (feature.kind === 'resource') {
+                const type = feature.resource.resourceType;
+                const slug = type?.slug ?? 'other';
+                typeMap.set(slug, type?.name ?? 'Other');
+                continue;
+            }
+
+            for (const slug of Object.keys(feature.resourceTypeCounts)) {
+                if (!typeMap.has(slug)) {
+                    typeMap.set(
+                        slug,
+                        slug === 'physical-object'
+                            ? 'Physical Object'
+                            : slug
+                                  .split('-')
+                                  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                                  .join(' '),
+                    );
+                }
+            }
+        }
         return [...typeMap.entries()].sort(([a], [b]) => {
             if (a === 'physical-object') return 1;
             if (b === 'physical-object') return -1;
             return a.localeCompare(b);
         });
-    }, [resources]);
+    }, [features, resources]);
 
     if (visibleTypes.length === 0) return null;
 

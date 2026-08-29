@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { act, render, screen } from '@tests/vitest/utils/render';
+import { act, fireEvent, render, screen } from '@tests/vitest/utils/render';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -98,16 +98,10 @@ vi.mock('@/components/portal/PortalFilters', () => ({
             )}
             {onBoundsChange && (
                 <>
-                    <button
-                        data-testid="apply-bounds"
-                        onClick={() => onBoundsChange({ north: 53, south: 51, east: 14, west: 12 })}
-                    >
+                    <button data-testid="apply-bounds" onClick={() => onBoundsChange({ north: 53, south: 51, east: 14, west: 12 })}>
                         Apply Bounds
                     </button>
-                    <button
-                        data-testid="clear-bounds"
-                        onClick={() => onBoundsChange(null)}
-                    >
+                    <button data-testid="clear-bounds" onClick={() => onBoundsChange(null)}>
                         Clear Bounds
                     </button>
                 </>
@@ -120,16 +114,10 @@ vi.mock('@/components/portal/PortalFilters', () => ({
             )}
             {onTemporalChange && (
                 <>
-                    <button
-                        data-testid="apply-temporal"
-                        onClick={() => onTemporalChange({ dateType: 'Created', yearFrom: 2010, yearTo: 2020 })}
-                    >
+                    <button data-testid="apply-temporal" onClick={() => onTemporalChange({ dateType: 'Created', yearFrom: 2010, yearTo: 2020 })}>
                         Apply Temporal
                     </button>
-                    <button
-                        data-testid="clear-temporal"
-                        onClick={() => onTemporalChange(null)}
-                    >
+                    <button data-testid="clear-temporal" onClick={() => onTemporalChange(null)}>
                         Clear Temporal
                     </button>
                 </>
@@ -139,16 +127,28 @@ vi.mock('@/components/portal/PortalFilters', () => ({
 }));
 
 vi.mock('@/components/portal/PortalMap', () => ({
-    PortalMap: ({ resources, onViewportChange, geoFilterEnabled }: { resources: unknown[]; onViewportChange?: (bounds: { north: number; south: number; east: number; west: number }) => void; geoFilterEnabled?: boolean }) => (
+    PortalMap: ({
+        filters,
+        onViewportChange,
+        onLocationCountChange,
+        geoFilterEnabled,
+    }: {
+        filters: { query: string | null };
+        onViewportChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
+        onLocationCountChange?: (count: number) => void;
+        geoFilterEnabled?: boolean;
+    }) => (
         <div data-testid="portal-map">
-            <span data-testid="map-resource-count">{(resources as unknown[]).length}</span>
+            <span data-testid="map-filter-query">{filters.query ?? ''}</span>
             <span data-testid="map-geo-enabled">{String(geoFilterEnabled ?? false)}</span>
             {onViewportChange && (
-                <button
-                    data-testid="trigger-viewport-change"
-                    onClick={() => onViewportChange({ north: 54, south: 50, east: 15, west: 11 })}
-                >
+                <button data-testid="trigger-viewport-change" onClick={() => onViewportChange({ north: 54, south: 50, east: 15, west: 11 })}>
                     Viewport Change
+                </button>
+            )}
+            {onLocationCountChange && (
+                <button data-testid="report-location-count" onClick={() => onLocationCountChange(2)}>
+                    Report locations
                 </button>
             )}
         </div>
@@ -179,14 +179,17 @@ vi.mock('@/components/portal/PortalResultList', () => ({
 }));
 
 vi.mock('@/components/ui/resizable', () => ({
-    ResizablePanelGroup: ({ children, onLayoutChanged }: { children?: React.ReactNode; onLayoutChanged?: (layout: Record<string, number>) => void }) => (
+    ResizablePanelGroup: ({
+        children,
+        onLayoutChanged,
+    }: {
+        children?: React.ReactNode;
+        onLayoutChanged?: (layout: Record<string, number>) => void;
+    }) => (
         <div data-testid="resizable-group">
             {children}
             {onLayoutChanged && (
-                <button
-                    data-testid="trigger-layout-change"
-                    onClick={() => onLayoutChanged({ results: 60, map: 40 })}
-                >
+                <button data-testid="trigger-layout-change" onClick={() => onLayoutChanged({ results: 60, map: 40 })}>
                     Layout Change
                 </button>
             )}
@@ -198,11 +201,32 @@ vi.mock('@/components/ui/resizable', () => ({
 
 const defaultProps: PortalPageProps = {
     resources: [
-        { id: 1, doi: '10.1234/test1', title: 'Dataset 1', abstract: null, creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [], landingPageUrl: null },
-        { id: 2, doi: '10.1234/test2', title: 'Dataset 2', abstract: null, creators: [], year: 2023, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [], landingPageUrl: null },
-    ],
-    mapData: [
-        { id: 1, doi: '10.1234/test1', title: 'Dataset 1', abstract: null, creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [{ id: 1, type: 'point', point: { lat: 52, lng: 13 }, bounds: null, polygon: null }], landingPageUrl: null },
+        {
+            id: 1,
+            doi: '10.1234/test1',
+            title: 'Dataset 1',
+            abstract: null,
+            creators: [],
+            year: 2024,
+            resourceType: 'Dataset',
+            resourceTypeSlug: 'dataset',
+            isIgsn: false,
+            geoLocations: [],
+            landingPageUrl: null,
+        },
+        {
+            id: 2,
+            doi: '10.1234/test2',
+            title: 'Dataset 2',
+            abstract: null,
+            creators: [],
+            year: 2023,
+            resourceType: 'Dataset',
+            resourceTypeSlug: 'dataset',
+            isIgsn: false,
+            geoLocations: [],
+            landingPageUrl: null,
+        },
     ],
     pagination: {
         current_page: 1,
@@ -257,10 +281,9 @@ describe('Portal', () => {
         expect(screen.getAllByTestId('result-loading')[0]).toHaveTextContent('true');
     });
 
-    it('passes map data to map component', () => {
+    it('passes active filters to the asynchronous map component', () => {
         render(<Portal {...defaultProps} />);
-        const mapCounts = screen.getAllByTestId('map-resource-count');
-        expect(mapCounts.some((el) => el.textContent === '1')).toBe(true);
+        expect(screen.getAllByTestId('map-filter-query')[0]).toHaveTextContent('');
     });
 
     it('passes total results to filters', () => {
@@ -418,28 +441,14 @@ describe('Portal', () => {
     });
 
     it('counts geo locations correctly', () => {
-        const propsWithMultipleGeo = {
-            ...defaultProps,
-            mapData: [
-                {
-                    id: 1, doi: '10.1234/a', title: 'A', abstract: null, creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, landingPageUrl: null,
-                    geoLocations: [
-                        { id: 1, type: 'point' as const, point: { lat: 1, lng: 1 }, bounds: null, polygon: null },
-                        { id: 2, type: 'point' as const, point: { lat: 2, lng: 2 }, bounds: null, polygon: null },
-                    ],
-                },
-                { id: 2, doi: '10.1234/b', title: 'B', abstract: null, creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [], landingPageUrl: null },
-            ],
-        };
-        render(<Portal {...propsWithMultipleGeo} />);
-        // 2 geo locations from resource 1, 0 from resource 2 = 2 total
+        render(<Portal {...defaultProps} />);
+        fireEvent.click(screen.getAllByTestId('report-location-count')[0]);
         expect(screen.getByText(/2 locations/)).toBeInTheDocument();
     });
 
-    it('shows singular "location" for 1 geo location', () => {
+    it('starts with an empty count while map data loads asynchronously', () => {
         render(<Portal {...defaultProps} />);
-        // defaultProps has 1 geoLocation
-        expect(screen.getByText(/1 location\b/)).toBeInTheDocument();
+        expect(screen.getByText(/0 locations/)).toBeInTheDocument();
     });
 
     describe('Geo Filter Integration', () => {

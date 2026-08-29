@@ -167,7 +167,7 @@ describe('index', function () {
             );
     });
 
-    it('returns map data', function () {
+    it('keeps map data out of the initial Inertia payload', function () {
         $resource = ($this->createPublishedPortalResource)();
         GeoLocation::factory()->create([
             'resource_id' => $resource->id,
@@ -178,7 +178,7 @@ describe('index', function () {
         $response = $this->get('/portal');
 
         $response->assertOk()
-            ->assertInertia(fn ($page) => $page->has('mapData'));
+            ->assertInertia(fn ($page) => $page->missing('mapData'));
     });
 
     it('caches portal payloads briefly and flushes them when landing pages change', function () {
@@ -320,7 +320,7 @@ describe('bounds parameter parsing', function () {
             ->assertInertia(fn ($page) => $page->has('resources', 1));
     });
 
-    it('keeps all markers on map data even with bounds filter', function () {
+    it('keeps the initial payload bounded when a spatial filter is active', function () {
         $inside = ($this->createPublishedPortalResource)('Berlin Dataset');
         GeoLocation::factory()->create([
             'resource_id' => $inside->id,
@@ -337,12 +337,11 @@ describe('bounds parameter parsing', function () {
 
         $response = $this->get('/portal?north=54&south=50&east=15&west=11');
 
-        // Results should be filtered (1 resource), but mapData should show both
         $response->assertOk()
             ->assertInertia(
                 fn ($page) => $page
                     ->has('resources', 1)
-                    ->has('mapData', 2)
+                    ->missing('mapData')
             );
     });
 

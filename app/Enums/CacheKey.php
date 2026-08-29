@@ -52,6 +52,7 @@ enum CacheKey: string
     case PORTAL_RESOURCE_TYPE_FACETS = 'portal:resource_type_facets';
     case PORTAL_DATACENTER_FACETS = 'portal:datacenter_facets';
     case PORTAL_PAGE_PAYLOAD = 'portal:page_payload';
+    case PORTAL_MAP_PAYLOAD = 'portal:map_payload';
 
     // DOI citation cache keys
     case DOI_CITATION = 'doi:citation';
@@ -150,6 +151,7 @@ enum CacheKey: string
 
             // Portal Inertia payloads - very short-lived to absorb crawler bursts
             self::PORTAL_PAGE_PAYLOAD => max(0, (int) config('bot_protection.portal_cache_ttl', 120)),
+            self::PORTAL_MAP_PAYLOAD => max(0, (int) config('portal_map.cache_ttl', 30)),
 
             // DOI citations and DataCite metadata are relatively stable - 24 hours
             self::DOI_CITATION, self::DOI_DATACITE_METADATA, self::CITATION_LOOKUP => 86400,
@@ -219,7 +221,8 @@ enum CacheKey: string
 
             self::PORTAL_DATACENTER_FACETS => ['portal', 'datacenters'],
 
-            self::PORTAL_PAGE_PAYLOAD => ['portal_page_payloads'],
+            self::PORTAL_PAGE_PAYLOAD,
+            self::PORTAL_MAP_PAYLOAD => ['portal_page_payloads'],
 
             self::DOI_CITATION => ['doi', 'citations'],
 

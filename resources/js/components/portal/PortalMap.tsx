@@ -1,6 +1,4 @@
 import 'leaflet/dist/leaflet.css';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 import L from 'leaflet';
 import { ChevronDown, ChevronUp, Map as MapIcon } from 'lucide-react';
@@ -10,205 +8,29 @@ import { MapContainer, Polygon, Polyline, Popup, Rectangle, TileLayer, useMap } 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { isGlobalCoverageBounds } from '@/lib/geo-coverage';
+import { usePortalMapData } from '@/hooks/use-portal-map-data';
 import { formatAuthorsShort, getShapePathOptions } from '@/lib/portal-map-config';
 import { cn } from '@/lib/utils';
-import type { GeoBounds, PortalGeoLocation, PortalResource } from '@/types/portal';
+import type { GeoBounds, PortalFilters, PortalMapFeature, PortalMapResourceFeature, PortalMapViewport } from '@/types/portal';
 
 import { ClusterLayer } from './PortalMapCluster';
 import { PortalMapLegend } from './PortalMapLegend';
 
-
-
 interface PortalMapProps {
-    resources: PortalResource[];
+    filters: PortalFilters;
     className?: string;
-    /** Hide the header (used when header is rendered externally) */
     hideHeader?: boolean;
-    /** Whether the geo filter is currently active */
     geoFilterEnabled?: boolean;
-    /** Callback when the map viewport changes (debounced externally) */
     onViewportChange?: (bounds: GeoBounds) => void;
-    /** Bounds to fly to when set from coordinate input */
+    onLocationCountChange?: (count: number) => void;
     flyToBounds?: GeoBounds | null;
 }
 
-
-
-/**
- * Calculate bounds that encompass all resources.
- */
-function calculateBounds(resources: PortalResource[]): L.LatLngBounds | null {
-    const allPoints: L.LatLngTuple[] = [];
-
-    resources.forEach((resource) => {
-        resource.geoLocations.forEach((geo) => {
-            if (geo.point) {
-                allPoints.push([geo.point.lat, geo.point.lng]);
-            }
-            if (geo.bounds) {
-                allPoints.push([geo.bounds.south, geo.bounds.west]);
-                allPoints.push([geo.bounds.north, geo.bounds.east]);
-            }
-            if (geo.polygon) {
-                geo.polygon.forEach((p) => {
-                    allPoints.push([p.lat, p.lng]);
-                });
-            }
-        });
-    });
-
-    if (allPoints.length === 0) {
-        return null;
-    }
-
-    if (allPoints.length === 1) {
-        const [lat, lng] = allPoints[0];
-        return L.latLngBounds(
-            [lat - 5, lng - 5],
-            [lat + 5, lng + 5],
-        );
-    }
-
-    return L.latLngBounds(allPoints);
+function normalizeLongitude(longitude: number): number {
+    if (longitude === 180) return 180;
+    return ((((longitude + 180) % 360) + 360) % 360) - 180;
 }
 
-function isGlobalPortalLocation(geo: PortalGeoLocation): boolean {
-    if (geo.type !== 'box' || geo.bounds === null) {
-        return false;
-    }
-
-    return isGlobalCoverageBounds(geo.bounds, geo.type);
-}
-
-export function withoutGlobalLocations(resource: PortalResource): PortalResource {
-    const geoLocations = resource.geoLocations.filter((geo) => !isGlobalPortalLocation(geo));
-
-    if (geoLocations.length === resource.geoLocations.length) {
-        return resource;
-    }
-
-    return {
-        ...resource,
-        geoLocations,
-    };
-}
-
-/**
- * Component to fit map bounds to show all markers.
- * - On initial mount (when geoFilterEnabled is false): waits for container
- *   layout to settle, then fits once. Skipped when geoFilterEnabled is true
- *   so user-specified viewports (including flyToBounds) are not overridden.
- * - When geo filter is active: does NOT auto-fit (user controls viewport)
- * - When geo filter is turned off: re-fits to show all markers
- */
-function FitBoundsControl({
-    resources,
-    geoFilterEnabled,
-    skipNextMoveEnd,
-}: {
-    resources: PortalResource[];
-    geoFilterEnabled: boolean;
-    skipNextMoveEnd: React.RefObject<boolean>;
-}) {
-    const map = useMap();
-    const hasInitialFit = useRef(false);
-    const prevGeoFilterEnabled = useRef(geoFilterEnabled);
-    const prevResourceKey = useRef('');
-
-    const fitToAllMarkers = useCallback(() => {
-        skipNextMoveEnd.current = true;
-        // Ensure Leaflet knows the current container size before calculating zoom
-        map.invalidateSize();
-        const bounds = calculateBounds(resources);
-        if (bounds && bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [30, 30], maxZoom: 10 });
-        } else {
-            map.setView([30, 0], 2);
-        }
-    }, [map, resources, skipNextMoveEnd]);
-
-    // Initial fit: use ResizeObserver with debounce to wait for the
-    // ResizablePanel layout to settle before fitting bounds. Skipped when
-    // geoFilterEnabled is true (user controls the viewport via geo filter).
-    useEffect(() => {
-        if (hasInitialFit.current) return;
-        if (geoFilterEnabled) return;
-
-        const container = map.getContainer();
-
-        const performFit = () => {
-            if (hasInitialFit.current) return;
-            if (container.clientWidth > 0 && container.clientHeight > 0) {
-                hasInitialFit.current = true;
-                fitToAllMarkers();
-                // Disconnect immediately — observer is only needed until initial fit
-                observer?.disconnect();
-            }
-        };
-
-        // Debounce resize events — the ResizablePanel may fire multiple
-        // resize events as it settles into its final dimensions.
-        let timer: ReturnType<typeof setTimeout> | null = null;
-        let observer: ResizeObserver | null = null;
-
-        if (typeof ResizeObserver !== 'undefined') {
-            observer = new ResizeObserver(() => {
-                if (hasInitialFit.current) {
-                    observer?.disconnect();
-                    return;
-                }
-                if (timer) clearTimeout(timer);
-                timer = setTimeout(performFit, 150);
-            });
-            observer.observe(container);
-        } else {
-            // Fallback for environments without ResizeObserver (SSR, older browsers)
-            performFit();
-        }
-
-        return () => {
-            observer?.disconnect();
-            if (timer) clearTimeout(timer);
-        };
-    }, [map, geoFilterEnabled, fitToAllMarkers]);
-
-    // Re-fit when geo filter is turned OFF (restore "show all" view)
-    useEffect(() => {
-        const wasEnabled = prevGeoFilterEnabled.current;
-        prevGeoFilterEnabled.current = geoFilterEnabled;
-
-        if (wasEnabled && !geoFilterEnabled && hasInitialFit.current) {
-            fitToAllMarkers();
-        }
-    }, [geoFilterEnabled, fitToAllMarkers]);
-
-    // Re-fit when resources change while geo filter is off (e.g. text search
-    // or type filter changed the dataset) so new markers are not off-screen.
-    useEffect(() => {
-        const resourceKey = resources.map(r => r.id).join(',');
-        const changed = prevResourceKey.current !== resourceKey;
-        prevResourceKey.current = resourceKey;
-
-        // Skip the initial render (handled by the ResizeObserver above)
-        if (!hasInitialFit.current) return;
-        // Only auto-fit when geo filter is not active (user controls viewport when filtering)
-        if (geoFilterEnabled) return;
-        // Guard: only re-fit when the set of resources actually changed
-        if (!changed) return;
-
-        fitToAllMarkers();
-    }, [resources, geoFilterEnabled, fitToAllMarkers]);
-
-    return null;
-}
-
-/**
- * Observe the map container for size changes and call invalidateSize().
- * Uses rAF to coalesce multiple resize events per frame and avoid unnecessary reflows.
- * Falls back to a window resize listener when ResizeObserver is unavailable.
- * Must be rendered inside a MapContainer.
- */
 function MapResizeHandler() {
     const map = useMap();
 
@@ -233,7 +55,6 @@ function MapResizeHandler() {
             };
         }
 
-        // Fallback for environments without ResizeObserver (older browsers, embedded webviews)
         window.addEventListener('resize', scheduleInvalidate);
         return () => {
             window.removeEventListener('resize', scheduleInvalidate);
@@ -244,100 +65,112 @@ function MapResizeHandler() {
     return null;
 }
 
-/**
- * Track map viewport changes and report bounds.
- * Skips the next moveend event when skipNextMoveEnd flag is set (after programmatic fly-to).
- * Only reports when the map container is actually visible (has non-zero dimensions)
- * to prevent hidden duplicate map instances from sending incorrect bounds.
- *
- * Uses a ref to always call the latest onViewportChange without re-subscribing
- * the Leaflet event handler on every callback change.
- */
-function ViewportTracker({ onViewportChange, skipNextMoveEnd }: { onViewportChange: (bounds: GeoBounds) => void; skipNextMoveEnd: React.RefObject<boolean> }) {
+function ViewportTracker({
+    onTechnicalViewport,
+    onFilterViewport,
+    skipFilterUpdate,
+}: {
+    onTechnicalViewport: (viewport: PortalMapViewport) => void;
+    onFilterViewport?: (bounds: GeoBounds) => void;
+    skipFilterUpdate: React.RefObject<boolean>;
+}) {
     const map = useMap();
-    const callbackRef = useRef(onViewportChange);
-
-    // Keep the ref in sync with the latest callback
-    useEffect(() => {
-        callbackRef.current = onViewportChange;
-    }, [onViewportChange]);
-
-    // Reset any stale skip flag that was set while ViewportTracker was
-    // not mounted (e.g. FitBoundsControl set it when geoFilterEnabled was false).
-    useEffect(() => {
-        skipNextMoveEnd.current = false;
-    }, [skipNextMoveEnd]);
+    const technicalRef = useRef(onTechnicalViewport);
+    const filterRef = useRef(onFilterViewport);
 
     useEffect(() => {
-        const handler = () => {
-            // Check container visibility FIRST — hidden map instances (e.g.
-            // CSS display:none) must not consume the shared skip flag.
+        technicalRef.current = onTechnicalViewport;
+        filterRef.current = onFilterViewport;
+    }, [onTechnicalViewport, onFilterViewport]);
+
+    useEffect(() => {
+        const reportViewport = () => {
             const container = map.getContainer();
-            if (container.clientWidth === 0 || container.clientHeight === 0) {
-                return;
-            }
+            if (container.clientWidth === 0 || container.clientHeight === 0) return;
 
-            if (skipNextMoveEnd.current) {
-                skipNextMoveEnd.current = false;
-                return;
-            }
+            const mapBounds = map.getBounds();
+            const longitudeSpan = mapBounds.getEast() - mapBounds.getWest();
+            const bounds: GeoBounds = {
+                north: Math.min(90, mapBounds.getNorth()),
+                south: Math.max(-90, mapBounds.getSouth()),
+                west: longitudeSpan >= 360 ? -180 : normalizeLongitude(mapBounds.getWest()),
+                east: longitudeSpan >= 360 ? 180 : normalizeLongitude(mapBounds.getEast()),
+            };
 
-            const b = map.getBounds();
-            callbackRef.current({
-                north: b.getNorth(),
-                south: b.getSouth(),
-                east: b.getEast(),
-                west: b.getWest(),
+            technicalRef.current({
+                ...bounds,
+                width: container.clientWidth,
+                height: container.clientHeight,
+                zoom: map.getZoom(),
             });
+
+            if (skipFilterUpdate.current) {
+                skipFilterUpdate.current = false;
+            } else {
+                filterRef.current?.(bounds);
+            }
         };
 
-        map.on('moveend', handler);
+        map.on('moveend', reportViewport);
+        map.on('resize', reportViewport);
+        const initialTimer = window.setTimeout(reportViewport, 0);
+
         return () => {
-            map.off('moveend', handler);
+            window.clearTimeout(initialTimer);
+            map.off('moveend', reportViewport);
+            map.off('resize', reportViewport);
         };
-    }, [map, skipNextMoveEnd]);
+    }, [map, skipFilterUpdate]);
 
     return null;
 }
 
-/**
- * Fly the map to specific bounds (triggered by manual coordinate input).
- */
-function MapBoundsUpdater({ bounds, skipNextMoveEnd }: { bounds: GeoBounds | null; skipNextMoveEnd: React.RefObject<boolean> }) {
+function FitExtentControl({ extent, skipFilterUpdate }: { extent: GeoBounds | null; skipFilterUpdate: React.RefObject<boolean> }) {
     const map = useMap();
-    const prevBoundsRef = useRef<string | null>(null);
+    const previousExtent = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!extent) return;
+
+        const key = `${extent.north},${extent.south},${extent.east},${extent.west}`;
+        if (previousExtent.current === key) return;
+        previousExtent.current = key;
+        skipFilterUpdate.current = true;
+        map.invalidateSize();
+
+        if (extent.west > extent.east) {
+            map.setView([(extent.north + extent.south) / 2, normalizeLongitude((extent.west + extent.east + 360) / 2)], 2);
+            return;
+        }
+
+        const bounds = L.latLngBounds([extent.south, extent.west], [extent.north, extent.east]);
+        if (bounds.isValid() && bounds.getNorthEast().equals(bounds.getSouthWest())) {
+            map.setView(bounds.getCenter(), 10);
+        } else if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [30, 30], maxZoom: 10 });
+        }
+    }, [extent, map, skipFilterUpdate]);
+
+    return null;
+}
+
+function MapBoundsUpdater({ bounds, skipFilterUpdate }: { bounds: GeoBounds | null; skipFilterUpdate: React.RefObject<boolean> }) {
+    const map = useMap();
+    const previousBounds = useRef<string | null>(null);
 
     useEffect(() => {
         if (!bounds) return;
 
-        const boundsKey = `${bounds.north},${bounds.south},${bounds.east},${bounds.west}`;
+        const key = `${bounds.north},${bounds.south},${bounds.east},${bounds.west}`;
+        if (previousBounds.current === key) return;
+        previousBounds.current = key;
+        skipFilterUpdate.current = true;
 
-        // Only fly if bounds actually changed (avoid loops when viewport reports same bounds)
-        if (prevBoundsRef.current === boundsKey) return;
-        prevBoundsRef.current = boundsKey;
-
-        // Suppress the next moveend so ViewportTracker doesn't overwrite manual bounds
-        skipNextMoveEnd.current = true;
-
-        // Handle anti-meridian crossing (west > east means the box wraps around 180°)
         if (bounds.west > bounds.east) {
-            // Calculate center and zoom manually for wrapped bounds
-            const centerLat = (bounds.north + bounds.south) / 2;
-            // Shift longitudes to 0..360 system to find the true center
-            const westNorm = bounds.west < 0 ? bounds.west + 360 : bounds.west;
-            const eastNorm = bounds.east < 0 ? bounds.east + 360 : bounds.east;
-            let centerLng = (westNorm + eastNorm) / 2;
-            // Normalize back to -180..180
-            if (centerLng > 180) centerLng -= 360;
-
-            // Estimate appropriate zoom from longitude span
-            const lngSpan = (eastNorm - westNorm + 360) % 360 || 360;
-            const latSpan = bounds.north - bounds.south;
-            const maxSpan = Math.max(lngSpan, latSpan);
-            // Rough zoom estimate: 360° ≈ zoom 1, halving span ≈ +1 zoom
-            const zoom = Math.max(1, Math.min(18, Math.round(Math.log2(360 / maxSpan)) + 1));
-
-            map.setView([centerLat, centerLng], zoom, { animate: true });
+            const longitudeSpan = (bounds.east - bounds.west + 360) % 360 || 360;
+            const latitudeSpan = bounds.north - bounds.south;
+            const zoom = Math.max(1, Math.min(18, Math.round(Math.log2(360 / Math.max(longitudeSpan, latitudeSpan))) + 1));
+            map.setView([(bounds.north + bounds.south) / 2, normalizeLongitude(bounds.west + longitudeSpan / 2)], zoom, { animate: true });
         } else {
             map.fitBounds(
                 [
@@ -347,30 +180,22 @@ function MapBoundsUpdater({ bounds, skipNextMoveEnd }: { bounds: GeoBounds | nul
                 { padding: [20, 20], animate: true },
             );
         }
-    }, [map, bounds, skipNextMoveEnd]);
+    }, [bounds, map, skipFilterUpdate]);
 
     return null;
 }
 
-/**
- * Popup content for a resource marker.
- */
-function ResourcePopupContent({ resource }: { resource: PortalResource }) {
+function ResourcePopupContent({ feature }: { feature: PortalMapResourceFeature }) {
+    const resource = feature.resource;
+    const resourceType = resource.resourceType;
+
     return (
-        <div className="min-w-[200px] max-w-[280px]">
-            <Badge
-                variant={resource.isIgsn ? 'secondary' : 'default'}
-                className="mb-2"
-            >
-                {resource.resourceType}
+        <div className="max-w-[280px] min-w-[200px]">
+            <Badge variant={resourceType?.slug === 'physical-object' ? 'secondary' : 'default'} className="mb-2">
+                {resourceType?.name ?? 'Other'}
             </Badge>
-            <h4 className="mb-1 line-clamp-2 text-sm font-semibold leading-tight">
-                {resource.title}
-            </h4>
-            <p className="mb-2 text-xs text-muted-foreground">
-                {formatAuthorsShort(resource.creators)}
-                {resource.year && ` • ${resource.year}`}
-            </p>
+            <h4 className="mb-1 line-clamp-2 text-sm leading-tight font-semibold">{resource.title}</h4>
+            <p className="mb-2 text-xs text-muted-foreground">{formatAuthorsShort(resource.creators)}</p>
             {resource.landingPageUrl && (
                 <a
                     href={resource.landingPageUrl}
@@ -385,128 +210,155 @@ function ResourcePopupContent({ resource }: { resource: PortalResource }) {
     );
 }
 
-/**
- * Interactive map displaying resources with geo locations.
- */
-export function PortalMap({ resources, className, hideHeader = false, geoFilterEnabled = false, onViewportChange, flyToBounds }: PortalMapProps) {
+function ResourceShapes({ features }: { features: PortalMapFeature[] }) {
+    return features.map((feature) => {
+        if (feature.kind !== 'resource' || feature.geometry.type === 'point') return null;
+
+        const typeSlug = feature.resource.resourceType?.slug ?? null;
+        const popup = <ResourcePopupContent feature={feature} />;
+
+        if (feature.geometry.type === 'box') {
+            return (
+                <Rectangle
+                    key={feature.id}
+                    bounds={[
+                        [feature.geometry.south, feature.geometry.west],
+                        [feature.geometry.north, feature.geometry.east],
+                    ]}
+                    pathOptions={getShapePathOptions(typeSlug, 'box')}
+                >
+                    <Popup>{popup}</Popup>
+                </Rectangle>
+            );
+        }
+
+        const positions: L.LatLngExpression[] = feature.geometry.points.map((point) => [point.latitude, point.longitude]);
+
+        return feature.geometry.type === 'polygon' ? (
+            <Polygon key={feature.id} positions={positions} pathOptions={getShapePathOptions(typeSlug, 'polygon')}>
+                <Popup>{popup}</Popup>
+            </Polygon>
+        ) : (
+            <Polyline key={feature.id} positions={positions} pathOptions={getShapePathOptions(typeSlug, 'line')}>
+                <Popup>{popup}</Popup>
+            </Polyline>
+        );
+    });
+}
+
+function filterSignature(filters: PortalFilters): string {
+    return JSON.stringify(filters);
+}
+
+export function PortalMap({
+    filters,
+    className,
+    hideHeader = false,
+    geoFilterEnabled = false,
+    onViewportChange,
+    onLocationCountChange,
+    flyToBounds,
+}: PortalMapProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const skipNextMoveEnd = useRef(false);
+    const [request, setRequest] = useState<{ viewport: PortalMapViewport; includeExtent: boolean } | null>(null);
+    const [locationCount, setLocationCount] = useState(0);
+    const skipFilterUpdate = useRef(false);
+    const requestExtent = useRef(!geoFilterEnabled);
+    const knownTotalLocations = useRef<number | null>(null);
+    const signature = filterSignature(filters);
+    const previousSignature = useRef(signature);
 
-    // Filter resources that have non-global geo locations
-    const resourcesWithGeo = useMemo(
-        () => resources.map(withoutGlobalLocations).filter((r) => r.geoLocations.length > 0),
-        [resources],
+    useEffect(() => {
+        if (previousSignature.current === signature) return;
+        previousSignature.current = signature;
+        requestExtent.current = !geoFilterEnabled;
+        knownTotalLocations.current = null;
+        setLocationCount(0);
+        setRequest((current) => (current ? { ...current, includeExtent: !geoFilterEnabled } : current));
+    }, [geoFilterEnabled, signature]);
+
+    const handleTechnicalViewport = useCallback(
+        (viewport: PortalMapViewport) => {
+            const includeExtent = requestExtent.current && !geoFilterEnabled;
+            requestExtent.current = false;
+            setRequest({ viewport, includeExtent });
+        },
+        [geoFilterEnabled],
     );
 
-    const geoCount = resourcesWithGeo.reduce((acc, r) => acc + r.geoLocations.length, 0);
+    const mapQuery = usePortalMapData(filters, request?.viewport ?? null, request?.includeExtent ?? false);
+    const features = mapQuery.data?.features ?? [];
 
-    const mapContent = resourcesWithGeo.length > 0 ? (
+    useEffect(() => {
+        const meta = mapQuery.data?.meta;
+        if (!meta) return;
+
+        if (meta.totalLocations !== null) {
+            knownTotalLocations.current = meta.totalLocations;
+        }
+        const count = knownTotalLocations.current ?? meta.visibleLocations;
+        setLocationCount(count);
+        onLocationCountChange?.(count);
+    }, [mapQuery.data?.meta, onLocationCountChange]);
+
+    const extent = request?.includeExtent ? (mapQuery.data?.meta.extent ?? null) : null;
+
+    const mapContent = (
         <div className="relative h-full w-full">
-            <MapContainer
-                center={[30, 0]}
-                zoom={2}
-                className="h-full w-full"
-            >
+            <MapContainer center={[30, 0]} zoom={2} className="h-full w-full">
                 <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <MapResizeHandler />
-            <FitBoundsControl resources={resourcesWithGeo} geoFilterEnabled={geoFilterEnabled} skipNextMoveEnd={skipNextMoveEnd} />
-
-            {geoFilterEnabled && onViewportChange && (
-                <ViewportTracker onViewportChange={onViewportChange} skipNextMoveEnd={skipNextMoveEnd} />
-            )}
-
-            {flyToBounds && (
-                <MapBoundsUpdater bounds={flyToBounds} skipNextMoveEnd={skipNextMoveEnd} />
-            )}
-
-            <ClusterLayer resources={resourcesWithGeo} />
-
-            {resourcesWithGeo.map((resource) =>
-                resource.geoLocations.map((geo) => {
-                    const key = `${resource.id}-${geo.id}`;
-
-                    // Render bounding box
-                    if (geo.type === 'box' && geo.bounds) {
-                        const bounds: L.LatLngBoundsExpression = [
-                            [geo.bounds.south, geo.bounds.west],
-                            [geo.bounds.north, geo.bounds.east],
-                        ];
-                        return (
-                            <Rectangle
-                                key={key}
-                                bounds={bounds}
-                                pathOptions={getShapePathOptions(resource.resourceTypeSlug, 'box')}
-                            >
-                                <Popup>
-                                    <ResourcePopupContent resource={resource} />
-                                </Popup>
-                            </Rectangle>
-                        );
-                    }
-
-                    // Render polygon
-                    if (geo.type === 'polygon' && geo.polygon) {
-                        const positions: L.LatLngExpression[] = geo.polygon.map(
-                            (p) => [p.lat, p.lng],
-                        );
-                        return (
-                            <Polygon
-                                key={key}
-                                positions={positions}
-                                pathOptions={getShapePathOptions(resource.resourceTypeSlug, 'polygon')}
-                            >
-                                <Popup>
-                                    <ResourcePopupContent resource={resource} />
-                                </Popup>
-                            </Polygon>
-                        );
-                    }
-
-                    // Render line as polyline
-                    if (geo.type === 'line' && geo.polygon) {
-                        const positions: L.LatLngExpression[] = geo.polygon.map(
-                            (p) => [p.lat, p.lng],
-                        );
-                        return (
-                            <Polyline
-                                key={key}
-                                positions={positions}
-                                pathOptions={getShapePathOptions(resource.resourceTypeSlug, 'line')}
-                            >
-                                <Popup>
-                                    <ResourcePopupContent resource={resource} />
-                                </Popup>
-                            </Polyline>
-                        );
-                    }
-
-                    return null;
-                }),
-            )}
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <MapResizeHandler />
+                <ViewportTracker
+                    onTechnicalViewport={handleTechnicalViewport}
+                    onFilterViewport={geoFilterEnabled ? onViewportChange : undefined}
+                    skipFilterUpdate={skipFilterUpdate}
+                />
+                {!geoFilterEnabled && <FitExtentControl extent={extent} skipFilterUpdate={skipFilterUpdate} />}
+                <MapBoundsUpdater bounds={flyToBounds ?? null} skipFilterUpdate={skipFilterUpdate} />
+                <ClusterLayer features={features} />
+                <ResourceShapes features={features} />
             </MapContainer>
-            <PortalMapLegend resources={resourcesWithGeo} />
-        </div>
-    ) : (
-        <div className="flex h-full items-center justify-center bg-muted/30">
-            <p className="text-sm text-muted-foreground">
-                No geographic data available for current results
-            </p>
-        </div>
-    );
 
-    return (
-        <div className={cn('flex h-full flex-col', className)} data-testid="portal-map-container">
-            {/* Header-less mode for external header (resizable panel layout) */}
-            {hideHeader && (
-                <div className="h-full w-full">
-                    {mapContent}
+            <PortalMapLegend features={features} />
+
+            {mapQuery.isFetching && (
+                <div
+                    className="pointer-events-none absolute top-3 left-1/2 z-1000 -translate-x-1/2 rounded-md bg-background/90 px-3 py-1.5 text-xs shadow"
+                    role="status"
+                >
+                    Updating map...
                 </div>
             )}
 
-            {/* Collapsible header for stacked layout (below 2xl) - only when header not hidden */}
+            {mapQuery.isError && (
+                <div
+                    className="absolute inset-x-4 top-4 z-1000 rounded-md border border-destructive/30 bg-background/95 p-3 text-sm shadow"
+                    role="alert"
+                >
+                    Map data could not be loaded.{' '}
+                    <button className="font-medium text-primary underline" onClick={() => void mapQuery.refetch()}>
+                        Try again
+                    </button>
+                </div>
+            )}
+
+            {!mapQuery.isLoading && !mapQuery.isError && mapQuery.data?.meta.visibleLocations === 0 && (
+                <div className="pointer-events-none absolute inset-x-4 top-4 z-1000 rounded-md bg-background/90 p-3 text-center text-sm text-muted-foreground shadow">
+                    No geographic data in this map area
+                </div>
+            )}
+        </div>
+    );
+
+    const headerCount = useMemo(() => `(${locationCount.toLocaleString()} ${locationCount === 1 ? 'location' : 'locations'})`, [locationCount]);
+
+    return (
+        <div className={cn('flex h-full flex-col', className)} data-testid="portal-map-container">
+            {hideHeader && <div className="h-full w-full">{mapContent}</div>}
+
             {!hideHeader && (
                 <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)} className="2xl:hidden">
                     <CollapsibleTrigger asChild>
@@ -517,39 +369,25 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
                             <div className="flex items-center gap-2">
                                 <MapIcon className="h-4 w-4" />
                                 <span className="font-medium">Map</span>
-                                <span className="text-sm text-muted-foreground">
-                                    ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
-                                </span>
+                                <span className="text-sm text-muted-foreground">{headerCount}</span>
                             </div>
-                            {isCollapsed ? (
-                                <ChevronDown className="h-4 w-4" />
-                            ) : (
-                                <ChevronUp className="h-4 w-4" />
-                            )}
+                            {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
                         </Button>
                     </CollapsibleTrigger>
-
                     <CollapsibleContent>
-                        <div className="h-[300px] w-full">
-                            {mapContent}
-                        </div>
+                        <div className="h-[300px] w-full">{mapContent}</div>
                     </CollapsibleContent>
                 </Collapsible>
             )}
 
-            {/* Non-collapsible full-height map for side panel (2xl+) - only when header not hidden */}
             {!hideHeader && (
                 <div className="hidden h-full flex-col 2xl:flex">
                     <div className="flex items-center gap-2 border-b px-4 py-3">
                         <MapIcon className="h-4 w-4" />
                         <span className="font-medium">Map</span>
-                        <span className="text-sm text-muted-foreground">
-                            ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
-                        </span>
+                        <span className="text-sm text-muted-foreground">{headerCount}</span>
                     </div>
-                    <div className="flex-1">
-                        {mapContent}
-                    </div>
+                    <div className="flex-1">{mapContent}</div>
                 </div>
             )}
         </div>

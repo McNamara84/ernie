@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\KeywordSuggestionService;
+use App\Services\PortalFilterService;
 use App\Services\PortalSearchService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,8 +15,9 @@ use Inertia\Response;
 /**
  * Controller for the public portal page.
  *
- * Provides a searchable, filterable interface for browsing published
- * research datasets with an interactive map display.
+ * The initial response deliberately contains only the paginated result list.
+ * Map features are loaded asynchronously from PortalMapController so the page
+ * payload remains bounded as the number of published resources grows.
  */
 class PortalController extends Controller
 {
@@ -23,11 +25,9 @@ class PortalController extends Controller
         private readonly PortalSearchService $searchService,
         private readonly KeywordSuggestionService $keywordService,
         private readonly PortalPageCacheService $pageCache,
+        private readonly PortalFilterService $filterService,
     ) {}
 
-    /**
-     * Display the portal page with search and filter capabilities.
-     */
     public function index(Request $request): Response
     {
         return Inertia::render('portal', $this->pageCache->remember(
@@ -41,60 +41,16 @@ class PortalController extends Controller
      */
     private function buildPortalPayload(Request $request): array
     {
-        // Compute temporal range once (cached) – used for both validation and frontend
         $temporalRange = $this->searchService->getTemporalRange();
-
-        // Fetch facets early (cached) – used in the Inertia response
-        $resourceTypeFacets = $this->searchService->getResourceTypeFacets();
-        $datacenterFacets = $this->searchService->getDatacenterFacets();
-
-        $rawType = $request->query('type', []);
-        $isLegacyDoi = is_string($rawType) && trim($rawType) === 'doi';
-        $excludeType = $isLegacyDoi ? 'physical-object' : null;
-
-        // For legacy ?type=doi, the backend filters via exclude_type.
-        // We send type: [] to the frontend so the URL-building logic
-        // emits ?type=doi (preserving the exclusion on pagination/navigation).
-        $typeSlugs = $isLegacyDoi ? [] : $this->normalizeTypeSlugs($rawType);
-
-        $legacyKeywords = $this->normalizeStringFilters($request->query('keywords', []));
-        $freeKeywords = $this->normalizeStringFilters($request->query('free_keywords', []));
-        $thesaurusKeywords = $this->normalizeStringFilters($request->query('thesaurus_keywords', []));
-
-        if ($freeKeywords !== [] || $thesaurusKeywords !== []) {
-            $legacyKeywords = [];
-        }
-
-        $filters = [
-            'query' => $request->query('q'),
-            'type' => $typeSlugs,
-            'exclude_type' => $excludeType,
-            'keywords' => $legacyKeywords,
-            'free_keywords' => $freeKeywords,
-            'thesaurus_keywords' => $thesaurusKeywords,
-            'datacenter' => $this->normalizeStringFilters($request->query('datacenter', [])),
-            'bounds' => $this->parseBounds($request),
-            'temporal' => $this->parseTemporal($request, $temporalRange),
-            'page' => (int) $request->query('page', 1),
-            'per_page' => 20,
-        ];
-
-        // Get paginated results (with bounds filter)
+        $filters = $this->filterService->fromRequest($request, $temporalRange);
         $paginator = $this->searchService->search($filters);
 
-        // Transform resources for frontend
-        $transformedResources = collect($paginator->items())
-            ->map(fn ($resource) => $this->searchService->transformForPortal($resource))
-            ->all();
-
-        // Get map data (WITHOUT bounds filter – all matching markers stay visible)
-        $mapData = $this->searchService->getMapData($filters)
+        $resources = collect($paginator->items())
             ->map(fn ($resource) => $this->searchService->transformForPortal($resource))
             ->all();
 
         return [
-            'resources' => $transformedResources,
-            'mapData' => $mapData,
+            'resources' => $resources,
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
@@ -103,194 +59,12 @@ class PortalController extends Controller
                 'from' => $paginator->firstItem() ?? 0,
                 'to' => $paginator->lastItem() ?? 0,
             ],
-            'filters' => [
-                'query' => $filters['query'],
-                'type' => array_values($filters['type']),
-                'exclude_type' => $excludeType,
-                'keywords' => array_values($filters['keywords']),
-                'freeKeywords' => array_values($filters['free_keywords']),
-                'thesaurusKeywords' => array_values($filters['thesaurus_keywords']),
-                'datacenter' => $filters['datacenter'],
-                'bounds' => $filters['bounds'],
-                'temporal' => $filters['temporal'],
-            ],
+            'filters' => $this->filterService->forFrontend($filters),
             'keywordSuggestions' => $this->keywordService->getFreeKeywordSuggestions(),
             'thesaurusFacets' => $this->keywordService->getThesaurusFacets(),
             'temporalRange' => $temporalRange,
-            'resourceTypeFacets' => $resourceTypeFacets,
-            'datacenterFacets' => $datacenterFacets,
+            'resourceTypeFacets' => $this->searchService->getResourceTypeFacets(),
+            'datacenterFacets' => $this->searchService->getDatacenterFacets(),
         ];
-    }
-
-    /**
-     * Parse and validate bounding box parameters from the request.
-     *
-     * All four parameters (north, south, east, west) must be present
-     * and valid for the bounds filter to be active.
-     *
-     * @return array{north: float, south: float, east: float, west: float}|null
-     */
-    private function parseBounds(Request $request): ?array
-    {
-        $north = $request->query('north');
-        $south = $request->query('south');
-        $east = $request->query('east');
-        $west = $request->query('west');
-
-        if ($north === null || $south === null || $east === null || $west === null) {
-            return null;
-        }
-
-        if (! is_numeric($north) || ! is_numeric($south) || ! is_numeric($east) || ! is_numeric($west)) {
-            return null;
-        }
-
-        $north = (float) $north;
-        $south = (float) $south;
-        $east = (float) $east;
-        $west = (float) $west;
-
-        // Validate latitude range (-90 to 90) and longitude range (-180 to 180)
-        if ($north < -90.0 || $north > 90.0 || $south < -90.0 || $south > 90.0) {
-            return null;
-        }
-
-        if ($east < -180.0 || $east > 180.0 || $west < -180.0 || $west > 180.0) {
-            return null;
-        }
-
-        // North must be greater than or equal to south
-        if ($north < $south) {
-            return null;
-        }
-
-        return [
-            'north' => $north,
-            'south' => $south,
-            'east' => $east,
-            'west' => $west,
-        ];
-    }
-
-    /**
-     * Parse and validate temporal filter parameters from the request.
-     *
-     * All three parameters (date_type, year_from, year_to) must be present
-     * and valid for the temporal filter to be active. The date type must
-     * exist in the computed temporal range (i.e., be active and have
-     * published data) to prevent ghost filters.
-     *
-     * @param  array<string, array{min: int, max: int}>  $temporalRange
-     * @return array{dateType: string, yearFrom: int, yearTo: int}|null
-     */
-    private function parseTemporal(Request $request, array $temporalRange): ?array
-    {
-        $dateType = $request->query('date_type');
-        $yearFrom = $request->query('year_from');
-        $yearTo = $request->query('year_to');
-
-        if ($dateType === null || $yearFrom === null || $yearTo === null) {
-            return null;
-        }
-
-        if (! is_string($dateType) || ! in_array($dateType, ['Created', 'Collected', 'Coverage'], true)) {
-            return null;
-        }
-
-        // Ensure the date type has published data (present in computed temporal range)
-        if (! isset($temporalRange[$dateType])) {
-            return null;
-        }
-
-        if (! is_numeric($yearFrom) || ! is_numeric($yearTo)) {
-            return null;
-        }
-
-        $yearFrom = (int) $yearFrom;
-        $yearTo = (int) $yearTo;
-
-        $currentYear = (int) date('Y');
-
-        if ($yearFrom < 1900 || $yearFrom > $currentYear + 1) {
-            return null;
-        }
-
-        if ($yearTo < 1900 || $yearTo > $currentYear + 1) {
-            return null;
-        }
-
-        if ($yearFrom > $yearTo) {
-            return null;
-        }
-
-        // Clamp to the computed temporal range for this date type
-        // so crafted URLs cannot push the slider into an invalid state
-        $rangeMin = $temporalRange[$dateType]['min'];
-        $rangeMax = $temporalRange[$dateType]['max'];
-        $yearFrom = max($yearFrom, $rangeMin);
-        $yearTo = min($yearTo, $rangeMax);
-
-        // After clamping, the range may have inverted – discard if so
-        if ($yearFrom > $yearTo) {
-            return null;
-        }
-
-        return [
-            'dateType' => $dateType,
-            'yearFrom' => $yearFrom,
-            'yearTo' => $yearTo,
-        ];
-    }
-
-    /**
-     * Normalize type query parameter, mapping legacy values to real slugs.
-     *
-     * Legacy URLs used ?type=doi (all non-PhysicalObject) and ?type=igsn
-     * (PhysicalObject only). The new multi-select uses actual resource_type
-     * slugs like ?type[]=dataset&type[]=software.  This method handles both
-     * formats transparently.
-     *
-     * @param  mixed  $raw  Raw value from $request->query('type').
-     * @return string[]
-     */
-    private function normalizeTypeSlugs(mixed $raw): array
-    {
-        // New array format: ?type[]=dataset&type[]=software
-        if (is_array($raw)) {
-            /** @var string[] $filtered */
-            $filtered = array_filter(
-                $raw,
-                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
-            );
-
-            return array_values(array_unique(array_map('trim', $filtered)));
-        }
-
-        // Legacy single-string format: ?type=doi or ?type=igsn
-        if (is_string($raw) && trim($raw) !== '') {
-            return PortalSearchService::mapLegacyTypeValue(trim($raw)) ?? [];
-        }
-
-        return [];
-    }
-
-    /**
-     * Normalize multi-value string filters from query parameters.
-     *
-     * Trims values, removes blanks and duplicates, and caps the result length.
-     *
-     * @return array<int, string>
-     */
-    private function normalizeStringFilters(mixed $raw, int $limit = 20): array
-    {
-        $normalized = array_map(
-            static fn (mixed $value): string => is_string($value) ? trim($value) : '',
-            (array) $raw,
-        );
-
-        return array_values(array_slice(array_unique(array_filter(
-            $normalized,
-            static fn (string $value): bool => $value !== '',
-        )), 0, $limit));
     }
 }

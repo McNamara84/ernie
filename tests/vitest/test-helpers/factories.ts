@@ -50,10 +50,7 @@ export function createMockPagination(overrides?: Partial<PaginationMeta>): Pagin
 /**
  * Creates a mock paginated response with automatic pagination calculation.
  */
-export function createMockPaginatedResponse<T>(
-    data: T[],
-    meta?: Partial<PaginationMeta>,
-): { data: T[]; pagination: PaginationMeta } {
+export function createMockPaginatedResponse<T>(data: T[], meta?: Partial<PaginationMeta>): { data: T[]; pagination: PaginationMeta } {
     const perPage = meta?.per_page ?? 15;
     const total = meta?.total ?? data.length;
     const lastPage = Math.max(1, Math.ceil(total / perPage));
@@ -86,10 +83,7 @@ export interface SortState<K extends string = string> {
 /**
  * Creates a mock sort state.
  */
-export function createMockSortState<K extends string>(
-    key: K,
-    direction: 'asc' | 'desc' = 'asc',
-): SortState<K> {
+export function createMockSortState<K extends string>(key: K, direction: 'asc' | 'desc' = 'asc'): SortState<K> {
     return { key, direction };
 }
 
@@ -151,9 +145,7 @@ export function createMockResourceFilterOptions(overrides?: Partial<ResourceFilt
             { name: 'Software', slug: 'software' },
             { name: 'Text', slug: 'text' },
         ],
-        datacenters: [
-            { id: 1, name: 'GFZ German Research Centre for Geosciences' },
-        ],
+        datacenters: [{ id: 1, name: 'GFZ German Research Centre for Geosciences' }],
         curators: ['Admin User', 'Test Curator'],
         year_range: { min: 2020, max: 2026 },
         statuses: ['draft', 'registered', 'findable'],
@@ -279,11 +271,7 @@ export function createMockPortalResource(overrides?: Partial<PortalResource>): P
 /**
  * Creates a mock PortalResource with geo location.
  */
-export function createMockPortalResourceWithLocation(
-    lat = 52.3829,
-    lng = 13.0644,
-    overrides?: Partial<PortalResource>,
-): PortalResource {
+export function createMockPortalResourceWithLocation(lat = 52.3829, lng = 13.0644, overrides?: Partial<PortalResource>): PortalResource {
     return createMockPortalResource({
         geoLocations: [
             {
@@ -335,14 +323,12 @@ export function createMockPortalFilters(overrides?: Partial<PortalFilters>): Por
  */
 export function createMockPortalPageProps(overrides?: {
     resources?: PortalResource[];
-    mapData?: PortalResource[];
     pagination?: Partial<PortalPagination>;
     filters?: Partial<PortalFilters>;
 }) {
     const resources = overrides?.resources ?? [];
     return {
         resources,
-        mapData: overrides?.mapData ?? resources,
         pagination: createMockPortalPagination({
             total: resources.length,
             ...overrides?.pagination,
