@@ -218,6 +218,12 @@ describe('Portal Keyword Filter', function () {
                 ->where('resources.0.title', 'Earthquake Study')
                 ->where('filters.keywords', ['Seismology'])
             );
+
+        $this->getJson(route('portal.count', ['keywords' => ['Seismology']]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('last_page', 1)
+            ->assertJsonStructure(['filter_fingerprint']);
     });
 
     it('filters resources by multiple keywords with AND logic', function () {

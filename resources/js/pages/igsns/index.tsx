@@ -421,9 +421,7 @@ function IgsnsPage({
                     return;
                 }
 
-                setPagination((current) =>
-                    current.filter_fingerprint === expectedFingerprint ? { ...current, count_status: 'failed' } : current,
-                );
+                setPagination((current) => (current.filter_fingerprint === expectedFingerprint ? { ...current, count_status: 'failed' } : current));
             });
 
         return () => controller.abort();
@@ -433,6 +431,7 @@ function IgsnsPage({
         initialFilters.status,
         initialFilters.without_datacenter,
         initialPagination.count_status,
+        initialPagination.current_page,
         initialPagination.filter_fingerprint,
         initialPagination.per_page,
         initialSearch,
@@ -1022,7 +1021,9 @@ function IgsnsPage({
                                                 size="icon"
                                                 className="hidden size-8 sm:inline-flex"
                                                 onClick={() => pagination.last_page !== null && handlePageChange(pagination.last_page)}
-                                                disabled={isNavigating || pagination.last_page === null || pagination.current_page === pagination.last_page}
+                                                disabled={
+                                                    isNavigating || pagination.last_page === null || pagination.current_page === pagination.last_page
+                                                }
                                                 aria-label="Go to last page"
                                             >
                                                 <ChevronsRight className="size-4" />

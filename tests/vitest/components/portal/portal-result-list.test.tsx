@@ -120,7 +120,14 @@ describe('PortalResultList', () => {
 
     describe('Loading State', () => {
         it('shows skeleton loaders when loading without any results yet', () => {
-            render(<PortalResultList {...defaultProps} resources={[]} pagination={createMockPagination({ total: 0, from: 0, to: 0 })} isLoading={true} />);
+            render(
+                <PortalResultList
+                    {...defaultProps}
+                    resources={[]}
+                    pagination={createMockPagination({ total: 0, from: 0, to: 0 })}
+                    isLoading={true}
+                />,
+            );
 
             // Skeletons should be rendered
             const skeletons = document.querySelectorAll('[class*="animate-pulse"]');

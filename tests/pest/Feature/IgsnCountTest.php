@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\IgsnController;
+use App\Models\DateType;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Models\ResourceType;
+use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -93,6 +95,45 @@ it('serves repeated IGSN counts from cache without another count query', functio
 
 it('requires authentication for the IGSN count endpoint', function (): void {
     $this->getJson('/igsns/count')->assertUnauthorized();
+});
+
+it('keeps title selection and collected date ranges unchanged', function (): void {
+    $mainTitleType = TitleType::factory()->create(['name' => 'Main Title', 'slug' => 'MainTitle']);
+    $alternativeTitleType = TitleType::factory()->create(['name' => 'Alternative Title', 'slug' => 'AlternativeTitle']);
+    $collectedDateType = DateType::factory()->create(['name' => 'Collected', 'slug' => 'Collected']);
+    $resource = createCountTestIgsn($this->physicalObjectType, '10.60516/FORMATTED');
+    $resource->titles()->create(['value' => 'Alternative', 'title_type_id' => $alternativeTitleType->id]);
+    $resource->titles()->create(['value' => 'Main sample title', 'title_type_id' => $mainTitleType->id]);
+    $resource->dates()->create([
+        'date_type_id' => $collectedDateType->id,
+        'start_date' => '2024-01-10',
+        'end_date' => '2024-01-20',
+    ]);
+
+    $this->actingAs($this->user)
+        ->get('/igsns')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('igsns.0.title', 'Main sample title')
+            ->where('igsns.0.collection_date', '2024-01-10 – 2024-01-20')
+        );
+});
+
+it('falls back safely when title and collected-date vocabularies are missing', function (): void {
+    $alternativeTitleType = TitleType::factory()->create(['name' => 'Alternative Title', 'slug' => 'AlternativeTitle']);
+    $withFallbackTitle = createCountTestIgsn($this->physicalObjectType, '10.60516/FALLBACK');
+    $withFallbackTitle->titles()->create(['value' => 'Fallback title', 'title_type_id' => $alternativeTitleType->id]);
+    createCountTestIgsn($this->physicalObjectType, '10.60516/UNTITLED');
+
+    $this->actingAs($this->user)
+        ->get('/igsns?sort=igsn&direction=asc')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('igsns.0.title', 'Fallback title')
+            ->where('igsns.0.collection_date', null)
+            ->where('igsns.1.title', 'Untitled')
+            ->where('igsns.1.collection_date', null)
+        );
 });
 
 function createCountTestIgsn(ResourceType $type, string $doi, string $status = 'pending'): Resource

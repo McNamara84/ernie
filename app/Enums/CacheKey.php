@@ -195,7 +195,8 @@ enum CacheKey: string
         return match ($this) {
             self::RESOURCE_LIST,
             self::RESOURCE_DETAIL,
-            self::RESOURCE_COUNT,
+            self::RESOURCE_COUNT => ['resources'],
+
             self::RESOURCE_LISTING_COUNT,
             self::IGSN_LISTING_COUNT => ['resources', 'internal_listing_counts'],
 

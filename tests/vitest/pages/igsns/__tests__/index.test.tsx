@@ -450,6 +450,47 @@ describe('IgsnsPage', () => {
             expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
         });
 
+        it('reloads the cached count when navigating between pages with the same filters', async () => {
+            mockAxiosGet.mockResolvedValue({
+                data: {
+                    filter_fingerprint: 'current-filter',
+                    filtered_total: 250,
+                    inventory_total: 300,
+                    last_page: 3,
+                    count_status: 'ready',
+                },
+            });
+
+            const pendingPagination = {
+                total: null,
+                last_page: null,
+                count_status: 'pending' as const,
+                filter_fingerprint: 'current-filter',
+            };
+            const { rerender } = render(
+                <IgsnsPage
+                    {...defaultProps}
+                    totalCount={null}
+                    pagination={createPagination({ ...pendingPagination, current_page: 1, has_more: true })}
+                />,
+            );
+
+            await waitFor(() => expect(screen.getByText('Page 1 of 3')).toBeInTheDocument());
+            mockAxiosGet.mockClear();
+
+            rerender(
+                <IgsnsPage
+                    {...defaultProps}
+                    totalCount={null}
+                    pagination={createPagination({ ...pendingPagination, current_page: 2, from: 101, to: 200, has_more: true })}
+                />,
+            );
+
+            await waitFor(() => expect(mockAxiosGet).toHaveBeenCalledTimes(1));
+            await waitFor(() => expect(screen.getByText('Page 2 of 3')).toBeInTheDocument());
+            expect(screen.getByTestId('search-counts')).toHaveTextContent('250 / 300');
+        });
+
         it('ignores a count response for a stale filter fingerprint', async () => {
             mockAxiosGet.mockResolvedValueOnce({
                 data: {

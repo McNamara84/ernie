@@ -45,7 +45,7 @@ class PortalController extends Controller
     {
         $temporalRange = $this->searchService->getTemporalRange();
         $filters = $this->filterService->fromRequest($request, $temporalRange);
-        $paginator = $this->searchService->search($filters);
+        $paginator = $this->searchService->simpleSearch($filters);
         $filterFingerprint = $this->listingCountService->fingerprint($filters);
 
         $resources = collect($paginator->items())

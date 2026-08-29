@@ -20,9 +20,10 @@ use App\Models\Title;
 use App\Support\LanguageTag;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Contracts\Pagination\Paginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -89,15 +90,38 @@ class PortalSearchService
      *     page?: int,
      *     per_page?: int,
      * }  $filters
-     * @return Paginator<int, Resource>
+     * @return LengthAwarePaginator<int, Resource>
      */
-    public function search(array $filters = []): Paginator
+    public function search(array $filters = []): LengthAwarePaginator
     {
         $query = $this->buildQuery($filters, includeAbstractPreview: true);
 
         $perPage = min(
             $filters['per_page'] ?? self::DEFAULT_PER_PAGE,
             self::MAX_PER_PAGE
+        );
+
+        /** @var LengthAwarePaginator<int, Resource> */
+        return $query->paginate(
+            $perPage,
+            ['*'],
+            'page',
+            max(1, (int) ($filters['page'] ?? 1)),
+        );
+    }
+
+    /**
+     * Load a portal result page without waiting for an exact count.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return Paginator<int, Resource>
+     */
+    public function simpleSearch(array $filters = []): Paginator
+    {
+        $query = $this->buildQuery($filters, includeAbstractPreview: true);
+        $perPage = min(
+            $filters['per_page'] ?? self::DEFAULT_PER_PAGE,
+            self::MAX_PER_PAGE,
         );
 
         /** @var Paginator<int, Resource> */

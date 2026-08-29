@@ -111,32 +111,27 @@ export function PortalResultList({
                     {last_page !== null && (
                         <div className="flex items-center gap-1">
                             {generatePageNumbers(current_page, last_page).map((page, index) =>
-                            page === '...' ? (
-                                <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
-                                    ...
-                                </span>
-                            ) : (
-                                <Button
-                                    key={page}
-                                    variant={page === current_page ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => onPageChange(page as number)}
-                                    disabled={isLoading}
-                                    className="min-w-[2.5rem]"
-                                >
-                                    {page}
-                                </Button>
-                            ),
+                                page === '...' ? (
+                                    <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
+                                        ...
+                                    </span>
+                                ) : (
+                                    <Button
+                                        key={page}
+                                        variant={page === current_page ? 'default' : 'outline'}
+                                        size="sm"
+                                        onClick={() => onPageChange(page as number)}
+                                        disabled={isLoading}
+                                        className="min-w-[2.5rem]"
+                                    >
+                                        {page}
+                                    </Button>
+                                ),
                             )}
                         </div>
                     )}
 
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onPageChange(current_page + 1)}
-                        disabled={!has_more || isLoading}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => onPageChange(current_page + 1)} disabled={!has_more || isLoading}>
                         Next
                         <ChevronRight className="ml-1 h-4 w-4" />
                     </Button>

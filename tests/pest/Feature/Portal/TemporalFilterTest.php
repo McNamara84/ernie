@@ -372,6 +372,10 @@ describe('Temporal Filter - Controller URL Parsing', function () {
                 ->where('filters.temporal.yearTo', 2023)
                 ->has('resources', 1)
             );
+
+        $this->getJson('/portal/count?date_type=Created&year_from=2020&year_to=2025')
+            ->assertOk()
+            ->assertJsonPath('total', 1);
     });
 
     it('ignores temporal filter when date_type is invalid', function () {
