@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Support\CircularLongitudeCoverage;
+
 /**
  * Bounded, database-independent clustering for public portal map locations.
  *
@@ -221,14 +223,20 @@ final class PortalMapClusterService
     {
         $slug = $location['resource_type_slug'] ?? 'other';
         $longitudeRadians = deg2rad($location['longitude']);
+        $longitudeBounds = CircularLongitudeCoverage::merge(
+            $cell['west'],
+            $cell['east'],
+            $location['bounds']['west'],
+            $location['bounds']['east'],
+        );
         $cell['count']++;
         $cell['latitude_sum'] += $location['latitude'];
         $cell['longitude_sine_sum'] += sin($longitudeRadians);
         $cell['longitude_cosine_sum'] += cos($longitudeRadians);
         $cell['north'] = max($cell['north'], $location['bounds']['north']);
         $cell['south'] = min($cell['south'], $location['bounds']['south']);
-        $cell['east'] = max($cell['east'], $location['bounds']['east']);
-        $cell['west'] = min($cell['west'], $location['bounds']['west']);
+        $cell['east'] = $longitudeBounds['east'];
+        $cell['west'] = $longitudeBounds['west'];
         $cell['resource_type_counts'][$slug] = ($cell['resource_type_counts'][$slug] ?? 0) + 1;
         $cell['singleton_location_id'] = null;
         $cell['singleton_geometry_type'] = null;
@@ -258,14 +266,20 @@ final class PortalMapClusterService
             }
 
             $parent = $parents[$key];
+            $longitudeBounds = CircularLongitudeCoverage::merge(
+                $parent['west'],
+                $parent['east'],
+                $cell['west'],
+                $cell['east'],
+            );
             $parent['count'] += $cell['count'];
             $parent['latitude_sum'] += $cell['latitude_sum'];
             $parent['longitude_sine_sum'] += $cell['longitude_sine_sum'];
             $parent['longitude_cosine_sum'] += $cell['longitude_cosine_sum'];
             $parent['north'] = max($parent['north'], $cell['north']);
             $parent['south'] = min($parent['south'], $cell['south']);
-            $parent['east'] = max($parent['east'], $cell['east']);
-            $parent['west'] = min($parent['west'], $cell['west']);
+            $parent['east'] = $longitudeBounds['east'];
+            $parent['west'] = $longitudeBounds['west'];
 
             foreach ($cell['resource_type_counts'] as $slug => $count) {
                 $parent['resource_type_counts'][$slug] = ($parent['resource_type_counts'][$slug] ?? 0) + $count;

@@ -23,6 +23,7 @@ const mockMap = vi.hoisted(() => ({
     setView: vi.fn(),
     invalidateSize: vi.fn(),
     getZoom: vi.fn(() => 4),
+    getCenter: vi.fn(() => ({ lat: 0, lng: 180 })),
     on: vi.fn((event: string, callback: () => void) => mapEvents.set(event, callback)),
     off: vi.fn((event: string) => mapEvents.delete(event)),
     getBounds: vi.fn(() => ({
@@ -59,9 +60,21 @@ vi.mock('react-leaflet', () => ({
     MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="leaflet-map">{children}</div>,
     TileLayer: () => <div data-testid="tile-layer" />,
     Popup: ({ children }: { children: React.ReactNode }) => <div data-testid="popup">{children}</div>,
-    Rectangle: ({ children }: { children: React.ReactNode }) => <div data-testid="rectangle">{children}</div>,
-    Polygon: ({ children }: { children: React.ReactNode }) => <div data-testid="polygon">{children}</div>,
-    Polyline: ({ children }: { children: React.ReactNode }) => <div data-testid="polyline">{children}</div>,
+    Rectangle: ({ children, bounds }: { children: React.ReactNode; bounds: unknown }) => (
+        <div data-testid="rectangle" data-bounds={JSON.stringify(bounds)}>
+            {children}
+        </div>
+    ),
+    Polygon: ({ children, positions }: { children: React.ReactNode; positions: unknown }) => (
+        <div data-testid="polygon" data-positions={JSON.stringify(positions)}>
+            {children}
+        </div>
+    ),
+    Polyline: ({ children, positions }: { children: React.ReactNode; positions: unknown }) => (
+        <div data-testid="polyline" data-positions={JSON.stringify(positions)}>
+            {children}
+        </div>
+    ),
     useMap: () => mockMap,
 }));
 
@@ -97,6 +110,7 @@ describe('PortalMap', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mapEvents.clear();
+        mockMap.getCenter.mockReturnValue({ lat: 0, lng: 180 });
         mapQueryState.result = {
             data: undefined,
             isLoading: false,
@@ -178,6 +192,78 @@ describe('PortalMap', () => {
 
         expect(screen.getAllByTestId(testId)[0]).toBeInTheDocument();
         expect(screen.getAllByText('Mapped resource')[0]).toBeInTheDocument();
+    });
+
+    it('renders a wrapped box as the short interval across the antimeridian', () => {
+        mapQueryState.result.data = response({
+            features: [
+                {
+                    kind: 'resource',
+                    id: 'wrapped-box',
+                    position: { lat: 0, lng: 180 },
+                    bounds: { north: 10, south: -10, west: 170, east: -170 },
+                    geometry: { type: 'box', north: 10, south: -10, west: 170, east: -170 },
+                    resource: {
+                        id: 1,
+                        identifier: '10.1/wrapped-box',
+                        title: 'Wrapped box',
+                        creators: [],
+                        resourceType: { slug: 'dataset', name: 'Dataset' },
+                        landingPageUrl: '/wrapped-box',
+                    },
+                },
+            ],
+        });
+
+        render(<PortalMap filters={filters} />);
+
+        expect(screen.getAllByTestId('rectangle')[0]).toHaveAttribute(
+            'data-bounds',
+            JSON.stringify([
+                [-10, 170],
+                [10, 190],
+            ]),
+        );
+    });
+
+    it('unwraps dateline-crossing polygon paths onto one Leaflet world copy', () => {
+        mapQueryState.result.data = response({
+            features: [
+                {
+                    kind: 'resource',
+                    id: 'wrapped-polygon',
+                    position: { lat: 0, lng: 180 },
+                    bounds: { north: 10, south: -10, west: 179, east: -179 },
+                    geometry: {
+                        type: 'polygon',
+                        points: [
+                            { latitude: -10, longitude: 179 },
+                            { latitude: 10, longitude: -179 },
+                            { latitude: 0, longitude: 178 },
+                        ],
+                    },
+                    resource: {
+                        id: 1,
+                        identifier: '10.1/wrapped-polygon',
+                        title: 'Wrapped polygon',
+                        creators: [],
+                        resourceType: { slug: 'dataset', name: 'Dataset' },
+                        landingPageUrl: '/wrapped-polygon',
+                    },
+                },
+            ],
+        });
+
+        render(<PortalMap filters={filters} />);
+
+        expect(screen.getAllByTestId('polygon')[0]).toHaveAttribute(
+            'data-positions',
+            JSON.stringify([
+                [-10, 179],
+                [10, 181],
+                [0, 178],
+            ]),
+        );
     });
 
     it('reports move-end bounds to the spatial filter while always refreshing technical map data', async () => {

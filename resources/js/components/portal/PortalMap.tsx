@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { usePortalMapData } from '@/hooks/use-portal-map-data';
 import { formatAuthorsShort, getShapePathOptions } from '@/lib/portal-map-config';
+import { normalizeLongitude, unwrapLongitudeBounds, unwrapPathLongitudes } from '@/lib/portal-map-longitude';
 import { cn } from '@/lib/utils';
 import type { GeoBounds, PortalFilters, PortalMapFeature, PortalMapResourceFeature, PortalMapViewport } from '@/types/portal';
 
@@ -27,11 +28,6 @@ interface PortalMapProps {
 }
 
 const VIEWPORT_RESIZE_DEBOUNCE_MS = 250;
-
-function normalizeLongitude(longitude: number): number {
-    if (longitude === 180) return 180;
-    return ((((longitude + 180) % 360) + 360) % 360) - 180;
-}
 
 function MapResizeHandler() {
     const map = useMap();
@@ -154,12 +150,8 @@ function FitExtentControl({ extent, skipFilterUpdate }: { extent: GeoBounds | nu
         skipFilterUpdate.current = true;
         map.invalidateSize();
 
-        if (extent.west > extent.east) {
-            map.setView([(extent.north + extent.south) / 2, normalizeLongitude((extent.west + extent.east + 360) / 2)], 2);
-            return;
-        }
-
-        const bounds = L.latLngBounds([extent.south, extent.west], [extent.north, extent.east]);
+        const displayLongitudes = unwrapLongitudeBounds(extent, map.getCenter().lng);
+        const bounds = L.latLngBounds([extent.south, displayLongitudes.west], [extent.north, displayLongitudes.east]);
         if (bounds.isValid() && bounds.getNorthEast().equals(bounds.getSouthWest())) {
             map.setView(bounds.getCenter(), 10);
         } else if (bounds.isValid()) {
@@ -182,20 +174,14 @@ function MapBoundsUpdater({ bounds, skipFilterUpdate }: { bounds: GeoBounds | nu
         previousBounds.current = key;
         skipFilterUpdate.current = true;
 
-        if (bounds.west > bounds.east) {
-            const longitudeSpan = (bounds.east - bounds.west + 360) % 360 || 360;
-            const latitudeSpan = bounds.north - bounds.south;
-            const zoom = Math.max(1, Math.min(18, Math.round(Math.log2(360 / Math.max(longitudeSpan, latitudeSpan))) + 1));
-            map.setView([(bounds.north + bounds.south) / 2, normalizeLongitude(bounds.west + longitudeSpan / 2)], zoom, { animate: true });
-        } else {
-            map.fitBounds(
-                [
-                    [bounds.south, bounds.west],
-                    [bounds.north, bounds.east],
-                ],
-                { padding: [20, 20], animate: true },
-            );
-        }
+        const displayLongitudes = unwrapLongitudeBounds(bounds, map.getCenter().lng);
+        map.fitBounds(
+            [
+                [bounds.south, displayLongitudes.west],
+                [bounds.north, displayLongitudes.east],
+            ],
+            { padding: [20, 20], animate: true },
+        );
     }, [bounds, map, skipFilterUpdate]);
 
     return null;
@@ -227,6 +213,9 @@ function ResourcePopupContent({ feature }: { feature: PortalMapResourceFeature }
 }
 
 function ResourceShapes({ features }: { features: PortalMapFeature[] }) {
+    const map = useMap();
+    const referenceLongitude = map.getCenter().lng;
+
     return features.map((feature) => {
         if (feature.kind !== 'resource' || feature.geometry.type === 'point') return null;
 
@@ -234,12 +223,14 @@ function ResourceShapes({ features }: { features: PortalMapFeature[] }) {
         const popup = <ResourcePopupContent feature={feature} />;
 
         if (feature.geometry.type === 'box') {
+            const displayLongitudes = unwrapLongitudeBounds(feature.geometry, referenceLongitude);
+
             return (
                 <Rectangle
                     key={feature.id}
                     bounds={[
-                        [feature.geometry.south, feature.geometry.west],
-                        [feature.geometry.north, feature.geometry.east],
+                        [feature.geometry.south, displayLongitudes.west],
+                        [feature.geometry.north, displayLongitudes.east],
                     ]}
                     pathOptions={getShapePathOptions(typeSlug, 'box')}
                 >
@@ -248,7 +239,10 @@ function ResourceShapes({ features }: { features: PortalMapFeature[] }) {
             );
         }
 
-        const positions: L.LatLngExpression[] = feature.geometry.points.map((point) => [point.latitude, point.longitude]);
+        const positions: L.LatLngExpression[] = unwrapPathLongitudes(feature.geometry.points, referenceLongitude).map((point) => [
+            point.latitude,
+            point.longitude,
+        ]);
 
         return feature.geometry.type === 'polygon' ? (
             <Polygon key={feature.id} positions={positions} pathOptions={getShapePathOptions(typeSlug, 'polygon')}>

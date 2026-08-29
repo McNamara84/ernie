@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useMap } from 'react-leaflet';
 
 import { createCircleMarkerIcon, createIgsnMarkerIcon, createPieChartSvg, getClusterSize, renderPopupHtml } from '@/lib/portal-map-config';
+import { rebaseLongitude, unwrapLongitudeBounds } from '@/lib/portal-map-longitude';
 import type { PortalMapFeature, PortalMapResourceFeature, PortalResource } from '@/types/portal';
 
 interface ClusterLayerProps {
@@ -33,11 +34,13 @@ export function ClusterLayer({ features }: ClusterLayerProps) {
 
     useEffect(() => {
         const layer = L.layerGroup();
+        const referenceLongitude = map.getCenter().lng;
 
         features.forEach((feature) => {
             if (feature.kind === 'cluster') {
                 const size = getClusterSize(feature.count);
-                const marker = L.marker([feature.position.lat, feature.position.lng], {
+                const displayLongitude = rebaseLongitude(feature.position.lng, referenceLongitude);
+                const marker = L.marker([feature.position.lat, displayLongitude], {
                     icon: L.divIcon({
                         html: createPieChartSvg(feature.resourceTypeCounts, feature.count, size),
                         className: 'portal-pie-cluster',
@@ -47,17 +50,13 @@ export function ClusterLayer({ features }: ClusterLayerProps) {
                 });
 
                 marker.on('click', () => {
-                    if (feature.bounds.west > feature.bounds.east) {
-                        map.setView([feature.position.lat, feature.position.lng], Math.min(18, map.getZoom() + 2), { animate: true });
-                        return;
-                    }
-
-                    const bounds = L.latLngBounds([feature.bounds.south, feature.bounds.west], [feature.bounds.north, feature.bounds.east]);
+                    const displayBounds = unwrapLongitudeBounds(feature.bounds, referenceLongitude);
+                    const bounds = L.latLngBounds([feature.bounds.south, displayBounds.west], [feature.bounds.north, displayBounds.east]);
 
                     if (bounds.isValid() && !bounds.getNorthEast().equals(bounds.getSouthWest())) {
                         map.fitBounds(bounds, { padding: [30, 30], maxZoom: Math.min(18, map.getZoom() + 4) });
                     } else {
-                        map.setView([feature.position.lat, feature.position.lng], Math.min(18, map.getZoom() + 2), { animate: true });
+                        map.setView([feature.position.lat, displayLongitude], Math.min(18, map.getZoom() + 2), { animate: true });
                     }
                 });
 
@@ -68,7 +67,8 @@ export function ClusterLayer({ features }: ClusterLayerProps) {
             if (feature.geometry.type !== 'point') return;
 
             const typeSlug = feature.resource.resourceType?.slug ?? null;
-            const marker = L.marker([feature.geometry.latitude, feature.geometry.longitude], {
+            const displayLongitude = rebaseLongitude(feature.geometry.longitude, referenceLongitude);
+            const marker = L.marker([feature.geometry.latitude, displayLongitude], {
                 icon: typeSlug === 'physical-object' ? createIgsnMarkerIcon() : createCircleMarkerIcon(typeSlug),
             });
 

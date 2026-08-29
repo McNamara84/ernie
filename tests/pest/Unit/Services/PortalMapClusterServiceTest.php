@@ -6,15 +6,21 @@ use App\Services\PortalMapClusterService;
 
 covers(PortalMapClusterService::class);
 
-function portalMapClusterLocation(int $id, float $latitude, float $longitude, string $type = 'point', string $slug = 'dataset'): array
-{
+function portalMapClusterLocation(
+    int $id,
+    float $latitude,
+    float $longitude,
+    string $type = 'point',
+    string $slug = 'dataset',
+    ?array $bounds = null,
+): array {
     return [
         'location_id' => $id,
         'resource_type_slug' => $slug,
         'geometry_type' => $type,
         'latitude' => $latitude,
         'longitude' => $longitude,
-        'bounds' => [
+        'bounds' => $bounds ?? [
             'north' => $latitude,
             'south' => $latitude,
             'east' => $longitude,
@@ -144,6 +150,55 @@ it('uses a circular longitude mean for antimeridian clusters', function (): void
     expect($result['features'])->toHaveCount(1)
         ->and($result['features'][0]['kind'])->toBe('cluster')
         ->and(abs((float) $result['features'][0]['position']['lng']))->toBeGreaterThan(170.0);
+});
+
+it('preserves wrapped bounds while adding a location to an existing cell', function (): void {
+    $result = (new PortalMapClusterService)->cluster([
+        portalMapClusterLocation(1, 0, 179.0, 'box', bounds: [
+            'north' => 5.0,
+            'south' => -5.0,
+            'west' => 170.0,
+            'east' => -170.0,
+        ]),
+        portalMapClusterLocation(2, 0, 179.5),
+    ], portalMapClusterViewport([
+        'north' => 10.0,
+        'south' => -10.0,
+        'west' => 170.0,
+        'east' => -170.0,
+    ]), 4);
+
+    expect($result['features'])->toHaveCount(1)
+        ->and($result['features'][0]['bounds']['west'])->toBe(170.0)
+        ->and($result['features'][0]['bounds']['east'])->toBe(-170.0);
+});
+
+it('preserves wrapped bounds when terminal cells are merged', function (): void {
+    config([
+        'portal_map.max_features' => 1,
+        'portal_map.cluster_radius' => 20,
+    ]);
+
+    $result = (new PortalMapClusterService)->cluster([
+        portalMapClusterLocation(1, 0, 175.0, 'box', bounds: [
+            'north' => 5.0,
+            'south' => -5.0,
+            'west' => 170.0,
+            'east' => -170.0,
+        ]),
+        portalMapClusterLocation(2, 0, -179.0),
+    ], portalMapClusterViewport([
+        'north' => 85.0,
+        'south' => -85.0,
+        'west' => -180.0,
+        'east' => 180.0,
+        'width' => 800,
+        'height' => 600,
+    ]), 0);
+
+    expect($result['features'])->toHaveCount(1)
+        ->and($result['features'][0]['bounds']['west'])->toBe(170.0)
+        ->and($result['features'][0]['bounds']['east'])->toBe(-170.0);
 });
 
 it('continues terminal aggregation at zoom zero until the feature bound is met', function (): void {

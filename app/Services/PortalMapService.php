@@ -8,6 +8,7 @@ use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Support\CircularLongitudeCoverage;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -65,9 +66,17 @@ class PortalMapService
         foreach ($this->locationQuery($filters, $viewport)->cursor() as $row) {
             $location = $this->normalizeLocation($row);
 
-            if ($location !== null && $this->overlapsViewport($location['bounds'], $viewport)) {
-                yield $location;
+            if ($location === null || ! $this->overlapsViewport($location['bounds'], $viewport)) {
+                continue;
             }
+
+            $location = $this->anchorLocationToViewport($location, $viewport);
+            if ($location === null) {
+                continue;
+            }
+
+            unset($location['geometry_points']);
+            yield $location;
         }
     }
 
@@ -208,12 +217,19 @@ class PortalMapService
             $anchorLongitude = $inPolygonLongitude ?? $this->circularLongitudeMean($longitudes);
             [$longitudeWest, $longitudeEast] = $this->minimalLongitudeBounds($longitudes);
 
-            return $this->normalizedResult($attributes, $geometryType, $anchorLatitude, $anchorLongitude, [
-                'south' => min($latitudes),
-                'west' => $longitudeWest,
-                'north' => max($latitudes),
-                'east' => $longitudeEast,
-            ]);
+            return $this->normalizedResult(
+                $attributes,
+                $geometryType,
+                $anchorLatitude,
+                $anchorLongitude,
+                [
+                    'south' => min($latitudes),
+                    'west' => $longitudeWest,
+                    'north' => max($latitudes),
+                    'east' => $longitudeEast,
+                ],
+                $polygonPoints,
+            );
         }
 
         return null;
@@ -264,6 +280,7 @@ class PortalMapService
     /**
      * @param  array{south: float, west: float, north: float, east: float}  $bounds
      * @param  array<string, mixed>  $attributes
+     * @param  list<array{latitude: float, longitude: float}>  $geometryPoints
      * @return array{
      *     location_id: int,
      *     resource_id: int,
@@ -271,7 +288,8 @@ class PortalMapService
      *     geometry_type: string,
      *     latitude: float,
      *     longitude: float,
-     *     bounds: array{north: float, south: float, east: float, west: float}
+     *     bounds: array{north: float, south: float, east: float, west: float},
+     *     geometry_points?: list<array{latitude: float, longitude: float}>
      * }
      */
     private function normalizedResult(
@@ -280,8 +298,9 @@ class PortalMapService
         float $latitude,
         float $longitude,
         array $bounds,
+        array $geometryPoints = [],
     ): array {
-        return [
+        $result = [
             'location_id' => (int) ($attributes['location_id'] ?? 0),
             'resource_id' => (int) ($attributes['resource_id'] ?? 0),
             'resource_type_slug' => (string) ($attributes['resource_type_slug'] ?? 'other'),
@@ -290,6 +309,12 @@ class PortalMapService
             'longitude' => $longitude,
             'bounds' => $bounds,
         ];
+
+        if ($geometryPoints !== []) {
+            $result['geometry_points'] = $geometryPoints;
+        }
+
+        return $result;
     }
 
     /**
@@ -311,6 +336,315 @@ class PortalMapService
         }
 
         return false;
+    }
+
+    /**
+     * Move non-point clustering anchors into the actual visible part of their
+     * geometry. This prevents a large intersecting shape from being clustered
+     * at an off-screen centroid while shape details are still suppressed.
+     *
+     * @param  array{
+     *     location_id: int,
+     *     resource_id: int,
+     *     resource_type_slug: string,
+     *     geometry_type: string,
+     *     latitude: float,
+     *     longitude: float,
+     *     bounds: array{north: float, south: float, east: float, west: float},
+     *     geometry_points?: list<array{latitude: float, longitude: float}>
+     * }  $location
+     * @param  array{north: float, south: float, east: float, west: float, width?: int, height?: int}  $viewport
+     * @return array{
+     *     location_id: int,
+     *     resource_id: int,
+     *     resource_type_slug: string,
+     *     geometry_type: string,
+     *     latitude: float,
+     *     longitude: float,
+     *     bounds: array{north: float, south: float, east: float, west: float},
+     *     geometry_points?: list<array{latitude: float, longitude: float}>
+     * }|null
+     */
+    private function anchorLocationToViewport(array $location, array $viewport): ?array
+    {
+        if ($location['geometry_type'] === 'point') {
+            return $location;
+        }
+
+        $visibleSouth = max($location['bounds']['south'], $viewport['south']);
+        $visibleNorth = min($location['bounds']['north'], $viewport['north']);
+        if ($visibleSouth > $visibleNorth) {
+            return null;
+        }
+
+        if ($location['geometry_type'] === 'box') {
+            $longitude = $this->longitudeIntersectionMidpoint(
+                $location['bounds']['west'],
+                $location['bounds']['east'],
+                $viewport['west'],
+                $viewport['east'],
+            );
+
+            if ($longitude === null) {
+                return null;
+            }
+
+            $location['latitude'] = ($visibleSouth + $visibleNorth) / 2.0;
+            $location['longitude'] = $longitude;
+
+            return $location;
+        }
+
+        $points = $location['geometry_points'] ?? [];
+        if ($points === []) {
+            return null;
+        }
+
+        [$viewportWest, $viewportEast] = $this->unwrappedLongitudeRange($viewport['west'], $viewport['east']);
+        $viewportCenter = ($viewportWest + $viewportEast) / 2.0;
+        $unwrappedPoints = [];
+        $previousLongitude = null;
+
+        foreach ($points as $point) {
+            $longitude = CircularLongitudeCoverage::nearestCopy(
+                $point['longitude'],
+                $previousLongitude ?? $viewportCenter,
+            );
+            $unwrappedPoints[] = ['latitude' => $point['latitude'], 'longitude' => $longitude];
+            $previousLongitude = $longitude;
+        }
+
+        if ($location['geometry_type'] === 'polygon') {
+            $anchorLongitude = CircularLongitudeCoverage::nearestCopy($location['longitude'], $viewportCenter);
+            if ($this->pointInsideRectangle(
+                $anchorLongitude,
+                $location['latitude'],
+                $viewportWest,
+                $viewportEast,
+                $viewport['south'],
+                $viewport['north'],
+            ) && $this->pointInPolygon($anchorLongitude, $location['latitude'], $unwrappedPoints)) {
+                $location['longitude'] = CircularLongitudeCoverage::normalize($anchorLongitude);
+
+                return $location;
+            }
+        }
+
+        foreach ($unwrappedPoints as $point) {
+            if ($this->pointInsideRectangle(
+                $point['longitude'],
+                $point['latitude'],
+                $viewportWest,
+                $viewportEast,
+                $viewport['south'],
+                $viewport['north'],
+            )) {
+                $location['latitude'] = $point['latitude'];
+                $location['longitude'] = CircularLongitudeCoverage::normalize($point['longitude']);
+
+                return $location;
+            }
+        }
+
+        $segmentCount = count($unwrappedPoints) - 1;
+        for ($index = 0; $index < $segmentCount; $index++) {
+            $intersection = $this->clipSegmentToRectangle(
+                $unwrappedPoints[$index],
+                $unwrappedPoints[$index + 1],
+                $viewportWest,
+                $viewportEast,
+                $viewport['south'],
+                $viewport['north'],
+            );
+
+            if ($intersection !== null) {
+                $location['latitude'] = $intersection['latitude'];
+                $location['longitude'] = CircularLongitudeCoverage::normalize($intersection['longitude']);
+
+                return $location;
+            }
+        }
+
+        if ($location['geometry_type'] === 'polygon') {
+            $closingIntersection = $this->clipSegmentToRectangle(
+                $unwrappedPoints[count($unwrappedPoints) - 1],
+                $unwrappedPoints[0],
+                $viewportWest,
+                $viewportEast,
+                $viewport['south'],
+                $viewport['north'],
+            );
+
+            if ($closingIntersection !== null) {
+                $location['latitude'] = $closingIntersection['latitude'];
+                $location['longitude'] = CircularLongitudeCoverage::normalize($closingIntersection['longitude']);
+
+                return $location;
+            }
+
+            $viewportCandidates = [
+                ['latitude' => ($viewport['south'] + $viewport['north']) / 2.0, 'longitude' => $viewportCenter],
+                ['latitude' => $viewport['south'], 'longitude' => $viewportWest],
+                ['latitude' => $viewport['south'], 'longitude' => $viewportEast],
+                ['latitude' => $viewport['north'], 'longitude' => $viewportWest],
+                ['latitude' => $viewport['north'], 'longitude' => $viewportEast],
+            ];
+
+            foreach ($viewportCandidates as $candidate) {
+                if ($this->pointInPolygon($candidate['longitude'], $candidate['latitude'], $unwrappedPoints)) {
+                    $location['latitude'] = $candidate['latitude'];
+                    $location['longitude'] = CircularLongitudeCoverage::normalize($candidate['longitude']);
+
+                    return $location;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{0: float, 1: float}
+     */
+    private function unwrappedLongitudeRange(float $west, float $east): array
+    {
+        return [$west, $west + CircularLongitudeCoverage::span($west, $east)];
+    }
+
+    private function longitudeIntersectionMidpoint(
+        float $geometryWest,
+        float $geometryEast,
+        float $viewportWest,
+        float $viewportEast,
+    ): ?float {
+        [$visibleWest, $visibleEast] = $this->unwrappedLongitudeRange($viewportWest, $viewportEast);
+        $visibleCenter = ($visibleWest + $visibleEast) / 2.0;
+        $geometrySpan = CircularLongitudeCoverage::span($geometryWest, $geometryEast);
+
+        if ($geometrySpan >= 360.0 - 1.0E-9) {
+            return CircularLongitudeCoverage::normalize($visibleCenter);
+        }
+
+        $baseWest = CircularLongitudeCoverage::nearestCopy($geometryWest, $visibleCenter);
+        $bestIntersection = null;
+
+        foreach ([-360.0, 0.0, 360.0] as $offset) {
+            $candidateWest = $baseWest + $offset;
+            $candidateEast = $candidateWest + $geometrySpan;
+            $intersectionWest = max($candidateWest, $visibleWest);
+            $intersectionEast = min($candidateEast, $visibleEast);
+
+            if ($intersectionWest > $intersectionEast) {
+                continue;
+            }
+
+            $width = $intersectionEast - $intersectionWest;
+            $midpoint = ($intersectionWest + $intersectionEast) / 2.0;
+            $distance = abs($midpoint - $visibleCenter);
+
+            if ($bestIntersection === null
+                || $width > $bestIntersection['width']
+                || ($width === $bestIntersection['width'] && $distance < $bestIntersection['distance'])) {
+                $bestIntersection = compact('width', 'midpoint', 'distance');
+            }
+        }
+
+        return $bestIntersection === null
+            ? null
+            : CircularLongitudeCoverage::normalize($bestIntersection['midpoint']);
+    }
+
+    private function pointInsideRectangle(
+        float $longitude,
+        float $latitude,
+        float $west,
+        float $east,
+        float $south,
+        float $north,
+    ): bool {
+        return $longitude >= $west && $longitude <= $east
+            && $latitude >= $south && $latitude <= $north;
+    }
+
+    /**
+     * @param  list<array{latitude: float, longitude: float}>  $polygon
+     */
+    private function pointInPolygon(float $longitude, float $latitude, array $polygon): bool
+    {
+        $inside = false;
+        $previousIndex = count($polygon) - 1;
+
+        foreach ($polygon as $index => $point) {
+            $previous = $polygon[$previousIndex];
+            $crossesLatitude = ($point['latitude'] > $latitude) !== ($previous['latitude'] > $latitude);
+
+            if ($crossesLatitude) {
+                $intersectionLongitude = (($previous['longitude'] - $point['longitude'])
+                    * ($latitude - $point['latitude'])
+                    / ($previous['latitude'] - $point['latitude'])) + $point['longitude'];
+
+                if ($longitude < $intersectionLongitude) {
+                    $inside = ! $inside;
+                }
+            }
+
+            $previousIndex = $index;
+        }
+
+        return $inside;
+    }
+
+    /**
+     * @param  array{latitude: float, longitude: float}  $start
+     * @param  array{latitude: float, longitude: float}  $end
+     * @return array{latitude: float, longitude: float}|null
+     */
+    private function clipSegmentToRectangle(
+        array $start,
+        array $end,
+        float $west,
+        float $east,
+        float $south,
+        float $north,
+    ): ?array {
+        $deltaLongitude = $end['longitude'] - $start['longitude'];
+        $deltaLatitude = $end['latitude'] - $start['latitude'];
+        $minimum = 0.0;
+        $maximum = 1.0;
+        $constraints = [
+            [-$deltaLongitude, $start['longitude'] - $west],
+            [$deltaLongitude, $east - $start['longitude']],
+            [-$deltaLatitude, $start['latitude'] - $south],
+            [$deltaLatitude, $north - $start['latitude']],
+        ];
+
+        foreach ($constraints as [$direction, $distance]) {
+            if (abs($direction) < 1.0E-12) {
+                if ($distance < 0.0) {
+                    return null;
+                }
+
+                continue;
+            }
+
+            $ratio = $distance / $direction;
+            if ($direction < 0.0) {
+                $minimum = max($minimum, $ratio);
+            } else {
+                $maximum = min($maximum, $ratio);
+            }
+
+            if ($minimum > $maximum) {
+                return null;
+            }
+        }
+
+        $midpoint = ($minimum + $maximum) / 2.0;
+
+        return [
+            'latitude' => $start['latitude'] + ($midpoint * $deltaLatitude),
+            'longitude' => $start['longitude'] + ($midpoint * $deltaLongitude),
+        ];
     }
 
     /**
@@ -339,13 +673,7 @@ class PortalMapService
 
     private function longitudeMidpoint(float $west, float $east): float
     {
-        if ($west <= $east) {
-            return ($west + $east) / 2;
-        }
-
-        $midpoint = ($west + ($east + 360.0)) / 2;
-
-        return $midpoint > 180.0 ? $midpoint - 360.0 : $midpoint;
+        return CircularLongitudeCoverage::midpoint($west, $east);
     }
 
     /**
@@ -363,10 +691,10 @@ class PortalMapService
         }
 
         if (abs($sine) < 1.0E-12 && abs($cosine) < 1.0E-12) {
-            return $this->normalizeLongitude($longitudes[0] ?? 0.0);
+            return CircularLongitudeCoverage::normalize($longitudes[0] ?? 0.0);
         }
 
-        return $this->normalizeLongitude(rad2deg(atan2($sine, $cosine)));
+        return CircularLongitudeCoverage::normalize(rad2deg(atan2($sine, $cosine)));
     }
 
     /**
@@ -378,45 +706,14 @@ class PortalMapService
      */
     private function minimalLongitudeBounds(array $longitudes): array
     {
-        if ($longitudes === []) {
-            return [0.0, 0.0];
+        $coverage = new CircularLongitudeCoverage;
+        foreach ($longitudes as $longitude) {
+            $coverage->add($longitude, $longitude);
         }
 
-        $normalized = array_map(
-            fn (float $longitude): float => fmod($this->normalizeLongitude($longitude) + 360.0, 360.0),
-            $longitudes,
-        );
-        sort($normalized, SORT_NUMERIC);
+        $bounds = $coverage->bounds();
 
-        $largestGap = -1.0;
-        $gapIndex = 0;
-        $count = count($normalized);
-
-        for ($index = 0; $index < $count; $index++) {
-            $next = $index === $count - 1 ? $normalized[0] + 360.0 : $normalized[$index + 1];
-            $gap = $next - $normalized[$index];
-
-            if ($gap > $largestGap) {
-                $largestGap = $gap;
-                $gapIndex = $index;
-            }
-        }
-
-        $west = $normalized[($gapIndex + 1) % $count];
-        $east = $normalized[$gapIndex];
-
-        return [$this->normalizeLongitude($west), $this->normalizeLongitude($east)];
-    }
-
-    private function normalizeLongitude(float $longitude): float
-    {
-        $normalized = fmod($longitude + 180.0, 360.0);
-
-        if ($normalized < 0.0) {
-            $normalized += 360.0;
-        }
-
-        return $normalized - 180.0;
+        return $bounds === null ? [0.0, 0.0] : [$bounds['west'], $bounds['east']];
     }
 
     /**
@@ -620,7 +917,9 @@ class PortalMapService
     public function calculateExtent(array $filters): array
     {
         $total = 0;
-        $extent = null;
+        $south = null;
+        $north = null;
+        $longitudeCoverage = new CircularLongitudeCoverage;
 
         foreach ($this->locationQuery($filters, null)->cursor() as $row) {
             $location = $this->normalizeLocation($row);
@@ -631,14 +930,21 @@ class PortalMapService
 
             $total++;
             $bounds = $location['bounds'];
-            $extent = $extent === null ? $bounds : [
-                'south' => min($extent['south'], $bounds['south']),
-                'west' => min($extent['west'], $bounds['west']),
-                'north' => max($extent['north'], $bounds['north']),
-                'east' => max($extent['east'], $bounds['east']),
-            ];
+            $south = $south === null ? $bounds['south'] : min($south, $bounds['south']);
+            $north = $north === null ? $bounds['north'] : max($north, $bounds['north']);
+            $longitudeCoverage->add($bounds['west'], $bounds['east']);
         }
 
-        return [$total, $extent];
+        $longitudeBounds = $longitudeCoverage->bounds();
+        if ($south === null || $north === null || $longitudeBounds === null) {
+            return [$total, null];
+        }
+
+        return [$total, [
+            'south' => $south,
+            'west' => $longitudeBounds['west'],
+            'north' => $north,
+            'east' => $longitudeBounds['east'],
+        ]];
     }
 }

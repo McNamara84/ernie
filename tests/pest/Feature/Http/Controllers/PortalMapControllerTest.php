@@ -308,6 +308,96 @@ it('anchors an antimeridian polygon near its vertices instead of Greenwich', fun
         ->and($feature['bounds']['west'])->toBeGreaterThan($feature['bounds']['east']);
 });
 
+it('clusters an overlapping large box inside the visible viewport', function (): void {
+    config(['portal_map.shape_detail_zoom' => 10]);
+    $resource = createPublishedPortalMapResource($this->datasetType, 'Large overlapping box');
+    GeoLocation::factory()->withBox(0, 100, -10, 10)->create(['resource_id' => $resource->id]);
+    $query = portalMapRequestQuery([
+        'viewport' => [
+            'north' => 5,
+            'south' => -5,
+            'east' => 95,
+            'west' => 90,
+            'width' => 800,
+            'height' => 600,
+        ],
+        'zoom' => 4,
+    ]);
+
+    $response = $this->getJson(route('portal.map', $query))
+        ->assertOk()
+        ->assertJsonCount(1, 'features')
+        ->assertJsonPath('features.0.kind', 'cluster')
+        ->assertJsonPath('features.0.position.lat', 0);
+
+    $this->assertEqualsWithDelta(92.5, (float) $response->json('features.0.position.lng'), 1.0E-9);
+});
+
+it('clusters an overlapping polygon inside the visible viewport even when its centroid is outside', function (): void {
+    config(['portal_map.shape_detail_zoom' => 10]);
+    $resource = createPublishedPortalMapResource($this->datasetType, 'Large overlapping polygon');
+    GeoLocation::factory()->create([
+        'resource_id' => $resource->id,
+        'geo_type' => 'polygon',
+        'polygon_points' => [
+            ['longitude' => 0.0, 'latitude' => -10.0],
+            ['longitude' => 100.0, 'latitude' => -10.0],
+            ['longitude' => 100.0, 'latitude' => 10.0],
+            ['longitude' => 0.0, 'latitude' => 10.0],
+            ['longitude' => 0.0, 'latitude' => -10.0],
+        ],
+        'in_polygon_point_latitude' => 0,
+        'in_polygon_point_longitude' => 50,
+    ]);
+    $query = portalMapRequestQuery([
+        'viewport' => [
+            'north' => 5,
+            'south' => -5,
+            'east' => 95,
+            'west' => 90,
+            'width' => 800,
+            'height' => 600,
+        ],
+        'zoom' => 4,
+    ]);
+
+    $feature = $this->getJson(route('portal.map', $query))
+        ->assertOk()
+        ->assertJsonCount(1, 'features')
+        ->assertJsonPath('features.0.kind', 'cluster')
+        ->json('features.0');
+
+    expect((float) $feature['position']['lng'])->toBeGreaterThanOrEqual(90.0)
+        ->toBeLessThanOrEqual(95.0)
+        ->and((float) $feature['position']['lat'])->toBeGreaterThanOrEqual(-5.0)
+        ->toBeLessThanOrEqual(5.0);
+});
+
+it('returns the minimum wrapped extent for locations on both sides of the dateline', function (): void {
+    $east = createPublishedPortalMapResource($this->datasetType, 'Extent east');
+    $west = createPublishedPortalMapResource($this->datasetType, 'Extent west');
+    GeoLocation::factory()->withPoint(179, 0)->create(['resource_id' => $east->id]);
+    GeoLocation::factory()->withPoint(-179, 1)->create(['resource_id' => $west->id]);
+    $query = portalMapRequestQuery([
+        'viewport' => [
+            'north' => 10,
+            'south' => -10,
+            'east' => -170,
+            'west' => 170,
+            'width' => 800,
+            'height' => 600,
+        ],
+        'zoom' => 6,
+        'include_extent' => 1,
+    ]);
+
+    $this->getJson(route('portal.map', $query))
+        ->assertOk()
+        ->assertJsonPath('meta.totalLocations', 2)
+        ->assertJsonPath('meta.extent.west', 179)
+        ->assertJsonPath('meta.extent.east', -179);
+});
+
 it('returns full box and polygon geometry only at detail zoom', function (): void {
     config(['portal_map.shape_detail_zoom' => 8]);
     $boxResource = createPublishedPortalMapResource($this->datasetType, 'Box');
