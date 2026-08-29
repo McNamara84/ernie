@@ -41,9 +41,24 @@ it('splits CI tests into isolated coverage and architecture slices', function ()
     expect($iniValues)->toBeString();
     assert(is_string($iniValues));
 
-    $iniConfiguration = parse_ini_string(str_replace(', ', PHP_EOL, $iniValues), scanner_mode: INI_SCANNER_RAW);
-    expect($iniConfiguration)->toBeArray();
-    assert(is_array($iniConfiguration));
+    $parseIniValues = static function (string $values): array {
+        $entries = preg_split('/,\s*/', $values);
+        assert(is_array($entries));
+
+        $configuration = parse_ini_string(implode(PHP_EOL, $entries), scanner_mode: INI_SCANNER_RAW);
+        assert(is_array($configuration));
+
+        return $configuration;
+    };
+
+    $iniConfiguration = $parseIniValues($iniValues);
+
+    foreach ([',', ',   '] as $separator) {
+        $formattingVariant = preg_replace('/,\s*/', $separator, $iniValues);
+        assert(is_string($formattingVariant));
+
+        expect($parseIniValues($formattingVariant))->toBe($iniConfiguration);
+    }
 
     expect($iniConfiguration['memory_limit'] ?? null)->toBe('1G')
         ->and($iniConfiguration['pcov.directory'] ?? null)->toBe('.')
