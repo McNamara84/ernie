@@ -454,7 +454,10 @@ class IgsnDifXmlParser
                 IgsnClassification::query()
                     ->whereKey($classification->id)
                     ->whereNull('classification_type')
-                    ->update(['classification_type' => $item['classification_type']]);
+                    ->update([
+                        'classification_type' => $item['classification_type']->value,
+                        'updated_at' => now(),
+                    ]);
             }
         }
     }

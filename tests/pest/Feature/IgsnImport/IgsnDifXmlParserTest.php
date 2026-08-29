@@ -761,17 +761,22 @@ describe('IgsnDifXmlParser', function () {
     });
 
     it('fills missing classification types without overwriting existing types', function () {
-        IgsnClassification::create([
+        $curatedClassification = IgsnClassification::create([
             'resource_id' => $this->resource->id,
             'value' => 'Igneous',
             'classification_type' => IgsnClassificationType::BIOLOGY,
             'position' => 0,
         ]);
-        IgsnClassification::create([
+        $untypedClassification = IgsnClassification::create([
             'resource_id' => $this->resource->id,
             'value' => 'metamorphic rocks',
             'position' => 1,
         ]);
+        $originalTimestamp = now()->subDay()->startOfSecond();
+        IgsnClassification::withoutTimestamps(function () use ($curatedClassification, $untypedClassification, $originalTimestamp): void {
+            $curatedClassification->forceFill(['updated_at' => $originalTimestamp])->saveQuietly();
+            $untypedClassification->forceFill(['updated_at' => $originalTimestamp])->saveQuietly();
+        });
 
         $xml = <<<'XML'
         <DIF><sample>
@@ -791,7 +796,9 @@ describe('IgsnDifXmlParser', function () {
             ->and($classifications->pluck('classification_type')->all())->toBe([
                 IgsnClassificationType::BIOLOGY,
                 IgsnClassificationType::ROCK,
-            ]);
+            ])
+            ->and($classifications[0]->updated_at?->equalTo($originalTimestamp))->toBeTrue()
+            ->and($classifications[1]->updated_at?->greaterThan($originalTimestamp))->toBeTrue();
     });
 
     it('maps geological age from DIF XML', function () {
