@@ -14,8 +14,7 @@ describe('vite configuration', () => {
     });
 
     it('caps local Vitest parallelism without changing CI worker allocation', () => {
-        expect(viteConfigSource)
-            .toContain('ERNIE_VITEST_WORKERS')
-            .toContain('maxWorkers: process.env.CI ? undefined : localVitestMaxWorkers');
+        expect(viteConfigSource).toContain('ERNIE_VITEST_WORKERS');
+        expect(viteConfigSource).toContain('maxWorkers: process.env.CI ? undefined : localVitestMaxWorkers');
     });
 });
