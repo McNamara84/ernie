@@ -61,6 +61,18 @@ jobs:
       - name: Export application image
         run: docker save -o ernie-security-scan.tar ernie-security-scan:${{ github.sha }}
 
+      - name: Resolve Trivy cache date
+        id: trivy-cache-date
+        run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Trivy databases
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .trivy-cache
+          key: ${{ runner.os }}-trivy-${{ steps.trivy-cache-date.outputs.date }}
+          restore-keys: |
+            ${{ runner.os }}-trivy-
+
       - name: Prepare Trivy cache
         run: mkdir -p .trivy-cache
 
