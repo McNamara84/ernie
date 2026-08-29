@@ -14,6 +14,7 @@ use Illuminate\Console\Command;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -197,6 +198,88 @@ it('checks every imported IGSN even when a classification already exists', funct
         ->and($icdp->igsnClassifications()->orderBy('position')->pluck('value')->all())->toBe(['Igneous', 'VOL'])
         ->and($other->igsnClassifications()->orderBy('position')->pluck('value')->all())
         ->toBe(['Igneous', 'fault related rocks']);
+});
+
+it('rechecks locked classifications and preserves concurrent additive changes', function (): void {
+    $resource = issue1210BackfillResource('ICDP1210CONCURRENT');
+    $untyped = IgsnClassification::create([
+        'resource_id' => $resource->id,
+        'value' => 'Igneous',
+        'position' => 0,
+    ]);
+    $portalChangedRows = false;
+    $xml = '<resource><sample><material>Rock</material><classification>Igneous;fault related rocks</classification></sample></resource>';
+
+    Http::fake([
+        'igsn-portal.example.test/*' => function () use ($resource, $untyped, &$portalChangedRows, $xml) {
+            if (! $portalChangedRows) {
+                DB::table('igsn_classifications')
+                    ->where('id', $untyped->id)
+                    ->update(['classification_type' => IgsnClassificationType::BIOLOGY->value]);
+                IgsnClassification::create([
+                    'resource_id' => $resource->id,
+                    'value' => 'fault related rocks',
+                    'classification_type' => IgsnClassificationType::ROCK,
+                    'position' => 1,
+                ]);
+                $portalChangedRows = true;
+            }
+
+            return Http::response([
+                'response' => [
+                    'numFound' => 1,
+                    'docs' => [[
+                        'igsn' => 'ICDP1210CONCURRENT',
+                        'has_dif' => true,
+                        'dif' => base64_encode($xml),
+                    ]],
+                ],
+            ]);
+        },
+    ]);
+
+    $result = app(IgsnClassificationBackfillService::class)->run(apply: true);
+    $stored = $resource->igsnClassifications()->orderBy('position')->get();
+
+    expect($result)->toMatchArray([
+        'scanned' => 1,
+        'changed' => 0,
+        'unchanged' => 1,
+        'inserted' => 0,
+        'types_filled' => 0,
+        'conflicts' => 1,
+        'errors' => 0,
+    ])->and($stored)->toHaveCount(2)
+        ->and($stored->pluck('value')->all())->toBe(['Igneous', 'fault related rocks'])
+        ->and($stored->firstWhere('value', 'Igneous')?->classification_type)->toBe(IgsnClassificationType::BIOLOGY)
+        ->and($stored->firstWhere('value', 'fault related rocks')?->classification_type)->toBe(IgsnClassificationType::ROCK);
+});
+
+it('rejects invalid DOI and handle filters before contacting the portal', function (string $filter): void {
+    Http::fake();
+
+    expect(fn (): array => app(IgsnClassificationBackfillService::class)->run(dois: [$filter]))
+        ->toThrow(InvalidArgumentException::class, sprintf('Invalid IGSN DOI or handle filter: "%s".', $filter));
+
+    Http::assertNothingSent();
+})->with([
+    'wrong DOI prefix' => '10.99999/ICDP1210INVALID',
+    'malformed handle' => 'not an igsn',
+    'empty filter' => '   ',
+]);
+
+it('rejects an invalid DOI filter even when another filter is valid', function (): void {
+    Http::fake();
+
+    expect(fn (): array => app(IgsnClassificationBackfillService::class)->run(dois: [
+        'ICDP1210VALID',
+        '10.99999/ICDP1210INVALID',
+    ]))->toThrow(
+        InvalidArgumentException::class,
+        'Invalid IGSN DOI or handle filter: "10.99999/ICDP1210INVALID".',
+    );
+
+    Http::assertNothingSent();
 });
 
 it('honors filtering resume and limit options and writes a complete command report', function (): void {

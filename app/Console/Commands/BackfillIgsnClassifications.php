@@ -100,10 +100,10 @@ final class BackfillIgsnClassifications extends Command
                 'rejected_values',
                 'conflicts',
                 'message',
-            ]);
+            ], escape: '');
 
             foreach ($rows as $row) {
-                fputcsv($stream, array_values($row));
+                fputcsv($stream, array_values($row), escape: '');
             }
         } finally {
             fclose($stream);

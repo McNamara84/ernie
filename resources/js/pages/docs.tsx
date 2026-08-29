@@ -530,6 +530,27 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             failure exit code.
                         </p>
 
+                        <h4>Repair Legacy IGSN Classifications</h4>
+                        <p>
+                            Use this administrator-only maintenance command to audit classifications from the legacy IGSN portal and add values or
+                            types that are missing locally. The default is always a dry run and does not change database records.
+                        </p>
+                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --report=/path/to/igsn-classification-audit.csv" />
+                        <p className="text-sm text-muted-foreground">
+                            Limit an audit with repeatable <code>--doi</code> filters, resume after an ERNIE resource ID with <code>--after-id</code>,
+                            cap the number of records with <code>--limit</code>, and adjust legacy portal batches with <code>--chunk</code> (maximum
+                            100). Invalid DOI or Handle filters stop the command with an error instead of producing an empty successful audit.
+                        </p>
+                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --doi=ICDP5052EUYY001 --after-id=12345 --limit=500 --chunk=100 --report=/path/to/igsn-classification-audit.csv" />
+                        <p className="text-sm text-muted-foreground">
+                            Review the CSV before applying changes. Check the <code>status</code>, <code>inserted_values</code>,{' '}
+                            <code>types_filled</code>, <code>rejected_values</code>, <code>conflicts</code>, and <code>message</code> columns. Resolve
+                            unexpected rejections, conflicts, missing DIF records, and errors first. Then repeat the reviewed scope with{' '}
+                            <code>--apply</code> and write a separate result report. Apply mode remains additive: it inserts missing classifications
+                            and fills only missing types without replacing curated values or existing types.
+                        </p>
+                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --apply --after-id=12345 --limit=500 --chunk=100 --report=/path/to/igsn-classification-apply.csv" />
+
                         <h4>DataCite Configuration</h4>
                         <p>
                             Configure DataCite API credentials in your <code>.env</code> file:
