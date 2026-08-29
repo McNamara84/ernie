@@ -37,6 +37,10 @@
             {
                 "title": "Unique Controlled Subjects in Metadata Imports",
                 "description": "DataCite XML and JSON imports now share one subject-classification pipeline, so a single GEMET, MSL, GCMD, or other controlled-vocabulary term is stored and shown exactly once while distinct languages and identifiers remain separate. A dry-run-first subjects:deduplicate command can safely remove exact historical duplicates with DOI and scheme filters, resumable batches, assistance cleanup, cache invalidation, and an optional CSV report."
+            },
+            {
+                "title": "Reliable Administrative Database Dumps",
+                "description": "Administrators can create ERNIE database dumps when the colocated MySQL server uses a self-signed TLS certificate. Dump jobs now select compatible encrypted-connection options for MariaDB and Oracle MySQL clients, fall back to the configured server-version hint when live metadata is unavailable, and avoid incomplete diagnostic connections that could contribute to legacy database host blocking."
             }
         ]
     },

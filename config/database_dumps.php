@@ -16,7 +16,12 @@ return [
             'description' => 'Current ERNIE application database',
             'connection' => 'mysql',
             'legacy' => false,
-            'server_version_hint' => 'MySQL Community Server 9.7.0',
+            // The bundled MariaDB 11.4+ client verifies certificates by
+            // default, while the colocated MySQL container uses its generated
+            // self-signed certificate. Keep TLS encryption, but do not require
+            // CA verification on this private Docker network.
+            'ssl_verify_server_cert' => false,
+            'server_version_hint' => 'MySQL Community Server 9.7.2',
         ],
 
         // LEGACY_DATABASE_DUMP_SUPPORT:

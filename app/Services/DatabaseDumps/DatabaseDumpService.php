@@ -69,9 +69,23 @@ final class DatabaseDumpService
             $this->assertLocalDisk($export->disk);
 
             $serverInfo = $this->serverInfoProvider->resolve($connectionName);
-            $usesSslMode = ($target['requires_legacy_ssl_probe'] ?? false) === true
-                && $this->processRunner->supportsOption($client, '--ssl-mode');
-            $flags = $this->buildDumpFlags($client, $target, $connection, $usesSslMode);
+            $serverVersion = $this->formatServerVersion($serverInfo);
+
+            if ($serverVersion === null && is_string($target['server_version_hint'] ?? null)) {
+                $serverVersion = $target['server_version_hint'];
+                $serverInfo['source'] = 'hint';
+            }
+
+            $supportsSslMode = $this->processRunner->supportsOption($client, '--ssl-mode');
+            $supportsSslVerifyServerCert = $this->processRunner->supportsOption($client, '--ssl-verify-server-cert');
+            $sslVerifyServerCertificate = $this->sslVerifyServerCertificate($target, $connection);
+            $flags = $this->buildDumpFlags(
+                $client,
+                $target,
+                $connection,
+                $supportsSslMode,
+                $sslVerifyServerCertificate,
+            );
             $disk = Storage::disk($export->disk);
             $path = $export->path ?? $this->buildPath($export);
             $filename = $export->filename ?? basename($path);
@@ -82,18 +96,27 @@ final class DatabaseDumpService
                 'path' => $path,
                 'filename' => $filename,
                 'started_at' => now(),
-                'server_version' => $this->formatServerVersion($serverInfo),
+                'server_version' => $serverVersion,
                 'dump_client' => basename($client),
                 'dump_options' => [
                     'flags' => $flags,
                     'server_info_source' => $serverInfo['source'],
-                    'non_transactional_tables' => $this->nonTransactionalTables($connectionName, $export->database_name),
+                    'non_transactional_tables' => $serverInfo['source'] === 'database'
+                        ? $this->nonTransactionalTables($connectionName, $export->database_name)
+                        : null,
                     'legacy' => (bool) ($target['legacy'] ?? false),
                     'requires_legacy_ssl_probe' => (bool) ($target['requires_legacy_ssl_probe'] ?? false),
+                    'ssl_verify_server_cert' => $sslVerifyServerCertificate,
                 ],
             ])->save();
 
-            $optionFile = $this->writeTemporaryOptionFile($export, $connection, $usesSslMode);
+            $optionFile = $this->writeTemporaryOptionFile(
+                $export,
+                $connection,
+                $supportsSslMode,
+                $supportsSslVerifyServerCert,
+                $sslVerifyServerCertificate,
+            );
             $command = array_merge(
                 [$client, "--defaults-extra-file={$optionFile}"],
                 $flags,
@@ -231,7 +254,8 @@ final class DatabaseDumpService
         string $client,
         array $target,
         array $connection,
-        bool $usesSslMode,
+        bool $supportsSslMode,
+        ?bool $sslVerifyServerCertificate,
     ): array {
         $flags = [
             '--databases',
@@ -253,7 +277,12 @@ final class DatabaseDumpService
         if (($target['requires_legacy_ssl_probe'] ?? false) === true) {
             // The IGSN MySQL 5.6 server currently has no TLS support. PREFERRED
             // preserves the existing fallback while still trying TLS first.
-            $flags[] = $usesSslMode ? '--ssl-mode=PREFERRED' : '--ssl';
+            $flags[] = $supportsSslMode ? '--ssl-mode=PREFERRED' : '--ssl';
+        } elseif ($supportsSslMode && $sslVerifyServerCertificate === false) {
+            // Oracle MySQL clients removed ssl-verify-server-cert. REQUIRED
+            // keeps transport encryption without validating the self-signed
+            // server certificate.
+            $flags[] = '--ssl-mode=REQUIRED';
         }
 
         if (! empty($connection['charset']) && is_string($connection['charset'])) {
@@ -269,7 +298,9 @@ final class DatabaseDumpService
     private function writeTemporaryOptionFile(
         DatabaseDumpExport $export,
         array $connection,
-        bool $usesSslMode,
+        bool $supportsSslMode,
+        bool $supportsSslVerifyServerCert,
+        ?bool $sslVerifyServerCertificate,
     ): string {
         $directory = storage_path('app/private/database-dumps/tmp');
 
@@ -296,14 +327,12 @@ final class DatabaseDumpService
 
         $options = is_array($connection['options'] ?? null) ? $connection['options'] : [];
         $sslCa = $options[Mysql::ATTR_SSL_CA] ?? null;
-        $sslVerifyServerCert = $options[Mysql::ATTR_SSL_VERIFY_SERVER_CERT] ?? null;
 
-        if (is_string($sslCa) && $sslCa !== '' && (! $usesSslMode || $sslVerifyServerCert !== false)) {
+        if (is_string($sslCa) && $sslCa !== '' && (! $supportsSslMode || $sslVerifyServerCertificate !== false)) {
             $lines[] = $this->formatOptionLine('ssl-ca', $sslCa);
         }
 
-        // Oracle MySQL clients replaced this MariaDB option with --ssl-mode.
-        if (! $usesSslMode && $sslVerifyServerCert === false) {
+        if (! $supportsSslMode && $supportsSslVerifyServerCert && $sslVerifyServerCertificate === false) {
             $lines[] = 'ssl-verify-server-cert=0';
         }
 
@@ -311,6 +340,24 @@ final class DatabaseDumpService
         @chmod($path, 0600);
 
         return $path;
+    }
+
+    /**
+     * @param  array<string, mixed>  $target
+     * @param  array<string, mixed>  $connection
+     */
+    private function sslVerifyServerCertificate(array $target, array $connection): ?bool
+    {
+        $targetValue = $target['ssl_verify_server_cert'] ?? null;
+
+        if (is_bool($targetValue)) {
+            return $targetValue;
+        }
+
+        $options = is_array($connection['options'] ?? null) ? $connection['options'] : [];
+        $connectionValue = $options[Mysql::ATTR_SSL_VERIFY_SERVER_CERT] ?? null;
+
+        return is_bool($connectionValue) ? $connectionValue : null;
     }
 
     private function formatOptionLine(string $key, string $value): string
