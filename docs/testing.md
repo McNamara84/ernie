@@ -16,7 +16,7 @@ Canonical entry points:
 - `npm run check:frontend`
 - `npm run check:parity`
 
-Run `npm install` once after cloning and again whenever frontend dependencies change. The Docker entrypoints install npm packages only inside Docker-managed volumes and do not satisfy host-side frontend commands.
+Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm install` only when intentionally adding or updating dependencies so npm can update the lockfile. The Docker entrypoints install npm packages only inside Docker-managed volumes and do not satisfy host-side frontend commands.
 
 ## Recommended Commands
 
