@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Resources;
 
 use App\Enums\AccessLevel;
-use App\Enums\ResourceWorkflowStatus;
 use App\Enums\CacheKey;
+use App\Enums\ResourceWorkflowStatus;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
-use App\Services\ResourceCacheService;
 use App\Services\ListingCountService;
+use App\Services\ResourceCacheService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
