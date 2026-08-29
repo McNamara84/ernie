@@ -21,7 +21,7 @@ describe('GuidedTourAssignmentService', function (): void {
     it('returns null when autostart is disabled for the current request', function (): void {
         $user = User::factory()->beginner()->create();
         $tour = GuidedTour::query()->create([
-            'key' => 'manual-tour-' . uniqid(),
+            'key' => 'manual-tour-'.uniqid(),
             'version' => 1,
             'name' => 'Manual Tour',
             'description' => 'Should not autostart when disabled.',
@@ -77,7 +77,7 @@ describe('GuidedTourAssignmentService', function (): void {
         $user = User::factory()->beginner()->create();
 
         $eligibleTour = GuidedTour::query()->create([
-            'key' => 'beginner-extra-tour-' . uniqid(),
+            'key' => 'beginner-extra-tour-'.uniqid(),
             'version' => 1,
             'name' => 'Beginner Extra Tour',
             'description' => 'Extra onboarding for beginners.',
@@ -88,7 +88,7 @@ describe('GuidedTourAssignmentService', function (): void {
         ]);
 
         $ineligibleTour = GuidedTour::query()->create([
-            'key' => 'curator-extra-tour-' . uniqid(),
+            'key' => 'curator-extra-tour-'.uniqid(),
             'version' => 1,
             'name' => 'Curator Extra Tour',
             'description' => 'Not available for beginners.',
@@ -107,7 +107,7 @@ describe('GuidedTourAssignmentService', function (): void {
     it('keeps completed assignments unchanged when start or close is reported again', function (): void {
         $user = User::factory()->beginner()->create();
         $tour = GuidedTour::query()->create([
-            'key' => 'completed-tour-' . uniqid(),
+            'key' => 'completed-tour-'.uniqid(),
             'version' => 1,
             'name' => 'Completed Tour',
             'description' => 'Already completed.',

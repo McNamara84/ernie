@@ -131,7 +131,7 @@ describe('ThesaurusStatusService', function () {
             $thesaurus->type = 'unknown_type';
 
             $this->service->getRemoteConceptCount($thesaurus);
-        })->throws(\RuntimeException::class, 'Unsupported thesaurus type');
+        })->throws(RuntimeException::class, 'Unsupported thesaurus type');
 
         it('throws RuntimeException on API failure', function () {
             Http::fake([
@@ -142,7 +142,7 @@ describe('ThesaurusStatusService', function () {
             $thesaurus->type = ThesaurusSetting::TYPE_SCIENCE_KEYWORDS;
 
             $this->service->getRemoteConceptCount($thesaurus);
-        })->throws(\RuntimeException::class, 'Failed to fetch from NASA KMS API');
+        })->throws(RuntimeException::class, 'Failed to fetch from NASA KMS API');
     });
 
     describe('compareWithRemote', function () {

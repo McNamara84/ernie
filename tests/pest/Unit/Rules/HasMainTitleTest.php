@@ -9,7 +9,7 @@ covers(HasMainTitle::class);
 function runRule(mixed $value): ?string
 {
     $error = null;
-    (new HasMainTitle())->validate('titles', $value, function (string $msg) use (&$error) {
+    (new HasMainTitle)->validate('titles', $value, function (string $msg) use (&$error) {
         $error = $msg;
     });
 

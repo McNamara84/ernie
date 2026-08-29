@@ -353,7 +353,9 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                             ) : (
                                 <>
                                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                                    <span>Registry is up to date ({updateInfo.localCount.toLocaleString()} {countLabel})</span>
+                                    <span>
+                                        Registry is up to date ({updateInfo.localCount.toLocaleString()} {countLabel})
+                                    </span>
                                 </>
                             )}
                         </div>

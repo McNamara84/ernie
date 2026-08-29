@@ -22,7 +22,6 @@ use Tests\TestCase;
  *
  * @see https://pestphp.com/docs/browser-testing
  */
-
 describe('Public Pages Smoke Test', function (): void {
     it('loads public pages without JavaScript errors', function (): void {
         $pages = visit([

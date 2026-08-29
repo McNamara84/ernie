@@ -66,7 +66,7 @@ class GuidedTourAssignmentService
     }
 
     /**
-     * @param array<int, int|string> $tourIds
+     * @param  array<int, int|string>  $tourIds
      */
     public function assignToursToUser(User $targetUser, array $tourIds, User $actor): int
     {

@@ -9,7 +9,7 @@ covers(CrossrefTypeMapper::class, DataCiteTypeMapper::class);
 
 describe('CrossrefTypeMapper', function () {
     it('maps known Crossref types to DataCite values', function () {
-        $m = new CrossrefTypeMapper();
+        $m = new CrossrefTypeMapper;
         expect($m->map('journal-article'))->toBe('JournalArticle');
         expect($m->map('book-chapter'))->toBe('BookChapter');
         expect($m->map('proceedings-article'))->toBe('ConferencePaper');
@@ -21,11 +21,11 @@ describe('CrossrefTypeMapper', function () {
     });
 
     it('is case-insensitive', function () {
-        expect((new CrossrefTypeMapper())->map('JOURNAL-ARTICLE'))->toBe('JournalArticle');
+        expect((new CrossrefTypeMapper)->map('JOURNAL-ARTICLE'))->toBe('JournalArticle');
     });
 
     it('falls back to Text for unknown or empty types', function () {
-        $m = new CrossrefTypeMapper();
+        $m = new CrossrefTypeMapper;
         expect($m->map(null))->toBe('Text');
         expect($m->map(''))->toBe('Text');
         expect($m->map('some-unknown-type'))->toBe('Text');
@@ -34,12 +34,12 @@ describe('CrossrefTypeMapper', function () {
 
 describe('DataCiteTypeMapper', function () {
     it('returns canonical value for exact matches', function () {
-        expect((new DataCiteTypeMapper())->map('JournalArticle'))->toBe('JournalArticle');
-        expect((new DataCiteTypeMapper())->map('Dataset'))->toBe('Dataset');
+        expect((new DataCiteTypeMapper)->map('JournalArticle'))->toBe('JournalArticle');
+        expect((new DataCiteTypeMapper)->map('Dataset'))->toBe('Dataset');
     });
 
     it('normalises different casings and separators', function () {
-        $m = new DataCiteTypeMapper();
+        $m = new DataCiteTypeMapper;
         expect($m->map('journal-article'))->toBe('JournalArticle');
         expect($m->map('book_chapter'))->toBe('BookChapter');
         expect($m->map('conference paper'))->toBe('ConferencePaper');
@@ -47,7 +47,7 @@ describe('DataCiteTypeMapper', function () {
     });
 
     it('falls back to Text for unknown / empty / null', function () {
-        $m = new DataCiteTypeMapper();
+        $m = new DataCiteTypeMapper;
         expect($m->map(null))->toBe('Text');
         expect($m->map(''))->toBe('Text');
         expect($m->map('not-a-real-type'))->toBe('Text');

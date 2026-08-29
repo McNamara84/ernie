@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\DoiValidationController;
 use App\Models\User;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
 covers(DoiValidationController::class);
@@ -264,7 +265,7 @@ describe('doi.org fallback resolution', function () {
     it('returns not found when doi.org throws exception', function () {
         Http::fake([
             'api.datacite.org/*' => Http::response([], 404),
-            'doi.org/*' => fn () => throw new \Illuminate\Http\Client\ConnectionException('Timeout'),
+            'doi.org/*' => fn () => throw new ConnectionException('Timeout'),
         ]);
 
         $this->actingAs($this->user)
@@ -284,7 +285,7 @@ describe('doi.org fallback resolution', function () {
 describe('exception handling', function () {
     it('returns 500 when DataCite API throws exception', function () {
         Http::fake([
-            'api.datacite.org/*' => fn () => throw new \Illuminate\Http\Client\ConnectionException('Connection refused'),
+            'api.datacite.org/*' => fn () => throw new ConnectionException('Connection refused'),
         ]);
 
         $this->actingAs($this->user)

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Description;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 covers(Description::class);
 
@@ -24,12 +25,12 @@ describe('relationships', function () {
     it('defines resource relationship', function () {
         $model = new Description;
 
-        expect($model->resource())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->resource())->toBeInstanceOf(BelongsTo::class);
     });
 
     it('defines descriptionType relationship', function () {
         $model = new Description;
 
-        expect($model->descriptionType())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->descriptionType())->toBeInstanceOf(BelongsTo::class);
     });
 });

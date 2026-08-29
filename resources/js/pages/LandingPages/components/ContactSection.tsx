@@ -43,19 +43,20 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
 
     return (
         <>
-            <LandingPageCard
-                aria-labelledby="heading-contact"
-            >
-                <h2 id="heading-contact" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Contact Information</h2>
+            <LandingPageCard aria-labelledby="heading-contact">
+                <h2 id="heading-contact" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Contact Information
+                </h2>
 
                 <div className="space-y-4">
                     {contactPersons.map((person) => {
-                        const displayName = person.family_name && person.given_name
-                            ? `${person.family_name}, ${person.given_name}`
-                            : person.name;
+                        const displayName = person.family_name && person.given_name ? `${person.family_name}, ${person.given_name}` : person.name;
 
                         return (
-                            <div key={`${person.source}-${person.id}`} className="flex flex-col gap-2 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0 dark:border-gray-700">
+                            <div
+                                key={`${person.source}-${person.id}`}
+                                className="flex flex-col gap-2 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0 dark:border-gray-700"
+                            >
                                 {/* Name row with contact and external links */}
                                 <div className="flex flex-wrap items-center gap-2">
                                     {/* Contact link — display as "Last, First" for persons */}
@@ -78,7 +79,7 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             aria-label={`ORCID profile of ${displayName}`}
-                                            className="inline-flex min-h-11 min-w-11 items-center justify-center -m-3 p-3 transition-opacity hover:opacity-80"
+                                            className="-m-3 inline-flex min-h-11 min-w-11 items-center justify-center p-3 transition-opacity hover:opacity-80"
                                         >
                                             <OrcidIcon />
                                         </a>
@@ -111,7 +112,7 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         aria-label={`ROR profile of ${aff.name}`}
-                                                        className="inline-flex min-h-11 min-w-11 items-center justify-center -m-3 p-3 transition-opacity hover:opacity-80"
+                                                        className="-m-3 inline-flex min-h-11 min-w-11 items-center justify-center p-3 transition-opacity hover:opacity-80"
                                                     >
                                                         <RorIcon className="h-3 w-3" />
                                                     </a>

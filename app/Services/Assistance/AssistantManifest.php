@@ -77,7 +77,7 @@ readonly class AssistantManifest
 
         if ($missing !== []) {
             throw new \InvalidArgumentException(
-                "Manifest is missing required fields: " . implode(', ', $missing) . " in {$path}"
+                'Manifest is missing required fields: '.implode(', ', $missing)." in {$path}"
             );
         }
 

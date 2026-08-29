@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Models\ContributorType;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 covers(Person::class, ResourceCreator::class, ResourceContributor::class);
 
@@ -97,13 +99,13 @@ describe('Person relationships', function (): void {
     it('has resource creators morphMany relationship', function (): void {
         $person = Person::factory()->create();
 
-        expect($person->resourceCreators())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class);
+        expect($person->resourceCreators())->toBeInstanceOf(MorphMany::class);
     });
 
     it('has resource contributors morphMany relationship', function (): void {
         $person = Person::factory()->create();
 
-        expect($person->resourceContributors())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class);
+        expect($person->resourceContributors())->toBeInstanceOf(MorphMany::class);
     });
 });
 
@@ -181,7 +183,7 @@ describe('ResourceCreator model', function (): void {
     it('has affiliations morphMany relationship', function (): void {
         $creator = ResourceCreator::factory()->create();
 
-        expect($creator->affiliations())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class);
+        expect($creator->affiliations())->toBeInstanceOf(MorphMany::class);
     });
 });
 
@@ -227,7 +229,7 @@ describe('ResourceContributor model', function (): void {
     it('belongs to a resource', function (): void {
         $resource = Resource::factory()->create();
         $person = Person::factory()->create();
-        $contributorType = \App\Models\ContributorType::create([
+        $contributorType = ContributorType::create([
             'name' => 'ContactPerson',
             'slug' => 'contact-person',
             'is_active' => true,
@@ -244,7 +246,7 @@ describe('ResourceContributor model', function (): void {
     });
 
     it('has contributor types via pivot table', function (): void {
-        $contributorType = \App\Models\ContributorType::create([
+        $contributorType = ContributorType::create([
             'name' => 'DataCurator',
             'slug' => 'data-curator',
             'is_active' => true,
@@ -254,17 +256,17 @@ describe('ResourceContributor model', function (): void {
         $contributor->load('contributorTypes');
 
         expect($contributor->contributorTypes)->toHaveCount(1);
-        expect($contributor->contributorTypes->first())->toBeInstanceOf(\App\Models\ContributorType::class);
+        expect($contributor->contributorTypes->first())->toBeInstanceOf(ContributorType::class);
         expect($contributor->contributorTypes->first()->id)->toBe($contributorType->id);
     });
 
     it('supports multiple contributor types', function (): void {
-        $type1 = \App\Models\ContributorType::create([
+        $type1 = ContributorType::create([
             'name' => 'DataCurator',
             'slug' => 'data-curator',
             'is_active' => true,
         ]);
-        $type2 = \App\Models\ContributorType::create([
+        $type2 = ContributorType::create([
             'name' => 'Editor',
             'slug' => 'editor',
             'is_active' => true,
@@ -281,6 +283,6 @@ describe('ResourceContributor model', function (): void {
     it('has affiliations morphMany relationship', function (): void {
         $contributor = ResourceContributor::factory()->create();
 
-        expect($contributor->affiliations())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class);
+        expect($contributor->affiliations())->toBeInstanceOf(MorphMany::class);
     });
 });

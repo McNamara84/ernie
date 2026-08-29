@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\FundingReference;
 use App\Models\Resource;
+use Illuminate\Database\Eloquent\Collection;
 
 covers(FundingReference::class);
 
@@ -136,7 +137,7 @@ describe('Relationships', function () {
         ]);
 
         expect($this->resource->fundingReferences)
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Collection::class)
+            ->toBeInstanceOf(Collection::class)
             ->toHaveCount(1)
             ->and($this->resource->fundingReferences->first()->funder_name)->toBe('Test Funder');
     });

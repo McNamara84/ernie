@@ -1,10 +1,6 @@
 import { useMemo } from 'react';
 
-import type {
-    LandingPageContributor,
-    LandingPageCreator,
-    LandingPageResource,
-} from '@/types/landing-page';
+import type { LandingPageContributor, LandingPageCreator, LandingPageResource } from '@/types/landing-page';
 
 import type { GraphLink, GraphNode } from './graph-types';
 import { humanizeContributorType, truncateLabel } from './graph-utils';
@@ -145,14 +141,10 @@ function collectCreatorAffiliations(
         const targetNodeId = personNodeId ?? 'central';
         const isRor = affiliation.affiliation_identifier_scheme === 'ROR';
 
-        mergeInstitution(
-            map,
-            rorIndex,
-            affiliation.name,
-            isRor ? affiliation.affiliation_identifier : null,
-            targetNodeId,
-            { edgeLabel: 'Affiliated with', relationType: 'AffiliatedWith' },
-        );
+        mergeInstitution(map, rorIndex, affiliation.name, isRor ? affiliation.affiliation_identifier : null, targetNodeId, {
+            edgeLabel: 'Affiliated with',
+            relationType: 'AffiliatedWith',
+        });
     }
 }
 
@@ -171,14 +163,10 @@ function collectContributorAffiliations(
         const targetNodeId = personNodeId ?? 'central';
         const isRor = affiliation.affiliation_identifier_scheme === 'ROR';
 
-        mergeInstitution(
-            map,
-            rorIndex,
-            affiliation.name,
-            isRor ? affiliation.affiliation_identifier : null,
-            targetNodeId,
-            { edgeLabel: 'Affiliated with', relationType: 'AffiliatedWith' },
-        );
+        mergeInstitution(map, rorIndex, affiliation.name, isRor ? affiliation.affiliation_identifier : null, targetNodeId, {
+            edgeLabel: 'Affiliated with',
+            relationType: 'AffiliatedWith',
+        });
     }
 }
 
@@ -208,14 +196,10 @@ export function useInstitutionNodes(
         for (const creator of resource.creators ?? []) {
             if (creator.creatorable.type === 'Institution' && creator.creatorable.name) {
                 const isRor = creator.creatorable.name_identifier_scheme === 'ROR';
-                mergeInstitution(
-                    institutionMap,
-                    rorIndex,
-                    creator.creatorable.name,
-                    isRor ? creator.creatorable.name_identifier : null,
-                    'central',
-                    { edgeLabel: 'Created', relationType: 'Created' },
-                );
+                mergeInstitution(institutionMap, rorIndex, creator.creatorable.name, isRor ? creator.creatorable.name_identifier : null, 'central', {
+                    edgeLabel: 'Created',
+                    relationType: 'Created',
+                });
             }
         }
 
@@ -256,14 +240,10 @@ export function useInstitutionNodes(
             for (const author of authors) {
                 // 5b. Institutional API authors → edge to related DOI node
                 if (author.type === 'Institution' && author.name) {
-                    mergeInstitution(
-                        institutionMap,
-                        rorIndex,
-                        author.name,
-                        author.ror_id ?? null,
-                        nodeId,
-                        { edgeLabel: 'Created', relationType: 'Created' },
-                    );
+                    mergeInstitution(institutionMap, rorIndex, author.name, author.ror_id ?? null, nodeId, {
+                        edgeLabel: 'Created',
+                        relationType: 'Created',
+                    });
                     continue;
                 }
 
@@ -276,14 +256,10 @@ export function useInstitutionNodes(
                         ? author.orcid
                         : `${(author.family_name ?? '').trim().toLowerCase()}|${(author.given_name ?? '').trim().toLowerCase()}`;
                     const targetNodeId = creatorNodeIdMap.get(creatorKey) ?? nodeId;
-                    mergeInstitution(
-                        institutionMap,
-                        rorIndex,
-                        affiliation.name,
-                        isRor ? affiliation.identifier : null,
-                        targetNodeId,
-                        { edgeLabel: 'Affiliated with', relationType: 'AffiliatedWith' },
-                    );
+                    mergeInstitution(institutionMap, rorIndex, affiliation.name, isRor ? affiliation.identifier : null, targetNodeId, {
+                        edgeLabel: 'Affiliated with',
+                        relationType: 'AffiliatedWith',
+                    });
                 }
             }
         }
@@ -329,10 +305,7 @@ export function useInstitutionNodes(
 /**
  * Find the graph node ID for a person creator using the creator node ID map.
  */
-function findPersonNodeId(
-    creator: LandingPageCreator,
-    creatorNodeIdMap: Map<string, string>,
-): string | null {
+function findPersonNodeId(creator: LandingPageCreator, creatorNodeIdMap: Map<string, string>): string | null {
     const c = creator.creatorable;
     if (c.name_identifier_scheme === 'ORCID' && c.name_identifier) {
         const match = c.name_identifier.match(/(\d{4}-\d{4}-\d{4}-\d{3}[\dX])/);
@@ -348,10 +321,7 @@ function findPersonNodeId(
 /**
  * Find the graph node ID for a person contributor using the contributor node ID map.
  */
-function findContributorPersonNodeId(
-    contributor: LandingPageContributor,
-    contributorNodeIdMap: Map<string, string>,
-): string | null {
+function findContributorPersonNodeId(contributor: LandingPageContributor, contributorNodeIdMap: Map<string, string>): string | null {
     const c = contributor.contributorable;
     if (c.name_identifier_scheme === 'ORCID' && c.name_identifier) {
         const match = c.name_identifier.match(/(\d{4}-\d{4}-\d{4}-\d{3}[\dX])/);
@@ -365,11 +335,5 @@ function findContributorPersonNodeId(
 }
 
 // Export helpers for testing
-export {
-    collectContributorAffiliations,
-    collectCreatorAffiliations,
-    findContributorPersonNodeId,
-    findPersonNodeId,
-    mergeInstitution,
-};
+export { collectContributorAffiliations, collectCreatorAffiliations, findContributorPersonNodeId, findPersonNodeId, mergeInstitution };
 export type { InstitutionInfo };

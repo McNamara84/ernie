@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
-it('checks changed files with non-mutating formatters in CI', function (): void {
+it('checks the complete codebase with non-mutating formatters in CI', function (): void {
     $workflow = Yaml::parseFile(base_path('.github/workflows/lint.yml'));
 
     expect($workflow)->toBeArray();
@@ -19,24 +19,19 @@ it('checks changed files with non-mutating formatters in CI', function (): void 
     $qualitySteps = collect($qualityJob['steps'] ?? [])->keyBy('name');
     $formatStep = $qualitySteps->get('Check Frontend formatting');
 
-    expect($qualityJob['env']['FORMAT_BASE'] ?? null)
-        ->toBeString()
-        ->and($formatStep)->toBeArray()
+    expect($formatStep)
+        ->toBeArray()
         ->and($formatStep['run'] ?? null)
-        ->toBeString()
-        ->toContain('git diff --name-only')
-        ->toContain('prettier --check')
-        ->not->toContain('npm run format');
+        ->toBe('npm run format:check');
 
     $pintSteps = collect($pintJob['steps'] ?? [])->keyBy('name');
     $pintStep = $pintSteps->get('Run Pint');
 
-    expect($pintJob['env']['FORMAT_BASE'] ?? null)
-        ->toBeString()
-        ->and($pintStep)->toBeArray()
+    expect($pintStep)
+        ->toBeArray()
         ->and($pintStep['run'] ?? null)
         ->toBeString()
         ->toContain('pint --test')
         ->toContain('--parallel')
-        ->toContain('--diff="$FORMAT_BASE"');
+        ->not->toContain('--diff');
 });

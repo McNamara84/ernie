@@ -25,7 +25,6 @@ use Illuminate\Support\Facades\Storage;
 #[Signature('get-pid4inst-instruments')]
 class GetPid4instInstruments extends Command
 {
-
     public function handle(): int
     {
         /** @var string $host */
@@ -65,7 +64,7 @@ class GetPid4instInstruments extends Command
                 $allInstruments[] = $this->transformRecord($hit);
             }
 
-            $this->info("Page {$page}: fetched " . count($hits) . ' records (total so far: ' . count($allInstruments) . "/{$total})");
+            $this->info("Page {$page}: fetched ".count($hits).' records (total so far: '.count($allInstruments)."/{$total})");
             $page++;
         } while (count($allInstruments) < $total && count($hits) > 0);
 
@@ -87,7 +86,7 @@ class GetPid4instInstruments extends Command
         // Clear vocabulary cache
         Artisan::call('cache:clear-app', ['category' => 'vocabularies']);
 
-        $this->info("Successfully stored " . count($allInstruments) . ' instruments.');
+        $this->info('Successfully stored '.count($allInstruments).' instruments.');
 
         return self::SUCCESS;
     }

@@ -3,30 +3,12 @@ import { Plus, Search, Trash2 } from 'lucide-react';
 import { useEffect } from 'react';
 import { type Resolver, useFieldArray, useForm } from 'react-hook-form';
 
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from '@/components/ui/accordion';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { LoadingButton } from '@/components/ui/loading-button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCitationLookup } from '@/hooks/use-citation-lookup';
 import { type RelatedItemInput, relatedItemSchema } from '@/lib/validations/related-item';
 import type { RelatedItem } from '@/types/related-item';
@@ -119,9 +101,7 @@ export function RelatedItemForm({
         if (r.title) {
             form.setValue('titles', [
                 { title: r.title, title_type: 'MainTitle', position: 0 },
-                ...(r.subtitle
-                    ? [{ title: r.subtitle, title_type: 'Subtitle' as const, position: 1 }]
-                    : []),
+                ...(r.subtitle ? [{ title: r.subtitle, title_type: 'Subtitle' as const, position: 1 }] : []),
             ]);
         }
         if (r.creators && r.creators.length > 0) {
@@ -129,9 +109,7 @@ export function RelatedItemForm({
                 'creators',
                 r.creators.map((c, idx) => ({
                     name: c.name,
-                    name_type: (c.name_type === 'Organizational'
-                        ? 'Organizational'
-                        : 'Personal') as 'Personal' | 'Organizational',
+                    name_type: (c.name_type === 'Organizational' ? 'Organizational' : 'Personal') as 'Personal' | 'Organizational',
                     given_name: c.given_name ?? null,
                     family_name: c.family_name ?? null,
                     name_identifier: c.name_identifier ?? null,
@@ -166,10 +144,7 @@ export function RelatedItemForm({
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Type *</FormLabel>
-                                <Select
-                                    value={field.value || ''}
-                                    onValueChange={(v) => field.onChange(v)}
-                                >
+                                <Select value={field.value || ''} onValueChange={(v) => field.onChange(v)}>
                                     <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select type" />
@@ -194,10 +169,7 @@ export function RelatedItemForm({
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Relation type *</FormLabel>
-                                <Select
-                                    value={field.value ? String(field.value) : ''}
-                                    onValueChange={(v) => field.onChange(Number(v))}
-                                >
+                                <Select value={field.value ? String(field.value) : ''} onValueChange={(v) => field.onChange(Number(v))}>
                                     <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select relation" />
@@ -217,11 +189,7 @@ export function RelatedItemForm({
                     />
                 </div>
 
-                <Accordion
-                    type="multiple"
-                    defaultValue={['identifier', 'titles']}
-                    className="w-full"
-                >
+                <Accordion type="multiple" defaultValue={['identifier', 'titles']} className="w-full">
                     {/* Identifier + Lookup */}
                     <AccordionItem value="identifier">
                         <AccordionTrigger>Identifier (optional)</AccordionTrigger>
@@ -234,11 +202,7 @@ export function RelatedItemForm({
                                         <FormItem>
                                             <FormLabel>Identifier</FormLabel>
                                             <FormControl>
-                                                <Input
-                                                    {...field}
-                                                    value={field.value ?? ''}
-                                                    placeholder="e.g. 10.1234/abcd"
-                                                />
+                                                <Input {...field} value={field.value ?? ''} placeholder="e.g. 10.1234/abcd" />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -251,11 +215,7 @@ export function RelatedItemForm({
                                         <FormItem>
                                             <FormLabel>Type</FormLabel>
                                             <FormControl>
-                                                <Input
-                                                    {...field}
-                                                    value={field.value ?? ''}
-                                                    placeholder="DOI"
-                                                />
+                                                <Input {...field} value={field.value ?? ''} placeholder="DOI" />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -276,19 +236,12 @@ export function RelatedItemForm({
                                     </div>
                                 ) : null}
                             </div>
-                            {lookup.error ? (
-                                <p className="mt-2 text-sm text-destructive">{lookup.error}</p>
-                            ) : null}
+                            {lookup.error ? <p className="mt-2 text-sm text-destructive">{lookup.error}</p> : null}
                             {lookup.result?.source === 'not_found' ? (
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                    No metadata found for this identifier.
-                                </p>
+                                <p className="mt-2 text-sm text-muted-foreground">No metadata found for this identifier.</p>
                             ) : null}
-                            {lookup.result &&
-                            lookup.result.source !== 'not_found' ? (
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                    Metadata autofilled from {lookup.result.source}.
-                                </p>
+                            {lookup.result && lookup.result.source !== 'not_found' ? (
+                                <p className="mt-2 text-sm text-muted-foreground">Metadata autofilled from {lookup.result.source}.</p>
                             ) : null}
                         </AccordionContent>
                     </AccordionItem>
@@ -299,10 +252,7 @@ export function RelatedItemForm({
                         <AccordionContent>
                             <div className="space-y-3">
                                 {titles.fields.map((fieldItem, idx) => (
-                                    <div
-                                        key={fieldItem.id}
-                                        className="grid gap-2 sm:grid-cols-[1fr_180px_auto]"
-                                    >
+                                    <div key={fieldItem.id} className="grid gap-2 sm:grid-cols-[1fr_180px_auto]">
                                         <FormField
                                             control={form.control}
                                             name={`titles.${idx}.title`}
@@ -320,28 +270,17 @@ export function RelatedItemForm({
                                             name={`titles.${idx}.title_type`}
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <Select
-                                                        value={field.value}
-                                                        onValueChange={field.onChange}
-                                                    >
+                                                    <Select value={field.value} onValueChange={field.onChange}>
                                                         <FormControl>
                                                             <SelectTrigger>
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
-                                                            <SelectItem value="MainTitle">
-                                                                MainTitle
-                                                            </SelectItem>
-                                                            <SelectItem value="Subtitle">
-                                                                Subtitle
-                                                            </SelectItem>
-                                                            <SelectItem value="TranslatedTitle">
-                                                                TranslatedTitle
-                                                            </SelectItem>
-                                                            <SelectItem value="AlternativeTitle">
-                                                                AlternativeTitle
-                                                            </SelectItem>
+                                                            <SelectItem value="MainTitle">MainTitle</SelectItem>
+                                                            <SelectItem value="Subtitle">Subtitle</SelectItem>
+                                                            <SelectItem value="TranslatedTitle">TranslatedTitle</SelectItem>
+                                                            <SelectItem value="AlternativeTitle">AlternativeTitle</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                     <FormMessage />
@@ -375,9 +314,7 @@ export function RelatedItemForm({
                                     <Plus className="mr-1 h-4 w-4" /> Add title
                                 </Button>
                                 {form.formState.errors.titles?.root?.message ? (
-                                    <p className="text-sm text-destructive">
-                                        {form.formState.errors.titles.root.message}
-                                    </p>
+                                    <p className="text-sm text-destructive">{form.formState.errors.titles.root.message}</p>
                                 ) : null}
                             </div>
                         </AccordionContent>
@@ -385,26 +322,18 @@ export function RelatedItemForm({
 
                     {/* Creators */}
                     <AccordionItem value="creators">
-                        <AccordionTrigger>
-                            Creators ({creators.fields.length})
-                        </AccordionTrigger>
+                        <AccordionTrigger>Creators ({creators.fields.length})</AccordionTrigger>
                         <AccordionContent>
                             <div className="space-y-3">
                                 {creators.fields.map((fieldItem, idx) => (
-                                    <div
-                                        key={fieldItem.id}
-                                        className="grid gap-2 sm:grid-cols-[1fr_160px_auto]"
-                                    >
+                                    <div key={fieldItem.id} className="grid gap-2 sm:grid-cols-[1fr_160px_auto]">
                                         <FormField
                                             control={form.control}
                                             name={`creators.${idx}.name`}
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormControl>
-                                                        <Input
-                                                            {...field}
-                                                            placeholder="Family, Given"
-                                                        />
+                                                        <Input {...field} placeholder="Family, Given" />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -415,22 +344,15 @@ export function RelatedItemForm({
                                             name={`creators.${idx}.name_type`}
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <Select
-                                                        value={field.value}
-                                                        onValueChange={field.onChange}
-                                                    >
+                                                    <Select value={field.value} onValueChange={field.onChange}>
                                                         <FormControl>
                                                             <SelectTrigger>
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
-                                                            <SelectItem value="Personal">
-                                                                Personal
-                                                            </SelectItem>
-                                                            <SelectItem value="Organizational">
-                                                                Organizational
-                                                            </SelectItem>
+                                                            <SelectItem value="Personal">Personal</SelectItem>
+                                                            <SelectItem value="Organizational">Organizational</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                     <FormMessage />
@@ -473,16 +395,11 @@ export function RelatedItemForm({
 
                     {/* Contributors */}
                     <AccordionItem value="contributors">
-                        <AccordionTrigger>
-                            Contributors ({contributors.fields.length})
-                        </AccordionTrigger>
+                        <AccordionTrigger>Contributors ({contributors.fields.length})</AccordionTrigger>
                         <AccordionContent>
                             <div className="space-y-3">
                                 {contributors.fields.map((fieldItem, idx) => (
-                                    <div
-                                        key={fieldItem.id}
-                                        className="grid gap-2 sm:grid-cols-[1fr_160px_160px_auto]"
-                                    >
+                                    <div key={fieldItem.id} className="grid gap-2 sm:grid-cols-[1fr_160px_160px_auto]">
                                         <FormField
                                             control={form.control}
                                             name={`contributors.${idx}.name`}
@@ -500,22 +417,15 @@ export function RelatedItemForm({
                                             name={`contributors.${idx}.name_type`}
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <Select
-                                                        value={field.value}
-                                                        onValueChange={field.onChange}
-                                                    >
+                                                    <Select value={field.value} onValueChange={field.onChange}>
                                                         <FormControl>
                                                             <SelectTrigger>
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
-                                                            <SelectItem value="Personal">
-                                                                Personal
-                                                            </SelectItem>
-                                                            <SelectItem value="Organizational">
-                                                                Organizational
-                                                            </SelectItem>
+                                                            <SelectItem value="Personal">Personal</SelectItem>
+                                                            <SelectItem value="Organizational">Organizational</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 </FormItem>
@@ -526,10 +436,7 @@ export function RelatedItemForm({
                                             name={`contributors.${idx}.contributor_type`}
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <Select
-                                                        value={field.value || ''}
-                                                        onValueChange={field.onChange}
-                                                    >
+                                                    <Select value={field.value || ''} onValueChange={field.onChange}>
                                                         <FormControl>
                                                             <SelectTrigger>
                                                                 <SelectValue placeholder="Role" />
@@ -537,10 +444,7 @@ export function RelatedItemForm({
                                                         </FormControl>
                                                         <SelectContent>
                                                             {contributorTypes.map((opt) => (
-                                                                <SelectItem
-                                                                    key={opt.value}
-                                                                    value={opt.value}
-                                                                >
+                                                                <SelectItem key={opt.value} value={opt.value}>
                                                                     {opt.label}
                                                                 </SelectItem>
                                                             ))}
@@ -600,13 +504,7 @@ export function RelatedItemForm({
                                                 <Input
                                                     type="number"
                                                     value={field.value ?? ''}
-                                                    onChange={(e) =>
-                                                        field.onChange(
-                                                            e.target.value === ''
-                                                                ? null
-                                                                : Number(e.target.value),
-                                                        )
-                                                    }
+                                                    onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -693,12 +591,7 @@ export function RelatedItemForm({
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Number type</FormLabel>
-                                            <Select
-                                                value={field.value ?? ''}
-                                                onValueChange={(v) =>
-                                                    field.onChange(v === '' ? null : v)
-                                                }
-                                            >
+                                            <Select value={field.value ?? ''} onValueChange={(v) => field.onChange(v === '' ? null : v)}>
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="—" />

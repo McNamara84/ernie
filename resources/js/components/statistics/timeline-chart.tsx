@@ -55,20 +55,8 @@ export default function TimelineChart({ data }: TimelineChartProps) {
                 <YAxis tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} />
-                <Area
-                    type="monotone"
-                    dataKey="publications"
-                    stackId="1"
-                    stroke="var(--color-publications)"
-                    fill="var(--color-publications)"
-                />
-                <Area
-                    type="monotone"
-                    dataKey="created"
-                    stackId="2"
-                    stroke="var(--color-created)"
-                    fill="var(--color-created)"
-                />
+                <Area type="monotone" dataKey="publications" stackId="1" stroke="var(--color-publications)" fill="var(--color-publications)" />
+                <Area type="monotone" dataKey="created" stackId="2" stroke="var(--color-created)" fill="var(--color-created)" />
             </AreaChart>
         </ChartContainer>
     );

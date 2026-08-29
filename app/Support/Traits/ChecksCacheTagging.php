@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Traits;
 
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -32,7 +33,7 @@ trait ChecksCacheTagging
      *
      * @param  array<int, string>  $tags
      */
-    private function getCacheInstance(array $tags): \Illuminate\Contracts\Cache\Repository
+    private function getCacheInstance(array $tags): Repository
     {
         if ($this->supportsTagging()) {
             return Cache::tags($tags);

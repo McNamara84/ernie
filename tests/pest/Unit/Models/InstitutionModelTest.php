@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 use App\Models\Institution;
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 covers(Institution::class);
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 describe('CRUD operations', function () {
     it('can create institution with labid', function () {

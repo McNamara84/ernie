@@ -6,15 +6,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { LoadingButton } from '@/components/ui/loading-button';
 
 type GuidedTourAssignmentSummary = {
@@ -62,16 +54,10 @@ export function AssignGuidedToursDialog({ user, tours, disabled = false }: Assig
     const [selectedTourIds, setSelectedTourIds] = useState<number[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const eligibleTours = useMemo(
-        () => tours.filter((tour) => tour.target_roles.includes(user.role)),
-        [tours, user.role],
-    );
+    const eligibleTours = useMemo(() => tours.filter((tour) => tour.target_roles.includes(user.role)), [tours, user.role]);
 
     const assignmentByTourId = useMemo(
-        () =>
-            new Map(
-                (user.guided_tour_assignments ?? []).map((assignment) => [assignment.guided_tour_id, assignment]),
-            ),
+        () => new Map((user.guided_tour_assignments ?? []).map((assignment) => [assignment.guided_tour_id, assignment])),
         [user.guided_tour_assignments],
     );
 
@@ -109,7 +95,8 @@ export function AssignGuidedToursDialog({ user, tours, disabled = false }: Assig
                 },
                 onError: (errors) => {
                     const firstErrorValue: unknown = Object.values(errors)[0];
-                    const errorMessage = typeof firstErrorValue === 'string' && firstErrorValue.length > 0 ? firstErrorValue : 'Failed to assign guided tours';
+                    const errorMessage =
+                        typeof firstErrorValue === 'string' && firstErrorValue.length > 0 ? firstErrorValue : 'Failed to assign guided tours';
                     toast.error(errorMessage);
                     setIsSubmitting(false);
                 },

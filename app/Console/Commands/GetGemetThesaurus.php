@@ -19,7 +19,6 @@ use Illuminate\Support\Facades\Storage;
 #[Signature('get-gemet-thesaurus')]
 class GetGemetThesaurus extends Command
 {
-
     private const OUTPUT_FILE = 'gemet-thesaurus.json';
 
     public function handle(): int

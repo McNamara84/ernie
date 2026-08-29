@@ -17,7 +17,7 @@ function pid4instHost(): string
 
 function pid4instRecordsUrlPattern(): string
 {
-    return pid4instHost() . '/api/records*';
+    return pid4instHost().'/api/records*';
 }
 
 beforeEach(function (): void {
@@ -139,7 +139,7 @@ it('fetches and stores pid4inst instruments without sending the rejected sort pa
         parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
 
         return $request->method() === 'GET'
-            && str_starts_with($request->url(), pid4instHost() . '/api/records?')
+            && str_starts_with($request->url(), pid4instHost().'/api/records?')
             && ! array_key_exists('sort', $query)
             && isset($query['size'], $query['page']);
     });
@@ -147,7 +147,7 @@ it('fetches and stores pid4inst instruments without sending the rejected sort pa
     Http::assertNotSent(function (Request $request): bool {
         parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
 
-        return str_starts_with($request->url(), pid4instHost() . '/api/records?')
+        return str_starts_with($request->url(), pid4instHost().'/api/records?')
             && array_key_exists('sort', $query);
     });
 });

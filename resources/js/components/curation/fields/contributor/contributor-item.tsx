@@ -114,10 +114,7 @@ export default function ContributorItem({
 
     // Detect whether this contributor has the "Contact Person" role
     const hasContactPersonRole = useMemo(
-        () =>
-            contributor.roles.some(
-                (role) => role.value.replace(/\s+/g, '').toLowerCase() === 'contactperson',
-            ),
+        () => contributor.roles.some((role) => role.value.replace(/\s+/g, '').toLowerCase() === 'contactperson'),
         [contributor.roles],
     );
 
@@ -298,7 +295,10 @@ export default function ContributorItem({
                                                 aria-label="Re-verify ORCID"
                                                 className="inline-flex cursor-pointer items-center border-green-600 text-green-600 transition-opacity hover:opacity-70"
                                             >
-                                                <Badge variant="outline" className="h-4 border-green-600 px-1.5 py-0 text-[10px] leading-none text-green-600">
+                                                <Badge
+                                                    variant="outline"
+                                                    className="h-4 border-green-600 px-1.5 py-0 text-[10px] leading-none text-green-600"
+                                                >
                                                     <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
                                                     Verified
                                                 </Badge>
@@ -484,11 +484,7 @@ export default function ContributorItem({
                     {/* ORCID Suggestions Button */}
                     {pendingOrcidData && (
                         <div className="col-span-full flex items-center">
-                            <OrcidSuggestionsButton
-                                pendingData={pendingOrcidData}
-                                onAccept={applyPendingData}
-                                onDiscard={clearPendingOrcidData}
-                            />
+                            <OrcidSuggestionsButton pendingData={pendingOrcidData} onAccept={applyPendingData} onDiscard={clearPendingOrcidData} />
                         </div>
                     )}
 

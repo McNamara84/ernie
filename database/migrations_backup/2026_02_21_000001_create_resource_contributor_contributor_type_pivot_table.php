@@ -52,17 +52,17 @@ return new class extends Migration
                 ->whereNotNull('contributor_type_id')
                 ->select(['id', 'contributor_type_id'])
                 ->chunkById(500, function ($rows) use ($now): void {
-                $inserts = [];
-                foreach ($rows as $row) {
-                    $inserts[] = [
-                        'resource_contributor_id' => $row->id,
-                        'contributor_type_id' => $row->contributor_type_id,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ];
-                }
-                DB::table('resource_contributor_contributor_type')->insertOrIgnore($inserts);
-            });
+                    $inserts = [];
+                    foreach ($rows as $row) {
+                        $inserts[] = [
+                            'resource_contributor_id' => $row->id,
+                            'contributor_type_id' => $row->contributor_type_id,
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    }
+                    DB::table('resource_contributor_contributor_type')->insertOrIgnore($inserts);
+                });
         }
 
         // 3. Drop the old foreign key and column (only if it still exists)

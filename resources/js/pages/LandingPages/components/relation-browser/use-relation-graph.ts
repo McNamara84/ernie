@@ -15,12 +15,7 @@ interface UseRelationGraphOptions {
     onNodeClick: (node: GraphNode) => void;
 }
 
-export function useRelationGraph(
-    svgRef: RefObject<SVGSVGElement | null>,
-    nodes: GraphNode[],
-    links: GraphLink[],
-    options: UseRelationGraphOptions,
-) {
+export function useRelationGraph(svgRef: RefObject<SVGSVGElement | null>, nodes: GraphNode[], links: GraphLink[], options: UseRelationGraphOptions) {
     const simulationRef = useRef<Simulation<GraphNode, GraphLink> | null>(null);
     const rafRef = useRef<number | null>(null);
 
@@ -76,11 +71,8 @@ export function useRelationGraph(
             // Affiliation edges point at institution nodes (radius 15)
             // Other edges point at resource nodes (radius 22)
             const category = getEdgeCategory(rt);
-            const refX = category === 'Contributor' || category === 'Creator'
-                ? CENTRAL_RADIUS + 6
-                : category === 'Affiliation'
-                    ? INSTITUTION_RADIUS + 6
-                    : 28;
+            const refX =
+                category === 'Contributor' || category === 'Creator' ? CENTRAL_RADIUS + 6 : category === 'Affiliation' ? INSTITUTION_RADIUS + 6 : 28;
             defs.append('marker')
                 .attr('id', `arrow-${rt}`)
                 .attr('viewBox', '0 -5 10 10')
@@ -96,14 +88,11 @@ export function useRelationGraph(
 
         // Drop shadow filter for central node
         const filter = defs.append('filter').attr('id', 'shadow');
-        filter.append('feDropShadow')
-            .attr('dx', 0)
-            .attr('dy', 2)
-            .attr('stdDeviation', 3)
-            .attr('flood-opacity', 0.25);
+        filter.append('feDropShadow').attr('dx', 0).attr('dy', 2).attr('stdDeviation', 3).attr('flood-opacity', 0.25);
 
         // Links
-        const linkSelection = container.append('g')
+        const linkSelection = container
+            .append('g')
             .attr('data-testid', 'graph-links')
             .selectAll<SVGLineElement, GraphLink>('line')
             .data(links)
@@ -135,7 +124,8 @@ export function useRelationGraph(
             });
 
         // Node groups
-        const nodeGroup = container.append('g')
+        const nodeGroup = container
+            .append('g')
             .attr('data-testid', 'graph-nodes')
             .selectAll<SVGGElement, GraphNode>('g')
             .data(nodes)
@@ -173,7 +163,8 @@ export function useRelationGraph(
             });
 
         // Circles
-        nodeGroup.append('circle')
+        nodeGroup
+            .append('circle')
             .attr('r', (d) => getNodeRadius(d.nodeType, d.isCentral))
             .attr('fill', (d) => getNodeColor(d.identifierType, d.isCentral))
             .attr('stroke', '#fff')
@@ -181,7 +172,8 @@ export function useRelationGraph(
             .attr('filter', (d) => (d.isCentral ? 'url(#shadow)' : ''));
 
         // Labels
-        nodeGroup.append('text')
+        nodeGroup
+            .append('text')
             .text((d) => truncateLabel(d.label))
             .attr('text-anchor', 'middle')
             .attr('dy', (d) => getNodeRadius(d.nodeType, d.isCentral) + 16)
@@ -197,10 +189,18 @@ export function useRelationGraph(
 
         const simulation = forceSimulation<GraphNode>(nodes)
             .alpha(initialAlpha)
-            .force('link', forceLink<GraphNode, GraphLink>(links).id((d) => d.id).distance(linkDistance))
+            .force(
+                'link',
+                forceLink<GraphNode, GraphLink>(links)
+                    .id((d) => d.id)
+                    .distance(linkDistance),
+            )
             .force('charge', forceManyBody().strength(-300))
             .force('center', forceCenter(width / 2, height / 2))
-            .force('collide', forceCollide<GraphNode>().radius((d) => getNodeRadius(d.nodeType, d.isCentral) + 20))
+            .force(
+                'collide',
+                forceCollide<GraphNode>().radius((d) => getNodeRadius(d.nodeType, d.isCentral) + 20),
+            )
             .alphaDecay(0.03)
             .velocityDecay(0.4);
 

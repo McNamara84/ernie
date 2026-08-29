@@ -46,9 +46,7 @@ export default function LicenseChart({ data }: LicenseChartProps) {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" tickLine={false} axisLine={false} angle={-45} textAnchor="end" height={80} />
                 <YAxis tickLine={false} axisLine={false} />
-                <ChartTooltip
-                    content={<ChartTooltipContent labelKey="fullName" nameKey="fullName" />}
-                />
+                <ChartTooltip content={<ChartTooltipContent labelKey="fullName" nameKey="fullName" />} />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                     {chartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

@@ -14,12 +14,8 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    env:
-      FORMAT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -37,26 +33,15 @@ jobs:
         run: npm run lint:check
 
       - name: Check Frontend formatting
-        shell: bash
-        run: |
-          mapfile -d '' changed_files < <(git diff --name-only --diff-filter=ACMRT -z "$FORMAT_BASE" HEAD -- resources/)
-          if (( ${#changed_files[@]} == 0 )); then
-            echo "No changed frontend files to format-check."
-            exit 0
-          fi
-          ./node_modules/.bin/prettier --check --ignore-unknown -- "${changed_files[@]}"
+        run: npm run format:check
 
       - name: Validate OpenAPI
         run: npm run openapi:check
 
   pint:
     runs-on: ubuntu-latest
-    env:
-      FORMAT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
 
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
@@ -81,7 +66,7 @@ jobs:
             ${{ runner.os }}-pint-${{ hashFiles('composer.lock', 'pint.json') }}-
 
       - name: Run Pint
-        run: vendor/bin/pint --test --parallel --cache-file=.pint.cache --diff="$FORMAT_BASE"
+        run: vendor/bin/pint --test --parallel --cache-file=.pint.cache
 
   phpstan:
     runs-on: ubuntu-latest

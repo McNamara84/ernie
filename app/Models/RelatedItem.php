@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * RelatedItem Model (DataCite 4.7 #20).
@@ -38,13 +41,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $scheme_uri
  * @property string|null $scheme_type
  * @property int $position
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  * @property-read RelationType $relationType
- * @property-read \Illuminate\Database\Eloquent\Collection<int, RelatedItemTitle> $titles
- * @property-read \Illuminate\Database\Eloquent\Collection<int, RelatedItemCreator> $creators
- * @property-read \Illuminate\Database\Eloquent\Collection<int, RelatedItemContributor> $contributors
+ * @property-read Collection<int, RelatedItemTitle> $titles
+ * @property-read Collection<int, RelatedItemCreator> $creators
+ * @property-read Collection<int, RelatedItemContributor> $contributors
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/relateditem/
  */
@@ -70,7 +73,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class RelatedItem extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     /** @var array<string, string> */

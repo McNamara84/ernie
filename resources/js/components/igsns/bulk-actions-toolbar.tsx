@@ -17,7 +17,14 @@ interface BulkActionsToolbarProps {
  *
  * Provides bulk delete and bulk registration actions.
  */
-export function BulkActionsToolbar({ selectedCount, onDelete, onRegister, canDelete, isDeleting = false, isRegistering = false }: BulkActionsToolbarProps) {
+export function BulkActionsToolbar({
+    selectedCount,
+    onDelete,
+    onRegister,
+    canDelete,
+    isDeleting = false,
+    isRegistering = false,
+}: BulkActionsToolbarProps) {
     if (selectedCount === 0) {
         return null;
     }
@@ -29,19 +36,19 @@ export function BulkActionsToolbar({ selectedCount, onDelete, onRegister, canDel
             </span>
             <div className="flex items-center gap-2">
                 {onRegister && (
-                <Button variant="default" size="sm" onClick={onRegister} disabled={isRegistering || isDeleting}>
-                    {isRegistering ? (
-                        <>
-                            <Spinner size="sm" className="mr-2" />
-                            Registering...
-                        </>
-                    ) : (
-                        <>
-                            <CloudUpload className="mr-2 size-4" />
-                            Register Selected
-                        </>
-                    )}
-                </Button>
+                    <Button variant="default" size="sm" onClick={onRegister} disabled={isRegistering || isDeleting}>
+                        {isRegistering ? (
+                            <>
+                                <Spinner size="sm" className="mr-2" />
+                                Registering...
+                            </>
+                        ) : (
+                            <>
+                                <CloudUpload className="mr-2 size-4" />
+                                Register Selected
+                            </>
+                        )}
+                    </Button>
                 )}
 
                 {canDelete && (

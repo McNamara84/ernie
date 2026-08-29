@@ -5,14 +5,13 @@ declare(strict_types=1);
 use App\Enums\ContributorCategory;
 use App\Models\ContributorType;
 use App\Models\FunderIdentifierType;
-use App\Models\FundingReference;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
 use App\Models\Resource;
-use App\Models\ResourceContributor;
 use App\Models\TitleType;
 use Database\Factories\ContributorTypeFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -38,8 +37,8 @@ describe('ContributorType', function () {
     });
 
     it('filters active types via scope', function () {
-        ContributorTypeFactory::new()->create(['is_active' => true, 'slug' => 'Active-' . uniqid()]);
-        ContributorTypeFactory::new()->inactive()->create(['slug' => 'Inactive-' . uniqid()]);
+        ContributorTypeFactory::new()->create(['is_active' => true, 'slug' => 'Active-'.uniqid()]);
+        ContributorTypeFactory::new()->inactive()->create(['slug' => 'Inactive-'.uniqid()]);
 
         $active = ContributorType::active()->get();
 
@@ -47,8 +46,8 @@ describe('ContributorType', function () {
     });
 
     it('filters elmo active types via scope', function () {
-        ContributorTypeFactory::new()->create(['is_elmo_active' => true, 'slug' => 'ElmoActive-' . uniqid()]);
-        ContributorTypeFactory::new()->elmoInactive()->create(['slug' => 'ElmoInactive-' . uniqid()]);
+        ContributorTypeFactory::new()->create(['is_elmo_active' => true, 'slug' => 'ElmoActive-'.uniqid()]);
+        ContributorTypeFactory::new()->elmoInactive()->create(['slug' => 'ElmoInactive-'.uniqid()]);
 
         $elmo = ContributorType::elmoActive()->get();
 
@@ -58,9 +57,9 @@ describe('ContributorType', function () {
     it('filters types for persons via scope', function () {
         ContributorTypeFactory::new()->create([
             'category' => ContributorCategory::PERSON,
-            'slug' => 'PersonType-' . uniqid(),
+            'slug' => 'PersonType-'.uniqid(),
         ]);
-        ContributorTypeFactory::new()->institution()->create(['slug' => 'InstType-' . uniqid()]);
+        ContributorTypeFactory::new()->institution()->create(['slug' => 'InstType-'.uniqid()]);
 
         $personTypes = ContributorType::forPersons()->get();
 
@@ -68,7 +67,7 @@ describe('ContributorType', function () {
     });
 
     it('filters types for institutions via scope', function () {
-        ContributorTypeFactory::new()->institution()->create(['slug' => 'InstScope-' . uniqid()]);
+        ContributorTypeFactory::new()->institution()->create(['slug' => 'InstScope-'.uniqid()]);
 
         $instTypes = ContributorType::forInstitutions()->get();
 
@@ -77,9 +76,9 @@ describe('ContributorType', function () {
 
     it('has contributors relationship', function () {
         /** @var ContributorType $type */
-        $type = ContributorTypeFactory::new()->create(['slug' => 'RelTest-' . uniqid()]);
+        $type = ContributorTypeFactory::new()->create(['slug' => 'RelTest-'.uniqid()]);
 
-        expect($type->contributors())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+        expect($type->contributors())->toBeInstanceOf(HasMany::class);
     });
 });
 
@@ -90,7 +89,7 @@ describe('FunderIdentifierType', function () {
     it('creates with fillable attributes', function () {
         $type = FunderIdentifierType::create([
             'name' => 'Crossref Funder ID',
-            'slug' => 'crossref-funder-' . uniqid(),
+            'slug' => 'crossref-funder-'.uniqid(),
             'is_active' => true,
         ]);
 
@@ -101,7 +100,7 @@ describe('FunderIdentifierType', function () {
     it('casts is_active to boolean', function () {
         $type = FunderIdentifierType::create([
             'name' => 'ROR',
-            'slug' => 'ror-funder-' . uniqid(),
+            'slug' => 'ror-funder-'.uniqid(),
             'is_active' => false,
         ]);
 
@@ -109,8 +108,8 @@ describe('FunderIdentifierType', function () {
     });
 
     it('filters active types via scope', function () {
-        FunderIdentifierType::create(['name' => 'Active', 'slug' => 'active-fit-' . uniqid(), 'is_active' => true]);
-        FunderIdentifierType::create(['name' => 'Inactive', 'slug' => 'inactive-fit-' . uniqid(), 'is_active' => false]);
+        FunderIdentifierType::create(['name' => 'Active', 'slug' => 'active-fit-'.uniqid(), 'is_active' => true]);
+        FunderIdentifierType::create(['name' => 'Inactive', 'slug' => 'inactive-fit-'.uniqid(), 'is_active' => false]);
 
         $active = FunderIdentifierType::active()->get();
 
@@ -120,11 +119,11 @@ describe('FunderIdentifierType', function () {
     it('has fundingReferences relationship', function () {
         $type = FunderIdentifierType::create([
             'name' => 'Test Type',
-            'slug' => 'test-funder-rel-' . uniqid(),
+            'slug' => 'test-funder-rel-'.uniqid(),
             'is_active' => true,
         ]);
 
-        expect($type->fundingReferences())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+        expect($type->fundingReferences())->toBeInstanceOf(HasMany::class);
     });
 });
 
@@ -147,8 +146,8 @@ describe('TitleType', function () {
     });
 
     it('filters active types via scope', function () {
-        TitleType::factory()->create(['is_active' => true, 'slug' => 'ActiveTT-' . uniqid()]);
-        TitleType::factory()->create(['is_active' => false, 'slug' => 'InactiveTT-' . uniqid()]);
+        TitleType::factory()->create(['is_active' => true, 'slug' => 'ActiveTT-'.uniqid()]);
+        TitleType::factory()->create(['is_active' => false, 'slug' => 'InactiveTT-'.uniqid()]);
 
         $active = TitleType::active()->get();
 
@@ -156,8 +155,8 @@ describe('TitleType', function () {
     });
 
     it('filters elmo active types via scope', function () {
-        TitleType::factory()->create(['is_elmo_active' => true, 'slug' => 'ElmoTT-' . uniqid()]);
-        TitleType::factory()->create(['is_elmo_active' => false, 'slug' => 'NoElmoTT-' . uniqid()]);
+        TitleType::factory()->create(['is_elmo_active' => true, 'slug' => 'ElmoTT-'.uniqid()]);
+        TitleType::factory()->create(['is_elmo_active' => false, 'slug' => 'NoElmoTT-'.uniqid()]);
 
         $elmo = TitleType::elmoActive()->get();
 
@@ -165,8 +164,8 @@ describe('TitleType', function () {
     });
 
     it('orders by name via scope', function () {
-        TitleType::factory()->create(['name' => 'Zebra', 'slug' => 'zebra-tt-' . uniqid()]);
-        TitleType::factory()->create(['name' => 'Alpha', 'slug' => 'alpha-tt-' . uniqid()]);
+        TitleType::factory()->create(['name' => 'Zebra', 'slug' => 'zebra-tt-'.uniqid()]);
+        TitleType::factory()->create(['name' => 'Alpha', 'slug' => 'alpha-tt-'.uniqid()]);
 
         $ordered = TitleType::orderByName()->pluck('name')->toArray();
         $sorted = $ordered;

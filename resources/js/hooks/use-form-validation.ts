@@ -359,15 +359,11 @@ export function useFormValidation(): UseFormValidationReturn {
 
                 const existingMessages = oldState?.messages ?? [];
                 // Deduplicate: skip if exact same error message already present
-                const isDuplicate = existingMessages.some(
-                    (msg) => msg.severity === 'error' && msg.message === message,
-                );
+                const isDuplicate = existingMessages.some((msg) => msg.severity === 'error' && msg.message === message);
 
                 newFields[fieldId] = {
                     status: 'invalid',
-                    messages: isDuplicate
-                        ? existingMessages
-                        : [...existingMessages, { severity: 'error', message, fieldId, source: 'backend' }],
+                    messages: isDuplicate ? existingMessages : [...existingMessages, { severity: 'error', message, fieldId, source: 'backend' }],
                     touched: true,
                     value: oldState?.value,
                 };

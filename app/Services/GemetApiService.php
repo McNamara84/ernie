@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Illuminate\Http\Client\Pool;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -265,7 +266,7 @@ class GemetApiService
         $url = self::BASE_URL.'getRelatedConcepts';
         $groupUris = array_map(fn (array $group): string => $group['uri'], $groups);
 
-        $responses = Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($url, $groupUris, $language, $timeout): array {
+        $responses = Http::pool(function (Pool $pool) use ($url, $groupUris, $language, $timeout): array {
             $requests = [];
             foreach ($groupUris as $groupUri) {
                 $requests[] = $pool->timeout($timeout)

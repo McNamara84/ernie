@@ -15,7 +15,6 @@ uses(RefreshDatabase::class);
  * This test systematically tests all filter and sort options on the /resources route
  * to ensure all combinations work correctly.
  */
-
 beforeEach(function () {
     $this->user = User::factory()->create();
 });

@@ -43,8 +43,8 @@ it('returns null for null, blank, non-string, and unresolvable inputs', function
 
     expect($service->resolveIdentifierType(null))->toBeNull()
         ->and($service->resolveRelationType(null))->toBeNull()
-    ->and($service->resolveIdentifierType(['DOI']))->toBeNull()
-    ->and($service->resolveRelationType(123))->toBeNull()
+        ->and($service->resolveIdentifierType(['DOI']))->toBeNull()
+        ->and($service->resolveRelationType(123))->toBeNull()
         ->and($service->resolveIdentifierType('   '))->toBeNull()
         ->and($service->resolveRelationType('@@@'))->toBeNull();
 });

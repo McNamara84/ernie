@@ -143,10 +143,14 @@ export async function apiRequest<T = unknown>(input: string, init: ApiRequestIni
     }
 
     if (!response.ok) {
-        const parsed = await response.clone().json().catch(() => null);
-        const message = typeof (parsed as { message?: unknown })?.message === 'string'
-            ? (parsed as { message: string }).message
-            : `Request failed with status ${response.status}`;
+        const parsed = await response
+            .clone()
+            .json()
+            .catch(() => null);
+        const message =
+            typeof (parsed as { message?: unknown })?.message === 'string'
+                ? (parsed as { message: string }).message
+                : `Request failed with status ${response.status}`;
         throw new ApiError(message, response.status, parsed);
     }
 

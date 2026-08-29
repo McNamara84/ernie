@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\FundingReference;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 covers(FundingReference::class);
 
@@ -27,13 +28,13 @@ describe('relationships', function () {
     it('defines resource relationship', function () {
         $model = new FundingReference;
 
-        expect($model->resource())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->resource())->toBeInstanceOf(BelongsTo::class);
     });
 
     it('defines funderIdentifierType relationship', function () {
         $model = new FundingReference;
 
-        expect($model->funderIdentifierType())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->funderIdentifierType())->toBeInstanceOf(BelongsTo::class);
     });
 });
 

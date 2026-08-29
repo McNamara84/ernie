@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Models\GuidedTour;
-use App\Models\UserGuidedTourAssignment;
 use App\Models\User;
+use App\Models\UserGuidedTourAssignment;
 use Illuminate\Support\Facades\Notification;
 
 describe('User Management', function (): void {

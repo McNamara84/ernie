@@ -6,6 +6,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Services\Orcid\OrcidPreflightResult;
 use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\OrcidService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -340,7 +341,7 @@ it('skips creators with null name_identifier', function () {
 
 it('skips institution creators (non-Person morph target)', function () {
     $resource = Resource::factory()->create();
-    \App\Models\ResourceCreator::factory()
+    ResourceCreator::factory()
         ->forInstitution()
         ->position(0)
         ->create(['resource_id' => $resource->id]);
@@ -396,7 +397,7 @@ it('normalizes unexpected API error types to "unknown" warning', function () {
 });
 
 it('OrcidPreflightResult::clean() produces a result with no issues', function () {
-    $result = \App\Services\Orcid\OrcidPreflightResult::clean();
+    $result = OrcidPreflightResult::clean();
 
     expect($result->shouldBlock)->toBeFalse()
         ->and($result->needsConfirmation)->toBeFalse()
@@ -437,15 +438,15 @@ it('eager-loads morph targets to avoid N+1 queries', function () {
     $freshResource = Resource::query()->findOrFail($resource->id);
 
     $queryCount = 0;
-    \DB::flushQueryLog();
-    \DB::enableQueryLog();
+    DB::flushQueryLog();
+    DB::enableQueryLog();
 
     try {
         (new OrcidPreflightValidator($orcid))->validate($freshResource);
-        $queryCount = count(\DB::getQueryLog());
+        $queryCount = count(DB::getQueryLog());
     } finally {
-        \DB::disableQueryLog();
-        \DB::flushQueryLog();
+        DB::disableQueryLog();
+        DB::flushQueryLog();
     }
 
     // Expected queries:

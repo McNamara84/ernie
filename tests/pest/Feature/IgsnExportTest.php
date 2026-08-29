@@ -1,10 +1,18 @@
 <?php
 
+use App\Models\DateType;
+use App\Models\GeoLocation;
+use App\Models\IdentifierType;
 use App\Models\IgsnMetadata;
+use App\Models\Language;
 use App\Models\Person;
+use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceDate;
 use App\Models\ResourceType;
+use App\Models\Size;
 use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -574,7 +582,7 @@ describe('IGSN Collection Date Export', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
         $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
-        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+        $collectedDateType = DateType::where('slug', 'Collected')->first();
 
         // Create resource
         $resource = Resource::factory()->create([
@@ -590,10 +598,10 @@ describe('IGSN Collection Date Export', function () {
         ]);
 
         // Add creator
-        $person = \App\Models\Person::factory()->create();
-        \App\Models\ResourceCreator::create([
+        $person = Person::factory()->create();
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -607,7 +615,7 @@ describe('IGSN Collection Date Export', function () {
         ]);
 
         // Add collection date range (like from CSV)
-        \App\Models\ResourceDate::create([
+        ResourceDate::create([
             'resource_id' => $resource->id,
             'date_type_id' => $collectedDateType->id,
             'start_date' => '2024-01-15',
@@ -632,7 +640,7 @@ describe('IGSN Collection Date Export', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
         $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
-        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+        $collectedDateType = DateType::where('slug', 'Collected')->first();
 
         $resource = Resource::factory()->create([
             'resource_type_id' => $physicalObjectType->id,
@@ -646,10 +654,10 @@ describe('IGSN Collection Date Export', function () {
             'position' => 1,
         ]);
 
-        $person = \App\Models\Person::factory()->create();
-        \App\Models\ResourceCreator::create([
+        $person = Person::factory()->create();
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -662,7 +670,7 @@ describe('IGSN Collection Date Export', function () {
         ]);
 
         // Add collection date with year-only format
-        \App\Models\ResourceDate::create([
+        ResourceDate::create([
             'resource_id' => $resource->id,
             'date_type_id' => $collectedDateType->id,
             'start_date' => '2020',
@@ -683,7 +691,7 @@ describe('IGSN Collection Date Export', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
         $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
-        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+        $collectedDateType = DateType::where('slug', 'Collected')->first();
 
         $resource = Resource::factory()->create([
             'resource_type_id' => $physicalObjectType->id,
@@ -697,10 +705,10 @@ describe('IGSN Collection Date Export', function () {
             'position' => 1,
         ]);
 
-        $person = \App\Models\Person::factory()->create();
-        \App\Models\ResourceCreator::create([
+        $person = Person::factory()->create();
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -713,7 +721,7 @@ describe('IGSN Collection Date Export', function () {
         ]);
 
         // Add collection date with only start date (open-ended)
-        \App\Models\ResourceDate::create([
+        ResourceDate::create([
             'resource_id' => $resource->id,
             'date_type_id' => $collectedDateType->id,
             'start_date' => '2024-03-15',
@@ -735,7 +743,7 @@ describe('IGSN Collection Date Export', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
         $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
-        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+        $collectedDateType = DateType::where('slug', 'Collected')->first();
 
         $resource = Resource::factory()->create([
             'resource_type_id' => $physicalObjectType->id,
@@ -749,10 +757,10 @@ describe('IGSN Collection Date Export', function () {
             'position' => 1,
         ]);
 
-        $person = \App\Models\Person::factory()->create();
-        \App\Models\ResourceCreator::create([
+        $person = Person::factory()->create();
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -765,7 +773,7 @@ describe('IGSN Collection Date Export', function () {
         ]);
 
         // Add collection date range
-        \App\Models\ResourceDate::create([
+        ResourceDate::create([
             'resource_id' => $resource->id,
             'date_type_id' => $collectedDateType->id,
             'start_date' => '2021-04-12',
@@ -793,7 +801,7 @@ describe('IGSN Collection Date Export', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
         $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
-        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+        $collectedDateType = DateType::where('slug', 'Collected')->first();
 
         $resource = Resource::factory()->create([
             'resource_type_id' => $physicalObjectType->id,
@@ -807,10 +815,10 @@ describe('IGSN Collection Date Export', function () {
             'position' => 1,
         ]);
 
-        $person = \App\Models\Person::factory()->create();
-        \App\Models\ResourceCreator::create([
+        $person = Person::factory()->create();
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -823,7 +831,7 @@ describe('IGSN Collection Date Export', function () {
         ]);
 
         // Store datetime values with timezone (as they would come from CSV import)
-        \App\Models\ResourceDate::create([
+        ResourceDate::create([
             'resource_id' => $resource->id,
             'date_type_id' => $collectedDateType->id,
             'start_date' => '2023-05-15T09:35+02:00',
@@ -847,7 +855,7 @@ describe('IGSN Collection Date Export', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
         $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
-        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+        $collectedDateType = DateType::where('slug', 'Collected')->first();
 
         $resource = Resource::factory()->create([
             'resource_type_id' => $physicalObjectType->id,
@@ -861,10 +869,10 @@ describe('IGSN Collection Date Export', function () {
             'position' => 1,
         ]);
 
-        $person = \App\Models\Person::factory()->create();
-        \App\Models\ResourceCreator::create([
+        $person = Person::factory()->create();
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -876,7 +884,7 @@ describe('IGSN Collection Date Export', function () {
             'upload_status' => 'pending',
         ]);
 
-        \App\Models\ResourceDate::create([
+        ResourceDate::create([
             'resource_id' => $resource->id,
             'date_type_id' => $collectedDateType->id,
             'start_date' => '2023-05-15T09:35+02:00',
@@ -900,7 +908,7 @@ describe('IGSN Collection Date Export', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
         $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
-        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+        $collectedDateType = DateType::where('slug', 'Collected')->first();
 
         $resource = Resource::factory()->create([
             'resource_type_id' => $physicalObjectType->id,
@@ -914,10 +922,10 @@ describe('IGSN Collection Date Export', function () {
             'position' => 1,
         ]);
 
-        $person = \App\Models\Person::factory()->create();
-        \App\Models\ResourceCreator::create([
+        $person = Person::factory()->create();
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -930,7 +938,7 @@ describe('IGSN Collection Date Export', function () {
         ]);
 
         // Open-ended: only start datetime, no end
-        \App\Models\ResourceDate::create([
+        ResourceDate::create([
             'resource_id' => $resource->id,
             'date_type_id' => $collectedDateType->id,
             'start_date' => '2023-05-15T09:35+02:00',
@@ -967,16 +975,16 @@ describe('IGSN Creator Export', function () {
         ]);
 
         // Create person with ORCID
-        $person = \App\Models\Person::factory()->create([
+        $person = Person::factory()->create([
             'given_name' => 'Sofia',
             'family_name' => 'Garcia',
             'name_identifier' => 'https://orcid.org/0000-0001-5727-2427',
             'name_identifier_scheme' => 'ORCID',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1019,16 +1027,16 @@ describe('IGSN Creator Export', function () {
             'position' => 1,
         ]);
 
-        $person = \App\Models\Person::factory()->create([
+        $person = Person::factory()->create([
             'given_name' => 'Gerald',
             'family_name' => 'Gabriel',
             'name_identifier' => 'https://orcid.org/0000-0001-9404-882X',
             'name_identifier_scheme' => 'ORCID',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1072,16 +1080,16 @@ describe('IGSN Creator Export', function () {
             'position' => 1,
         ]);
 
-        $person = \App\Models\Person::factory()->create([
+        $person = Person::factory()->create([
             'given_name' => 'John',
             'family_name' => 'Doe',
             'name_identifier' => 'https://orcid.org/0000-0001-2345-6789',
             'name_identifier_scheme' => 'ORCID',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1133,9 +1141,9 @@ describe('IGSN Creator Export', function () {
             'family_name' => 'Garcia',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1189,9 +1197,9 @@ describe('IGSN Creator Export', function () {
             'family_name' => 'Darwin',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1253,9 +1261,9 @@ describe('IGSN GeoLocation Export', function () {
             'family_name' => 'Geologist',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1267,7 +1275,7 @@ describe('IGSN GeoLocation Export', function () {
         ]);
 
         // Create geoLocation with point coordinates
-        \App\Models\GeoLocation::create([
+        GeoLocation::create([
             'resource_id' => $resource->id,
             'point_latitude' => 52.5200,
             'point_longitude' => 13.4050,
@@ -1312,9 +1320,9 @@ describe('IGSN GeoLocation Export', function () {
             'family_name' => 'Researcher',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1326,7 +1334,7 @@ describe('IGSN GeoLocation Export', function () {
         ]);
 
         // Create geoLocation with place name
-        \App\Models\GeoLocation::create([
+        GeoLocation::create([
             'resource_id' => $resource->id,
             'place' => 'Berlin, Germany',
         ]);
@@ -1366,9 +1374,9 @@ describe('IGSN GeoLocation Export', function () {
             'family_name' => 'Scientist',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1381,7 +1389,7 @@ describe('IGSN GeoLocation Export', function () {
         ]);
 
         // Create geoLocation with both point and place
-        \App\Models\GeoLocation::create([
+        GeoLocation::create([
             'resource_id' => $resource->id,
             'point_latitude' => 48.0000,
             'point_longitude' => 9.7490,
@@ -1426,9 +1434,9 @@ describe('IGSN GeoLocation Export', function () {
             'family_name' => 'Miner',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1440,7 +1448,7 @@ describe('IGSN GeoLocation Export', function () {
         ]);
 
         // Create geoLocation with elevation
-        \App\Models\GeoLocation::create([
+        GeoLocation::create([
             'resource_id' => $resource->id,
             'point_latitude' => 48.0000,
             'point_longitude' => 9.7490,
@@ -1484,9 +1492,9 @@ describe('IGSN GeoLocation Export', function () {
             'family_name' => 'Researcher',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1498,7 +1506,7 @@ describe('IGSN GeoLocation Export', function () {
         ]);
 
         // Create geoLocation with bounding box
-        \App\Models\GeoLocation::create([
+        GeoLocation::create([
             'resource_id' => $resource->id,
             'west_bound_longitude' => 13.0,
             'east_bound_longitude' => 14.0,
@@ -1545,9 +1553,9 @@ describe('IGSN GeoLocation Export', function () {
             'family_name' => 'Explorer',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1559,14 +1567,14 @@ describe('IGSN GeoLocation Export', function () {
         ]);
 
         // Create two geoLocations
-        \App\Models\GeoLocation::create([
+        GeoLocation::create([
             'resource_id' => $resource->id,
             'point_latitude' => 52.5200,
             'point_longitude' => 13.4050,
             'place' => 'Berlin, Germany',
         ]);
 
-        \App\Models\GeoLocation::create([
+        GeoLocation::create([
             'resource_id' => $resource->id,
             'point_latitude' => 48.1351,
             'point_longitude' => 11.5820,
@@ -1608,9 +1616,9 @@ describe('IGSN GeoLocation Export', function () {
             'family_name' => 'Collector',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1653,9 +1661,9 @@ describe('IGSN GeoLocation Export', function () {
             'family_name' => 'Mapper',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1667,7 +1675,7 @@ describe('IGSN GeoLocation Export', function () {
         ]);
 
         // Create geoLocation with polygon (minimum 3 points required)
-        \App\Models\GeoLocation::create([
+        GeoLocation::create([
             'resource_id' => $resource->id,
             'polygon_points' => [
                 ['longitude' => 13.0, 'latitude' => 52.0],
@@ -1726,9 +1734,9 @@ describe('IGSN GeoLocation Export', function () {
             'family_name' => 'Tester',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1739,7 +1747,7 @@ describe('IGSN GeoLocation Export', function () {
             'upload_status' => 'pending',
         ]);
 
-        \App\Models\GeoLocation::create([
+        GeoLocation::create([
             'resource_id' => $resource->id,
             'point_latitude' => 52.5200,
             'point_longitude' => 13.4050,
@@ -1784,9 +1792,9 @@ describe('IGSN GeoLocation Export', function () {
             'family_name' => 'Surveyor',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1797,7 +1805,7 @@ describe('IGSN GeoLocation Export', function () {
             'upload_status' => 'pending',
         ]);
 
-        \App\Models\GeoLocation::create([
+        GeoLocation::create([
             'resource_id' => $resource->id,
             'west_bound_longitude' => 13.0,
             'east_bound_longitude' => 14.0,
@@ -1866,9 +1874,9 @@ describe('IGSN AlternateIdentifier Export', function () {
             'family_name' => 'Collector',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1934,9 +1942,9 @@ describe('IGSN AlternateIdentifier Export', function () {
             'family_name' => 'Researcher',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -1990,9 +1998,9 @@ describe('IGSN AlternateIdentifier Export', function () {
             'family_name' => 'User',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -2030,9 +2038,9 @@ describe('IGSN AlternateIdentifier Export', function () {
             'family_name' => 'Doe',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -2089,9 +2097,9 @@ describe('IGSN AlternateIdentifier Export', function () {
             'family_name' => 'Tester',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -2136,9 +2144,9 @@ describe('IGSN AlternateIdentifier Export', function () {
             'family_name' => 'User',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -2195,9 +2203,9 @@ describe('IGSN AlternateIdentifier Export', function () {
             'family_name' => 'User',
         ]);
 
-        \App\Models\ResourceCreator::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 1,
         ]);
@@ -2235,8 +2243,8 @@ describe('IGSN RelatedIdentifier Export', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
         $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
-        $igsnIdentifierType = \App\Models\IdentifierType::where('slug', 'IGSN')->first();
-        $isPartOfRelationType = \App\Models\RelationType::where('slug', 'IsPartOf')->first();
+        $igsnIdentifierType = IdentifierType::where('slug', 'IGSN')->first();
+        $isPartOfRelationType = RelationType::where('slug', 'IsPartOf')->first();
 
         // Create IGSN resource
         $resource = Resource::create([
@@ -2257,7 +2265,7 @@ describe('IGSN RelatedIdentifier Export', function () {
         ]);
 
         // Create related identifier for parent IGSN
-        \App\Models\RelatedIdentifier::create([
+        RelatedIdentifier::create([
             'resource_id' => $resource->id,
             'identifier' => '10.58052/IGSN.PARENT',
             'identifier_type_id' => $igsnIdentifierType->id,
@@ -2294,10 +2302,10 @@ describe('IGSN RelatedIdentifier Export', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
         $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
-        $igsnIdentifierType = \App\Models\IdentifierType::where('slug', 'IGSN')->first();
-        $doiIdentifierType = \App\Models\IdentifierType::where('slug', 'DOI')->first();
-        $isPartOfRelationType = \App\Models\RelationType::where('slug', 'IsPartOf')->first();
-        $isCitedByRelationType = \App\Models\RelationType::where('slug', 'IsCitedBy')->first();
+        $igsnIdentifierType = IdentifierType::where('slug', 'IGSN')->first();
+        $doiIdentifierType = IdentifierType::where('slug', 'DOI')->first();
+        $isPartOfRelationType = RelationType::where('slug', 'IsPartOf')->first();
+        $isCitedByRelationType = RelationType::where('slug', 'IsCitedBy')->first();
 
         $resource = Resource::create([
             'doi' => '10.58052/IGSN.MULTI',
@@ -2317,7 +2325,7 @@ describe('IGSN RelatedIdentifier Export', function () {
         ]);
 
         // Parent IGSN relation
-        \App\Models\RelatedIdentifier::create([
+        RelatedIdentifier::create([
             'resource_id' => $resource->id,
             'identifier' => '10.58052/IGSN.PARENT',
             'identifier_type_id' => $igsnIdentifierType->id,
@@ -2326,7 +2334,7 @@ describe('IGSN RelatedIdentifier Export', function () {
         ]);
 
         // Related publication
-        \App\Models\RelatedIdentifier::create([
+        RelatedIdentifier::create([
             'resource_id' => $resource->id,
             'identifier' => '10.1234/paper.2024',
             'identifier_type_id' => $doiIdentifierType->id,
@@ -2371,8 +2379,8 @@ describe('IGSN RelatedIdentifier Export', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
         $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
-        $igsnIdentifierType = \App\Models\IdentifierType::where('slug', 'IGSN')->first();
-        $isPartOfRelationType = \App\Models\RelationType::where('slug', 'IsPartOf')->first();
+        $igsnIdentifierType = IdentifierType::where('slug', 'IGSN')->first();
+        $isPartOfRelationType = RelationType::where('slug', 'IsPartOf')->first();
 
         $resource = Resource::create([
             'doi' => '10.58052/IGSN.XMLTEST',
@@ -2391,7 +2399,7 @@ describe('IGSN RelatedIdentifier Export', function () {
             'upload_status' => IgsnMetadata::STATUS_UPLOADED,
         ]);
 
-        \App\Models\RelatedIdentifier::create([
+        RelatedIdentifier::create([
             'resource_id' => $resource->id,
             'identifier' => '10.58052/IGSN.PARENT',
             'identifier_type_id' => $igsnIdentifierType->id,
@@ -2493,7 +2501,7 @@ describe('IGSN Size Export', function () {
         ]);
 
         // Create size entry (as would be created by IgsnStorageService)
-        \App\Models\Size::create([
+        Size::create([
             'resource_id' => $resource->id,
             'numeric_value' => 15.5,
             'unit' => 'cm',
@@ -2545,7 +2553,7 @@ describe('IGSN Size Export', function () {
         ]);
 
         // Create size entry without unit
-        \App\Models\Size::create([
+        Size::create([
             'resource_id' => $resource->id,
             'numeric_value' => 250,
         ]);
@@ -2594,7 +2602,7 @@ describe('IGSN Size Export', function () {
             'upload_status' => IgsnMetadata::STATUS_UPLOADED,
         ]);
 
-        \App\Models\Size::create([
+        Size::create([
             'resource_id' => $resource->id,
             'numeric_value' => 100,
             'unit' => 'g',
@@ -2689,13 +2697,13 @@ describe('IGSN Size Export', function () {
         ]);
 
         // Create multiple size entries (as would be created by IgsnStorageService)
-        \App\Models\Size::create([
+        Size::create([
             'resource_id' => $resource->id,
             'numeric_value' => 0.9,
             'unit' => 'm',
             'type' => 'Drilled Length',
         ]);
-        \App\Models\Size::create([
+        Size::create([
             'resource_id' => $resource->id,
             'numeric_value' => 146,
             'unit' => 'mm',
@@ -2748,13 +2756,13 @@ describe('IGSN Size Export', function () {
             'upload_status' => IgsnMetadata::STATUS_UPLOADED,
         ]);
 
-        \App\Models\Size::create([
+        Size::create([
             'resource_id' => $resource->id,
             'numeric_value' => 3,
             'unit' => 'm',
             'type' => 'Drilled Length',
         ]);
-        \App\Models\Size::create([
+        Size::create([
             'resource_id' => $resource->id,
             'numeric_value' => 123,
             'unit' => 'mm',
@@ -2923,7 +2931,7 @@ describe('IGSN Language Export', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
         $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
-        $germanLanguage = \App\Models\Language::where('code', 'de')->first();
+        $germanLanguage = Language::where('code', 'de')->first();
 
         // Skip test if German language not seeded
         if (! $germanLanguage) {

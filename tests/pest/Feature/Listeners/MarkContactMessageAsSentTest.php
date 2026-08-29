@@ -7,6 +7,7 @@ use App\Models\ContactMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Mail\SentMessage as IlluminateSentMessage;
+use Illuminate\Support\Carbon;
 use Symfony\Component\Mailer\Envelope as SymfonyEnvelope;
 use Symfony\Component\Mailer\SentMessage as SymfonySentMessage;
 use Symfony\Component\Mime\Address;
@@ -42,7 +43,7 @@ it('marks the contact message as sent when the tracking header is present', func
     $contactMessage->refresh();
 
     expect($contactMessage->delivered_recipient_count)->toBe(1)
-        ->and($contactMessage->sent_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+        ->and($contactMessage->sent_at)->toBeInstanceOf(Carbon::class);
 });
 
 it('keeps the contact message pending until all tracked recipients are delivered', function () {
@@ -100,7 +101,7 @@ it('marks the contact message as sent after the last tracked recipient is delive
     $contactMessage->refresh();
 
     expect($contactMessage->delivered_recipient_count)->toBe(2)
-        ->and($contactMessage->sent_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+        ->and($contactMessage->sent_at)->toBeInstanceOf(Carbon::class);
 });
 
 it('ignores unrelated sent messages without the tracking header', function () {

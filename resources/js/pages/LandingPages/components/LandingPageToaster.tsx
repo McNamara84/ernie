@@ -17,11 +17,7 @@ import { toastClassNames } from '@/components/ui/sonner';
 export function LandingPageToaster(props: ToasterProps) {
     return (
         <div data-slot="landing-page-toaster">
-            <Sonner
-                className="toaster group"
-                toastOptions={{ classNames: toastClassNames }}
-                {...props}
-            />
+            <Sonner className="toaster group" toastOptions={{ classNames: toastClassNames }} {...props} />
         </div>
     );
 }

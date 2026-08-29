@@ -31,7 +31,15 @@ interface CollapsibleListProps<T> {
  *
  * SSR-safe: no client-side measurement needed.
  */
-export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRESHOLD, itemLabel, wrapper, showSummary = false, className }: CollapsibleListProps<T>) {
+export function CollapsibleList<T>({
+    items,
+    renderItem,
+    threshold = DEFAULT_THRESHOLD,
+    itemLabel,
+    wrapper,
+    showSummary = false,
+    className,
+}: CollapsibleListProps<T>) {
     const [isExpanded, setIsExpanded] = useState(false);
     const regionId = useId();
     const reducedMotion = useReducedMotion();
@@ -45,10 +53,7 @@ export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRE
         const element = renderItem(item, i);
         if (i >= threshold && !isExpanded && isValidElement(element)) {
             return cloneElement(element as React.ReactElement<Record<string, unknown>>, {
-                className: cn(
-                    (element.props as { className?: string }).className,
-                    'collapsible-print-only hidden',
-                ),
+                className: cn((element.props as { className?: string }).className, 'collapsible-print-only hidden'),
             });
         }
         return element;

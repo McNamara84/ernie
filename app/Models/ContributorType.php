@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Contributor Type Lookup Model (DataCite #7)
@@ -19,15 +20,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property ContributorCategory $category
  * @property bool $is_active
  * @property bool $is_elmo_active
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/contributor/
  */
 #[Fillable(['name', 'slug', 'category', 'is_active', 'is_elmo_active'])]
 class ContributorType extends Model
 {
-
     protected $casts = [
         'category' => ContributorCategory::class,
         'is_active' => 'boolean',

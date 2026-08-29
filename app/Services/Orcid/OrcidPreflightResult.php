@@ -14,7 +14,7 @@ namespace App\Services\Orcid;
 final readonly class OrcidPreflightResult
 {
     /**
-     * @param  list<OrcidPreflightIssue>  $invalid   Blocking issues (confirmed bad ORCIDs).
+     * @param  list<OrcidPreflightIssue>  $invalid  Blocking issues (confirmed bad ORCIDs).
      * @param  list<OrcidPreflightIssue>  $warnings  Transient issues (ORCID service unreachable).
      */
     public function __construct(

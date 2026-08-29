@@ -135,9 +135,7 @@ export const buildCsrfHeaders = (): Record<string, string> => {
  * @param axiosDefaultHeaders - The axios default headers object (i.e., `axios.defaults.headers.common`)
  * @returns The cookie token if sync was successful, null otherwise
  */
-export const syncXsrfTokenToAxios = (
-    axiosDefaultHeaders: Record<string, AxiosHeaderValue | undefined>,
-): string | null => {
+export const syncXsrfTokenToAxios = (axiosDefaultHeaders: Record<string, AxiosHeaderValue | undefined>): string | null => {
     const token = getXsrfTokenFromCookie();
 
     if (!token) {

@@ -17,6 +17,7 @@ use App\Models\RelatedItem;
 final class CitationFormatter
 {
     public const STYLE_APA = 'apa';
+
     public const STYLE_IEEE = 'ieee';
 
     public function format(RelatedItem $item, string $style = self::STYLE_APA): string
@@ -197,14 +198,14 @@ final class CitationFormatter
         if (count($names) <= 20) {
             $last = array_pop($names);
 
-            return implode(', ', $names) . ', & ' . $last;
+            return implode(', ', $names).', & '.$last;
         }
 
         // APA 7: more than 20 authors → first 19 … last
         $last = $names[count($names) - 1];
         $first19 = array_slice($names, 0, 19);
 
-        return implode(', ', $first19) . ', … ' . $last;
+        return implode(', ', $first19).', … '.$last;
     }
 
     private function formatCreatorsIeee(RelatedItem $item): string
@@ -221,10 +222,10 @@ final class CitationFormatter
         if (count($names) <= 6) {
             $last = array_pop($names);
 
-            return implode(', ', $names) . ', and ' . $last;
+            return implode(', ', $names).', and '.$last;
         }
 
-        return $names[0] . ' et al.';
+        return $names[0].' et al.';
     }
 
     private function creatorApaName(mixed $creator): string
@@ -269,7 +270,7 @@ final class CitationFormatter
             if ($part === '') {
                 continue;
             }
-            $initials[] = mb_strtoupper(mb_substr($part, 0, 1)) . '.';
+            $initials[] = mb_strtoupper(mb_substr($part, 0, 1)).'.';
         }
 
         return implode(' ', $initials);

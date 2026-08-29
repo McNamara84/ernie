@@ -25,10 +25,7 @@ import { NavSection } from '@/components/nav-section';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { useEditorPrefetch } from '@/hooks/use-editor-prefetch';
-import {
-    pathMatchesSidebarItem,
-    useSidebarWorkspace,
-} from '@/hooks/use-sidebar-workspace';
+import { pathMatchesSidebarItem, useSidebarWorkspace } from '@/hooks/use-sidebar-workspace';
 import { dashboard, settings } from '@/routes';
 import { type NavItem, type SharedData, type SidebarWorkspace, type User as AuthUser } from '@/types';
 
@@ -49,9 +46,7 @@ function filterSections(sections: SidebarSection[]): SidebarSection[] {
 }
 
 function findMatchingNavItem(sections: SidebarSection[], currentPath: string): NavItem | null {
-    const matchedSection = sections.find((section) =>
-        section.items.some((item) => pathMatchesCurrentLocation(currentPath, getNavHref(item))),
-    );
+    const matchedSection = sections.find((section) => section.items.some((item) => pathMatchesCurrentLocation(currentPath, getNavHref(item))));
 
     if (!matchedSection) {
         return null;
@@ -290,9 +285,7 @@ export function AppSidebar() {
               ...(administrationItems.length > 0 ? [{ label: 'Administration', items: administrationItems, showSeparator: true }] : []),
           ];
 
-    const renderedSections = isWorkspaceSwitcherEnabled
-        ? [...currentPageSections, ...visibleWorkspaceSections]
-        : visibleWorkspaceSections;
+    const renderedSections = isWorkspaceSwitcherEnabled ? [...currentPageSections, ...visibleWorkspaceSections] : visibleWorkspaceSections;
 
     // Footer navigation contains only informational links.
     const footerNavItems: NavItem[] = [];

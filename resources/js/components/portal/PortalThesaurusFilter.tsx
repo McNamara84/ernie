@@ -41,7 +41,13 @@ function ThesaurusTreeNode({ node, level = 0, expandedAncestorIds, selectedNodeI
     }, [shouldExpand]);
 
     return (
-        <li role="treeitem" aria-level={level + 1} aria-expanded={hasChildren ? isExpanded : undefined} aria-selected={isSelected} aria-labelledby={labelId}>
+        <li
+            role="treeitem"
+            aria-level={level + 1}
+            aria-expanded={hasChildren ? isExpanded : undefined}
+            aria-selected={isSelected}
+            aria-labelledby={labelId}
+        >
             <div
                 className="flex min-h-8 items-center gap-2 rounded-md px-2 py-1 hover:bg-muted/60"
                 style={{ paddingLeft: `${level * 1.25 + 0.5}rem` }}
@@ -61,11 +67,7 @@ function ThesaurusTreeNode({ node, level = 0, expandedAncestorIds, selectedNodeI
                     <span className="w-5 shrink-0" />
                 )}
 
-                <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={() => onToggleNode(node.id)}
-                    aria-label={`Select thesaurus keyword ${node.text}`}
-                />
+                <Checkbox checked={isSelected} onCheckedChange={() => onToggleNode(node.id)} aria-label={`Select thesaurus keyword ${node.text}`} />
 
                 <Button
                     type="button"
@@ -76,7 +78,9 @@ function ThesaurusTreeNode({ node, level = 0, expandedAncestorIds, selectedNodeI
                     )}
                     onClick={() => onToggleNode(node.id)}
                 >
-                    <span id={labelId} className="block min-w-0 truncate">{node.text}</span>
+                    <span id={labelId} className="block min-w-0 truncate">
+                        {node.text}
+                    </span>
                 </Button>
             </div>
 
@@ -104,9 +108,7 @@ export function PortalThesaurusFilter({ facets = [], selectedNodeIds = [], onSel
     const toggleNode = useCallback(
         (nodeId: string) => {
             onSelectionChange(
-                selectedNodeIdSet.has(nodeId)
-                    ? selectedNodeIds.filter((selectedId) => selectedId !== nodeId)
-                    : [...selectedNodeIds, nodeId],
+                selectedNodeIdSet.has(nodeId) ? selectedNodeIds.filter((selectedId) => selectedId !== nodeId) : [...selectedNodeIds, nodeId],
             );
         },
         [onSelectionChange, selectedNodeIdSet, selectedNodeIds],
@@ -195,7 +197,12 @@ export function PortalThesaurusFilter({ facets = [], selectedNodeIds = [], onSel
                                     {selectedCount > 0 && <Badge variant="outline">{selectedCount} selected</Badge>}
                                 </div>
                                 <ScrollArea className="max-h-72">
-                                    <ul role="tree" aria-label={`${getSchemeLabel(facet.scheme)} thesaurus hierarchy`} aria-multiselectable={true} className="py-2">
+                                    <ul
+                                        role="tree"
+                                        aria-label={`${getSchemeLabel(facet.scheme)} thesaurus hierarchy`}
+                                        aria-multiselectable={true}
+                                        className="py-2"
+                                    >
                                         {facet.roots.map((root) => (
                                             <ThesaurusTreeNode
                                                 key={root.id}

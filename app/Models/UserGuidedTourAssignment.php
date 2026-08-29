@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -15,10 +16,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $status
  * @property string $assignment_source
  * @property int|null $assigned_by
- * @property \Illuminate\Support\Carbon|null $assigned_at
- * @property \Illuminate\Support\Carbon|null $started_at
- * @property \Illuminate\Support\Carbon|null $completed_at
- * @property \Illuminate\Support\Carbon|null $last_triggered_at
+ * @property Carbon|null $assigned_at
+ * @property Carbon|null $started_at
+ * @property Carbon|null $completed_at
+ * @property Carbon|null $last_triggered_at
  */
 #[Fillable(['user_id', 'guided_tour_id', 'status', 'assignment_source', 'assigned_by', 'assigned_at', 'started_at', 'completed_at', 'last_triggered_at'])]
 class UserGuidedTourAssignment extends Model

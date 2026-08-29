@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateFontSizeRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 
 class FontSizeController extends Controller
@@ -15,7 +16,7 @@ class FontSizeController extends Controller
      */
     public function update(UpdateFontSizeRequest $request): RedirectResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $user->update([

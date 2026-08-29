@@ -43,7 +43,7 @@ describe('EuroSciVoc type mappings', function (): void {
 
     it('throws on getVocabularyType for non-GCMD type', function (): void {
         $this->setting->getVocabularyType();
-    })->throws(\InvalidArgumentException::class);
+    })->throws(InvalidArgumentException::class);
 });
 
 describe('CacheKey EUROSCIVOC', function (): void {

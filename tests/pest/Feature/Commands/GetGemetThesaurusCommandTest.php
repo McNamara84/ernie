@@ -29,12 +29,12 @@ function fakeGemetApiResponses(): void
     ];
 
     $broaderConcept = [
-            // The real GEMET API returns broader relations with the group/ prefix
-            // even when referencing a SuperGroup. The GemetApiService normalizes
-            // this to supergroup/ automatically.
-            'uri' => 'http://www.eionet.europa.eu/gemet/group/1234',
-            'preferredLabel' => ['string' => 'THE ENVIRONMENT, MAN AND NATURE', 'language' => 'en'],
-        ];
+        // The real GEMET API returns broader relations with the group/ prefix
+        // even when referencing a SuperGroup. The GemetApiService normalizes
+        // this to supergroup/ automatically.
+        'uri' => 'http://www.eionet.europa.eu/gemet/group/1234',
+        'preferredLabel' => ['string' => 'THE ENVIRONMENT, MAN AND NATURE', 'language' => 'en'],
+    ];
 
     $groupMembers = [
         [
@@ -95,7 +95,7 @@ it('builds correct hierarchy with concepts nested under groups and supergroups',
 
     Artisan::call('get-gemet-thesaurus');
 
-    $json = json_decode(\Illuminate\Support\Facades\Storage::get('gemet-thesaurus.json'), true);
+    $json = json_decode(Storage::get('gemet-thesaurus.json'), true);
 
     // Hierarchy: SuperGroup → Group → Concepts (not just 4 flat root nodes)
     expect($json['data'])->toHaveCount(1)

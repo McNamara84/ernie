@@ -22,7 +22,7 @@ class LandingPageDomainFactory extends Factory
     public function definition(): array
     {
         return [
-            'domain' => 'https://' . fake()->unique()->domainName() . '/',
+            'domain' => 'https://'.fake()->unique()->domainName().'/',
         ];
     }
 

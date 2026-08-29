@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Models\Resource;
 use App\Models\Title;
 use App\Models\TitleType;
-use App\Models\Resource;
 
 covers(Title::class);
 
 describe('Title model attributes', function (): void {
     it('has correct fillable attributes', function (): void {
-        $title = new Title();
+        $title = new Title;
 
         expect($title->getFillable())->toBe([
             'resource_id',
@@ -55,7 +55,7 @@ describe('Title relationships', function (): void {
 
 describe('Title::isMainTitle()', function (): void {
     it('returns true when title_type_id is null (legacy data)', function (): void {
-        $title = new Title();
+        $title = new Title;
         $title->title_type_id = null;
 
         expect($title->isMainTitle())->toBeTrue();

@@ -8,6 +8,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -42,13 +43,13 @@ class IgsnMapController extends Controller
             $query->where('resource_type_id', $physicalObjectType->id);
         }
 
-        /** @var \Illuminate\Support\Collection<int, array{id: int, igsn: string|null, title: string, creator: string, publication_year: int|null, geoLocations: \Illuminate\Support\Collection<int, array{id: int, latitude: float, longitude: float, place: string|null}>}> $igsns */
+        /** @var Collection<int, array{id: int, igsn: string|null, title: string, creator: string, publication_year: int|null, geoLocations: Collection<int, array{id: int, latitude: float, longitude: float, place: string|null}>}> $igsns */
         $igsns = $query->get()->map(function (Resource $resource): array {
             // @phpstan-ignore nullsafe.neverNull (defensive: titles collection may be empty)
             $mainTitle = $resource->titles->first()?->value ?? 'Untitled';
             $creator = $resource->creators->first()?->creatorable;
             $creatorName = match (true) {
-                $creator instanceof Person => trim(($creator->given_name ?? '') . ' ' . ($creator->family_name ?? '')),
+                $creator instanceof Person => trim(($creator->given_name ?? '').' '.($creator->family_name ?? '')),
                 $creator !== null => $creator->name,
                 default => 'Unknown',
             };

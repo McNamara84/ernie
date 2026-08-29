@@ -73,7 +73,9 @@ export function PortalResourceTypeFilter({ facets, selectedSlugs, excludeType, o
                                     <CommandItem key={facet.slug} value={facet.name} onSelect={() => toggleSlug(facet.slug)}>
                                         <Checkbox checked={isSelected} className="pointer-events-none" />
                                         <span className="flex-1 truncate">{facet.name}</span>
-                                        <span className={cn('ml-auto text-xs tabular-nums', isSelected ? 'text-foreground' : 'text-muted-foreground')}>
+                                        <span
+                                            className={cn('ml-auto text-xs tabular-nums', isSelected ? 'text-foreground' : 'text-muted-foreground')}
+                                        >
                                             {facet.count}
                                         </span>
                                     </CommandItem>
@@ -83,11 +85,7 @@ export function PortalResourceTypeFilter({ facets, selectedSlugs, excludeType, o
                     </CommandList>
                     {(selectedCount > 0 || excludedTypeName) && (
                         <div className="border-t p-1">
-                            {excludedTypeName && (
-                                <p className="px-2 py-1 text-xs text-muted-foreground">
-                                    Excluding: {excludedTypeName}
-                                </p>
-                            )}
+                            {excludedTypeName && <p className="px-2 py-1 text-xs text-muted-foreground">Excluding: {excludedTypeName}</p>}
                             <Button variant="ghost" size="sm" className="w-full justify-center text-xs" onClick={clearSelection}>
                                 <X className="mr-1 h-3 w-3" />
                                 Clear filter

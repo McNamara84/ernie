@@ -57,7 +57,7 @@ describe('DataCiteXmlValidator', function () {
 
             // Either has warnings or couldn't reach schema (network)
             // Both are valid outcomes
-            expect($this->validator->hasWarnings() || !$this->validator->hasWarnings())->toBeTrue();
+            expect($this->validator->hasWarnings() || ! $this->validator->hasWarnings())->toBeTrue();
         });
 
         it('returns formatted warning message when there are warnings', function () {
@@ -135,7 +135,7 @@ describe('DataCiteXmlValidator with complete DataCite XML', function () {
         expect($result)->toBeBool();
 
         // If validation failed due to network, there should be a warning
-        if (!$result && $validator->hasWarnings()) {
+        if (! $result && $validator->hasWarnings()) {
             $warnings = $validator->getWarnings();
             expect($warnings)->toBeArray();
         }

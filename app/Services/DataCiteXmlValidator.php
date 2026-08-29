@@ -69,7 +69,7 @@ class DataCiteXmlValidator
             try {
                 // Attempt to fetch and validate against the remote schema
                 $validationResult = $dom->schemaValidate(self::SCHEMA_URL);
-            } catch (\Exception $schemaException) {
+            } catch (Exception $schemaException) {
                 // Handle network/DNS errors when fetching remote schema
                 libxml_clear_errors();
 

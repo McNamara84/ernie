@@ -24,9 +24,7 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
     const hasCreators = activeIdentifierTypes.includes('Creator');
     const hasContributors = activeIdentifierTypes.includes('Contributor');
     const hasInstitutions = activeIdentifierTypes.includes('Institution');
-    const identifierTypesWithoutPersons = activeIdentifierTypes.filter(
-        (t) => t !== 'Creator' && t !== 'Contributor' && t !== 'Institution',
-    );
+    const identifierTypesWithoutPersons = activeIdentifierTypes.filter((t) => t !== 'Creator' && t !== 'Contributor' && t !== 'Institution');
 
     const hasNodeTypes = identifierTypesWithoutPersons.length > 0;
     const hasEdgeTypes = activeCategories.length > 0;
@@ -36,18 +34,12 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
     }
 
     return (
-        <div
-            data-testid="relation-browser-legend"
-            className="flex flex-wrap items-start gap-6 border-t border-gray-200 bg-gray-50/50 px-4 py-3"
-        >
+        <div data-testid="relation-browser-legend" className="flex flex-wrap items-start gap-6 border-t border-gray-200 bg-gray-50/50 px-4 py-3">
             {/* Central resource */}
             <div className="flex items-center gap-4">
-                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Resource</span>
+                <span className="text-xs font-semibold tracking-wider text-gray-500 uppercase">Resource</span>
                 <div className="flex items-center gap-1.5">
-                    <span
-                        className="inline-block h-3 w-3 rounded-full"
-                        style={{ backgroundColor: GFZ_BLUE }}
-                    />
+                    <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: GFZ_BLUE }} />
                     <span className="text-xs text-gray-600">This Resource</span>
                 </div>
             </div>
@@ -55,7 +47,7 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
             {/* Node colors by identifier type */}
             {hasNodeTypes && (
                 <div className="flex flex-wrap items-center gap-4">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Identifier Types</span>
+                    <span className="text-xs font-semibold tracking-wider text-gray-500 uppercase">Identifier Types</span>
                     {identifierTypesWithoutPersons.map((type) => (
                         <div key={type} className="flex items-center gap-1.5">
                             <span
@@ -72,7 +64,7 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
             {/* Creator nodes */}
             {hasCreators && (
                 <div className="flex items-center gap-4">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Creators</span>
+                    <span className="text-xs font-semibold tracking-wider text-gray-500 uppercase">Creators</span>
                     <div className="flex items-center gap-1.5">
                         <span
                             className="inline-block h-2.5 w-2.5 rounded-full"
@@ -87,7 +79,7 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
             {/* Contributor nodes */}
             {hasContributors && (
                 <div className="flex items-center gap-4">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Contributors</span>
+                    <span className="text-xs font-semibold tracking-wider text-gray-500 uppercase">Contributors</span>
                     <div className="flex items-center gap-1.5">
                         <span
                             className="inline-block h-2 w-2 rounded-full"
@@ -102,7 +94,7 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
             {/* Institution nodes */}
             {hasInstitutions && (
                 <div className="flex items-center gap-4">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Institutions</span>
+                    <span className="text-xs font-semibold tracking-wider text-gray-500 uppercase">Institutions</span>
                     <div className="flex items-center gap-1.5">
                         <span
                             className="inline-block h-3 w-3 rounded-full"
@@ -117,11 +109,9 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
             {/* Edge colors by relation type category */}
             {hasEdgeTypes && (
                 <div className="flex flex-wrap items-center gap-4">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Relation Types</span>
+                    <span className="text-xs font-semibold tracking-wider text-gray-500 uppercase">Relation Types</span>
                     {activeCategories.map((category) => {
-                        const color = category === 'Other'
-                            ? EDGE_FALLBACK_COLOR
-                            : (edgeCategoryColorMap[category] ?? EDGE_FALLBACK_COLOR);
+                        const color = category === 'Other' ? EDGE_FALLBACK_COLOR : (edgeCategoryColorMap[category] ?? EDGE_FALLBACK_COLOR);
                         return (
                             <div key={category} className="flex items-center gap-1.5">
                                 <span

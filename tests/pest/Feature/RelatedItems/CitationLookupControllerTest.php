@@ -141,7 +141,7 @@ test('enforces the rate limit (30 req/min)', function () {
     // 30 requests should be allowed
     for ($i = 0; $i < 30; $i++) {
         $this->actingAs($user)
-            ->getJson('/api/v1/citation-lookup?doi=10.1234/x' . $i)
+            ->getJson('/api/v1/citation-lookup?doi=10.1234/x'.$i)
             ->assertOk();
     }
 

@@ -34,7 +34,7 @@ describe('User Model', function (): void {
         it('has guidedTourAssignments relationship', function (): void {
             $user = User::factory()->beginner()->create();
             $tour = GuidedTour::query()->create([
-                'key' => 'user-tour-' . uniqid(),
+                'key' => 'user-tour-'.uniqid(),
                 'version' => 1,
                 'name' => 'User Tour',
                 'description' => 'Attached to a user.',
@@ -60,7 +60,7 @@ describe('User Model', function (): void {
             $actor = User::factory()->admin()->create();
             $user = User::factory()->beginner()->create();
             $tour = GuidedTour::query()->create([
-                'key' => 'assigned-tour-' . uniqid(),
+                'key' => 'assigned-tour-'.uniqid(),
                 'version' => 1,
                 'name' => 'Assigned Tour',
                 'description' => 'Assigned by another user.',

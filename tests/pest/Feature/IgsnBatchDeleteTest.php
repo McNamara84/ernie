@@ -9,6 +9,7 @@ use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 
 uses(RefreshDatabase::class);
 
@@ -21,9 +22,9 @@ beforeEach(function () {
 /**
  * Helper function to create IGSN resources.
  *
- * @return \Illuminate\Support\Collection<int, Resource>
+ * @return Collection<int, Resource>
  */
-function createIgsns(int $count): \Illuminate\Support\Collection
+function createIgsns(int $count): Collection
 {
     $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
     $mainTitleType = TitleType::where('slug', 'MainTitle')->first();

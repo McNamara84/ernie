@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 #[Signature('rights:update-usage-count')]
 class UpdateLicenseUsageCount extends Command
 {
-
     /**
      * Execute the console command.
      */

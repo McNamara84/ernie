@@ -1,7 +1,11 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use App\Providers\AssistantServiceProvider;
+use App\Providers\TestingServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\AssistantServiceProvider::class,
-    App\Providers\TestingServiceProvider::class,
+    AppServiceProvider::class,
+    AssistantServiceProvider::class,
+    TestingServiceProvider::class,
 ];

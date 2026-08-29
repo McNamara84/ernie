@@ -104,10 +104,7 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                                         onNavigate(index);
                                         setIsOpen(false);
                                     }}
-                                    className={cn(
-                                        'w-full justify-start gap-2',
-                                        activeIndex === index && 'bg-accent font-medium',
-                                    )}
+                                    className={cn('w-full justify-start gap-2', activeIndex === index && 'bg-accent font-medium')}
                                     aria-current={activeIndex === index ? 'true' : undefined}
                                 >
                                     <span
@@ -160,7 +157,8 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                                                 'rounded-full transition-all',
                                                 isActive ? 'h-4 w-4' : 'h-2.5 w-2.5',
                                                 color,
-                                                isActive && 'ring-2 ring-gray-400 ring-offset-2 ring-offset-background dark:ring-gray-600 dark:ring-offset-gray-950',
+                                                isActive &&
+                                                    'ring-2 ring-gray-400 ring-offset-2 ring-offset-background dark:ring-gray-600 dark:ring-offset-gray-950',
                                             )}
                                         />
                                     </motion.button>

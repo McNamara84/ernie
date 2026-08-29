@@ -21,9 +21,5 @@ function subscribe(callback: () => void): () => void {
  * Reactively updates when the OS preference changes.
  */
 export function useReducedMotion(): boolean {
-    return useSyncExternalStore(
-        useCallback(subscribe, []),
-        getSnapshot,
-        getServerSnapshot,
-    );
+    return useSyncExternalStore(useCallback(subscribe, []), getSnapshot, getServerSnapshot);
 }

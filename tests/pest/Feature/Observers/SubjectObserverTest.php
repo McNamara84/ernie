@@ -15,7 +15,7 @@ beforeEach(function () {
 
 describe('saved', function () {
     it('schedules portal keyword cache invalidation after commit', function () {
-        $subject = new Subject();
+        $subject = new Subject;
 
         $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')->once();
 
@@ -25,7 +25,7 @@ describe('saved', function () {
 
 describe('deleted', function () {
     it('schedules portal keyword cache invalidation after commit', function () {
-        $subject = new Subject();
+        $subject = new Subject;
 
         $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')->once();
 

@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\PortalSearchAnalyticsRequest;
 use App\Services\Statistics\PortalSearchAnalyticsService;
+use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PortalSearchAnalyticsController extends Controller
@@ -14,7 +15,7 @@ class PortalSearchAnalyticsController extends Controller
         private readonly PortalSearchAnalyticsService $analyticsService,
     ) {}
 
-    public function store(PortalSearchAnalyticsRequest $request): \Illuminate\Http\Response
+    public function store(PortalSearchAnalyticsRequest $request): Response
     {
         $this->analyticsService->recordSearch($request, $request->searchTerm());
 

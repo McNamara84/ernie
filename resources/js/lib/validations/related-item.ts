@@ -75,9 +75,9 @@ export const relatedItemSchema = z
         creators: z.array(creatorSchema).default([]),
         contributors: z.array(contributorSchema).default([]),
     })
-    .refine(
-        (val) => val.titles.some((t) => t.title_type === 'MainTitle' && t.title.trim() !== ''),
-        { message: 'A non-empty MainTitle is required', path: ['titles'] },
-    );
+    .refine((val) => val.titles.some((t) => t.title_type === 'MainTitle' && t.title.trim() !== ''), {
+        message: 'A non-empty MainTitle is required',
+        path: ['titles'],
+    });
 
 export type RelatedItemInput = z.infer<typeof relatedItemSchema>;

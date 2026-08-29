@@ -6,6 +6,9 @@ use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\User;
 use App\Services\ResourceStorageService;
+use Database\Seeders\DescriptionTypeSeeder;
+use Database\Seeders\ResourceTypeSeeder;
+use Database\Seeders\TitleTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
@@ -17,9 +20,9 @@ describe('ResourceStorageService – Description HTML handling', function () {
         $this->service = app(ResourceStorageService::class);
         $this->user = User::factory()->create();
 
-        $this->seed(\Database\Seeders\TitleTypeSeeder::class);
-        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        $this->seed(\Database\Seeders\DescriptionTypeSeeder::class);
+        $this->seed(TitleTypeSeeder::class);
+        $this->seed(ResourceTypeSeeder::class);
+        $this->seed(DescriptionTypeSeeder::class);
         Right::create(['identifier' => 'CC-BY-4.0', 'name' => 'Creative Commons Attribution 4.0']);
 
         $this->resourceType = ResourceType::firstOrFail();

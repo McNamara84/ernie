@@ -197,9 +197,7 @@ export function PortalTemporalFilter({ enabled, onToggle, temporalRange, tempora
                     {currentRange && (
                         <>
                             {isSingleYear ? (
-                                <p className="text-center text-sm text-muted-foreground">
-                                    All records from {currentRange.min}
-                                </p>
+                                <p className="text-center text-sm text-muted-foreground">All records from {currentRange.min}</p>
                             ) : (
                                 <>
                                     {/* Dual range slider */}

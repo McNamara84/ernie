@@ -25,7 +25,7 @@ it('returns the crossref result when found and does not call DataCite', function
     $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
     $datacite->shouldNotReceive('getDataCiteMetadata');
 
-    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper);
     $result = $svc->lookup('10.1/hit');
 
     expect($result->source)->toBe('crossref');
@@ -54,7 +54,7 @@ it('falls back to DataCite when Crossref returns notFound', function () {
         'publisher' => 'GFZ',
     ]);
 
-    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper);
     $result = $svc->lookup('10.1/fallback');
 
     expect($result->source)->toBe('datacite');
@@ -72,7 +72,7 @@ it('returns notFound when neither source has the DOI', function () {
     $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
     $datacite->shouldReceive('getDataCiteMetadata')->andReturn(null);
 
-    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper);
     $result = $svc->lookup('10.1/missing');
 
     expect($result->found)->toBeFalse();
@@ -85,7 +85,7 @@ it('caches the result so repeat calls do not hit the network', function () {
 
     $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
 
-    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper);
 
     $r1 = $svc->lookup('10.1/CACHED');
     $r2 = $svc->lookup('10.1/cached'); // case-insensitive cache key
@@ -104,7 +104,7 @@ it('falls back to DataCite when Crossref returns an error', function () {
         'publicationYear' => 2020,
     ]);
 
-    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper);
     $result = $svc->lookup('10.1/err');
 
     expect($result->source)->toBe('datacite');
@@ -126,7 +126,7 @@ it('does not cache a DataCite notFound when the Crossref primary errored', funct
         ->twice()
         ->andReturn(null);
 
-    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper);
 
     $svc->lookup('10.1/transient-outage');
     $svc->lookup('10.1/transient-outage'); // must re-query, not hit cache
@@ -145,7 +145,7 @@ it('caches a DataCite hit reached via Crossref error fallback', function () {
         ->once()
         ->andReturn(['titles' => [['title' => 'Cached fallback hit']]]);
 
-    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper);
 
     $svc->lookup('10.1/recovered');
     $r2 = $svc->lookup('10.1/recovered');
@@ -167,7 +167,7 @@ it('caches a notFound when the Crossref primary completed cleanly', function () 
         ->once()
         ->andReturn(null);
 
-    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper);
 
     $r1 = $svc->lookup('10.1/legit-miss');
     $r2 = $svc->lookup('10.1/legit-miss'); // must come from cache
@@ -178,7 +178,7 @@ it('caches a notFound when the Crossref primary completed cleanly', function () 
 
 describe('DataCite attribute transformation', function () {
     /**
-     * @param array<string, mixed> $attrs
+     * @param  array<string, mixed>  $attrs
      * @return array<string, mixed>
      */
     function runDataCiteFallback(array $attrs): array
@@ -189,7 +189,7 @@ describe('DataCite attribute transformation', function () {
         $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
         $datacite->shouldReceive('getDataCiteMetadata')->andReturn($attrs);
 
-        $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+        $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper);
         $result = $svc->lookup('10.1/transform');
 
         /** @var array<string, mixed> $data */

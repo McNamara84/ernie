@@ -1,12 +1,6 @@
 import { useMemo, useState } from 'react';
 
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
 
 import { resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
@@ -21,30 +15,16 @@ interface RelationBrowserModalProps {
     citationTexts?: Map<string, string>;
 }
 
-export function RelationBrowserModal({
-    open,
-    onOpenChange,
-    resource,
-    relatedIdentifiers,
-    citationTexts,
-}: RelationBrowserModalProps) {
+export function RelationBrowserModal({ open, onOpenChange, resource, relatedIdentifiers, citationTexts }: RelationBrowserModalProps) {
     // Only include identifiers that have resolvable URLs
     const renderableIdentifiers = useMemo(
-        () => relatedIdentifiers.filter(
-            (rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null,
-        ),
+        () => relatedIdentifiers.filter((rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null),
         [relatedIdentifiers],
     );
 
-    const activeIdentifierTypes = useMemo(
-        () => [...new Set(renderableIdentifiers.map((r) => r.identifier_type))],
-        [renderableIdentifiers],
-    );
+    const activeIdentifierTypes = useMemo(() => [...new Set(renderableIdentifiers.map((r) => r.identifier_type))], [renderableIdentifiers]);
 
-    const activeRelationTypes = useMemo(
-        () => [...new Set(renderableIdentifiers.map((r) => r.relation_type))],
-        [renderableIdentifiers],
-    );
+    const activeRelationTypes = useMemo(() => [...new Set(renderableIdentifiers.map((r) => r.relation_type))], [renderableIdentifiers]);
 
     // Receive hasCreators/hasContributors/hasInstitutions from RelationBrowserGraph to avoid duplicate hook calls
     const [hasCreators, setHasCreators] = useState(false);
@@ -80,8 +60,8 @@ export function RelationBrowserModal({
                 <DialogHeader className="shrink-0 border-b border-gray-200 px-6 py-4">
                     <DialogTitle>Relation Browser</DialogTitle>
                     <DialogDescription>
-                        Interactive graph of relationships between this resource, related works, their creators, and contributors.
-                        Hover over nodes and edges for details. Click on a node to open the related resource or ORCID profile.
+                        Interactive graph of relationships between this resource, related works, their creators, and contributors. Hover over nodes
+                        and edges for details. Click on a node to open the related resource or ORCID profile.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -104,10 +84,7 @@ export function RelationBrowserModal({
 
                 {/* Legend */}
                 <div className="shrink-0">
-                    <RelationBrowserLegend
-                        activeIdentifierTypes={allIdentifierTypes}
-                        activeRelationTypes={allRelationTypes}
-                    />
+                    <RelationBrowserLegend activeIdentifierTypes={allIdentifierTypes} activeRelationTypes={allRelationTypes} />
                 </div>
             </DialogContent>
         </Dialog>

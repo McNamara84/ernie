@@ -53,7 +53,7 @@ class DoiValidationController extends Controller
 
         // DOI already exists - provide suggestions
         $lastAssignedDoi = $this->doiSuggestionService->getLastAssignedDoi();
-        
+
         // Try to get a suggested DOI, handling the case where no available DOI can be found
         try {
             $suggestedDoi = $this->doiSuggestionService->suggestNextDoi($doi);

@@ -4,6 +4,7 @@ use App\Models\Resource;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\DoiSuggestionService;
 
 beforeEach(function () {
     // Create and authenticate a user for all requests
@@ -324,7 +325,7 @@ describe('DoiValidationController - Error Handling', function () {
         ]);
 
         // Mock the DoiSuggestionService to throw RuntimeException
-        $mockService = Mockery::mock(\App\Services\DoiSuggestionService::class);
+        $mockService = Mockery::mock(DoiSuggestionService::class);
         $mockService->shouldReceive('isValidDoiFormat')->andReturn(true);
         $mockService->shouldReceive('getResourceByDoi')->andReturn([
             'id' => $resource->id,
@@ -332,9 +333,9 @@ describe('DoiValidationController - Error Handling', function () {
         ]);
         $mockService->shouldReceive('getLastAssignedDoi')->andReturn('10.5880/error.test.001');
         $mockService->shouldReceive('suggestNextDoi')
-            ->andThrow(new \RuntimeException('Could not find available DOI after maximum attempts'));
+            ->andThrow(new RuntimeException('Could not find available DOI after maximum attempts'));
 
-        app()->instance(\App\Services\DoiSuggestionService::class, $mockService);
+        app()->instance(DoiSuggestionService::class, $mockService);
 
         $response = $this->postJson('/api/v1/doi/validate', [
             'doi' => '10.5880/error.test.001',

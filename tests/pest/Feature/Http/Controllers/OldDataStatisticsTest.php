@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use Illuminate\Database\Connection;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -14,7 +17,7 @@ use Illuminate\Support\Facades\DB;
  */
 function mockMetaworksConnection(): void
 {
-    $queryBuilder = Mockery::mock(\Illuminate\Database\Query\Builder::class);
+    $queryBuilder = Mockery::mock(Builder::class);
     $queryBuilder->shouldReceive('select')->andReturnSelf();
     $queryBuilder->shouldReceive('selectRaw')->andReturnSelf();
     $queryBuilder->shouldReceive('where')->andReturnSelf();
@@ -36,11 +39,11 @@ function mockMetaworksConnection(): void
     $queryBuilder->shouldReceive('count')->andReturn(0);
     $queryBuilder->shouldReceive('value')->andReturn(0);
 
-    $connection = Mockery::mock(\Illuminate\Database\Connection::class);
+    $connection = Mockery::mock(Connection::class);
     $connection->shouldReceive('table')->andReturn($queryBuilder);
     $connection->shouldReceive('select')->andReturn([]);
     $connection->shouldReceive('raw')
-        ->andReturnUsing(fn ($value) => new \Illuminate\Database\Query\Expression($value));
+        ->andReturnUsing(fn ($value) => new Expression($value));
 
     $realManager = DB::getFacadeRoot();
     test()->originalDbManager = $realManager;

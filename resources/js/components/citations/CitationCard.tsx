@@ -87,24 +87,12 @@ export function CitationCard({
                             </ToggleGroupItem>
                         </ToggleGroup>
 
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleCopy}
-                            aria-label="Copy citation"
-                            title="Copy citation"
-                        >
+                        <Button variant="ghost" size="icon" onClick={handleCopy} aria-label="Copy citation" title="Copy citation">
                             <Copy className="h-4 w-4" />
                         </Button>
 
                         {editable && onEdit ? (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onEdit(item)}
-                                aria-label="Edit related item"
-                                title="Edit related item"
-                            >
+                            <Button variant="ghost" size="icon" onClick={() => onEdit(item)} aria-label="Edit related item" title="Edit related item">
                                 <Pencil className="h-4 w-4" />
                             </Button>
                         ) : null}
@@ -127,7 +115,7 @@ export function CitationCard({
                 </p>
 
                 {item.identifier ? (
-                    <div className="text-xs text-muted-foreground wrap-break-word">
+                    <div className="text-xs wrap-break-word text-muted-foreground">
                         {item.identifier_type === 'DOI' ? (
                             (() => {
                                 // Strip any resolver URL or `doi:` prefix the user may have
@@ -139,7 +127,7 @@ export function CitationCard({
                                         href={href}
                                         target="_blank"
                                         rel="noreferrer noopener"
-                                        className="underline decoration-dotted underline-offset-2 hover:text-foreground wrap-break-word"
+                                        className="wrap-break-word underline decoration-dotted underline-offset-2 hover:text-foreground"
                                     >
                                         {href}
                                     </a>

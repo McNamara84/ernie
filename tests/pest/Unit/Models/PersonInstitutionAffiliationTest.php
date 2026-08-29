@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use App\Models\Affiliation;
-use App\Models\Person;
 use App\Models\Institution;
-use App\Models\ResourceCreator;
-use App\Models\ResourceContributor;
+use App\Models\Person;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 covers(Person::class, Institution::class, Affiliation::class);
 
@@ -88,14 +88,14 @@ describe('Person model', function () {
         $person = Person::factory()->create();
 
         expect($person->resourceCreators())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class);
+            ->toBeInstanceOf(MorphMany::class);
     });
 
     it('has resourceContributors relationship', function () {
         $person = Person::factory()->create();
 
         expect($person->resourceContributors())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class);
+            ->toBeInstanceOf(MorphMany::class);
     });
 });
 
@@ -149,14 +149,14 @@ describe('Institution model', function () {
         $institution = Institution::factory()->create();
 
         expect($institution->resourceCreators())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class);
+            ->toBeInstanceOf(MorphMany::class);
     });
 
     it('has resourceContributors relationship', function () {
         $institution = Institution::factory()->create();
 
         expect($institution->resourceContributors())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphMany::class);
+            ->toBeInstanceOf(MorphMany::class);
     });
 });
 
@@ -187,6 +187,6 @@ describe('Affiliation model', function () {
         $affiliation = new Affiliation;
 
         expect($affiliation->affiliatable())
-            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\MorphTo::class);
+            ->toBeInstanceOf(MorphTo::class);
     });
 });

@@ -9,6 +9,7 @@ use App\Models\RelatedItemCreatorAffiliation;
 use App\Models\RelatedItemTitle;
 use App\Models\RelationType;
 use App\Models\Resource;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 covers(
     RelatedItem::class,
@@ -18,10 +19,10 @@ covers(
     RelatedItemCreatorAffiliation::class,
 );
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('has correct fillable attributes', function () {
-    $item = new RelatedItem();
+    $item = new RelatedItem;
     expect($item->getFillable())
         ->toContain('resource_id', 'related_item_type', 'relation_type_id', 'publication_year', 'publisher');
 });

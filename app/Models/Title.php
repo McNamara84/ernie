@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * Title Model (DataCite #3)
@@ -26,8 +29,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $value
  * @property int|null $title_type_id May be null in legacy data (treated as MainTitle)
  * @property string|null $language
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  * @property-read TitleType|null $titleType May be null in legacy data (treated as MainTitle)
  *
@@ -36,7 +39,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['resource_id', 'value', 'title_type_id', 'language'])]
 class Title extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     /** @return BelongsTo<Resource, static> */
@@ -90,7 +93,7 @@ class Title extends Model
         }
 
         $slug = $this->titleType->slug;
-        $normalised = \Illuminate\Support\Str::kebab($slug);
+        $normalised = Str::kebab($slug);
 
         // 'MainTitle' in kebab-case becomes 'main-title'
         return $normalised === 'main-title';

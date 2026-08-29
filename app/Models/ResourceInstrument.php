@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\ResourceInstrumentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Resource Instrument Model (PID4INST)
@@ -21,8 +23,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $instrument_pid_type
  * @property string $instrument_name
  * @property int $position
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  *
  * @see https://docs.pidinst.org/en/latest/white-paper/linking-datasets.html
@@ -30,7 +32,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['resource_id', 'instrument_pid', 'instrument_pid_type', 'instrument_name', 'position'])]
 class ResourceInstrument extends Model
 {
-    /** @use HasFactory<\Database\Factories\ResourceInstrumentFactory> */
+    /** @use HasFactory<ResourceInstrumentFactory> */
     use HasFactory;
 
     /**

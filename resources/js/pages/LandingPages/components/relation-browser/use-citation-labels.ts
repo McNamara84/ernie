@@ -42,10 +42,7 @@ function shortenIdentifier(identifier: string, maxLength = 20): string {
     return `${start}...${end}`;
 }
 
-export function useCitationLabels(
-    identifiers: IdentifierInput[],
-    citationTexts?: Map<string, string>,
-): Map<string, CitationLabel> {
+export function useCitationLabels(identifiers: IdentifierInput[], citationTexts?: Map<string, string>): Map<string, CitationLabel> {
     return useMemo(() => {
         const labels = new Map<string, CitationLabel>();
 
@@ -78,7 +75,9 @@ export function useCitationLabels(
                 const key = `${item.identifier_type}:${item.identifier}`;
                 if (!labels.has(key)) {
                     labels.set(key, {
-                        shortLabel: persistedCitation ? extractAuthorYear(persistedCitation) : `${item.identifier_type}: ${shortenIdentifier(item.identifier)}`,
+                        shortLabel: persistedCitation
+                            ? extractAuthorYear(persistedCitation)
+                            : `${item.identifier_type}: ${shortenIdentifier(item.identifier)}`,
                         fullCitation: persistedCitation || item.identifier,
                         loading: false,
                     });

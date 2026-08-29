@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Models\Right;
-use App\Models\Resource;
 use App\Models\ResourceType;
+use App\Models\Right;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 covers(Right::class);
 
 describe('Right model attributes', function (): void {
     it('has correct fillable attributes', function (): void {
-        $right = new Right();
+        $right = new Right;
 
         expect($right->getFillable())->toBe([
             'identifier',
@@ -89,14 +89,14 @@ describe('Right relationships', function (): void {
     it('belongs to many resources', function (): void {
         $right = Right::factory()->create();
 
-        expect($right->resources())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsToMany::class);
+        expect($right->resources())->toBeInstanceOf(BelongsToMany::class);
     });
 
     it('has excluded resource types relationship', function (): void {
         $right = Right::factory()->create();
 
         expect($right->excludedResourceTypes())->toBeInstanceOf(
-            \Illuminate\Database\Eloquent\Relations\BelongsToMany::class
+            BelongsToMany::class
         );
     });
 });

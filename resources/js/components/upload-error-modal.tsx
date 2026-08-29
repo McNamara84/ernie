@@ -96,7 +96,7 @@ export function UploadErrorModal({ open, onClose, filename, message, errors, onR
                     <div className="space-y-6">
                         {sortedCategories.map((category) => (
                             <div key={category} className="space-y-2">
-                                <h4 className="flex items-center gap-2 font-medium text-sm">
+                                <h4 className="flex items-center gap-2 text-sm font-medium">
                                     {getCategoryIcon(category)}
                                     {getCategoryLabel(category)}
                                     <span className="text-muted-foreground">({groupedErrors[category].length})</span>
@@ -106,9 +106,7 @@ export function UploadErrorModal({ open, onClose, filename, message, errors, onR
                                         <li key={`${category}-${index}`} className="flex items-start gap-2 text-sm">
                                             <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                                             <span>
-                                                {err.row && (
-                                                    <span className="font-medium text-muted-foreground">Row {err.row}: </span>
-                                                )}
+                                                {err.row && <span className="font-medium text-muted-foreground">Row {err.row}: </span>}
                                                 {err.identifier && (
                                                     <code className="mr-1 rounded bg-muted px-1 py-0.5 text-xs">{err.identifier}</code>
                                                 )}

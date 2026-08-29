@@ -94,7 +94,19 @@ function OverviewCard({ title, value, description }: { title: string; value: num
     );
 }
 
-function TrendCard({ title, description, days, values, toneClass }: { title: string; description: string; days: string[]; values: number[]; toneClass: string }) {
+function TrendCard({
+    title,
+    description,
+    days,
+    values,
+    toneClass,
+}: {
+    title: string;
+    description: string;
+    days: string[];
+    values: number[];
+    toneClass: string;
+}) {
     const peak = maxValue(values);
 
     return (
@@ -132,7 +144,17 @@ function TrendCard({ title, description, days, values, toneClass }: { title: str
     );
 }
 
-function RankingCard({ title, description, items, emptyMessage }: { title: string; description: string; items: RankedLandingPage[]; emptyMessage: string }) {
+function RankingCard({
+    title,
+    description,
+    items,
+    emptyMessage,
+}: {
+    title: string;
+    description: string;
+    items: RankedLandingPage[];
+    emptyMessage: string;
+}) {
     const peak = maxValue(items.map((item) => item.total));
 
     return (
@@ -240,7 +262,15 @@ function TypeSplitCard({ title, pageViews, downloadClicks }: { title: string; pa
     );
 }
 
-export default function Statistics({ overview, trends, topLandingPagesByViews, topLandingPagesByDownloads, portalSearchTerms, typeSplit, lastUpdated }: StatisticsPageProps) {
+export default function Statistics({
+    overview,
+    trends,
+    topLandingPagesByViews,
+    topLandingPagesByDownloads,
+    portalSearchTerms,
+    typeSplit,
+    lastUpdated,
+}: StatisticsPageProps) {
     const hasAnyAnalytics = overview.totalPageViews > 0 || overview.totalDownloadClicks > 0 || overview.totalPortalSearches > 0;
 
     return (
@@ -269,17 +299,34 @@ export default function Statistics({ overview, trends, topLandingPagesByViews, t
                 </section>
 
                 <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <OverviewCard title="Landing page views" value={overview.totalPageViews} description="Published landing page requests tracked since go-live." />
-                    <OverviewCard title="Download clicks" value={overview.totalDownloadClicks} description="Clicks on real download targets in the Files section." />
-                    <OverviewCard title="Portal searches" value={overview.totalPortalSearches} description="Explicit submissions from the public portal search slot." />
-                    <OverviewCard title="Tracked landing pages" value={overview.trackedLandingPages} description="Published landing pages with recorded engagement data." />
+                    <OverviewCard
+                        title="Landing page views"
+                        value={overview.totalPageViews}
+                        description="Published landing page requests tracked since go-live."
+                    />
+                    <OverviewCard
+                        title="Download clicks"
+                        value={overview.totalDownloadClicks}
+                        description="Clicks on real download targets in the Files section."
+                    />
+                    <OverviewCard
+                        title="Portal searches"
+                        value={overview.totalPortalSearches}
+                        description="Explicit submissions from the public portal search slot."
+                    />
+                    <OverviewCard
+                        title="Tracked landing pages"
+                        value={overview.trackedLandingPages}
+                        description="Published landing pages with recorded engagement data."
+                    />
                 </section>
 
                 {!hasAnyAnalytics && (
                     <section>
                         <Card className="border-dashed border-border/80 bg-card/60">
                             <CardContent className="p-6 text-sm text-muted-foreground">
-                                No analytics have been recorded yet. Metrics start at go-live and will fill in as published landing pages and portal searches receive traffic.
+                                No analytics have been recorded yet. Metrics start at go-live and will fill in as published landing pages and portal
+                                searches receive traffic.
                             </CardContent>
                         </Card>
                     </section>
@@ -327,7 +374,11 @@ export default function Statistics({ overview, trends, topLandingPagesByViews, t
                 <section className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
                     <div className="grid gap-4 md:grid-cols-2">
                         <TypeSplitCard title="Resources" pageViews={typeSplit.resourcePageViews} downloadClicks={typeSplit.resourceDownloadClicks} />
-                        <TypeSplitCard title="Physical Objects" pageViews={typeSplit.physicalObjectPageViews} downloadClicks={typeSplit.physicalObjectDownloadClicks} />
+                        <TypeSplitCard
+                            title="Physical Objects"
+                            pageViews={typeSplit.physicalObjectPageViews}
+                            downloadClicks={typeSplit.physicalObjectDownloadClicks}
+                        />
                     </div>
                     <SearchTermsCard items={portalSearchTerms} />
                 </section>

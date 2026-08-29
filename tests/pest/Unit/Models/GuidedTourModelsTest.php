@@ -16,7 +16,7 @@ covers(GuidedTour::class, UserGuidedTourAssignment::class);
 describe('GuidedTour model', function (): void {
     it('casts attributes and evaluates eligible roles', function (): void {
         $tour = GuidedTour::query()->create([
-            'key' => 'guided-tour-' . uniqid(),
+            'key' => 'guided-tour-'.uniqid(),
             'version' => 1,
             'name' => 'Guided Tour',
             'description' => 'A guided tour for onboarding.',
@@ -39,7 +39,7 @@ describe('GuidedTour model', function (): void {
         $participant = User::factory()->beginner()->create();
 
         $tour = GuidedTour::query()->create([
-            'key' => 'guided-tour-rel-' . uniqid(),
+            'key' => 'guided-tour-rel-'.uniqid(),
             'version' => 1,
             'name' => 'Relationship Tour',
             'description' => 'Covers model relationships.',
@@ -70,7 +70,7 @@ describe('UserGuidedTourAssignment model', function (): void {
         $assignedBy = User::factory()->admin()->create();
         $user = User::factory()->beginner()->create();
         $tour = GuidedTour::query()->create([
-            'key' => 'assignment-tour-' . uniqid(),
+            'key' => 'assignment-tour-'.uniqid(),
             'version' => 1,
             'name' => 'Assignment Tour',
             'description' => 'Covers assignment relations.',

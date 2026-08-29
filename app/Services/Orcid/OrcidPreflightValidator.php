@@ -37,7 +37,7 @@ final readonly class OrcidPreflightValidator
      * Validate every creator and contributor ORCID attached to $resource.
      *
      * @param  bool  $force  When true, transient warnings are suppressed (the
-     *                      curator has explicitly overridden them).
+     *                       curator has explicitly overridden them).
      */
     public function validate(Resource $resource, bool $force = false): OrcidPreflightResult
     {
@@ -109,9 +109,9 @@ final readonly class OrcidPreflightValidator
      * @param  ResourceCreator|ResourceContributor  $row
      * @param  'creator'|'contributor'  $role
      * @param  array<string, array<string, mixed>>  $networkCache  Reference to
-     *         the per-invocation cache keyed by bare ORCID id. The entry is
-     *         populated on first network call and reused for subsequent rows
-     *         sharing the same identifier.
+     *                                                             the per-invocation cache keyed by bare ORCID id. The entry is
+     *                                                             populated on first network call and reused for subsequent rows
+     *                                                             sharing the same identifier.
      */
     private function checkCreatorOrContributor(object $row, string $role, bool $force, array &$networkCache): ?OrcidPreflightIssue
     {

@@ -138,8 +138,6 @@ class ChronostratVocabularyParser
      *
      * The ARDC API returns prefLabel as either an array of language-tagged values
      * or a single object with _value and _lang.
-     *
-     * @param  mixed  $prefLabel
      */
     private function extractEnglishLabel(mixed $prefLabel): ?string
     {
@@ -177,8 +175,6 @@ class ChronostratVocabularyParser
      *
      * The broader field can be a single string, an array of strings,
      * or an array of objects with an _about key.
-     *
-     * @param  mixed  $broader
      */
     private function extractBroaderUri(mixed $broader): ?string
     {
@@ -212,7 +208,6 @@ class ChronostratVocabularyParser
     /**
      * Recursively build a tree node and all its descendants.
      *
-     * @param  string  $nodeId
      * @param  array<string, array<string, mixed>>  $conceptsById
      * @param  array<string, list<string>>  $childrenByParentId
      * @return array<string, mixed>|null

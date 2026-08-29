@@ -11,7 +11,6 @@ use Illuminate\Console\Attributes\Signature;
 #[Signature('get-gcmd-instruments')]
 class GetGcmdInstruments extends BaseGcmdCommand
 {
-
     /**
      * Get the vocabulary type
      */

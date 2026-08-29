@@ -2,7 +2,12 @@
 
 use App\Models\ContributorType;
 use App\Models\DateType;
+use App\Models\FundingReference;
+use App\Models\IgsnClassification;
+use App\Models\IgsnGeologicalAge;
+use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
+use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceDate;
 use App\Models\TitleType;
@@ -501,7 +506,7 @@ describe('IGSN Data Storage', function () {
             ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
 
         $resource = Resource::whereHas('igsnMetadata')->first();
-        $classifications = \App\Models\IgsnClassification::where('resource_id', $resource->id)->get();
+        $classifications = IgsnClassification::where('resource_id', $resource->id)->get();
 
         expect($classifications->count())->toBe(1);
         expect($classifications->first()->value)->toBe('Sedimentary');
@@ -515,7 +520,7 @@ describe('IGSN Data Storage', function () {
             ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
 
         $resource = Resource::whereHas('igsnMetadata')->first();
-        $ages = \App\Models\IgsnGeologicalAge::where('resource_id', $resource->id)->get();
+        $ages = IgsnGeologicalAge::where('resource_id', $resource->id)->get();
 
         expect($ages->count())->toBe(1);
         expect($ages->first()->value)->toBe('Quaternary');
@@ -585,7 +590,7 @@ describe('IGSN DIVE CSV Data Storage', function () {
             ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
 
         $resource = Resource::whereHas('igsnMetadata')->first();
-        $funders = \App\Models\FundingReference::where('resource_id', $resource->id)->get();
+        $funders = FundingReference::where('resource_id', $resource->id)->get();
 
         // DIVE has multiple funders
         expect($funders->count())->toBeGreaterThanOrEqual(3);
@@ -606,7 +611,7 @@ describe('IGSN DIVE CSV Data Storage', function () {
         $resource = Resource::whereHas('igsnMetadata')->first();
 
         // Find a funder with a Crossref Funder ID
-        $fundersWithCrossrefId = \App\Models\FundingReference::where('resource_id', $resource->id)
+        $fundersWithCrossrefId = FundingReference::where('resource_id', $resource->id)
             ->whereNotNull('funder_identifier')
             ->where('funder_identifier', 'like', '%doi.org/10.13039%')
             ->get();
@@ -632,7 +637,7 @@ CSV;
             ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
 
         $resource = Resource::whereHas('igsnMetadata')->first();
-        $funder = \App\Models\FundingReference::where('resource_id', $resource->id)->first();
+        $funder = FundingReference::where('resource_id', $resource->id)->first();
 
         expect($funder)->not->toBeNull();
         expect($funder->funder_name)->toBe('Test Funder Without ID');
@@ -649,8 +654,8 @@ CSV;
 
         $resource = Resource::whereHas('igsnMetadata')->first();
 
-        $ages = \App\Models\IgsnGeologicalAge::where('resource_id', $resource->id)->get();
-        $units = \App\Models\IgsnGeologicalUnit::where('resource_id', $resource->id)->get();
+        $ages = IgsnGeologicalAge::where('resource_id', $resource->id)->get();
+        $units = IgsnGeologicalUnit::where('resource_id', $resource->id)->get();
 
         // DIVE has multiple geological ages: "Quaternary, Archean"
         expect($ages->count())->toBe(2);
@@ -673,7 +678,7 @@ CSV;
             ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
 
         $resource = Resource::whereHas('igsnMetadata')->first();
-        $classifications = \App\Models\IgsnClassification::where('resource_id', $resource->id)->get();
+        $classifications = IgsnClassification::where('resource_id', $resource->id)->get();
 
         // DIVE has "Igneous; Metamorphic"
         expect($classifications->count())->toBe(2);
@@ -715,12 +720,12 @@ describe('IGSN Contributor Name Verification (Issue #485)', function () {
 igsn|title|name|contributor|contributorType|identifier
 10.58052/IGSN.FIRST|Title1|Name1|Zanetti, Alberto; Venier, Marco|Other; Other|https://orcid.org/0000-0001-1111-1111; https://orcid.org/0000-0002-2222-2222
 CSV;
-        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csv);
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csv);
 
         $this->actingAs($this->user)
             ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
 
-        $resource = \App\Models\Resource::whereHas('igsnMetadata')->first();
+        $resource = App\Models\Resource::whereHas('igsnMetadata')->first();
         $contributors = $resource->contributors()->with('contributorable')->orderBy('position')->get();
 
         expect($contributors)->toHaveCount(2);
@@ -742,7 +747,7 @@ CSV;
 
     it('prevents ORCID-based cross-linking with pre-existing persons', function () {
         // Pre-create "Venier, Marco" with a specific ORCID
-        \App\Models\Person::create([
+        Person::create([
             'family_name' => 'Venier',
             'given_name' => 'Marco',
             'name_identifier' => 'https://orcid.org/0000-0002-2222-2222',
@@ -754,12 +759,12 @@ CSV;
 igsn|title|name|contributor|contributorType|identifier
 10.58052/IGSN.CROSS|Title|Name|Zanetti, Alberto|Other|https://orcid.org/0000-0002-2222-2222
 CSV;
-        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csv);
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csv);
 
         $this->actingAs($this->user)
             ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
 
-        $resource = \App\Models\Resource::whereHas('igsnMetadata')->first();
+        $resource = App\Models\Resource::whereHas('igsnMetadata')->first();
         $contributors = $resource->contributors()->with('contributorable')->get();
 
         expect($contributors)->toHaveCount(1);
@@ -770,14 +775,14 @@ CSV;
         expect($person->given_name)->toBe('Alberto');
 
         // Venier's person record should remain untouched
-        $venier = \App\Models\Person::where('family_name', 'Venier')->first();
+        $venier = Person::where('family_name', 'Venier')->first();
         expect($venier)->not->toBeNull();
         expect($venier->name_identifier)->toBe('https://orcid.org/0000-0002-2222-2222');
     });
 
     it('correctly links contributor when ORCID matches the same person name', function () {
         // Pre-create "Zanetti, Alberto" with ORCID
-        $existingPerson = \App\Models\Person::create([
+        $existingPerson = Person::create([
             'family_name' => 'Zanetti',
             'given_name' => 'Alberto',
             'name_identifier' => 'https://orcid.org/0000-0003-3333-3333',
@@ -789,12 +794,12 @@ CSV;
 igsn|title|name|contributor|contributorType|identifier
 10.58052/IGSN.MATCH|Title|Name|Zanetti, Alberto|Other|https://orcid.org/0000-0003-3333-3333
 CSV;
-        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csv);
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csv);
 
         $this->actingAs($this->user)
             ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
 
-        $resource = \App\Models\Resource::whereHas('igsnMetadata')->first();
+        $resource = App\Models\Resource::whereHas('igsnMetadata')->first();
         $contributors = $resource->contributors()->with('contributorable')->get();
 
         expect($contributors)->toHaveCount(1);

@@ -223,11 +223,7 @@ axios.interceptors.response.use(
         const originalRequest = error.config as AxiosRequestConfigWithRetry;
 
         // Check if this is a 419 error and we haven't already tried to refresh
-        if (
-            error.response?.status === 419 &&
-            !originalRequest._retry &&
-            !originalRequest.headers?.['X-Skip-CSRF-Refresh']
-        ) {
+        if (error.response?.status === 419 && !originalRequest._retry && !originalRequest.headers?.['X-Skip-CSRF-Refresh']) {
             // If we're already refreshing, queue this request (mark as _retry to prevent loops)
             if (isRefreshingCsrf) {
                 originalRequest._retry = true;
@@ -336,11 +332,7 @@ const queryClient = createQueryClient();
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
-    resolve: (name) =>
-        resolvePageComponent(
-            `./pages/${name}.tsx`,
-            import.meta.glob<ResolvedComponent>('./pages/**/*.tsx', { import: 'default' }),
-        ),
+    resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob<ResolvedComponent>('./pages/**/*.tsx', { import: 'default' })),
     setup({ el, App, props }) {
         // Initialize font size before rendering
         const fontSizePreference = props.initialPage.props.fontSizePreference as 'regular' | 'large';

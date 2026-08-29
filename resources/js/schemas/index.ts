@@ -171,6 +171,4 @@ export {
     type UserRole,
     userRoles,
     userRoleSchema,
-    // Password change and profile update schemas are now in @/lib/validations/user.ts
-    // Use: updatePasswordSchema, updateProfileSchema, deleteAccountSchema
 } from './user.schema';

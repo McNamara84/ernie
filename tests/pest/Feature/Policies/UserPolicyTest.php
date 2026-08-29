@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Policies\UserPolicy;
+use Illuminate\Contracts\Auth\Guard;
 
 covers(UserPolicy::class);
 
@@ -22,7 +23,7 @@ beforeEach(function () {
  */
 function asUser(User $user, Closure $fn): mixed
 {
-    return app()->make(\Illuminate\Contracts\Auth\Guard::class)->setUser($user)
+    return app()->make(Guard::class)->setUser($user)
         ? $fn()
         : null;
 }

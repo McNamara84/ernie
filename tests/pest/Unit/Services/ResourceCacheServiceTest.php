@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\CacheKey;
 use App\Models\Resource;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;

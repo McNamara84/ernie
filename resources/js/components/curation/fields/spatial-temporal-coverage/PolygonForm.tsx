@@ -342,9 +342,7 @@ export default function PolygonForm({ entry, apiKey, onBatchChange }: PolygonFor
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Import Polygon Coordinates from CSV</DialogTitle>
-                        <DialogDescription>
-                            Upload a CSV file containing latitude and longitude coordinate pairs for your polygon.
-                        </DialogDescription>
+                        <DialogDescription>Upload a CSV file containing latitude and longitude coordinate pairs for your polygon.</DialogDescription>
                     </DialogHeader>
                     <CoordinateCsvImport
                         onImport={handleCsvImport}

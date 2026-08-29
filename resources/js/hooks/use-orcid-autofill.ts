@@ -229,9 +229,7 @@ async function computePendingAffiliations(
 
     // Try to resolve names without ROR IDs to ROR IDs via backend
     // Only resolve names not already matched by an existing affiliation name
-    const unresolvedNames = namedAffiliations
-        .filter((a) => !a.rorId && !existingByName.has(a.name!.toLowerCase().trim()))
-        .map((a) => a.name!);
+    const unresolvedNames = namedAffiliations.filter((a) => !a.rorId && !existingByName.has(a.name!.toLowerCase().trim())).map((a) => a.name!);
     const resolvedMap = await resolveNamesToRor(unresolvedNames);
 
     // Deduplicate ORCID affiliations among themselves (by ROR ID or name)
@@ -681,12 +679,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
             // 1. ORCID has valid format
             // 2. Not already verified
             // 3. Not currently verifying (read via ref – see effect header)
-            if (
-                !personEntry.orcid?.trim()
-                || !OrcidService.isValidFormat(personEntry.orcid)
-                || personEntry.orcidVerified
-                || isVerifyingRef.current
-            ) {
+            if (!personEntry.orcid?.trim() || !OrcidService.isValidFormat(personEntry.orcid) || personEntry.orcidVerified || isVerifyingRef.current) {
                 return;
             }
 

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Jobs\DiscoverAssistantSuggestionsJob;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\Assistance\GenericTableAssistant;
@@ -239,7 +240,7 @@ describe('handle', function () {
         $assistantId = 'test-assistant';
         $cacheKey = "test_cache:{$uuid}";
 
-        $cacheEnum = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
+        $cacheEnum = CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
         $totalCountKey = $cacheEnum->key();
         $tags = $cacheEnum->tags();
         Cache::tags($tags)->put($totalCountKey, 10, now()->addHour());
@@ -271,7 +272,7 @@ describe('handle', function () {
         $assistantId = 'test-assistant';
         $cacheKey = "test_cache:{$uuid}";
 
-        $cacheEnum = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
+        $cacheEnum = CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
         $totalCountKey = $cacheEnum->key();
         $tags = $cacheEnum->tags();
         Cache::tags($tags)->put($totalCountKey, 10, now()->addHour());

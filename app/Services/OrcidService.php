@@ -134,8 +134,7 @@ class OrcidService
         string $orcid,
         ?int $maxAttempts = null,
         ?int $timeoutSeconds = null,
-    ): array
-    {
+    ): array {
         $maxAttempts = $maxAttempts ?? self::MAX_ATTEMPTS;
         $timeoutSeconds = $timeoutSeconds ?? self::VALIDATION_TIMEOUT;
 

@@ -9,10 +9,11 @@ use App\Models\RelatedItemTitle;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Services\Citations\RelatedItemStorageService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 covers(RelatedItemStorageService::class);
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 function citationPayload(int $relationTypeId, array $overrides = []): array
 {
@@ -57,7 +58,7 @@ it('creates a related item with all nested children in one transaction', functio
         ['slug' => 'Cites'],
         ['name' => 'Cites', 'is_active' => true]
     );
-    $svc = new RelatedItemStorageService();
+    $svc = new RelatedItemStorageService;
 
     $item = $svc->create($resource, citationPayload($relType->id));
 
@@ -72,7 +73,7 @@ it('creates a related item with all nested children in one transaction', functio
 it('auto-increments position for additional items', function () {
     $resource = Resource::factory()->create();
     $relType = RelationType::firstOrCreate(['slug' => 'Cites'], ['name' => 'Cites', 'is_active' => true]);
-    $svc = new RelatedItemStorageService();
+    $svc = new RelatedItemStorageService;
 
     $a = $svc->create($resource, citationPayload($relType->id));
     $b = $svc->create($resource, citationPayload($relType->id));
@@ -84,7 +85,7 @@ it('auto-increments position for additional items', function () {
 it('replaces all children on update', function () {
     $resource = Resource::factory()->create();
     $relType = RelationType::firstOrCreate(['slug' => 'Cites'], ['name' => 'Cites', 'is_active' => true]);
-    $svc = new RelatedItemStorageService();
+    $svc = new RelatedItemStorageService;
 
     $item = $svc->create($resource, citationPayload($relType->id));
 
@@ -109,7 +110,7 @@ it('replaces all children on update', function () {
 it('reorders items by id→position mapping', function () {
     $resource = Resource::factory()->create();
     $relType = RelationType::firstOrCreate(['slug' => 'Cites'], ['name' => 'Cites', 'is_active' => true]);
-    $svc = new RelatedItemStorageService();
+    $svc = new RelatedItemStorageService;
 
     $a = $svc->create($resource, citationPayload($relType->id));
     $b = $svc->create($resource, citationPayload($relType->id));
@@ -126,7 +127,7 @@ it('reorders items by id→position mapping', function () {
 it('deletes an item and all its children', function () {
     $resource = Resource::factory()->create();
     $relType = RelationType::firstOrCreate(['slug' => 'Cites'], ['name' => 'Cites', 'is_active' => true]);
-    $svc = new RelatedItemStorageService();
+    $svc = new RelatedItemStorageService;
 
     $item = $svc->create($resource, citationPayload($relType->id));
     $id = $item->id;

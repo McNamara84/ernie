@@ -7,6 +7,7 @@ use App\Models\ContactMessage;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\Title;
+use Illuminate\Support\Carbon;
 use Symfony\Component\Mime\Email;
 
 covers(ContactPersonMessage::class);
@@ -178,10 +179,10 @@ describe('attachments', function () {
             recipientName: 'Dr. Smith',
         );
 
-        $mailable->failed(new \RuntimeException('SMTP unavailable'));
+        $mailable->failed(new RuntimeException('SMTP unavailable'));
         $this->contactMessage->refresh();
 
-        expect($this->contactMessage->failed_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+        expect($this->contactMessage->failed_at)->toBeInstanceOf(Carbon::class)
             ->and($this->contactMessage->failure_reason)->toBe('SMTP unavailable');
     });
 
@@ -193,7 +194,7 @@ describe('attachments', function () {
             isCopyToSender: true,
         );
 
-        $mailable->failed(new \RuntimeException('SMTP unavailable'));
+        $mailable->failed(new RuntimeException('SMTP unavailable'));
         $this->contactMessage->refresh();
 
         expect($this->contactMessage->failed_at)->toBeNull()
@@ -221,7 +222,7 @@ describe('attachments', function () {
             recipientName: 'Dr. Smith',
         );
 
-        $mailable->failed(new \RuntimeException('SMTP unavailable'));
+        $mailable->failed(new RuntimeException('SMTP unavailable'));
         $this->contactMessage->refresh();
 
         expect($this->contactMessage->failed_at)->toBeNull()
@@ -243,7 +244,7 @@ describe('attachments', function () {
             recipientName: 'Dr. Smith',
         );
 
-        $mailable->failed(new \RuntimeException('SMTP unavailable'));
+        $mailable->failed(new RuntimeException('SMTP unavailable'));
         $this->contactMessage->refresh();
 
         expect($this->contactMessage->failed_at)->toBeNull()

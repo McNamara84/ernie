@@ -40,8 +40,10 @@ export function isGlobalCoverageBounds(bounds: BoundsLike, geoType?: string | nu
 
     const tolerance = getGlobalCoverageTolerance();
 
-    return isNear(bounds.west, -180, tolerance)
-        && isNear(bounds.east, 180, tolerance)
-        && isNear(bounds.south, -90, tolerance)
-        && isNear(bounds.north, 90, tolerance);
+    return (
+        isNear(bounds.west, -180, tolerance) &&
+        isNear(bounds.east, 180, tolerance) &&
+        isNear(bounds.south, -90, tolerance) &&
+        isNear(bounds.north, 90, tolerance)
+    );
 }

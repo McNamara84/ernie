@@ -15,7 +15,6 @@ use Throwable;
 #[Signature('spdx:sync-licenses')]
 class SyncSpdxLicenses extends Command
 {
-
     public function handle(): int
     {
         try {

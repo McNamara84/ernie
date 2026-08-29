@@ -6,9 +6,11 @@ use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Format;
 use App\Models\GeoLocation;
+use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
@@ -205,12 +207,12 @@ it('maps dc:contributor from person contributors', function () {
 });
 
 it('maps dc:relation from related identifiers', function () {
-    $identifierType = \App\Models\IdentifierType::firstOrCreate(
+    $identifierType = IdentifierType::firstOrCreate(
         ['slug' => 'DOI'],
         ['name' => 'DOI', 'slug' => 'DOI', 'is_active' => true],
     );
 
-    $relationType = \App\Models\RelationType::firstOrCreate(
+    $relationType = RelationType::firstOrCreate(
         ['slug' => 'References'],
         ['name' => 'References', 'slug' => 'References', 'is_active' => true],
     );

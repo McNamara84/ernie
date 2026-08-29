@@ -402,13 +402,7 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
                                     Apply
                                 </Button>
                                 {hasYearRangeInput && (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={clearYearRange}
-                                        disabled={isLoading}
-                                    >
+                                    <Button type="button" variant="ghost" size="sm" onClick={clearYearRange} disabled={isLoading}>
                                         <X className="mr-1 h-3 w-3" />
                                         Clear
                                     </Button>

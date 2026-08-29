@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 covers(IgsnMetadata::class);
 
@@ -59,19 +61,19 @@ describe('relationships', function () {
     it('defines resource relationship', function () {
         $model = new IgsnMetadata;
 
-        expect($model->resource())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->resource())->toBeInstanceOf(BelongsTo::class);
     });
 
     it('defines parentResource relationship', function () {
         $model = new IgsnMetadata;
 
-        expect($model->parentResource())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+        expect($model->parentResource())->toBeInstanceOf(BelongsTo::class);
     });
 
     it('defines children relationship', function () {
         $model = new IgsnMetadata;
 
-        expect($model->children())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasMany::class);
+        expect($model->children())->toBeInstanceOf(HasMany::class);
     });
 });
 
@@ -188,6 +190,6 @@ describe('updateStatus', function () {
         $model = new IgsnMetadata;
 
         expect(fn () => $model->updateStatus('nonexistent'))
-            ->toThrow(\InvalidArgumentException::class);
+            ->toThrow(InvalidArgumentException::class);
     });
 });

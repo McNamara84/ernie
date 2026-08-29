@@ -88,14 +88,14 @@ class CitationLookupService
     }
 
     /**
-     * @param array<string, mixed> $attrs
+     * @param  array<string, mixed>  $attrs
      * @return array<string, mixed>
      */
     private function transform(array $attrs, string $doi): array
     {
         $titles = [];
         foreach ((array) ($attrs['titles'] ?? []) as $t) {
-            if (!is_array($t) || !isset($t['title']) || !is_string($t['title'])) {
+            if (! is_array($t) || ! isset($t['title']) || ! is_string($t['title'])) {
                 continue;
             }
             $titles[] = [
@@ -108,7 +108,7 @@ class CitationLookupService
 
         $creators = [];
         foreach ((array) ($attrs['creators'] ?? []) as $creator) {
-            if (!is_array($creator)) {
+            if (! is_array($creator)) {
                 continue;
             }
 

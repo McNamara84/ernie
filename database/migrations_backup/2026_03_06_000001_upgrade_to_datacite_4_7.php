@@ -5,11 +5,11 @@ declare(strict_types=1);
 use App\Models\IdentifierType;
 use App\Models\RelationType;
 use App\Models\ResourceType;
+use Database\Seeders\ResourceTypeDescriptionSeeder;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Database\Seeders\ResourceTypeDescriptionSeeder;
 
 /**
  * Upgrade schema from DataCite 4.6 to 4.7.

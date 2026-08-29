@@ -111,9 +111,7 @@ export function useRelatedItems(resourceId: number | null): UseRelatedItemsRetur
                 const positionById = new Map(order.map(({ id, position }) => [id, position] as const));
                 return prev
                     .map((item) =>
-                        item.id !== undefined && positionById.has(item.id)
-                            ? { ...item, position: positionById.get(item.id) as number }
-                            : item,
+                        item.id !== undefined && positionById.has(item.id) ? { ...item, position: positionById.get(item.id) as number } : item,
                     )
                     .sort((a, b) => a.position - b.position);
             });

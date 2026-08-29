@@ -61,7 +61,9 @@ export function PortalDatacenterFilter({ facets, selectedNames, onSelectionChang
                                     <CommandItem key={facet.name} value={facet.name} onSelect={() => toggleName(facet.name)}>
                                         <Checkbox checked={isSelected} className="pointer-events-none" />
                                         <span className="flex-1 truncate">{facet.name}</span>
-                                        <span className={cn('ml-auto text-xs tabular-nums', isSelected ? 'text-foreground' : 'text-muted-foreground')}>
+                                        <span
+                                            className={cn('ml-auto text-xs tabular-nums', isSelected ? 'text-foreground' : 'text-muted-foreground')}
+                                        >
                                             {facet.count}
                                         </span>
                                     </CommandItem>

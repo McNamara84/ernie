@@ -6,10 +6,11 @@ use App\Models\IdentifierType;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 covers(RelatedIdentifier::class);
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 describe('Relationships', function () {
     it('belongs to a resource', function () {

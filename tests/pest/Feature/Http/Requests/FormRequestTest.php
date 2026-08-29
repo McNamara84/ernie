@@ -13,7 +13,9 @@ use App\Http\Requests\UploadIgsnCsvRequest;
 use App\Http\Requests\UploadXmlRequest;
 use App\Http\Requests\ValidateDoiRequest;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Config;
 
 /*
@@ -100,10 +102,10 @@ describe('RegisterDoiRequest', function () {
         Config::set('datacite.test_mode', true);
         Config::set('datacite.test.prefixes', ['10.5880']);
 
-        $resource = \App\Models\Resource::factory()->create(['doi' => '10.5880/existing']);
+        $resource = App\Models\Resource::factory()->create(['doi' => '10.5880/existing']);
 
-        $route = new \Illuminate\Routing\Route('POST', '/resources/{resource}/register-doi', []);
-        $route->bind(\Illuminate\Http\Request::create('/resources/'.$resource->id.'/register-doi', 'POST'));
+        $route = new Route('POST', '/resources/{resource}/register-doi', []);
+        $route->bind(Request::create('/resources/'.$resource->id.'/register-doi', 'POST'));
         $route->setParameter('resource', $resource);
 
         $request = RegisterDoiRequest::create('/resources/'.$resource->id.'/register-doi', 'POST');
@@ -119,10 +121,10 @@ describe('RegisterDoiRequest', function () {
         Config::set('datacite.test_mode', true);
         Config::set('datacite.test.prefixes', ['10.5880']);
 
-        $resource = \App\Models\Resource::factory()->create(['doi' => null]);
+        $resource = App\Models\Resource::factory()->create(['doi' => null]);
 
-        $route = new \Illuminate\Routing\Route('POST', '/resources/{resource}/register-doi', []);
-        $route->bind(\Illuminate\Http\Request::create('/resources/'.$resource->id.'/register-doi', 'POST'));
+        $route = new Route('POST', '/resources/{resource}/register-doi', []);
+        $route->bind(Request::create('/resources/'.$resource->id.'/register-doi', 'POST'));
         $route->setParameter('resource', $resource);
 
         $request = RegisterDoiRequest::create('/resources/'.$resource->id.'/register-doi', 'POST');

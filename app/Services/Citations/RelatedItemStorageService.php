@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 class RelatedItemStorageService
 {
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(Resource $resource, array $data): RelatedItem
     {
@@ -61,7 +61,7 @@ class RelatedItemStorageService
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function update(RelatedItem $item, array $data): RelatedItem
     {
@@ -121,7 +121,7 @@ class RelatedItemStorageService
     }
 
     /**
-     * @param array<int, array{id: int, position: int}> $order
+     * @param  array<int, array{id: int, position: int}>  $order
      */
     public function reorder(Resource $resource, array $order): void
     {
@@ -150,14 +150,14 @@ class RelatedItemStorageService
                         // Both id and position are explicitly cast to int above,
                         // so the resulting CASE expression contains no user input.
                         // @phpstan-ignore argument.type
-                        'CASE id ' . implode(' ', $cases) . ' ELSE position END'
+                        'CASE id '.implode(' ', $cases).' ELSE position END'
                     ),
                 ]);
         });
     }
 
     /**
-     * @param array<int, array<string, mixed>> $titles
+     * @param  array<int, array<string, mixed>>  $titles
      */
     private function syncTitles(RelatedItem $item, array $titles): void
     {
@@ -172,7 +172,7 @@ class RelatedItemStorageService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $creators
+     * @param  array<int, array<string, mixed>>  $creators
      */
     private function syncCreators(RelatedItem $item, array $creators): void
     {
@@ -201,7 +201,7 @@ class RelatedItemStorageService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $contributors
+     * @param  array<int, array<string, mixed>>  $contributors
      */
     private function syncContributors(RelatedItem $item, array $contributors): void
     {

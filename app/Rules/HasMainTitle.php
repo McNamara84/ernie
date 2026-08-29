@@ -15,14 +15,14 @@ final class HasMainTitle implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             $fail('The :attribute must be an array of titles.');
 
             return;
         }
 
         foreach ($value as $title) {
-            if (!is_array($title)) {
+            if (! is_array($title)) {
                 continue;
             }
 

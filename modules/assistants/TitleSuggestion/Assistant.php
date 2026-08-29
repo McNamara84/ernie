@@ -23,18 +23,18 @@ class Assistant extends GenericTableAssistant
     {
         parent::__construct();
 
-        $this->detector = new LanguageDetector();
+        $this->detector = new LanguageDetector;
     }
 
     protected function getManifestPath(): string
     {
-        return __DIR__ . '/manifest.json';
+        return __DIR__.'/manifest.json';
     }
 
     /**
      * Discover titles without a language value and create title-language suggestions.
      *
-     * @param Closure(string): void $onProgress
+     * @param  Closure(string): void  $onProgress
      */
     protected function discover(Closure $onProgress): int
     {
@@ -287,7 +287,7 @@ class Assistant extends GenericTableAssistant
      * The generic card shows the suggested label prominently. Therefore this label
      * includes the main reviewer-preview information until a custom card exists.
      *
-     * @param array{code: string, label: string, confidence: float, reason: string} $detection
+     * @param  array{code: string, label: string, confidence: float, reason: string}  $detection
      */
     private function suggestionLabel(string $titleText, array $detection, ?string $currentLanguage = null): string
     {
@@ -331,7 +331,7 @@ class Assistant extends GenericTableAssistant
             return $title;
         }
 
-        return mb_substr($title, 0, 87) . '...';
+        return mb_substr($title, 0, 87).'...';
     }
 
     private function currentLanguage(Title $title): ?string
@@ -371,7 +371,7 @@ class Assistant extends GenericTableAssistant
     }
 
     /**
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
      */
     private function isStale(Title $title, array $metadata): bool
     {

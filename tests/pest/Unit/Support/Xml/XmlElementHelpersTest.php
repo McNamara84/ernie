@@ -60,7 +60,7 @@ it('coerces numeric query results to string', function (): void {
 it('returns null for unsupported query input', function (): void {
     expect(XmlElementHelpers::firstStringFromQuery(null))->toBeNull()
         ->and(XmlElementHelpers::firstStringFromQuery(true))->toBeNull()
-        ->and(XmlElementHelpers::firstStringFromQuery(new \stdClass()))->toBeNull();
+        ->and(XmlElementHelpers::firstStringFromQuery(new stdClass))->toBeNull();
 });
 
 it('accepts scalar query results directly', function (): void {
@@ -224,23 +224,23 @@ it('concatenates nested element string values', function (): void {
 it('normalises whitespace-only strings to null', function (?string $input, ?string $expected): void {
     expect(XmlElementHelpers::stringOrNull($input))->toBe($expected);
 })->with([
-    'null'        => [null, null],
-    'empty'       => ['', null],
-    'whitespace'  => ['   ', null],
-    'value'       => ['  hi  ', 'hi'],
+    'null' => [null, null],
+    'empty' => ['', null],
+    'whitespace' => ['   ', null],
+    'value' => ['  hi  ', 'hi'],
 ]);
 
 it('parses strict integers, otherwise null', function (?string $input, ?int $expected): void {
     expect(XmlElementHelpers::intOrNull($input))->toBe($expected);
 })->with([
-    'null'      => [null, null],
-    'empty'     => ['', null],
-    'positive'  => ['42', 42],
-    'negative'  => ['-7', -7],
-    'with ws'   => ['  19  ', 19],
-    'float'     => ['1.5', null],
-    'mixed'     => ['12abc', null],
-    'word'      => ['twelve', null],
+    'null' => [null, null],
+    'empty' => ['', null],
+    'positive' => ['42', 42],
+    'negative' => ['-7', -7],
+    'with ws' => ['  19  ', 19],
+    'float' => ['1.5', null],
+    'mixed' => ['12abc', null],
+    'word' => ['twelve', null],
 ]);
 
 // =========================================================================
@@ -250,10 +250,10 @@ it('parses strict integers, otherwise null', function (?string $input, ?int $exp
 it('splits "Family, Given" name strings', function (?string $input, array $expected): void {
     expect(XmlElementHelpers::splitCreatorName($input))->toBe($expected);
 })->with([
-    'comma form'    => ['Doe, Jane', ['familyName' => 'Doe', 'givenName' => 'Jane']],
-    'family only'   => ['Doe', ['familyName' => 'Doe', 'givenName' => null]],
-    'empty given'   => ['Doe, ', ['familyName' => 'Doe', 'givenName' => null]],
-    'empty family'  => [', Jane', ['familyName' => null, 'givenName' => 'Jane']],
-    'null input'    => [null, ['givenName' => null, 'familyName' => null]],
-    'empty input'   => ['', ['givenName' => null, 'familyName' => null]],
+    'comma form' => ['Doe, Jane', ['familyName' => 'Doe', 'givenName' => 'Jane']],
+    'family only' => ['Doe', ['familyName' => 'Doe', 'givenName' => null]],
+    'empty given' => ['Doe, ', ['familyName' => 'Doe', 'givenName' => null]],
+    'empty family' => [', Jane', ['familyName' => null, 'givenName' => 'Jane']],
+    'null input' => [null, ['givenName' => null, 'familyName' => null]],
+    'empty input' => ['', ['givenName' => null, 'familyName' => null]],
 ]);

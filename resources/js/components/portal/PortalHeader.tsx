@@ -25,8 +25,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 function NavLink({ item }: { item: NavItem }) {
-    const baseClasses =
-        'px-3 py-2 text-sm font-medium transition-colors hover:bg-portal-nav-active rounded-sm';
+    const baseClasses = 'px-3 py-2 text-sm font-medium transition-colors hover:bg-portal-nav-active rounded-sm';
     const activeClasses = item.active ? 'bg-portal-nav-active font-semibold' : '';
     const className = `${baseClasses} ${activeClasses}`.trim();
     const ariaCurrent = item.active ? ('page' as const) : undefined;
@@ -49,15 +48,19 @@ function NavLink({ item }: { item: NavItem }) {
 }
 
 function MobileNavLink({ item, onClick }: { item: NavItem; onClick: () => void }) {
-    const baseClasses =
-        'block w-full px-4 py-3 text-sm font-medium transition-colors hover:bg-portal-nav-active';
+    const baseClasses = 'block w-full px-4 py-3 text-sm font-medium transition-colors hover:bg-portal-nav-active';
     const activeClasses = item.active ? 'bg-portal-nav-active font-semibold' : '';
     const className = `${baseClasses} ${activeClasses}`.trim();
     const ariaCurrent = item.active ? ('page' as const) : undefined;
 
     if (item.external) {
         return (
-            <a href={item.href} className={`flex items-center gap-2 text-portal-nav-foreground ${className}`} onClick={onClick} aria-current={ariaCurrent}>
+            <a
+                href={item.href}
+                className={`flex items-center gap-2 text-portal-nav-foreground ${className}`}
+                onClick={onClick}
+                aria-current={ariaCurrent}
+            >
                 {item.icon}
                 {item.label}
             </a>
@@ -65,7 +68,12 @@ function MobileNavLink({ item, onClick }: { item: NavItem; onClick: () => void }
     }
 
     return (
-        <Link href={item.href} className={`flex items-center gap-2 text-portal-nav-foreground ${className}`} onClick={onClick} aria-current={ariaCurrent}>
+        <Link
+            href={item.href}
+            className={`flex items-center gap-2 text-portal-nav-foreground ${className}`}
+            onClick={onClick}
+            aria-current={ariaCurrent}
+        >
             {item.icon}
             {item.label}
         </Link>
@@ -80,14 +88,8 @@ export function PortalHeader() {
             {/* Top Branding Bar */}
             <div className="bg-portal-header">
                 <div className="flex h-16 items-center justify-between px-6">
-                    <h1 className="text-xl font-semibold tracking-wide text-portal-header-foreground">
-                        GFZ Data Services Portal
-                    </h1>
-                    <img
-                        src="/images/gfz-logo_en.svg"
-                        alt="GFZ Helmholtz Centre for Geosciences"
-                        className="h-10"
-                    />
+                    <h1 className="text-xl font-semibold tracking-wide text-portal-header-foreground">GFZ Data Services Portal</h1>
+                    <img src="/images/gfz-logo_en.svg" alt="GFZ Helmholtz Centre for Geosciences" className="h-10" />
                 </div>
             </div>
 

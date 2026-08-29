@@ -23,11 +23,7 @@ function subscribe(callback: () => void): () => void {
  * (e.g. to switch map tiles) but should not own the global dark-mode state.
  */
 export function usePrefersDarkMode(): boolean {
-    return useSyncExternalStore(
-        useCallback(subscribe, []),
-        getSnapshot,
-        getServerSnapshot,
-    );
+    return useSyncExternalStore(useCallback(subscribe, []), getSnapshot, getServerSnapshot);
 }
 
 /**

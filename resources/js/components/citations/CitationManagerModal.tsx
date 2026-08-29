@@ -2,11 +2,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { CitationCard } from '@/components/citations/CitationCard';
-import {
-    RelatedItemForm,
-    type RelatedItemFormOption,
-    type RelationTypeOption,
-} from '@/components/citations/RelatedItemForm';
+import { RelatedItemForm, type RelatedItemFormOption, type RelationTypeOption } from '@/components/citations/RelatedItemForm';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -18,14 +14,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Spinner } from '@/components/ui/spinner';
 import { useRelatedItems } from '@/hooks/use-related-items';
@@ -40,10 +29,7 @@ interface CitationManagerModalProps {
     contributorTypes: RelatedItemFormOption[];
 }
 
-type Mode =
-    | { type: 'list' }
-    | { type: 'create' }
-    | { type: 'edit'; item: RelatedItem };
+type Mode = { type: 'list' } | { type: 'create' } | { type: 'edit'; item: RelatedItem };
 
 /**
  * Modal wrapper that manages the list of related items for a resource.
@@ -51,22 +37,14 @@ type Mode =
  * Shows a list of {@link CitationCard}s for existing items and a
  * {@link RelatedItemForm} for creating or editing entries.
  */
-export function CitationManagerModal({
-    open,
-    onOpenChange,
-    resourceId,
-    resourceTypes,
-    relationTypes,
-    contributorTypes,
-}: CitationManagerModalProps) {
+export function CitationManagerModal({ open, onOpenChange, resourceId, resourceTypes, relationTypes, contributorTypes }: CitationManagerModalProps) {
     const { items, isLoading, error, create, update, remove } = useRelatedItems(resourceId);
     const [mode, setMode] = useState<Mode>({ type: 'list' });
     const [submitting, setSubmitting] = useState(false);
     const [pendingDelete, setPendingDelete] = useState<RelatedItem | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const relationLabelOf = (item: RelatedItem): string | undefined =>
-        relationTypes.find((r) => r.id === item.relation_type_id)?.label;
+    const relationLabelOf = (item: RelatedItem): string | undefined => relationTypes.find((r) => r.id === item.relation_type_id)?.label;
 
     const handleCreate = async (values: Parameters<typeof create>[0]) => {
         setSubmitting(true);
@@ -81,10 +59,7 @@ export function CitationManagerModal({
         }
     };
 
-    const handleUpdate = async (
-        id: number,
-        values: Parameters<typeof update>[1],
-    ) => {
+    const handleUpdate = async (id: number, values: Parameters<typeof update>[1]) => {
         setSubmitting(true);
         try {
             await update(id, values);
@@ -122,9 +97,7 @@ export function CitationManagerModal({
             <DialogContent className="max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>Related Item Manager</DialogTitle>
-                    <DialogDescription>
-                        Manage DataCite related items for this resource.
-                    </DialogDescription>
+                    <DialogDescription>Manage DataCite related items for this resource.</DialogDescription>
                 </DialogHeader>
 
                 {mode.type === 'list' ? (
@@ -136,10 +109,7 @@ export function CitationManagerModal({
                         ) : error ? (
                             <p className="text-sm text-destructive">{error}</p>
                         ) : items.length === 0 ? (
-                            <EmptyState
-                                title="No related items yet"
-                                description="Add related resources with full metadata."
-                            />
+                            <EmptyState title="No related items yet" description="Add related resources with full metadata." />
                         ) : (
                             items.map((item) => (
                                 <CitationCard
@@ -157,9 +127,7 @@ export function CitationManagerModal({
                             <Button variant="outline" onClick={() => onOpenChange(false)}>
                                 Close
                             </Button>
-                            <Button onClick={() => setMode({ type: 'create' })}>
-                                Add related item
-                            </Button>
+                            <Button onClick={() => setMode({ type: 'create' })}>Add related item</Button>
                         </DialogFooter>
                     </div>
                 ) : mode.type === 'create' ? (
@@ -200,8 +168,7 @@ export function CitationManagerModal({
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete related item</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to delete this related item? This action
-                            cannot be undone.
+                            Are you sure you want to delete this related item? This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

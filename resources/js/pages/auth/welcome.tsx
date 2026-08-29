@@ -60,7 +60,14 @@ export default function Welcome({ email, userId, signatureParams }: WelcomeProps
                             <FormItem className="grid gap-2">
                                 <FormLabel>Password</FormLabel>
                                 <FormControl>
-                                    <Input {...field} type="password" autoComplete="new-password" className="mt-1 block w-full" autoFocus placeholder="Enter your new password" />
+                                    <Input
+                                        {...field}
+                                        type="password"
+                                        autoComplete="new-password"
+                                        className="mt-1 block w-full"
+                                        autoFocus
+                                        placeholder="Enter your new password"
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -74,7 +81,13 @@ export default function Welcome({ email, userId, signatureParams }: WelcomeProps
                             <FormItem className="grid gap-2">
                                 <FormLabel>Confirm Password</FormLabel>
                                 <FormControl>
-                                    <Input {...field} type="password" autoComplete="new-password" className="mt-1 block w-full" placeholder="Confirm your password" />
+                                    <Input
+                                        {...field}
+                                        type="password"
+                                        autoComplete="new-password"
+                                        className="mt-1 block w-full"
+                                        placeholder="Confirm your password"
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>

@@ -142,7 +142,7 @@ class PortalTestDataSeeder extends Seeder
         $existingCount = Resource::whereHas('landingPage', fn ($q) => $q->where('is_published', true))->count();
 
         if ($existingCount >= self::TARGET_TOTAL) {
-            $this->command->info("PortalTestDataSeeder: Already have {$existingCount} published resources (target: " . self::TARGET_TOTAL . ')');
+            $this->command->info("PortalTestDataSeeder: Already have {$existingCount} published resources (target: ".self::TARGET_TOTAL.')');
 
             return;
         }
@@ -150,7 +150,7 @@ class PortalTestDataSeeder extends Seeder
         $this->initializeLookupTables();
 
         $needed = self::TARGET_TOTAL - $existingCount;
-        $this->command->info("Creating {$needed} additional resources to reach " . self::TARGET_TOTAL . ' total...');
+        $this->command->info("Creating {$needed} additional resources to reach ".self::TARGET_TOTAL.' total...');
 
         // Split between DOI datasets (60%) and IGSNs (40%)
         $doiCount = (int) ceil($needed * 0.6);
@@ -182,7 +182,7 @@ class PortalTestDataSeeder extends Seeder
         $this->command->info("Total published resources: {$totalPublished}");
         $this->command->info("  - With geo-locations: {$totalWithGeo}");
         $this->command->info("  - IGSN samples: {$totalIgsn}");
-        $this->command->info("  - DOI datasets: " . ($totalPublished - $totalIgsn));
+        $this->command->info('  - DOI datasets: '.($totalPublished - $totalIgsn));
     }
 
     private function initializeLookupTables(): void
@@ -238,7 +238,7 @@ class PortalTestDataSeeder extends Seeder
         LandingPage::create([
             'resource_id' => $resource->id,
             'doi_prefix' => '10.5880/GFZ',
-            'slug' => 'portal-doi-' . $index,
+            'slug' => 'portal-doi-'.$index,
             'template' => 'default_gfz',
             'is_published' => true,
             'published_at' => now()->subDays(rand(1, 365)),
@@ -401,7 +401,7 @@ class PortalTestDataSeeder extends Seeder
         LandingPage::create([
             'resource_id' => $resource->id,
             'doi_prefix' => '10.5880/IGSN',
-            'slug' => 'portal-igsn-' . $index,
+            'slug' => 'portal-igsn-'.$index,
             'template' => 'default_gfz',
             'is_published' => true,
             'published_at' => now()->subDays(rand(1, 365)),

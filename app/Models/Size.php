@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Size Model (DataCite #13)
@@ -22,8 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $numeric_value Decimal value stored as string by Laravel's decimal:4 cast
  * @property string|null $unit
  * @property string|null $type
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read string $export_string
  * @property-read Resource $resource
  *
@@ -32,7 +34,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['resource_id', 'numeric_value', 'unit', 'type'])]
 class Size extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     /**
@@ -68,7 +70,7 @@ class Size extends Model
         if ($this->type !== null && $this->type !== '') {
             if ($this->unit !== null && $this->unit !== '') {
                 // Type with unit in brackets: "Drilled Length [m]"
-                $parts[] = $this->type . ' [' . $this->unit . ']';
+                $parts[] = $this->type.' ['.$this->unit.']';
             } else {
                 // Type only: "meters"
                 $parts[] = $this->type;

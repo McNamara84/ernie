@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Services\Assistance\AssistantContract;
-use App\Services\Assistance\AssistantManifest;
 use App\Services\Assistance\AssistantRegistrar;
 
 covers(AssistantRegistrar::class);
@@ -14,7 +13,7 @@ covers(AssistantRegistrar::class);
 
 describe('discoverModules', function () {
     it('discovers modules from modules/assistants directory', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
         $registrar->discoverModules(base_path('modules/assistants'));
 
         $all = $registrar->getAll();
@@ -23,14 +22,14 @@ describe('discoverModules', function () {
     });
 
     it('returns empty when directory does not exist', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
         $registrar->discoverModules('/non/existent/path');
 
         expect($registrar->getAll())->toBeEmpty();
     });
 
     it('sorts modules by sortOrder', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
         $registrar->discoverModules(base_path('modules/assistants'));
 
         $all = array_values($registrar->getAll());
@@ -48,7 +47,7 @@ describe('discoverModules', function () {
 
 describe('registerFromPaths', function () {
     it('registers assistants from manifest paths', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
         $paths = glob(base_path('modules/assistants/*/manifest.json'));
         $registrar->registerFromPaths($paths !== false ? $paths : []);
 
@@ -56,7 +55,7 @@ describe('registerFromPaths', function () {
     });
 
     it('skips invalid manifest paths gracefully', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
         $registrar->registerFromPaths(['/non/existent/manifest.json']);
 
         expect($registrar->getAll())->toBeEmpty();
@@ -69,7 +68,7 @@ describe('registerFromPaths', function () {
 
 describe('get and has', function () {
     it('returns assistant by ID', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
         $registrar->discoverModules(base_path('modules/assistants'));
 
         $assistant = $registrar->get('relation-suggestion');
@@ -78,21 +77,21 @@ describe('get and has', function () {
     });
 
     it('returns null for unknown ID', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
         $registrar->discoverModules(base_path('modules/assistants'));
 
         expect($registrar->get('non-existent'))->toBeNull();
     });
 
     it('has() returns true for registered assistant', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
         $registrar->discoverModules(base_path('modules/assistants'));
 
         expect($registrar->has('relation-suggestion'))->toBeTrue();
     });
 
     it('has() returns false for unregistered assistant', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
         $registrar->discoverModules(base_path('modules/assistants'));
 
         expect($registrar->has('non-existent'))->toBeFalse();
@@ -105,7 +104,7 @@ describe('get and has', function () {
 
 describe('register', function () {
     it('manually registers an assistant', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
 
         $mockAssistant = Mockery::mock(AssistantContract::class);
         $mockAssistant->shouldReceive('getId')->andReturn('mock-assistant');
@@ -123,7 +122,7 @@ describe('register', function () {
 
 describe('totalPendingCount', function () {
     it('sums countPending across all registered assistants', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
 
         $assistantA = Mockery::mock(AssistantContract::class);
         $assistantA->shouldReceive('getId')->andReturn('assistant-a');
@@ -140,7 +139,7 @@ describe('totalPendingCount', function () {
     });
 
     it('excludes unregistered assistants from the count', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
 
         // Only register one assistant — the other should not be counted
         $registered = Mockery::mock(AssistantContract::class);
@@ -153,7 +152,7 @@ describe('totalPendingCount', function () {
     });
 
     it('returns zero when no assistants registered', function () {
-        $registrar = new AssistantRegistrar();
+        $registrar = new AssistantRegistrar;
         expect($registrar->totalPendingCount())->toBe(0);
     });
 });

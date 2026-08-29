@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\OaiPmh;
 
+use App\Models\Institution;
+use App\Models\Person;
 use App\Models\Resource;
 
 /**
@@ -147,14 +149,14 @@ class DublinCoreMapper
         }
 
         // Person: "LastName, FirstName"
-        if ($entity instanceof \App\Models\Person) {
+        if ($entity instanceof Person) {
             $parts = array_filter([$entity->family_name, $entity->given_name]);
 
             return $parts !== [] ? implode(', ', $parts) : null;
         }
 
         // Institution: name
-        if ($entity instanceof \App\Models\Institution) {
+        if ($entity instanceof Institution) {
             return $entity->name !== '' ? $entity->name : null;
         }
 

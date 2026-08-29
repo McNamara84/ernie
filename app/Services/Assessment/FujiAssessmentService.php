@@ -163,12 +163,12 @@ class FujiAssessmentService
 
     private function endpoint(): string
     {
-        return rtrim($this->baseUrl() ?? '', '/') . '/fuji/api/v1/evaluate';
+        return rtrim($this->baseUrl() ?? '', '/').'/fuji/api/v1/evaluate';
     }
 
     private function healthEndpoint(): string
     {
-        return rtrim($this->baseUrl() ?? '', '/') . '/fuji/api/v1/ui/';
+        return rtrim($this->baseUrl() ?? '', '/').'/fuji/api/v1/ui/';
     }
 
     private function baseUrl(): ?string
@@ -219,7 +219,7 @@ class FujiAssessmentService
     }
 
     /**
-     * @param array<string, mixed> $context
+     * @param  array<string, mixed>  $context
      */
     private function logTransportFailure(string $operation, \Throwable $exception, array $context = []): void
     {
@@ -233,7 +233,7 @@ class FujiAssessmentService
     }
 
     /**
-     * @param array<string, mixed> $context
+     * @param  array<string, mixed>  $context
      */
     private function logUnsuccessfulResponse(string $operation, Response $response, array $context = []): void
     {
