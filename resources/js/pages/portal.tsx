@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { Map as MapIcon, MapPin, PanelRightClose, PanelRightOpen } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { PortalFilters } from '@/components/portal/PortalFilters';
 import { PortalMap } from '@/components/portal/PortalMap';
@@ -19,7 +19,16 @@ const STORAGE_KEY_LAYOUT = 'portal-panel-layout';
 const DEFAULT_RESULTS_SIZE = 55;
 const DEFAULT_MAP_SIZE = 45;
 
-export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions, thesaurusFacets = [], temporalRange, resourceTypeFacets, datacenterFacets }: PortalPageProps) {
+export default function Portal({
+    resources,
+    pagination,
+    filters,
+    keywordSuggestions,
+    thesaurusFacets = [],
+    temporalRange,
+    resourceTypeFacets,
+    datacenterFacets,
+}: PortalPageProps) {
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
     const { isNavigating: isRefreshing } = useNavigationStatus('results');
 
@@ -78,9 +87,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         currentPage: pagination.current_page,
     });
     const hasLegacyKeywordFilters =
-        (filters.keywords?.length ?? 0) > 0 &&
-        (filters.freeKeywords?.length ?? 0) === 0 &&
-        (filters.thesaurusKeywords?.length ?? 0) === 0;
+        (filters.keywords?.length ?? 0) > 0 && (filters.freeKeywords?.length ?? 0) === 0 && (filters.thesaurusKeywords?.length ?? 0) === 0;
 
     // Geo filter toggle state – initialized from URL params
     const [geoFilterEnabled, setGeoFilterEnabled] = useState(() => filters.bounds !== null);
@@ -204,10 +211,8 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         clearFilters();
     }, [clearFilters]);
 
-    // Count geo locations for display
-    const geoCount = useMemo(() => {
-        return mapData.filter((r) => r.geoLocations.length > 0).reduce((acc, r) => acc + r.geoLocations.length, 0);
-    }, [mapData]);
+    // Updated asynchronously by the visible map instance.
+    const [geoCount, setGeoCount] = useState(0);
 
     const handlePageChange = useCallback(
         (page: number) => {
@@ -227,7 +232,9 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-1">
                             <h2 className="text-lg font-semibold text-foreground">Explore published records</h2>
-                            <p className="text-sm text-muted-foreground">Search datasets and sample metadata by text, location, resource type, and time.</p>
+                            <p className="text-sm text-muted-foreground">
+                                Search datasets and sample metadata by text, location, resource type, and time.
+                            </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <Badge variant="outline">{pagination.total.toLocaleString()} results</Badge>
@@ -286,9 +293,10 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                         {/* Map - collapsible on smaller screens */}
                         <div className="border-t">
                             <PortalMap
-                                resources={mapData}
+                                filters={filters}
                                 geoFilterEnabled={geoFilterEnabled}
                                 onViewportChange={handleViewportChange}
+                                onLocationCountChange={setGeoCount}
                                 flyToBounds={flyToBounds}
                             />
                         </div>
@@ -340,10 +348,11 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                                         {/* Map Content */}
                                         <div className="flex-1">
                                             <PortalMap
-                                                resources={mapData}
+                                                filters={filters}
                                                 hideHeader
                                                 geoFilterEnabled={geoFilterEnabled}
                                                 onViewportChange={handleViewportChange}
+                                                onLocationCountChange={setGeoCount}
                                                 flyToBounds={flyToBounds}
                                             />
                                         </div>

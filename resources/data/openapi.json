@@ -47,6 +47,11 @@
             "name": "IGSN Imports",
             "summary": "Authenticated IGSN import operations",
             "description": "Session-authenticated endpoints for discovering legacy datacenter groups and starting IGSN imports from DataCite."
+        },
+        {
+            "name": "Portal",
+            "summary": "Public data portal endpoints",
+            "description": "Public endpoints used to discover published ERNIE resources."
         }
     ],
     "security": [],
@@ -1750,6 +1755,238 @@
                     }
                 }
             }
+        },
+        "/portal/map": {
+            "get": {
+                "tags": ["Portal"],
+                "summary": "Load clustered records for the public portal map",
+                "description": "Returns a bounded set of server-side clusters and individual published records for the visible map viewport. The optional total count and extent are cached by semantic portal filters, independently of viewport coordinates and dimensions.",
+                "operationId": "getPortalMap",
+                "security": [],
+                "parameters": [
+                    {
+                        "name": "viewport[north]",
+                        "in": "query",
+                        "required": true,
+                        "description": "Northern latitude of the visible technical map viewport.",
+                        "schema": { "type": "number", "minimum": -90, "maximum": 90, "example": 54 }
+                    },
+                    {
+                        "name": "viewport[south]",
+                        "in": "query",
+                        "required": true,
+                        "description": "Southern latitude of the visible technical map viewport.",
+                        "schema": { "type": "number", "minimum": -90, "maximum": 90, "example": 50 }
+                    },
+                    {
+                        "name": "viewport[east]",
+                        "in": "query",
+                        "required": true,
+                        "description": "Eastern longitude of the visible viewport. A value below west represents an antimeridian-crossing viewport.",
+                        "schema": { "type": "number", "minimum": -180, "maximum": 180, "example": 16 }
+                    },
+                    {
+                        "name": "viewport[west]",
+                        "in": "query",
+                        "required": true,
+                        "description": "Western longitude of the visible viewport.",
+                        "schema": { "type": "number", "minimum": -180, "maximum": 180, "example": 10 }
+                    },
+                    {
+                        "name": "viewport[width]",
+                        "in": "query",
+                        "required": true,
+                        "description": "Rendered map width in CSS pixels.",
+                        "schema": { "type": "integer", "minimum": 1, "maximum": 4096, "example": 1000 }
+                    },
+                    {
+                        "name": "viewport[height]",
+                        "in": "query",
+                        "required": true,
+                        "description": "Rendered map height in CSS pixels.",
+                        "schema": { "type": "integer", "minimum": 1, "maximum": 4096, "example": 700 }
+                    },
+                    {
+                        "name": "zoom",
+                        "in": "query",
+                        "required": true,
+                        "description": "Leaflet zoom level requested by the client.",
+                        "schema": { "type": "integer", "minimum": 0, "maximum": 18, "example": 8 }
+                    },
+                    {
+                        "name": "include_extent",
+                        "in": "query",
+                        "required": false,
+                        "description": "Include the total number and overall extent of locations matching the semantic filters. Intended for initial and filtered map loads.",
+                        "schema": { "type": "boolean", "default": false }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "description": "Portal full-text search term.",
+                        "schema": { "type": "string", "maxLength": 500 }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "description": "Legacy resource-type shortcut. `doi` excludes physical objects; `igsn` selects physical objects.",
+                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                    },
+                    {
+                        "name": "type[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Selected resource-type slugs.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "datacenter[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Selected datacenter names.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "keywords[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Legacy combined keyword filters.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "free_keywords[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact free-keyword filters.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "thesaurus_keywords[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Selected controlled-vocabulary term identifiers.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 2048 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "north",
+                        "in": "query",
+                        "required": false,
+                        "description": "Northern latitude of the optional semantic spatial filter. Supply all four spatial filter bounds together.",
+                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                    },
+                    {
+                        "name": "south",
+                        "in": "query",
+                        "required": false,
+                        "description": "Southern latitude of the optional semantic spatial filter.",
+                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                    },
+                    {
+                        "name": "east",
+                        "in": "query",
+                        "required": false,
+                        "description": "Eastern longitude of the optional semantic spatial filter.",
+                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                    },
+                    {
+                        "name": "west",
+                        "in": "query",
+                        "required": false,
+                        "description": "Western longitude of the optional semantic spatial filter.",
+                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                    },
+                    {
+                        "name": "date_type",
+                        "in": "query",
+                        "required": false,
+                        "description": "Date field used by the optional temporal filter.",
+                        "schema": { "type": "string", "enum": ["Created", "Collected", "Coverage"] }
+                    },
+                    {
+                        "name": "year_from",
+                        "in": "query",
+                        "required": false,
+                        "description": "Inclusive first year of the optional temporal filter.",
+                        "schema": { "type": "integer", "minimum": 1900, "example": 2000 }
+                    },
+                    {
+                        "name": "year_to",
+                        "in": "query",
+                        "required": false,
+                        "description": "Inclusive last year of the optional temporal filter.",
+                        "schema": { "type": "integer", "minimum": 1900, "example": 2026 }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bounded map features for the requested viewport.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/PortalMapResponse" }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "One or more viewport or filter parameters are invalid.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Public portal map rate limit exceeded (120 requests per minute by default).",
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until the client may retry.",
+                                "schema": { "type": "integer", "minimum": 0 }
+                            },
+                            "X-RateLimit-Limit": {
+                                "description": "Configured request limit for the current window.",
+                                "schema": { "type": "integer", "minimum": 1 }
+                            },
+                            "X-RateLimit-Remaining": {
+                                "description": "Requests remaining in the current window.",
+                                "schema": { "type": "integer", "minimum": 0 }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error prevented map data from being generated.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "The portal map feature is temporarily disabled.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/MessageResponse" },
+                                "example": { "message": "The portal map is temporarily unavailable." }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -1821,6 +2058,176 @@
             }
         },
         "schemas": {
+            "PortalMapBounds": {
+                "type": "object",
+                "description": "Geographic bounds. A west value greater than east denotes an antimeridian-crossing interval.",
+                "properties": {
+                    "north": { "type": "number", "minimum": -90, "maximum": 90 },
+                    "south": { "type": "number", "minimum": -90, "maximum": 90 },
+                    "east": { "type": "number", "minimum": -180, "maximum": 180 },
+                    "west": { "type": "number", "minimum": -180, "maximum": 180 }
+                },
+                "required": ["north", "south", "east", "west"],
+                "additionalProperties": false
+            },
+            "PortalMapPosition": {
+                "type": "object",
+                "properties": {
+                    "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+                    "lng": { "type": "number", "minimum": -180, "maximum": 180 }
+                },
+                "required": ["lat", "lng"],
+                "additionalProperties": false
+            },
+            "PortalMapPoint": {
+                "type": "object",
+                "properties": {
+                    "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+                    "longitude": { "type": "number", "minimum": -180, "maximum": 180 }
+                },
+                "required": ["latitude", "longitude"],
+                "additionalProperties": false
+            },
+            "PortalMapPointGeometry": {
+                "type": "object",
+                "properties": {
+                    "type": { "type": "string", "enum": ["point"] },
+                    "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+                    "longitude": { "type": "number", "minimum": -180, "maximum": 180 }
+                },
+                "required": ["type", "latitude", "longitude"],
+                "additionalProperties": false
+            },
+            "PortalMapBoxGeometry": {
+                "type": "object",
+                "properties": {
+                    "type": { "type": "string", "enum": ["box"] },
+                    "north": { "type": "number", "minimum": -90, "maximum": 90 },
+                    "south": { "type": "number", "minimum": -90, "maximum": 90 },
+                    "east": { "type": "number", "minimum": -180, "maximum": 180 },
+                    "west": { "type": "number", "minimum": -180, "maximum": 180 }
+                },
+                "required": ["type", "north", "south", "east", "west"],
+                "additionalProperties": false
+            },
+            "PortalMapPathGeometry": {
+                "type": "object",
+                "properties": {
+                    "type": { "type": "string", "enum": ["polygon", "line"] },
+                    "points": {
+                        "type": "array",
+                        "minItems": 2,
+                        "items": { "$ref": "#/components/schemas/PortalMapPoint" }
+                    }
+                },
+                "required": ["type", "points"],
+                "additionalProperties": false
+            },
+            "PortalMapGeometry": {
+                "oneOf": [
+                    { "$ref": "#/components/schemas/PortalMapPointGeometry" },
+                    { "$ref": "#/components/schemas/PortalMapBoxGeometry" },
+                    { "$ref": "#/components/schemas/PortalMapPathGeometry" }
+                ]
+            },
+            "PortalMapCreator": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string" }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+            },
+            "PortalMapResourceType": {
+                "type": "object",
+                "properties": {
+                    "slug": { "type": "string" },
+                    "name": { "type": "string" }
+                },
+                "required": ["slug", "name"],
+                "additionalProperties": false
+            },
+            "PortalMapResourceSummary": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "integer", "minimum": 1 },
+                    "identifier": { "type": ["string", "null"] },
+                    "title": { "type": "string" },
+                    "resourceType": {
+                        "oneOf": [{ "$ref": "#/components/schemas/PortalMapResourceType" }, { "type": "null" }]
+                    },
+                    "creators": {
+                        "type": "array",
+                        "maxItems": 3,
+                        "items": { "$ref": "#/components/schemas/PortalMapCreator" }
+                    },
+                    "landingPageUrl": { "type": ["string", "null"] }
+                },
+                "required": ["id", "identifier", "title", "resourceType", "creators", "landingPageUrl"],
+                "additionalProperties": false
+            },
+            "PortalMapClusterFeature": {
+                "type": "object",
+                "properties": {
+                    "kind": { "type": "string", "enum": ["cluster"] },
+                    "id": { "type": "string" },
+                    "position": { "$ref": "#/components/schemas/PortalMapPosition" },
+                    "bounds": { "$ref": "#/components/schemas/PortalMapBounds" },
+                    "count": { "type": "integer", "minimum": 1 },
+                    "resourceTypeCounts": {
+                        "type": "object",
+                        "additionalProperties": { "type": "integer", "minimum": 1 }
+                    }
+                },
+                "required": ["kind", "id", "position", "bounds", "count", "resourceTypeCounts"],
+                "additionalProperties": false
+            },
+            "PortalMapResourceFeature": {
+                "type": "object",
+                "properties": {
+                    "kind": { "type": "string", "enum": ["resource"] },
+                    "id": { "type": "string" },
+                    "position": { "$ref": "#/components/schemas/PortalMapPosition" },
+                    "bounds": { "$ref": "#/components/schemas/PortalMapBounds" },
+                    "geometry": { "$ref": "#/components/schemas/PortalMapGeometry" },
+                    "resource": { "$ref": "#/components/schemas/PortalMapResourceSummary" }
+                },
+                "required": ["kind", "id", "position", "bounds", "geometry", "resource"],
+                "additionalProperties": false
+            },
+            "PortalMapFeature": {
+                "oneOf": [{ "$ref": "#/components/schemas/PortalMapClusterFeature" }, { "$ref": "#/components/schemas/PortalMapResourceFeature" }]
+            },
+            "PortalMapMeta": {
+                "type": "object",
+                "properties": {
+                    "requestedZoom": { "type": "integer", "minimum": 0, "maximum": 18 },
+                    "effectiveZoom": { "type": "integer", "minimum": 0, "maximum": 18 },
+                    "visibleLocations": { "type": "integer", "minimum": 0 },
+                    "returnedFeatures": { "type": "integer", "minimum": 0 },
+                    "totalLocations": { "type": ["integer", "null"], "minimum": 0 },
+                    "extent": {
+                        "oneOf": [{ "$ref": "#/components/schemas/PortalMapBounds" }, { "type": "null" }]
+                    },
+                    "coarsened": { "type": "boolean" }
+                },
+                "required": ["requestedZoom", "effectiveZoom", "visibleLocations", "returnedFeatures", "totalLocations", "extent", "coarsened"],
+                "additionalProperties": false
+            },
+            "PortalMapResponse": {
+                "type": "object",
+                "properties": {
+                    "schemaVersion": { "type": "integer", "enum": [1] },
+                    "features": {
+                        "type": "array",
+                        "description": "Bounded by the deployment's PORTAL_MAP_MAX_FEATURES setting.",
+                        "items": { "$ref": "#/components/schemas/PortalMapFeature" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/PortalMapMeta" }
+                },
+                "required": ["schemaVersion", "features", "meta"],
+                "additionalProperties": false
+            },
             "DatacenterIgsnImportRequest": {
                 "type": "object",
                 "description": "Payload for starting an IGSN import limited to one legacy datacenter.",

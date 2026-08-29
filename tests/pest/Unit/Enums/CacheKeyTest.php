@@ -60,9 +60,13 @@ it('returns configurable TTLs for public page payload caches', function () {
     config([
         'bot_protection.portal_cache_ttl' => 45,
         'bot_protection.landing_cache_ttl' => 90,
+        'portal_map.cache_ttl' => 30,
+        'portal_map.extent_cache_ttl' => 300,
     ]);
 
     expect(CacheKey::PORTAL_PAGE_PAYLOAD->ttl())->toBe(45)
+        ->and(CacheKey::PORTAL_MAP_PAYLOAD->ttl())->toBe(30)
+        ->and(CacheKey::PORTAL_MAP_EXTENT->ttl())->toBe(300)
         ->and(CacheKey::LANDING_PAGE_RENDER_DATA->ttl())->toBe(90);
 });
 
@@ -70,9 +74,13 @@ it('clamps public page payload cache TTLs to zero', function () {
     config([
         'bot_protection.portal_cache_ttl' => -10,
         'bot_protection.landing_cache_ttl' => -20,
+        'portal_map.cache_ttl' => -30,
+        'portal_map.extent_cache_ttl' => -300,
     ]);
 
     expect(CacheKey::PORTAL_PAGE_PAYLOAD->ttl())->toBe(0)
+        ->and(CacheKey::PORTAL_MAP_PAYLOAD->ttl())->toBe(0)
+        ->and(CacheKey::PORTAL_MAP_EXTENT->ttl())->toBe(0)
         ->and(CacheKey::LANDING_PAGE_RENDER_DATA->ttl())->toBe(0);
 });
 
@@ -103,6 +111,8 @@ it('returns correct tags for system', function () {
 
 it('returns correct tags for public page payload caches', function () {
     expect(CacheKey::PORTAL_PAGE_PAYLOAD->tags())->toBe(['portal_page_payloads'])
+        ->and(CacheKey::PORTAL_MAP_PAYLOAD->tags())->toBe(['portal_page_payloads'])
+        ->and(CacheKey::PORTAL_MAP_EXTENT->tags())->toBe(['portal_page_payloads'])
         ->and(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->toBe(['resources', 'landing_pages']);
 });
 

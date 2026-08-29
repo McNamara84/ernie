@@ -23,6 +23,9 @@ export const queryKeys = {
     msl: {
         laboratories: () => [apiEndpoints.mslLaboratories] as const,
     },
+    portal: {
+        map: (url: string) => ['portal', 'map', url] as const,
+    },
 } as const;
 
 /**
@@ -36,4 +39,5 @@ export const apiEndpoints = {
     doiValidate: doiValidate.url(),
     pid4instInstruments: '/vocabularies/pid4inst-instruments',
     mslLaboratories: '/vocabularies/msl-laboratories',
+    portalMap: '/portal/map',
 } as const;

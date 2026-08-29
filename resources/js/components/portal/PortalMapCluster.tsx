@@ -1,97 +1,87 @@
-import 'leaflet.markercluster';
-
 import L from 'leaflet';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useMap } from 'react-leaflet';
 
-import {
-    createCircleMarkerIcon,
-    createIgsnMarkerIcon,
-    createPieChartSvg,
-    getClusterSize,
-    renderPopupHtml,
-} from '@/lib/portal-map-config';
-import type { PortalResource } from '@/types/portal';
-
-/**
- * Custom iconCreateFunction for MarkerClusterGroup.
- * Renders an SVG pie chart showing the proportion of each resource type within the cluster.
- */
-function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
-    const markers = cluster.getAllChildMarkers();
-    const typeCounts: Record<string, number> = {};
-
-    markers.forEach((marker) => {
-        const slug = (marker.options as L.MarkerOptions).resourceTypeSlug ?? 'other';
-        typeCounts[slug] = (typeCounts[slug] ?? 0) + 1;
-    });
-
-    const total = markers.length;
-    const size = getClusterSize(total);
-    const svg = createPieChartSvg(typeCounts, total, size);
-
-    return L.divIcon({
-        html: svg,
-        className: 'portal-pie-cluster',
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size / 2],
-    });
-}
+import { createCircleMarkerIcon, createIgsnMarkerIcon, createPieChartSvg, getClusterSize, renderPopupHtml } from '@/lib/portal-map-config';
+import { rebaseLongitude, unwrapLongitudeBounds } from '@/lib/portal-map-longitude';
+import type { PortalMapFeature, PortalMapResourceFeature, PortalResource } from '@/types/portal';
 
 interface ClusterLayerProps {
-    resources: PortalResource[];
+    features: PortalMapFeature[];
 }
 
-/**
- * Imperative Leaflet MarkerClusterGroup layer rendered via useMap().
- * Handles all point markers — non-point geo shapes (box, polygon, line)
- * are rendered separately as React-Leaflet declarative components.
- */
-export function ClusterLayer({ resources }: ClusterLayerProps) {
+function popupResource(feature: PortalMapResourceFeature): PortalResource {
+    const type = feature.resource.resourceType;
+
+    return {
+        id: feature.resource.id,
+        doi: feature.resource.identifier,
+        title: feature.resource.title,
+        abstract: null,
+        creators: feature.resource.creators,
+        year: null,
+        resourceType: type?.name ?? 'Other',
+        resourceTypeSlug: type?.slug ?? null,
+        isIgsn: type?.slug === 'physical-object',
+        geoLocations: [],
+        landingPageUrl: feature.resource.landingPageUrl,
+    };
+}
+
+/** Render the bounded server clusters and individual point markers. */
+export function ClusterLayer({ features }: ClusterLayerProps) {
     const map = useMap();
-    const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
 
     useEffect(() => {
-        if (clusterGroupRef.current) {
-            map.removeLayer(clusterGroupRef.current);
-        }
+        const layer = L.layerGroup();
+        const referenceLongitude = map.getCenter().lng;
 
-        const clusterGroup = L.markerClusterGroup({
-            maxClusterRadius: 60,
-            disableClusteringAtZoom: 18,
-            spiderfyOnMaxZoom: true,
-            showCoverageOnHover: false,
-            iconCreateFunction: createClusterIcon,
-        });
+        features.forEach((feature) => {
+            if (feature.kind === 'cluster') {
+                const size = getClusterSize(feature.count);
+                const displayLongitude = rebaseLongitude(feature.position.lng, referenceLongitude);
+                const marker = L.marker([feature.position.lat, displayLongitude], {
+                    icon: L.divIcon({
+                        html: createPieChartSvg(feature.resourceTypeCounts, feature.count, size),
+                        className: 'portal-pie-cluster',
+                        iconSize: [size, size],
+                        iconAnchor: [size / 2, size / 2],
+                    }),
+                });
 
-        resources.forEach((resource) => {
-            resource.geoLocations.forEach((geo) => {
-                if (geo.type !== 'point' || !geo.point) return;
+                marker.on('click', () => {
+                    const displayBounds = unwrapLongitudeBounds(feature.bounds, referenceLongitude);
+                    const bounds = L.latLngBounds([feature.bounds.south, displayBounds.west], [feature.bounds.north, displayBounds.east]);
 
-                const latlng = L.latLng(geo.point.lat, geo.point.lng);
-                const icon = resource.isIgsn
-                    ? createIgsnMarkerIcon()
-                    : createCircleMarkerIcon(resource.resourceTypeSlug);
+                    if (bounds.isValid() && !bounds.getNorthEast().equals(bounds.getSouthWest())) {
+                        map.fitBounds(bounds, { padding: [30, 30], maxZoom: Math.min(18, map.getZoom() + 4) });
+                    } else {
+                        map.setView([feature.position.lat, displayLongitude], Math.min(18, map.getZoom() + 2), { animate: true });
+                    }
+                });
 
-                const marker = L.marker(latlng, {
-                    icon,
-                    resourceTypeSlug: resource.resourceTypeSlug ?? 'other',
-                } as L.MarkerOptions);
+                layer.addLayer(marker);
+                return;
+            }
 
-                const popupHtml = renderPopupHtml(resource);
-                marker.bindPopup(popupHtml, { minWidth: 200, maxWidth: 280 });
+            if (feature.geometry.type !== 'point') return;
 
-                clusterGroup.addLayer(marker);
+            const typeSlug = feature.resource.resourceType?.slug ?? null;
+            const displayLongitude = rebaseLongitude(feature.geometry.longitude, referenceLongitude);
+            const marker = L.marker([feature.geometry.latitude, displayLongitude], {
+                icon: typeSlug === 'physical-object' ? createIgsnMarkerIcon() : createCircleMarkerIcon(typeSlug),
             });
+
+            marker.bindPopup(renderPopupHtml(popupResource(feature)), { minWidth: 200, maxWidth: 280 });
+            layer.addLayer(marker);
         });
 
-        map.addLayer(clusterGroup);
-        clusterGroupRef.current = clusterGroup;
+        layer.addTo(map);
 
         return () => {
-            map.removeLayer(clusterGroup);
+            map.removeLayer(layer);
         };
-    }, [map, resources]);
+    }, [features, map]);
 
     return null;
 }

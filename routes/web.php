@@ -31,6 +31,7 @@ use App\Http\Controllers\OaiPmh\OaiPmhDocsController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\PortalMapController;
 use App\Http\Controllers\PortalSearchAnalyticsController;
 use App\Http\Controllers\PublicMetadataExportController;
 use App\Http\Controllers\RelatedItemController;
@@ -109,6 +110,10 @@ Route::get('/changelog', function () {
 Route::get('/portal', [PortalController::class, 'index'])
     ->middleware('throttle:public-portal')
     ->name('portal');
+
+Route::get('/portal/map', PortalMapController::class)
+    ->middleware('throttle:public-portal-map')
+    ->name('portal.map');
 
 Route::post('/portal/search-analytics', [PortalSearchAnalyticsController::class, 'store'])
     ->middleware('throttle:public-portal')

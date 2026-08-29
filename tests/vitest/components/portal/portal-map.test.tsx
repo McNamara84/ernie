@@ -1,18 +1,31 @@
 import '@testing-library/jest-dom/vitest';
 
-import userEvent from '@testing-library/user-event';
-import { act, render, screen } from '@tests/vitest/utils/render';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PortalGeoLocation, PortalResource } from '@/types/portal';
+import type { PortalFilters, PortalMapResponse } from '@/types/portal';
 
-// Hoisted stable mock for useMap so we can assert on calls
-const mockMapInstance = vi.hoisted(() => ({
+const mapEvents = vi.hoisted(() => new Map<string, () => void>());
+const mapQueryState = vi.hoisted(() => ({
+    result: {
+        data: undefined as PortalMapResponse | undefined,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        refetch: vi.fn(),
+    },
+}));
+const usePortalMapDataMock = vi.hoisted(() => vi.fn(() => mapQueryState.result));
+const clusterLayerMock = vi.hoisted(() => vi.fn(({ features }: { features: unknown[] }) => <div data-testid="cluster-layer">{features.length}</div>));
+
+const mockMap = vi.hoisted(() => ({
     fitBounds: vi.fn(),
     setView: vi.fn(),
     invalidateSize: vi.fn(),
-    on: vi.fn(),
-    off: vi.fn(),
+    getZoom: vi.fn(() => 4),
+    getCenter: vi.fn(() => ({ lat: 0, lng: 180 })),
+    on: vi.fn((event: string, callback: () => void) => mapEvents.set(event, callback)),
+    off: vi.fn((event: string) => mapEvents.delete(event)),
     getBounds: vi.fn(() => ({
         getNorth: () => 53,
         getSouth: () => 51,
@@ -20,745 +33,303 @@ const mockMapInstance = vi.hoisted(() => ({
         getWest: () => 12,
     })),
     getContainer: vi.fn(() => {
-        const el = document.createElement('div');
-        Object.defineProperty(el, 'clientWidth', { value: 800 });
-        Object.defineProperty(el, 'clientHeight', { value: 600 });
-        return el;
+        const element = document.createElement('div');
+        Object.defineProperty(element, 'clientWidth', { value: 800 });
+        Object.defineProperty(element, 'clientHeight', { value: 600 });
+        return element;
     }),
 }));
 
-// Mock react-leaflet components since Leaflet requires DOM and canvas
-vi.mock('react-leaflet', () => ({
-    MapContainer: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-        <div data-testid="map-container" className={className}>
-            {children}
-        </div>
-    ),
-    TileLayer: () => <div data-testid="tile-layer" />,
-    Marker: ({ children }: { children?: React.ReactNode }) => (
-        <div data-testid="map-marker">{children}</div>
-    ),
-    Popup: ({ children }: { children?: React.ReactNode }) => (
-        <div data-testid="map-popup">{children}</div>
-    ),
-    Rectangle: ({ children }: { children?: React.ReactNode }) => (
-        <div data-testid="map-rectangle">{children}</div>
-    ),
-    Polygon: ({ children }: { children?: React.ReactNode }) => (
-        <div data-testid="map-polygon">{children}</div>
-    ),
-    Polyline: ({ children }: { children?: React.ReactNode }) => (
-        <div data-testid="map-polyline">{children}</div>
-    ),
-    useMap: () => mockMapInstance,
+vi.mock('@/hooks/use-portal-map-data', () => ({ usePortalMapData: usePortalMapDataMock }));
+vi.mock('@/components/portal/PortalMapCluster', () => ({ ClusterLayer: clusterLayerMock }));
+vi.mock('@/components/portal/PortalMapLegend', () => ({
+    PortalMapLegend: ({ features }: { features: unknown[] }) => <div data-testid="map-legend">{features.length}</div>,
 }));
-
-// Mock leaflet
+vi.mock('leaflet/dist/leaflet.css', () => ({}));
 vi.mock('leaflet', () => ({
     default: {
-        Icon: {
-            Default: {
-                prototype: {},
-                mergeOptions: vi.fn(),
-            },
-        },
-        latLngBounds: vi.fn((points) => ({
-            isValid: () => points && points.length > 0,
+        latLngBounds: vi.fn(() => ({
+            isValid: () => true,
+            getNorthEast: () => ({ equals: () => false }),
+            getSouthWest: () => ({}),
+            getCenter: () => ({ lat: 52, lng: 13 }),
         })),
     },
 }));
-
-// Mock leaflet.markercluster (requires global L which doesn't exist in jsdom)
-vi.mock('leaflet.markercluster', () => ({}));
-vi.mock('leaflet.markercluster/dist/MarkerCluster.css', () => ({}));
-vi.mock('leaflet.markercluster/dist/MarkerCluster.Default.css', () => ({}));
-
-// Mock ClusterLayer – the real component uses L.markerClusterGroup which isn't available in jsdom
-vi.mock('@/components/portal/PortalMapCluster', () => ({
-    ClusterLayer: () => <div data-testid="cluster-layer" />,
+vi.mock('react-leaflet', () => ({
+    MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="leaflet-map">{children}</div>,
+    TileLayer: () => <div data-testid="tile-layer" />,
+    Popup: ({ children }: { children: React.ReactNode }) => <div data-testid="popup">{children}</div>,
+    Rectangle: ({ children, bounds }: { children: React.ReactNode; bounds: unknown }) => (
+        <div data-testid="rectangle" data-bounds={JSON.stringify(bounds)}>
+            {children}
+        </div>
+    ),
+    Polygon: ({ children, positions }: { children: React.ReactNode; positions: unknown }) => (
+        <div data-testid="polygon" data-positions={JSON.stringify(positions)}>
+            {children}
+        </div>
+    ),
+    Polyline: ({ children, positions }: { children: React.ReactNode; positions: unknown }) => (
+        <div data-testid="polyline" data-positions={JSON.stringify(positions)}>
+            {children}
+        </div>
+    ),
+    useMap: () => mockMap,
 }));
 
-// Mock leaflet CSS import
-vi.mock('leaflet/dist/leaflet.css', () => ({}));
+import { PortalMap } from '@/components/portal/PortalMap';
 
-// Mock leaflet marker icons
-vi.mock('leaflet/dist/images/marker-icon.png', () => ({ default: 'marker-icon.png' }));
-vi.mock('leaflet/dist/images/marker-icon-2x.png', () => ({ default: 'marker-icon-2x.png' }));
-vi.mock('leaflet/dist/images/marker-shadow.png', () => ({ default: 'marker-shadow.png' }));
+const filters: PortalFilters = {
+    query: null,
+    type: [],
+    keywords: [],
+    freeKeywords: [],
+    thesaurusKeywords: [],
+    datacenter: [],
+    bounds: null,
+    temporal: null,
+};
 
-// Import after mocks
-import { PortalMap, withoutGlobalLocations } from '@/components/portal/PortalMap';
-
-/**
- * Factory to create a mock PortalResource with geo location
- */
-function createMockResourceWithGeo(
-    id: number,
-    geoLocations: PortalGeoLocation[] = [],
-): PortalResource {
-    return {
-        id,
-        title: `Resource ${id}`,
-        doi: `10.5880/GFZ.TEST.${id}`,
-        abstract: null,
-        resourceType: 'Dataset',
-        resourceTypeSlug: 'dataset',
-        isIgsn: false,
-        year: 2024,
-        landingPageUrl: `/landing/resource-${id}`,
-        creators: [{ name: `Author ${id}` }],
-        geoLocations,
-    };
-}
+const response = (overrides: Partial<PortalMapResponse> = {}): PortalMapResponse => ({
+    schemaVersion: 1,
+    features: [],
+    meta: {
+        requestedZoom: 4,
+        effectiveZoom: 4,
+        visibleLocations: 0,
+        returnedFeatures: 0,
+        totalLocations: 0,
+        extent: null,
+        coarsened: false,
+    },
+    ...overrides,
+});
 
 describe('PortalMap', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mapEvents.clear();
+        mockMap.getCenter.mockReturnValue({ lat: 0, lng: 180 });
+        mapQueryState.result = {
+            data: undefined,
+            isLoading: false,
+            isFetching: false,
+            isError: false,
+            refetch: vi.fn(),
+        };
     });
 
-    describe('withoutGlobalLocations', () => {
-        it('returns the original resource when no global locations are removed', () => {
-            const resource = createMockResourceWithGeo(1, [
-                { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                {
-                    id: 2,
-                    type: 'box',
-                    point: null,
-                    bounds: { north: 53, south: 52, east: 14, west: 13 },
-                    polygon: null,
-                },
-            ]);
+    it('requests map data only after Leaflet reports a visible viewport', async () => {
+        render(<PortalMap filters={filters} />);
 
-            expect(withoutGlobalLocations(resource)).toBe(resource);
-        });
-
-        it('clones the resource only when global locations are removed', () => {
-            const resource = createMockResourceWithGeo(1, [
-                {
-                    id: 1,
-                    type: 'box',
-                    point: null,
-                    bounds: { north: 90, south: -90, east: 180, west: -180 },
-                    polygon: null,
-                },
-                {
-                    id: 2,
-                    type: 'box',
-                    point: null,
-                    bounds: { north: 53, south: 52, east: 14, west: 13 },
-                    polygon: null,
-                },
-            ]);
-
-            const filteredResource = withoutGlobalLocations(resource);
-
-            expect(filteredResource).not.toBe(resource);
-            expect(filteredResource.geoLocations).toHaveLength(1);
-            expect(filteredResource.geoLocations[0]).toBe(resource.geoLocations[1]);
-        });
+        await waitFor(() =>
+            expect(usePortalMapDataMock).toHaveBeenCalledWith(
+                filters,
+                expect.objectContaining({ north: 53, south: 51, east: 14, west: 12, width: 800, height: 600, zoom: 4 }),
+                false,
+            ),
+        );
     });
 
-    describe('Collapsible Behavior', () => {
-        it('renders map header with location count', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
-
-            // Map has two headers (collapsed and side panel), so use getAllBy
-            expect(screen.getAllByText(/Map/)[0]).toBeInTheDocument();
-            expect(screen.getAllByText('(1 location)').length).toBeGreaterThan(0);
+    it('passes bounded server features to marker and legend layers', () => {
+        mapQueryState.result.data = response({
+            features: [
+                {
+                    kind: 'cluster',
+                    id: 'z2:1:1',
+                    position: { lat: 52, lng: 13 },
+                    bounds: { north: 53, south: 51, east: 14, west: 12 },
+                    count: 25,
+                    resourceTypeCounts: { dataset: 25 },
+                },
+            ],
         });
 
-        it('shows plural "locations" when multiple geo locations', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                    { id: 2, type: 'point', point: { lat: 48.2, lng: 11.8 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
+        render(<PortalMap filters={filters} />);
 
-            expect(screen.getAllByText('(2 locations)').length).toBeGreaterThan(0);
-        });
-
-        it('shows 0 locations when no resources have geo data', () => {
-            const resources = [createMockResourceWithGeo(1, [])];
-            render(<PortalMap resources={resources} />);
-
-            expect(screen.getAllByText('(0 locations)').length).toBeGreaterThan(0);
-        });
-
-        it('can collapse and expand the map', async () => {
-            const user = userEvent.setup();
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
-
-            // Get the collapsible toggle button (in the 2xl:hidden section)
-            const toggleButtons = screen.getAllByRole('button');
-            const toggleButton = toggleButtons.find(btn => btn.textContent?.includes('Map'));
-
-            // Initially maps are rendered
-            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
-
-            // Collapse - clicking the toggle changes the collapsible state
-            if (toggleButton) {
-                await user.click(toggleButton);
-            }
-        });
+        expect(screen.getAllByTestId('cluster-layer')[0]).toHaveTextContent('1');
+        expect(screen.getAllByTestId('map-legend')[0]).toHaveTextContent('1');
     });
 
-    describe('Map Rendering', () => {
-        it('renders MapContainer when resources have geo locations', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
-
-            // Dual-render layout: both collapsed and side-panel versions render
-            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
-            expect(screen.getAllByTestId('tile-layer').length).toBeGreaterThan(0);
-        });
-
-        it('renders ClusterLayer for point geo locations', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                    { id: 2, type: 'point', point: { lat: 48.2, lng: 11.8 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
-
-            // Markers are now rendered imperatively inside ClusterLayer
-            expect(screen.getAllByTestId('cluster-layer').length).toBeGreaterThan(0);
-        });
-
-        it('renders rectangles for bounding box geo locations', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    {
+    it.each([
+        ['box', 'rectangle'],
+        ['polygon', 'polygon'],
+        ['line', 'polyline'],
+    ] as const)('renders a returned %s detail geometry', (geometryType, testId) => {
+        const geometry =
+            geometryType === 'box'
+                ? { type: 'box' as const, north: 53, south: 51, east: 14, west: 12 }
+                : {
+                      type: geometryType,
+                      points: [
+                          { latitude: 51, longitude: 12 },
+                          { latitude: 53, longitude: 14 },
+                          { latitude: 52, longitude: 13 },
+                      ],
+                  };
+        mapQueryState.result.data = response({
+            features: [
+                {
+                    kind: 'resource',
+                    id: '1',
+                    position: { lat: 52, lng: 13 },
+                    bounds: { north: 53, south: 51, east: 14, west: 12 },
+                    geometry,
+                    resource: {
                         id: 1,
-                        type: 'box',
-                        point: null,
-                        bounds: { north: 53, south: 52, east: 14, west: 13 },
-                        polygon: null,
+                        identifier: '10.1/test',
+                        title: 'Mapped resource',
+                        creators: [],
+                        resourceType: { slug: 'dataset', name: 'Dataset' },
+                        landingPageUrl: '/test',
                     },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
-
-            expect(screen.getAllByTestId('map-rectangle').length).toBeGreaterThan(0);
+                },
+            ],
         });
 
-        it('does not render global bounding boxes as map shapes', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    {
-                        id: 1,
-                        type: 'box',
-                        point: null,
-                        bounds: { north: 90, south: -90, east: 180, west: -180 },
-                        polygon: null,
-                    },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
+        render(<PortalMap filters={filters} />);
 
-            expect(screen.queryAllByTestId('map-rectangle')).toHaveLength(0);
-            expect(screen.getAllByText(/no geographic data available/i).length).toBeGreaterThan(0);
+        expect(screen.getAllByTestId(testId)[0]).toBeInTheDocument();
+        expect(screen.getAllByText('Mapped resource')[0]).toBeInTheDocument();
+    });
+
+    it('renders a wrapped box as the short interval across the antimeridian', () => {
+        mapQueryState.result.data = response({
+            features: [
+                {
+                    kind: 'resource',
+                    id: 'wrapped-box',
+                    position: { lat: 0, lng: 180 },
+                    bounds: { north: 10, south: -10, west: 170, east: -170 },
+                    geometry: { type: 'box', north: 10, south: -10, west: 170, east: -170 },
+                    resource: {
+                        id: 1,
+                        identifier: '10.1/wrapped-box',
+                        title: 'Wrapped box',
+                        creators: [],
+                        resourceType: { slug: 'dataset', name: 'Dataset' },
+                        landingPageUrl: '/wrapped-box',
+                    },
+                },
+            ],
         });
 
-        it('keeps local geometries when a resource also has global coverage', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    {
-                        id: 1,
-                        type: 'box',
-                        point: null,
-                        bounds: { north: 90, south: -90, east: 180, west: -180 },
-                        polygon: null,
-                    },
-                    {
-                        id: 2,
-                        type: 'box',
-                        point: null,
-                        bounds: { north: 53, south: 52, east: 14, west: 13 },
-                        polygon: null,
-                    },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
+        render(<PortalMap filters={filters} />);
 
-            expect(screen.getAllByTestId('map-rectangle').length).toBeGreaterThan(0);
-            expect(screen.getAllByText('(1 location)').length).toBeGreaterThan(0);
-        });
+        expect(screen.getAllByTestId('rectangle')[0]).toHaveAttribute(
+            'data-bounds',
+            JSON.stringify([
+                [-10, 170],
+                [10, 190],
+            ]),
+        );
+    });
 
-        it('renders polygons for polygon geo locations', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    {
-                        id: 1,
+    it('unwraps dateline-crossing polygon paths onto one Leaflet world copy', () => {
+        mapQueryState.result.data = response({
+            features: [
+                {
+                    kind: 'resource',
+                    id: 'wrapped-polygon',
+                    position: { lat: 0, lng: 180 },
+                    bounds: { north: 10, south: -10, west: 179, east: -179 },
+                    geometry: {
                         type: 'polygon',
-                        point: null,
-                        bounds: null,
-                        polygon: [
-                            { lat: 52.5, lng: 13.4 },
-                            { lat: 52.6, lng: 13.5 },
-                            { lat: 52.4, lng: 13.6 },
+                        points: [
+                            { latitude: -10, longitude: 179 },
+                            { latitude: 10, longitude: -179 },
+                            { latitude: 0, longitude: 178 },
                         ],
                     },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
-
-            expect(screen.getAllByTestId('map-polygon').length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('Popup Content', () => {
-        // Note: Popup content (title, author, year, links) is now generated as HTML strings
-        // by the ClusterLayer component. These are tested in portal-map-config.test.ts
-        // (renderPopupHtml, formatAuthorsShort). Here we only verify what's still in React DOM.
-
-        it('renders resource type in legend', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            resources[0].resourceType = 'Dataset';
-            render(<PortalMap resources={resources} />);
-
-            // Resource type appears in the legend
-            expect(screen.getAllByText('Dataset').length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('Empty State', () => {
-        it('shows empty message when no resources have geo locations', () => {
-            const resources = [
-                createMockResourceWithGeo(1, []),
-                createMockResourceWithGeo(2, []),
-            ];
-            render(<PortalMap resources={resources} />);
-
-            expect(screen.getAllByText(/no geographic data available/i).length).toBeGreaterThan(0);
-        });
-
-        it('shows empty message with empty resources array', () => {
-            render(<PortalMap resources={[]} />);
-
-            expect(screen.getAllByText(/no geographic data available/i).length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('Multi-type Resources', () => {
-        it('counts all geo locations across multiple resources', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-                createMockResourceWithGeo(2, [
-                    { id: 2, type: 'box', point: null, bounds: { north: 53, south: 52, east: 14, west: 13 }, polygon: null },
-                    { id: 3, type: 'polygon', point: null, bounds: null, polygon: [{ lat: 51, lng: 12 }, { lat: 52, lng: 13 }, { lat: 51, lng: 13 }] },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
-
-            expect(screen.getAllByText('(3 locations)').length).toBeGreaterThan(0);
-        });
-
-        it('renders all types of geo shapes together', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-                createMockResourceWithGeo(2, [
-                    { id: 2, type: 'box', point: null, bounds: { north: 53, south: 52, east: 14, west: 13 }, polygon: null },
-                ]),
-                createMockResourceWithGeo(3, [
-                    { id: 3, type: 'polygon', point: null, bounds: null, polygon: [{ lat: 51, lng: 12 }, { lat: 52, lng: 13 }, { lat: 51, lng: 13 }] },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
-
-            // Point markers handled by ClusterLayer, shapes still React components
-            expect(screen.getAllByTestId('cluster-layer').length).toBeGreaterThan(0);
-            expect(screen.getAllByTestId('map-rectangle').length).toBeGreaterThan(0);
-            expect(screen.getAllByTestId('map-polygon').length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('IGSN Resources', () => {
-        it('renders IGSN resource type in legend', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            resources[0].isIgsn = true;
-            resources[0].resourceType = 'PhysicalObject';
-            resources[0].resourceTypeSlug = 'physical-object';
-            render(<PortalMap resources={resources} />);
-
-            // IGSN resource type appears in legend
-            expect(screen.getAllByText('PhysicalObject').length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('Geo Filter Props', () => {
-        it('renders without crashing when geoFilterEnabled is false', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(<PortalMap resources={resources} geoFilterEnabled={false} />);
-
-            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
-        });
-
-        it('registers moveend handler when geoFilterEnabled is true', () => {
-            const onViewportChange = vi.fn();
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(
-                <PortalMap
-                    resources={resources}
-                    geoFilterEnabled={true}
-                    onViewportChange={onViewportChange}
-                />,
-            );
-
-            // ViewportTracker should have registered moveend handler via useMap().on
-            expect(mockMapInstance.on).toHaveBeenCalledWith('moveend', expect.any(Function));
-        });
-
-        it('calls onViewportChange with bounds when moveend fires', () => {
-            const onViewportChange = vi.fn();
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(
-                <PortalMap
-                    resources={resources}
-                    geoFilterEnabled={true}
-                    onViewportChange={onViewportChange}
-                />,
-            );
-
-            // Extract the moveend handler and call it
-            const moveendCall = mockMapInstance.on.mock.calls.find(
-                (call: unknown[]) => call[0] === 'moveend',
-            );
-            expect(moveendCall).toBeDefined();
-            const handler = moveendCall![1] as () => void;
-            act(() => handler());
-
-            expect(onViewportChange).toHaveBeenCalledWith({
-                north: 53,
-                south: 51,
-                east: 14,
-                west: 12,
-            });
-        });
-
-        it('cleans up moveend handler on unmount', () => {
-            const onViewportChange = vi.fn();
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            const { unmount } = render(
-                <PortalMap
-                    resources={resources}
-                    geoFilterEnabled={true}
-                    onViewportChange={onViewportChange}
-                />,
-            );
-
-            unmount();
-
-            expect(mockMapInstance.off).toHaveBeenCalledWith('moveend', expect.any(Function));
-        });
-
-        it('calls fitBounds when flyToBounds is provided', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(
-                <PortalMap
-                    resources={resources}
-                    geoFilterEnabled={true}
-                    flyToBounds={{ north: 53, south: 51, east: 14, west: 12 }}
-                />,
-            );
-
-            // MapBoundsUpdater should have called fitBounds
-            expect(mockMapInstance.fitBounds).toHaveBeenCalledWith(
-                [[51, 12], [53, 14]],
-                { padding: [20, 20], animate: true },
-            );
-        });
-
-        it('uses setView instead of fitBounds when flyToBounds crosses anti-meridian', () => {
-            mockMapInstance.setView.mockClear();
-            mockMapInstance.fitBounds.mockClear();
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 170 }, bounds: null, polygon: null },
-                ]),
-            ];
-            // west=170 > east=-170 means anti-meridian crossing
-            render(
-                <PortalMap
-                    resources={resources}
-                    geoFilterEnabled={true}
-                    flyToBounds={{ north: 60, south: 40, east: -170, west: 170 }}
-                />,
-            );
-
-            // Should use setView with center/zoom instead of fitBounds
-            expect(mockMapInstance.setView).toHaveBeenCalledWith(
-                [50, 180],
-                expect.any(Number),
-                { animate: true },
-            );
-        });
-
-        it('suppresses moveend after programmatic flyToBounds to prevent overwriting manual bounds', () => {
-            const onViewportChange = vi.fn();
-            mockMapInstance.on.mockClear();
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(
-                <PortalMap
-                    resources={resources}
-                    geoFilterEnabled={true}
-                    onViewportChange={onViewportChange}
-                    flyToBounds={{ north: 53, south: 51, east: 14, west: 12 }}
-                />,
-            );
-
-            // Extract the moveend handler registered by ViewportTracker
-            const moveendCall = mockMapInstance.on.mock.calls.find(
-                (call: unknown[]) => call[0] === 'moveend',
-            );
-            expect(moveendCall).toBeDefined();
-            const handler = moveendCall![1] as () => void;
-
-            // First moveend after programmatic fly-to should be suppressed
-            act(() => handler());
-            expect(onViewportChange).not.toHaveBeenCalled();
-
-            // Second moveend (user-initiated) should fire normally
-            act(() => handler());
-            expect(onViewportChange).toHaveBeenCalledTimes(1);
-        });
-
-        it('renders with null flyToBounds prop without calling fitBounds for bounds', () => {
-            mockMapInstance.fitBounds.mockClear();
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(
-                <PortalMap
-                    resources={resources}
-                    geoFilterEnabled={true}
-                    flyToBounds={null}
-                />,
-            );
-
-            // fitBounds is called for FitBoundsControl but not for MapBoundsUpdater
-            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
-        });
-
-        it('does not register moveend handler when geoFilterEnabled is false', () => {
-            mockMapInstance.on.mockClear();
-            const onViewportChange = vi.fn();
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(
-                <PortalMap
-                    resources={resources}
-                    geoFilterEnabled={false}
-                    onViewportChange={onViewportChange}
-                />,
-            );
-
-            // ViewportTracker should NOT be rendered, so no moveend registration
-            const moveendCalls = mockMapInstance.on.mock.calls.filter(
-                (call: unknown[]) => call[0] === 'moveend',
-            );
-            expect(moveendCalls.length).toBe(0);
-        });
-    });
-
-    describe('Line Geo Locations', () => {
-        it('renders polyline for line type geo locations', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    {
+                    resource: {
                         id: 1,
-                        type: 'line',
-                        point: null,
-                        bounds: null,
-                        polygon: [
-                            { lat: 52.5, lng: 13.4 },
-                            { lat: 48.2, lng: 11.8 },
-                        ],
+                        identifier: '10.1/wrapped-polygon',
+                        title: 'Wrapped polygon',
+                        creators: [],
+                        resourceType: { slug: 'dataset', name: 'Dataset' },
+                        landingPageUrl: '/wrapped-polygon',
                     },
-                ]),
-            ];
-            render(<PortalMap resources={resources} />);
-
-            expect(screen.getAllByTestId('map-polyline').length).toBeGreaterThan(0);
-        });
-    });
-
-    // Note: Author formatting tests (ampersand, et al., Unknown) are now covered
-    // by portal-map-config.test.ts > formatAuthorsShort since popup content is
-    // generated as HTML strings by ClusterLayer, not as React DOM.
-
-    describe('Header Modes', () => {
-        it('hides collapsible header when hideHeader is true', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(<PortalMap resources={resources} hideHeader />);
-
-            // Map should render but the collapsible section should not
-            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('FitBoundsControl Branches', () => {
-        // Replace the global ResizeObserver stub (from vitest.setup.ts) with
-        // one whose callback fires immediately on observe(), so fake timers
-        // can drive the debounced initial-fit logic.
-        function installImmediateResizeObserver() {
-            vi.stubGlobal(
-                'ResizeObserver',
-                class {
-                    private cb: ResizeObserverCallback;
-                    constructor(cb: ResizeObserverCallback) {
-                        this.cb = cb;
-                    }
-                    observe() {
-                        this.cb([], this as unknown as ResizeObserver);
-                    }
-                    unobserve() {}
-                    disconnect() {}
                 },
-            );
-        }
+            ],
+        });
 
-        afterEach(() => {
-            vi.unstubAllGlobals();
+        render(<PortalMap filters={filters} />);
+
+        expect(screen.getAllByTestId('polygon')[0]).toHaveAttribute(
+            'data-positions',
+            JSON.stringify([
+                [-10, 179],
+                [10, 181],
+                [0, 178],
+            ]),
+        );
+    });
+
+    it('reports move-end bounds to the spatial filter while always refreshing technical map data', async () => {
+        const onViewportChange = vi.fn();
+        render(<PortalMap filters={filters} geoFilterEnabled onViewportChange={onViewportChange} />);
+
+        await waitFor(() => expect(mapEvents.has('moveend')).toBe(true));
+        act(() => mapEvents.get('moveend')?.());
+
+        expect(onViewportChange).toHaveBeenCalledWith({ north: 53, south: 51, east: 14, west: 12 });
+        expect(usePortalMapDataMock).toHaveBeenLastCalledWith(filters, expect.objectContaining({ width: 800, height: 600 }), false);
+    });
+
+    it('debounces resize-driven technical viewport requests', () => {
+        vi.useFakeTimers();
+
+        try {
+            render(<PortalMap filters={filters} hideHeader />);
+            act(() => vi.runOnlyPendingTimers());
+            usePortalMapDataMock.mockClear();
+
+            act(() => {
+                mapEvents.get('resize')?.();
+                mapEvents.get('resize')?.();
+                mapEvents.get('resize')?.();
+            });
+
+            expect(usePortalMapDataMock).not.toHaveBeenCalled();
+            act(() => vi.advanceTimersByTime(249));
+            expect(usePortalMapDataMock).not.toHaveBeenCalled();
+
+            act(() => vi.advanceTimersByTime(1));
+            expect(usePortalMapDataMock).toHaveBeenCalledTimes(1);
+            expect(usePortalMapDataMock).toHaveBeenLastCalledWith(
+                filters,
+                expect.objectContaining({ north: 53, south: 51, east: 14, west: 12, width: 800, height: 600, zoom: 4 }),
+                false,
+            );
+        } finally {
             vi.useRealTimers();
-        });
+        }
+    });
 
-        it('skips initial auto-fit when geoFilterEnabled is true', () => {
-            vi.useFakeTimers();
-            installImmediateResizeObserver();
-            mockMapInstance.fitBounds.mockClear();
-            mockMapInstance.setView.mockClear();
+    it('shows loading, empty, and recoverable error feedback', () => {
+        mapQueryState.result.data = response();
+        mapQueryState.result.isFetching = true;
+        const { rerender } = render(<PortalMap filters={filters} />);
+        expect(screen.getAllByRole('status')[0]).toHaveTextContent('Updating map');
+        expect(screen.getAllByText(/No geographic data/)[0]).toBeInTheDocument();
 
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(<PortalMap resources={resources} geoFilterEnabled={true} />);
+        mapQueryState.result.isFetching = false;
+        mapQueryState.result.isError = true;
+        rerender(<PortalMap filters={filters} />);
+        const retryButton = screen.getAllByRole('button', { name: /try again/i })[0];
+        expect(retryButton).toHaveAttribute('data-slot', 'button');
+        fireEvent.click(retryButton);
+        expect(mapQueryState.result.refetch).toHaveBeenCalled();
+    });
 
-            // Advance well past the 150 ms debounce — still no fit expected
-            act(() => {
-                vi.advanceTimersByTime(500);
-            });
+    it('reports the total location count returned with an extent request', () => {
+        const onLocationCountChange = vi.fn();
+        mapQueryState.result.data = response({ meta: { ...response().meta, totalLocations: 35_638, visibleLocations: 120 } });
 
-            expect(mockMapInstance.fitBounds).not.toHaveBeenCalled();
-            expect(mockMapInstance.setView).not.toHaveBeenCalled();
-        });
+        render(<PortalMap filters={filters} onLocationCountChange={onLocationCountChange} />);
 
-        it('performs initial auto-fit when geoFilterEnabled is false', () => {
-            vi.useFakeTimers();
-            installImmediateResizeObserver();
-            mockMapInstance.fitBounds.mockClear();
-            mockMapInstance.setView.mockClear();
-
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            render(<PortalMap resources={resources} geoFilterEnabled={false} />);
-
-            act(() => {
-                vi.advanceTimersByTime(200);
-            });
-
-            // At least one FitBoundsControl instance should have called fitBounds
-            expect(mockMapInstance.fitBounds).toHaveBeenCalled();
-        });
-
-        it('re-fits when geoFilterEnabled transitions from true to false', () => {
-            vi.useFakeTimers();
-            installImmediateResizeObserver();
-            mockMapInstance.fitBounds.mockClear();
-            mockMapInstance.setView.mockClear();
-
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-
-            // 1) Start with geoFilterEnabled=false so the initial fit runs
-            const { rerender } = render(
-                <PortalMap resources={resources} geoFilterEnabled={false} />,
-            );
-            act(() => {
-                vi.advanceTimersByTime(200);
-            });
-            expect(mockMapInstance.fitBounds).toHaveBeenCalled();
-            mockMapInstance.fitBounds.mockClear();
-
-            // 2) Enable geo filter — no additional fit expected
-            rerender(<PortalMap resources={resources} geoFilterEnabled={true} />);
-            act(() => {
-                vi.advanceTimersByTime(200);
-            });
-            expect(mockMapInstance.fitBounds).not.toHaveBeenCalled();
-
-            // 3) Disable geo filter again — re-fit should happen synchronously
-            rerender(<PortalMap resources={resources} geoFilterEnabled={false} />);
-            expect(mockMapInstance.fitBounds).toHaveBeenCalled();
-        });
+        expect(onLocationCountChange).toHaveBeenCalledWith(35_638);
+        expect(screen.getAllByText(/35[.,]638 locations/)[0]).toBeInTheDocument();
     });
 });

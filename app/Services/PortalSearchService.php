@@ -21,7 +21,6 @@ use App\Support\LanguageTag;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
@@ -106,34 +105,6 @@ class PortalSearchService
     }
 
     /**
-     * Get all resources with geo locations for map display.
-     *
-     * Returns a simplified dataset optimized for map rendering,
-     * including only resources that have at least one geo location.
-     * Bounds filter is intentionally NOT applied so all markers remain
-     * visible on the map for spatial context.
-     *
-     * @param  array{
-     *     query?: string|null,
-     *     type?: string|string[]|null,
-     *     exclude_type?: string|null,
-     *     keywords?: string[]|null,
-     *     free_keywords?: string[]|null,
-     *     thesaurus_keywords?: string[]|null,
-     *     datacenter?: string[]|null,
-     *     bounds?: array{north: float, south: float, east: float, west: float}|null,
-     *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
-     * }  $filters
-     * @return Collection<int, Resource>
-     */
-    public function getMapData(array $filters = []): Collection
-    {
-        return $this->buildQuery($filters, applyBounds: false)
-            ->whereHas('geoLocations')
-            ->get();
-    }
-
-    /**
      * Build the base query with filters applied.
      *
      * @param  array{
@@ -151,7 +122,7 @@ class PortalSearchService
      */
     private function buildQuery(array $filters, bool $applyBounds = true, bool $includeAbstractPreview = false): Builder
     {
-        $query = Resource::query()
+        $query = $this->buildFilteredResourceQuery($filters, $applyBounds)
             ->with([
                 'titles.titleType',
                 'creators.creatorable',
@@ -162,9 +133,6 @@ class PortalSearchService
                 'datacenter.landingPageTemplate',
                 'datacenter.igsnLandingPageTemplate',
             ])
-            ->whereHas('landingPage', function (Builder $q): void {
-                $q->where('is_published', true);
-            })
             // Order by actual publication date (when landing page was published)
             // Then by resource creation date as fallback
             ->orderByDesc(
@@ -177,6 +145,36 @@ class PortalSearchService
         if ($includeAbstractPreview) {
             $this->withAbstractPreview($query);
         }
+
+        return $query;
+    }
+
+    /**
+     * Build the lightweight published-resource query shared by list and map.
+     *
+     * This method intentionally adds neither eager loads nor ordering. Map
+     * consumers can therefore use it as a subquery without hydrating Resource
+     * models or carrying list-only relations into the map request.
+     *
+     * @param  array{
+     *     query?: string|null,
+     *     type?: string|string[]|null,
+     *     exclude_type?: string|null,
+     *     keywords?: string[]|null,
+     *     free_keywords?: string[]|null,
+     *     thesaurus_keywords?: string[]|null,
+     *     datacenter?: string[]|null,
+     *     bounds?: array{north: float, south: float, east: float, west: float}|null,
+     *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
+     * }  $filters
+     * @return Builder<Resource>
+     */
+    public function buildFilteredResourceQuery(array $filters, bool $applyBounds = true): Builder
+    {
+        $query = Resource::query()
+            ->whereHas('landingPage', function (Builder $q): void {
+                $q->where('is_published', true);
+            });
 
         // Apply type filter
         $type = $filters['type'] ?? null;

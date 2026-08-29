@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Models\DescriptionType;
 use App\Models\GeoLocation;
 use App\Models\LandingPage;
 use App\Models\Person;
-use App\Models\DescriptionType;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
@@ -46,7 +46,7 @@ describe('Portal Page Display', function () {
         $response->assertInertia(fn (Assert $page) => $page
             ->component('portal')
             ->has('resources')
-            ->has('mapData')
+            ->missing('mapData')
             ->has('pagination')
             ->has('filters')
         );
@@ -190,41 +190,16 @@ describe('Portal Pagination', function () {
     });
 });
 
-describe('Portal Map Data', function () {
-    it('includes map data for resources with geo locations', function () {
+describe('Portal Map Bootstrap', function () {
+    it('does not embed unbounded map data in the initial page response', function () {
         $resource = createPublishedResource($this->datasetType, 'Geo Dataset');
-
-        GeoLocation::factory()->create([
-            'resource_id' => $resource->id,
-            'point_latitude' => 52.5,
-            'point_longitude' => 13.4,
-        ]);
+        GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $resource->id]);
 
         $this->get(route('portal'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->has('mapData', 1)
-                ->where('mapData.0.geoLocations.0.type', 'point')
-            );
-    });
-
-    it('excludes resources without geo locations from map data', function () {
-        // Resource with geo
-        $resourceWithGeo = createPublishedResource($this->datasetType, 'Geo Dataset');
-        GeoLocation::factory()->create([
-            'resource_id' => $resourceWithGeo->id,
-            'point_latitude' => 52.5,
-            'point_longitude' => 13.4,
-        ]);
-
-        // Resource without geo
-        createPublishedResource($this->datasetType, 'No Geo Dataset');
-
-        $this->get(route('portal'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->has('resources', 2) // Both in results
-                ->has('mapData', 1)   // Only one in map
+                ->has('resources', 1)
+                ->missing('mapData')
             );
     });
 });
@@ -319,7 +294,6 @@ describe('Portal Resource Transformation', function () {
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('resources.0.abstract', 'A concise abstract for portal preview testing.')
-                ->where('mapData.0.abstract', null)
             );
     });
 
