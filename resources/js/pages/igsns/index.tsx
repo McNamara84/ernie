@@ -744,6 +744,7 @@ function IgsnsPage({
                                 filterOptions={filterOptions}
                                 resultCount={pagination.total}
                                 totalCount={totalCount}
+                                countStatus={pagination.count_status}
                                 isLoading={isNavigating}
                             />
 

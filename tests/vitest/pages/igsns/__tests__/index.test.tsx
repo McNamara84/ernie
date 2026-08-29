@@ -79,11 +79,13 @@ vi.mock('@/components/igsns/igsn-filters', () => ({
         onFilterChange,
         resultCount,
         totalCount,
+        countStatus,
     }: {
         filters: Record<string, string | number | boolean | undefined>;
         onFilterChange: (v: Record<string, string | number | boolean | undefined>) => void;
         resultCount: number | null;
         totalCount: number | null;
+        countStatus: 'pending' | 'ready' | 'failed';
     }) => (
         <div data-testid="igsn-filters">
             <input
@@ -122,6 +124,7 @@ vi.mock('@/components/igsns/igsn-filters', () => ({
             <span data-testid="search-counts">
                 {resultCount} / {totalCount}
             </span>
+            <span data-testid="count-status">{countStatus}</span>
         </div>
     ),
 }));
@@ -538,6 +541,7 @@ describe('IgsnsPage', () => {
 
             await waitFor(() => expect(screen.getByText(/count unavailable/i)).toBeInTheDocument());
             expect(screen.getByText('Rock Sample A')).toBeInTheDocument();
+            expect(screen.getByTestId('count-status')).toHaveTextContent('failed');
         });
 
         it('renders the page size selector and complete page controls', () => {

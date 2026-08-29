@@ -74,6 +74,16 @@ export function buildPortalFilterUrl(filters: PortalFilters, page: number | null
     return queryString ? `/portal?${queryString}` : '/portal';
 }
 
+/** Preserve the server's exact filter inputs so its count fingerprint stays identical. */
+export function buildPortalCountUrl(currentSearch: string): string {
+    const params = new URLSearchParams(currentSearch);
+    params.delete('page');
+
+    const queryString = params.toString();
+
+    return queryString ? `/portal/count?${queryString}` : '/portal/count';
+}
+
 /** Build the lightweight map request while preserving the list's active filters. */
 export function buildPortalMapUrl(filters: PortalFilters, viewport: PortalMapViewport, includeExtent = false): string {
     const filterUrl = buildPortalFilterUrl(filters);

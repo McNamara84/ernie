@@ -12,7 +12,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { useNavigationStatus } from '@/hooks/use-navigation-status';
 import { usePortalFilters } from '@/hooks/use-portal-filters';
 import PortalLayout from '@/layouts/portal-layout';
-import { buildPortalFilterUrl } from '@/lib/portal-filter-url';
+import { buildPortalCountUrl, buildPortalFilterUrl } from '@/lib/portal-filter-url';
 import type { GeoBounds, PortalPageProps, TemporalFilterValue } from '@/types/portal';
 
 interface PortalCountResponse {
@@ -53,8 +53,7 @@ export default function Portal({
 
         const controller = new AbortController();
         const expectedFingerprint = pagination.filter_fingerprint;
-        const filterUrl = buildPortalFilterUrl(filters);
-        const countUrl = filterUrl.replace(/^\/portal/, '/portal/count');
+        const countUrl = buildPortalCountUrl(window.location.search);
 
         void axios
             .get<PortalCountResponse>(countUrl, { signal: controller.signal })
@@ -322,6 +321,7 @@ export default function Portal({
                         isCollapsed={isFilterCollapsed}
                         onToggleCollapse={() => setIsFilterCollapsed(!isFilterCollapsed)}
                         totalResults={resolvedPagination.total}
+                        countStatus={resolvedPagination.count_status}
                         keywordSuggestions={keywordSuggestions}
                         thesaurusFacets={thesaurusFacets}
                         geoFilterEnabled={geoFilterEnabled}

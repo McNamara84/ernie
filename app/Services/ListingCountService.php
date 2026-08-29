@@ -82,9 +82,16 @@ final class ListingCountService
                 (int) config('listing_performance.count_lock_wait_seconds', 3),
                 $resolveAndStore,
             );
-        } catch (LockTimeoutException) {
-            // A count is still preferable to failing the already rendered list.
-            return max(0, (int) $resolver());
+        } catch (LockTimeoutException $exception) {
+            $cachedAfterTimeout = $repository->get($key);
+
+            if (is_int($cachedAfterTimeout) || is_numeric($cachedAfterTimeout)) {
+                return (int) $cachedAfterTimeout;
+            }
+
+            // Do not run another expensive count outside the lock. The list is
+            // already usable and its clients expose a recoverable failed state.
+            throw $exception;
         }
     }
 

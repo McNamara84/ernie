@@ -124,7 +124,17 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.403.$ref', '#/components/responses/ForbiddenError')
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
-        // Public portal map endpoint
+        // Public portal count and map endpoints
+        ->assertJsonPath('paths./portal/count.get.tags.0', 'Portal')
+        ->assertJsonPath('paths./portal/count.get.security', [])
+        ->assertJsonPath('paths./portal/count.get.parameters.0.name', 'q')
+        ->assertJsonPath('paths./portal/count.get.parameters.6.name', 'thesaurus_keywords[]')
+        ->assertJsonPath('paths./portal/count.get.parameters.13.name', 'year_to')
+        ->assertJsonPath('paths./portal/count.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/PortalCountResponse')
+        ->assertJsonPath('paths./portal/count.get.responses.429.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
+        ->assertJsonPath('paths./portal/count.get.responses.500.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
+        ->assertJsonPath('components.schemas.PortalCountResponse.properties.filter_fingerprint.pattern', '^[a-f0-9]{64}$')
+        ->assertJsonPath('components.schemas.PortalCountResponse.properties.count_status.enum.0', 'ready')
         ->assertJsonPath('paths./portal/map.get.tags.0', 'Portal')
         ->assertJsonPath('paths./portal/map.get.security', [])
         ->assertJsonPath('paths./portal/map.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/PortalMapResponse')

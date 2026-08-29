@@ -64,6 +64,7 @@ describe('PortalFilters', () => {
         isCollapsed: false,
         onToggleCollapse: vi.fn(),
         totalResults: 42,
+        countStatus: 'ready' as const,
         keywordSuggestions: [],
         thesaurusFacets: [],
         geoFilterEnabled: false,
@@ -362,6 +363,17 @@ describe('PortalFilters', () => {
             render(<PortalFilters {...defaultProps} totalResults={0} />);
 
             expect(screen.getByText(/0 results/i)).toBeInTheDocument();
+        });
+
+        it('distinguishes a failed count from a pending count', () => {
+            const { rerender } = render(<PortalFilters {...defaultProps} totalResults={null} countStatus="pending" />);
+
+            expect(screen.getByText('Counting results...')).toBeInTheDocument();
+
+            rerender(<PortalFilters {...defaultProps} totalResults={null} countStatus="failed" />);
+
+            expect(screen.getByText('Count unavailable')).toBeInTheDocument();
+            expect(screen.queryByText('Counting results...')).not.toBeInTheDocument();
         });
     });
 
