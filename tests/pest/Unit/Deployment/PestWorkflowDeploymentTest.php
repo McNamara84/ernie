@@ -37,12 +37,24 @@ it('splits CI tests into isolated coverage and architecture slices', function ()
         ->and($architectureStep)->toBeArray()
         ->and($parallelStep)->toBeArray();
 
-    expect($setupPhpStep['with']['ini-values'] ?? null)
-        ->toBeString()
-        ->toContain('pcov.directory=.')
-        ->toContain('pcov.exclude=')
-        ->toContain('vendor')
-        ->toContain('tests');
+    $iniValues = $setupPhpStep['with']['ini-values'] ?? null;
+    expect($iniValues)->toBeString();
+    assert(is_string($iniValues));
+
+    $iniConfiguration = parse_ini_string(str_replace(', ', PHP_EOL, $iniValues), scanner_mode: INI_SCANNER_RAW);
+    expect($iniConfiguration)->toBeArray();
+    assert(is_array($iniConfiguration));
+
+    expect($iniConfiguration['memory_limit'] ?? null)->toBe('1G')
+        ->and($iniConfiguration['pcov.directory'] ?? null)->toBe('.')
+        ->and($iniConfiguration['pcov.exclude'] ?? null)->toBe('~/(?:vendor|tests)/~');
+
+    $pcovExclude = $iniConfiguration['pcov.exclude'] ?? null;
+    assert(is_string($pcovExclude));
+
+    expect(preg_match($pcovExclude, '/workspace/vendor/package/file.php'))->toBe(1)
+        ->and(preg_match($pcovExclude, '/workspace/tests/pest/Test.php'))->toBe(1)
+        ->and(preg_match($pcovExclude, '/workspace/app/Models/User.php'))->toBe(0);
 
     expect($serialStep['run'] ?? null)
         ->toBeString()
@@ -55,6 +67,7 @@ it('splits CI tests into isolated coverage and architecture slices', function ()
         ->not->toContain('--parallel')
         ->and($parallelStep['run'] ?? null)
         ->toBeString()
+        ->toStartWith('php -d memory_limit=4G ')
         ->toContain('--parallel')
         ->toContain('--shard=${{ matrix.shard }}')
         ->toContain('--exclude-group=serial')

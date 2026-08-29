@@ -124,7 +124,7 @@ jobs:
 
       - name: Run parallel test shard with coverage
         if: ${{ startsWith(matrix.slice, 'parallel-') }}
-        run: php ./vendor/bin/pest --parallel --shard=${{ matrix.shard }} --exclude-group=serial --exclude-testsuite=Arch --coverage-clover=coverage-${{ matrix.slice }}.xml
+        run: php -d memory_limit=4G ./vendor/bin/pest --parallel --shard=${{ matrix.shard }} --exclude-group=serial --exclude-testsuite=Arch --coverage-clover=coverage-${{ matrix.slice }}.xml
 
       - name: Upload coverage result
         if: ${{ matrix.slice != 'architecture' && success() }}
