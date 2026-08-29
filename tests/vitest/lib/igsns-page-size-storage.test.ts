@@ -10,14 +10,21 @@ describe('IGSN page-size storage', () => {
         localStorage.clear();
     });
 
-    it.each([10, 100, 1000] as const)('round-trips the supported page size %i', (pageSize) => {
+    it.each([10, 100] as const)('round-trips the supported page size %i', (pageSize) => {
         persistIgsnsPageSize(pageSize);
 
         expect(readStoredIgsnsPageSize()).toBe(pageSize);
         expect(localStorage.getItem(IGSNS_PAGE_SIZE_STORAGE_KEY)).toBe(String(pageSize));
     });
 
-    it.each(['not json', '25', '0', '"100"', 'null'])('rejects and removes an invalid stored value: %s', (storedValue) => {
+    it.each([25, 50, 1000])('normalizes the legacy page size %i to 100', (pageSize) => {
+        localStorage.setItem(IGSNS_PAGE_SIZE_STORAGE_KEY, String(pageSize));
+
+        expect(readStoredIgsnsPageSize()).toBe(100);
+        expect(localStorage.getItem(IGSNS_PAGE_SIZE_STORAGE_KEY)).toBe('100');
+    });
+
+    it.each(['not json', '0', '"100"', 'null'])('rejects and removes an invalid stored value: %s', (storedValue) => {
         localStorage.setItem(IGSNS_PAGE_SIZE_STORAGE_KEY, storedValue);
 
         expect(readStoredIgsnsPageSize()).toBeNull();
@@ -30,7 +37,7 @@ describe('IGSN page-size storage', () => {
         });
 
         expect(readStoredIgsnsPageSize()).toBeNull();
-        expect(() => persistIgsnsPageSize(1000)).not.toThrow();
+        expect(() => persistIgsnsPageSize(100)).not.toThrow();
 
         getItem.mockRestore();
     });

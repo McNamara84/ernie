@@ -297,6 +297,9 @@ export function createMockPortalPagination(overrides?: Partial<PortalPagination>
         total: 0,
         from: 0,
         to: 0,
+        has_more: false,
+        count_status: 'ready',
+        filter_fingerprint: 'default-fingerprint',
         ...overrides,
     };
 }

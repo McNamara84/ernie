@@ -370,7 +370,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
                 ->where('filters.temporal.dateType', 'Created')
                 ->where('filters.temporal.yearFrom', 2023)
                 ->where('filters.temporal.yearTo', 2023)
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
             );
     });
 
@@ -384,7 +384,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
-                ->where('pagination.total', 1)
+                ->has('resources', 1)
             );
     });
 

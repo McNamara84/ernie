@@ -22,7 +22,7 @@ use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -89,9 +89,9 @@ class PortalSearchService
      *     page?: int,
      *     per_page?: int,
      * }  $filters
-     * @return LengthAwarePaginator<int, Resource>
+     * @return Paginator<int, Resource>
      */
-    public function search(array $filters = []): LengthAwarePaginator
+    public function search(array $filters = []): Paginator
     {
         $query = $this->buildQuery($filters, includeAbstractPreview: true);
 
@@ -100,8 +100,23 @@ class PortalSearchService
             self::MAX_PER_PAGE
         );
 
-        /** @var LengthAwarePaginator<int, Resource> */
-        return $query->paginate($perPage);
+        /** @var Paginator<int, Resource> */
+        return $query->simplePaginate(
+            $perPage,
+            ['*'],
+            'page',
+            max(1, (int) ($filters['page'] ?? 1)),
+        );
+    }
+
+    /**
+     * Count matching published resources without eager loading or sorting.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function count(array $filters = []): int
+    {
+        return $this->buildFilteredResourceQuery($filters)->count();
     }
 
     /**

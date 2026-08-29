@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import ResourcesPage from '@/pages/resources';
+import ResourcesPage, { mergeLoadMorePagination } from '@/pages/resources';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn(), reload: vi.fn(), visit: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
@@ -166,6 +166,37 @@ describe('ResourcesPage', () => {
                 takeRecords: vi.fn(() => []),
             };
         }) as unknown as typeof IntersectionObserver;
+    });
+
+    it('retains exact initial totals when merging a count-free load-more page', () => {
+        expect(
+            mergeLoadMorePagination(
+                {
+                    current_page: 1,
+                    last_page: 4,
+                    per_page: 20,
+                    total: 73,
+                    from: 1,
+                    to: 20,
+                    has_more: true,
+                },
+                {
+                    current_page: 2,
+                    per_page: 20,
+                    from: 21,
+                    to: 40,
+                    has_more: true,
+                },
+            ),
+        ).toEqual({
+            current_page: 2,
+            last_page: 4,
+            per_page: 20,
+            total: 73,
+            from: 21,
+            to: 40,
+            has_more: true,
+        });
     });
 
     afterEach(() => {

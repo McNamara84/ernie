@@ -44,9 +44,9 @@ interface IgsnFiltersProps {
     /** Available filter options provided by the parent via Inertia server props */
     filterOptions: IgsnFilterOptions | null;
     /** Number of results after filtering */
-    resultCount: number;
+    resultCount: number | null;
     /** Total number of results without filtering */
-    totalCount: number;
+    totalCount: number | null;
     /** Disables the controls during loading */
     isLoading?: boolean;
 }
@@ -273,7 +273,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
     }).length;
 
     const hasActiveFilters = activeFilterCount > 0;
-    const isFiltered = resultCount !== totalCount;
+    const isFiltered = resultCount !== null && totalCount !== null && resultCount !== totalCount;
 
     const formatFilterLabel = useCallback(
         (key: keyof IgsnFilterState, value: unknown): string => {
@@ -414,8 +414,10 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
                     )}
 
                     {/* Result Counter */}
-                    <div className="ml-auto text-sm text-muted-foreground">
-                        {isFiltered ? (
+                    <div className="ml-auto text-sm text-muted-foreground" aria-live="polite">
+                        {resultCount === null || totalCount === null ? (
+                            <span>Counting samples...</span>
+                        ) : isFiltered ? (
                             <span>
                                 Showing <span className="font-semibold text-foreground">{resultCount}</span> of{' '}
                                 <span className="font-semibold text-foreground">{totalCount}</span> samples

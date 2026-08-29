@@ -6,6 +6,7 @@ namespace App\Observers;
 
 use App\Models\IgsnMetadata;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\ListingCountService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -18,10 +19,22 @@ final class IgsnMetadataObserver
         'sample_image_size',
     ];
 
-    public function __construct(private readonly LandingPageRenderDataCacheService $landingPageCache) {}
+    public function __construct(
+        private readonly LandingPageRenderDataCacheService $landingPageCache,
+        private readonly ListingCountService $listingCountService,
+    ) {}
+
+    public function created(IgsnMetadata $metadata): void
+    {
+        $this->listingCountService->scheduleInternalInvalidationAfterCommit();
+    }
 
     public function updated(IgsnMetadata $metadata): void
     {
+        if ($metadata->wasChanged('upload_status')) {
+            $this->listingCountService->scheduleInternalInvalidationAfterCommit();
+        }
+
         if (! $metadata->wasChanged(self::PUBLIC_IMAGE_FIELDS)) {
             return;
         }
@@ -42,6 +55,7 @@ final class IgsnMetadataObserver
 
     public function deleted(IgsnMetadata $metadata): void
     {
+        $this->listingCountService->scheduleInternalInvalidationAfterCommit();
         $this->deleteAfterCommit($metadata->sample_image_storage_path);
     }
 

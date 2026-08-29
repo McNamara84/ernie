@@ -46,7 +46,9 @@ class ResourceController extends Controller
     public function index(IndexResourcesRequest $request): Response
     {
         $criteria = $request->toCriteria();
-        $resources = $this->queryBuilder->paginate($criteria);
+        $resources = $this->queryBuilder->simplePaginate($criteria);
+        $total = $this->queryBuilder->count($criteria);
+        $lastPage = max(1, (int) ceil($total / $resources->perPage()));
 
         /** @var array<int, Resource> $items */
         $items = $resources->items();
@@ -63,9 +65,9 @@ class ResourceController extends Controller
             'resources' => $resourcesData,
             'pagination' => [
                 'current_page' => $resources->currentPage(),
-                'last_page' => $resources->lastPage(),
+                'last_page' => $lastPage,
                 'per_page' => $resources->perPage(),
-                'total' => $resources->total(),
+                'total' => $total,
                 'from' => $resources->firstItem(),
                 'to' => $resources->lastItem(),
                 'has_more' => $resources->hasMorePages(),

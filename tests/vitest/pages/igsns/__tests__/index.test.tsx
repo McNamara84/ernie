@@ -16,10 +16,10 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 // Mock axios
-const { mockAxiosPost } = vi.hoisted(() => ({ mockAxiosPost: vi.fn() }));
+const { mockAxiosGet, mockAxiosPost } = vi.hoisted(() => ({ mockAxiosGet: vi.fn(), mockAxiosPost: vi.fn() }));
 vi.mock('axios', () => ({
     default: {
-        get: vi.fn().mockResolvedValue({ data: { prefixes: [], statuses: [] } }),
+        get: mockAxiosGet,
         post: mockAxiosPost,
     },
     isAxiosError: (error: unknown) => error instanceof Error && 'isAxiosError' in error,
@@ -82,8 +82,8 @@ vi.mock('@/components/igsns/igsn-filters', () => ({
     }: {
         filters: Record<string, string | number | boolean | undefined>;
         onFilterChange: (v: Record<string, string | number | boolean | undefined>) => void;
-        resultCount: number;
-        totalCount: number;
+        resultCount: number | null;
+        totalCount: number | null;
     }) => (
         <div data-testid="igsn-filters">
             <input
@@ -215,12 +215,14 @@ function createIgsn(
 function createPagination(
     overrides: Partial<{
         current_page: number;
-        last_page: number;
+        last_page: number | null;
         per_page: number;
-        total: number;
+        total: number | null;
         from: number | null;
         to: number | null;
         has_more: boolean;
+        count_status: 'pending' | 'ready' | 'failed';
+        filter_fingerprint: string;
     }> = {},
 ) {
     return {
@@ -231,6 +233,8 @@ function createPagination(
         from: 1,
         to: 2,
         has_more: false,
+        count_status: 'ready' as const,
+        filter_fingerprint: 'default-fingerprint',
         ...overrides,
     };
 }
@@ -255,6 +259,7 @@ const defaultProps = {
 describe('IgsnsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockAxiosGet.mockResolvedValue({ data: { prefixes: [], statuses: [] } });
         localStorage.clear();
         // Mock window.location
         Object.defineProperty(window, 'location', {
@@ -416,6 +421,84 @@ describe('IgsnsPage', () => {
     });
 
     describe('pagination', () => {
+        it('renders results immediately and applies a matching asynchronous count', async () => {
+            mockAxiosGet.mockResolvedValueOnce({
+                data: {
+                    filter_fingerprint: 'current-filter',
+                    filtered_total: 7,
+                    inventory_total: 9,
+                    last_page: 1,
+                    count_status: 'ready',
+                },
+            });
+
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    totalCount={null}
+                    pagination={createPagination({
+                        total: null,
+                        last_page: null,
+                        count_status: 'pending',
+                        filter_fingerprint: 'current-filter',
+                    })}
+                />,
+            );
+
+            expect(screen.getByText(/counting total/i)).toBeInTheDocument();
+            await waitFor(() => expect(screen.getByTestId('search-counts')).toHaveTextContent('7 / 9'));
+            expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
+        });
+
+        it('ignores a count response for a stale filter fingerprint', async () => {
+            mockAxiosGet.mockResolvedValueOnce({
+                data: {
+                    filter_fingerprint: 'stale-filter',
+                    filtered_total: 99,
+                    inventory_total: 99,
+                    last_page: 10,
+                    count_status: 'ready',
+                },
+            });
+
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    totalCount={null}
+                    pagination={createPagination({
+                        total: null,
+                        last_page: null,
+                        count_status: 'pending',
+                        filter_fingerprint: 'current-filter',
+                    })}
+                />,
+            );
+
+            await waitFor(() => expect(mockAxiosGet).toHaveBeenCalled());
+            expect(screen.getByText(/counting total/i)).toBeInTheDocument();
+            expect(screen.getByTestId('search-counts')).toHaveTextContent('/');
+        });
+
+        it('keeps rendered results usable when the count request fails', async () => {
+            mockAxiosGet.mockRejectedValueOnce(new Error('count failed'));
+
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    totalCount={null}
+                    pagination={createPagination({
+                        total: null,
+                        last_page: null,
+                        count_status: 'pending',
+                        filter_fingerprint: 'current-filter',
+                    })}
+                />,
+            );
+
+            await waitFor(() => expect(screen.getByText(/count unavailable/i)).toBeInTheDocument());
+            expect(screen.getByText('Rock Sample A')).toBeInTheDocument();
+        });
+
         it('renders the page size selector and complete page controls', () => {
             render(<IgsnsPage {...defaultProps} pagination={createPagination({ has_more: true, last_page: 3 })} />);
 
@@ -446,11 +529,11 @@ describe('IgsnsPage', () => {
                 />,
             );
 
-            await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Rows per page' }), '1000');
+            await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Rows per page' }), '10');
 
-            expect(localStorage.getItem('ernie.igsns.page-size.v1')).toBe('1000');
+            expect(localStorage.getItem('ernie.igsns.page-size.v1')).toBe('10');
             expect(mockRouterVisit).toHaveBeenCalledWith(
-                '/igsns?sort=updated_at&direction=desc&per_page=1000',
+                '/igsns?sort=updated_at&direction=desc&per_page=10',
                 expect.objectContaining({ preserveState: false, replace: true }),
             );
         });

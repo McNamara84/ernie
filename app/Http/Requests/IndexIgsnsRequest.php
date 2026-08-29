@@ -11,9 +11,9 @@ final class IndexIgsnsRequest extends FormRequest
 {
     public const DEFAULT_PER_PAGE = 100;
 
-    public const PER_PAGE_OPTIONS = [10, 100, 1000];
+    public const PER_PAGE_OPTIONS = [10, 100];
 
-    public const LEGACY_PER_PAGE_OPTIONS = [25, 50];
+    public const LEGACY_PER_PAGE_OPTIONS = [25, 50, 1000];
 
     public function authorize(): bool
     {

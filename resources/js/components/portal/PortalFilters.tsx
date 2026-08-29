@@ -35,7 +35,7 @@ interface PortalFiltersProps {
     hasActiveFilters: boolean;
     isCollapsed: boolean;
     onToggleCollapse: () => void;
-    totalResults: number;
+    totalResults: number | null;
     keywordSuggestions: KeywordSuggestion[];
     thesaurusFacets?: PortalThesaurusFacet[];
     geoFilterEnabled: boolean;
@@ -234,7 +234,7 @@ export function PortalFilters({
             {/* Footer with result count */}
             <div className="border-t px-4 py-3">
                 <p className={cn('text-sm', hasActiveFilters ? 'font-medium text-primary' : 'text-muted-foreground')}>
-                    {totalResults.toLocaleString()} {totalResults === 1 ? 'result' : 'results'}
+                    {totalResults === null ? 'Counting results...' : `${totalResults.toLocaleString()} ${totalResults === 1 ? 'result' : 'results'}`}
                 </p>
             </div>
         </div>

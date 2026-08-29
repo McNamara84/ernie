@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\KeywordSuggestionService;
+use App\Services\ListingCountService;
 use App\Services\PortalFilterService;
 use App\Services\PortalSearchService;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ class PortalController extends Controller
         private readonly KeywordSuggestionService $keywordService,
         private readonly PortalPageCacheService $pageCache,
         private readonly PortalFilterService $filterService,
+        private readonly ListingCountService $listingCountService,
     ) {}
 
     public function index(Request $request): Response
@@ -44,6 +46,7 @@ class PortalController extends Controller
         $temporalRange = $this->searchService->getTemporalRange();
         $filters = $this->filterService->fromRequest($request, $temporalRange);
         $paginator = $this->searchService->search($filters);
+        $filterFingerprint = $this->listingCountService->fingerprint($filters);
 
         $resources = collect($paginator->items())
             ->map(fn ($resource) => $this->searchService->transformForPortal($resource))
@@ -53,11 +56,14 @@ class PortalController extends Controller
             'resources' => $resources,
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
+                'last_page' => null,
                 'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
+                'total' => null,
                 'from' => $paginator->firstItem() ?? 0,
                 'to' => $paginator->lastItem() ?? 0,
+                'has_more' => $paginator->hasMorePages(),
+                'count_status' => 'pending',
+                'filter_fingerprint' => $filterFingerprint,
             ],
             'filters' => $this->filterService->forFrontend($filters),
             'keywordSuggestions' => $this->keywordService->getFreeKeywordSuggestions(),

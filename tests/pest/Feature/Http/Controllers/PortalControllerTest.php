@@ -195,7 +195,7 @@ describe('index', function () {
 
         $this->get('/portal')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->where('pagination.total', 1));
+            ->assertInertia(fn ($page) => $page->has('resources', 1));
 
         expect(Cache::tags(CacheKey::PORTAL_PAGE_PAYLOAD->tags())->has($cacheKey))->toBeTrue();
 
@@ -205,7 +205,7 @@ describe('index', function () {
 
         $this->get('/portal')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->where('pagination.total', 2));
+            ->assertInertia(fn ($page) => $page->has('resources', 2));
     });
 });
 

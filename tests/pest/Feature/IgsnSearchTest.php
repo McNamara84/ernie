@@ -245,8 +245,14 @@ describe('IGSN Search', function () {
         $response->assertInertia(fn ($page) => $page
             ->component('igsns/index')
             ->has('igsns', 1)
-            ->where('totalCount', 3)
-            ->where('pagination.total', 1)
+            ->where('totalCount', null)
+            ->where('pagination.total', null)
         );
+
+        $this->actingAs($this->user)
+            ->getJson('/igsns/count?search=ALPHA')
+            ->assertOk()
+            ->assertJsonPath('filtered_total', 1)
+            ->assertJsonPath('inventory_total', 3);
     });
 });
