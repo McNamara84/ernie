@@ -440,6 +440,20 @@ it('validates viewport dimensions, coordinate ordering, and complete filter boun
         ->assertJsonValidationErrors(['viewport.north', 'viewport.width', 'zoom', 'north']);
 });
 
+it('accepts only documented legacy shortcuts for scalar type filters', function (): void {
+    foreach (['doi', 'igsn'] as $type) {
+        $this->getJson(route('portal.map', portalMapRequestQuery(['type' => $type])))
+            ->assertOk();
+    }
+
+    $this->getJson(route('portal.map', portalMapRequestQuery(['type' => 'dataset'])))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('type');
+
+    $this->getJson(route('portal.map', portalMapRequestQuery(['type' => ['dataset']])))
+        ->assertOk();
+});
+
 it('can be disabled independently during rollout', function (): void {
     config(['portal_map.enabled' => false]);
 

@@ -25,6 +25,10 @@ final class PortalMapRequest extends FormRequest
                 $fail("The {$attribute} field must be a string or an array.");
             }
 
+            if (is_string($value) && ! in_array($value, ['doi', 'igsn'], true)) {
+                $fail("The selected {$attribute} is invalid.");
+            }
+
             if (is_array($value) && count($value) > 20) {
                 $fail("The {$attribute} field must not contain more than 20 items.");
             }
