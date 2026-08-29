@@ -541,7 +541,8 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             cap the number of records with <code>--limit</code>, and adjust legacy portal batches with <code>--chunk</code> (maximum
                             100). Invalid DOI or Handle filters stop the command with an error instead of producing an empty successful audit.
                         </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --doi=ICDP5052EUYY001 --after-id=12345 --limit=500 --chunk=100 --report=/path/to/igsn-classification-audit.csv" />
+                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --doi=ICDP5052EUYY001" />
+                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --after-id=12345 --limit=500 --chunk=100" />
                         <p className="text-sm text-muted-foreground">
                             Review the CSV before applying changes. Check the <code>status</code>, <code>inserted_values</code>,{' '}
                             <code>types_filled</code>, <code>rejected_values</code>, <code>conflicts</code>, and <code>message</code> columns. Resolve
@@ -549,7 +550,7 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             <code>--apply</code> and write a separate result report. Apply mode remains additive: it inserts missing classifications
                             and fills only missing types without replacing curated values or existing types.
                         </p>
-                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --apply --after-id=12345 --limit=500 --chunk=100 --report=/path/to/igsn-classification-apply.csv" />
+                        <DocsCodeBlock code="php artisan igsn:backfill-classifications --apply --report=/path/to/igsn-classification-apply.csv" />
 
                         <h4>DataCite Configuration</h4>
                         <p>
