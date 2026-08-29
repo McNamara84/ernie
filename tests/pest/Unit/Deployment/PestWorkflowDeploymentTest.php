@@ -25,14 +25,24 @@ it('splits CI tests into isolated coverage and architecture slices', function ()
 
     $steps = collect($pestJob['steps'] ?? [])->keyBy('name');
 
+    $setupPhpStep = $steps->get('Setup PHP');
     $serialStep = $steps->get('Run serial tests with coverage');
     $architectureStep = $steps->get('Run architecture tests');
     $parallelStep = $steps->get('Run parallel test shard with coverage');
 
-    expect($serialStep)
+    expect($setupPhpStep)
+        ->toBeArray()
+        ->and($serialStep)
         ->toBeArray()
         ->and($architectureStep)->toBeArray()
         ->and($parallelStep)->toBeArray();
+
+    expect($setupPhpStep['with']['ini-values'] ?? null)
+        ->toBeString()
+        ->toContain('pcov.directory=.')
+        ->toContain('pcov.exclude=')
+        ->toContain('vendor')
+        ->toContain('tests');
 
     expect($serialStep['run'] ?? null)
         ->toBeString()
