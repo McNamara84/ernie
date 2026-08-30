@@ -40,7 +40,7 @@ it('defines a composite projection index for every supported cursor sort order',
     }
 });
 
-it('repairs an already-created projection table and retains its baseline index on rollback', function (): void {
+it('retains the baseline column and index when the repair migration is rolled back', function (): void {
     $title = str_repeat('Existing projection title ', 30);
     $resource = Resource::factory()->create();
     app(ResourceListingProjectionRefreshService::class)->flushPending();
@@ -53,8 +53,16 @@ it('repairs an already-created projection table and retains its baseline index o
     $migration->down();
 
     try {
-        expect(Schema::hasColumn('resource_listing_projections', 'main_title_sort'))->toBeFalse()
-            ->and(Schema::hasIndex('resource_listing_projections', 'rlp_default_sort_idx'))->toBeTrue();
+        expect(Schema::hasColumn('resource_listing_projections', 'main_title_sort'))->toBeTrue()
+            ->and(Schema::hasIndex('resource_listing_projections', 'rlp_default_sort_idx'))->toBeTrue()
+            ->and(ResourceListingProjection::query()->whereKey($resource->id)->value('main_title_sort'))
+            ->toBe('stale');
+
+        // Simulate an installation where the table-creation migration ran before
+        // the bounded title sort key and default cursor index were introduced.
+        Schema::table('resource_listing_projections', function (Blueprint $table): void {
+            $table->dropColumn('main_title_sort');
+        });
 
         Schema::table('resource_listing_projections', function (Blueprint $table): void {
             $table->dropIndex('rlp_default_sort_idx');

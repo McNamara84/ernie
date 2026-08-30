@@ -74,11 +74,5 @@ return new class extends Migration
                 $table->dropIndex($name);
             });
         }
-
-        if (Schema::hasColumn('resource_listing_projections', 'main_title_sort')) {
-            Schema::table('resource_listing_projections', function (Blueprint $table): void {
-                $table->dropColumn('main_title_sort');
-            });
-        }
     }
 };
