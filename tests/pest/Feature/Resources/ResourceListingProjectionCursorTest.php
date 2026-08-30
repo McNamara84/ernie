@@ -7,6 +7,7 @@ use App\Http\Resources\ResourceListItemResource;
 use App\Jobs\RefreshResourceListingProjectionsForDependencyJob;
 use App\Models\DateType;
 use App\Models\Description;
+use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
@@ -80,6 +81,60 @@ it('maintains denormalized listing values for resource and relation changes', fu
     expect($projection->main_title)->toBe('Updated Projection Title')
         ->and($projection->main_title_sort)->toBe('Updated Projection Title')
         ->and($projection->first_creator_sort)->toBe('Byron');
+});
+
+it('derives the dashboard draft flag from all workflow completeness rules', function (): void {
+    $resource = Resource::factory()->create(['access_level' => null]);
+    Title::factory()->create(['resource_id' => $resource->id]);
+    ResourceCreator::factory()->create(['resource_id' => $resource->id]);
+    Description::factory()->abstract()->create(['resource_id' => $resource->id]);
+    $resource->rights()->attach(Right::factory()->create());
+
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    $projection = ResourceListingProjection::query()->findOrFail($resource->id);
+    expect($projection->workflow_status)->toBe('draft')
+        ->and($projection->is_dashboard_draft)->toBeTrue();
+
+    $resource->update(['access_level' => AccessLevel::OPEN]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    $projection->refresh();
+    expect($projection->workflow_status)->toBe('curation')
+        ->and($projection->is_dashboard_draft)->toBeFalse();
+
+    $resource->update(['access_level' => AccessLevel::EMBARGOED]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    $projection->refresh();
+    expect($projection->workflow_status)->toBe('draft')
+        ->and($projection->is_dashboard_draft)->toBeTrue();
+
+    $available = DateType::query()->firstOrCreate(
+        ['slug' => 'Available'],
+        ['name' => 'Available', 'is_active' => true],
+    );
+    ResourceDate::query()->create([
+        'resource_id' => $resource->id,
+        'date_type_id' => $available->id,
+        'start_date' => '2027-01-01',
+    ]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    $projection->refresh();
+    expect($projection->workflow_status)->toBe('curation')
+        ->and($projection->is_dashboard_draft)->toBeFalse();
+});
+
+it('keeps the dashboard draft flag aligned with published status precedence', function (): void {
+    $resource = Resource::factory()->create(['access_level' => null]);
+    LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    $projection = ResourceListingProjection::query()->findOrFail($resource->id);
+    expect($projection->workflow_status)->toBe('published')
+        ->and($projection->is_dashboard_draft)->toBeFalse();
 });
 
 it('stores a bounded title sort key while retaining the complete display title', function (): void {

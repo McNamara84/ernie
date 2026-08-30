@@ -171,12 +171,6 @@ final class ResourceListingProjectorService
         $status = $resource->publicStatus();
         $curator = $resource->updatedBy ?? $resource->createdBy;
         $resourceType = $resource->resourceType;
-        $hasMainTitle = $resource->titles->contains(
-            fn (Title $title): bool => $title->isMainTitle() && trim($title->value) !== '',
-        );
-        $hasAbstract = $resource->descriptions->contains(
-            fn ($description): bool => $description->descriptionType->slug === 'Abstract' && trim($description->value) !== '',
-        );
 
         return [
             'is_igsn' => $resourceType?->slug === 'physical-object',
@@ -188,12 +182,7 @@ final class ResourceListingProjectorService
                 'published' => 3,
                 default => 0,
             },
-            'is_dashboard_draft' => $resource->publication_year === null
-                || $resource->resource_type_id === null
-                || $resource->creators->isEmpty()
-                || $resource->rights->isEmpty()
-                || ! $hasMainTitle
-                || ! $hasAbstract,
+            'is_dashboard_draft' => $status === ResourceWorkflowStatus::DRAFT->value,
             'resource_type_id' => $resource->resource_type_id,
             'resource_type_slug' => $resourceType?->slug,
             'resource_type_sort' => $resourceType === null ? '' : $resourceType->name,
