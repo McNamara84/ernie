@@ -10,6 +10,7 @@ use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -162,6 +163,38 @@ describe('IGSN Batch Delete', function () {
             ->and(IgsnMetadata::query()->whereIn('resource_id', $ids)->count())->toBe(0);
     });
 
+    it('locks chunked resources in deterministic numeric order', function () {
+        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $ascendingIds = createMinimalIgsns(251)->pluck('id')->all();
+        $requestIds = array_reverse($ascendingIds);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->actingAs($admin)
+            ->delete('/igsns/batch', ['ids' => $requestIds])
+            ->assertRedirect('/igsns');
+
+        $lockQueries = collect(DB::getQueryLog())
+            ->filter(static function (array $query): bool {
+                $sql = strtolower($query['query']);
+
+                return str_contains($sql, 'from "resources"')
+                    && str_contains($sql, 'igsn_metadata')
+                    && str_contains($sql, ' in (');
+            })
+            ->values();
+        DB::disableQueryLog();
+
+        $lockedIds = $lockQueries
+            ->flatMap(static fn (array $query): array => $query['bindings'])
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
+
+        expect($lockQueries)->toHaveCount(2)
+            ->and($lockedIds)->toBe($ascendingIds);
+    });
+
     it('prevents curator from deleting IGSNs', function () {
         $curator = User::factory()->create(['role' => UserRole::CURATOR]);
         $igsns = createIgsns(2);
@@ -239,16 +272,20 @@ describe('IGSN Batch Delete', function () {
 
         $igsns = createIgsns(2);
         $regularResource = Resource::factory()->create();
+        $igsnIds = $igsns->pluck('id')->map(static fn (mixed $id): int => (int) $id)->values()->all();
 
-        $ids = $igsns->pluck('id')->toArray();
-        $ids[] = $regularResource->id;
+        $ids = [
+            $igsnIds[0],
+            $regularResource->id,
+            $igsnIds[1],
+        ];
 
         $response = $this->actingAs($admin)
             ->delete('/igsns/batch', ['ids' => $ids]);
 
         // ValidationException redirects back with errors (not 422 status)
         $response->assertRedirect();
-        $response->assertSessionHasErrors('ids');
+        $response->assertSessionHasErrors(['ids', 'ids.1']);
 
         // Verify nothing was deleted
         expect(Resource::whereIn('id', $igsns->pluck('id'))->count())->toBe(2);

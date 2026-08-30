@@ -34,15 +34,20 @@ class BatchIgsnController extends Controller
         /** @var list<int> $ids */
         $ids = array_values($validated['ids']);
 
+        /** @var list<int> $lockIds */
+        $lockIds = $ids;
+        sort($lockIds, SORT_NUMERIC);
+
         // Use transaction with row locking for atomic validation + delete
         // This ensures no race condition between checking igsnMetadata and deleting
-        DB::transaction(function () use ($ids): void {
+        DB::transaction(function () use ($ids, $lockIds): void {
             $lockedResources = collect();
 
-            foreach (array_chunk($ids, IgsnBulkOperation::DATABASE_CHUNK_SIZE) as $chunk) {
+            foreach (array_chunk($lockIds, IgsnBulkOperation::DATABASE_CHUNK_SIZE) as $chunk) {
                 $lockedResources->push(...Resource::query()
                     ->whereIn('id', $chunk)
                     ->whereHas('igsnMetadata')
+                    ->orderBy('id')
                     ->lockForUpdate()
                     ->get());
             }
