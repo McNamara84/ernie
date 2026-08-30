@@ -12,6 +12,7 @@
 
 # Cache files
 /bootstrap/cache/*.php
+/.tmp
 
 # Environment files (production will be copied explicitly)
 .env

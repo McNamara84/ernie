@@ -3,18 +3,22 @@
 use App\Enums\AccessLevel;
 use App\Enums\CacheKey;
 use App\Models\Affiliation;
+use App\Models\DateType;
 use App\Models\Description;
 use App\Models\GuidedTour;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceDate;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Title;
 use App\Models\User;
 use App\Models\UserGuidedTourAssignment;
+use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 
 uses(RefreshDatabase::class);
@@ -190,12 +194,10 @@ test('dashboard view receives separate resource counts for data resources and IG
         'resource_type_id' => $physicalObjectType->id,
     ]);
 
-    $this->get(route('dashboard'))
-        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->component('dashboard')
-            ->where('dataResourceCount', 2)
-            ->where('igsnCount', 3)
-        );
+    $this->getJson(route('dashboard.metrics'))
+        ->assertOk()
+        ->assertJsonPath('dataResourceCount', 2)
+        ->assertJsonPath('igsnCount', 3);
 });
 
 test('dashboard counts institutions with ROR identifiers for data resources', function () {
@@ -220,12 +222,10 @@ test('dashboard counts institutions with ROR identifiers for data resources', fu
         'identifier_scheme' => 'ROR',
     ]);
 
-    $this->get(route('dashboard'))
-        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->component('dashboard')
-            ->where('dataResourceCount', 1)
-            ->where('dataInstitutionCount', 1)
-        );
+    $this->getJson(route('dashboard.metrics'))
+        ->assertOk()
+        ->assertJsonPath('dataResourceCount', 1)
+        ->assertJsonPath('dataInstitutionCount', 1);
 });
 
 test('dashboard counts institutions with ROR identifiers for IGSNs', function () {
@@ -250,12 +250,10 @@ test('dashboard counts institutions with ROR identifiers for IGSNs', function ()
         'identifier_scheme' => 'ROR',
     ]);
 
-    $this->get(route('dashboard'))
-        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->component('dashboard')
-            ->where('igsnCount', 1)
-            ->where('igsnInstitutionCount', 1)
-        );
+    $this->getJson(route('dashboard.metrics'))
+        ->assertOk()
+        ->assertJsonPath('igsnCount', 1)
+        ->assertJsonPath('igsnInstitutionCount', 1);
 });
 
 test('dashboard only counts unique ROR identifiers per category', function () {
@@ -297,12 +295,10 @@ test('dashboard only counts unique ROR identifiers per category', function () {
         'identifier_scheme' => 'ROR',
     ]);
 
-    $this->get(route('dashboard'))
-        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->component('dashboard')
-            ->where('dataResourceCount', 2)
-            ->where('dataInstitutionCount', 1) // Only 1 unique institution despite 2 affiliations
-        );
+    $this->getJson(route('dashboard.metrics'))
+        ->assertOk()
+        ->assertJsonPath('dataResourceCount', 2)
+        ->assertJsonPath('dataInstitutionCount', 1); // Only 1 unique institution despite 2 affiliations
 });
 
 test('dashboard does not count affiliations without ROR identifier', function () {
@@ -328,12 +324,10 @@ test('dashboard does not count affiliations without ROR identifier', function ()
         'identifier_scheme' => null,
     ]);
 
-    $this->get(route('dashboard'))
-        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->component('dashboard')
-            ->where('dataResourceCount', 1)
-            ->where('dataInstitutionCount', 0) // No ROR = not counted
-        );
+    $this->getJson(route('dashboard.metrics'))
+        ->assertOk()
+        ->assertJsonPath('dataResourceCount', 1)
+        ->assertJsonPath('dataInstitutionCount', 0); // No ROR = not counted
 });
 
 test('dashboard treats all resources as non-IGSN when physical object type is missing', function () {
@@ -362,16 +356,13 @@ test('dashboard treats all resources as non-IGSN when physical object type is mi
         'identifier_scheme' => 'ROR',
     ]);
 
-    $this->get(route('dashboard'))
-        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
-            ->component('dashboard')
-            ->where('dataResourceCount', 1)
-            ->where('igsnCount', 0)
-            ->where('dataInstitutionCount', 1)
-            ->where('igsnInstitutionCount', 0)
-            ->where('draftCount', 1)
-            ->has('recentResources', 0)
-        );
+    $this->getJson(route('dashboard.metrics'))
+        ->assertOk()
+        ->assertJsonPath('dataResourceCount', 1)
+        ->assertJsonPath('igsnCount', 0)
+        ->assertJsonPath('dataInstitutionCount', 1)
+        ->assertJsonPath('igsnInstitutionCount', 0)
+        ->assertJsonPath('draftCount', 1);
 });
 
 test('dashboard shows resources last updated by the authenticated user', function () {
@@ -510,6 +501,51 @@ test('dashboard recent resources are sorted by update time and limited to five',
         );
 });
 
+test('dashboard recent resources use the displayed activity timestamp instead of DataCite metadata dates', function () {
+    $user = User::factory()->create();
+    $updatedType = DateType::query()->create([
+        'name' => 'Updated',
+        'slug' => 'Updated',
+        'is_active' => true,
+    ]);
+    $recentEdit = createDashboardResource([
+        'updated_by_user_id' => $user->id,
+        'updated_at' => now(),
+    ], 'Recently edited resource');
+    $olderEdit = createDashboardResource([
+        'updated_by_user_id' => $user->id,
+        'updated_at' => now()->subDay(),
+    ], 'Older edit with a later metadata date');
+
+    ResourceDate::query()->create([
+        'resource_id' => $recentEdit->id,
+        'date_type_id' => $updatedType->id,
+        'date_value' => '2000-01-01',
+    ]);
+    ResourceDate::query()->create([
+        'resource_id' => $olderEdit->id,
+        'date_type_id' => $updatedType->id,
+        'date_value' => '2099-12-31',
+    ]);
+    $recentActivityAt = now()->subHour();
+    $olderActivityAt = now()->subDays(2);
+    DB::table('resources')->where('id', $recentEdit->id)->update(['updated_at' => $recentActivityAt]);
+    DB::table('resources')->where('id', $olderEdit->id)->update(['updated_at' => $olderActivityAt]);
+    $recentEdit->refresh();
+    $olderEdit->refresh();
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('recentResources', 2)
+            ->where('recentResources.0.id', $recentEdit->id)
+            ->where('recentResources.0.updated_at', $recentEdit->updated_at?->toISOString())
+            ->where('recentResources.1.id', $olderEdit->id)
+            ->where('recentResources.1.updated_at', $olderEdit->updated_at?->toISOString())
+        );
+});
+
 test('dashboard provides PHP version from system', function () {
     $this->actingAs(User::factory()->create());
 
@@ -532,19 +568,54 @@ test('dashboard provides Laravel version from application', function () {
         );
 });
 
-test('dashboard provides all statistics and version information together', function () {
+test('dashboard keeps aggregate statistics out of the initial response', function () {
     $this->actingAs(User::factory()->create());
 
     $this->get(route('dashboard'))
         ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
             ->component('dashboard')
-            ->has('dataResourceCount')
-            ->has('igsnCount')
-            ->has('dataInstitutionCount')
-            ->has('igsnInstitutionCount')
+            ->missing('dataResourceCount')
+            ->missing('igsnCount')
+            ->missing('dataInstitutionCount')
+            ->missing('igsnInstitutionCount')
+            ->missing('draftCount')
             ->has('phpVersion')
             ->has('laravelVersion')
             ->where('phpVersion', PHP_VERSION)
             ->where('laravelVersion', app()->version())
         );
+});
+
+test('dashboard initial response executes no global metric counts', function () {
+    $user = User::factory()->create();
+    createDashboardResource(['updated_by_user_id' => $user->id], 'Recent resource');
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    $queries = [];
+    DB::listen(function ($query) use (&$queries): void {
+        $queries[] = mb_strtolower($query->sql);
+    });
+
+    $this->actingAs($user)->get(route('dashboard'))->assertOk();
+
+    expect(array_filter(
+        $queries,
+        static fn (string $sql): bool => preg_match('/\bcount\s*\(/', $sql) === 1
+            && (str_contains($sql, 'resource_listing_projections') || str_contains($sql, 'affiliations')),
+    ))->toBeEmpty();
+});
+
+test('dashboard metric cache is invalidated after a projected resource change', function () {
+    $this->actingAs(User::factory()->create());
+    $datasetType = ResourceType::factory()->create(['name' => 'Dataset', 'slug' => 'dataset']);
+    Resource::factory()->create(['resource_type_id' => $datasetType->id]);
+
+    $this->getJson(route('dashboard.metrics'))
+        ->assertOk()
+        ->assertJsonPath('dataResourceCount', 1);
+
+    Resource::factory()->create(['resource_type_id' => $datasetType->id]);
+
+    $this->getJson(route('dashboard.metrics'))
+        ->assertOk()
+        ->assertJsonPath('dataResourceCount', 2);
 });

@@ -281,6 +281,32 @@ entity "resources" as resources {
     updated_at : TIMESTAMP
 }
 
+entity "resource_listing_projections" as resource_listing_projections {
+    * **resource_id** : BIGINT <<PK, FK>>
+    --
+    * is_igsn : BOOLEAN = false
+    * workflow_status : VARCHAR(16)
+    * workflow_status_rank : TINYINT //indexed sort//
+    * is_dashboard_draft : BOOLEAN
+    resource_type_id : BIGINT <<nullable>> //indexed//
+    resource_type_slug : VARCHAR <<nullable>>
+    * resource_type_sort : VARCHAR //indexed sort//
+    datacenter_id : BIGINT <<nullable>> //indexed//
+    curator_user_id : BIGINT <<nullable>> //indexed//
+    * curator_name : VARCHAR //indexed sort//
+    publication_year : SMALLINT <<nullable>> //indexed//
+    * sort_year : SMALLINT //indexed sort//
+    * sort_doi : VARCHAR //indexed sort//
+    * main_title : VARCHAR(1000)
+    * main_title_sort : VARCHAR(512) //indexed prefix//
+    * first_creator_sort : VARCHAR //indexed sort//
+    * created_sort : VARCHAR(40) //indexed//
+    * updated_sort : VARCHAR(40) //indexed//
+    * search_text : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 ' ==========================================================================
 ' RESOURCE RELATIONSHIP TABLES
 ' ==========================================================================
@@ -1204,6 +1230,7 @@ datacite_url_update_runs ||--o{ datacite_url_update_items
 resources |o--o{ datacite_url_update_items
 
 ' Resource core relationships
+resources ||--o| resource_listing_projections
 resources ||--o{ titles
 resources ||--o{ resource_creators
 resources ||--o{ resource_contributors

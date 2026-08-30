@@ -18,7 +18,7 @@ trait ResolvesResourceListing
     /**
      * Sort keys recognised by the resource listing query builder.
      *
-     * Note: 'publicstatus' is a computed virtual field that falls back to id sorting.
+     * Every key maps to a deterministic projection field plus a resource-id tie-breaker.
      */
     public const ALLOWED_SORT_KEYS = [
         'id',
@@ -77,7 +77,8 @@ trait ResolvesResourceListing
     protected function listingRules(): array
     {
         return [
-            'page' => ['nullable', 'integer', 'min:1'],
+            'page' => ['prohibited'],
+            'cursor' => ['nullable', 'string', 'max:8192'],
             'per_page' => ['nullable', 'integer', 'min:'.self::MIN_PER_PAGE, 'max:'.self::MAX_PER_PAGE],
             'sort_key' => ['nullable', 'string', Rule::in(self::ALLOWED_SORT_KEYS)],
             'sort_direction' => ['nullable', 'string', Rule::in(self::ALLOWED_SORT_DIRECTIONS)],
@@ -108,7 +109,7 @@ trait ResolvesResourceListing
      * Return validated, typed listing criteria.
      *
      * @return array{
-     *     page:int,
+     *     cursor:?string,
      *     perPage:int,
      *     sortKey:string,
      *     sortDirection:string,
@@ -117,8 +118,6 @@ trait ResolvesResourceListing
      */
     public function toCriteria(): array
     {
-        $page = max(1, (int) ($this->validated('page') ?? 1));
-
         $perPage = (int) ($this->validated('per_page') ?? self::DEFAULT_PER_PAGE);
         $perPage = max(self::MIN_PER_PAGE, min(self::MAX_PER_PAGE, $perPage));
 
@@ -133,7 +132,7 @@ trait ResolvesResourceListing
         }
 
         return [
-            'page' => $page,
+            'cursor' => $this->validated('cursor'),
             'perPage' => $perPage,
             'sortKey' => $sortKey,
             'sortDirection' => $sortDirection,

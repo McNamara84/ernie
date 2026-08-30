@@ -20,6 +20,7 @@ use App\Services\DataCiteUrlUpdateRunPresenter;
 use App\Services\Editor\EditorResourceSaveService;
 use App\Services\Resources\DeleteAllResourcesService;
 use App\Services\Resources\ResourceQueryBuilder;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -46,12 +47,11 @@ class ResourceController extends Controller
     public function index(IndexResourcesRequest $request): Response
     {
         $criteria = $request->toCriteria();
-        $resources = $this->queryBuilder->simplePaginate($criteria);
-        $total = $this->queryBuilder->count($criteria);
-        $lastPage = max(1, (int) ceil($total / $resources->perPage()));
+        $resources = $this->queryBuilder->cursorPaginate($criteria);
 
         /** @var array<int, Resource> $items */
         $items = $resources->items();
+        $itemCount = count($items);
         $resourcesData = ResourceListItemResource::collection(collect($items))
             ->resolve($request);
 
@@ -64,13 +64,15 @@ class ResourceController extends Controller
         return Inertia::render('resources', [
             'resources' => $resourcesData,
             'pagination' => [
-                'current_page' => $resources->currentPage(),
-                'last_page' => $lastPage,
                 'per_page' => $resources->perPage(),
-                'total' => $total,
-                'from' => $resources->firstItem(),
-                'to' => $resources->lastItem(),
+                'total' => null,
+                'from' => $itemCount === 0 ? null : 1,
+                'to' => $itemCount === 0 ? null : $itemCount,
                 'has_more' => $resources->hasMorePages(),
+                'next_cursor' => $this->queryBuilder->encodeCursor($resources->nextCursor(), $criteria),
+                'previous_cursor' => $this->queryBuilder->encodeCursor($resources->previousCursor(), $criteria),
+                'count_status' => 'pending',
+                'filter_fingerprint' => $this->queryBuilder->countFingerprint($criteria),
             ],
             'sort' => [
                 'key' => $criteria['sortKey'],
@@ -80,6 +82,29 @@ class ResourceController extends Controller
             'canImportFromDataCite' => $request->user()?->can('importFromDataCite', Resource::class) ?? false,
             'canUpdateDataCiteLandingPageUrls' => $canUpdateDataCiteLandingPageUrls,
             'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),
+        ]);
+    }
+
+    /** Resolve the exact filtered total independently from the list page. */
+    public function count(IndexResourcesRequest $request): JsonResponse
+    {
+        $criteria = $request->toCriteria();
+        $fingerprint = $this->queryBuilder->countFingerprint($criteria);
+
+        try {
+            $total = $this->queryBuilder->count($criteria);
+        } catch (LockTimeoutException) {
+            return response()->json([
+                'filter_fingerprint' => $fingerprint,
+                'total' => null,
+                'count_status' => 'failed',
+            ], 503);
+        }
+
+        return response()->json([
+            'filter_fingerprint' => $fingerprint,
+            'total' => $total,
+            'count_status' => 'ready',
         ]);
     }
 

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SIDEBAR_WORKSPACE_STORAGE_KEY } from '@/hooks/use-sidebar-workspace';
@@ -25,6 +25,11 @@ if (!window.localStorage) {
 }
 
 let mockUrl = '/dashboard';
+const axiosGetMock = vi.hoisted(() => vi.fn());
+
+vi.mock('axios', () => ({
+    default: { get: axiosGetMock },
+}));
 
 let mockUser = {
     id: 1,
@@ -141,8 +146,12 @@ const NavSectionMock = vi.hoisted(() =>
 const AppSidebarWorkspaceSwitcherMock = vi.hoisted(() =>
     vi.fn(({ value, onValueChange }: { value: 'curation' | 'administration'; onValueChange: (value: 'curation' | 'administration') => void }) => (
         <div data-testid="workspace-switcher" data-value={value}>
-            <button type="button" onClick={() => onValueChange('curation')}>Switch to Curation</button>
-            <button type="button" onClick={() => onValueChange('administration')}>Switch to Administration</button>
+            <button type="button" onClick={() => onValueChange('curation')}>
+                Switch to Curation
+            </button>
+            <button type="button" onClick={() => onValueChange('administration')}>
+                Switch to Administration
+            </button>
         </div>
     )),
 );
@@ -200,6 +209,7 @@ describe('AppSidebar', () => {
         mockUrl = '/dashboard';
         setMockUser();
         setMockSharedProps();
+        axiosGetMock.mockResolvedValue({ data: { dataResourceCount: 12, igsnCount: 5 } });
     });
 
     it('renders the curation workspace by default for admin users on curation pages', () => {
@@ -328,6 +338,27 @@ describe('AppSidebar', () => {
         expect(sectionCalls[1][0].items[1].showZeroBadge).toBe(true);
         expect(sectionCalls[2][0].items[0].badge).toBe(0);
         expect(sectionCalls[2][0].items[0].showZeroBadge).toBe(true);
+    });
+
+    it('loads resource inventory asynchronously when shared counts are absent', async () => {
+        setMockSharedProps({ dataResourceCount: undefined, igsnCount: undefined });
+        axiosGetMock.mockResolvedValueOnce({ data: { dataResourceCount: 27, igsnCount: 9 } });
+
+        render(<AppSidebar />);
+
+        expect(axiosGetMock).toHaveBeenCalledWith('/resource-inventory', { signal: expect.any(AbortSignal) });
+        await waitFor(() => {
+            const dataSection = NavSectionMock.mock.calls.filter((call) => call[0].label === 'Data Curation').at(-1);
+            const igsnSection = NavSectionMock.mock.calls.filter((call) => call[0].label === 'IGSN Curation').at(-1);
+            expect(dataSection?.[0].items[1].badge).toBe(27);
+            expect(igsnSection?.[0].items[0].badge).toBe(9);
+        });
+    });
+
+    it('does not request resource inventory when both shared counts are available', () => {
+        render(<AppSidebar />);
+
+        expect(axiosGetMock).not.toHaveBeenCalled();
     });
 
     it('shows Landing Pages inside the administration configuration section when permitted', () => {

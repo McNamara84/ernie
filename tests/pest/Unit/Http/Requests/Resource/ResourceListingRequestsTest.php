@@ -33,7 +33,7 @@ it('returns sane defaults for an empty query string', function (): void {
         ->getJson('/_test/index-resources')
         ->assertOk()
         ->assertJson([
-            'page' => 1,
+            'cursor' => null,
             'perPage' => 50,
             'sortKey' => 'updated_at',
             'sortDirection' => 'desc',
@@ -197,12 +197,35 @@ it('shares the same criteria contract for LoadMoreResourcesRequest', function ()
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->getJson('/_test/load-more-resources?page=3&per_page=25&sort_key=title&sort_direction=asc')
+        ->getJson('/_test/load-more-resources?cursor=opaque-cursor&per_page=25&sort_key=title&sort_direction=asc')
         ->assertOk()
         ->assertJson([
-            'page' => 3,
+            'cursor' => 'opaque-cursor',
             'perPage' => 25,
             'sortKey' => 'title',
             'sortDirection' => 'asc',
         ]);
+});
+
+it('rejects non-string and oversized cursors', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->getJson('/_test/load-more-resources?cursor[]=invalid')
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['cursor']);
+
+    $this->actingAs($user)
+        ->getJson('/_test/load-more-resources?cursor='.str_repeat('x', 8193))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['cursor']);
+});
+
+it('rejects offset page parameters instead of keeping a hidden fallback', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->getJson('/_test/load-more-resources?page=2')
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['page']);
 });

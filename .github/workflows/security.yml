@@ -48,6 +48,10 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
+      - name: Resolve system package refresh date
+        id: system-packages-refresh
+        run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
       - name: Build application image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
@@ -55,21 +59,19 @@ jobs:
           target: app
           load: true
           tags: ernie-security-scan:${{ github.sha }}
+          build-args: |
+            SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
           cache-from: type=gha,scope=security-app
           cache-to: type=gha,mode=max,scope=security-app
 
       - name: Export application image
         run: docker save -o ernie-security-scan.tar ernie-security-scan:${{ github.sha }}
 
-      - name: Resolve Trivy cache date
-        id: trivy-cache-date
-        run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
-
       - name: Cache Trivy databases
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .trivy-cache
-          key: ${{ runner.os }}-trivy-${{ steps.trivy-cache-date.outputs.date }}
+          key: ${{ runner.os }}-trivy-${{ steps.system-packages-refresh.outputs.date }}
           restore-keys: |
             ${{ runner.os }}-trivy-
 

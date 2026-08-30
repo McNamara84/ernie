@@ -250,6 +250,7 @@ class AssessmentController extends Controller
         }
 
         if ($scope === RunResourceAssessmentsJob::RESOURCE_SCOPE && ! $includeDraftReviewResources) {
+            $this->resourceQueryBuilder->joinListingProjection($query);
             $this->resourceQueryBuilder->applyFilters($query, [
                 'status' => ['curation', 'published'],
             ]);
@@ -333,11 +334,11 @@ class AssessmentController extends Controller
                 return $query->whereRaw('1 = 0');
             }
 
-            $query->where('resource_type_id', $physicalObjectTypeId);
+            $query->where('resources.resource_type_id', $physicalObjectTypeId);
         } elseif ($physicalObjectTypeId !== null) {
             $query->where(function (Builder $builder) use ($physicalObjectTypeId): void {
-                $builder->whereNull('resource_type_id')
-                    ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
+                $builder->whereNull('resources.resource_type_id')
+                    ->orWhere('resources.resource_type_id', '!=', $physicalObjectTypeId);
             });
         }
 

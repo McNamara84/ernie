@@ -4,21 +4,23 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CacheKey;
 use App\Http\Requests\Resource\LoadMoreResourcesRequest;
 use App\Http\Resources\FilterOptionsResource;
 use App\Http\Resources\ResourceListItemResource;
 use App\Models\Datacenter;
-use App\Models\Resource;
+use App\Models\ResourceListingProjection;
 use App\Models\ResourceType;
-use App\Models\User;
 use App\Services\Resources\ResourceQueryBuilder;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class ResourceFilterController extends Controller
 {
+    use ChecksCacheTagging;
+
     public function __construct(
         private readonly ResourceQueryBuilder $queryBuilder,
     ) {}
@@ -29,21 +31,23 @@ class ResourceFilterController extends Controller
     public function loadMore(LoadMoreResourcesRequest $request): JsonResponse
     {
         $criteria = $request->toCriteria();
-        $resources = $this->queryBuilder->simplePaginate($criteria);
+        $resources = $this->queryBuilder->cursorPaginate($criteria);
 
         /** @var array<int, Resource> $items */
         $items = $resources->items();
+        $itemCount = count($items);
         $resourcesData = ResourceListItemResource::collection(collect($items))
             ->resolve($request);
 
         return response()->json([
             'resources' => $resourcesData,
             'pagination' => [
-                'current_page' => $resources->currentPage(),
                 'per_page' => $resources->perPage(),
-                'from' => $resources->firstItem(),
-                'to' => $resources->lastItem(),
+                'from' => $itemCount === 0 ? null : 1,
+                'to' => $itemCount === 0 ? null : $itemCount,
                 'has_more' => $resources->hasMorePages(),
+                'next_cursor' => $this->queryBuilder->encodeCursor($resources->nextCursor(), $criteria),
+                'previous_cursor' => $this->queryBuilder->encodeCursor($resources->previousCursor(), $criteria),
             ],
             'sort' => [
                 'key' => $criteria['sortKey'],
@@ -60,18 +64,23 @@ class ResourceFilterController extends Controller
      */
     public function getFilterOptions(): JsonResponse
     {
-        return (new FilterOptionsResource([
-            'resource_types' => $this->loadResourceTypes(),
-            'datacenters' => $this->loadDatacenters(),
-            'curators' => $this->loadCurators(),
-            'year_range' => $this->loadYearRange(),
-            // Single source of truth: the same allow-list that
-            // ResolvesResourceListing uses for request validation, so the
-            // filter UI cannot drift away from accepted query values.
-            // Accessed via a consumer class because the constant lives on a
-            // trait (PHPStan rejects `Trait::CONST` access).
-            'statuses' => LoadMoreResourcesRequest::ALLOWED_STATUSES,
-        ]))->response();
+        $this->queryBuilder->flushPendingProjectionUpdates();
+
+        $options = $this->getCacheInstance(CacheKey::RESOURCE_FILTER_OPTIONS->tags())->remember(
+            CacheKey::RESOURCE_FILTER_OPTIONS->key(),
+            CacheKey::RESOURCE_FILTER_OPTIONS->ttl(),
+            fn (): array => [
+                'resource_types' => $this->loadResourceTypes(),
+                'datacenters' => $this->loadDatacenters(),
+                'curators' => $this->loadCurators(),
+                'year_range' => $this->loadYearRange(),
+                // Single source of truth: the same allow-list used for request
+                // validation, so the filter UI cannot drift from accepted values.
+                'statuses' => LoadMoreResourcesRequest::ALLOWED_STATUSES,
+            ],
+        );
+
+        return (new FilterOptionsResource($options))->response();
     }
 
     /**
@@ -83,11 +92,10 @@ class ResourceFilterController extends Controller
     {
         try {
             return Datacenter::query()
-                ->whereHas('resources', function ($resourceQuery): void {
-                    $resourceQuery->whereDoesntHave('resourceType', function ($typeQuery): void {
-                        $typeQuery->where('slug', 'physical-object');
-                    });
-                })
+                ->whereIn('id', ResourceListingProjection::query()
+                    ->where('is_igsn', false)
+                    ->whereNotNull('datacenter_id')
+                    ->select('datacenter_id'))
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn (Datacenter $datacenter): array => [
@@ -112,8 +120,10 @@ class ResourceFilterController extends Controller
     {
         try {
             return ResourceType::query()
-                ->where('slug', '!=', 'physical-object')
-                ->whereHas('resources')
+                ->whereIn('id', ResourceListingProjection::query()
+                    ->where('is_igsn', false)
+                    ->whereNotNull('resource_type_id')
+                    ->select('resource_type_id'))
                 ->orderBy('name')
                 ->get(['name', 'slug'])
                 ->map(fn ($type) => ['name' => $type->name, 'slug' => $type->slug])
@@ -137,48 +147,12 @@ class ResourceFilterController extends Controller
             // Mirror ResourceQueryBuilder::baseQuery() — exclude Physical Object
             // resources (IGSNs), which live on their own /igsns page and must not
             // leak into the /resources curator filter.
-            $resourceQuery = Resource::query()
-                ->whereDoesntHave('resourceType', function ($query): void {
-                    $query->where('slug', 'physical-object');
-                });
-            $hasUpdatedBy = Schema::hasColumn('resources', 'updated_by_user_id');
-            $hasCreatedBy = Schema::hasColumn('resources', 'created_by_user_id');
-
-            $updatedByIds = collect();
-            $createdByIdsWithoutUpdates = collect();
-
-            if ($hasUpdatedBy) {
-                $updatedByIds = (clone $resourceQuery)
-                    ->whereNotNull('updated_by_user_id')
-                    ->distinct()
-                    ->pluck('updated_by_user_id');
-            }
-
-            if ($hasCreatedBy) {
-                $createdByQuery = clone $resourceQuery;
-
-                if ($hasUpdatedBy) {
-                    $createdByQuery->whereNull('updated_by_user_id');
-                }
-
-                $createdByIdsWithoutUpdates = $createdByQuery
-                    ->whereNotNull('created_by_user_id')
-                    ->distinct()
-                    ->pluck('created_by_user_id');
-            }
-
-            $curatorIds = $updatedByIds->merge($createdByIdsWithoutUpdates)->unique()->values();
-
-            if ($curatorIds->isEmpty()) {
-                return [];
-            }
-
-            return User::query()
-                ->whereIn('id', $curatorIds->all())
-                ->orderBy('name')
-                ->pluck('name')
-                ->unique()
-                ->values()
+            return ResourceListingProjection::query()
+                ->where('is_igsn', false)
+                ->where('curator_name', '!=', '')
+                ->distinct()
+                ->orderBy('curator_name')
+                ->pluck('curator_name')
                 ->all();
         } catch (Throwable $e) {
             Log::warning('Failed to load curator filter options', [
@@ -199,18 +173,13 @@ class ResourceFilterController extends Controller
         $yearMax = null;
 
         try {
-            if (Schema::hasColumn('resources', 'publication_year')) {
-                // Mirror ResourceQueryBuilder::baseQuery() — exclude Physical Object
-                // resources (IGSNs) so the /resources year range filter cannot be
-                // skewed by IGSN publication years.
-                $yearQuery = Resource::query()
-                    ->whereDoesntHave('resourceType', function ($query): void {
-                        $query->where('slug', 'physical-object');
-                    });
+            // Mirror ResourceQueryBuilder::baseQuery() — exclude Physical Object
+            // resources (IGSNs) so the /resources year range filter cannot be
+            // skewed by IGSN publication years.
+            $yearQuery = ResourceListingProjection::query()->where('is_igsn', false);
 
-                $yearMin = (clone $yearQuery)->min('publication_year');
-                $yearMax = (clone $yearQuery)->max('publication_year');
-            }
+            $yearMin = (clone $yearQuery)->min('publication_year');
+            $yearMax = (clone $yearQuery)->max('publication_year');
         } catch (Throwable $e) {
             Log::warning('Failed to load year range filter options', [
                 'exception' => $e::class,

@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AccessLevel;
+use App\Enums\CacheKey;
 use App\Enums\ResourceWorkflowStatus;
 use App\Models\Datacenter;
 use App\Models\Description;
@@ -15,7 +16,9 @@ use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
@@ -598,6 +601,33 @@ describe('Curator Filter', function (): void {
                     'Charlie Creator', // From createdBy (fallback)
                 ],
             ]);
+    });
+
+    it('deduplicates curator filter options in the database', function (): void {
+        $curator = User::factory()->create(['name' => 'Shared Curator']);
+        Resource::factory()->count(2)->create([
+            'created_by_user_id' => $curator->id,
+            'updated_by_user_id' => null,
+        ]);
+        app(ResourceListingProjectionRefreshService::class)->flushPending();
+        CacheKey::RESOURCE_FILTER_OPTIONS->forget();
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = mb_strtolower($query->sql);
+        });
+
+        $curators = get(route('resources.filter-options'))
+            ->assertOk()
+            ->json('curators');
+        $distinctQuery = collect($queries)->first(
+            static fn (string $query): bool => str_contains($query, 'select distinct')
+                && str_contains($query, 'curator_name')
+                && str_contains($query, 'resource_listing_projections'),
+        );
+
+        expect($curators)->toBe(['Shared Curator'])
+            ->and($distinctQuery)->toBeString();
     });
 
     it('returns the actual publication_year range in filter options (Issue: PR #679 review)', function (): void {

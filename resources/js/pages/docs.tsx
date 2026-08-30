@@ -2353,6 +2353,27 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             resources. The bulk actions toolbar sits directly below the filter row and shows how many resources are selected.
                         </p>
 
+                        <h4>Large Lists and Resource Counts</h4>
+                        <p>
+                            Resource rows load in stable batches, so you can search, filter, sort, and continue through a large repository without
+                            waiting for ERNIE to count every matching record first. The exact total is calculated separately and does not block the
+                            current results.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Counting resources...</strong> means the visible rows are ready while the exact total is still being
+                                calculated.
+                            </li>
+                            <li>
+                                <strong>Count unavailable</strong> means only the total calculation failed; the loaded rows and active controls remain
+                                usable.
+                            </li>
+                            <li>
+                                Choose <strong>Retry</strong> beside the unavailable count to request it again without clearing the current search,
+                                filters, sorting, selection, or loaded results.
+                            </li>
+                        </ul>
+
                         <h4>Filtering by Datacenter</h4>
                         <p>
                             Use the <strong>Datacenter</strong> dropdown to show resources assigned to one datacenter. The dropdown lists only

@@ -7,6 +7,8 @@ use App\Http\Controllers\BatchIgsnRegistrationController;
 use App\Http\Controllers\BatchResourceExportController;
 use App\Http\Controllers\BatchResourceRegistrationController;
 use App\Http\Controllers\ContactMessageController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DashboardMetricsController;
 use App\Http\Controllers\DatabaseDumpController;
 use App\Http\Controllers\DatacenterController;
 use App\Http\Controllers\DataCiteImportController;
@@ -40,6 +42,7 @@ use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\ResourceDoiRegistrationController;
 use App\Http\Controllers\ResourceExportController;
 use App\Http\Controllers\ResourceFilterController;
+use App\Http\Controllers\ResourceInventoryController;
 use App\Http\Controllers\ResourceReviewLinkController;
 use App\Http\Controllers\Settings\PidSettingsController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
@@ -50,13 +53,8 @@ use App\Http\Controllers\UploadJsonController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VocabularyController;
-use App\Models\Affiliation;
 use App\Models\Resource;
-use App\Models\ResourceCreator;
 use App\Models\User;
-use App\Services\GuidedTours\GuidedTourAssignmentService;
-use App\Services\ResourceCacheService;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -409,6 +407,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('resources/load-more', [ResourceFilterController::class, 'loadMore'])
         ->name('resources.load-more');
 
+    Route::get('resources/count', [ResourceController::class, 'count'])
+        ->name('resources.count');
+
     Route::get('resources/{resource}/export-datacite-json', [ResourceExportController::class, 'exportDataCiteJson'])
         ->name('resources.export-datacite-json');
 
@@ -610,126 +611,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('igsns/{resource}', [IgsnController::class, 'destroy'])
         ->name('igsns.destroy');
 
-    Route::get('/dashboard', function (Request $request, GuidedTourAssignmentService $guidedTourAssignmentService) {
-        /** @var User $user */
-        $user = $request->user();
-
-        $guidedTour = $guidedTourAssignmentService->buildAutostartPayloadForRoute(
-            user: $user,
-            routeName: 'dashboard',
-            shouldAutostart: (bool) $request->session()->get('guided_tours.autostart_after_login', false),
-        );
-
-        $physicalObjectTypeId = app(ResourceCacheService::class)->getPhysicalObjectTypeId();
-
-        $applyNonIgsnResourceFilter = static function ($query) use ($physicalObjectTypeId): void {
-            if ($physicalObjectTypeId === null) {
-                return;
-            }
-
-            $query->where(function ($subQ) use ($physicalObjectTypeId) {
-                $subQ->whereNull('resource_type_id')
-                    ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
-            });
-        };
-
-        // Count unique institutions (ROR-identified) for Data Resources
-        $dataInstitutionCount = Affiliation::query()
-            ->whereNotNull('identifier')
-            ->where('identifier_scheme', 'ROR')
-            ->whereHasMorph('affiliatable', [ResourceCreator::class], function ($query) use ($applyNonIgsnResourceFilter) {
-                $query->whereHas('resource', function ($q) use ($applyNonIgsnResourceFilter) {
-                    $applyNonIgsnResourceFilter($q);
-                });
-            })
-            ->distinct('identifier')
-            ->count('identifier');
-
-        // Count unique institutions (ROR-identified) for IGSN Resources
-        $igsnInstitutionCount = $physicalObjectTypeId
-            ? Affiliation::query()
-                ->whereNotNull('identifier')
-                ->where('identifier_scheme', 'ROR')
-                ->whereHasMorph('affiliatable', [ResourceCreator::class], function ($query) use ($physicalObjectTypeId) {
-                    $query->whereHas('resource', function ($q) use ($physicalObjectTypeId) {
-                        $q->where('resource_type_id', $physicalObjectTypeId);
-                    });
-                })
-                ->distinct('identifier')
-                ->count('identifier')
-            : 0;
-
-        // Draft resources: incomplete non-IGSN resources (Issue #548)
-        // A resource is a draft if it lacks any of: Main Title, publication_year,
-        // resource_type_id, at least one creator, at least one license, or an abstract.
-        $draftQuery = Resource::query();
-
-        $applyNonIgsnResourceFilter($draftQuery);
-
-        $draftQuery->where(function ($q) {
-            $q->whereNull('publication_year')
-                ->orWhereNull('resource_type_id')
-                ->orWhereDoesntHave('creators')
-                ->orWhereDoesntHave('rights')
-                ->orWhere(function ($titleQ) {
-                    // No Main Title with non-empty trimmed value
-                    // (legacy: NULL title_type_id counts as MainTitle)
-                    $titleQ->whereDoesntHave('titles', function ($tq) {
-                        $tq->whereRaw("TRIM(value) != ''")
-                            ->where(function ($typeQ) {
-                                $typeQ->whereNull('title_type_id')
-                                    ->orWhereHas('titleType', fn ($tt) => $tt->where('slug', 'MainTitle'));
-                            });
-                    });
-                })
-                ->orWhereDoesntHave('descriptions', function ($dq) {
-                    $dq->whereRaw("TRIM(value) != ''")
-                        ->whereHas('descriptionType', fn ($dt) => $dt->where('slug', 'Abstract'));
-                });
-        });
-
-        $draftCount = $draftQuery->count();
-
-        $recentResourceQuery = Resource::query();
-
-        $applyNonIgsnResourceFilter($recentResourceQuery);
-
-        $recentResources = $recentResourceQuery
-            ->with([
-                'titles.titleType',
-                'creators',
-                'rights',
-                'descriptions.descriptionType',
-                'landingPage',
-            ])
-            ->where(function ($q) use ($user) {
-                $q->where('updated_by_user_id', $user->id)
-                    ->orWhere(function ($createdQ) use ($user) {
-                        $createdQ->whereNull('updated_by_user_id')
-                            ->where('created_by_user_id', $user->id);
-                    });
-            })
-            ->orderBy('updated_at', 'desc')
-            ->take(5)
-            ->get()
-            ->map(fn (Resource $r) => [
-                'id' => $r->id,
-                'title' => $r->mainTitle ?? 'Untitled Resource',
-                'updated_at' => $r->updated_at?->toISOString(),
-                'status' => $r->publicStatus(),
-            ])
-            ->all();
-
-        return Inertia::render('dashboard', [
-            'dataInstitutionCount' => $dataInstitutionCount,
-            'igsnInstitutionCount' => $igsnInstitutionCount,
-            'draftCount' => $draftCount,
-            'recentResources' => $recentResources,
-            'phpVersion' => PHP_VERSION,
-            'laravelVersion' => app()->version(),
-            'guidedTour' => $guidedTour,
-        ]);
-    })->name('dashboard');
+    Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/dashboard/metrics', DashboardMetricsController::class)->name('dashboard.metrics');
+    Route::get('/resource-inventory', ResourceInventoryController::class)->name('resource-inventory');
 
     Route::get('docs', [DocsController::class, 'show'])->name('docs');
 

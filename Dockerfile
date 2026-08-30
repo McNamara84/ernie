@@ -5,12 +5,14 @@ FROM php:8.5.9-fpm-trixie@sha256:3c8e184204a94c0e00ea8d58156b4181cd7e65a0b77c8bf
 WORKDIR /var/www/html
 
 ARG PHP_REDIS_VERSION=6.3.0
+ARG SYSTEM_PACKAGES_REFRESH=manual
 
 # Install system dependencies needed for the PHP runtime and extension builds.
 # LEGACY_DATABASE_DUMP_SUPPORT:
 # Required for the admin-only /database dump page while legacy MySQL 5.6/5.7 exports exist.
 # Remove this package when legacy database exports are retired.
-RUN apt-get update \
+RUN echo "System package refresh: ${SYSTEM_PACKAGES_REFRESH}" \
+    && apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y \
     libnghttp2-14 \

@@ -293,6 +293,7 @@ class Resource extends Model
     {
         /** @var BelongsToMany<Right, static> $relation */
         $relation = $this->belongsToMany(Right::class, 'resource_rights', 'resource_id', 'rights_id')
+            ->using(ResourceRightPivot::class)
             ->withPivot([
                 'rights_text',
                 'rights_uri',

@@ -1,10 +1,10 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
+import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import ResourcesPage, { mergeLoadMorePagination } from '@/pages/resources';
+import ResourcesPage, { appendUniqueResources, mergeLoadMorePagination, mergeLoadMoreState } from '@/pages/resources';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn(), reload: vi.fn(), visit: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
@@ -70,12 +70,21 @@ vi.mock('@/components/resources-filters', () => ({
     ResourcesFilters: ({
         filters,
         onFilterChange,
+        totalCount,
+        countStatus,
+        isLoading,
     }: {
         filters: { datacenter_id?: number; without_datacenter?: boolean; search?: string };
         onFilterChange: (filters: Record<string, unknown>) => void;
+        totalCount: number | null;
+        countStatus?: string;
+        isLoading: boolean;
     }) => (
         <div data-testid="resources-filters">
             <span data-testid="resource-filter-state">{JSON.stringify(filters)}</span>
+            <span data-testid="resource-total-count">{totalCount ?? 'pending'}</span>
+            <span data-testid="resource-count-status">{countStatus}</span>
+            <span data-testid="resource-loading-state">{String(isLoading)}</span>
             <button type="button" data-testid="select-datacenter" onClick={() => onFilterChange({ ...filters, datacenter_id: 7 })}>
                 Select datacenter
             </button>
@@ -124,6 +133,7 @@ describe('ResourcesPage', () => {
     let originalClipboardDescriptor: PropertyDescriptor | undefined;
     let openMock: ReturnType<typeof vi.fn>;
     let clipboardWriteTextMock: ReturnType<typeof vi.fn>;
+    let intersectionCallback: IntersectionObserverCallback | null;
 
     beforeEach(() => {
         authUserMock.can_send_review_links = true;
@@ -144,6 +154,7 @@ describe('ResourcesPage', () => {
         originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
         openMock = vi.fn().mockReturnValue({ closed: false });
         clipboardWriteTextMock = vi.fn().mockResolvedValue(undefined);
+        intersectionCallback = null;
         Object.defineProperty(window, 'open', {
             value: openMock,
             configurable: true,
@@ -155,7 +166,9 @@ describe('ResourcesPage', () => {
             writable: true,
         });
 
-        global.IntersectionObserver = vi.fn().mockImplementation(function () {
+        global.IntersectionObserver = vi.fn().mockImplementation(function (callback: IntersectionObserverCallback) {
+            intersectionCallback = callback;
+
             return {
                 observe: vi.fn(),
                 unobserve: vi.fn(),
@@ -168,35 +181,247 @@ describe('ResourcesPage', () => {
         }) as unknown as typeof IntersectionObserver;
     });
 
-    it('retains exact initial totals when merging a count-free load-more page', () => {
+    it('retains asynchronous count state while advancing a cursor', () => {
         expect(
             mergeLoadMorePagination(
                 {
-                    current_page: 1,
-                    last_page: 4,
                     per_page: 20,
                     total: 73,
                     from: 1,
                     to: 20,
                     has_more: true,
+                    next_cursor: 'first-cursor',
+                    previous_cursor: null,
+                    count_status: 'ready',
+                    filter_fingerprint: 'fingerprint',
                 },
                 {
-                    current_page: 2,
                     per_page: 20,
-                    from: 21,
-                    to: 40,
                     has_more: true,
+                    next_cursor: 'second-cursor',
                 },
+                20,
             ),
         ).toEqual({
-            current_page: 2,
-            last_page: 4,
             per_page: 20,
             total: 73,
-            from: 21,
+            from: 1,
             to: 40,
             has_more: true,
+            next_cursor: 'second-cursor',
+            previous_cursor: null,
+            count_status: 'ready',
+            filter_fingerprint: 'fingerprint',
         });
+    });
+
+    it('deduplicates resources when adjacent cursor slices overlap', () => {
+        const current = [{ id: 1 }, { id: 2 }] as Parameters<typeof appendUniqueResources>[0];
+        const incoming = [{ id: 2 }, { id: 3 }] as Parameters<typeof appendUniqueResources>[1];
+        const merged = appendUniqueResources(current, incoming);
+
+        expect(merged.map((resource) => resource.id)).toEqual([1, 2, 3]);
+        expect(
+            mergeLoadMorePagination(
+                { per_page: 2, total: 3, from: 1, to: 2, has_more: true },
+                { per_page: 2, has_more: false },
+                merged.length - current.length,
+            ).to,
+        ).toBe(3);
+    });
+
+    it('merges a load-more response into the latest listing state', () => {
+        const current = {
+            resources: [{ id: 1 }, { id: 3 }],
+            pagination: { per_page: 2, total: 3, from: 1, to: 2, has_more: true, next_cursor: 'newer-cursor' },
+        } as Parameters<typeof mergeLoadMoreState>[0];
+        const incoming = [{ id: 2 }, { id: 3 }] as Parameters<typeof mergeLoadMoreState>[1];
+
+        const merged = mergeLoadMoreState(current, incoming, {
+            per_page: 2,
+            has_more: false,
+            next_cursor: null,
+        });
+
+        expect(merged.resources.map((resource) => resource.id)).toEqual([1, 3, 2]);
+        expect(merged.pagination).toMatchObject({
+            total: 3,
+            to: 3,
+            has_more: false,
+            next_cursor: null,
+        });
+    });
+
+    it('does not overwrite newer resources when an in-flight load-more response resolves', async () => {
+        let resolveLoadMore: ((value: { data: { resources: unknown[]; pagination: Record<string, unknown> } }) => void) | undefined;
+        axiosGetMock.mockImplementation((url: string) => {
+            if (url === '/resources/filter-options') {
+                return Promise.resolve({ data: { datacenters: [] } });
+            }
+
+            if (url === '/resources/load-more') {
+                return new Promise((resolve) => {
+                    resolveLoadMore = resolve;
+                });
+            }
+
+            return Promise.resolve({ data: {} });
+        });
+
+        const firstResource = { id: 1, title: 'First resource', publicstatus: 'draft' } as never;
+        const newerResource = { id: 3, title: 'Newer resource', publicstatus: 'draft' } as never;
+        const sort = { key: 'id' as const, direction: 'asc' as const };
+        const filters = {};
+        const { rerender } = render(
+            <ResourcesPage
+                resources={[firstResource]}
+                pagination={{
+                    per_page: 2,
+                    total: 3,
+                    from: 1,
+                    to: 1,
+                    has_more: true,
+                    next_cursor: 'first-cursor',
+                    count_status: 'ready',
+                }}
+                sort={sort}
+                filters={filters}
+            />,
+        );
+
+        await waitFor(() => expect(intersectionCallback).not.toBeNull());
+        act(() => {
+            intersectionCallback?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+        });
+        await waitFor(() => expect(axiosGetMock).toHaveBeenCalledWith('/resources/load-more', expect.anything()));
+
+        rerender(
+            <ResourcesPage
+                resources={[firstResource, newerResource]}
+                pagination={{
+                    per_page: 2,
+                    total: 3,
+                    from: 1,
+                    to: 2,
+                    has_more: true,
+                    next_cursor: 'newer-cursor',
+                    count_status: 'ready',
+                }}
+                sort={sort}
+                filters={filters}
+            />,
+        );
+        await waitFor(() => expect(screen.getByTestId('resources-row-checkbox-3')).toBeInTheDocument());
+
+        await act(async () => {
+            resolveLoadMore?.({
+                data: {
+                    resources: [{ id: 2, title: 'Loaded resource', publicstatus: 'draft' }],
+                    pagination: { per_page: 2, has_more: false, next_cursor: null },
+                },
+            });
+        });
+
+        await waitFor(() => expect(screen.getByTestId('resources-row-checkbox-2')).toBeInTheDocument());
+        expect(screen.getByTestId('resources-row-checkbox-1')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-row-checkbox-3')).toBeInTheDocument();
+    });
+
+    it('loads the exact count asynchronously and accepts only the matching fingerprint', async () => {
+        axiosGetMock
+            .mockResolvedValueOnce({ data: { datacenters: [] } })
+            .mockResolvedValueOnce({ data: { filter_fingerprint: 'matching', total: 42, count_status: 'ready' } });
+
+        render(
+            <ResourcesPage
+                resources={[]}
+                pagination={{
+                    per_page: 50,
+                    total: null,
+                    from: null,
+                    to: null,
+                    has_more: false,
+                    next_cursor: null,
+                    previous_cursor: null,
+                    count_status: 'pending',
+                    filter_fingerprint: 'matching',
+                }}
+                sort={{ key: 'updated_at', direction: 'desc' }}
+                filters={{ search: 'climate' }}
+            />,
+        );
+
+        expect(screen.getByTestId('resource-total-count')).toHaveTextContent('pending');
+        await waitFor(() => expect(screen.getByTestId('resource-total-count')).toHaveTextContent('42'));
+        expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
+    });
+
+    it('ignores a stale asynchronous count response', async () => {
+        axiosGetMock
+            .mockResolvedValueOnce({ data: { datacenters: [] } })
+            .mockResolvedValueOnce({ data: { filter_fingerprint: 'stale', total: 999, count_status: 'ready' } });
+
+        render(
+            <ResourcesPage
+                resources={[]}
+                pagination={{
+                    per_page: 50,
+                    total: null,
+                    from: null,
+                    to: null,
+                    has_more: false,
+                    next_cursor: null,
+                    previous_cursor: null,
+                    count_status: 'pending',
+                    filter_fingerprint: 'current',
+                }}
+                sort={{ key: 'updated_at', direction: 'desc' }}
+                filters={{}}
+            />,
+        );
+
+        await waitFor(() => expect(axiosGetMock).toHaveBeenCalledTimes(2));
+        expect(screen.getByTestId('resource-total-count')).toHaveTextContent('pending');
+        expect(screen.getByTestId('resource-count-status')).toHaveTextContent('pending');
+    });
+
+    it('clears the loading state when a filter change aborts an in-flight cursor request', async () => {
+        axiosGetMock.mockImplementation((url: string, config?: { signal?: AbortSignal }) => {
+            if (url !== '/resources/load-more') {
+                return Promise.resolve({ data: { datacenters: [] } });
+            }
+
+            return new Promise((_resolve, reject) => {
+                config?.signal?.addEventListener('abort', () => reject({ isAxiosError: true, code: 'ERR_CANCELED' }), { once: true });
+            });
+        });
+
+        render(
+            <ResourcesPage
+                resources={[{ id: 1, title: 'First resource', publicstatus: 'draft' } as never]}
+                pagination={{
+                    per_page: 50,
+                    total: 2,
+                    from: 1,
+                    to: 1,
+                    has_more: true,
+                    next_cursor: 'next-cursor',
+                    count_status: 'ready',
+                }}
+                sort={{ key: 'updated_at', direction: 'desc' }}
+                filters={{}}
+            />,
+        );
+
+        await waitFor(() => expect(intersectionCallback).not.toBeNull());
+        act(() => {
+            intersectionCallback?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+        });
+
+        await waitFor(() => expect(screen.getByTestId('resource-loading-state')).toHaveTextContent('true'));
+        fireEvent.click(screen.getByTestId('select-datacenter'));
+
+        await waitFor(() => expect(screen.getByTestId('resource-loading-state')).toHaveTextContent('false'));
     });
 
     afterEach(() => {

@@ -157,7 +157,7 @@ describe('Resources API Endpoints', function () {
 
         foreach ($sortKeys as $sortKey) {
             actingAs($this->user)
-                ->get("/resources/load-more?page=1&sort_key={$sortKey}&sort_direction=asc")
+                ->get("/resources/load-more?sort_key={$sortKey}&sort_direction=asc")
                 ->assertOk();
         }
     });
