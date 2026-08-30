@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { act, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type IgsnRegistrationRun,IgsnRegistrationRunModal } from '@/components/igsns/igsn-registration-run-modal';
+import { type IgsnRegistrationRun, IgsnRegistrationRunModal } from '@/components/igsns/igsn-registration-run-modal';
 
 const { mockGet, mockPost, mockToastSuccess } = vi.hoisted(() => ({
     mockGet: vi.fn(),
@@ -251,5 +251,28 @@ describe('IgsnRegistrationRunModal', () => {
         expect(await screen.findByText('Registration status is temporarily unavailable.')).toBeInTheDocument();
         await user.click(screen.getAllByRole('button', { name: 'Close' })[0]);
         expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it('clears a transient polling error after the next successful refresh', async () => {
+        vi.useFakeTimers();
+        const requestError = Object.assign(new Error('Request failed'), {
+            isAxiosError: true,
+            response: { data: { message: 'Registration status is temporarily unavailable.' } },
+        });
+        mockGet.mockRejectedValueOnce(requestError).mockResolvedValue({ data: { run: baseRun } });
+
+        render(<IgsnRegistrationRunModal open onOpenChange={vi.fn()} initialRun={baseRun} />);
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(screen.getByText('Registration status is temporarily unavailable.')).toBeInTheDocument();
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+
+        expect(screen.queryByText('Registration status is temporarily unavailable.')).not.toBeInTheDocument();
+        expect(screen.queryByText('The registration needs attention')).not.toBeInTheDocument();
     });
 });

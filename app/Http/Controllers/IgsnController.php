@@ -25,6 +25,7 @@ use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteUrlUpdateRunPresenter;
+use App\Services\IgsnRegistrationExclusionService;
 use App\Services\IgsnRegistrationRunPresenterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\ListingCountService;
@@ -50,6 +51,7 @@ class IgsnController extends Controller
         private readonly DataCiteUrlUpdateRunPresenter $dataCiteUrlUpdateRunPresenter,
         private readonly ListingCountService $listingCountService,
         private readonly IgsnRegistrationRunPresenterService $igsnRegistrationRunPresenter,
+        private readonly IgsnRegistrationExclusionService $igsnRegistrationExclusion,
     ) {}
 
     private const DEFAULT_SORT_KEY = 'updated_at';
@@ -425,6 +427,37 @@ class IgsnController extends Controller
         }
 
         // Verify this is an IGSN resource
+        $metadata = $resource->igsnMetadata;
+        if ($metadata === null) {
+            abort(404, 'IGSN not found.');
+        }
+
+        $registrationLock = $this->igsnRegistrationExclusion->resourceLock($resource->id);
+        if (! $registrationLock->get()) {
+            return response()->json([
+                'error' => 'Registration in progress',
+                'message' => 'This IGSN is currently being registered. Please try again shortly.',
+            ], 409);
+        }
+
+        try {
+            if ($this->igsnRegistrationExclusion->hasActiveRun($resource->id)) {
+                return response()->json([
+                    'error' => 'Registration already queued',
+                    'message' => 'This IGSN is already part of an active batch registration.',
+                ], 409);
+            }
+
+            $resource->refresh();
+
+            return $this->performDataCiteRegistration($resource);
+        } finally {
+            $registrationLock->release();
+        }
+    }
+
+    private function performDataCiteRegistration(Resource $resource): JsonResponse
+    {
         $metadata = $resource->igsnMetadata;
         if ($metadata === null) {
             abort(404, 'IGSN not found.');

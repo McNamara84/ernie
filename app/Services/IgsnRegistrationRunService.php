@@ -12,6 +12,7 @@ use App\Models\IgsnRegistrationRun;
 use App\Models\Resource;
 use App\Models\User;
 use App\Support\IgsnBulkOperation;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ final class IgsnRegistrationRunService
     public function __construct(
         private readonly DataCiteModeResolverService $modeResolver,
         private readonly DataCiteQueueService $queueConnection,
+        private readonly IgsnRegistrationExclusionService $exclusion,
     ) {}
 
     /** @param list<int> $ids */
@@ -38,7 +40,11 @@ final class IgsnRegistrationRunService
             ]);
         }
 
+        /** @var list<Lock> $resourceLocks */
+        $resourceLocks = [];
+
         try {
+            $resourceLocks = $this->acquireResourceLocks($ids);
             $resources = $this->loadResources($ids);
             $this->validateResources($ids, $resources);
             $this->ensureNoActiveOverlap($ids);
@@ -104,6 +110,9 @@ final class IgsnRegistrationRunService
 
             return $run->refresh();
         } finally {
+            foreach (array_reverse($resourceLocks) as $resourceLock) {
+                $resourceLock->release();
+            }
             $lock->release();
         }
     }
@@ -286,6 +295,37 @@ final class IgsnRegistrationRunService
                 ]);
             }
         }
+    }
+
+    /**
+     * Reserve every selected resource until its active run and items have been
+     * committed. This closes the race with synchronous single registration.
+     *
+     * @param  list<int>  $ids
+     * @return list<Lock>
+     */
+    private function acquireResourceLocks(array $ids): array
+    {
+        $resourceIds = array_values(array_unique($ids));
+        sort($resourceIds);
+        $locks = [];
+
+        foreach ($resourceIds as $resourceId) {
+            $lock = $this->exclusion->resourceLock($resourceId);
+            if (! $lock->get()) {
+                foreach (array_reverse($locks) as $acquiredLock) {
+                    $acquiredLock->release();
+                }
+
+                throw ValidationException::withMessages([
+                    'ids' => ['Some selected IGSNs are currently being registered. Please try again shortly.'],
+                ]);
+            }
+
+            $locks[] = $lock;
+        }
+
+        return $locks;
     }
 
     private function dispatch(IgsnRegistrationRun $run): void

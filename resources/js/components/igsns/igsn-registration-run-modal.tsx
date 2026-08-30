@@ -144,6 +144,8 @@ export function IgsnRegistrationRunModal({ open, onOpenChange, initialRun, onRun
             if (terminalStatuses.has(response.data.run.status) || response.data.run.status === 'paused') {
                 await loadIssues(runId, 1);
             }
+
+            setError(null);
         },
         [acceptRun, loadIssues],
     );

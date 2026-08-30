@@ -1142,6 +1142,46 @@ entity "datacite_url_update_items" as datacite_url_update_items {
     updated_at : TIMESTAMP
 }
 
+entity "igsn_registration_runs" as igsn_registration_runs {
+    * **id** : UUID <<PK>>
+    --
+    initiated_by_user_id : BIGINT <<FK>> <<nullable>>
+    last_controlled_by_user_id : BIGINT <<FK>> <<nullable>>
+    * status : VARCHAR(30)
+    * test_mode : BOOLEAN
+    * datacite_endpoint : VARCHAR(500)
+    * total : INT UNSIGNED
+    * processed : INT UNSIGNED
+    * registered : INT UNSIGNED
+    * updated : INT UNSIGNED
+    * failed : INT UNSIGNED
+    * cancelled : INT UNSIGNED
+    pause_reason : TEXT <<nullable>>
+    last_error : TEXT <<nullable>>
+    started_at : TIMESTAMP <<nullable>>
+    paused_at : TIMESTAMP <<nullable>>
+    cancelled_at : TIMESTAMP <<nullable>>
+    completed_at : TIMESTAMP <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "igsn_registration_items" as igsn_registration_items {
+    * **id** : BIGINT <<PK>>
+    --
+    * run_id : UUID <<FK>>
+    resource_id : BIGINT <<FK>> <<nullable>>
+    * identifier : VARCHAR(255)
+    * status : VARCHAR(30)
+    operation : VARCHAR(20) <<nullable>>
+    * attempts : SMALLINT UNSIGNED
+    last_http_status : SMALLINT UNSIGNED <<nullable>>
+    error_message : TEXT <<nullable>>
+    processed_at : TIMESTAMP <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 ' ==========================================================================
 ' OAI-PMH TABLES (Harvesting Protocol)
 ' ==========================================================================
@@ -1228,6 +1268,12 @@ users |o--o{ datacite_url_update_runs : "initiated_by_user_id"
 users |o--o{ datacite_url_update_runs : "last_controlled_by_user_id"
 datacite_url_update_runs ||--o{ datacite_url_update_items
 resources |o--o{ datacite_url_update_items
+
+' IGSN registration relationships
+users |o--o{ igsn_registration_runs : "initiated_by_user_id"
+users |o--o{ igsn_registration_runs : "last_controlled_by_user_id"
+igsn_registration_runs ||--o{ igsn_registration_items
+resources |o--o{ igsn_registration_items
 
 ' Resource core relationships
 resources ||--o| resource_listing_projections

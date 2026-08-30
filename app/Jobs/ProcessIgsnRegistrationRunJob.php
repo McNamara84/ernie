@@ -12,6 +12,7 @@ use App\Models\IgsnRegistrationRun;
 use App\Models\Resource;
 use App\Services\DataCiteModeResolverService;
 use App\Services\DataCiteRegistrationFactoryService;
+use App\Services\IgsnRegistrationExclusionService;
 use App\Services\IgsnRegistrationRunService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -44,8 +45,12 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
         DataCiteRegistrationFactoryService $registrations,
         DataCiteModeResolverService $modeResolver,
         IgsnRegistrationRunService $runs,
+        IgsnRegistrationExclusionService $exclusion,
     ): void {
-        $lock = Cache::lock("igsn:registration:run:{$this->runId}", 85);
+        $lock = Cache::lock(
+            "igsn:registration:run:{$this->runId}",
+            IgsnRegistrationExclusionService::LOCK_TTL_SECONDS,
+        );
         if (! $lock->get()) {
             $this->scheduleNext(2);
 
@@ -94,16 +99,27 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
                 return;
             }
 
-            $item->update([
-                'status' => IgsnRegistrationItemStatus::PROCESSING,
-                'attempts' => $item->attempts + 1,
-                'error_message' => null,
-                'last_http_status' => null,
-                'processed_at' => null,
-            ]);
+            $resourceLock = $item->resource_id === null ? null : $exclusion->resourceLock($item->resource_id);
+            if ($resourceLock !== null && ! $resourceLock->get()) {
+                $this->scheduleNext(2);
 
-            $this->processItem($run, $item, $registrations);
-            $this->advance($run);
+                return;
+            }
+
+            try {
+                $item->update([
+                    'status' => IgsnRegistrationItemStatus::PROCESSING,
+                    'attempts' => $item->attempts + 1,
+                    'error_message' => null,
+                    'last_http_status' => null,
+                    'processed_at' => null,
+                ]);
+
+                $this->processItem($run, $item, $registrations);
+                $this->advance($run);
+            } finally {
+                $resourceLock?->release();
+            }
         } finally {
             $lock->release();
         }

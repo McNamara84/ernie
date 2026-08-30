@@ -82,6 +82,7 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
       - PORTAL_MAP_ENABLED=${PORTAL_MAP_ENABLED:-true}
       - PORTAL_MAP_MAX_FEATURES=${PORTAL_MAP_MAX_FEATURES:-1000}
       - PORTAL_MAP_CLUSTER_RADIUS=${PORTAL_MAP_CLUSTER_RADIUS:-60}
@@ -283,6 +284,7 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
       - GFZ_IGSN_PORTAL_PROXY_URL=${GFZ_IGSN_PORTAL_PROXY_URL:-https://dataservices.gfz-potsdam.de/igsn/portal/proxy/proxy.php}
       - GFZ_IGSN_PORTAL_CONNECT_TIMEOUT=${GFZ_IGSN_PORTAL_CONNECT_TIMEOUT:-5}
       - GFZ_IGSN_PORTAL_TIMEOUT=${GFZ_IGSN_PORTAL_TIMEOUT:-30}
@@ -301,7 +303,7 @@ services:
       - FUJI_USE_GITHUB=${FUJI_USE_GITHUB:-false}
       - FUJI_TEST_DEBUG=${FUJI_TEST_DEBUG:-false}
       - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
-    command: php artisan queue:work --queue=datacite,vocabularies,database-dumps,default,imports --sleep=3 --tries=3
+    command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,database-dumps,default,imports --sleep=3 --tries=3
 
 networks:
   ernie-dev-network:

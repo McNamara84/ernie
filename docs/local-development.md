@@ -275,7 +275,7 @@ There is no separate post-import sync flag: `DATACITE_TEST_MODE` is the only swi
 
 The IGSN list can queue up to 1000 selected samples for DataCite registration or metadata updates. Keep `DATACITE_TEST_MODE=true`, configure valid DataCite Test credentials, and use only disposable identifiers when testing this workflow locally. The start request returns `202 Accepted`; it never performs the DataCite writes in the web request.
 
-Each run and its ordered items are stored in `igsn_registration_runs` and `igsn_registration_items`. One short-lived job processes one item and dispatches the next job on the queue configured by `DATACITE_QUEUE`, which defaults to `datacite`. Both the app and queue services must use a persistent queue connection such as `database`; `sync` and `null` are deliberately rejected. The worker command in every Docker environment must consume `datacite`.
+Each run and its ordered items are stored in `igsn_registration_runs` and `igsn_registration_items`. One short-lived job processes one item and dispatches the next job on the queue configured by `DATACITE_QUEUE`, which defaults to `datacite`. Both the app and queue services must use a persistent queue connection such as `database`; `sync` and `null` are deliberately rejected. Every Docker environment forwards `DATACITE_QUEUE` to both services, and its worker consumes the configured queue.
 
 The effective DataCite test/production mode and endpoint are snapshotted when a run starts. Credentials are never stored with the run and are read from the current server configuration by each job. A changed mode or endpoint pauses the run before another write. Beginner runs remain on DataCite Test even when a worker executes without a signed-in browser user.
 

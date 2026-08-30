@@ -9,6 +9,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteRegistrationService;
+use App\Services\IgsnRegistrationExclusionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -259,6 +260,44 @@ describe('IgsnController@registerAtDataCite', function () {
             ->assertJson([
                 'error' => 'Landing page required',
             ]);
+    });
+
+    test('rejects single registration while the IGSN is queued in an active batch run', function () {
+        $resource = createIgsnWithMetadata();
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        Http::fake();
+
+        $this->actingAs($this->user)
+            ->postJson('/igsns/batch-register', ['ids' => [$resource->id]])
+            ->assertAccepted();
+
+        $this->actingAs($this->user)
+            ->postJson("/igsns/{$resource->id}/register")
+            ->assertConflict()
+            ->assertJsonPath('error', 'Registration already queued');
+
+        expect($resource->fresh()->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_UPLOADED);
+        Http::assertNothingSent();
+    });
+
+    test('rejects single registration while the shared resource lock is held', function () {
+        $resource = createIgsnWithMetadata();
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+        Http::fake();
+        $lock = app(IgsnRegistrationExclusionService::class)->resourceLock($resource->id);
+        expect($lock->get())->toBeTrue();
+
+        try {
+            $this->actingAs($this->user)
+                ->postJson("/igsns/{$resource->id}/register")
+                ->assertConflict()
+                ->assertJsonPath('error', 'Registration in progress');
+        } finally {
+            $lock->release();
+        }
+
+        expect($resource->fresh()->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_UPLOADED);
+        Http::assertNothingSent();
     });
 
     test('updates metadata for already-registered IGSN', function () {

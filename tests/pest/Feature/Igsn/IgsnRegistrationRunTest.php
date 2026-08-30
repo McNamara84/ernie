@@ -13,6 +13,7 @@ use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteModeResolverService;
 use App\Services\DataCiteRegistrationFactoryService;
+use App\Services\IgsnRegistrationExclusionService;
 use App\Services\IgsnRegistrationRunService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -124,6 +125,7 @@ function runQueuedIgsnRegistrationStep(string $runId): void
         app(DataCiteRegistrationFactoryService::class),
         app(DataCiteModeResolverService::class),
         app(IgsnRegistrationRunService::class),
+        app(IgsnRegistrationExclusionService::class),
     );
 }
 
@@ -257,6 +259,24 @@ test('active runs cannot overlap on the same IGSN', function (): void {
     expect(IgsnRegistrationRun::query()->count())->toBe(1);
 });
 
+test('batch registration does not queue a resource while its single-registration lock is held', function (): void {
+    $resource = createQueuedIgsn();
+    $lock = app(IgsnRegistrationExclusionService::class)->resourceLock($resource->id);
+    expect($lock->get())->toBeTrue();
+
+    try {
+        $this->actingAs($this->curator)
+            ->postJson('/igsns/batch-register', ['ids' => [$resource->id]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('ids');
+    } finally {
+        $lock->release();
+    }
+
+    expect(IgsnRegistrationRun::query()->count())->toBe(0);
+    Queue::assertNothingPushed();
+});
+
 test('IGSN list exposes the current users persistent registration run', function (): void {
     $resource = createQueuedIgsn();
     $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
@@ -342,6 +362,29 @@ test('job registers one item per invocation and completes the run', function ():
         ->and($run->failed)->toBe(0);
     expect($second->fresh()->publication_year)->toBe((int) date('Y'));
     Http::assertSentCount(2);
+});
+
+test('job locks out concurrent resource registration and defers an untouched item', function (): void {
+    $resource = createQueuedIgsn();
+    $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
+    Queue::fake();
+    Http::fake();
+    $lock = app(IgsnRegistrationExclusionService::class)->resourceLock($resource->id);
+    expect($lock->get())->toBeTrue();
+
+    try {
+        runQueuedIgsnRegistrationStep($run->id);
+    } finally {
+        $lock->release();
+    }
+
+    $item = $run->items()->firstOrFail()->refresh();
+    expect($run->fresh()->processed)->toBe(0)
+        ->and($item->status)->toBe(IgsnRegistrationItemStatus::PENDING)
+        ->and($item->attempts)->toBe(0)
+        ->and(IgsnRegistrationExclusionService::LOCK_TTL_SECONDS)->toBeGreaterThan((new ProcessIgsnRegistrationRunJob($run->id))->timeout);
+    Queue::assertPushedOn('datacite', ProcessIgsnRegistrationRunJob::class);
+    Http::assertNothingSent();
 });
 
 test('job updates registered metadata without changing publication year', function (): void {
