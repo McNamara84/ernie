@@ -76,6 +76,8 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
+    private const PLAYWRIGHT_E2E_HEADER = 'X-ERNIE-Playwright-Test';
+
     /**
      * Register any application services.
      */
@@ -235,7 +237,7 @@ class AppServiceProvider extends ServiceProvider
 
     private function publicDiscoveryLimit(Request $request, string $surface, string $publicLimitKey, int $defaultAttempts): Limit|Unlimited
     {
-        if (! (bool) config('bot_protection.enabled', true)) {
+        if (! (bool) config('bot_protection.enabled', true) || $this->isLocalPlaywrightRequest($request)) {
             return Limit::none();
         }
 
@@ -245,6 +247,12 @@ class AppServiceProvider extends ServiceProvider
             : (int) config("bot_protection.limits.{$publicLimitKey}", $defaultAttempts);
 
         return Limit::perMinute(max(1, $limit))->by($classifier->rateLimitKey($request, $surface));
+    }
+
+    private function isLocalPlaywrightRequest(Request $request): bool
+    {
+        return in_array(config('app.env'), ['local', 'testing'], true)
+            && $request->header(self::PLAYWRIGHT_E2E_HEADER) === '1';
     }
 
     /**

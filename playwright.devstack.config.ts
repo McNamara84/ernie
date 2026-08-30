@@ -31,6 +31,9 @@ export default defineConfig({
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'https://ernie.localhost:3333',
     ignoreHTTPSErrors: true,
+    extraHTTPHeaders: {
+      'X-ERNIE-Playwright-Test': '1',
+    },
 
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
