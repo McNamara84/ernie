@@ -2365,8 +2365,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 calculated.
                             </li>
                             <li>
-                                <strong>Count unavailable</strong> means only the total calculation failed; the loaded rows and active controls
-                                remain usable.
+                                <strong>Count unavailable</strong> means only the total calculation failed; the loaded rows and active controls remain
+                                usable.
                             </li>
                             <li>
                                 Choose <strong>Retry</strong> beside the unavailable count to request it again without clearing the current search,
