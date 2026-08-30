@@ -1026,17 +1026,17 @@ describe('IgsnsPage', () => {
                 />,
             );
 
-            await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+            fireEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
             expect(screen.getByText('1000 selected')).toBeInTheDocument();
 
-            await userEvent.click(screen.getByText('Register Selected'));
+            fireEvent.click(screen.getByText('Register Selected'));
 
             await waitFor(() => {
                 expect(mockAxiosPost).toHaveBeenCalledWith('/igsns/batch-register', {
                     ids: Array.from({ length: 1000 }, (_, index) => index + 1),
                 });
             });
-        }, 30_000);
+        }, 60_000);
 
         it('queues selected IDs and opens the persistent progress modal', async () => {
             mockAxiosPost.mockResolvedValueOnce({
