@@ -10,6 +10,7 @@ import type { PortalPageProps } from '@/types/portal';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
+const isDesktopMock = vi.hoisted(() => vi.fn(() => true));
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -21,6 +22,10 @@ vi.mock('axios', () => ({
     isAxiosError: (error: unknown) => Boolean(error && typeof error === 'object' && 'isAxiosError' in error),
 }));
 
+vi.mock('@/hooks/use-media-query', () => ({
+    useMediaQuery: () => isDesktopMock(),
+}));
+
 vi.mock('@/layouts/portal-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div data-testid="portal-layout">{children}</div>,
 }));
@@ -29,6 +34,7 @@ const setSearchMock = vi.fn();
 const setTypeMock = vi.fn();
 const setKeywordsMock = vi.fn();
 const setFreeKeywordsMock = vi.fn();
+const setSearchAndKeywordsMock = vi.fn();
 const setThesaurusKeywordsMock = vi.fn();
 const clearFiltersMock = vi.fn();
 const setBoundsMock = vi.fn();
@@ -45,6 +51,7 @@ vi.mock('@/hooks/use-portal-filters', () => ({
         addKeyword: vi.fn(),
         removeKeyword: vi.fn(),
         setFreeKeywords: setFreeKeywordsMock,
+        setSearchAndKeywords: setSearchAndKeywordsMock,
         setThesaurusKeywords: setThesaurusKeywordsMock,
         setBounds: setBoundsMock,
         clearBounds: clearBoundsMock,
@@ -60,11 +67,10 @@ vi.mock('@/hooks/use-navigation-status', () => ({
 
 vi.mock('@/components/portal/PortalFilters', () => ({
     PortalFilters: ({
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        filters,
-        totalResults,
-        countStatus,
+        searchValue,
+        onSearchValueChange,
         onSearchChange,
+        onKeywordSelect,
         onKeywordsChange,
         onClearFilters,
         geoFilterEnabled,
@@ -74,10 +80,10 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         onTemporalFilterToggle,
         onTemporalChange,
     }: {
-        filters: PortalPageProps['filters'];
-        totalResults: number | null;
-        countStatus: PortalPageProps['pagination']['count_status'];
+        searchValue: string;
+        onSearchValueChange: (s: string) => void;
         onSearchChange: (s: string) => void;
+        onKeywordSelect?: (keyword: string) => void;
         onKeywordsChange?: (keywords: string[]) => void;
         onClearFilters: () => void;
         geoFilterEnabled?: boolean;
@@ -88,9 +94,9 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         onTemporalChange?: (temporal: { dateType: string; yearFrom: number; yearTo: number } | null) => void;
     }) => (
         <div data-testid="portal-filters">
-            <span data-testid="total-results">{totalResults}</span>
-            <span data-testid="count-status">{countStatus}</span>
-            <input data-testid="search-input" onChange={(e) => onSearchChange(e.target.value)} />
+            <input data-testid="search-input" value={searchValue} onChange={(e) => onSearchValueChange(e.target.value)} />
+            <button data-testid="submit-search" onClick={() => onSearchChange(searchValue)}>Search</button>
+            {onKeywordSelect && <button data-testid="keyword-select" onClick={() => onKeywordSelect('Seismology')}>Select Keyword</button>}
             {onKeywordsChange && (
                 <button data-testid="keyword-change" onClick={() => onKeywordsChange(['Updated Keyword'])}>
                     Keyword Change
@@ -170,16 +176,24 @@ vi.mock('@/components/portal/PortalResultList', () => ({
         pagination,
         onPageChange,
         isLoading,
+        onRetryCount,
     }: {
         resources: unknown[];
-        pagination: { current_page: number; last_page: number };
+        pagination: { current_page: number; last_page: number | null; total: number | null; count_status: string };
         onPageChange: (page: number) => void;
         isLoading?: boolean;
+        onRetryCount?: () => void;
     }) => (
         <div data-testid="portal-result-list">
             <span data-testid="result-count">{(resources as unknown[]).length}</span>
             <span data-testid="current-page">{pagination.current_page}</span>
             <span data-testid="result-loading">{String(isLoading ?? false)}</span>
+            <span data-testid="total-results">{pagination.total}</span>
+            <span data-testid="count-status">{pagination.count_status}</span>
+            {pagination.count_status === 'pending' && <span>Counting results...</span>}
+            {pagination.total !== null && <span>{pagination.total} results</span>}
+            {pagination.count_status === 'failed' && onRetryCount && <button onClick={onRetryCount}>Retry count</button>}
+            {isLoading && <span data-testid="portal-results-refreshing">Refreshing results...</span>}
             <button data-testid="next-page" onClick={() => onPageChange(pagination.current_page + 1)}>
                 Next
             </button>
@@ -256,7 +270,6 @@ const defaultProps: PortalPageProps = {
         bounds: null,
         temporal: null,
     },
-    keywordSuggestions: [],
     temporalRange: { Created: { min: 2000, max: 2024 } },
     resourceTypeFacets: [
         { slug: 'dataset', name: 'Dataset', count: 30 },
@@ -273,6 +286,7 @@ describe('Portal', () => {
         localStorage.clear();
         window.history.replaceState(null, '', '/search');
         useNavigationStatusMock.mockReturnValue({ isNavigating: false, statusText: 'Ready' });
+        isDesktopMock.mockReturnValue(true);
     });
 
     it('renders the portal layout', () => {
@@ -411,7 +425,7 @@ describe('Portal', () => {
 
         render(<Portal {...defaultProps} />);
 
-        expect(screen.getByTestId('portal-refresh-badge')).toHaveTextContent(/refreshing results/i);
+        expect(screen.getByTestId('portal-results-refreshing')).toHaveTextContent(/refreshing results/i);
         expect(screen.getAllByTestId('result-loading')[0]).toHaveTextContent('true');
     });
 
@@ -420,9 +434,10 @@ describe('Portal', () => {
         expect(screen.getAllByTestId('map-filter-query')[0]).toHaveTextContent('');
     });
 
-    it('passes total results to filters', () => {
+    it('shows total results only in the result list', () => {
         render(<Portal {...defaultProps} />);
         expect(screen.getByTestId('total-results')).toHaveTextContent('50');
+        expect(screen.getByTestId('portal-filters')).not.toHaveTextContent('50 results');
     });
 
     it('navigates to next page with correct params', async () => {
@@ -549,6 +564,30 @@ describe('Portal', () => {
 
         expect(setFreeKeywordsMock).toHaveBeenCalledWith(['Updated Keyword']);
         expect(setKeywordsMock).not.toHaveBeenCalled();
+    });
+
+    it('turns a suggestion into an exact keyword while clearing the text query atomically', async () => {
+        const user = userEvent.setup();
+        render(<Portal {...defaultProps} filters={{ ...defaultProps.filters, query: 'seis' }} />);
+
+        await user.click(screen.getByTestId('keyword-select'));
+
+        expect(setSearchAndKeywordsMock).toHaveBeenCalledWith('', ['Seismology'], false);
+    });
+
+    it('uses a filter drawer and mutually exclusive results/map views below 1280px', async () => {
+        const user = userEvent.setup();
+        isDesktopMock.mockReturnValue(false);
+        render(<Portal {...defaultProps} />);
+
+        expect(screen.queryByTestId('resizable-group')).not.toBeInTheDocument();
+        expect(screen.getByTestId('portal-result-list')).toBeInTheDocument();
+        expect(screen.queryByTestId('portal-map')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /map/i }));
+
+        expect(screen.getByTestId('portal-map')).toBeInTheDocument();
+        expect(screen.queryByTestId('portal-result-list')).not.toBeInTheDocument();
     });
 
     it('persists map collapsed state to localStorage', async () => {

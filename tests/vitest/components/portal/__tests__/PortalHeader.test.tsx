@@ -25,6 +25,7 @@ describe('PortalHeader', () => {
             const heading = screen.getByRole('heading', { level: 1 });
             expect(heading).toBeInTheDocument();
             expect(heading).toHaveTextContent('GFZ Data Services Portal');
+            expect(heading).toHaveClass('sr-only', 'md:not-sr-only');
         });
 
         it('renders GFZ logo', () => {

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
 
 import { PortalResultCard } from '@/components/portal/PortalResultCard';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ interface PortalResultListProps {
     isLoading?: boolean;
     hasActiveFilters?: boolean;
     onClearFilters?: () => void;
+    onRetryCount?: () => void;
 }
 
 /**
@@ -27,69 +28,82 @@ export function PortalResultList({
     isLoading = false,
     hasActiveFilters = false,
     onClearFilters,
+    onRetryCount,
 }: PortalResultListProps) {
-    if (isLoading && resources.length === 0) {
-        return (
-            <div className="flex-1 space-y-3 p-4" data-testid="portal-results-loading">
-                <div className="flex items-center justify-between rounded-xl border bg-background/80 px-4 py-3">
-                    <div className="space-y-2">
-                        <Skeleton className="h-4 w-28" />
-                        <Skeleton className="h-4 w-48" />
-                    </div>
-                    <Badge variant="secondary">Refreshing results...</Badge>
-                </div>
-                {Array.from({ length: 8 }).map((_, i) => (
-                    <Skeleton key={i} className="h-28 w-full rounded-xl" />
-                ))}
-            </div>
-        );
-    }
-
-    if (resources.length === 0) {
-        return (
-            <div className="flex flex-1 items-center justify-center p-8">
-                <EmptyState
-                    icon={<Search className="h-8 w-8" />}
-                    title="No results found"
-                    description={
-                        hasActiveFilters
-                            ? 'Try clearing one or more filters to widen the result set.'
-                            : "Try adjusting your search or filters to find what you're looking for."
-                    }
-                    action={
-                        hasActiveFilters && onClearFilters
-                            ? {
-                                  label: 'Clear filters',
-                                  onClick: onClearFilters,
-                              }
-                            : undefined
-                    }
-                />
-            </div>
-        );
-    }
-
     const { current_page, last_page, from, to, total, has_more, count_status } = pagination;
-    const showPagination = current_page > 1 || has_more || (last_page !== null && last_page > 1);
-
-    return (
-        <div className="flex flex-1 flex-col" data-testid="portal-results-list" aria-busy={isLoading}>
-            {/* Results Header */}
-            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-                <p className="text-sm text-muted-foreground" aria-live="polite">
-                    Showing {from}-{to}{' '}
-                    {total === null
-                        ? count_status === 'failed'
-                            ? 'results (count unavailable)'
-                            : 'results (counting total...)'
-                        : `of ${total.toLocaleString()} results`}
-                </p>
+    const resultsHeader = (
+        <div className="flex min-h-12 items-center justify-between gap-3 border-b px-4 py-2">
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+                {total === 0
+                    ? '0 results'
+                    : `Showing ${from}-${to}${
+                          total === null
+                              ? count_status === 'failed'
+                                  ? ' results'
+                                  : ' results (counting total...)'
+                              : ` of ${total.toLocaleString()} results`
+                      }`}
+            </p>
+            <div className="flex items-center gap-2">
+                {count_status === 'failed' && onRetryCount && (
+                    <Button variant="ghost" size="sm" onClick={onRetryCount}>
+                        <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry count
+                    </Button>
+                )}
                 {isLoading && (
                     <Badge variant="secondary" data-testid="portal-results-refreshing">
                         Refreshing results...
                     </Badge>
                 )}
             </div>
+        </div>
+    );
+
+    if (isLoading && resources.length === 0) {
+        return (
+            <div className="flex min-h-0 flex-1 flex-col" data-testid="portal-results-loading">
+                {resultsHeader}
+                <div className="flex-1 space-y-3 p-4">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                        <Skeleton key={i} className="h-28 w-full rounded-xl" />
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    if (resources.length === 0) {
+        return (
+            <div className="flex min-h-0 flex-1 flex-col">
+                {resultsHeader}
+                <div className="flex flex-1 items-center justify-center p-8">
+                    <EmptyState
+                        icon={<Search className="h-8 w-8" />}
+                        title="No results found"
+                        description={
+                            hasActiveFilters
+                                ? 'Try clearing one or more filters to widen the result set.'
+                                : "Try adjusting your search or filters to find what you're looking for."
+                        }
+                        action={
+                            hasActiveFilters && onClearFilters
+                                ? {
+                                      label: 'Clear filters',
+                                      onClick: onClearFilters,
+                                  }
+                                : undefined
+                        }
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    const showPagination = current_page > 1 || has_more || (last_page !== null && last_page > 1);
+
+    return (
+        <div className="flex flex-1 flex-col" data-testid="portal-results-list" aria-busy={isLoading}>
+            {resultsHeader}
 
             {/* Results List */}
             <ScrollArea className="flex-1">

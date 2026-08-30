@@ -43,9 +43,10 @@ describe('PortalLayout', () => {
             expect(screen.getByText('GFZ Data Services Portal')).toBeInTheDocument();
         });
 
-        it('renders footer', () => {
+        it('uses a viewport-bound workspace without the global footer', () => {
             render(<PortalLayout><div /></PortalLayout>);
-            expect(screen.getByTestId('app-footer')).toBeInTheDocument();
+            expect(screen.queryByTestId('app-footer')).not.toBeInTheDocument();
+            expect(screen.getByTestId('portal-header').parentElement?.parentElement).toHaveClass('h-dvh', 'overflow-hidden');
         });
     });
 

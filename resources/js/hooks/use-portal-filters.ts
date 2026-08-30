@@ -18,6 +18,7 @@ interface UsePortalFiltersReturn {
     addKeyword: (keyword: string) => void;
     removeKeyword: (keyword: string) => void;
     setFreeKeywords: (keywords: string[]) => void;
+    setSearchAndKeywords: (query: string, keywords: string[], useLegacyKeywords?: boolean) => void;
     setThesaurusKeywords: (nodeIds: string[]) => void;
     setBounds: (bounds: GeoBounds | null) => void;
     clearBounds: () => void;
@@ -96,6 +97,13 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         [updateFilters],
     );
 
+    const setSearchAndKeywords = useCallback(
+        (query: string, keywords: string[], useLegacyKeywords = false) => {
+            updateFilters(useLegacyKeywords ? { query, keywords } : { query, freeKeywords: keywords }, true);
+        },
+        [updateFilters],
+    );
+
     const setThesaurusKeywords = useCallback(
         (thesaurusKeywords: string[]) => {
             updateFilters({ thesaurusKeywords }, true);
@@ -148,6 +156,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         addKeyword,
         removeKeyword,
         setFreeKeywords,
+        setSearchAndKeywords,
         setThesaurusKeywords,
         setBounds,
         clearBounds,

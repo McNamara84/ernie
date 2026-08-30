@@ -42,6 +42,7 @@ beforeEach(function () {
 it('publishes the portal endpoints under the search path tree', function () {
     expect(route('portal', absolute: false))->toBe('/search')
         ->and(route('portal.count', absolute: false))->toBe('/search/count')
+        ->and(route('portal.free-keyword-suggestions', absolute: false))->toBe('/search/free-keyword-suggestions')
         ->and(route('portal.map', absolute: false))->toBe('/search/map')
         ->and(route('portal.search-analytics', absolute: false))->toBe('/search/search-analytics');
 

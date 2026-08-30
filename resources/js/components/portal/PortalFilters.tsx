@@ -1,23 +1,21 @@
-import axios from 'axios';
-import { ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { Calendar, ChevronLeft, ChevronRight, Database, Filter, Globe, Network, Shapes, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { PortalDatacenterFilter } from '@/components/portal/PortalDatacenterFilter';
 import { PortalGeoFilter } from '@/components/portal/PortalGeoFilter';
-import { PortalKeywordFilter } from '@/components/portal/PortalKeywordFilter';
 import { PortalResourceTypeFilter } from '@/components/portal/PortalResourceTypeFilter';
+import { PortalSearchInput } from '@/components/portal/PortalSearchInput';
 import { PortalTemporalFilter } from '@/components/portal/PortalTemporalFilter';
 import { PortalThesaurusFilter } from '@/components/portal/PortalThesaurusFilter';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type {
     DatacenterFacet,
     GeoBounds,
-    KeywordSuggestion,
-    PortalFilters,
+    PortalFilters as PortalFilterValues,
     PortalThesaurusFacet,
     ResourceTypeFacet,
     TemporalFilterValue,
@@ -25,8 +23,11 @@ import type {
 } from '@/types/portal';
 
 interface PortalFiltersProps {
-    filters: PortalFilters;
+    filters: PortalFilterValues;
+    searchValue: string;
+    onSearchValueChange: (query: string) => void;
     onSearchChange: (query: string) => void;
+    onKeywordSelect: (keyword: string) => void;
     onTypeChange: (type: string[]) => void;
     onDatacenterChange: (datacenter: string[]) => void;
     onKeywordsChange: (keywords: string[]) => void;
@@ -35,9 +36,8 @@ interface PortalFiltersProps {
     hasActiveFilters: boolean;
     isCollapsed: boolean;
     onToggleCollapse: () => void;
-    totalResults: number | null;
-    countStatus: 'pending' | 'ready' | 'failed';
-    keywordSuggestions: KeywordSuggestion[];
+    showCollapseButton?: boolean;
+    className?: string;
     thesaurusFacets?: PortalThesaurusFacet[];
     geoFilterEnabled: boolean;
     onGeoFilterToggle: (enabled: boolean) => void;
@@ -50,9 +50,22 @@ interface PortalFiltersProps {
     datacenterFacets: DatacenterFacet[];
 }
 
+type FilterSection = 'thesaurus' | 'temporal' | 'geographic' | 'resource-type' | 'datacenter';
+
+function CountBadge({ count }: { count: number }) {
+    return count > 0 ? (
+        <Badge variant="secondary" className="mr-2 ml-auto h-5 min-w-5 justify-center px-1 text-xs">
+            {count}
+        </Badge>
+    ) : null;
+}
+
 export function PortalFilters({
     filters,
+    searchValue,
+    onSearchValueChange,
     onSearchChange,
+    onKeywordSelect,
     onTypeChange,
     onDatacenterChange,
     onKeywordsChange,
@@ -61,9 +74,8 @@ export function PortalFilters({
     hasActiveFilters,
     isCollapsed,
     onToggleCollapse,
-    totalResults,
-    countStatus,
-    keywordSuggestions,
+    showCollapseButton = true,
+    className,
     thesaurusFacets = [],
     geoFilterEnabled,
     onGeoFilterToggle,
@@ -75,174 +87,178 @@ export function PortalFilters({
     resourceTypeFacets,
     datacenterFacets,
 }: PortalFiltersProps) {
-    const [searchInput, setSearchInput] = useState(filters.query ?? '');
     const selectedKeywordValues = (filters.freeKeywords?.length ?? 0) > 0 ? (filters.freeKeywords ?? []) : filters.keywords;
+    const activeSections = useMemo<FilterSection[]>(() => {
+        const active: FilterSection[] = [];
+        if ((filters.thesaurusKeywords?.length ?? 0) > 0) active.push('thesaurus');
+        if (temporalFilterEnabled) active.push('temporal');
+        if (geoFilterEnabled) active.push('geographic');
+        if (filters.type.length > 0 || filters.exclude_type) active.push('resource-type');
+        if (filters.datacenter.length > 0) active.push('datacenter');
+        return active;
+    }, [filters.datacenter.length, filters.exclude_type, filters.thesaurusKeywords, filters.type.length, geoFilterEnabled, temporalFilterEnabled]);
+    const [openSections, setOpenSections] = useState<FilterSection[]>(() => Array.from(new Set<FilterSection>(['thesaurus', ...activeSections])));
 
-    // Sync local state when filters change externally
     useEffect(() => {
-        setSearchInput(filters.query ?? '');
-    }, [filters.query]);
-
-    // Debounced search
-    const handleSearchSubmit = useCallback(
-        (e: React.FormEvent) => {
-            e.preventDefault();
-
-            if (searchInput.trim() !== '') {
-                void axios.post('/search/search-analytics', { search_term: searchInput }).catch(() => undefined);
-            }
-
-            onSearchChange(searchInput);
-        },
-        [searchInput, onSearchChange],
-    );
-
-    const handleClearSearch = useCallback(() => {
-        setSearchInput('');
-        onSearchChange('');
-    }, [onSearchChange]);
+        if (activeSections.length === 0) return;
+        setOpenSections((current) => Array.from(new Set([...current, ...activeSections])));
+    }, [activeSections]);
 
     if (isCollapsed) {
         return (
-            <div className="flex h-full flex-col items-center border-r bg-muted/30 py-4">
-                <Button variant="ghost" size="icon" onClick={onToggleCollapse} className="mb-4" aria-label="Expand filters">
+            <aside
+                className="flex h-full w-12 shrink-0 flex-col items-center border-r bg-muted/30 py-3"
+                aria-label="Filters"
+                data-testid="portal-filter-sidebar"
+            >
+                <Button variant="ghost" size="icon" onClick={onToggleCollapse} aria-label="Expand filters">
                     <ChevronRight className="h-4 w-4" />
                 </Button>
-                <div className="flex flex-col items-center gap-4">
-                    <Filter className="h-5 w-5 text-muted-foreground" />
-                    <Search className="h-5 w-5 text-muted-foreground" />
-                </div>
+                <Filter className="mt-4 h-5 w-5 text-muted-foreground" />
                 {hasActiveFilters && (
-                    <div role="status" aria-label="Filters active" className="mt-4 h-2 w-2 rounded-full bg-primary" title="Filters active" />
+                    <span role="status" aria-label="Filters active" className="mt-3 h-2 w-2 rounded-full bg-primary" title="Filters active" />
                 )}
-            </div>
+            </aside>
         );
     }
 
     return (
-        <div className="flex h-full w-80 flex-col border-r bg-muted/30">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b px-4 py-3">
+        <aside
+            className={cn('flex h-full w-72 shrink-0 flex-col overflow-hidden border-r bg-muted/30', className)}
+            aria-label="Filters"
+            data-testid="portal-filter-sidebar"
+        >
+            <div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
                 <div className="flex items-center gap-2">
                     <Filter className="h-4 w-4" />
                     <span className="font-semibold">Filters</span>
+                    {hasActiveFilters && <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />}
                 </div>
-                <Button variant="ghost" size="icon" onClick={onToggleCollapse} aria-label="Collapse filters">
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                    {hasActiveFilters && (
+                        <Button variant="ghost" size="sm" onClick={onClearFilters} className="h-8 px-2 text-xs" aria-label="Clear all filters">
+                            <X className="mr-1 h-3.5 w-3.5" /> Clear
+                        </Button>
+                    )}
+                    {showCollapseButton && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleCollapse} aria-label="Collapse filters">
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                    )}
+                </div>
             </div>
 
-            {/* Clear Filters */}
-            {hasActiveFilters && (
-                <div className="shrink-0 border-b px-4 py-3">
-                    <Button variant="outline" size="sm" onClick={onClearFilters} className="w-full">
-                        <X className="mr-2 h-4 w-4" />
-                        Clear All Filters
-                    </Button>
-                </div>
-            )}
+            <div className="relative z-20 shrink-0 border-b bg-background/95 p-3 backdrop-blur">
+                <PortalSearchInput
+                    value={searchValue}
+                    onValueChange={onSearchValueChange}
+                    onSubmit={onSearchChange}
+                    selectedKeywords={selectedKeywordValues}
+                    onKeywordSelect={onKeywordSelect}
+                    onKeywordsChange={onKeywordsChange}
+                />
+            </div>
 
-            <ScrollArea className="flex-1">
-                <div className="space-y-6 p-4">
-                    {/* Search Input */}
-                    <div className="space-y-2">
-                        <Label htmlFor="portal-search" className="text-sm font-medium">
-                            Search
-                        </Label>
-                        <form onSubmit={handleSearchSubmit} className="flex gap-2">
-                            <div className="relative flex-1">
-                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    id="portal-search"
-                                    type="text"
-                                    placeholder="Search datasets..."
-                                    value={searchInput}
-                                    onChange={(e) => setSearchInput(e.target.value)}
-                                    className="pr-8 pl-9"
-                                />
-                                {searchInput && (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={handleClearSearch}
-                                        className="absolute top-1/2 right-2 h-6 w-6 -translate-y-1/2"
-                                        aria-label="Clear search"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </Button>
-                                )}
-                            </div>
-                            <Button type="submit" size="sm">
-                                Search
-                            </Button>
-                        </form>
-                        <p className="text-xs text-muted-foreground">Search in titles, authors, DOIs, descriptions, and keywords</p>
-                    </div>
+            <ScrollArea className="min-h-0 flex-1">
+                <Accordion
+                    type="multiple"
+                    value={openSections}
+                    onValueChange={(values) => setOpenSections(values as FilterSection[])}
+                    className="px-3"
+                >
+                    <AccordionItem value="thesaurus">
+                        <AccordionTrigger className="items-center py-3 hover:no-underline">
+                            <span className="flex min-w-0 items-center gap-2">
+                                <Network className="h-4 w-4" />
+                                Thesaurus Keywords
+                            </span>
+                            <CountBadge count={filters.thesaurusKeywords?.length ?? 0} />
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <PortalThesaurusFilter
+                                hideTitle
+                                facets={thesaurusFacets}
+                                selectedNodeIds={filters.thesaurusKeywords ?? []}
+                                onSelectionChange={onThesaurusKeywordsChange}
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
 
-                    {/* Keyword Filter */}
-                    <PortalKeywordFilter
-                        suggestions={keywordSuggestions}
-                        selectedKeywords={selectedKeywordValues}
-                        onKeywordsChange={onKeywordsChange}
-                    />
+                    <AccordionItem value="temporal">
+                        <AccordionTrigger className="items-center py-3 hover:no-underline">
+                            <span className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                Time
+                            </span>
+                            <CountBadge count={temporalFilterEnabled ? 1 : 0} />
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <PortalTemporalFilter
+                                hideTitle
+                                enabled={temporalFilterEnabled}
+                                onToggle={onTemporalFilterToggle}
+                                temporalRange={temporalRange}
+                                temporal={filters.temporal}
+                                onTemporalChange={onTemporalChange}
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
 
-                    <PortalThesaurusFilter
-                        facets={thesaurusFacets}
-                        selectedNodeIds={filters.thesaurusKeywords ?? []}
-                        onSelectionChange={onThesaurusKeywordsChange}
-                    />
+                    <AccordionItem value="geographic">
+                        <AccordionTrigger className="items-center py-3 hover:no-underline">
+                            <span className="flex items-center gap-2">
+                                <Globe className="h-4 w-4" />
+                                Location
+                            </span>
+                            <CountBadge count={geoFilterEnabled ? 1 : 0} />
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <PortalGeoFilter
+                                hideTitle
+                                enabled={geoFilterEnabled}
+                                onToggle={onGeoFilterToggle}
+                                bounds={filters.bounds}
+                                onBoundsChange={onBoundsChange}
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
 
-                    {/* Temporal Filter */}
-                    <PortalTemporalFilter
-                        enabled={temporalFilterEnabled}
-                        onToggle={onTemporalFilterToggle}
-                        temporalRange={temporalRange}
-                        temporal={filters.temporal}
-                        onTemporalChange={onTemporalChange}
-                    />
+                    <AccordionItem value="resource-type">
+                        <AccordionTrigger className="items-center py-3 hover:no-underline">
+                            <span className="flex items-center gap-2">
+                                <Shapes className="h-4 w-4" />
+                                Resource Type
+                            </span>
+                            <CountBadge count={filters.type.length > 0 ? filters.type.length : filters.exclude_type ? 1 : 0} />
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <PortalResourceTypeFilter
+                                facets={resourceTypeFacets}
+                                selectedSlugs={filters.type}
+                                excludeType={filters.exclude_type}
+                                onSelectionChange={onTypeChange}
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
 
-                    {/* Geographic Filter */}
-                    <PortalGeoFilter
-                        enabled={geoFilterEnabled}
-                        onToggle={onGeoFilterToggle}
-                        bounds={filters.bounds}
-                        onBoundsChange={onBoundsChange}
-                    />
-
-                    {/* Type Filter */}
-                    <div className="space-y-3">
-                        <Label className="text-sm font-medium">Resource Type</Label>
-                        <PortalResourceTypeFilter
-                            facets={resourceTypeFacets}
-                            selectedSlugs={filters.type}
-                            excludeType={filters.exclude_type}
-                            onSelectionChange={onTypeChange}
-                        />
-                    </div>
-
-                    {/* Datacenter Filter */}
-                    <div className="space-y-3">
-                        <Label className="text-sm font-medium">Datacenter</Label>
-                        <PortalDatacenterFilter
-                            facets={datacenterFacets}
-                            selectedNames={filters.datacenter ?? []}
-                            onSelectionChange={onDatacenterChange}
-                        />
-                    </div>
-                </div>
+                    <AccordionItem value="datacenter">
+                        <AccordionTrigger className="items-center py-3 hover:no-underline">
+                            <span className="flex items-center gap-2">
+                                <Database className="h-4 w-4" />
+                                Datacenter
+                            </span>
+                            <CountBadge count={filters.datacenter.length} />
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <PortalDatacenterFilter
+                                facets={datacenterFacets}
+                                selectedNames={filters.datacenter}
+                                onSelectionChange={onDatacenterChange}
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
             </ScrollArea>
-
-            {/* Footer with result count */}
-            <div className="border-t px-4 py-3">
-                <p className={cn('text-sm', hasActiveFilters ? 'font-medium text-primary' : 'text-muted-foreground')} aria-live="polite">
-                    {totalResults !== null
-                        ? `${totalResults.toLocaleString()} ${totalResults === 1 ? 'result' : 'results'}`
-                        : countStatus === 'failed'
-                          ? 'Count unavailable'
-                          : 'Counting results...'}
-                </p>
-            </div>
-        </div>
+        </aside>
     );
 }

@@ -71,6 +71,48 @@ class KeywordSuggestionService
     }
 
     /**
+     * Search the cached free-keyword index without running a grouping query for
+     * every autocomplete request.
+     *
+     * Prefix matches are returned before substring matches. Within each group,
+     * commonly used keywords rank first and labels provide a stable tie-breaker.
+     *
+     * @return array<int, array{value: string, scheme: null, count: int}>
+     */
+    public function searchFreeKeywordSuggestions(string $query, int $limit = 20): array
+    {
+        $query = trim($query);
+        if (mb_strlen($query) < 2) {
+            return [];
+        }
+
+        $normalizedQuery = mb_strtolower($query);
+        $boundedLimit = max(1, min(20, $limit));
+        $matches = array_values(array_filter(
+            $this->getFreeKeywordSuggestions(),
+            static fn (array $suggestion): bool => mb_stripos($suggestion['value'], $normalizedQuery) !== false,
+        ));
+
+        usort($matches, static function (array $left, array $right) use ($normalizedQuery): int {
+            $leftStartsWith = str_starts_with(mb_strtolower($left['value']), $normalizedQuery);
+            $rightStartsWith = str_starts_with(mb_strtolower($right['value']), $normalizedQuery);
+
+            if ($leftStartsWith !== $rightStartsWith) {
+                return $leftStartsWith ? -1 : 1;
+            }
+
+            $countComparison = $right['count'] <=> $left['count'];
+            if ($countComparison !== 0) {
+                return $countComparison;
+            }
+
+            return strnatcasecmp($left['value'], $right['value']);
+        });
+
+        return array_slice($matches, 0, $boundedLimit);
+    }
+
+    /**
      * Get pruned thesaurus trees containing only terms used by published resources.
      *
      * @return array<int, array{scheme: string, roots: array<int, array<string, mixed>>}>

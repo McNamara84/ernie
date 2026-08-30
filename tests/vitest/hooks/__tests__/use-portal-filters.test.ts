@@ -841,6 +841,35 @@ describe('usePortalFilters', () => {
         });
     });
 
+    describe('setSearchAndKeywords', () => {
+        it('atomically clears text and applies an exact free keyword', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: { ...defaultFilters, query: 'seis' }, currentPage: 2 }),
+            );
+
+            act(() => result.current.setSearchAndKeywords('', ['Seismology']));
+
+            expect(routerMock.get).toHaveBeenCalledOnce();
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('free_keywords%5B%5D=Seismology');
+            expect(calledUrl).not.toContain('q=');
+            expect(calledUrl).not.toContain('page=');
+        });
+
+        it('preserves legacy keyword URLs when explicitly requested', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: { ...defaultFilters, query: 'seis', keywords: ['Existing'] }, currentPage: 1 }),
+            );
+
+            act(() => result.current.setSearchAndKeywords('', ['Existing', 'Seismology'], true));
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('keywords%5B%5D=Existing');
+            expect(calledUrl).toContain('keywords%5B%5D=Seismology');
+            expect(calledUrl).not.toContain('free_keywords');
+        });
+    });
+
     describe('setThesaurusKeywords', () => {
         it('navigates with thesaurus_keywords[] URL params', () => {
             const { result } = renderHook(() =>

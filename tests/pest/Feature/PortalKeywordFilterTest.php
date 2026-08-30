@@ -140,7 +140,7 @@ function createPublishedResourceWithKeywords(
 }
 
 describe('Portal Keyword Filter', function () {
-    it('returns keyword suggestions with the portal page', function () {
+    it('loads matching free keyword suggestions from the dedicated endpoint', function () {
         createPublishedResourceWithKeywords(
             $this->datasetType,
             'Seismic Analysis',
@@ -150,13 +150,10 @@ describe('Portal Keyword Filter', function () {
             ],
         );
 
-        $this->get(route('portal'))
+        $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'seis']))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->has('keywordSuggestions')
-                ->has('keywordSuggestions', 1)
-                ->where('keywordSuggestions.0.value', 'Seismology')
-            );
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.value', 'Seismology');
     });
 
     it('returns thesaurus facets with the portal page', function () {
@@ -519,12 +516,10 @@ describe('Portal Keyword Suggestions', function () {
             'value' => 'DraftKeyword',
         ]);
 
-        $this->get(route('portal'))
+        $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'Keyword']))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->has('keywordSuggestions', 1)
-                ->where('keywordSuggestions.0.value', 'PublishedKeyword')
-            );
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.value', 'PublishedKeyword');
     });
 
     it('includes empty-string subject schemes in free keyword suggestions', function () {
@@ -534,12 +529,10 @@ describe('Portal Keyword Suggestions', function () {
             [['value' => 'ImportedFreeKeyword', 'subject_scheme' => '']],
         );
 
-        $this->get(route('portal'))
+        $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'Imported']))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->has('keywordSuggestions', 1)
-                ->where('keywordSuggestions.0.value', 'ImportedFreeKeyword')
-            );
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.value', 'ImportedFreeKeyword');
     });
 
     it('returns deduplicated keywords with usage count', function () {
@@ -556,13 +549,11 @@ describe('Portal Keyword Suggestions', function () {
             [['value' => 'Seismology']],
         );
 
-        $this->get(route('portal'))
+        $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'seis']))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->has('keywordSuggestions', 1)
-                ->where('keywordSuggestions.0.value', 'Seismology')
-                ->where('keywordSuggestions.0.count', 2)
-            );
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.value', 'Seismology')
+            ->assertJsonPath('data.0.count', 2);
     });
 
     it('includes subject scheme in suggestions', function () {
@@ -576,11 +567,10 @@ describe('Portal Keyword Suggestions', function () {
             ],
         );
 
-        $this->get(route('portal'))
+        $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'Keyword']))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->has('keywordSuggestions', 1)
-                ->where('keywordSuggestions.0.value', 'FreeKeyword')
-            );
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.value', 'FreeKeyword')
+            ->assertJsonPath('data.0.scheme', null);
     });
 });

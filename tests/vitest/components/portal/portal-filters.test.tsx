@@ -1,394 +1,173 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockAxiosPost } = vi.hoisted(() => ({
-    mockAxiosPost: vi.fn(),
-}));
-
-vi.mock('axios', () => ({
-    default: {
-        post: mockAxiosPost,
-    },
-}));
-
 import { PortalFilters } from '@/components/portal/PortalFilters';
-import type { PortalFilters as PortalFiltersType } from '@/types/portal';
+import type { PortalFilters as PortalFilterValues } from '@/types/portal';
+
+vi.mock('@/components/portal/PortalSearchInput', () => ({
+    PortalSearchInput: ({
+        value,
+        onValueChange,
+        onSubmit,
+        selectedKeywords,
+        onKeywordSelect,
+        onKeywordsChange,
+    }: {
+        value: string;
+        onValueChange: (value: string) => void;
+        onSubmit: (value: string) => void;
+        selectedKeywords: string[];
+        onKeywordSelect: (keyword: string) => void;
+        onKeywordsChange: (keywords: string[]) => void;
+    }) => (
+        <div data-testid="unified-search">
+            <input aria-label="Search text or keywords" value={value} onChange={(event) => onValueChange(event.target.value)} />
+            <button onClick={() => onSubmit(value)}>Submit search</button>
+            <button onClick={() => onKeywordSelect('Seismology')}>Select suggestion</button>
+            {selectedKeywords.map((keyword) => (
+                <button key={keyword} onClick={() => onKeywordsChange(selectedKeywords.filter((value) => value !== keyword))}>
+                    Remove {keyword}
+                </button>
+            ))}
+        </div>
+    ),
+}));
+
+const defaultFilters: PortalFilterValues = {
+    query: '',
+    type: [],
+    keywords: [],
+    freeKeywords: [],
+    thesaurusKeywords: [],
+    datacenter: [],
+    bounds: null,
+    temporal: null,
+};
+
+const thesaurusFacets = [
+    {
+        scheme: 'Science Keywords',
+        roots: [
+            {
+                id: 'science-root',
+                text: 'Science Keywords',
+                language: 'en',
+                scheme: 'Science Keywords',
+                schemeURI: 'https://example.test/science',
+                description: '',
+                children: [],
+            },
+        ],
+    },
+];
+
+const defaultProps = {
+    filters: defaultFilters,
+    searchValue: '',
+    onSearchValueChange: vi.fn(),
+    onSearchChange: vi.fn(),
+    onKeywordSelect: vi.fn(),
+    onTypeChange: vi.fn(),
+    onDatacenterChange: vi.fn(),
+    onKeywordsChange: vi.fn(),
+    onThesaurusKeywordsChange: vi.fn(),
+    onClearFilters: vi.fn(),
+    hasActiveFilters: false,
+    isCollapsed: false,
+    onToggleCollapse: vi.fn(),
+    thesaurusFacets,
+    geoFilterEnabled: false,
+    onGeoFilterToggle: vi.fn(),
+    onBoundsChange: vi.fn(),
+    temporalRange: { Created: { min: 2000, max: 2024 } },
+    temporalFilterEnabled: false,
+    onTemporalFilterToggle: vi.fn(),
+    onTemporalChange: vi.fn(),
+    resourceTypeFacets: [{ slug: 'dataset', name: 'Dataset', count: 42 }],
+    datacenterFacets: [{ name: 'GFZ', count: 42 }],
+};
 
 describe('PortalFilters', () => {
-    const defaultFilters: PortalFiltersType = {
-        query: '',
-        type: [],
-        keywords: [],
-        freeKeywords: [],
-        thesaurusKeywords: [],
-        datacenter: [],
-        bounds: null,
-        temporal: null,
-    };
+    beforeEach(() => vi.clearAllMocks());
 
-    const defaultThesaurusFacets = [
-        {
-            scheme: 'Science Keywords',
-            roots: [
-                {
-                    id: 'earth-science',
-                    text: 'EARTH SCIENCE',
-                    language: 'en',
-                    scheme: 'Science Keywords',
-                    schemeURI: 'https://example.test/science',
-                    description: '',
-                    children: [],
-                },
-            ],
-        },
-    ];
+    it('keeps the unified search above the single scrolling filter region', () => {
+        render(<PortalFilters {...defaultProps} />);
 
-    const defaultFacets = [
-        { slug: 'dataset', name: 'Dataset', count: 42 },
-        { slug: 'software', name: 'Software', count: 10 },
-        { slug: 'physical-object', name: 'IGSN Samples', count: 5 },
-    ];
+        const search = screen.getByTestId('unified-search');
+        const scrollArea = search.closest('aside')?.querySelector('[data-slot="scroll-area"]');
 
-    const defaultProps = {
-        filters: defaultFilters,
-        onSearchChange: vi.fn(),
-        onTypeChange: vi.fn(),
-        onDatacenterChange: vi.fn(),
-        onKeywordsChange: vi.fn(),
-        onThesaurusKeywordsChange: vi.fn(),
-        onClearFilters: vi.fn(),
-        hasActiveFilters: false,
-        isCollapsed: false,
-        onToggleCollapse: vi.fn(),
-        totalResults: 42,
-        countStatus: 'ready' as const,
-        keywordSuggestions: [],
-        thesaurusFacets: [],
-        geoFilterEnabled: false,
-        onGeoFilterToggle: vi.fn(),
-        onBoundsChange: vi.fn(),
-        temporalRange: { Created: { min: 2000, max: 2024 } },
-        temporalFilterEnabled: false,
-        onTemporalFilterToggle: vi.fn(),
-        onTemporalChange: vi.fn(),
-        resourceTypeFacets: defaultFacets,
-        datacenterFacets: [],
-    };
-
-    beforeEach(() => {
-        vi.clearAllMocks();
-        mockAxiosPost.mockResolvedValue({ status: 204 });
+        expect(scrollArea).toBeInTheDocument();
+        expect(search.closest('[data-slot="scroll-area"]')).toBeNull();
+        expect(screen.getAllByTestId('unified-search')).toHaveLength(1);
+        expect(screen.queryByText(/results|counting/i)).not.toBeInTheDocument();
     });
 
-    describe('Expanded State', () => {
-        it('renders search input and resource type filter button', () => {
-            render(<PortalFilters {...defaultProps} />);
+    it('opens thesaurus roots initially and keeps the remaining filter groups collapsed', () => {
+        render(<PortalFilters {...defaultProps} />);
 
-            expect(screen.getByPlaceholderText(/search datasets/i)).toBeInTheDocument();
-            expect(screen.getByText(/42 results/i)).toBeInTheDocument();
-            expect(screen.getByText(/all resource types/i)).toBeInTheDocument();
-        });
-
-        it('shows selected count when types are selected', () => {
-            const filters: PortalFiltersType = { ...defaultFilters, type: ['dataset', 'software'] };
-            render(<PortalFilters {...defaultProps} filters={filters} />);
-
-            expect(screen.getByText(/2 selected/i)).toBeInTheDocument();
-        });
-
-        it('shows search input with current query value', () => {
-            const filters: PortalFiltersType = { ...defaultFilters, query: 'climate data' };
-            render(<PortalFilters {...defaultProps} filters={filters} />);
-
-            const input = screen.getByPlaceholderText(/search datasets/i);
-            expect(input).toHaveValue('climate data');
-        });
-
-        it('selects correct type filter based on filters prop', () => {
-            const filters: PortalFiltersType = { ...defaultFilters, type: ['physical-object'] };
-            render(<PortalFilters {...defaultProps} filters={filters} />);
-
-            expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
-        });
-
-        it('renders the thesaurus keyword section when facets are available', () => {
-            render(<PortalFilters {...defaultProps} thesaurusFacets={defaultThesaurusFacets} />);
-
-            expect(screen.getByText('Thesaurus Keywords')).toBeInTheDocument();
-            expect(screen.getByText('GCMD Science Keywords')).toBeInTheDocument();
-        });
-
-        it('uses default thesaurus props when the optional values are omitted', () => {
-            const propsWithoutOptionalThesaurus = { ...defaultProps };
-            Reflect.deleteProperty(propsWithoutOptionalThesaurus, 'onThesaurusKeywordsChange');
-            Reflect.deleteProperty(propsWithoutOptionalThesaurus, 'thesaurusFacets');
-
-            render(<PortalFilters {...propsWithoutOptionalThesaurus} />);
-
-            expect(screen.getByText('No thesaurus keywords available.')).toBeInTheDocument();
-        });
-
-        it('shows legacy keywords in the free keyword control when split filters are not set', () => {
-            const filters: PortalFiltersType = { ...defaultFilters, keywords: ['Seismology'] };
-
-            render(<PortalFilters {...defaultProps} filters={filters} />);
-
-            expect(screen.getByText('Seismology')).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /remove keyword "Seismology"/i })).toBeInTheDocument();
-        });
+        expect(screen.getByText('Science Keywords')).toBeInTheDocument();
+        expect(screen.queryByText('All Resource Types')).not.toBeInTheDocument();
+        expect(screen.queryByText('All Datacenters')).not.toBeInTheDocument();
     });
 
-    describe('Thesaurus Filter Interaction', () => {
-        it('forwards thesaurus node selections to the parent handler', async () => {
-            const user = userEvent.setup();
-            const onThesaurusKeywordsChange = vi.fn();
+    it('opens a compact filter group on demand', async () => {
+        const user = userEvent.setup();
+        render(<PortalFilters {...defaultProps} />);
 
-            render(
-                <PortalFilters {...defaultProps} thesaurusFacets={defaultThesaurusFacets} onThesaurusKeywordsChange={onThesaurusKeywordsChange} />,
-            );
+        await user.click(screen.getByRole('button', { name: /resource type/i }));
 
-            await user.click(screen.getByLabelText('Select thesaurus keyword EARTH SCIENCE'));
-
-            expect(onThesaurusKeywordsChange).toHaveBeenCalledWith(['earth-science']);
-        });
+        expect(screen.getByText('All Resource Types')).toBeInTheDocument();
     });
 
-    describe('Search Interaction', () => {
-        it('updates local state when typing in search input', async () => {
-            const user = userEvent.setup();
-            render(<PortalFilters {...defaultProps} />);
+    it('automatically opens groups that contain active filters and displays a count', () => {
+        render(<PortalFilters {...defaultProps} filters={{ ...defaultFilters, type: ['dataset'] }} hasActiveFilters />);
 
-            const input = screen.getByPlaceholderText(/search datasets/i);
-            await user.type(input, 'test query');
-
-            expect(input).toHaveValue('test query');
-        });
-
-        it('calls onSearchChange when form is submitted', async () => {
-            const onSearchChange = vi.fn();
-            render(<PortalFilters {...defaultProps} onSearchChange={onSearchChange} />);
-
-            const input = screen.getByPlaceholderText(/search datasets/i);
-            fireEvent.change(input, { target: { value: 'submitted query' } });
-            fireEvent.submit(input.closest('form')!);
-
-            await vi.waitFor(() => {
-                expect(mockAxiosPost).toHaveBeenCalledWith('/search/search-analytics', { search_term: 'submitted query' });
-            });
-
-            expect(onSearchChange).toHaveBeenCalledWith('submitted query');
-        });
-
-        it('does not send analytics for blank submitted queries', async () => {
-            const onSearchChange = vi.fn();
-            render(<PortalFilters {...defaultProps} onSearchChange={onSearchChange} />);
-
-            const input = screen.getByPlaceholderText(/search datasets/i);
-            fireEvent.change(input, { target: { value: '   ' } });
-            fireEvent.submit(input.closest('form')!);
-
-            await vi.waitFor(() => {
-                expect(onSearchChange).toHaveBeenCalledWith('   ');
-            });
-
-            expect(mockAxiosPost).not.toHaveBeenCalled();
-        });
-
-        it('shows clear button when search input has value and clears on click', async () => {
-            const user = userEvent.setup();
-            const onSearchChange = vi.fn();
-            const filters: PortalFiltersType = { ...defaultFilters, query: 'existing query' };
-            render(<PortalFilters {...defaultProps} filters={filters} onSearchChange={onSearchChange} hasActiveFilters={true} />);
-
-            // Find the clear X button next to search input (the one in the input container)
-            const clearButton = screen.getByRole('button', { name: /clear search/i });
-            await user.click(clearButton);
-
-            expect(onSearchChange).toHaveBeenCalledWith('');
-            expect(mockAxiosPost).not.toHaveBeenCalled();
-        });
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+        expect(screen.getAllByText('1').length).toBeGreaterThan(0);
     });
 
-    describe('Type Filter Interaction', () => {
-        it('renders resource type filter label', () => {
-            render(<PortalFilters {...defaultProps} />);
+    it('forwards unified text and keyword actions', async () => {
+        const user = userEvent.setup();
+        render(<PortalFilters {...defaultProps} searchValue="climate" />);
 
-            expect(screen.getByText('Resource Type')).toBeInTheDocument();
-        });
+        await user.click(screen.getByRole('button', { name: 'Submit search' }));
+        await user.click(screen.getByRole('button', { name: 'Select suggestion' }));
 
-        it('shows "All Resource Types" when no types selected', () => {
-            render(<PortalFilters {...defaultProps} />);
-
-            expect(screen.getByText(/all resource types/i)).toBeInTheDocument();
-        });
-
-        it('shows selected count badge when types are active', () => {
-            const filters: PortalFiltersType = { ...defaultFilters, type: ['dataset'] };
-            render(<PortalFilters {...defaultProps} filters={filters} />);
-
-            expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
-        });
+        expect(defaultProps.onSearchChange).toHaveBeenCalledWith('climate');
+        expect(defaultProps.onKeywordSelect).toHaveBeenCalledWith('Seismology');
     });
 
-    describe('Clear Filters', () => {
-        it('shows clear filters button when hasActiveFilters is true', () => {
-            render(<PortalFilters {...defaultProps} hasActiveFilters={true} />);
+    it('shows legacy keyword chips in the unified search', () => {
+        render(<PortalFilters {...defaultProps} filters={{ ...defaultFilters, keywords: ['Legacy keyword'] }} />);
 
-            expect(screen.getByRole('button', { name: /clear all/i })).toBeInTheDocument();
-        });
-
-        it('keeps the clear filters action above and outside the scrollable controls', () => {
-            render(<PortalFilters {...defaultProps} hasActiveFilters={true} />);
-
-            const clearButton = screen.getByRole('button', { name: /clear all/i });
-            const searchInput = screen.getByPlaceholderText(/search datasets/i);
-            const actionRow = clearButton.parentElement;
-
-            expect(actionRow).toHaveClass('shrink-0', 'border-b');
-            expect(clearButton.closest('[data-slot="scroll-area"]')).toBeNull();
-            expect(searchInput.closest('[data-slot="scroll-area"]')).toBeInTheDocument();
-            expect(clearButton.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        });
-
-        it('preserves the existing filter order below the clear action', () => {
-            render(<PortalFilters {...defaultProps} hasActiveFilters={true} />);
-
-            const orderedControls = [
-                screen.getByPlaceholderText(/search datasets/i),
-                screen.getByText('Free Keywords'),
-                screen.getByText('Thesaurus Keywords'),
-                screen.getByText('Temporal Filter'),
-                screen.getByText('Geographic Filter'),
-                screen.getByText('Resource Type'),
-                screen.getByText('Datacenter'),
-            ];
-
-            for (const [index, control] of orderedControls.entries()) {
-                const nextControl = orderedControls[index + 1];
-
-                if (nextControl) {
-                    expect(control.compareDocumentPosition(nextControl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-                }
-            }
-        });
-
-        it('does not show clear filters button when hasActiveFilters is false', () => {
-            render(<PortalFilters {...defaultProps} hasActiveFilters={false} />);
-
-            expect(screen.queryByRole('button', { name: /clear all/i })).not.toBeInTheDocument();
-        });
-
-        it('calls onClearFilters when clear button is clicked', async () => {
-            const user = userEvent.setup();
-            const onClearFilters = vi.fn();
-            render(<PortalFilters {...defaultProps} hasActiveFilters={true} onClearFilters={onClearFilters} />);
-
-            const clearButton = screen.getByRole('button', { name: /clear all/i });
-            await user.click(clearButton);
-
-            expect(onClearFilters).toHaveBeenCalled();
-        });
+        expect(screen.getByRole('button', { name: 'Remove Legacy keyword' })).toBeInTheDocument();
     });
 
-    describe('Collapsed State', () => {
-        it('renders collapsed sidebar with toggle button', () => {
-            render(<PortalFilters {...defaultProps} isCollapsed={true} />);
+    it('clears all filters from the compact header', async () => {
+        const user = userEvent.setup();
+        render(<PortalFilters {...defaultProps} hasActiveFilters />);
 
-            // In collapsed state, search input should not be visible
-            expect(screen.queryByPlaceholderText(/search datasets/i)).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Clear all filters' }));
 
-            // Toggle button should be visible
-            expect(screen.getByRole('button', { name: /expand filters/i })).toBeInTheDocument();
-            expect(screen.queryByRole('status')).not.toBeInTheDocument();
-        });
-
-        it('exposes active filters as a named status without showing the clear action', () => {
-            render(<PortalFilters {...defaultProps} isCollapsed={true} hasActiveFilters={true} />);
-
-            const activeFiltersStatus = screen.getByRole('status', { name: 'Filters active' });
-
-            expect(activeFiltersStatus).toHaveAttribute('title', 'Filters active');
-            expect(screen.queryByRole('button', { name: /clear all/i })).not.toBeInTheDocument();
-        });
-
-        it('calls onToggleCollapse when collapsed sidebar button is clicked', async () => {
-            const user = userEvent.setup();
-            const onToggleCollapse = vi.fn();
-            render(<PortalFilters {...defaultProps} isCollapsed={true} onToggleCollapse={onToggleCollapse} />);
-
-            const toggleButton = screen.getByRole('button', { name: /expand filters/i });
-            await user.click(toggleButton);
-
-            expect(onToggleCollapse).toHaveBeenCalled();
-        });
+        expect(defaultProps.onClearFilters).toHaveBeenCalledOnce();
     });
 
-    describe('Collapse Toggle from Expanded', () => {
-        it('renders collapse button in expanded state', () => {
-            render(<PortalFilters {...defaultProps} isCollapsed={false} />);
+    it('supports the collapsed desktop rail', async () => {
+        const user = userEvent.setup();
+        render(<PortalFilters {...defaultProps} isCollapsed hasActiveFilters />);
 
-            expect(screen.getByRole('button', { name: /collapse filters/i })).toBeInTheDocument();
-        });
-
-        it('calls onToggleCollapse when collapse button is clicked', async () => {
-            const user = userEvent.setup();
-            const onToggleCollapse = vi.fn();
-            render(<PortalFilters {...defaultProps} isCollapsed={false} onToggleCollapse={onToggleCollapse} />);
-
-            const collapseButton = screen.getByRole('button', { name: /collapse filters/i });
-            await user.click(collapseButton);
-
-            expect(onToggleCollapse).toHaveBeenCalled();
-        });
+        expect(screen.queryByTestId('unified-search')).not.toBeInTheDocument();
+        expect(screen.getByRole('status', { name: 'Filters active' })).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Expand filters' }));
+        expect(defaultProps.onToggleCollapse).toHaveBeenCalledOnce();
     });
 
-    describe('Result Count Display', () => {
-        it('displays total results count', () => {
-            render(<PortalFilters {...defaultProps} totalResults={1234} />);
+    it('can hide the collapse action inside a drawer', () => {
+        render(<PortalFilters {...defaultProps} showCollapseButton={false} />);
 
-            // Locale-aware number formatting (1,234 or 1.234 depending on locale)
-            expect(screen.getByText(/1[,.]234 results/i)).toBeInTheDocument();
-        });
-
-        it('handles singular result count', () => {
-            render(<PortalFilters {...defaultProps} totalResults={1} />);
-
-            expect(screen.getByText(/1 result$/i)).toBeInTheDocument();
-        });
-
-        it('handles zero results', () => {
-            render(<PortalFilters {...defaultProps} totalResults={0} />);
-
-            expect(screen.getByText(/0 results/i)).toBeInTheDocument();
-        });
-
-        it('distinguishes a failed count from a pending count', () => {
-            const { rerender } = render(<PortalFilters {...defaultProps} totalResults={null} countStatus="pending" />);
-
-            expect(screen.getByText('Counting results...')).toBeInTheDocument();
-
-            rerender(<PortalFilters {...defaultProps} totalResults={null} countStatus="failed" />);
-
-            expect(screen.getByText('Count unavailable')).toBeInTheDocument();
-            expect(screen.queryByText('Counting results...')).not.toBeInTheDocument();
-        });
-    });
-
-    describe('Filter State Sync', () => {
-        it('syncs search input when filters.query changes externally', () => {
-            const { rerender } = render(<PortalFilters {...defaultProps} />);
-
-            // Initially empty
-            expect(screen.getByPlaceholderText(/search datasets/i)).toHaveValue('');
-
-            // Update filters externally
-            const newFilters: PortalFiltersType = { ...defaultFilters, query: 'external update' };
-            rerender(<PortalFilters {...defaultProps} filters={newFilters} />);
-
-            expect(screen.getByPlaceholderText(/search datasets/i)).toHaveValue('external update');
-        });
+        expect(screen.queryByRole('button', { name: 'Collapse filters' })).not.toBeInTheDocument();
     });
 });

@@ -27,9 +27,10 @@ interface PortalTemporalFilterProps {
     temporalRange: TemporalRange;
     temporal: TemporalFilterValue | null;
     onTemporalChange: (temporal: TemporalFilterValue | null) => void;
+    hideTitle?: boolean;
 }
 
-export function PortalTemporalFilter({ enabled, onToggle, temporalRange, temporal, onTemporalChange }: PortalTemporalFilterProps) {
+export function PortalTemporalFilter({ enabled, onToggle, temporalRange, temporal, onTemporalChange, hideTitle = false }: PortalTemporalFilterProps) {
     const availableTypes = useMemo(() => {
         const preferredOrder: TemporalDateType[] = ['Created', 'Collected', 'Coverage'];
         return preferredOrder.filter((key) => temporalRange[key] !== undefined);
@@ -171,11 +172,13 @@ export function PortalTemporalFilter({ enabled, onToggle, temporalRange, tempora
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-2 text-sm font-medium">
-                    <Calendar className="h-4 w-4" />
-                    Temporal Filter
-                </Label>
+            <div className={hideTitle ? 'flex items-center justify-end' : 'flex items-center justify-between'}>
+                {!hideTitle && (
+                    <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Calendar className="h-4 w-4" />
+                        Temporal Filter
+                    </Label>
+                )}
                 <Switch checked={enabled} onCheckedChange={handleToggle} aria-label="Enable temporal filter" />
             </div>
 
