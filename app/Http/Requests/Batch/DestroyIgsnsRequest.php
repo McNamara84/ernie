@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Batch;
 
 use App\Enums\UserRole;
+use App\Support\IgsnBulkOperation;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -18,9 +19,9 @@ class DestroyIgsnsRequest extends FormRequest
 {
     /**
      * Maximum number of IGSNs that can be deleted in a single batch operation.
-     * Matches MAX_PER_PAGE in IgsnController to align with UI pagination.
+     * Matches the largest selectable IGSN page size.
      */
-    public const MAX_BATCH_SIZE = 100;
+    public const MAX_BATCH_SIZE = IgsnBulkOperation::MAX_SELECTION;
 
     /**
      * Custom 403 message preserved from the controller's previous
@@ -52,7 +53,7 @@ class DestroyIgsnsRequest extends FormRequest
     {
         return [
             'ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_BATCH_SIZE],
-            'ids.*' => ['required', 'integer', 'exists:resources,id'],
+            'ids.*' => ['required', 'integer', 'distinct:strict'],
         ];
     }
 }

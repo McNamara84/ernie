@@ -17,6 +17,9 @@ return [
     // failures only. URL migration jobs own their persistent retry lifecycle.
     'transport_transient_attempts' => (int) env('DATACITE_TRANSPORT_TRANSIENT_ATTEMPTS', 3),
 
+    // Every durable DataCite workflow uses the same serial worker queue.
+    'queue' => env('DATACITE_QUEUE', env('DATACITE_URL_UPDATE_QUEUE', 'datacite')),
+
     /*
     |--------------------------------------------------------------------------
     | Landing Page URL Domain Migration
@@ -35,7 +38,6 @@ return [
         'reachability_connect_timeout_seconds' => (int) env('DATACITE_URL_UPDATE_REACHABILITY_CONNECT_TIMEOUT_SECONDS', 3),
         'reachability_timeout_seconds' => (int) env('DATACITE_URL_UPDATE_REACHABILITY_TIMEOUT_SECONDS', 8),
         'max_transient_attempts' => (int) env('DATACITE_URL_UPDATE_MAX_TRANSIENT_ATTEMPTS', 5),
-        'queue' => env('DATACITE_URL_UPDATE_QUEUE', 'datacite'),
         'support_email' => env('DATACITE_USER_AGENT_EMAIL'),
     ],
 

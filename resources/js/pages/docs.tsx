@@ -2813,9 +2813,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Pagination</h4>
                         <p>
-                            Use <strong>Rows per page</strong> to display 10 or 100 IGSNs at a time; new browsers default to 100. ERNIE stores this
-                            choice only in the current browser and restores it on later visits. A previously stored choice of 1000 is migrated to 100.
-                            Changing the page size returns to the first page while keeping the active search, filters, and sorting.
+                            Use <strong>Rows per page</strong> to display 10, 100, or 1000 IGSNs at a time; new browsers default to 100. ERNIE stores
+                            this choice only in the current browser and restores it on later visits. Changing the page size returns to the first page
+                            while keeping the active search, filters, and sorting. Bulk selection applies to the rows on the currently loaded page.
                         </p>
                         <p>
                             The pagination controls show the current page and total page count. Use the arrow buttons to go to the first, previous,
@@ -2845,6 +2845,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>When items are selected, a toolbar appears showing the selection count and available actions</li>
                             <li>The table header remains fixed while scrolling, so actions are always visible</li>
                         </ul>
+
+                        <h4>Bulk Actions for up to 1000 IGSNs</h4>
+                        <p>
+                            A complete 1000-row page can be selected and processed at once. Administrators can delete the selected IGSNs as one
+                            all-or-nothing operation. If any selected record is missing or is not an IGSN, ERNIE leaves the complete selection
+                            unchanged.
+                        </p>
+                        <p>
+                            <strong>Register Selected</strong> starts a persistent background run for new registrations and metadata updates. The
+                            progress dialog distinguishes registered, updated, failed, cancelled, and remaining items and identifies whether the run
+                            uses DataCite Test or Production. You can close the dialog, navigate away, or close the browser without stopping the run;
+                            use <strong>View registration progress</strong> when you return. Individual errors do not stop later IGSNs, and failed
+                            items can be retried after their cause is resolved. Total duration depends on the shared DataCite rate limit.
+                        </p>
                     </>
                 ),
             },

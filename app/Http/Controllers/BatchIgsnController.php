@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Batch\DestroyIgsnsRequest;
 use App\Models\Resource;
+use App\Support\IgsnBulkOperation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -30,28 +31,47 @@ class BatchIgsnController extends Controller
         /** @var array{ids: array<int, int>} $validated */
         $validated = $request->validated();
 
-        /** @var array<int> $ids */
-        $ids = array_values(array_unique($validated['ids']));
+        /** @var list<int> $ids */
+        $ids = array_values($validated['ids']);
+
+        /** @var list<int> $lockIds */
+        $lockIds = $ids;
+        sort($lockIds, SORT_NUMERIC);
 
         // Use transaction with row locking for atomic validation + delete
         // This ensures no race condition between checking igsnMetadata and deleting
-        DB::transaction(function () use ($ids): void {
-            // Lock the rows we're about to delete to prevent concurrent modifications
-            $lockedResources = Resource::whereIn('id', $ids)
-                ->whereHas('igsnMetadata')
-                ->lockForUpdate()
-                ->get();
+        DB::transaction(function () use ($ids, $lockIds): void {
+            $lockedResources = collect();
+
+            foreach (array_chunk($lockIds, IgsnBulkOperation::DATABASE_CHUNK_SIZE) as $chunk) {
+                $lockedResources->push(...Resource::query()
+                    ->whereIn('id', $chunk)
+                    ->whereHas('igsnMetadata')
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get());
+            }
 
             // Verify all resources are valid IGSNs
             if ($lockedResources->count() !== count($ids)) {
-                throw ValidationException::withMessages([
+                $lockedIds = $lockedResources->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all();
+                $invalidId = array_values(array_diff($ids, $lockedIds))[0] ?? null;
+                $invalidIndex = $invalidId === null ? false : array_search($invalidId, $ids, true);
+                $messages = [
                     'ids' => ['Some selected resources are not valid IGSNs.'],
+                ];
+                if ($invalidIndex !== false) {
+                    $messages["ids.{$invalidIndex}"] = ['The selected resource does not exist or is not an IGSN.'];
+                }
+
+                throw ValidationException::withMessages([
+                    ...$messages,
                 ]);
             }
 
             // Delete each resource individually to trigger Eloquent events/observers
             // This ensures ResourceObserver::deleted() fires and caches are invalidated
-            foreach ($lockedResources as $resource) {
+            foreach ($lockedResources->sortBy('id') as $resource) {
                 $resource->delete();
             }
         });

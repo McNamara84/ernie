@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
-it('consumes the dedicated DataCite queue in every Docker environment', function (string $composeFile): void {
+it('forwards and consumes the configurable DataCite queue in every Docker environment', function (string $composeFile): void {
     $contents = file_get_contents(base_path($composeFile));
     if ($contents === false) {
         throw new RuntimeException("Failed to read deployment file: {$composeFile}");
@@ -18,10 +18,14 @@ it('consumes the dedicated DataCite queue in every Docker environment', function
     $command = $compose['services']['queue']['command'] ?? null;
     expect($command)->toBeString();
 
-    preg_match('/(?:^|\s)--queue=([^\s]+)/', $command, $matches);
-    $queues = isset($matches[1]) ? explode(',', $matches[1]) : [];
+    expect($command)->toContain('--queue=${DATACITE_QUEUE:-datacite},');
 
-    expect($queues)->toContain('datacite');
+    foreach (['app', 'queue'] as $service) {
+        $environment = $compose['services'][$service]['environment'] ?? [];
+        expect($environment)
+            ->toBeArray()
+            ->toContain('DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}');
+    }
 })->with([
     'development' => 'docker-compose.dev.yml',
     'stage' => 'docker-compose.stage.yml',

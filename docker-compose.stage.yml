@@ -34,6 +34,7 @@ services:
       - DATACITE_CLIENT_ID=${DATACITE_CLIENT_ID:-tib.gfz}
       - DATACITE_USERNAME=${DATACITE_USERNAME}
       - DATACITE_PASSWORD=${DATACITE_PASSWORD}
+      - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
       - SESSION_DRIVER=file
       - SESSION_LIFETIME=120
       - SESSION_PATH=/
@@ -208,7 +209,7 @@ services:
     pull_policy: build
     container_name: dockerized-laravel-queue
     restart: unless-stopped
-    command: php artisan queue:work --queue=datacite,vocabularies,default,imports --verbose --tries=3 --timeout=7200
+    command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,default,imports --verbose --tries=3 --timeout=7200
     volumes:
       - storage-data:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
@@ -229,6 +230,7 @@ services:
       - DATACITE_CLIENT_ID=${DATACITE_CLIENT_ID:-tib.gfz}
       - DATACITE_USERNAME=${DATACITE_USERNAME}
       - DATACITE_PASSWORD=${DATACITE_PASSWORD}
+      - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
       - DB_HOST=db
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}

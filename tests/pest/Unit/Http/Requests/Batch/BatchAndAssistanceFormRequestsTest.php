@@ -137,7 +137,9 @@ it('DestroyIgsnsRequest authorizes only admins', function (): void {
     $rules = $req->rules();
     expect(Validator::make([], $rules)->fails())->toBeTrue();
     expect(Validator::make(['ids' => []], $rules)->fails())->toBeTrue();
-    expect(Validator::make(['ids' => array_fill(0, 101, 1)], $rules)->fails())->toBeTrue();
+    expect(Validator::make(['ids' => range(1, DestroyIgsnsRequest::MAX_BATCH_SIZE)], $rules)->fails())->toBeFalse();
+    expect(Validator::make(['ids' => range(1, DestroyIgsnsRequest::MAX_BATCH_SIZE + 1)], $rules)->fails())->toBeTrue();
+    expect(Validator::make(['ids' => [1, 1]], $rules)->fails())->toBeTrue();
 });
 
 it('RegisterResourcesRequest authorizes via register-doi gate', function (): void {
@@ -174,7 +176,9 @@ it('RegisterIgsnsRequest authorizes via register-doi gate', function (): void {
 
     $rules = $req->rules();
     expect(Validator::make([], $rules)->fails())->toBeTrue();
-    expect(Validator::make(['ids' => array_fill(0, 26, 1)], $rules)->fails())->toBeTrue();
+    expect(Validator::make(['ids' => range(1, RegisterIgsnsRequest::MAX_BATCH_SIZE)], $rules)->fails())->toBeFalse();
+    expect(Validator::make(['ids' => range(1, RegisterIgsnsRequest::MAX_BATCH_SIZE + 1)], $rules)->fails())->toBeTrue();
+    expect(Validator::make(['ids' => [1, 1]], $rules)->fails())->toBeTrue();
 });
 
 it('ExportResourcesRequest validates ids and format whitelist', function (): void {

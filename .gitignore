@@ -1,4 +1,5 @@
 /.phpunit.cache
+/.pint.cache
 /.tmp/
 /bootstrap/ssr
 /coverage

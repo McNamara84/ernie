@@ -19,6 +19,7 @@ use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Format;
 use App\Models\IgsnMetadata;
+use App\Models\IgsnRegistrationRun;
 use App\Models\Institution;
 use App\Models\LandingPage;
 use App\Models\LandingPageFile;
@@ -303,6 +304,11 @@ class AppServiceProvider extends ServiceProvider
         // Register DOIs in production mode (Beginners are restricted to test mode)
         Gate::define('register-production-doi', function (User $user): bool {
             return $user->role !== UserRole::BEGINNER;
+        });
+
+        Gate::define('manage-igsn-registration-run', function (User $user, IgsnRegistrationRun $run): bool {
+            return $user->can('register-doi')
+                && ($run->initiated_by_user_id === $user->id || $user->role === UserRole::ADMIN);
         });
 
         // Perform the controlled bulk landing-page URL migration at DataCite.

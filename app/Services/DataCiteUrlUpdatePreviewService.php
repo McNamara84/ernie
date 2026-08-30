@@ -13,7 +13,7 @@ class DataCiteUrlUpdatePreviewService
         private readonly DataCiteUrlUpdateCandidateService $candidates,
         private readonly DataCiteUrlUpdateTargetService $target,
         private readonly DataCiteMemberApiClient $client,
-        private readonly DataCiteUrlUpdateQueueService $queueConnection,
+        private readonly DataCiteQueueService $queueConnection,
     ) {}
 
     /** @return array<string, mixed> */

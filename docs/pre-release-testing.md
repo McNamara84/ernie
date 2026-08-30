@@ -567,6 +567,24 @@ verify them after reopening:
 - [ ] The IGSN registration dialog shows test mode and registration updates the
       visible status.
 
+- [ ] `Rows per page` offers 1000. On a disposable test result set, the table-header
+      checkbox selects every row on the current page, the displayed count is exact,
+      and changing page, filter, sort, or page size clears the page-scoped selection.
+
+- [ ] As an administrator, bulk deletion rejects a mixed or invalid disposable
+      selection without deleting any valid member. Confirm a successful bulk delete
+      only for synthetic IGSNs created for this test; never delete existing stage or
+      production samples.
+
+- [ ] In DataCite Test mode, `Register Selected` returns promptly and opens persistent
+      progress with registered, updated, failed, cancelled, and remaining counters.
+      Close the dialog, reload `/igsns`, and reopen the same run with `View registration
+    progress`; the queue continues independently of the browser.
+
+- [ ] Request cancellation between items and verify remaining items become cancelled.
+      For one controlled test failure, resolve its cause and use `Retry failed`; already
+      successful items must not be sent again.
+
 - [ ] `IGSNs Map` shows test samples with coordinates; markers, clusters, and
       details agree with the list.
 

@@ -1,6 +1,6 @@
 export const IGSNS_PAGE_SIZE_STORAGE_KEY = 'ernie.igsns.page-size.v1';
-export const IGSNS_PAGE_SIZE_OPTIONS = [10, 100] as const;
-const LEGACY_IGSNS_PAGE_SIZE_OPTIONS = [25, 50, 1000] as const;
+export const IGSNS_PAGE_SIZE_OPTIONS = [10, 100, 1000] as const;
+const LEGACY_IGSNS_PAGE_SIZE_OPTIONS = [25, 50] as const;
 
 export type IgsnsPageSize = (typeof IGSNS_PAGE_SIZE_OPTIONS)[number];
 

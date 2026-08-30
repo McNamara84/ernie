@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { IgsnRegistrationRun } from '@/components/igsns/igsn-registration-run-modal';
+
 // Mock Inertia
 const { mockRouterDelete, mockRouterVisit, mockRouterReload } = vi.hoisted(() => ({
     mockRouterDelete: vi.fn(),
@@ -49,6 +51,10 @@ vi.mock('@/components/igsns/status-badge', () => ({
 vi.mock('@/components/datacite-url-update-modal', () => ({
     DataCiteUrlUpdateModal: ({ open, scope }: { open: boolean; scope: string }) =>
         open ? <div data-testid="datacite-url-update-modal-mock">{scope}</div> : null,
+}));
+vi.mock('@/components/igsns/igsn-registration-run-modal', () => ({
+    IgsnRegistrationRunModal: ({ open, initialRun }: { open: boolean; initialRun: { id: string } | null }) =>
+        open ? <div data-testid="igsn-registration-run-modal-mock">{initialRun?.id}</div> : null,
 }));
 vi.mock('@/components/igsns/bulk-actions-toolbar', () => ({
     BulkActionsToolbar: ({
@@ -238,6 +244,32 @@ function createPagination(
         has_more: false,
         count_status: 'ready' as const,
         filter_fingerprint: 'default-fingerprint',
+        ...overrides,
+    };
+}
+
+function createRegistrationRun(overrides: Partial<IgsnRegistrationRun> = {}): IgsnRegistrationRun {
+    return {
+        id: 'registration-run-1',
+        status: 'queued',
+        test_mode: true,
+        datacite_endpoint: 'https://api.test.datacite.org',
+        total: 2,
+        processed: 0,
+        registered: 0,
+        updated: 0,
+        failed: 0,
+        cancelled: 0,
+        pause_reason: null,
+        last_error: null,
+        started_at: null,
+        paused_at: null,
+        cancelled_at: null,
+        completed_at: null,
+        created_at: '2026-08-30T10:00:00Z',
+        can_cancel: true,
+        can_resume: false,
+        can_retry_failed: false,
         ...overrides,
     };
 }
@@ -547,7 +579,9 @@ describe('IgsnsPage', () => {
         it('renders the page size selector and complete page controls', () => {
             render(<IgsnsPage {...defaultProps} pagination={createPagination({ has_more: true, last_page: 3 })} />);
 
-            expect(screen.getByRole('combobox', { name: 'Rows per page' })).toHaveValue('100');
+            const pageSizeSelector = screen.getByRole('combobox', { name: 'Rows per page' });
+            expect(pageSizeSelector).toHaveValue('100');
+            expect(within(pageSizeSelector).getByRole('option', { name: '1000' })).toBeInTheDocument();
             expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
             expect(screen.getByRole('button', { name: 'Go to first page' })).toBeDisabled();
             expect(screen.getByRole('button', { name: 'Go to previous page' })).toBeDisabled();
@@ -977,9 +1011,36 @@ describe('IgsnsPage', () => {
     });
 
     describe('bulk IGSN registration', () => {
-        it('calls axios.post with selected IDs and shows success toast', async () => {
+        it('selects all 1000 loaded rows and submits every unique ID', async () => {
+            const igsns = Array.from({ length: 1000 }, (_, index) =>
+                createIgsn({ id: index + 1, igsn: `10.60510/BULK-${String(index + 1).padStart(4, '0')}`, has_landing_page: true }),
+            );
+            mockAxiosPost.mockResolvedValueOnce({ data: { run: createRegistrationRun({ total: 1000 }) } });
+
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={igsns}
+                    pagination={createPagination({ per_page: 1000, total: 1000, from: 1, to: 1000 })}
+                    totalCount={1000}
+                />,
+            );
+
+            fireEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+            expect(screen.getByText('1000 selected')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByText('Register Selected'));
+
+            await waitFor(() => {
+                expect(mockAxiosPost).toHaveBeenCalledWith('/igsns/batch-register', {
+                    ids: Array.from({ length: 1000 }, (_, index) => index + 1),
+                });
+            });
+        }, 60_000);
+
+        it('queues selected IDs and opens the persistent progress modal', async () => {
             mockAxiosPost.mockResolvedValueOnce({
-                data: { success: [{ id: 1 }, { id: 2 }], failed: [] },
+                data: { run: createRegistrationRun() },
             });
 
             render(
@@ -1002,17 +1063,17 @@ describe('IgsnsPage', () => {
             });
 
             await vi.waitFor(() => {
-                expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('2 IGSN(s) registered'));
+                expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('2 IGSN(s) queued'));
             });
+
+            expect(screen.getByTestId('igsn-registration-run-modal-mock')).toHaveTextContent('registration-run-1');
         });
 
-        it('shows error toast for partial failures (207)', async () => {
-            mockAxiosPost.mockResolvedValueOnce({
-                data: {
-                    success: [{ id: 1 }],
-                    failed: [{ id: 2, reason: 'No landing page' }],
-                },
-            });
+        it('shows the server error when queueing fails', async () => {
+            const axiosError = new Error('Request failed') as Error & { isAxiosError: boolean; response: { data: { message: string } } };
+            axiosError.isAxiosError = true;
+            axiosError.response = { data: { message: 'The DataCite queue is unavailable.' } };
+            mockAxiosPost.mockRejectedValueOnce(axiosError);
 
             render(
                 <IgsnsPage
@@ -1027,8 +1088,7 @@ describe('IgsnsPage', () => {
             await userEvent.click(screen.getByText('Register Selected'));
 
             await vi.waitFor(() => {
-                expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('1 IGSN(s) registered'));
-                expect(mockToast.error).toHaveBeenCalledWith(expect.stringContaining('1 IGSN(s) failed'));
+                expect(mockToast.error).toHaveBeenCalledWith('The DataCite queue is unavailable.');
             });
         });
 
@@ -1052,7 +1112,7 @@ describe('IgsnsPage', () => {
 
         it('clears selection after successful bulk registration', async () => {
             mockAxiosPost.mockResolvedValueOnce({
-                data: { success: [{ id: 1 }], failed: [] },
+                data: { run: createRegistrationRun({ total: 1 }) },
             });
 
             render(
@@ -1068,8 +1128,18 @@ describe('IgsnsPage', () => {
             await userEvent.click(screen.getByText('Register Selected'));
 
             await vi.waitFor(() => {
-                expect(mockRouterReload).toHaveBeenCalled();
+                expect(screen.getByText('0 selected')).toBeInTheDocument();
             });
+
+            expect(mockRouterReload).not.toHaveBeenCalled();
+        });
+
+        it('reopens a persisted registration run from the page header', async () => {
+            render(<IgsnsPage {...defaultProps} igsnRegistrationRun={createRegistrationRun({ status: 'running' })} />);
+
+            await userEvent.click(screen.getByRole('button', { name: 'View registration progress' }));
+
+            expect(screen.getByTestId('igsn-registration-run-modal-mock')).toHaveTextContent('registration-run-1');
         });
     });
 });

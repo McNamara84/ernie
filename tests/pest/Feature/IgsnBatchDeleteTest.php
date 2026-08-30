@@ -10,6 +10,7 @@ use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -65,6 +66,45 @@ function createIgsns(int $count): Collection
     });
 }
 
+/**
+ * Create a large IGSN set with bulk inserts so the boundary test measures the
+ * batch operation instead of spending most of its time in factory setup.
+ *
+ * @return Collection<int, Resource>
+ */
+function createMinimalIgsns(int $count): Collection
+{
+    $now = now();
+    $resourceRows = [];
+
+    foreach (range(1, $count) as $index) {
+        $resourceRows[] = [
+            'doi' => sprintf('10.60510/BULK-DELETE-%04d', $index),
+            'identifier_type' => 'DOI',
+            'publication_year' => (int) $now->format('Y'),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+    }
+
+    Resource::query()->insert($resourceRows);
+    $resources = Resource::query()
+        ->where('doi', 'like', '10.60510/BULK-DELETE-%')
+        ->orderBy('id')
+        ->get();
+
+    IgsnMetadata::query()->insert($resources->map(fn (Resource $resource): array => [
+        'resource_id' => $resource->id,
+        'sample_type' => 'Rock',
+        'material' => 'Granite',
+        'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        'created_at' => $now,
+        'updated_at' => $now,
+    ])->all());
+
+    return $resources;
+}
+
 describe('IGSN Batch Delete', function () {
     it('allows admin to delete multiple IGSNs', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
@@ -108,6 +148,51 @@ describe('IGSN Batch Delete', function () {
             ->delete('/igsns/batch', ['ids' => $ids]);
 
         $response->assertSessionHas('success', '3 IGSNs deleted successfully.');
+    });
+
+    it('atomically deletes exactly 1000 IGSNs across database chunks', function () {
+        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $ids = createMinimalIgsns(1000)->pluck('id')->all();
+
+        $this->actingAs($admin)
+            ->delete('/igsns/batch', ['ids' => $ids])
+            ->assertRedirect('/igsns')
+            ->assertSessionHas('success', '1000 IGSNs deleted successfully.');
+
+        expect(Resource::query()->whereIn('id', $ids)->count())->toBe(0)
+            ->and(IgsnMetadata::query()->whereIn('resource_id', $ids)->count())->toBe(0);
+    });
+
+    it('locks chunked resources in deterministic numeric order', function () {
+        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $ascendingIds = createMinimalIgsns(251)->pluck('id')->all();
+        $requestIds = array_reverse($ascendingIds);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->actingAs($admin)
+            ->delete('/igsns/batch', ['ids' => $requestIds])
+            ->assertRedirect('/igsns');
+
+        $lockQueries = collect(DB::getQueryLog())
+            ->filter(static function (array $query): bool {
+                $sql = strtolower($query['query']);
+
+                return str_contains($sql, 'from "resources"')
+                    && str_contains($sql, 'igsn_metadata')
+                    && str_contains($sql, ' in (');
+            })
+            ->values();
+        DB::disableQueryLog();
+
+        $lockedIds = $lockQueries
+            ->flatMap(static fn (array $query): array => $query['bindings'])
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
+
+        expect($lockQueries)->toHaveCount(2)
+            ->and($lockedIds)->toBe($ascendingIds);
     });
 
     it('prevents curator from deleting IGSNs', function () {
@@ -187,16 +272,20 @@ describe('IGSN Batch Delete', function () {
 
         $igsns = createIgsns(2);
         $regularResource = Resource::factory()->create();
+        $igsnIds = $igsns->pluck('id')->map(static fn (mixed $id): int => (int) $id)->values()->all();
 
-        $ids = $igsns->pluck('id')->toArray();
-        $ids[] = $regularResource->id;
+        $ids = [
+            $igsnIds[0],
+            $regularResource->id,
+            $igsnIds[1],
+        ];
 
         $response = $this->actingAs($admin)
             ->delete('/igsns/batch', ['ids' => $ids]);
 
         // ValidationException redirects back with errors (not 422 status)
         $response->assertRedirect();
-        $response->assertSessionHasErrors('ids');
+        $response->assertSessionHasErrors(['ids', 'ids.1']);
 
         // Verify nothing was deleted
         expect(Resource::whereIn('id', $igsns->pluck('id'))->count())->toBe(2);
@@ -239,16 +328,26 @@ describe('IGSN Batch Delete', function () {
         $response->assertSessionHasErrors('ids.0');
     });
 
-    it('rejects more than 100 IDs to prevent performance issues', function () {
+    it('rejects more than 1000 IDs', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
 
-        // Create an array of 101 fake IDs (we don't need real resources for this validation test)
-        $tooManyIds = range(1, 101);
+        $tooManyIds = range(1, 1001);
 
         $response = $this->actingAs($admin)
             ->delete('/igsns/batch', ['ids' => $tooManyIds]);
 
         $response->assertSessionHasErrors('ids');
+    });
+
+    it('rejects duplicate IDs instead of counting an IGSN twice', function () {
+        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $igsn = createIgsns(1)->firstOrFail();
+
+        $this->actingAs($admin)
+            ->delete('/igsns/batch', ['ids' => [$igsn->id, $igsn->id]])
+            ->assertSessionHasErrors(['ids.0', 'ids.1']);
+
+        expect(Resource::query()->whereKey($igsn->id)->exists())->toBeTrue();
     });
 });
 

@@ -1055,6 +1055,44 @@ erDiagram
         timestamp updated_at
     }
 
+    igsn_registration_runs {
+        uuid id PK
+        bigint initiated_by_user_id FK "nullable"
+        bigint last_controlled_by_user_id FK "nullable"
+        varchar status "30, indexed"
+        boolean test_mode
+        varchar datacite_endpoint "500"
+        int_unsigned total
+        int_unsigned processed
+        int_unsigned registered
+        int_unsigned updated
+        int_unsigned failed
+        int_unsigned cancelled
+        text pause_reason "nullable"
+        text last_error "nullable"
+        timestamp started_at "nullable"
+        timestamp paused_at "nullable"
+        timestamp cancelled_at "nullable"
+        timestamp completed_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    igsn_registration_items {
+        bigint id PK
+        uuid run_id FK
+        bigint resource_id FK "nullable"
+        varchar identifier "255"
+        varchar status "30, indexed"
+        varchar operation "20, nullable"
+        smallint_unsigned attempts
+        smallint_unsigned last_http_status "nullable"
+        text error_message "nullable"
+        timestamp processed_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     %% =========================================================================
     %% OAI-PMH TABLES (Harvesting Protocol)
     %% =========================================================================
@@ -1137,6 +1175,12 @@ erDiagram
     users |o--o{ datacite_url_update_runs : "last controls"
     datacite_url_update_runs ||--o{ datacite_url_update_items : "contains"
     resources |o--o{ datacite_url_update_items : "migration candidate"
+
+    %% IGSN registration relationships
+    users |o--o{ igsn_registration_runs : "initiates"
+    users |o--o{ igsn_registration_runs : "last controls"
+    igsn_registration_runs ||--o{ igsn_registration_items : "contains"
+    resources |o--o{ igsn_registration_items : "registration target"
 
     %% Resource core relationships
     resources ||--o| resource_listing_projections : "has listing projection"

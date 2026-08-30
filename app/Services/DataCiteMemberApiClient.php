@@ -25,10 +25,11 @@ class DataCiteMemberApiClient
 
     public function __construct(
         private readonly DataCiteRequestLimiter $limiter,
+        ?bool $testMode = null,
     ) {
         $authenticatedUser = auth()->user();
         $user = $authenticatedUser instanceof User ? $authenticatedUser : null;
-        $this->testMode = app(DataCiteModeResolverService::class)->shouldUseTestMode($user);
+        $this->testMode = $testMode ?? app(DataCiteModeResolverService::class)->shouldUseTestMode($user);
         $config = $this->testMode ? Config::get('datacite.test') : Config::get('datacite.production');
         $this->environmentConfig = is_array($config) ? $config : [];
         $this->endpoint = rtrim((string) ($this->environmentConfig['endpoint'] ?? ''), '/');
