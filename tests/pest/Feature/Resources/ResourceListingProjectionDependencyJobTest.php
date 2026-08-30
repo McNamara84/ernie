@@ -3,14 +3,17 @@
 declare(strict_types=1);
 
 use App\Jobs\RefreshResourceListingProjectionsForDependencyJob;
+use App\Models\Datacenter;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceListingProjection;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\User;
+use App\Observers\ResourceListingProjectionDependencyObserver;
 use App\Services\ListingCountService;
 use App\Services\ResourceCacheService;
+use App\Services\Resources\ResourceFilterOptionsCacheInvalidationService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +29,22 @@ function runResourceListingProjectionDependencyJob(RefreshResourceListingProject
         app(ListingCountService::class),
     );
 }
+
+it('invalidates only the filter-options cache when a datacenter name changes', function (): void {
+    Queue::fake();
+    $cacheInvalidationService = Mockery::mock(ResourceFilterOptionsCacheInvalidationService::class);
+    $cacheInvalidationService->shouldReceive('scheduleAfterCommit')->once();
+    $observer = new ResourceListingProjectionDependencyObserver($cacheInvalidationService);
+    $datacenter = Datacenter::factory()->create(['name' => 'Original Datacenter']);
+
+    $datacenter->updateQuietly(['name' => 'Renamed Datacenter']);
+    $observer->updated($datacenter);
+
+    $datacenter->syncChanges();
+    $observer->updated($datacenter);
+
+    Queue::assertNotPushed(RefreshResourceListingProjectionsForDependencyJob::class);
+});
 
 it('queues only projection-relevant lookup saves after commit without loading dependent resource ids', function (): void {
     $curator = User::factory()->create(['name' => 'Original Curator']);

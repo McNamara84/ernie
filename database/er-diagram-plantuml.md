@@ -286,20 +286,21 @@ entity "resource_listing_projections" as resource_listing_projections {
     --
     * is_igsn : BOOLEAN = false
     * workflow_status : VARCHAR(16)
-    * workflow_status_rank : TINYINT
+    * workflow_status_rank : TINYINT //indexed sort//
     * is_dashboard_draft : BOOLEAN
     resource_type_id : BIGINT <<nullable>> //indexed//
     resource_type_slug : VARCHAR <<nullable>>
-    * resource_type_sort : VARCHAR
+    * resource_type_sort : VARCHAR //indexed sort//
     datacenter_id : BIGINT <<nullable>> //indexed//
     curator_user_id : BIGINT <<nullable>> //indexed//
-    * curator_name : VARCHAR
+    * curator_name : VARCHAR //indexed sort//
     publication_year : SMALLINT <<nullable>> //indexed//
-    * sort_year : SMALLINT
-    * sort_doi : VARCHAR
+    * sort_year : SMALLINT //indexed sort//
+    * sort_doi : VARCHAR //indexed sort//
     * main_title : VARCHAR(1000)
-    * first_creator_sort : VARCHAR(512)
-    * created_sort : VARCHAR(40)
+    * main_title_sort : VARCHAR(512) //indexed prefix//
+    * first_creator_sort : VARCHAR //indexed sort//
+    * created_sort : VARCHAR(40) //indexed//
     * updated_sort : VARCHAR(40) //indexed//
     * search_text : TEXT
     created_at : TIMESTAMP

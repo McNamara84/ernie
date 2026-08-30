@@ -102,8 +102,10 @@ final readonly class ResourceQueryBuilder
         return $query
             ->select([
                 'resources.*',
+                'listing.resource_id as listing_resource_id',
                 'listing.sort_doi as listing_sort_doi',
                 'listing.main_title as listing_main_title',
+                'listing.main_title_sort as listing_main_title_sort',
                 'listing.first_creator_sort as listing_first_creator_sort',
                 'listing.curator_name as listing_curator_name',
                 'listing.workflow_status as listing_workflow_status',
@@ -213,9 +215,9 @@ final readonly class ResourceQueryBuilder
     {
         $direction = $sortDirection === 'asc' ? 'asc' : 'desc';
         $column = match ($sortKey) {
-            'id' => 'resources.id',
+            'id' => 'listing_resource_id',
             'doi' => 'listing_sort_doi',
-            'title' => 'listing_main_title',
+            'title' => 'listing_main_title_sort',
             'resourcetypegeneral' => 'listing_resource_type_sort',
             'first_author' => 'listing_first_creator_sort',
             'year' => 'listing_sort_year',
@@ -227,8 +229,8 @@ final readonly class ResourceQueryBuilder
 
         $query->orderBy($column, $direction);
 
-        if ($column !== 'resources.id') {
-            $query->orderBy('resources.id', $direction);
+        if ($column !== 'listing_resource_id') {
+            $query->orderBy('listing_resource_id', $direction);
         }
     }
 

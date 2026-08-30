@@ -14,13 +14,26 @@ use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\Resources\ResourceFilterOptionsCacheInvalidationService;
 use Illuminate\Database\Eloquent\Model;
 
 /** Refresh projections when a denormalized lookup or display name changes. */
 final class ResourceListingProjectionDependencyObserver
 {
+    public function __construct(
+        private readonly ResourceFilterOptionsCacheInvalidationService $filterOptionsCacheInvalidationService,
+    ) {}
+
     public function updated(Model $model): void
     {
+        if ($model instanceof Datacenter) {
+            if ($model->wasChanged('name')) {
+                $this->filterOptionsCacheInvalidationService->scheduleAfterCommit();
+            }
+
+            return;
+        }
+
         if (! $this->updatedChangeAffectsProjection($model)) {
             return;
         }
@@ -43,9 +56,10 @@ final class ResourceListingProjectionDependencyObserver
             $model instanceof TitleType,
             $model instanceof DescriptionType,
             $model instanceof DateType => $model->wasChanged('slug'),
-            // Datacenter display values and catalog Right attributes are not
-            // denormalized into this projection, so their saves require no work.
-            $model instanceof Datacenter, $model instanceof Right => false,
+            // Catalog Right attributes are not denormalized into this projection,
+            // so their saves require no work. Datacenters are handled above because
+            // only their cached filter label changes when they are renamed.
+            $model instanceof Right => false,
             default => false,
         };
     }

@@ -532,66 +532,64 @@ export function ResourcesFilters({
             </div>
 
             {/* Active Filters & Result Count Row */}
-            {(hasActiveFilters || isFiltered) && (
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    {/* Active Filter Badges */}
-                    {hasActiveFilters && (
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm text-muted-foreground">Active filters:</span>
-                            {Object.entries(filters).map(([key, value]) => {
-                                if (value === undefined || value === null || value === '') {
-                                    return null;
-                                }
-                                if (Array.isArray(value) && value.length === 0) {
-                                    return null;
-                                }
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                {/* Active Filter Badges */}
+                {hasActiveFilters && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Active filters:</span>
+                        {Object.entries(filters).map(([key, value]) => {
+                            if (value === undefined || value === null || value === '') {
+                                return null;
+                            }
+                            if (Array.isArray(value) && value.length === 0) {
+                                return null;
+                            }
 
-                                return (
-                                    <Badge key={key} variant="secondary" className="gap-1 pr-1">
-                                        <span>{formatFilterLabel(key as keyof ResourceFilterState, value)}</span>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-auto p-0.5 hover:bg-transparent"
-                                            onClick={() => removeFilter(key as keyof ResourceFilterState)}
-                                            aria-label={`Remove ${key} filter`}
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </Button>
-                                    </Badge>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* Result Counter */}
-                    <div className="ml-auto text-sm text-muted-foreground">
-                        {countStatus === 'failed' ? (
-                            <span>
-                                Showing <span className="font-semibold text-foreground">{resultCount}</span>; total unavailable
-                                {onRetryCount ? (
-                                    <Button variant="link" size="sm" className="h-auto px-1 py-0" onClick={onRetryCount}>
-                                        Retry
+                            return (
+                                <Badge key={key} variant="secondary" className="gap-1 pr-1">
+                                    <span>{formatFilterLabel(key as keyof ResourceFilterState, value)}</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-auto p-0.5 hover:bg-transparent"
+                                        onClick={() => removeFilter(key as keyof ResourceFilterState)}
+                                        aria-label={`Remove ${key} filter`}
+                                    >
+                                        <X className="h-3 w-3" />
                                     </Button>
-                                ) : null}
-                            </span>
-                        ) : countStatus === 'pending' || totalCount === null ? (
-                            <span>
-                                Showing <span className="font-semibold text-foreground">{resultCount}</span>; counting total…
-                            </span>
-                        ) : isFiltered ? (
-                            <span>
-                                Showing <span className="font-semibold text-foreground">{resultCount}</span> of{' '}
-                                <span className="font-semibold text-foreground">{totalCount}</span> resources
-                            </span>
-                        ) : (
-                            <span>
-                                <span className="font-semibold text-foreground">{totalCount}</span> resources total
-                            </span>
-                        )}
+                                </Badge>
+                            );
+                        })}
                     </div>
+                )}
+
+                {/* Result Counter */}
+                <div className="ml-auto text-sm text-muted-foreground" role="status" aria-live="polite" aria-atomic="true">
+                    {countStatus === 'failed' ? (
+                        <span>
+                            Showing <span className="font-semibold text-foreground">{resultCount}</span>; total unavailable
+                            {onRetryCount ? (
+                                <Button variant="link" size="sm" className="h-auto px-1 py-0" onClick={onRetryCount}>
+                                    Retry
+                                </Button>
+                            ) : null}
+                        </span>
+                    ) : countStatus === 'pending' || totalCount === null ? (
+                        <span>
+                            Showing <span className="font-semibold text-foreground">{resultCount}</span>; counting total…
+                        </span>
+                    ) : isFiltered ? (
+                        <span>
+                            Showing <span className="font-semibold text-foreground">{resultCount}</span> of{' '}
+                            <span className="font-semibold text-foreground">{totalCount}</span> resources
+                        </span>
+                    ) : (
+                        <span>
+                            <span className="font-semibold text-foreground">{totalCount}</span> resources total
+                        </span>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     );
 }

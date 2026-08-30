@@ -58,6 +58,7 @@ use App\Services\DatabaseDumps\SymfonyDatabaseDumpProcessRunner;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
 use App\Services\PortalKeywordCacheInvalidationService;
+use App\Services\Resources\ResourceFilterOptionsCacheInvalidationService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use App\Services\Resources\ResourceListingProjectorService;
 use App\Services\RorLookupService;
@@ -85,6 +86,7 @@ class AppServiceProvider extends ServiceProvider
         // RorLookupService is a singleton so the ROR JSON file is loaded at most once per request
         $this->app->singleton(RorLookupService::class);
         $this->app->singleton(PortalKeywordCacheInvalidationService::class);
+        $this->app->singleton(ResourceFilterOptionsCacheInvalidationService::class);
         $this->app->singleton(ResourceListingProjectorService::class);
         $this->app->singleton(ResourceListingProjectionRefreshService::class);
         $this->app->singleton(DatabaseDumpProcessRunner::class, SymfonyDatabaseDumpProcessRunner::class);

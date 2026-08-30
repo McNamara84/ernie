@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $sort_year
  * @property string $sort_doi
  * @property string $main_title
+ * @property string $main_title_sort
  * @property string $first_creator_sort
  * @property string $created_sort
  * @property string $updated_sort

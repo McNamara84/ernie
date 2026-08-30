@@ -199,6 +199,7 @@ final class ResourceListingProjectorService
             'sort_year' => $resource->publication_year ?? 0,
             'sort_doi' => $resource->doi ?? '',
             'main_title' => $mainTitle,
+            'main_title_sort' => mb_substr($mainTitle, 0, 512),
             'first_creator_sort' => $firstCreatorSort,
             'created_sort' => $createdDate ?: $resource->created_at?->toIso8601String() ?? '',
             'updated_sort' => $updatedDate ?: $resource->updated_at?->toIso8601String() ?? '',

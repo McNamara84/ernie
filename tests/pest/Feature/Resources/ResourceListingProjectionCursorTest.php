@@ -58,6 +58,7 @@ it('maintains denormalized listing values for resource and relation changes', fu
     expect($projection->workflow_status)->toBe('curation')
         ->and($projection->is_dashboard_draft)->toBeFalse()
         ->and($projection->main_title)->toBe('Projected Climate Record')
+        ->and($projection->main_title_sort)->toBe('Projected Climate Record')
         ->and($projection->first_creator_sort)->toBe('Lovelace')
         ->and($projection->curator_name)->toBe('Projection Curator')
         ->and($projection->search_text)->toContain('projected climate record');
@@ -77,8 +78,47 @@ it('maintains denormalized listing values for resource and relation changes', fu
 
     $projection->refresh();
     expect($projection->main_title)->toBe('Updated Projection Title')
+        ->and($projection->main_title_sort)->toBe('Updated Projection Title')
         ->and($projection->first_creator_sort)->toBe('Byron');
 });
+
+it('stores a bounded title sort key while retaining the complete display title', function (): void {
+    $title = str_repeat('Long title segment ', 40);
+    $resource = Resource::factory()->create();
+    Title::factory()->create(['resource_id' => $resource->id, 'value' => $title]);
+
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    $projection = ResourceListingProjection::query()->findOrFail($resource->id);
+    expect($projection->main_title)->toBe($title)
+        ->and($projection->main_title_sort)->toBe(mb_substr($title, 0, 512))
+        ->and(mb_strlen($projection->main_title_sort))->toBe(512);
+});
+
+it('orders cursor queries by indexed projection keys and the projection resource id', function (string $sortKey, string $sortColumn): void {
+    $query = app(ResourceQueryBuilder::class)->baseQuery();
+    app(ResourceQueryBuilder::class)->applySorting($query, $sortKey, 'asc');
+
+    expect($query->getQuery()->orders)->toBe(
+        $sortColumn === 'listing_resource_id'
+            ? [['column' => 'listing_resource_id', 'direction' => 'asc']]
+            : [
+                ['column' => $sortColumn, 'direction' => 'asc'],
+                ['column' => 'listing_resource_id', 'direction' => 'asc'],
+            ],
+    );
+})->with([
+    'id' => ['id', 'listing_resource_id'],
+    'DOI' => ['doi', 'listing_sort_doi'],
+    'title' => ['title', 'listing_main_title_sort'],
+    'resource type' => ['resourcetypegeneral', 'listing_resource_type_sort'],
+    'first creator' => ['first_author', 'listing_first_creator_sort'],
+    'year' => ['year', 'listing_sort_year'],
+    'curator' => ['curator', 'listing_curator_name'],
+    'status rank' => ['publicstatus', 'listing_workflow_status_rank'],
+    'created date' => ['created_at', 'listing_created_sort'],
+    'updated date' => ['updated_at', 'listing_updated_sort'],
+]);
 
 it('serves projected display fields without loading source-only relations', function (): void {
     $curator = User::factory()->create(['name' => 'Fast List Curator']);

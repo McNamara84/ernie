@@ -138,6 +138,26 @@ describe('ResourcesFilters', () => {
         expect(screen.getByText('10')).toBeInTheDocument();
     });
 
+    it('announces asynchronous total states through a polite status region', () => {
+        const props = {
+            filters: {},
+            onFilterChange: vi.fn(),
+            filterOptions: defaultFilterOptions,
+            resultCount: 10,
+        };
+        const { rerender } = render(<ResourcesFilters {...props} totalCount={null} countStatus="pending" />);
+
+        expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
+        expect(screen.getByRole('status')).toHaveAttribute('aria-atomic', 'true');
+        expect(screen.getByRole('status')).toHaveTextContent('Showing 10; counting total');
+
+        rerender(<ResourcesFilters {...props} totalCount={null} countStatus="failed" onRetryCount={vi.fn()} />);
+        expect(screen.getByRole('status')).toHaveTextContent('Showing 10; total unavailable');
+
+        rerender(<ResourcesFilters {...props} totalCount={12} countStatus="ready" />);
+        expect(screen.getByRole('status')).toHaveTextContent('Showing 10 of 12 resources');
+    });
+
     it('shows active filter badges', () => {
         render(
             <ResourcesFilters
