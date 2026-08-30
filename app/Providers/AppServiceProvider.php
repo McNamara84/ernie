@@ -51,6 +51,7 @@ use App\Observers\ResourceTypeObserver;
 use App\Observers\SizeObserver;
 use App\Observers\SubjectObserver;
 use App\Services\BotProtection\BotClassifierService;
+use App\Services\DashboardMetricsCacheInvalidationService;
 use App\Services\DatabaseDumps\DatabaseDumpProcessRunner;
 use App\Services\DatabaseDumps\DatabaseServerInfoProvider;
 use App\Services\DatabaseDumps\LaravelDatabaseServerInfoProvider;
@@ -86,6 +87,7 @@ class AppServiceProvider extends ServiceProvider
         // RorLookupService is a singleton so the ROR JSON file is loaded at most once per request
         $this->app->singleton(RorLookupService::class);
         $this->app->singleton(PortalKeywordCacheInvalidationService::class);
+        $this->app->singleton(DashboardMetricsCacheInvalidationService::class);
         $this->app->singleton(ResourceFilterOptionsCacheInvalidationService::class);
         $this->app->singleton(ResourceListingProjectorService::class);
         $this->app->singleton(ResourceListingProjectionRefreshService::class);

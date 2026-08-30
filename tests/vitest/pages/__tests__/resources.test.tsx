@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
+import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ResourcesPage, { appendUniqueResources, mergeLoadMorePagination } from '@/pages/resources';
@@ -72,16 +72,19 @@ vi.mock('@/components/resources-filters', () => ({
         onFilterChange,
         totalCount,
         countStatus,
+        isLoading,
     }: {
         filters: { datacenter_id?: number; without_datacenter?: boolean; search?: string };
         onFilterChange: (filters: Record<string, unknown>) => void;
         totalCount: number | null;
         countStatus?: string;
+        isLoading: boolean;
     }) => (
         <div data-testid="resources-filters">
             <span data-testid="resource-filter-state">{JSON.stringify(filters)}</span>
             <span data-testid="resource-total-count">{totalCount ?? 'pending'}</span>
             <span data-testid="resource-count-status">{countStatus}</span>
+            <span data-testid="resource-loading-state">{String(isLoading)}</span>
             <button type="button" data-testid="select-datacenter" onClick={() => onFilterChange({ ...filters, datacenter_id: 7 })}>
                 Select datacenter
             </button>
@@ -130,6 +133,7 @@ describe('ResourcesPage', () => {
     let originalClipboardDescriptor: PropertyDescriptor | undefined;
     let openMock: ReturnType<typeof vi.fn>;
     let clipboardWriteTextMock: ReturnType<typeof vi.fn>;
+    let intersectionCallback: IntersectionObserverCallback | null;
 
     beforeEach(() => {
         authUserMock.can_send_review_links = true;
@@ -150,6 +154,7 @@ describe('ResourcesPage', () => {
         originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
         openMock = vi.fn().mockReturnValue({ closed: false });
         clipboardWriteTextMock = vi.fn().mockResolvedValue(undefined);
+        intersectionCallback = null;
         Object.defineProperty(window, 'open', {
             value: openMock,
             configurable: true,
@@ -161,7 +166,9 @@ describe('ResourcesPage', () => {
             writable: true,
         });
 
-        global.IntersectionObserver = vi.fn().mockImplementation(function () {
+        global.IntersectionObserver = vi.fn().mockImplementation(function (callback: IntersectionObserverCallback) {
+            intersectionCallback = callback;
+
             return {
                 observe: vi.fn(),
                 unobserve: vi.fn(),
@@ -211,8 +218,16 @@ describe('ResourcesPage', () => {
     it('deduplicates resources when adjacent cursor slices overlap', () => {
         const current = [{ id: 1 }, { id: 2 }] as Parameters<typeof appendUniqueResources>[0];
         const incoming = [{ id: 2 }, { id: 3 }] as Parameters<typeof appendUniqueResources>[1];
+        const merged = appendUniqueResources(current, incoming);
 
-        expect(appendUniqueResources(current, incoming).map((resource) => resource.id)).toEqual([1, 2, 3]);
+        expect(merged.map((resource) => resource.id)).toEqual([1, 2, 3]);
+        expect(
+            mergeLoadMorePagination(
+                { per_page: 2, total: 3, from: 1, to: 2, has_more: true },
+                { per_page: 2, has_more: false },
+                merged.length - current.length,
+            ).to,
+        ).toBe(3);
     });
 
     it('loads the exact count asynchronously and accepts only the matching fingerprint', async () => {
@@ -271,6 +286,45 @@ describe('ResourcesPage', () => {
         await waitFor(() => expect(axiosGetMock).toHaveBeenCalledTimes(2));
         expect(screen.getByTestId('resource-total-count')).toHaveTextContent('pending');
         expect(screen.getByTestId('resource-count-status')).toHaveTextContent('pending');
+    });
+
+    it('clears the loading state when a filter change aborts an in-flight cursor request', async () => {
+        axiosGetMock.mockImplementation((url: string, config?: { signal?: AbortSignal }) => {
+            if (url !== '/resources/load-more') {
+                return Promise.resolve({ data: { datacenters: [] } });
+            }
+
+            return new Promise((_resolve, reject) => {
+                config?.signal?.addEventListener('abort', () => reject({ isAxiosError: true, code: 'ERR_CANCELED' }), { once: true });
+            });
+        });
+
+        render(
+            <ResourcesPage
+                resources={[{ id: 1, title: 'First resource', publicstatus: 'draft' } as never]}
+                pagination={{
+                    per_page: 50,
+                    total: 2,
+                    from: 1,
+                    to: 1,
+                    has_more: true,
+                    next_cursor: 'next-cursor',
+                    count_status: 'ready',
+                }}
+                sort={{ key: 'updated_at', direction: 'desc' }}
+                filters={{}}
+            />,
+        );
+
+        await waitFor(() => expect(intersectionCallback).not.toBeNull());
+        act(() => {
+            intersectionCallback?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+        });
+
+        await waitFor(() => expect(screen.getByTestId('resource-loading-state')).toHaveTextContent('true'));
+        fireEvent.click(screen.getByTestId('select-datacenter'));
+
+        await waitFor(() => expect(screen.getByTestId('resource-loading-state')).toHaveTextContent('false'));
     });
 
     afterEach(() => {

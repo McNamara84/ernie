@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Resources;
 
-use App\Enums\CacheKey;
 use App\Enums\ResourceWorkflowStatus;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceListingProjection;
 use App\Models\Title;
+use App\Services\DashboardMetricsCacheInvalidationService;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -21,6 +21,10 @@ use Throwable;
 final class ResourceListingProjectorService
 {
     private ?bool $tableExists = null;
+
+    public function __construct(
+        private readonly DashboardMetricsCacheInvalidationService $metricsCacheInvalidationService,
+    ) {}
 
     public function refresh(int $resourceId): void
     {
@@ -40,7 +44,7 @@ final class ResourceListingProjectorService
             ['resource_id' => $resourceId],
             $this->values($resource),
         );
-        CacheKey::DASHBOARD_METRICS->forget();
+        $this->metricsCacheInvalidationService->scheduleAfterCommit();
     }
 
     /** @param iterable<int> $resourceIds */
@@ -138,7 +142,7 @@ final class ResourceListingProjectorService
             ['resource_id'],
             array_keys($this->values($firstResource)),
         );
-        CacheKey::DASHBOARD_METRICS->forget();
+        $this->metricsCacheInvalidationService->scheduleAfterCommit();
     }
 
     /** @return array<string, mixed> */
@@ -166,6 +170,7 @@ final class ResourceListingProjectorService
             ->first();
         $status = $resource->publicStatus();
         $curator = $resource->updatedBy ?? $resource->createdBy;
+        $resourceType = $resource->resourceType;
         $hasMainTitle = $resource->titles->contains(
             fn (Title $title): bool => $title->isMainTitle() && trim($title->value) !== '',
         );
@@ -174,7 +179,7 @@ final class ResourceListingProjectorService
         );
 
         return [
-            'is_igsn' => $resource->resourceType?->slug === 'physical-object',
+            'is_igsn' => $resourceType?->slug === 'physical-object',
             'workflow_status' => $status,
             'workflow_status_rank' => match ($status) {
                 ResourceWorkflowStatus::DRAFT->value => 0,
@@ -190,11 +195,11 @@ final class ResourceListingProjectorService
                 || ! $hasMainTitle
                 || ! $hasAbstract,
             'resource_type_id' => $resource->resource_type_id,
-            'resource_type_slug' => $resource->resourceType?->slug,
-            'resource_type_sort' => $resource->resourceType->name ?? '',
+            'resource_type_slug' => $resourceType?->slug,
+            'resource_type_sort' => $resourceType === null ? '' : $resourceType->name,
             'datacenter_id' => $resource->datacenter_id,
             'curator_user_id' => $curator?->id,
-            'curator_name' => $curator->name ?? '',
+            'curator_name' => $curator === null ? '' : $curator->name,
             'publication_year' => $resource->publication_year,
             'sort_year' => $resource->publication_year ?? 0,
             'sort_doi' => $resource->doi ?? '',

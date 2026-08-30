@@ -95,6 +95,22 @@ it('stores a bounded title sort key while retaining the complete display title',
         ->and(mb_strlen($projection->main_title_sort))->toBe(512);
 });
 
+it('projects incomplete resources without an assigned type or curator', function (): void {
+    $resource = Resource::factory()->create([
+        'resource_type_id' => null,
+        'created_by_user_id' => null,
+        'updated_by_user_id' => null,
+    ]);
+
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    $projection = ResourceListingProjection::query()->findOrFail($resource->id);
+    expect($projection->resource_type_slug)->toBeNull()
+        ->and($projection->resource_type_sort)->toBe('')
+        ->and($projection->curator_user_id)->toBeNull()
+        ->and($projection->curator_name)->toBe('');
+});
+
 it('orders cursor queries by indexed projection keys and the projection resource id', function (string $sortKey, string $sortColumn): void {
     $query = app(ResourceQueryBuilder::class)->baseQuery();
     app(ResourceQueryBuilder::class)->applySorting($query, $sortKey, 'asc');

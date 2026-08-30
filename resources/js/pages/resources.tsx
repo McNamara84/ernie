@@ -761,9 +761,17 @@ function ResourcesPage({
 
     useEffect(() => {
         return () => {
-            loadMoreControllerRef.current?.abort();
-            loadMoreControllerRef.current = null;
-            loadMoreInFlightRef.current = false;
+            const controller = loadMoreControllerRef.current;
+
+            if (controller) {
+                controller.abort();
+
+                if (loadMoreControllerRef.current === controller) {
+                    loadMoreControllerRef.current = null;
+                    loadMoreInFlightRef.current = false;
+                    setLoading(false);
+                }
+            }
         };
     }, [filters, pagination.per_page, sortState.direction, sortState.key]);
 
@@ -852,8 +860,9 @@ function ResourcesPage({
             if (controller.signal.aborted) return;
 
             const incomingResources = (response.data.resources || []) as Resource[];
-            setResources((current) => appendUniqueResources(current, incomingResources));
-            setPagination((current) => mergeLoadMorePagination(current, response.data.pagination, incomingResources.length));
+            const mergedResources = appendUniqueResources(resources, incomingResources);
+            setResources(mergedResources);
+            setPagination((current) => mergeLoadMorePagination(current, response.data.pagination, mergedResources.length - resources.length));
         } catch (err) {
             if (controller.signal.aborted || (isAxiosError(err) && err.code === 'ERR_CANCELED')) return;
 
@@ -874,7 +883,7 @@ function ResourcesPage({
                 setLoading(false);
             }
         }
-    }, [filters, pagination.has_more, pagination.next_cursor, pagination.per_page, sortState.direction, sortState.key]);
+    }, [filters, pagination.has_more, pagination.next_cursor, pagination.per_page, resources, sortState.direction, sortState.key]);
 
     // Load filter options on mount
     useEffect(() => {

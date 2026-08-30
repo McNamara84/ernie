@@ -150,10 +150,9 @@ class ResourceFilterController extends Controller
             return ResourceListingProjection::query()
                 ->where('is_igsn', false)
                 ->where('curator_name', '!=', '')
+                ->distinct()
                 ->orderBy('curator_name')
                 ->pluck('curator_name')
-                ->unique()
-                ->values()
                 ->all();
         } catch (Throwable $e) {
             Log::warning('Failed to load curator filter options', [
