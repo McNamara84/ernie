@@ -3,11 +3,13 @@
 use App\Enums\AccessLevel;
 use App\Enums\CacheKey;
 use App\Models\Affiliation;
+use App\Models\DateType;
 use App\Models\Description;
 use App\Models\GuidedTour;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceDate;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Title;
@@ -496,6 +498,51 @@ test('dashboard recent resources are sorted by update time and limited to five',
             ->where('recentResources.2.id', $resources[2]->id)
             ->where('recentResources.3.id', $resources[3]->id)
             ->where('recentResources.4.id', $resources[4]->id)
+        );
+});
+
+test('dashboard recent resources use the displayed activity timestamp instead of DataCite metadata dates', function () {
+    $user = User::factory()->create();
+    $updatedType = DateType::query()->create([
+        'name' => 'Updated',
+        'slug' => 'Updated',
+        'is_active' => true,
+    ]);
+    $recentEdit = createDashboardResource([
+        'updated_by_user_id' => $user->id,
+        'updated_at' => now(),
+    ], 'Recently edited resource');
+    $olderEdit = createDashboardResource([
+        'updated_by_user_id' => $user->id,
+        'updated_at' => now()->subDay(),
+    ], 'Older edit with a later metadata date');
+
+    ResourceDate::query()->create([
+        'resource_id' => $recentEdit->id,
+        'date_type_id' => $updatedType->id,
+        'date_value' => '2000-01-01',
+    ]);
+    ResourceDate::query()->create([
+        'resource_id' => $olderEdit->id,
+        'date_type_id' => $updatedType->id,
+        'date_value' => '2099-12-31',
+    ]);
+    $recentActivityAt = now()->subHour();
+    $olderActivityAt = now()->subDays(2);
+    DB::table('resources')->where('id', $recentEdit->id)->update(['updated_at' => $recentActivityAt]);
+    DB::table('resources')->where('id', $olderEdit->id)->update(['updated_at' => $olderActivityAt]);
+    $recentEdit->refresh();
+    $olderEdit->refresh();
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('recentResources', 2)
+            ->where('recentResources.0.id', $recentEdit->id)
+            ->where('recentResources.0.updated_at', $recentEdit->updated_at?->toISOString())
+            ->where('recentResources.1.id', $olderEdit->id)
+            ->where('recentResources.1.updated_at', $olderEdit->updated_at?->toISOString())
         );
 });
 

@@ -9,6 +9,10 @@
                 "description": "Resource, IGSN, and public Data Portal results now appear without waiting for exact total counts, while cached totals and full page navigation load independently. The IGSN list now offers 10 or 100 rows per page to keep large collections responsive, and previously stored 1000-row preferences automatically migrate to 100."
             },
             {
+                "title": "Responsive Resource Curation List",
+                "description": "The Resources list now uses stable cursor pagination so large repositories load quickly. Exact result totals are calculated separately: the list shows when counting is in progress, reports when a count is unavailable, and offers Retry without clearing the current search, filters, sorting, or loaded results."
+            },
+            {
                 "title": "Faster and More Reliable Data Portal Map",
                 "description": "The public Data Portal now opens reliably even with very large collections. Its map loads the area currently in view, groups nearby locations into clear clusters, and reveals individual points and geographic shapes as users zoom in. Searching, filtering, moving, and zooming the map remain responsive while the result list and map stay in sync."
             },

@@ -34,7 +34,7 @@ final class DashboardController extends Controller
             ->join('resource_listing_projections as listing', 'listing.resource_id', '=', 'resources.id')
             ->where('listing.is_igsn', false)
             ->where('listing.curator_user_id', $user->id)
-            ->orderByDesc('listing.updated_sort')
+            ->orderByDesc('resources.updated_at')
             ->orderByDesc('resources.id')
             ->take(5)
             ->get([

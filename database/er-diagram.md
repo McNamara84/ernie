@@ -251,6 +251,30 @@ erDiagram
         timestamp updated_at
     }
 
+    resource_listing_projections {
+        bigint resource_id PK,FK
+        boolean is_igsn
+        varchar workflow_status "16"
+        tinyint workflow_status_rank
+        boolean is_dashboard_draft
+        bigint resource_type_id "nullable, indexed"
+        varchar resource_type_slug "nullable"
+        varchar resource_type_sort
+        bigint datacenter_id "nullable, indexed"
+        bigint curator_user_id "nullable, indexed"
+        varchar curator_name
+        smallint publication_year "nullable, indexed"
+        smallint sort_year
+        varchar sort_doi
+        varchar main_title "1000"
+        varchar first_creator_sort "512"
+        varchar created_sort "40"
+        varchar updated_sort "40, indexed"
+        text search_text
+        timestamp created_at
+        timestamp updated_at
+    }
+
     %% =========================================================================
     %% RESOURCE RELATIONSHIP TABLES
     %% =========================================================================
@@ -1114,6 +1138,7 @@ erDiagram
     resources |o--o{ datacite_url_update_items : "migration candidate"
 
     %% Resource core relationships
+    resources ||--o| resource_listing_projections : "has listing projection"
     resources ||--o{ titles : "has"
     resources ||--o{ resource_creators : "has"
     resources ||--o{ resource_contributors : "has"

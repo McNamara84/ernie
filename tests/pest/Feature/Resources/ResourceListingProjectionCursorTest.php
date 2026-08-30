@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\AccessLevel;
 use App\Http\Resources\ResourceListItemResource;
+use App\Jobs\RefreshResourceListingProjectionsForDependencyJob;
 use App\Models\DateType;
 use App\Models\Description;
 use App\Models\Person;
@@ -15,6 +16,8 @@ use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Title;
 use App\Models\User;
+use App\Services\ListingCountService;
+use App\Services\ResourceCacheService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use App\Services\Resources\ResourceListingProjectorService;
 use App\Services\Resources\ResourceQueryBuilder;
@@ -62,6 +65,15 @@ it('maintains denormalized listing values for resource and relation changes', fu
     $title->update(['value' => 'Updated Projection Title']);
     $person->update(['family_name' => 'Byron']);
     app(ResourceListingProjectionRefreshService::class)->flushPending();
+    (new RefreshResourceListingProjectionsForDependencyJob(
+        Person::class,
+        $person->id,
+        RefreshResourceListingProjectionsForDependencyJob::EVENT_UPDATED,
+    ))->handle(
+        app(ResourceListingProjectionRefreshService::class),
+        app(ResourceCacheService::class),
+        app(ListingCountService::class),
+    );
 
     $projection->refresh();
     expect($projection->main_title)->toBe('Updated Projection Title')
@@ -132,7 +144,33 @@ it('keeps the projection consistent across rollbacks, removals, and dependency c
     $curator->update(['name' => 'Updated Curator']);
     $resourceType->update(['name' => 'Updated Type']);
     $person->update(['family_name' => 'Updated Creator']);
-    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    (new RefreshResourceListingProjectionsForDependencyJob(
+        User::class,
+        $curator->id,
+        RefreshResourceListingProjectionsForDependencyJob::EVENT_UPDATED,
+    ))->handle(
+        app(ResourceListingProjectionRefreshService::class),
+        app(ResourceCacheService::class),
+        app(ListingCountService::class),
+    );
+    (new RefreshResourceListingProjectionsForDependencyJob(
+        ResourceType::class,
+        $resourceType->id,
+        RefreshResourceListingProjectionsForDependencyJob::EVENT_UPDATED,
+    ))->handle(
+        app(ResourceListingProjectionRefreshService::class),
+        app(ResourceCacheService::class),
+        app(ListingCountService::class),
+    );
+    (new RefreshResourceListingProjectionsForDependencyJob(
+        Person::class,
+        $person->id,
+        RefreshResourceListingProjectionsForDependencyJob::EVENT_UPDATED,
+    ))->handle(
+        app(ResourceListingProjectionRefreshService::class),
+        app(ResourceCacheService::class),
+        app(ListingCountService::class),
+    );
 
     $projection = ResourceListingProjection::query()->findOrFail($resource->id);
     expect($projection->curator_name)->toBe('Updated Curator')
@@ -141,7 +179,15 @@ it('keeps the projection consistent across rollbacks, removals, and dependency c
         ->and($projection->workflow_status)->toBe('curation');
 
     $right->delete();
-    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    (new RefreshResourceListingProjectionsForDependencyJob(
+        Right::class,
+        $right->id,
+        RefreshResourceListingProjectionsForDependencyJob::EVENT_DELETED,
+    ))->handle(
+        app(ResourceListingProjectionRefreshService::class),
+        app(ResourceCacheService::class),
+        app(ListingCountService::class),
+    );
     expect(ResourceListingProjection::query()->findOrFail($resource->id)->workflow_status)->toBe('draft');
 
     $resource->delete();
