@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import ResourcesPage, { mergeLoadMorePagination } from '@/pages/resources';
+import ResourcesPage, { appendUniqueResources, mergeLoadMorePagination } from '@/pages/resources';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn(), reload: vi.fn(), visit: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
@@ -70,12 +70,18 @@ vi.mock('@/components/resources-filters', () => ({
     ResourcesFilters: ({
         filters,
         onFilterChange,
+        totalCount,
+        countStatus,
     }: {
         filters: { datacenter_id?: number; without_datacenter?: boolean; search?: string };
         onFilterChange: (filters: Record<string, unknown>) => void;
+        totalCount: number | null;
+        countStatus?: string;
     }) => (
         <div data-testid="resources-filters">
             <span data-testid="resource-filter-state">{JSON.stringify(filters)}</span>
+            <span data-testid="resource-total-count">{totalCount ?? 'pending'}</span>
+            <span data-testid="resource-count-status">{countStatus}</span>
             <button type="button" data-testid="select-datacenter" onClick={() => onFilterChange({ ...filters, datacenter_id: 7 })}>
                 Select datacenter
             </button>
@@ -168,35 +174,103 @@ describe('ResourcesPage', () => {
         }) as unknown as typeof IntersectionObserver;
     });
 
-    it('retains exact initial totals when merging a count-free load-more page', () => {
+    it('retains asynchronous count state while advancing a cursor', () => {
         expect(
             mergeLoadMorePagination(
                 {
-                    current_page: 1,
-                    last_page: 4,
                     per_page: 20,
                     total: 73,
                     from: 1,
                     to: 20,
                     has_more: true,
+                    next_cursor: 'first-cursor',
+                    previous_cursor: null,
+                    count_status: 'ready',
+                    filter_fingerprint: 'fingerprint',
                 },
                 {
-                    current_page: 2,
                     per_page: 20,
-                    from: 21,
-                    to: 40,
                     has_more: true,
+                    next_cursor: 'second-cursor',
                 },
+                20,
             ),
         ).toEqual({
-            current_page: 2,
-            last_page: 4,
             per_page: 20,
             total: 73,
-            from: 21,
+            from: 1,
             to: 40,
             has_more: true,
+            next_cursor: 'second-cursor',
+            previous_cursor: null,
+            count_status: 'ready',
+            filter_fingerprint: 'fingerprint',
         });
+    });
+
+    it('deduplicates resources when adjacent cursor slices overlap', () => {
+        const current = [{ id: 1 }, { id: 2 }] as Parameters<typeof appendUniqueResources>[0];
+        const incoming = [{ id: 2 }, { id: 3 }] as Parameters<typeof appendUniqueResources>[1];
+
+        expect(appendUniqueResources(current, incoming).map((resource) => resource.id)).toEqual([1, 2, 3]);
+    });
+
+    it('loads the exact count asynchronously and accepts only the matching fingerprint', async () => {
+        axiosGetMock
+            .mockResolvedValueOnce({ data: { datacenters: [] } })
+            .mockResolvedValueOnce({ data: { filter_fingerprint: 'matching', total: 42, count_status: 'ready' } });
+
+        render(
+            <ResourcesPage
+                resources={[]}
+                pagination={{
+                    per_page: 50,
+                    total: null,
+                    from: null,
+                    to: null,
+                    has_more: false,
+                    next_cursor: null,
+                    previous_cursor: null,
+                    count_status: 'pending',
+                    filter_fingerprint: 'matching',
+                }}
+                sort={{ key: 'updated_at', direction: 'desc' }}
+                filters={{ search: 'climate' }}
+            />,
+        );
+
+        expect(screen.getByTestId('resource-total-count')).toHaveTextContent('pending');
+        await waitFor(() => expect(screen.getByTestId('resource-total-count')).toHaveTextContent('42'));
+        expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
+    });
+
+    it('ignores a stale asynchronous count response', async () => {
+        axiosGetMock
+            .mockResolvedValueOnce({ data: { datacenters: [] } })
+            .mockResolvedValueOnce({ data: { filter_fingerprint: 'stale', total: 999, count_status: 'ready' } });
+
+        render(
+            <ResourcesPage
+                resources={[]}
+                pagination={{
+                    per_page: 50,
+                    total: null,
+                    from: null,
+                    to: null,
+                    has_more: false,
+                    next_cursor: null,
+                    previous_cursor: null,
+                    count_status: 'pending',
+                    filter_fingerprint: 'current',
+                }}
+                sort={{ key: 'updated_at', direction: 'desc' }}
+                filters={{}}
+            />,
+        );
+
+        await waitFor(() => expect(axiosGetMock).toHaveBeenCalledTimes(2));
+        expect(screen.getByTestId('resource-total-count')).toHaveTextContent('pending');
+        expect(screen.getByTestId('resource-count-status')).toHaveTextContent('pending');
     });
 
     afterEach(() => {

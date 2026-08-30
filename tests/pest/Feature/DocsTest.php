@@ -43,7 +43,7 @@ test('authenticated users can view the docs page', function () {
         ->has('userRole'));
 });
 
-test('docs page includes shared sidebar counts for resources and IGSNs', function () {
+test('docs page leaves sidebar counts to the asynchronous inventory endpoint', function () {
     $user = User::factory()->create();
     $this->actingAs($user);
     withoutVite();
@@ -67,8 +67,13 @@ test('docs page includes shared sidebar counts for resources and IGSNs', functio
 
     $response->assertInertia(fn (Assert $page) => $page
         ->component('docs')
-        ->where('dataResourceCount', 2)
-        ->where('igsnCount', 0));
+        ->missing('dataResourceCount')
+        ->missing('igsnCount'));
+
+    $this->getJson(route('resource-inventory'))
+        ->assertOk()
+        ->assertJsonPath('dataResourceCount', 2)
+        ->assertJsonPath('igsnCount', 0);
 });
 
 test('docs page includes editor settings for dynamic content', function () {

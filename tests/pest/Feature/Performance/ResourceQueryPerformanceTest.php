@@ -116,8 +116,7 @@ it('serializes resources efficiently with eager loaded relations', function () {
     $queries = DB::getQueryLog();
     $queryCount = count($queries);
 
-    // Assert: Should meet optimization goal (+1 for descriptions eager loading,
-    // +1 environment overhead — see large-scale test above).
+    // Assert: The projection keeps query count bounded independently of row count.
     expect($queryCount)->toBeLessThanOrEqual(19, "Expected at most 19 queries for eager loading, got {$queryCount}");
     $response->assertStatus(200);
 });
@@ -139,8 +138,7 @@ it('handles resources without creators efficiently', function () {
     $queries = DB::getQueryLog();
     $queryCount = count($queries);
 
-    // Assert: Should still use minimal queries even without creators (+1 for descriptions eager loading,
-    // +1 environment overhead).
+    // Assert: Missing creators must not introduce per-row fallback queries.
     expect($queryCount)->toBeLessThanOrEqual(19);
     $response->assertStatus(200);
 });
@@ -170,19 +168,20 @@ it('maintains performance with pagination', function () {
     // Act: Test first page
     DB::enableQueryLog();
     $response = $this->actingAs($user)
-        ->get('/resources?page=1&per_page=50');
+        ->get('/resources?per_page=50');
 
     $queriesPage1 = DB::getQueryLog();
+    $nextCursor = $response->inertiaProps('pagination.next_cursor');
+    expect($nextCursor)->toBeString()->not->toBeEmpty();
 
-    // Test second page with same user
+    // Test the actual second cursor page with the same user.
     DB::flushQueryLog();
     $response2 = $this->actingAs($user)
-        ->get('/resources?page=2&per_page=50');
+        ->get('/resources?per_page=50&cursor='.urlencode((string) $nextCursor));
 
     $queriesPage2 = DB::getQueryLog();
 
-    // Assert: Both pages should meet optimization goal (+1 for descriptions eager loading,
-    // +1 environment overhead).
+    // Assert: Both cursor slices should use the same bounded relation graph.
     expect(count($queriesPage1))->toBeLessThanOrEqual(19);
     expect(count($queriesPage2))->toBeLessThanOrEqual(19);
 
@@ -225,7 +224,7 @@ it('does not count resources while loading an infinite-scroll page', function ()
     });
 
     $this->actingAs(User::factory()->create())
-        ->getJson('/resources/load-more?page=1&per_page=2')
+        ->getJson('/resources/load-more?per_page=2')
         ->assertOk()
         ->assertJsonMissingPath('pagination.total')
         ->assertJsonMissingPath('pagination.last_page')

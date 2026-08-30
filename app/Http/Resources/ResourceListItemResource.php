@@ -30,6 +30,7 @@ final class ResourceListItemResource extends JsonResource
         /** @var Resource $resource */
         $resource = $this->resource;
         $canSendReviewLinks = $request->user()?->can('send-review-links') === true;
+        $usesListingProjection = array_key_exists('listing_workflow_status', $resource->getAttributes());
 
         if (app()->environment('local', 'testing')) {
             self::assertRelationsLoaded($resource);
@@ -52,32 +53,39 @@ final class ResourceListItemResource extends JsonResource
             }
         }
 
-        // Get DataCite Created/Updated dates from the dates relation, falling back
-        // to Eloquent timestamps. Filtering is done in-memory on the eager-loaded
-        // collection (typically <10 dates per resource).
-        //
-        // The `dates` relation is unordered and the schema permits multiple
-        // `Created` / `Updated` rows per resource (e.g. when an XML import
-        // carries both an explicit `Created` and historical revisions), so we
-        // sort deterministically before picking one: earliest `Created` for
-        // `created_at`, latest `Updated` for `updated_at`. Without this two
-        // identical responses could surface different timestamps depending on
-        // database row ordering.
-        $createdDateRecord = $resource->dates
-            ->filter(fn ($date): bool => $date->dateType->slug === 'Created')
-            ->sortBy(fn ($date) => $date->date_value ?? $date->start_date ?? '')
-            ->first();
-        $createdDate = $createdDateRecord !== null
-            ? ($createdDateRecord->date_value ?? $createdDateRecord->start_date)
-            : null;
+        if ($usesListingProjection) {
+            $createdDate = $resource->getAttribute('listing_created_sort');
+            $updatedDate = $resource->getAttribute('listing_updated_sort');
+            $curator = $resource->getAttribute('listing_curator_name') ?: null;
+            $publicStatus = $resource->getAttribute('listing_workflow_status');
+            $resourceTypeName = $resource->getAttribute('listing_resource_type_sort') ?: null;
+            $resourceTypeSlug = $resource->getAttribute('listing_resource_type_slug') ?: null;
+            $mainTitle = $resource->getAttribute('listing_main_title') ?: null;
+        } else {
+            // Keep the transformer reusable for IGSN and other non-projected
+            // call sites while the internal resource list avoids these relations.
+            $createdDateRecord = $resource->dates
+                ->filter(fn ($date): bool => $date->dateType->slug === 'Created')
+                ->sortBy(fn ($date) => $date->date_value ?? $date->start_date ?? '')
+                ->first();
+            $createdDate = $createdDateRecord !== null
+                ? ($createdDateRecord->date_value ?? $createdDateRecord->start_date)
+                : null;
 
-        $updatedDateRecord = $resource->dates
-            ->filter(fn ($date): bool => $date->dateType->slug === 'Updated')
-            ->sortByDesc(fn ($date) => $date->date_value ?? $date->start_date ?? '')
-            ->first();
-        $updatedDate = $updatedDateRecord !== null
-            ? ($updatedDateRecord->date_value ?? $updatedDateRecord->start_date)
-            : null;
+            $updatedDateRecord = $resource->dates
+                ->filter(fn ($date): bool => $date->dateType->slug === 'Updated')
+                ->sortByDesc(fn ($date) => $date->date_value ?? $date->start_date ?? '')
+                ->first();
+            $updatedDate = $updatedDateRecord !== null
+                ? ($updatedDateRecord->date_value ?? $updatedDateRecord->start_date)
+                : null;
+            // @phpstan-ignore nullsafe.neverNull (updatedBy is nullable in the database)
+            $curator = $resource->updatedBy?->name ?? $resource->createdBy?->name;
+            $publicStatus = $resource->publicStatus();
+            $resourceTypeName = $resource->resourceType?->name;
+            $resourceTypeSlug = $resource->resourceType?->slug;
+            $mainTitle = null;
+        }
 
         return [
             'id' => $resource->id,
@@ -86,13 +94,12 @@ final class ResourceListItemResource extends JsonResource
             'version' => $resource->version,
             'created_at' => $createdDate ?? $resource->created_at?->toIso8601String(),
             'updated_at' => $updatedDate ?? $resource->updated_at?->toIso8601String(),
-            // @phpstan-ignore nullsafe.neverNull (updatedBy can be null if updated_by_user_id is null)
-            'curator' => $resource->updatedBy?->name ?? $resource->createdBy?->name,
-            'publicstatus' => $resource->publicStatus(),
-            'resourcetypegeneral' => $resource->resourceType?->name,
-            'resource_type' => $resource->resourceType !== null ? [
-                'name' => $resource->resourceType->name,
-                'slug' => $resource->resourceType->slug,
+            'curator' => $curator,
+            'publicstatus' => $publicStatus,
+            'resourcetypegeneral' => $resourceTypeName,
+            'resource_type' => $resourceTypeName !== null ? [
+                'name' => $resourceTypeName,
+                'slug' => $resourceTypeSlug,
             ] : null,
             'language' => $resource->language !== null ? [
                 'code' => $resource->language->code,
@@ -102,7 +109,7 @@ final class ResourceListItemResource extends JsonResource
             // and may include subtitles / alternate titles, so `titles->first()`
             // could surface the wrong title in list views). Falls back to the
             // first title if no MainTitle is flagged.
-            'title' => ($resource->titles->first(fn (Title $title): bool => $title->isMainTitle())
+            'title' => $mainTitle ?? ($resource->titles->first(fn (Title $title): bool => $title->isMainTitle())
                 ?? $resource->titles->first())?->value,
             'titles' => $resource->titles
                 ->map(static function (Title $title): array {
@@ -157,14 +164,20 @@ final class ResourceListItemResource extends JsonResource
             'creators',
             'titles',
             'rights',
-            'dates',
-            'descriptions',
-            'resourceType',
             'language',
-            'createdBy',
-            'updatedBy',
             'landingPage',
         ];
+
+        if (! array_key_exists('listing_workflow_status', $resource->getAttributes())) {
+            $requiredRelations = [
+                ...$requiredRelations,
+                'dates',
+                'descriptions',
+                'resourceType',
+                'createdBy',
+                'updatedBy',
+            ];
+        }
 
         foreach ($requiredRelations as $relation) {
             if (! $resource->relationLoaded($relation)) {
@@ -175,7 +188,7 @@ final class ResourceListItemResource extends JsonResource
             }
         }
 
-        if ($resource->dates->isNotEmpty()) {
+        if ($resource->relationLoaded('dates') && $resource->dates->isNotEmpty()) {
             $firstDate = $resource->dates->first();
             if (! $firstDate->relationLoaded('dateType')) {
                 throw new \RuntimeException(
@@ -184,7 +197,7 @@ final class ResourceListItemResource extends JsonResource
             }
         }
 
-        if ($resource->descriptions->isNotEmpty()) {
+        if ($resource->relationLoaded('descriptions') && $resource->descriptions->isNotEmpty()) {
             $firstDescription = $resource->descriptions->first();
             if (! $firstDescription->relationLoaded('descriptionType')) {
                 throw new \RuntimeException(

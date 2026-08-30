@@ -73,22 +73,50 @@ import {
 } from '@/types/resources';
 
 interface PaginationInfo {
-    current_page: number;
-    last_page: number;
+    /** Legacy test fixtures may still provide these; runtime navigation is cursor-only. */
+    current_page?: number;
+    last_page?: number;
     per_page: number;
-    total: number;
-    from: number;
-    to: number;
+    total: number | null;
+    from: number | null;
+    to: number | null;
     has_more: boolean;
+    next_cursor?: string | null;
+    previous_cursor?: string | null;
+    count_status?: 'pending' | 'ready' | 'failed';
+    filter_fingerprint?: string;
 }
 
-export function mergeLoadMorePagination(current: PaginationInfo, next: Partial<PaginationInfo>): PaginationInfo {
+interface ResourceCountResponse {
+    filter_fingerprint: string;
+    total: number;
+    count_status: 'ready';
+}
+
+export function mergeLoadMorePagination(current: PaginationInfo, next: Partial<PaginationInfo>, appendedCount = 0): PaginationInfo {
     return {
         ...current,
         ...next,
         total: current.total,
-        last_page: current.last_page,
+        from: current.from,
+        to: (current.to ?? 0) + appendedCount,
+        count_status: current.count_status,
+        filter_fingerprint: current.filter_fingerprint,
     };
+}
+
+export function appendUniqueResources(current: Resource[], incoming: Resource[]): Resource[] {
+    const seenIds = new Set(current.map((resource) => resource.id).filter((id): id is number => typeof id === 'number'));
+
+    return [
+        ...current,
+        ...incoming.filter((resource) => {
+            if (typeof resource.id !== 'number') return true;
+            if (seenIds.has(resource.id)) return false;
+            seenIds.add(resource.id);
+            return true;
+        }),
+    ];
 }
 
 interface ResourcesProps {
@@ -695,6 +723,7 @@ function ResourcesPage({
 
     const [resources, setResources] = useState<Resource[]>(initialResources);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
+    const [countAttempt, setCountAttempt] = useState(0);
     const [sortState, setSortState] = useState<ResourceSortState>(initialSort || DEFAULT_SORT);
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string | null>(null);
@@ -713,6 +742,8 @@ function ResourcesPage({
     const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
     const attemptedDatacenterFilterRestoreRef = useRef(false);
+    const loadMoreControllerRef = useRef<AbortController | null>(null);
+    const loadMoreInFlightRef = useRef(false);
 
     useEffect(() => {
         setResources(initialResources);
@@ -727,6 +758,14 @@ function ResourcesPage({
             setFilters(initialFilters);
         }
     }, [initialFilters]);
+
+    useEffect(() => {
+        return () => {
+            loadMoreControllerRef.current?.abort();
+            loadMoreControllerRef.current = null;
+            loadMoreInFlightRef.current = false;
+        };
+    }, [filters, pagination.per_page, sortState.direction, sortState.key]);
 
     useEffect(() => {
         setColumnWidths(readStoredResourceColumnWidths());
@@ -785,30 +824,39 @@ function ResourcesPage({
 
     // Load more resources for infinite scrolling
     const loadMore = useCallback(async () => {
-        if (loading || !pagination.has_more) {
+        if (loadMoreInFlightRef.current || !pagination.has_more) {
             return;
         }
 
+        const controller = new AbortController();
+        loadMoreControllerRef.current = controller;
+        loadMoreInFlightRef.current = true;
         setLoading(true);
         setLoadingError(null);
 
         try {
             const params = new URLSearchParams({
-                page: String(pagination.current_page + 1),
                 per_page: String(pagination.per_page),
                 sort_key: sortState.key,
                 sort_direction: sortState.direction,
             });
 
+            if (pagination.next_cursor) {
+                params.set('cursor', pagination.next_cursor);
+            }
+
             appendResourceFilters(params, filters);
 
-            const response = await axios.get('/resources/load-more', { params });
+            const response = await axios.get('/resources/load-more', { params, signal: controller.signal });
 
-            setResources((prev) => [...prev, ...(response.data.resources || [])]);
-            // The load-more endpoint deliberately omits exact counts. Keep the
-            // independently resolved initial values stable.
-            setPagination((current) => mergeLoadMorePagination(current, response.data.pagination));
+            if (controller.signal.aborted) return;
+
+            const incomingResources = (response.data.resources || []) as Resource[];
+            setResources((current) => appendUniqueResources(current, incomingResources));
+            setPagination((current) => mergeLoadMorePagination(current, response.data.pagination, incomingResources.length));
         } catch (err) {
+            if (controller.signal.aborted || (isAxiosError(err) && err.code === 'ERR_CANCELED')) return;
+
             console.error('Error loading more resources:', err);
 
             if (isAxiosError(err)) {
@@ -820,9 +868,13 @@ function ResourcesPage({
                 toast.error('Failed to load more resources');
             }
         } finally {
-            setLoading(false);
+            if (loadMoreControllerRef.current === controller) {
+                loadMoreControllerRef.current = null;
+                loadMoreInFlightRef.current = false;
+                setLoading(false);
+            }
         }
-    }, [loading, pagination, sortState, filters]);
+    }, [filters, pagination.has_more, pagination.next_cursor, pagination.per_page, sortState.direction, sortState.key]);
 
     // Load filter options on mount
     useEffect(() => {
@@ -839,6 +891,38 @@ function ResourcesPage({
 
         void loadFilterOptions();
     }, []);
+
+    useEffect(() => {
+        if (!initialPagination.filter_fingerprint || initialPagination.count_status === 'ready') {
+            return;
+        }
+
+        const controller = new AbortController();
+        const expectedFingerprint = initialPagination.filter_fingerprint;
+        const params = new URLSearchParams({
+            per_page: String(initialPagination.per_page),
+            sort_key: initialSort.key,
+            sort_direction: initialSort.direction,
+        });
+        appendResourceFilters(params, initialFilters ?? {});
+
+        void axios
+            .get<ResourceCountResponse>('/resources/count', { params, signal: controller.signal })
+            .then(({ data }) => {
+                if (data.filter_fingerprint !== expectedFingerprint) return;
+
+                setPagination((current) =>
+                    current.filter_fingerprint === data.filter_fingerprint ? { ...current, total: data.total, count_status: 'ready' } : current,
+                );
+            })
+            .catch((countError: unknown) => {
+                if (controller.signal.aborted || (isAxiosError(countError) && countError.code === 'ERR_CANCELED')) return;
+
+                setPagination((current) => (current.filter_fingerprint === expectedFingerprint ? { ...current, count_status: 'failed' } : current));
+            });
+
+        return () => controller.abort();
+    }, [countAttempt, initialFilters, initialPagination.count_status, initialPagination.filter_fingerprint, initialPagination.per_page, initialSort]);
 
     // Load sort preference from localStorage
     useEffect(() => {
@@ -2092,6 +2176,8 @@ function ResourcesPage({
                             filterOptions={filterOptions}
                             resultCount={sortedResources.length}
                             totalCount={pagination.total}
+                            countStatus={pagination.count_status ?? (pagination.total === null ? 'pending' : 'ready')}
+                            onRetryCount={() => setCountAttempt((attempt) => attempt + 1)}
                             isLoading={loading}
                         />
 
@@ -2332,7 +2418,7 @@ function ResourcesPage({
 
                                     {!loading && !pagination.has_more && sortedResources.length > 0 && (
                                         <div className="py-4 text-center text-sm text-muted-foreground">
-                                            All resources have been loaded ({pagination.total} total)
+                                            All resources have been loaded ({pagination.total ?? sortedResources.length} total)
                                         </div>
                                     )}
                                 </div>

@@ -10,6 +10,11 @@ import Dashboard, { handleJsonFiles, handleXmlFiles } from '@/pages/dashboard';
 const usePageMock = vi.fn();
 const handleXmlFilesSpy = vi.fn();
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), visit: vi.fn() }));
+const axiosGetMock = vi.hoisted(() => vi.fn());
+
+vi.mock('axios', () => ({
+    default: { get: axiosGetMock },
+}));
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -108,6 +113,16 @@ describe('Dashboard', () => {
             },
         });
         handleXmlFilesSpy.mockClear();
+        axiosGetMock.mockReset();
+        axiosGetMock.mockResolvedValue({
+            data: {
+                dataResourceCount: 0,
+                igsnCount: 0,
+                dataInstitutionCount: 0,
+                igsnInstitutionCount: 0,
+                draftCount: 0,
+            },
+        });
     });
 
     it('greets the user by name', () => {
@@ -155,12 +170,41 @@ describe('Dashboard', () => {
         expect(screen.getByText('2 institutions with sample records')).toBeInTheDocument();
     });
 
-    it('falls back to zero for all counts when props are unavailable', () => {
+    it('loads metrics asynchronously when aggregate props are unavailable', async () => {
+        axiosGetMock.mockResolvedValueOnce({
+            data: {
+                dataResourceCount: 0,
+                igsnCount: 0,
+                dataInstitutionCount: 0,
+                igsnInstitutionCount: 0,
+                draftCount: 0,
+            },
+        });
         usePageMock.mockReturnValueOnce({ props: { auth: { user: { name: 'Jane' } } } });
         render(<Dashboard />);
-        expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(3);
-        expect(screen.getByText('0 institutions with registered data resources')).toBeInTheDocument();
+
+        expect(screen.getAllByText('…').length).toBeGreaterThanOrEqual(3);
+        await waitFor(() => expect(axiosGetMock).toHaveBeenCalledWith('/dashboard/metrics', expect.objectContaining({ signal: expect.anything() })));
+        expect(await screen.findByText('0 institutions with registered data resources')).toBeInTheDocument();
         expect(screen.getByText('0 institutions with sample records')).toBeInTheDocument();
+    });
+
+    it('offers a retry when asynchronous metrics fail', async () => {
+        axiosGetMock.mockRejectedValueOnce(new Error('temporarily unavailable')).mockResolvedValueOnce({
+            data: {
+                dataResourceCount: 8,
+                igsnCount: 3,
+                dataInstitutionCount: 6,
+                igsnInstitutionCount: 2,
+                draftCount: 4,
+            },
+        });
+        usePageMock.mockReturnValueOnce({ props: { auth: { user: { name: 'Jane' } } } });
+        render(<Dashboard />);
+
+        expect(await screen.findByText('Metrics are temporarily unavailable.')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(await screen.findByText('6 institutions with registered data resources')).toBeInTheDocument();
     });
 
     it('renders role-aware quick actions and recent resources', () => {

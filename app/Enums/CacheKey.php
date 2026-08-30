@@ -19,7 +19,9 @@ enum CacheKey: string
     case RESOURCE_DETAIL = 'resources:detail';
     case RESOURCE_COUNT = 'resources:count';
     case RESOURCE_LISTING_COUNT = 'resources:listing_count';
+    case RESOURCE_FILTER_OPTIONS = 'resources:filter_options';
     case IGSN_LISTING_COUNT = 'igsns:listing_count';
+    case DASHBOARD_METRICS = 'dashboard:metrics';
 
     // Vocabulary cache keys
     case GCMD_SCIENCE_KEYWORDS = 'vocabularies:gcmd:science_keywords';
@@ -114,6 +116,8 @@ enum CacheKey: string
             self::RESOURCE_LIST, self::RESOURCE_COUNT => 300,
             self::RESOURCE_LISTING_COUNT,
             self::IGSN_LISTING_COUNT => (int) config('listing_performance.internal_count_ttl', 300),
+            self::RESOURCE_FILTER_OPTIONS => 300,
+            self::DASHBOARD_METRICS => 300,
 
             // Individual resources - 15 minutes
             self::RESOURCE_DETAIL => 900,
@@ -199,6 +203,8 @@ enum CacheKey: string
 
             self::RESOURCE_LISTING_COUNT,
             self::IGSN_LISTING_COUNT => ['resources', 'internal_listing_counts'],
+            self::RESOURCE_FILTER_OPTIONS => ['resources', 'resource_filter_options'],
+            self::DASHBOARD_METRICS => ['resources', 'dashboard_metrics'],
 
             self::GCMD_SCIENCE_KEYWORDS,
             self::GCMD_INSTRUMENTS,

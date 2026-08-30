@@ -1,4 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import axios from 'axios';
 import { ArrowRight, ClipboardCheck, FilePlus2, FlaskConical, FolderClock, type LucideIcon, Settings, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -142,6 +143,14 @@ type DashboardPageProps = SharedData & {
 
 type RecentResource = NonNullable<DashboardPageProps['recentResources']>[number];
 
+type DashboardMetrics = {
+    dataResourceCount: number;
+    igsnCount: number;
+    dataInstitutionCount: number;
+    igsnInstitutionCount: number;
+    draftCount: number;
+};
+
 type DashboardQuickAction = {
     title: string;
     description: string;
@@ -279,10 +288,45 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
     const lastHoveredCardRef = useRef<'welcome' | 'environment' | null>(null);
     const unicornIdCounterRef = useRef(0);
 
-    const datasetCount = typeof dataResourceCount === 'number' ? dataResourceCount : 0;
-    const igsnCountDisplay = typeof igsnCount === 'number' ? igsnCount : 0;
-    const dataInstitutions = typeof dataInstitutionCount === 'number' ? dataInstitutionCount : 0;
-    const igsnInstitutions = typeof igsnInstitutionCount === 'number' ? igsnInstitutionCount : 0;
+    const initialMetrics = [dataResourceCount, igsnCount, dataInstitutionCount, igsnInstitutionCount, draftCount].every(
+        (value) => typeof value === 'number',
+    )
+        ? {
+              dataResourceCount: dataResourceCount as number,
+              igsnCount: igsnCount as number,
+              dataInstitutionCount: dataInstitutionCount as number,
+              igsnInstitutionCount: igsnInstitutionCount as number,
+              draftCount: draftCount as number,
+          }
+        : null;
+    const [metrics, setMetrics] = useState<DashboardMetrics | null>(initialMetrics);
+    const [metricsStatus, setMetricsStatus] = useState<'pending' | 'ready' | 'failed'>(initialMetrics ? 'ready' : 'pending');
+    const [metricsAttempt, setMetricsAttempt] = useState(0);
+    const hasInitialMetricsRef = useRef(initialMetrics !== null);
+
+    useEffect(() => {
+        if (hasInitialMetricsRef.current && metricsAttempt === 0) return;
+
+        const controller = new AbortController();
+        setMetricsStatus('pending');
+        void axios
+            .get<DashboardMetrics>('/dashboard/metrics', { signal: controller.signal })
+            .then(({ data }) => {
+                setMetrics(data);
+                setMetricsStatus('ready');
+            })
+            .catch(() => {
+                if (!controller.signal.aborted) setMetricsStatus('failed');
+            });
+
+        return () => controller.abort();
+    }, [metricsAttempt]);
+
+    const datasetCount = metrics?.dataResourceCount ?? '…';
+    const igsnCountDisplay = metrics?.igsnCount ?? '…';
+    const dataInstitutions = metrics?.dataInstitutionCount ?? '…';
+    const igsnInstitutions = metrics?.igsnInstitutionCount ?? '…';
+    const draftCountDisplay = metrics?.draftCount ?? '…';
 
     const hasRecentResources = Boolean(recentResources?.length);
     const recentResourceHref = recentResources?.[0] ? editorRoute({ query: { resourceId: recentResources[0].id } }).url : '/resources';
@@ -500,7 +544,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                             <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">Open drafts</p>
                                             <p className="mt-1 text-xs text-muted-foreground">Ready to resume</p>
                                         </div>
-                                        <p className="text-3xl font-semibold tracking-tight text-foreground">{draftCount ?? 0}</p>
+                                        <p className="text-3xl font-semibold tracking-tight text-foreground">{draftCountDisplay}</p>
                                     </div>
                                 </div>
                             </CardHeader>
@@ -601,6 +645,19 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                 <CardDescription>Fast health check for your curation workload and repository inventory.</CardDescription>
                             </CardHeader>
                             <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                                {metricsStatus === 'failed' ? (
+                                    <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
+                                        Metrics are temporarily unavailable.
+                                        <Button
+                                            variant="link"
+                                            size="sm"
+                                            className="h-auto px-1 py-0"
+                                            onClick={() => setMetricsAttempt((value) => value + 1)}
+                                        >
+                                            Retry
+                                        </Button>
+                                    </div>
+                                ) : null}
                                 <OverviewMetric
                                     label="Datasets"
                                     value={datasetCount}
@@ -613,7 +670,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                 />
                                 <OverviewMetric
                                     label="Drafts"
-                                    value={draftCount ?? 0}
+                                    value={draftCountDisplay}
                                     description="Records that still need review or publication work"
                                 />
                                 {auth.user?.can_access_assistance && (

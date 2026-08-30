@@ -4,88 +4,49 @@ declare(strict_types=1);
 
 namespace App\Services\Resources;
 
-use App\Enums\AccessLevel;
 use App\Enums\CacheKey;
-use App\Enums\ResourceWorkflowStatus;
-use App\Models\Institution;
-use App\Models\Person;
 use App\Models\Resource;
 use App\Services\ListingCountService;
 use App\Services\ResourceCacheService;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Contracts\Pagination\Paginator;
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\Cursor;
 
 /**
- * Single source of truth for the resource listing query:
- * eager-loading, filtering, sorting, completeness constraints and caching.
+ * Single source of truth for the internal resource list.
  *
- * Used by both `ResourceController@index` (Inertia render) and
- * `ResourceFilterController@loadMore` (JSON pagination) so the two endpoints
- * can never drift apart.
+ * Filtering and sorting use the denormalized listing projection; the bounded
+ * relationship graph is still eager-loaded to preserve the response contract.
  */
 final readonly class ResourceQueryBuilder
 {
     public function __construct(
         private ResourceCacheService $cacheService,
         private ListingCountService $countService,
+        private ResourceListingProjectionRefreshService $projectionRefreshScheduler,
+        private ResourceListingCursorCodecService $cursorCodec,
     ) {}
 
     /**
-     * Build, filter, sort and paginate the resource listing query.
+     * Load one stable result slice without OFFSET or an exact COUNT query.
      *
-     * @param  array{
-     *     page:int,
-     *     perPage:int,
-     *     sortKey:string,
-     *     sortDirection:string,
-     *     filters:array<string,mixed>
-     * }  $criteria
-     * @return LengthAwarePaginator<int, Resource>
+     * @param  array{cursor:?string,perPage:int,sortKey:string,sortDirection:string,filters:array<string,mixed>}  $criteria
+     * @return CursorPaginator<int, Resource>
      */
-    public function paginate(array $criteria): LengthAwarePaginator
+    public function cursorPaginate(array $criteria): CursorPaginator
     {
         $query = $this->baseQuery();
-
         $this->applyFilters($query, $criteria['filters']);
         $this->applySorting($query, $criteria['sortKey'], $criteria['sortDirection']);
 
-        $cacheFilters = array_merge($criteria['filters'], [
-            'sort' => $criteria['sortKey'],
-            'direction' => $criteria['sortDirection'],
-        ]);
+        $decodedCursor = $criteria['cursor'] === null
+            ? null
+            : $this->cursorCodec->decode($criteria['cursor'], $this->cursorContextFingerprint($criteria));
 
-        return $this->cacheService->cacheResourceList(
+        return $this->cacheService->cacheCursorResourceList(
             $query,
             $criteria['perPage'],
-            $criteria['page'],
-            $cacheFilters
-        );
-    }
-
-    /**
-     * Load one result page without running an exact COUNT query.
-     *
-     * @param  array{
-     *     page:int,
-     *     perPage:int,
-     *     sortKey:string,
-     *     sortDirection:string,
-     *     filters:array<string,mixed>
-     * }  $criteria
-     * @return Paginator<int, Resource>
-     */
-    public function simplePaginate(array $criteria): Paginator
-    {
-        $query = $this->baseQuery();
-
-        $this->applyFilters($query, $criteria['filters']);
-        $this->applySorting($query, $criteria['sortKey'], $criteria['sortDirection']);
-
-        return $this->cacheService->cacheSimpleResourceList(
-            $query,
-            $criteria['perPage'],
-            $criteria['page'],
+            $decodedCursor,
             [
                 ...$criteria['filters'],
                 'sort' => $criteria['sortKey'],
@@ -94,11 +55,7 @@ final readonly class ResourceQueryBuilder
         );
     }
 
-    /**
-     * Resolve the exact filtered total independently from result pages.
-     *
-     * @param  array{filters:array<string,mixed>}  $criteria
-     */
+    /** @param array{filters:array<string,mixed>} $criteria */
     public function count(array $criteria): int
     {
         return $this->countService->remember(
@@ -108,39 +65,57 @@ final readonly class ResourceQueryBuilder
                 $query = $this->baseQuery();
                 $this->applyFilters($query, $criteria['filters']);
 
-                return $query->count();
+                return $query->count('resources.id');
             },
         );
     }
 
+    /** @param array{filters:array<string,mixed>} $criteria */
+    public function countFingerprint(array $criteria): string
+    {
+        return $this->countService->fingerprint($criteria['filters']);
+    }
+
+    public function flushPendingProjectionUpdates(): void
+    {
+        $this->projectionRefreshScheduler->flushPending();
+    }
+
     /**
-     * Base query for resource listing with optimized eager loading.
-     *
-     * Eager loads all relationships consumed by `ResourceListItemResource`
-     * to avoid N+1 problems. Physical Object resources (IGSNs) are excluded
-     * because they have their own dedicated page at /igsns.
-     *
-     * Performance: ~10 queries for 50+ resources with complex relationships.
-     *
-     * @return Builder<Resource>
+     * @param  array{cursor:?string,perPage:int,sortKey:string,sortDirection:string,filters:array<string,mixed>}  $criteria
      */
+    public function encodeCursor(?Cursor $cursor, array $criteria): ?string
+    {
+        if ($cursor === null) {
+            return null;
+        }
+
+        return $this->cursorCodec->encode($cursor->encode(), $this->cursorContextFingerprint($criteria));
+    }
+
+    /** @return Builder<Resource> */
     public function baseQuery(): Builder
     {
-        return Resource::query()
-            ->whereDoesntHave('resourceType', function ($query): void {
-                $query->where('slug', 'physical-object');
-            })
+        $query = Resource::query();
+        $this->joinListingProjection($query);
+
+        return $query
+            ->select([
+                'resources.*',
+                'listing.sort_doi as listing_sort_doi',
+                'listing.main_title as listing_main_title',
+                'listing.first_creator_sort as listing_first_creator_sort',
+                'listing.curator_name as listing_curator_name',
+                'listing.workflow_status as listing_workflow_status',
+                'listing.workflow_status_rank as listing_workflow_status_rank',
+                'listing.resource_type_sort as listing_resource_type_sort',
+                'listing.resource_type_slug as listing_resource_type_slug',
+                'listing.sort_year as listing_sort_year',
+                'listing.created_sort as listing_created_sort',
+                'listing.updated_sort as listing_updated_sort',
+            ])
             ->with([
-                'resourceType:id,name,slug',
                 'language:id,code,name',
-                'createdBy:id,name',
-                'updatedBy:id,name',
-                // landingPage.public_url derives from doi_prefix, slug, resource_id
-                // (internal URL), or template + external_domain_id + external_path
-                // + externalDomain.domain (external URL). All of these must be
-                // selected/eager-loaded, otherwise public_url returns an empty
-                // or incorrect string in list views and triggers N+1 queries
-                // for the externalDomain lookup.
                 'landingPage' => function ($query): void {
                     $query->select([
                         'id',
@@ -161,395 +136,112 @@ final readonly class ResourceQueryBuilder
                         ->orderBy('id');
                 },
                 'rights:id,identifier,name',
-                'descriptions' => function ($query): void {
-                    $query->select(['id', 'resource_id', 'value', 'description_type_id'])
-                        ->with(['descriptionType:id,slug']);
-                },
-                // Note: date_type_id MUST be in the select() for the dateType belongsTo relation.
-                'dates' => function ($query): void {
-                    $query->select(['id', 'resource_id', 'date_type_id', 'date_value', 'start_date', 'end_date'])
-                        ->with(['dateType:id,slug']);
-                },
                 'creators' => function ($query): void {
-                    $query
-                        ->with([
-                            'creatorable',
-                        ])
-                        ->orderBy('position');
+                    $query->with(['creatorable'])->orderBy('position');
                 },
-                // Note: `creators.affiliations` is intentionally NOT eager-loaded
-                // here. ResourceListItemResource::toArray() only surfaces the
-                // first creator's name (Person / Institution), and
-                // `publicStatus()` / `isComplete()` do not touch affiliations.
-                // Loading them would cost an extra query per list page without
-                // affecting the response contract.
-                // Note: `contributors` are intentionally NOT eager-loaded here.
-                // ResourceListItemResource::toArray() does not surface any
-                // contributor data on list-item rows, and eager-loading them
-                // (with contributorable / contributorTypes / affiliations)
-                // would inflate query count and memory for every listing.
             ]);
     }
 
     /**
-     * Apply filters to the query.
+     * Attach the mandatory non-IGSN listing projection to an existing Resource query.
      *
+     * @param  Builder<Resource>  $query
+     */
+    public function joinListingProjection(Builder $query): void
+    {
+        $this->projectionRefreshScheduler->flushPending();
+        $query
+            ->join('resource_listing_projections as listing', 'listing.resource_id', '=', 'resources.id')
+            ->where('listing.is_igsn', false);
+    }
+
+    /**
      * @param  Builder<Resource>  $query
      * @param  array<string, mixed>  $filters
      */
     public function applyFilters(Builder $query, array $filters): void
     {
         if (! empty($filters['resource_type'])) {
-            $query->whereHas('resourceType', function ($q) use ($filters) {
-                $q->whereIn('slug', $filters['resource_type']);
-            });
+            $query->whereIn('listing.resource_type_slug', $filters['resource_type']);
         }
 
-        // Curator filter - filter by updatedBy (last editor), fallback to createdBy if never updated
         if (! empty($filters['curator'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->whereHas('updatedBy', function ($subQ) use ($filters) {
-                    $subQ->whereIn('name', $filters['curator']);
-                })->orWhere(function ($subQ) use ($filters) {
-                    $subQ->whereNull('updated_by_user_id')
-                        ->whereHas('createdBy', function ($creatorQ) use ($filters) {
-                            $creatorQ->whereIn('name', $filters['curator']);
-                        });
-                });
-            });
+            $query->whereIn('listing.curator_name', $filters['curator']);
         }
 
         if (! empty($filters['without_datacenter'])) {
-            $query->whereNull('datacenter_id');
+            $query->whereNull('listing.datacenter_id');
         } elseif (isset($filters['datacenter_id'])) {
-            $query->where('datacenter_id', $filters['datacenter_id']);
+            $query->where('listing.datacenter_id', $filters['datacenter_id']);
         }
 
-        // Status filter - keep semantics in sync with Resource::publicStatus():
-        // - draft: not published/forced-review and missing mandatory fields
-        // - curation: complete + no DOI OR (has DOI but no landing page)
-        // - review: forced review OR complete + DOI + unpublished landing page
-        // - published: DOI + published landing page, regardless of completeness
         if (! empty($filters['status'])) {
-            $statuses = $filters['status'];
-            $query->where(function ($q) use ($statuses) {
-                foreach ($statuses as $status) {
-                    if ($status === 'draft') {
-                        $q->orWhere(function ($subQ) {
-                            $subQ->where(function ($notPublishedQ) {
-                                $notPublishedQ->whereNull('doi')
-                                    ->orWhereDoesntHave('landingPage', function ($lpQ) {
-                                        $lpQ->where('is_published', true);
-                                    });
-                            })
-                                ->where(function ($inner) {
-                                    $inner->where('workflow_status_override', ResourceWorkflowStatus::DRAFT->value)
-                                        ->orWhere(function ($incompleteQ) {
-                                            $incompleteQ->whereNull('workflow_status_override')
-                                                ->where('force_review_status', false)
-                                                ->where(function ($missingQ) {
-                                                    $missingQ->whereNull('resource_type_id')
-                                                        ->orWhereNull('publication_year')
-                                                        ->orWhereNull('access_level')
-                                                        ->orWhereDoesntHave('creators')
-                                                        ->orWhereDoesntHave('rights')
-                                                        ->orWhere(function ($embargoQ) {
-                                                            $embargoQ->where('access_level', AccessLevel::EMBARGOED->value)
-                                                                ->whereDoesntHave('dates', function ($dateQ) {
-                                                                    $dateQ->whereHas('dateType', function ($typeQ) {
-                                                                        $typeQ->whereRaw('LOWER(slug) = ?', ['available']);
-                                                                    })->where(function ($valueQ) {
-                                                                        $valueQ->whereRaw("TRIM(COALESCE(start_date, '')) != ''")
-                                                                            ->orWhereRaw("TRIM(COALESCE(date_value, '')) != ''");
-                                                                    });
-                                                                });
-                                                        })
-                                                        ->orWhere(function ($titleQ) {
-                                                            // No Main Title with non-empty trimmed value
-                                                            // (legacy: NULL title_type_id counts as MainTitle)
-                                                            $titleQ->whereDoesntHave('titles', function ($tQ) {
-                                                                $tQ->whereRaw("TRIM(value) != ''")
-                                                                    ->where(function ($typeQ) {
-                                                                        $typeQ->whereNull('title_type_id')
-                                                                            ->orWhereHas('titleType', function ($ttQ) {
-                                                                                $ttQ->where('slug', 'MainTitle');
-                                                                            });
-                                                                    });
-                                                            });
-                                                        })
-                                                        ->orWhereDoesntHave('descriptions', function ($dQ) {
-                                                            $dQ->whereRaw("TRIM(value) != ''")
-                                                                ->whereHas('descriptionType', function ($dtQ) {
-                                                                    $dtQ->where('slug', 'Abstract');
-                                                                });
-                                                        });
-                                                });
-                                        });
-                                });
-                        });
-                    } elseif ($status === 'curation') {
-                        $q->orWhere(function ($subQ) {
-                            $this->applyCompletenessConstraints(
-                                $subQ->whereNull('workflow_status_override')
-                                    ->where('force_review_status', false),
-                            )
-                                ->where(function ($inner) {
-                                    $inner->whereNull('doi')
-                                        ->orWhereDoesntHave('landingPage');
-                                });
-                        });
-                    } elseif ($status === 'review') {
-                        $q->orWhere(function ($subQ) {
-                            $subQ->where(function ($notPublishedQ) {
-                                $notPublishedQ->whereNull('doi')
-                                    ->orWhereDoesntHave('landingPage', function ($lpQ) {
-                                        $lpQ->where('is_published', true);
-                                    });
-                            })->where(function ($reviewQ) {
-                                $reviewQ->where('workflow_status_override', ResourceWorkflowStatus::REVIEW->value)
-                                    ->orWhere(function ($legacyReviewQ) {
-                                        $legacyReviewQ->whereNull('workflow_status_override')
-                                            ->where('force_review_status', true);
-                                    })
-                                    ->orWhere(function ($completeReviewQ) {
-                                        $this->applyCompletenessConstraints(
-                                            $completeReviewQ->whereNull('workflow_status_override')
-                                                ->where('force_review_status', false),
-                                        )
-                                            ->whereNotNull('doi')
-                                            ->whereHas('landingPage', function ($lpQ) {
-                                                $lpQ->where('is_published', false);
-                                            });
-                                    });
-                            });
-                        });
-                    } elseif ($status === 'published') {
-                        $q->orWhere(function ($subQ) {
-                            $subQ->whereNotNull('doi')
-                                ->whereHas('landingPage', function ($lpQ) {
-                                    $lpQ->where('is_published', true);
-                                });
-                        });
-                    }
-                }
-            });
+            $query->whereIn('listing.workflow_status', $filters['status']);
         }
 
         if (isset($filters['year_from'])) {
-            $query->where('publication_year', '>=', $filters['year_from']);
+            $query->where('listing.publication_year', '>=', $filters['year_from']);
         }
 
         if (isset($filters['year_to'])) {
-            $query->where('publication_year', '<=', $filters['year_to']);
+            $query->where('listing.publication_year', '<=', $filters['year_to']);
         }
 
         if (! empty($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('doi', 'like', "%{$search}%")
-                    ->orWhereHas('titles', function ($titleQuery) use ($search) {
-                        $titleQuery->where('value', 'like', "%{$search}%");
-                    });
-            });
+            $query->where('listing.search_text', 'like', '%'.mb_strtolower((string) $filters['search']).'%');
         }
 
         if (! empty($filters['created_from'])) {
-            $query->whereDate('created_at', '>=', $filters['created_from']);
+            $query->whereDate('resources.created_at', '>=', $filters['created_from']);
         }
 
         if (! empty($filters['created_to'])) {
-            $query->whereDate('created_at', '<=', $filters['created_to']);
+            $query->whereDate('resources.created_at', '<=', $filters['created_to']);
         }
 
         if (! empty($filters['updated_from'])) {
-            $query->whereDate('updated_at', '>=', $filters['updated_from']);
+            $query->whereDate('resources.updated_at', '>=', $filters['updated_from']);
         }
 
         if (! empty($filters['updated_to'])) {
-            $query->whereDate('updated_at', '<=', $filters['updated_to']);
+            $query->whereDate('resources.updated_at', '<=', $filters['updated_to']);
         }
     }
 
-    /**
-     * Apply sorting to the query.
-     *
-     * @param  Builder<Resource>  $query
-     */
+    /** @param Builder<Resource> $query */
     public function applySorting(Builder $query, string $sortKey, string $sortDirection): void
     {
         $direction = $sortDirection === 'asc' ? 'asc' : 'desc';
+        $column = match ($sortKey) {
+            'id' => 'resources.id',
+            'doi' => 'listing_sort_doi',
+            'title' => 'listing_main_title',
+            'resourcetypegeneral' => 'listing_resource_type_sort',
+            'first_author' => 'listing_first_creator_sort',
+            'year' => 'listing_sort_year',
+            'curator' => 'listing_curator_name',
+            'publicstatus' => 'listing_workflow_status_rank',
+            'created_at' => 'listing_created_sort',
+            default => 'listing_updated_sort',
+        };
 
-        switch ($sortKey) {
-            case 'title':
-                // Sort by the MainTitle so the displayed title (see
-                // ResourceListItemResource::toArray() and Title::isMainTitle())
-                // matches the sort order. Legacy rows with NULL title_type_id
-                // are treated as MainTitle. Only when no MainTitle exists do
-                // we fall back to the lowest-id title to keep the resource in
-                // the result set.
-                $query->leftJoin('titles', function ($join) {
-                    $join->on('resources.id', '=', 'titles.resource_id')
-                        ->whereRaw(
-                            'titles.id = COALESCE('
-                            .'(SELECT MIN(t.id) FROM titles t '
-                            .'LEFT JOIN title_types tt ON t.title_type_id = tt.id '
-                            .'WHERE t.resource_id = resources.id '
-                            .'AND (t.title_type_id IS NULL OR tt.slug = ?)),'
-                            .'(SELECT MIN(t.id) FROM titles t WHERE t.resource_id = resources.id)'
-                            .')',
-                            ['MainTitle']
-                        );
-                })
-                    ->orderBy('titles.value', $direction)
-                    ->select('resources.*');
-                break;
+        $query->orderBy($column, $direction);
 
-            case 'resourcetypegeneral':
-                $query->leftJoin('resource_types', 'resources.resource_type_id', '=', 'resource_types.id')
-                    ->orderBy('resource_types.name', $direction)
-                    ->select('resources.*');
-                break;
-
-            case 'first_author':
-                $query->leftJoin('resource_creators', function ($join) {
-                    $join->on('resources.id', '=', 'resource_creators.resource_id')
-                        ->whereRaw('resource_creators.position = (SELECT MIN(position) FROM resource_creators WHERE resource_id = resources.id)');
-                })
-                    ->leftJoin('persons', function ($join) {
-                        $join->on('resource_creators.creatorable_id', '=', 'persons.id')
-                            ->where('resource_creators.creatorable_type', '=', Person::class);
-                    })
-                    ->leftJoin('institutions', function ($join) {
-                        $join->on('resource_creators.creatorable_id', '=', 'institutions.id')
-                            ->where('resource_creators.creatorable_type', '=', Institution::class);
-                    })
-                    ->orderByRaw(match ($sortDirection) {
-                        'desc' => 'COALESCE(persons.family_name, institutions.name) desc',
-                        default => 'COALESCE(persons.family_name, institutions.name) asc',
-                    })
-                    ->select('resources.*');
-                break;
-
-            case 'curator':
-                // Match the UI's effective curator (ResourceListItemResource):
-                //   curator = updatedBy?->name ?? createdBy?->name
-                // so that the sort order is consistent with the displayed name.
-                $query->leftJoin('users as updater_users', 'resources.updated_by_user_id', '=', 'updater_users.id')
-                    ->leftJoin('users as creator_users', 'resources.created_by_user_id', '=', 'creator_users.id')
-                    ->orderByRaw(match ($sortDirection) {
-                        'desc' => 'COALESCE(updater_users.name, creator_users.name) desc',
-                        default => 'COALESCE(updater_users.name, creator_users.name) asc',
-                    })
-                    ->select('resources.*');
-                break;
-
-            case 'publicstatus':
-                // Status (draft/curation/review/published) is computed at serialization time,
-                // not stored in the DB, so we fall back to sorting by id.
-                $query->orderBy('id', $direction);
-                break;
-
-            case 'year':
-                $query->orderBy('publication_year', $direction);
-                break;
-
-            case 'created_at':
-                // Match the timestamps surfaced by ResourceListItemResource:
-                // it prefers the earliest DataCite `Created` entry from the
-                // `dates` relation and only falls back to resources.created_at
-                // when no Created row exists. Sorting must mirror this so list
-                // rows are not visibly out of order.
-                $query->orderByRaw(
-                    match ($sortDirection) {
-                        'desc' => 'COALESCE('
-                            .'(SELECT MIN(COALESCE(rd.date_value, rd.start_date)) '
-                            .'FROM dates rd '
-                            .'INNER JOIN date_types dt ON rd.date_type_id = dt.id '
-                            .'WHERE rd.resource_id = resources.id AND dt.slug = ?), '
-                            .'resources.created_at) desc',
-                        default => 'COALESCE('
-                            .'(SELECT MIN(COALESCE(rd.date_value, rd.start_date)) '
-                            .'FROM dates rd '
-                            .'INNER JOIN date_types dt ON rd.date_type_id = dt.id '
-                            .'WHERE rd.resource_id = resources.id AND dt.slug = ?), '
-                            .'resources.created_at) asc',
-                    },
-                    ['Created']
-                );
-                break;
-
-            case 'updated_at':
-                // Mirror ResourceListItemResource: latest DataCite `Updated`
-                // entry, falling back to resources.updated_at.
-                $query->orderByRaw(
-                    match ($sortDirection) {
-                        'desc' => 'COALESCE('
-                            .'(SELECT MAX(COALESCE(rd.date_value, rd.start_date)) '
-                            .'FROM dates rd '
-                            .'INNER JOIN date_types dt ON rd.date_type_id = dt.id '
-                            .'WHERE rd.resource_id = resources.id AND dt.slug = ?), '
-                            .'resources.updated_at) desc',
-                        default => 'COALESCE('
-                            .'(SELECT MAX(COALESCE(rd.date_value, rd.start_date)) '
-                            .'FROM dates rd '
-                            .'INNER JOIN date_types dt ON rd.date_type_id = dt.id '
-                            .'WHERE rd.resource_id = resources.id AND dt.slug = ?), '
-                            .'resources.updated_at) asc',
-                    },
-                    ['Updated']
-                );
-                break;
-
-            default:
-                $query->orderBy($sortKey, $direction);
-                break;
+        if ($column !== 'resources.id') {
+            $query->orderBy('resources.id', $direction);
         }
     }
 
     /**
-     * Apply resource completeness constraints to a query builder.
-     *
-     * Ensures the resource has all mandatory fields: resource_type_id, publication_year,
-     * at least one creator, at least one license, a Main Title with non-empty value,
-     * and an Abstract description with non-empty value.
-     *
-     * Legacy: NULL title_type_id is treated as MainTitle (consistent with Title::isMainTitle()).
-     *
-     * @param  Builder<Resource>  $query
-     * @return Builder<Resource>
+     * @param  array{perPage:int,sortKey:string,sortDirection:string,filters:array<string,mixed>}  $criteria
      */
-    private function applyCompletenessConstraints(Builder $query): Builder
+    private function cursorContextFingerprint(array $criteria): string
     {
-        return $query->whereNotNull('resource_type_id')
-            ->whereNotNull('publication_year')
-            ->whereNotNull('access_level')
-            ->whereHas('creators')
-            ->whereHas('rights')
-            ->where(function ($accessQ) {
-                $accessQ->where('access_level', '!=', AccessLevel::EMBARGOED->value)
-                    ->orWhereHas('dates', function ($dateQ) {
-                        $dateQ->whereHas('dateType', function ($typeQ) {
-                            $typeQ->whereRaw('LOWER(slug) = ?', ['available']);
-                        })->where(function ($valueQ) {
-                            $valueQ->whereRaw("TRIM(COALESCE(start_date, '')) != ''")
-                                ->orWhereRaw("TRIM(COALESCE(date_value, '')) != ''");
-                        });
-                    });
-            })
-            ->whereHas('titles', function ($tQ) {
-                $tQ->whereRaw("TRIM(value) != ''")
-                    ->where(function ($typeQ) {
-                        $typeQ->whereNull('title_type_id')
-                            ->orWhereHas('titleType', function ($ttQ) {
-                                $ttQ->where('slug', 'MainTitle');
-                            });
-                    });
-            })
-            ->whereHas('descriptions', function ($dQ) {
-                $dQ->whereRaw("TRIM(value) != ''")
-                    ->whereHas('descriptionType', function ($dtQ) {
-                        $dtQ->where('slug', 'Abstract');
-                    });
-            });
+        return $this->countService->fingerprint([
+            'filters' => $criteria['filters'],
+            'cursor_sort_key' => $criteria['sortKey'],
+            'cursor_sort_direction' => $criteria['sortDirection'],
+            'cursor_per_page' => $criteria['perPage'],
+        ]);
     }
 }

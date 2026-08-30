@@ -28,11 +28,22 @@ interface ResourcesFiltersProps {
     onFilterChange: (filters: ResourceFilterState) => void;
     filterOptions: ResourceFilterOptions | null;
     resultCount: number;
-    totalCount: number;
+    totalCount: number | null;
+    countStatus?: 'pending' | 'ready' | 'failed';
+    onRetryCount?: () => void;
     isLoading?: boolean;
 }
 
-export function ResourcesFilters({ filters, onFilterChange, filterOptions, resultCount, totalCount, isLoading = false }: ResourcesFiltersProps) {
+export function ResourcesFilters({
+    filters,
+    onFilterChange,
+    filterOptions,
+    resultCount,
+    totalCount,
+    countStatus = 'ready',
+    onRetryCount,
+    isLoading = false,
+}: ResourcesFiltersProps) {
     const activeFilterCount = Object.keys(filters).filter((key) => {
         const value = filters[key as keyof ResourceFilterState];
         if (Array.isArray(value)) {
@@ -42,7 +53,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
     }).length;
 
     const hasActiveFilters = activeFilterCount > 0;
-    const isFiltered = resultCount !== totalCount;
+    const isFiltered = totalCount !== null && resultCount !== totalCount;
 
     const clearAllFilters = useCallback(() => {
         onFilterChange({});
@@ -555,7 +566,20 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
 
                     {/* Result Counter */}
                     <div className="ml-auto text-sm text-muted-foreground">
-                        {isFiltered ? (
+                        {countStatus === 'failed' ? (
+                            <span>
+                                Showing <span className="font-semibold text-foreground">{resultCount}</span>; total unavailable
+                                {onRetryCount ? (
+                                    <Button variant="link" size="sm" className="h-auto px-1 py-0" onClick={onRetryCount}>
+                                        Retry
+                                    </Button>
+                                ) : null}
+                            </span>
+                        ) : countStatus === 'pending' || totalCount === null ? (
+                            <span>
+                                Showing <span className="font-semibold text-foreground">{resultCount}</span>; counting total…
+                            </span>
+                        ) : isFiltered ? (
                             <span>
                                 Showing <span className="font-semibold text-foreground">{resultCount}</span> of{' '}
                                 <span className="font-semibold text-foreground">{totalCount}</span> resources

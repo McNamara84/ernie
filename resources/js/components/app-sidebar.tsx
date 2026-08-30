@@ -1,4 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
+import axios from 'axios';
 import {
     BarChart3,
     BookOpen,
@@ -18,6 +19,7 @@ import {
     Sparkles,
     Users,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { AppSidebarWorkspaceSwitcher } from '@/components/app-sidebar-workspace-switcher';
 import { NavFooter } from '@/components/nav-footer';
@@ -62,9 +64,24 @@ function pathMatchesCurrentLocation(currentPath: string, href: string): boolean 
 export function AppSidebar() {
     const page = usePage<{ auth: { user: AuthUser } } & SharedData>();
     const { auth, dataResourceCount, igsnCount, pendingAssistanceTotalCount, assessmentAverageSummary } = page.props;
+    const [inventory, setInventory] = useState<{ dataResourceCount: number; igsnCount: number } | null>(() =>
+        typeof dataResourceCount === 'number' && typeof igsnCount === 'number' ? { dataResourceCount, igsnCount } : null,
+    );
     const prefetchEditor = useEditorPrefetch();
     const currentPath = page.url ?? '';
     const isWorkspaceSwitcherEnabled = auth.user?.role === 'admin' || auth.user?.role === 'group_leader';
+
+    useEffect(() => {
+        if (!auth.user || inventory !== null) return;
+
+        const controller = new AbortController();
+        void axios
+            .get<{ dataResourceCount: number; igsnCount: number }>('/resource-inventory', { signal: controller.signal })
+            .then(({ data }) => setInventory(data))
+            .catch(() => undefined);
+
+        return () => controller.abort();
+    }, [auth.user, inventory]);
 
     // Dashboard - always visible
     const dashboardItems: NavItem[] = [
@@ -89,8 +106,8 @@ export function AppSidebar() {
             title: 'Resources',
             href: '/resources',
             icon: Layers,
-            badge: dataResourceCount ?? 0,
-            showZeroBadge: true,
+            badge: inventory?.dataResourceCount,
+            showZeroBadge: inventory !== null,
             badgeTone: 'primary',
             tourId: 'sidebar-resources',
         },
@@ -110,8 +127,8 @@ export function AppSidebar() {
             title: 'IGSNs List',
             href: '/igsns',
             icon: FlaskConical,
-            badge: igsnCount ?? 0,
-            showZeroBadge: true,
+            badge: inventory?.igsnCount,
+            showZeroBadge: inventory !== null,
             badgeTone: 'primary',
             tourId: 'sidebar-igsns-list',
         },

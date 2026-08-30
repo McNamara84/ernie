@@ -8,9 +8,11 @@ use App\Enums\CacheKey;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\Cursor;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -84,6 +86,40 @@ class ResourceCacheService
                 $cacheKey,
                 CacheKey::RESOURCE_LIST->ttl(),
                 fn () => $query->simplePaginate($perPage, ['*'], 'page', $currentPage),
+            );
+    }
+
+    /**
+     * Cache one cursor slice. Cursor identity is part of the cache key and the
+     * encoded cursor is treated as an opaque value throughout the application.
+     *
+     * @param  Builder<Resource>  $query
+     * @param  array<string, mixed>  $filters
+     * @return CursorPaginator<int, Resource>
+     */
+    public function cacheCursorResourceList(
+        Builder $query,
+        int $perPage,
+        ?string $encodedCursor,
+        array $filters = [],
+    ): CursorPaginator {
+        $cacheKey = CacheKey::RESOURCE_LIST->key(implode(':', [
+            'cursor',
+            $perPage,
+            hash('sha256', $encodedCursor ?? 'first'),
+            $this->normalizeFilters($filters),
+        ]));
+
+        return $this->getCacheInstance(CacheKey::RESOURCE_LIST->tags())
+            ->remember(
+                $cacheKey,
+                CacheKey::RESOURCE_LIST->ttl(),
+                fn () => $query->cursorPaginate(
+                    $perPage,
+                    ['*'],
+                    'cursor',
+                    Cursor::fromEncoded($encodedCursor),
+                ),
             );
     }
 
