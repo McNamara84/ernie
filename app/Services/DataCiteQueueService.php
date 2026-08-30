@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-class DataCiteUrlUpdateQueueService
+class DataCiteQueueService
 {
     public function isPersistent(): bool
     {
@@ -23,5 +23,10 @@ class DataCiteUrlUpdateQueueService
         $driver = config("queue.connections.{$connection}.driver");
 
         return is_string($driver) && trim($driver) !== '' ? trim($driver) : null;
+    }
+
+    public function queue(): string
+    {
+        return (string) config('datacite.queue', 'datacite');
     }
 }

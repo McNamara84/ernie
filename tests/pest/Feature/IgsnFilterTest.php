@@ -93,7 +93,7 @@ describe('IGSN Pagination', function () {
                 ->component('igsns/index')
                 ->where('pagination.per_page', $perPage)
             );
-    })->with([10, 100]);
+    })->with([10, 100, 1000]);
 
     it('normalizes unsupported legacy page sizes to the default', function (int $perPage) {
         $this->actingAs($this->user)
@@ -103,7 +103,7 @@ describe('IGSN Pagination', function () {
                 ->component('igsns/index')
                 ->where('pagination.per_page', 100)
             );
-    })->with([25, 50, 1000]);
+    })->with([25, 50]);
 
     it('rejects unsupported page sizes', function (int $perPage) {
         $this->actingAs($this->user)

@@ -24,7 +24,7 @@ class DataCiteUrlUpdateRunService
         private readonly DataCiteUrlUpdateCandidateService $candidates,
         private readonly DataCiteUrlUpdateTargetService $target,
         private readonly DataCiteMemberApiClient $client,
-        private readonly DataCiteUrlUpdateQueueService $queueConnection,
+        private readonly DataCiteQueueService $queueConnection,
     ) {}
 
     public function start(DataCiteUrlUpdateScope $scope, User $user): DataCiteUrlUpdateRun
@@ -102,7 +102,7 @@ class DataCiteUrlUpdateRunService
 
             if ($run->total > 0) {
                 ProcessDataCiteUrlUpdateRunJob::dispatch($run->id)
-                    ->onQueue((string) config('datacite.landing_page_url_update.queue', 'datacite'))
+                    ->onQueue($this->queueConnection->queue())
                     ->afterCommit();
             }
 
@@ -247,7 +247,7 @@ class DataCiteUrlUpdateRunService
 
     private function queue(): string
     {
-        return (string) config('datacite.landing_page_url_update.queue', 'datacite');
+        return $this->queueConnection->queue();
     }
 
     private function ensurePersistentQueue(): void

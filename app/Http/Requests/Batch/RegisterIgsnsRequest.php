@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Batch;
 
+use App\Support\IgsnBulkOperation;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -16,7 +17,7 @@ class RegisterIgsnsRequest extends FormRequest
     /**
      * Maximum number of IGSNs that can be registered in a single batch.
      */
-    public const MAX_BATCH_SIZE = 25;
+    public const MAX_BATCH_SIZE = IgsnBulkOperation::MAX_SELECTION;
 
     /**
      * Custom 403 message preserved from the controller's previous
@@ -46,7 +47,7 @@ class RegisterIgsnsRequest extends FormRequest
     {
         return [
             'ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_BATCH_SIZE],
-            'ids.*' => ['required', 'integer', 'exists:resources,id'],
+            'ids.*' => ['required', 'integer', 'distinct:strict'],
         ];
     }
 }

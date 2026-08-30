@@ -8,6 +8,7 @@ import { DataCiteUrlUpdateModal, type DataCiteUrlUpdateRun } from '@/components/
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { BulkActionsToolbar } from '@/components/igsns/bulk-actions-toolbar';
 import { type IgsnFilterOptions, IgsnFilters, type IgsnFilterState } from '@/components/igsns/igsn-filters';
+import { type IgsnRegistrationRun, IgsnRegistrationRunModal } from '@/components/igsns/igsn-registration-run-modal';
 import ImportIgsnsModal from '@/components/igsns/modals/ImportIgsnsModal';
 import ImportSingleIgsnModal from '@/components/igsns/modals/ImportSingleIgsnModal';
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
@@ -94,6 +95,7 @@ interface IgsnsPageProps {
     canRegister: boolean;
     canUpdateDataCiteLandingPageUrls?: boolean;
     dataCiteUrlUpdateRun?: DataCiteUrlUpdateRun | null;
+    igsnRegistrationRun?: IgsnRegistrationRun | null;
     igsnPrefix: string;
     search: string;
     totalCount: number | null;
@@ -170,6 +172,7 @@ function IgsnsPage({
     canRegister,
     canUpdateDataCiteLandingPageUrls,
     dataCiteUrlUpdateRun,
+    igsnRegistrationRun: initialIgsnRegistrationRun,
     igsnPrefix,
     search: initialSearch,
     totalCount: initialTotalCount,
@@ -194,6 +197,8 @@ function IgsnsPage({
     const [isSingleImportModalOpen, setIsSingleImportModalOpen] = useState(false);
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
     const [isDataCiteUrlUpdateModalOpen, setIsDataCiteUrlUpdateModalOpen] = useState(false);
+    const [isIgsnRegistrationRunModalOpen, setIsIgsnRegistrationRunModalOpen] = useState(false);
+    const [igsnRegistrationRun, setIgsnRegistrationRun] = useState<IgsnRegistrationRun | null>(initialIgsnRegistrationRun ?? null);
     const [selectedIgsnForLandingPage, setSelectedIgsnForLandingPage] = useState<Igsn | null>(null);
     const [registeringIgsns, setRegisteringIgsns] = useState<Set<number>>(new Set());
     const [isBulkRegistering, setIsBulkRegistering] = useState(false);
@@ -231,6 +236,10 @@ function IgsnsPage({
         // Clear selection when data changes (e.g., after pagination or sorting)
         setSelectedIds(new Set());
     }, [initialIgsns, initialPagination, initialSort, initialSearch, initialFilters, initialFilterOptions, initialTotalCount]);
+
+    useEffect(() => {
+        setIgsnRegistrationRun(initialIgsnRegistrationRun ?? null);
+    }, [initialIgsnRegistrationRun]);
 
     const handleExportJson = useCallback(async (igsn: Igsn) => {
         // Mark IGSN as exporting
@@ -629,22 +638,11 @@ function IgsnsPage({
 
         setIsBulkRegistering(true);
         try {
-            const response = await axios.post<{ success: Array<{ id: number }>; failed: Array<{ id: number; reason: string }> }>(
-                '/igsns/batch-register',
-                { ids: Array.from(selectedIds) },
-            );
-
-            const { success, failed } = response.data;
-
-            if (success.length > 0) {
-                toast.success(`${success.length} IGSN(s) registered successfully.`);
-            }
-            if (failed.length > 0) {
-                toast.error(`${failed.length} IGSN(s) failed to register.`);
-            }
-
+            const response = await axios.post<{ run: IgsnRegistrationRun }>('/igsns/batch-register', { ids: Array.from(selectedIds) });
+            setIgsnRegistrationRun(response.data.run);
+            setIsIgsnRegistrationRunModalOpen(true);
             setSelectedIds(new Set());
-            router.reload();
+            toast.success(`${response.data.run.total} IGSN(s) queued for DataCite registration.`);
         } catch (error) {
             const message =
                 isAxiosError(error) && error.response?.data?.message ? (error.response.data.message as string) : 'Batch registration failed.';
@@ -653,6 +651,10 @@ function IgsnsPage({
             setIsBulkRegistering(false);
         }
     }, [selectedIds, igsns]);
+
+    const handleRegistrationTerminal = useCallback(() => {
+        router.reload({ only: ['igsns', 'pagination', 'igsnRegistrationRun'] });
+    }, []);
 
     const handleBulkDeleteConfirm = useCallback(() => {
         if (selectedIds.size === 0) return;
@@ -703,7 +705,7 @@ function IgsnsPage({
                                 <CardTitle>Physical Samples (IGSNs)</CardTitle>
                                 <CardDescription>Manage physical sample metadata with International Generic Sample Numbers.</CardDescription>
                             </div>
-                            {(canImport || canUpdateDataCiteLandingPageUrls) && (
+                            {(canImport || canUpdateDataCiteLandingPageUrls || (canRegister && igsnRegistrationRun)) && (
                                 <div className="flex flex-wrap items-center gap-2">
                                     {canUpdateDataCiteLandingPageUrls && (
                                         <Button
@@ -713,6 +715,16 @@ function IgsnsPage({
                                         >
                                             <DataCiteIcon className="mr-2 size-4" aria-hidden="true" />
                                             Update DataCite landing-page URLs
+                                        </Button>
+                                    )}
+                                    {canRegister && igsnRegistrationRun && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setIsIgsnRegistrationRunModalOpen(true)}
+                                            data-testid="igsns-registration-progress"
+                                        >
+                                            <CloudUpload className="mr-2 size-4" />
+                                            View registration progress
                                         </Button>
                                     )}
                                     {canImport && (
@@ -1102,6 +1114,15 @@ function IgsnsPage({
                     open={isDataCiteUrlUpdateModalOpen}
                     onOpenChange={setIsDataCiteUrlUpdateModalOpen}
                     initialRun={dataCiteUrlUpdateRun}
+                />
+            )}
+            {canRegister && (
+                <IgsnRegistrationRunModal
+                    open={isIgsnRegistrationRunModalOpen}
+                    onOpenChange={setIsIgsnRegistrationRunModalOpen}
+                    initialRun={igsnRegistrationRun}
+                    onRunChange={setIgsnRegistrationRun}
+                    onTerminal={handleRegistrationTerminal}
                 />
             )}
         </AppLayout>

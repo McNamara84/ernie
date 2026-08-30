@@ -6,7 +6,11 @@
         "improvements": [
             {
                 "title": "Faster Large Result Lists",
-                "description": "Resource, IGSN, and public Data Portal results now appear without waiting for exact total counts, while cached totals and full page navigation load independently. The IGSN list now offers 10 or 100 rows per page to keep large collections responsive, and previously stored 1000-row preferences automatically migrate to 100."
+                "description": "Resource, IGSN, and public Data Portal results now appear without waiting for exact total counts, while cached totals and full page navigation load independently. The IGSN list offers 10, 100, or 1000 rows per page and preserves that browser preference."
+            },
+            {
+                "title": "Reliable Bulk Actions for up to 1000 IGSNs",
+                "description": "The IGSN list can now select a complete 1000-row page. Administrators can delete all selected IGSNs atomically, while DataCite registrations and metadata updates run through a persistent background queue with visible test or production mode, progress counters, per-item errors, cancellation, resume, and retry of failed items. Runs continue after navigation, browser closure, deployment, or worker restart and can be reopened from the IGSN list."
             },
             {
                 "title": "Responsive Resource Curation List",

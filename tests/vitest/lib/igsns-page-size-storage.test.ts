@@ -10,14 +10,14 @@ describe('IGSN page-size storage', () => {
         localStorage.clear();
     });
 
-    it.each([10, 100] as const)('round-trips the supported page size %i', (pageSize) => {
+    it.each([10, 100, 1000] as const)('round-trips the supported page size %i', (pageSize) => {
         persistIgsnsPageSize(pageSize);
 
         expect(readStoredIgsnsPageSize()).toBe(pageSize);
         expect(localStorage.getItem(IGSNS_PAGE_SIZE_STORAGE_KEY)).toBe(String(pageSize));
     });
 
-    it.each([25, 50, 1000])('normalizes the legacy page size %i to 100', (pageSize) => {
+    it.each([25, 50])('normalizes the legacy page size %i to 100', (pageSize) => {
         localStorage.setItem(IGSNS_PAGE_SIZE_STORAGE_KEY, String(pageSize));
 
         expect(readStoredIgsnsPageSize()).toBe(100);

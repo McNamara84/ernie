@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Jobs\ProcessIgsnRegistrationRunJob;
 use App\Models\IgsnMetadata;
+use App\Models\IgsnRegistrationRun;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
@@ -10,6 +12,7 @@ use App\Services\DataCiteRegistrationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
@@ -27,8 +30,11 @@ beforeEach(function () {
         'datacite.production.igsn_prefix' => '10.60510',
         'datacite.production.igsn_username' => 'GFZ.IGSN',
         'datacite.production.igsn_password' => 'igsn-password',
+        'queue.default' => 'database',
+        'datacite.queue' => 'datacite',
     ]);
 
+    Queue::fake();
     $this->user = User::factory()->curator()->create();
 });
 
@@ -407,17 +413,12 @@ describe('BatchIgsnRegistrationController@register', function () {
                 'ids' => [$resource1->id, $resource2->id],
             ]);
 
-        $response->assertOk();
+        $response->assertAccepted()
+            ->assertJsonPath('run.total', 2)
+            ->assertJsonPath('run.status', 'queued');
 
-        $data = $response->json();
-        expect($data['success'])->toHaveCount(2);
-        expect($data['failed'])->toHaveCount(0);
-
-        // Both should be registered
-        $resource1->refresh();
-        $resource2->refresh();
-        expect($resource1->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
-        expect($resource2->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
+        Queue::assertPushedOn('datacite', ProcessIgsnRegistrationRunJob::class);
+        Http::assertNothingSent();
     });
 
     test('reports failures for IGSNs without landing pages', function () {
@@ -441,13 +442,11 @@ describe('BatchIgsnRegistrationController@register', function () {
                 'ids' => [$resource1->id, $resource2->id],
             ]);
 
-        // 207 Multi-Status because one failed
-        $response->assertStatus(207);
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors('ids.1');
 
-        $data = $response->json();
-        expect($data['success'])->toHaveCount(1);
-        expect($data['failed'])->toHaveCount(1);
-        expect($data['failed'][0]['reason'])->toBe('No landing page configured');
+        expect(IgsnRegistrationRun::query()->count())->toBe(0);
+        Http::assertNothingSent();
     });
 
     test('sets publicationYear for newly registered IGSNs', function () {
@@ -466,10 +465,11 @@ describe('BatchIgsnRegistrationController@register', function () {
 
         $this->actingAs($this->user)
             ->postJson('/igsns/batch-register', ['ids' => [$resource->id]])
-            ->assertOk();
+            ->assertAccepted()
+            ->assertJsonPath('run.total', 1);
 
         $resource->refresh();
-        expect($resource->publication_year)->toBe((int) date('Y'));
+        expect($resource->publication_year)->toBe(2020);
     });
 
     test('preserves publicationYear for already-registered IGSNs in batch', function () {
@@ -491,7 +491,8 @@ describe('BatchIgsnRegistrationController@register', function () {
 
         $this->actingAs($this->user)
             ->postJson('/igsns/batch-register', ['ids' => [$resource->id]])
-            ->assertOk();
+            ->assertAccepted()
+            ->assertJsonPath('run.total', 1);
 
         $resource->refresh();
         expect($resource->publication_year)->toBe(2020);
@@ -525,18 +526,12 @@ describe('BatchIgsnRegistrationController@register', function () {
                 'ids' => [$resource1->id, $resource2->id],
             ]);
 
-        $response->assertStatus(207);
+        $response->assertAccepted()
+            ->assertJsonPath('run.total', 2);
 
-        $data = $response->json();
-        // resource1 succeeds, resource2 fails due to invalid prefix
-        expect($data['success'])->toHaveCount(1);
-        expect($data['failed'])->toHaveCount(1);
-
-        // resource1 → registered, resource2 → error
-        $resource1->refresh();
-        $resource2->refresh();
-        expect($resource1->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
-        expect($resource2->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_ERROR);
+        expect($resource1->fresh()->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_UPLOADED)
+            ->and($resource2->fresh()->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_UPLOADED);
+        Http::assertNothingSent();
     });
 
     test('allows beginners to batch register IGSNs in test mode', function () {
@@ -559,16 +554,14 @@ describe('BatchIgsnRegistrationController@register', function () {
         $response = $this->actingAs($beginner)
             ->postJson('/igsns/batch-register', ['ids' => [$resource->id]]);
 
-        $response->assertOk();
-        expect($response->json('success'))->toHaveCount(1)
-            ->and($response->json('failed'))->toHaveCount(0)
-            ->and($response->json('success.0.updated'))->toBeFalse();
+        $response->assertAccepted()
+            ->assertJsonPath('run.test_mode', true)
+            ->assertJsonPath('run.datacite_endpoint', 'https://api.test.datacite.org');
 
-        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.test.datacite.org/dois')
-            && $request->method() === 'POST');
+        Http::assertNothingSent();
 
         $resource->refresh();
-        expect($resource->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
+        expect($resource->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_UPLOADED);
     });
 });
 

@@ -600,6 +600,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('igsns.batch.destroy');
     Route::post('igsns/batch-register', [BatchIgsnRegistrationController::class, 'register'])
         ->name('igsns.batch-register');
+    Route::get('igsns/batch-register/{registrationRun}', [BatchIgsnRegistrationController::class, 'show'])
+        ->name('igsns.batch-register.show');
+    Route::get('igsns/batch-register/{registrationRun}/items', [BatchIgsnRegistrationController::class, 'items'])
+        ->name('igsns.batch-register.items');
+    Route::post('igsns/batch-register/{registrationRun}/cancel', [BatchIgsnRegistrationController::class, 'cancel'])
+        ->name('igsns.batch-register.cancel');
+    Route::post('igsns/batch-register/{registrationRun}/resume', [BatchIgsnRegistrationController::class, 'resume'])
+        ->name('igsns.batch-register.resume');
+    Route::post('igsns/batch-register/{registrationRun}/retry-failed', [BatchIgsnRegistrationController::class, 'retryFailed'])
+        ->name('igsns.batch-register.retry-failed');
     Route::get('igsns/{resource}/export/json', [IgsnController::class, 'exportJson'])
         ->name('igsns.export.json');
     Route::get('igsns/{resource}/export/jsonld', [IgsnController::class, 'exportJsonLd'])

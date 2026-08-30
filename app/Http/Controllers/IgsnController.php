@@ -14,6 +14,7 @@ use App\Models\DataCiteUrlUpdateRun;
 use App\Models\DateType;
 use App\Models\GeoLocation;
 use App\Models\IgsnMetadata;
+use App\Models\IgsnRegistrationRun;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
@@ -24,6 +25,7 @@ use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteUrlUpdateRunPresenter;
+use App\Services\IgsnRegistrationRunPresenter;
 use App\Services\JsonSchemaValidator;
 use App\Services\ListingCountService;
 use Illuminate\Database\Eloquent\Builder;
@@ -47,6 +49,7 @@ class IgsnController extends Controller
     public function __construct(
         private readonly DataCiteUrlUpdateRunPresenter $dataCiteUrlUpdateRunPresenter,
         private readonly ListingCountService $listingCountService,
+        private readonly IgsnRegistrationRunPresenter $igsnRegistrationRunPresenter,
     ) {}
 
     private const DEFAULT_SORT_KEY = 'updated_at';
@@ -119,6 +122,10 @@ class IgsnController extends Controller
             ? DataCiteUrlUpdateRun::query()->active()->latest()->first()
                 ?? DataCiteUrlUpdateRun::query()->where('scope', DataCiteUrlUpdateScope::IGSNS)->latest()->first()
             : null;
+        $registrationRun = $canRegister
+            ? IgsnRegistrationRun::query()->forUser($user)->active()->latest()->first()
+                ?? IgsnRegistrationRun::query()->forUser($user)->latest()->first()
+            : null;
 
         return Inertia::render('igsns/index', [
             'igsns' => $igsns,
@@ -144,6 +151,7 @@ class IgsnController extends Controller
             'canImport' => $canImport,
             'canUpdateDataCiteLandingPageUrls' => $canUpdateDataCiteLandingPageUrls,
             'dataCiteUrlUpdateRun' => $urlUpdateRun === null ? null : $this->dataCiteUrlUpdateRunPresenter->run($urlUpdateRun),
+            'igsnRegistrationRun' => $registrationRun === null ? null : $this->igsnRegistrationRunPresenter->run($registrationRun),
             'igsnPrefix' => (string) config('datacite.production.igsn_prefix', '10.60510'),
             'filters' => array_filter([
                 'prefix' => $prefix,
