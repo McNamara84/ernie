@@ -87,6 +87,11 @@ interface PaginationInfo {
     filter_fingerprint?: string;
 }
 
+interface ResourceListingState {
+    resources: Resource[];
+    pagination: PaginationInfo;
+}
+
 interface ResourceCountResponse {
     filter_fingerprint: string;
     total: number;
@@ -117,6 +122,19 @@ export function appendUniqueResources(current: Resource[], incoming: Resource[])
             return true;
         }),
     ];
+}
+
+export function mergeLoadMoreState(
+    current: ResourceListingState,
+    incomingResources: Resource[],
+    nextPagination: Partial<PaginationInfo>,
+): ResourceListingState {
+    const resources = appendUniqueResources(current.resources, incomingResources);
+
+    return {
+        resources,
+        pagination: mergeLoadMorePagination(current.pagination, nextPagination, resources.length - current.resources.length),
+    };
 }
 
 interface ResourcesProps {
@@ -721,8 +739,10 @@ function ResourcesPage({
     const canDeleteResources = auth.user?.role === 'admin' || auth.user?.role === 'group_leader' || auth.user?.role === 'curator';
     const deletableDeleteStatuses = canDeletePublishedResources ? ALL_DELETE_STATUSES : NON_PUBLISHED_DELETE_STATUSES;
 
-    const [resources, setResources] = useState<Resource[]>(initialResources);
-    const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
+    const [{ resources, pagination }, setListingState] = useState<ResourceListingState>({
+        resources: initialResources,
+        pagination: initialPagination,
+    });
     const [countAttempt, setCountAttempt] = useState(0);
     const [sortState, setSortState] = useState<ResourceSortState>(initialSort || DEFAULT_SORT);
     const [loading, setLoading] = useState(false);
@@ -746,11 +766,11 @@ function ResourcesPage({
     const loadMoreInFlightRef = useRef(false);
 
     useEffect(() => {
-        setResources(initialResources);
+        setListingState((current) => ({ ...current, resources: initialResources }));
     }, [initialResources]);
 
     useEffect(() => {
-        setPagination(initialPagination);
+        setListingState((current) => ({ ...current, pagination: initialPagination }));
     }, [initialPagination]);
 
     useEffect(() => {
@@ -860,9 +880,7 @@ function ResourcesPage({
             if (controller.signal.aborted) return;
 
             const incomingResources = (response.data.resources || []) as Resource[];
-            const mergedResources = appendUniqueResources(resources, incomingResources);
-            setResources(mergedResources);
-            setPagination((current) => mergeLoadMorePagination(current, response.data.pagination, mergedResources.length - resources.length));
+            setListingState((current) => mergeLoadMoreState(current, incomingResources, response.data.pagination));
         } catch (err) {
             if (controller.signal.aborted || (isAxiosError(err) && err.code === 'ERR_CANCELED')) return;
 
@@ -883,7 +901,7 @@ function ResourcesPage({
                 setLoading(false);
             }
         }
-    }, [filters, pagination.has_more, pagination.next_cursor, pagination.per_page, resources, sortState.direction, sortState.key]);
+    }, [filters, pagination.has_more, pagination.next_cursor, pagination.per_page, sortState.direction, sortState.key]);
 
     // Load filter options on mount
     useEffect(() => {
@@ -920,14 +938,20 @@ function ResourcesPage({
             .then(({ data }) => {
                 if (data.filter_fingerprint !== expectedFingerprint) return;
 
-                setPagination((current) =>
-                    current.filter_fingerprint === data.filter_fingerprint ? { ...current, total: data.total, count_status: 'ready' } : current,
+                setListingState((current) =>
+                    current.pagination.filter_fingerprint === data.filter_fingerprint
+                        ? { ...current, pagination: { ...current.pagination, total: data.total, count_status: 'ready' } }
+                        : current,
                 );
             })
             .catch((countError: unknown) => {
                 if (controller.signal.aborted || (isAxiosError(countError) && countError.code === 'ERR_CANCELED')) return;
 
-                setPagination((current) => (current.filter_fingerprint === expectedFingerprint ? { ...current, count_status: 'failed' } : current));
+                setListingState((current) =>
+                    current.pagination.filter_fingerprint === expectedFingerprint
+                        ? { ...current, pagination: { ...current.pagination, count_status: 'failed' } }
+                        : current,
+                );
             });
 
         return () => controller.abort();

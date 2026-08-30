@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import ResourcesPage, { appendUniqueResources, mergeLoadMorePagination } from '@/pages/resources';
+import ResourcesPage, { appendUniqueResources, mergeLoadMorePagination, mergeLoadMoreState } from '@/pages/resources';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn(), reload: vi.fn(), visit: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
@@ -228,6 +228,103 @@ describe('ResourcesPage', () => {
                 merged.length - current.length,
             ).to,
         ).toBe(3);
+    });
+
+    it('merges a load-more response into the latest listing state', () => {
+        const current = {
+            resources: [{ id: 1 }, { id: 3 }],
+            pagination: { per_page: 2, total: 3, from: 1, to: 2, has_more: true, next_cursor: 'newer-cursor' },
+        } as Parameters<typeof mergeLoadMoreState>[0];
+        const incoming = [{ id: 2 }, { id: 3 }] as Parameters<typeof mergeLoadMoreState>[1];
+
+        const merged = mergeLoadMoreState(current, incoming, {
+            per_page: 2,
+            has_more: false,
+            next_cursor: null,
+        });
+
+        expect(merged.resources.map((resource) => resource.id)).toEqual([1, 3, 2]);
+        expect(merged.pagination).toMatchObject({
+            total: 3,
+            to: 3,
+            has_more: false,
+            next_cursor: null,
+        });
+    });
+
+    it('does not overwrite newer resources when an in-flight load-more response resolves', async () => {
+        let resolveLoadMore: ((value: { data: { resources: unknown[]; pagination: Record<string, unknown> } }) => void) | undefined;
+        axiosGetMock.mockImplementation((url: string) => {
+            if (url === '/resources/filter-options') {
+                return Promise.resolve({ data: { datacenters: [] } });
+            }
+
+            if (url === '/resources/load-more') {
+                return new Promise((resolve) => {
+                    resolveLoadMore = resolve;
+                });
+            }
+
+            return Promise.resolve({ data: {} });
+        });
+
+        const firstResource = { id: 1, title: 'First resource', publicstatus: 'draft' } as never;
+        const newerResource = { id: 3, title: 'Newer resource', publicstatus: 'draft' } as never;
+        const sort = { key: 'id' as const, direction: 'asc' as const };
+        const filters = {};
+        const { rerender } = render(
+            <ResourcesPage
+                resources={[firstResource]}
+                pagination={{
+                    per_page: 2,
+                    total: 3,
+                    from: 1,
+                    to: 1,
+                    has_more: true,
+                    next_cursor: 'first-cursor',
+                    count_status: 'ready',
+                }}
+                sort={sort}
+                filters={filters}
+            />,
+        );
+
+        await waitFor(() => expect(intersectionCallback).not.toBeNull());
+        act(() => {
+            intersectionCallback?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+        });
+        await waitFor(() => expect(axiosGetMock).toHaveBeenCalledWith('/resources/load-more', expect.anything()));
+
+        rerender(
+            <ResourcesPage
+                resources={[firstResource, newerResource]}
+                pagination={{
+                    per_page: 2,
+                    total: 3,
+                    from: 1,
+                    to: 2,
+                    has_more: true,
+                    next_cursor: 'newer-cursor',
+                    count_status: 'ready',
+                }}
+                sort={sort}
+                filters={filters}
+            />,
+        );
+        await waitFor(() => expect(screen.getByTestId('resources-row-checkbox-3')).toBeInTheDocument());
+
+        await act(async () => {
+            resolveLoadMore?.({
+                data: {
+                    resources: [{ id: 2, title: 'Loaded resource', publicstatus: 'draft' }],
+                    pagination: { per_page: 2, has_more: false, next_cursor: null },
+                },
+            });
+        });
+
+        await waitFor(() => expect(screen.getByTestId('resources-row-checkbox-2')).toBeInTheDocument());
+        expect(screen.getByTestId('resources-row-checkbox-1')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-row-checkbox-3')).toBeInTheDocument();
     });
 
     it('loads the exact count asynchronously and accepts only the matching fingerprint', async () => {
