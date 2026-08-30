@@ -11,7 +11,7 @@ use App\Models\IgsnRegistrationItem;
 use App\Models\IgsnRegistrationRun;
 use App\Models\Resource;
 use App\Services\DataCiteModeResolverService;
-use App\Services\DataCiteRegistrationServiceFactory;
+use App\Services\DataCiteRegistrationFactoryService;
 use App\Services\IgsnRegistrationRunService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -41,7 +41,7 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
     ) {}
 
     public function handle(
-        DataCiteRegistrationServiceFactory $registrations,
+        DataCiteRegistrationFactoryService $registrations,
         DataCiteModeResolverService $modeResolver,
         IgsnRegistrationRunService $runs,
     ): void {
@@ -112,7 +112,7 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
     private function processItem(
         IgsnRegistrationRun $run,
         IgsnRegistrationItem $item,
-        DataCiteRegistrationServiceFactory $registrations,
+        DataCiteRegistrationFactoryService $registrations,
     ): void {
         $resource = $item->resource_id === null
             ? null
@@ -216,7 +216,7 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
     }
 
     private function remoteIdentifierExists(
-        DataCiteRegistrationServiceFactory $registrations,
+        DataCiteRegistrationFactoryService $registrations,
         IgsnRegistrationRun $run,
         string $identifier,
     ): bool {
@@ -322,7 +322,7 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
 
     private function configurationMatches(
         IgsnRegistrationRun $run,
-        DataCiteRegistrationServiceFactory $registrations,
+        DataCiteRegistrationFactoryService $registrations,
         DataCiteModeResolverService $modeResolver,
     ): bool {
         $initiator = $run->initiatedBy()->first();

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-final class DataCiteRegistrationServiceFactory
+final class DataCiteRegistrationFactoryService
 {
     public function __construct(
         private readonly DataCiteRequestLimiter $limiter,

@@ -8,7 +8,7 @@ use App\Enums\IgsnRegistrationRunStatus;
 use App\Models\IgsnRegistrationItem;
 use App\Models\IgsnRegistrationRun;
 
-final class IgsnRegistrationRunPresenter
+final class IgsnRegistrationRunPresenterService
 {
     /** @return array<string, mixed> */
     public function run(IgsnRegistrationRun $run): array

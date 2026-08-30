@@ -10,7 +10,7 @@ use App\Http\Requests\IgsnRegistrationItemsRequest;
 use App\Models\IgsnRegistrationItem;
 use App\Models\IgsnRegistrationRun;
 use App\Models\User;
-use App\Services\IgsnRegistrationRunPresenter;
+use App\Services\IgsnRegistrationRunPresenterService;
 use App\Services\IgsnRegistrationRunService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +20,7 @@ final class BatchIgsnRegistrationController extends Controller
 {
     public function __construct(
         private readonly IgsnRegistrationRunService $runs,
-        private readonly IgsnRegistrationRunPresenter $presenter,
+        private readonly IgsnRegistrationRunPresenterService $presenter,
     ) {}
 
     public function register(RegisterIgsnsRequest $request): JsonResponse

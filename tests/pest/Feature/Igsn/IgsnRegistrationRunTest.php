@@ -12,7 +12,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteModeResolverService;
-use App\Services\DataCiteRegistrationServiceFactory;
+use App\Services\DataCiteRegistrationFactoryService;
 use App\Services\IgsnRegistrationRunService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -121,7 +121,7 @@ function createQueuedIgsnsInBulk(int $count): Collection
 function runQueuedIgsnRegistrationStep(string $runId): void
 {
     (new ProcessIgsnRegistrationRunJob($runId))->handle(
-        app(DataCiteRegistrationServiceFactory::class),
+        app(DataCiteRegistrationFactoryService::class),
         app(DataCiteModeResolverService::class),
         app(IgsnRegistrationRunService::class),
     );

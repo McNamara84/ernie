@@ -25,7 +25,7 @@ use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteUrlUpdateRunPresenter;
-use App\Services\IgsnRegistrationRunPresenter;
+use App\Services\IgsnRegistrationRunPresenterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\ListingCountService;
 use Illuminate\Database\Eloquent\Builder;
@@ -49,7 +49,7 @@ class IgsnController extends Controller
     public function __construct(
         private readonly DataCiteUrlUpdateRunPresenter $dataCiteUrlUpdateRunPresenter,
         private readonly ListingCountService $listingCountService,
-        private readonly IgsnRegistrationRunPresenter $igsnRegistrationRunPresenter,
+        private readonly IgsnRegistrationRunPresenterService $igsnRegistrationRunPresenter,
     ) {}
 
     private const DEFAULT_SORT_KEY = 'updated_at';
