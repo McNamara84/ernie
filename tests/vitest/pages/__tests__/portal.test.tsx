@@ -95,8 +95,14 @@ vi.mock('@/components/portal/PortalFilters', () => ({
     }) => (
         <div data-testid="portal-filters">
             <input data-testid="search-input" value={searchValue} onChange={(e) => onSearchValueChange(e.target.value)} />
-            <button data-testid="submit-search" onClick={() => onSearchChange(searchValue)}>Search</button>
-            {onKeywordSelect && <button data-testid="keyword-select" onClick={() => onKeywordSelect('Seismology')}>Select Keyword</button>}
+            <button data-testid="submit-search" onClick={() => onSearchChange(searchValue)}>
+                Search
+            </button>
+            {onKeywordSelect && (
+                <button data-testid="keyword-select" onClick={() => onKeywordSelect('Seismology')}>
+                    Select Keyword
+                </button>
+            )}
             {onKeywordsChange && (
                 <button data-testid="keyword-change" onClick={() => onKeywordsChange(['Updated Keyword'])}>
                     Keyword Change
@@ -598,8 +604,9 @@ describe('Portal', () => {
     it('restores map collapsed state from localStorage', () => {
         localStorage.setItem('portal-map-collapsed', 'true');
         render(<Portal {...defaultProps} />);
-        // When map is collapsed, a "Show Map" text appears
+
         expect(screen.queryByTestId('resizable-handle')).toBeNull();
+        expect(screen.getByRole('button', { name: /Show Map \(0\)/ })).toHaveAttribute('data-slot', 'button');
     });
 
     it('restores panel layout from localStorage', () => {

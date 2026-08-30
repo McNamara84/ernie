@@ -3,8 +3,8 @@
  */
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render, screen } from '@tests/vitest/utils/render';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -126,7 +126,10 @@ describe('PortalSearchInput', () => {
         const onKeywordsChange = vi.fn();
         render(<Harness initialValue="climate" selectedKeywords={['Seismology', 'Geology']} onKeywordsChange={onKeywordsChange} />);
 
-        await user.click(screen.getByRole('button', { name: 'Remove keyword "Seismology"' }));
+        const removeButton = screen.getByRole('button', { name: 'Remove keyword "Seismology"' });
+
+        expect(removeButton).toHaveAttribute('data-slot', 'button');
+        await user.click(removeButton);
 
         expect(onKeywordsChange).toHaveBeenCalledWith(['Geology']);
         expect(screen.getByRole('combobox', { name: 'Search' })).toHaveValue('climate');

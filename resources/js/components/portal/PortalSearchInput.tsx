@@ -94,14 +94,16 @@ export function PortalSearchInput({ value, onValueChange, onSubmit, selectedKeyw
                         <Badge key={keyword} variant="secondary" className="max-w-full gap-1 pr-1 text-xs">
                             <Tag className="h-3 w-3 shrink-0" />
                             <span className="truncate">{keyword}</span>
-                            <button
+                            <Button
                                 type="button"
-                                className="rounded-sm p-0.5 hover:bg-muted"
+                                variant="ghost"
+                                size="icon-xs"
+                                className="size-5 rounded-sm hover:bg-muted"
                                 onClick={() => removeKeyword(keyword)}
                                 aria-label={`Remove keyword "${keyword}"`}
                             >
                                 <X className="h-3 w-3" />
-                            </button>
+                            </Button>
                         </Badge>
                     ))}
                     <input

@@ -319,13 +319,14 @@ export default function Portal({
                                     >
                                         <PanelRightOpen className="h-4 w-4" />
                                     </Button>
-                                    <button
+                                    <Button
                                         type="button"
-                                        className="flex flex-1 items-center text-xs text-muted-foreground [writing-mode:vertical-lr]"
+                                        variant="ghost"
+                                        className="h-auto w-full flex-1 rounded-none px-0 py-2 text-xs font-normal text-muted-foreground [writing-mode:vertical-lr]"
                                         onClick={() => setIsMapCollapsed(false)}
                                     >
                                         Show Map ({geoCount})
-                                    </button>
+                                    </Button>
                                 </div>
                             )}
                         </div>

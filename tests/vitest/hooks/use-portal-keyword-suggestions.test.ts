@@ -30,7 +30,10 @@ describe('usePortalKeywordSuggestions', () => {
         await waitFor(() => expect(apiRequestMock).toHaveBeenCalled());
         await waitFor(() => expect(result.current.data).toEqual([{ value: 'Seismology', scheme: null, count: 4 }]));
 
-        expect(apiRequestMock).toHaveBeenCalledWith('/search/free-keyword-suggestions?q=seis', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+        expect(apiRequestMock).toHaveBeenCalledWith(
+            '/search/free-keyword-suggestions?q=seis',
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
     });
 
     it('trims the query before requesting suggestions', async () => {
@@ -40,5 +43,24 @@ describe('usePortalKeywordSuggestions', () => {
         await waitFor(() => expect(apiRequestMock).toHaveBeenCalled());
 
         expect(apiRequestMock.mock.calls[0][0]).toBe('/search/free-keyword-suggestions?q=ocean');
+    });
+
+    it('normalizes cache keys without using the visitor locale', () => {
+        apiRequestMock.mockResolvedValue({ data: [] });
+        const localeLowerCaseSpy = vi.spyOn(String.prototype, 'toLocaleLowerCase').mockReturnValue('locale-dependent');
+
+        try {
+            const { client } = renderHookWithQueryClient(() => usePortalKeywordSuggestions('ID'));
+
+            expect(localeLowerCaseSpy).not.toHaveBeenCalled();
+            expect(
+                client.getQueryCache().find({
+                    queryKey: ['portal', 'keyword-suggestions', 'id'],
+                    exact: true,
+                }),
+            ).toBeDefined();
+        } finally {
+            localeLowerCaseSpy.mockRestore();
+        }
     });
 });

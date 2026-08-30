@@ -14,7 +14,7 @@ export function usePortalKeywordSuggestions(input: string) {
     const debouncedInput = useDebounce(normalizedInput, 300);
 
     return useQuery({
-        queryKey: queryKeys.portal.keywordSuggestions(debouncedInput.toLocaleLowerCase()),
+        queryKey: queryKeys.portal.keywordSuggestions(debouncedInput.toLowerCase()),
         queryFn: ({ signal }) =>
             apiRequest<KeywordSuggestionResponse>(
                 `${apiEndpoints.portalKeywordSuggestions}?${new URLSearchParams({ q: debouncedInput }).toString()}`,
