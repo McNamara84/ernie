@@ -6,6 +6,7 @@ use App\Models\Resource;
 use App\Models\ResourceListingProjection;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 uses()->group('database', 'mysql-sensitive');
@@ -39,7 +40,7 @@ it('defines a composite projection index for every supported cursor sort order',
     }
 });
 
-it('upgrades an already-created projection table and backfills title sort keys', function (): void {
+it('repairs an already-created projection table and retains its baseline index on rollback', function (): void {
     $title = str_repeat('Existing projection title ', 30);
     $resource = Resource::factory()->create();
     app(ResourceListingProjectionRefreshService::class)->flushPending();
@@ -52,16 +53,25 @@ it('upgrades an already-created projection table and backfills title sort keys',
     $migration->down();
 
     try {
-        expect(Schema::hasColumn('resource_listing_projections', 'main_title_sort'))->toBeFalse();
+        expect(Schema::hasColumn('resource_listing_projections', 'main_title_sort'))->toBeFalse()
+            ->and(Schema::hasIndex('resource_listing_projections', 'rlp_default_sort_idx'))->toBeTrue();
+
+        Schema::table('resource_listing_projections', function (Blueprint $table): void {
+            $table->dropIndex('rlp_default_sort_idx');
+        });
+
+        expect(Schema::hasIndex('resource_listing_projections', 'rlp_default_sort_idx'))->toBeFalse();
 
         $migration->up();
 
+        $defaultSortIndex = collect(Schema::getIndexes('resource_listing_projections'))
+            ->firstWhere('name', 'rlp_default_sort_idx');
+
         expect(Schema::hasColumn('resource_listing_projections', 'main_title_sort'))->toBeTrue()
+            ->and($defaultSortIndex['columns'] ?? null)->toBe(['is_igsn', 'updated_sort', 'resource_id'])
             ->and(ResourceListingProjection::query()->whereKey($resource->id)->value('main_title_sort'))
             ->toBe(mb_substr($title, 0, 512));
     } finally {
-        if (! Schema::hasColumn('resource_listing_projections', 'main_title_sort')) {
-            $migration->up();
-        }
+        $migration->up();
     }
 });

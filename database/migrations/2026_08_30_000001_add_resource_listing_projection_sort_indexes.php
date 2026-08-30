@@ -21,7 +21,10 @@ return new class extends Migration
         'rlp_status_rank_sort_idx' => ['is_igsn', 'workflow_status_rank', 'resource_id'],
         'rlp_year_sort_idx' => ['is_igsn', 'sort_year', 'resource_id'],
         'rlp_created_sort_idx' => ['is_igsn', 'created_sort', 'resource_id'],
+        'rlp_default_sort_idx' => ['is_igsn', 'updated_sort', 'resource_id'],
     ];
+
+    private const BASELINE_INDEX = 'rlp_default_sort_idx';
 
     public function up(): void
     {
@@ -57,6 +60,12 @@ return new class extends Migration
         }
 
         foreach (array_keys(self::INDEXES) as $name) {
+            // The default-sort index belongs to the original table definition and
+            // must remain available when only this follow-up migration is rolled back.
+            if ($name === self::BASELINE_INDEX) {
+                continue;
+            }
+
             if (! Schema::hasIndex('resource_listing_projections', $name)) {
                 continue;
             }
