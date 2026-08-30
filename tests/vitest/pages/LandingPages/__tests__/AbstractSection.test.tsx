@@ -699,9 +699,9 @@ describe('AbstractSection', () => {
             
             const link = screen.getByRole('link', { name: /^Geophysics$/i });
             const searchLink = screen.getByRole('link', { name: /Search for Geophysics in the portal/i });
-            expect(link).toHaveAttribute('href', '/portal?free_keywords%5B%5D=Geophysics');
+            expect(link).toHaveAttribute('href', '/search?free_keywords%5B%5D=Geophysics');
             expect(link).not.toHaveAttribute('target');
-            expect(searchLink).toHaveAttribute('href', '/portal?free_keywords%5B%5D=Geophysics');
+            expect(searchLink).toHaveAttribute('href', '/search?free_keywords%5B%5D=Geophysics');
         });
 
         it('encodes special characters in keyword portal links', () => {
@@ -715,7 +715,7 @@ describe('AbstractSection', () => {
             );
             
             const link = screen.getByRole('link', { name: /^Rock & Soil$/i });
-            expect(link).toHaveAttribute('href', '/portal?free_keywords%5B%5D=Rock+%26+Soil');
+            expect(link).toHaveAttribute('href', '/search?free_keywords%5B%5D=Rock+%26+Soil');
         });
 
         it('renders thesauri keywords as badges', () => {
@@ -767,7 +767,7 @@ describe('AbstractSection', () => {
             const link = screen.getByRole('link', { name: /^EARTH SCIENCE$/i });
             expect(link).toHaveAttribute(
                 'href',
-                '/portal?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-earth',
+                '/search?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-earth',
             );
             expect(link).not.toHaveAttribute('target');
         });
@@ -787,7 +787,7 @@ describe('AbstractSection', () => {
 
             const link = screen.getByRole('link', { name: /^SEISMOLOGY$/i });
 
-            expect(link).toHaveAttribute('href', '/portal?keywords%5B%5D=SEISMOLOGY');
+            expect(link).toHaveAttribute('href', '/search?keywords%5B%5D=SEISMOLOGY');
         });
 
         it('renders compact breadcrumb labels for controlled keywords on landing pages', () => {

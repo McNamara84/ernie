@@ -113,7 +113,7 @@ export function AppSidebar() {
         },
         {
             title: 'Portal',
-            href: '/portal',
+            href: '/search',
             icon: Search,
             openInNewTab: true,
             rel: 'noopener noreferrer',

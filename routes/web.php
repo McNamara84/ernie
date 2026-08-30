@@ -106,19 +106,19 @@ Route::get('/changelog', function () {
 
 // Public Portal (Dataset Discovery)
 // ===========================================================
-Route::get('/portal', [PortalController::class, 'index'])
+Route::get('/search', [PortalController::class, 'index'])
     ->middleware('throttle:public-portal')
     ->name('portal');
 
-Route::get('/portal/count', PortalCountController::class)
+Route::get('/search/count', PortalCountController::class)
     ->middleware('throttle:public-portal')
     ->name('portal.count');
 
-Route::get('/portal/map', PortalMapController::class)
+Route::get('/search/map', PortalMapController::class)
     ->middleware('throttle:public-portal-map')
     ->name('portal.map');
 
-Route::post('/portal/search-analytics', [PortalSearchAnalyticsController::class, 'store'])
+Route::post('/search/search-analytics', [PortalSearchAnalyticsController::class, 'store'])
     ->middleware('throttle:public-portal')
     ->name('portal.search-analytics');
 

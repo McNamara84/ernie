@@ -51,14 +51,14 @@ describe('PortalHeader', () => {
         it('uses external links for external items', () => {
             render(<PortalHeader />);
             const homeLink = screen.getByText('Home').closest('a');
-            expect(homeLink).toHaveAttribute('href', 'https://dataservices.gfz.de/web');
+            expect(homeLink).toHaveAttribute('href', 'https://dataservices.gfz-potsdam.de/web');
             expect(homeLink).not.toHaveAttribute('data-testid', 'inertia-link');
         });
 
         it('uses Inertia Link for internal items', () => {
             render(<PortalHeader />);
             const findLink = screen.getByText('Find').closest('a');
-            expect(findLink).toHaveAttribute('href', '/portal');
+            expect(findLink).toHaveAttribute('href', '/search');
             expect(findLink).toHaveAttribute('data-testid', 'inertia-link');
 
             const legalLink = screen.getByText('Legal Notice').closest('a');
@@ -83,13 +83,13 @@ describe('PortalHeader', () => {
         it('has correct external link targets', () => {
             render(<PortalHeader />);
             expect(screen.getByText('Publish Data').closest('a')).toHaveAttribute(
-                'href', 'https://dataservices.gfz.de/web/publish-data/publication-instructions',
+                'href', 'https://dataservices.gfz-potsdam.de/web/publish-data/publication-instructions',
             );
             expect(screen.getByText('Samples (IGSN)').closest('a')).toHaveAttribute(
-                'href', 'https://dataservices.gfz.de/web/samples/introduction',
+                'href', 'https://dataservices.gfz-potsdam.de/web/samples/introduction',
             );
             expect(screen.getByText('Data Protection').closest('a')).toHaveAttribute(
-                'href', 'https://dataservices.gfz.de/web/about-us/data-protection',
+                'href', 'https://dataservices.gfz-potsdam.de/web/about-us/data-protection',
             );
         });
     });

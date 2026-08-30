@@ -19,7 +19,7 @@ beforeEach(function (): void {
 
 it('reuses a short-lived response for the same canonical map request', function (): void {
     $service = new PortalMapCacheService;
-    $request = Request::create('/portal/map', 'GET', [
+    $request = Request::create('/search/map', 'GET', [
         'type' => ['physical-object', 'dataset'],
         'viewport' => ['west' => 11, 'east' => 15, 'south' => 50, 'north' => 54, 'height' => 700, 'width' => 1000],
         'zoom' => 8,
@@ -41,12 +41,12 @@ it('reuses a short-lived response for the same canonical map request', function 
 
 it('generates the same key for semantically identical nested query ordering', function (): void {
     $service = new PortalMapCacheService;
-    $first = Request::create('/portal/map', 'GET', [
+    $first = Request::create('/search/map', 'GET', [
         'type' => ['dataset', 'physical-object'],
         'viewport' => ['north' => 54, 'south' => 50, 'east' => 15, 'west' => 11, 'width' => 1000, 'height' => 700],
         'zoom' => 8,
     ]);
-    $second = Request::create('/portal/map', 'GET', [
+    $second = Request::create('/search/map', 'GET', [
         'zoom' => 8,
         'viewport' => ['height' => 700, 'width' => 1000, 'west' => 11, 'east' => 15, 'south' => 50, 'north' => 54],
         'type' => ['physical-object', 'dataset'],
@@ -105,7 +105,7 @@ it('bypasses the map cache when bot protection is disabled', function (): void {
         return ['calls' => ++$calls];
     };
     $service = new PortalMapCacheService;
-    $request = Request::create('/portal/map', 'GET', ['zoom' => 2]);
+    $request = Request::create('/search/map', 'GET', ['zoom' => 2]);
 
     expect($service->remember($request, $resolver))->toBe(['calls' => 1])
         ->and($service->remember($request, $resolver))->toBe(['calls' => 2]);

@@ -19,24 +19,24 @@ function portalSearchCountForToday(string $normalizedTerm): ?int
 
 describe('portal search analytics', function () {
     test('stores normalized search terms as daily aggregates', function () {
-        $this->post('/portal/search-analytics', ['search_term' => '  Test   Query  '])
+        $this->post('/search/search-analytics', ['search_term' => '  Test   Query  '])
             ->assertNoContent();
 
         expect(portalSearchCountForToday('test query'))->toBe(1);
     });
 
     test('increments repeated normalized search terms', function () {
-        $this->post('/portal/search-analytics', ['search_term' => 'Climate'])
+        $this->post('/search/search-analytics', ['search_term' => 'Climate'])
             ->assertNoContent();
 
-        $this->post('/portal/search-analytics', ['search_term' => ' climate '])
+        $this->post('/search/search-analytics', ['search_term' => ' climate '])
             ->assertNoContent();
 
         expect(portalSearchCountForToday('climate'))->toBe(2);
     });
 
     test('ignores blank search terms', function () {
-        $this->post('/portal/search-analytics', ['search_term' => '   '])
+        $this->post('/search/search-analytics', ['search_term' => '   '])
             ->assertNoContent();
 
         expect(PortalSearchDailyStatistic::query()->count())->toBe(0);
@@ -51,7 +51,7 @@ describe('portal search analytics', function () {
         $this->withServerVariables([
             'REMOTE_ADDR' => '203.0.113.60',
             'HTTP_USER_AGENT' => 'GPTBot',
-        ])->post('/portal/search-analytics', ['search_term' => 'seismic'])
+        ])->post('/search/search-analytics', ['search_term' => 'seismic'])
             ->assertNoContent();
 
         expect(PortalSearchDailyStatistic::query()->count())->toBe(0);

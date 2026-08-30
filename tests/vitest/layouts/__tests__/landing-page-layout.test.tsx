@@ -70,7 +70,7 @@ describe('LandingPageLayout', () => {
         expect(screen.getByRole('link', { name: 'Legal Notice' })).toHaveAttribute('href', '/legal-notice');
         expect(screen.getByRole('link', { name: 'Data Protection' })).toHaveAttribute(
             'href',
-            'https://dataservices.gfz.de/web/about-us/data-protection'
+            'https://dataservices.gfz-potsdam.de/web/about-us/data-protection'
         );
     });
 

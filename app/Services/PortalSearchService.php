@@ -31,7 +31,7 @@ use Illuminate\Support\Facades\DB;
  * Service for searching and filtering resources in the public portal.
  *
  * Provides full-text search, type filtering, and pagination for the
- * publicly accessible portal page at /portal.
+ * publicly accessible portal page at /search.
  */
 class PortalSearchService
 {

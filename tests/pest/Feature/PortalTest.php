@@ -39,6 +39,15 @@ beforeEach(function () {
     );
 });
 
+it('publishes the portal endpoints under the search path tree', function () {
+    expect(route('portal', absolute: false))->toBe('/search')
+        ->and(route('portal.count', absolute: false))->toBe('/search/count')
+        ->and(route('portal.map', absolute: false))->toBe('/search/map')
+        ->and(route('portal.search-analytics', absolute: false))->toBe('/search/search-analytics');
+
+    $this->get('/portal')->assertNotFound();
+});
+
 describe('Portal Page Display', function () {
     it('displays the portal page', function () {
         $response = $this->get(route('portal'))->assertOk();

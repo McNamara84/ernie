@@ -176,7 +176,7 @@ describe('PortalFilters', () => {
             fireEvent.submit(input.closest('form')!);
 
             await vi.waitFor(() => {
-                expect(mockAxiosPost).toHaveBeenCalledWith('/portal/search-analytics', { search_term: 'submitted query' });
+                expect(mockAxiosPost).toHaveBeenCalledWith('/search/search-analytics', { search_term: 'submitted query' });
             });
 
             expect(onSearchChange).toHaveBeenCalledWith('submitted query');

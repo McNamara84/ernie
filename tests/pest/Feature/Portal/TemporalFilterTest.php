@@ -364,7 +364,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
         );
 
         // year_from/year_to are clamped to the computed range (2023–2023)
-        $this->get('/portal?date_type=Created&year_from=2020&year_to=2025')
+        $this->get('/search?date_type=Created&year_from=2020&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal.dateType', 'Created')
@@ -373,7 +373,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
                 ->has('resources', 1)
             );
 
-        $this->getJson('/portal/count?date_type=Created&year_from=2020&year_to=2025')
+        $this->getJson('/search/count?date_type=Created&year_from=2020&year_to=2025')
             ->assertOk()
             ->assertJsonPath('total', 1);
     });
@@ -384,7 +384,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
             dateValue: '2023',
         );
 
-        $this->get('/portal?date_type=InvalidType&year_from=2020&year_to=2025')
+        $this->get('/search?date_type=InvalidType&year_from=2020&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -393,7 +393,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
     });
 
     it('ignores temporal filter when year_from > year_to', function () {
-        $this->get('/portal?date_type=Created&year_from=2025&year_to=2020')
+        $this->get('/search?date_type=Created&year_from=2025&year_to=2020')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -401,7 +401,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
     });
 
     it('ignores temporal filter when parameters are missing', function () {
-        $this->get('/portal?date_type=Created')
+        $this->get('/search?date_type=Created')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -414,7 +414,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
             dateValue: '2023',
         );
 
-        $this->get('/portal')
+        $this->get('/search')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('temporalRange')
@@ -422,7 +422,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
     });
 
     it('ignores temporal filter when year_from is not numeric', function () {
-        $this->get('/portal?date_type=Created&year_from=abc&year_to=2025')
+        $this->get('/search?date_type=Created&year_from=abc&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -430,7 +430,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
     });
 
     it('ignores temporal filter when year_from is out of range (too low)', function () {
-        $this->get('/portal?date_type=Created&year_from=1800&year_to=2025')
+        $this->get('/search?date_type=Created&year_from=1800&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -439,7 +439,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
 
     it('ignores temporal filter when year_to is out of range (too high)', function () {
         $futureYear = (int) date('Y') + 5;
-        $this->get("/portal?date_type=Created&year_from=2000&year_to={$futureYear}")
+        $this->get("/search?date_type=Created&year_from=2000&year_to={$futureYear}")
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -454,7 +454,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
             dateValue: '2022',
         );
 
-        $this->get('/portal?date_type=Coverage&year_from=2020&year_to=2025')
+        $this->get('/search?date_type=Coverage&year_from=2020&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -472,7 +472,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
         );
 
         // Range is 2015–2020. year_from=2010 should clamp to 2015, year_to=2025 should clamp to 2020.
-        $this->get('/portal?date_type=Created&year_from=2010&year_to=2025')
+        $this->get('/search?date_type=Created&year_from=2010&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal.dateType', 'Created')
@@ -491,7 +491,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
         // Actually year_from=2021 > year_to, so basic validation already rejects.
         // Use a case where both are valid individually but clamping inverts:
         // Range 2020–2020, year_from=1900 year_to=2019 → clamped to 2020..2019 → inverted → null
-        $this->get('/portal?date_type=Created&year_from=1900&year_to=2019')
+        $this->get('/search?date_type=Created&year_from=1900&year_to=2019')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)

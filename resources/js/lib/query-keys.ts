@@ -39,5 +39,5 @@ export const apiEndpoints = {
     doiValidate: doiValidate.url(),
     pid4instInstruments: '/vocabularies/pid4inst-instruments',
     mslLaboratories: '/vocabularies/msl-laboratories',
-    portalMap: '/portal/map',
+    portalMap: '/search/map',
 } as const;

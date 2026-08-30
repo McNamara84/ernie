@@ -271,7 +271,7 @@ describe('Portal', () => {
         vi.clearAllMocks();
         axiosGetMock.mockReset();
         localStorage.clear();
-        window.history.replaceState(null, '', '/portal');
+        window.history.replaceState(null, '', '/search');
         useNavigationStatusMock.mockReturnValue({ isNavigating: false, statusText: 'Ready' });
     });
 
@@ -347,7 +347,7 @@ describe('Portal', () => {
         window.history.replaceState(
             null,
             '',
-            '/portal?q=%20climate%20&north=53.123456789&south=50.987654321&east=15.000000009&west=11.000000001&page=4',
+            '/search?q=%20climate%20&north=53.123456789&south=50.987654321&east=15.000000009&west=11.000000001&page=4',
         );
         axiosGetMock.mockResolvedValueOnce({
             data: {
@@ -379,7 +379,7 @@ describe('Portal', () => {
         await waitFor(() => expect(axiosGetMock).toHaveBeenCalledTimes(1));
         const countUrl = new URL(String(axiosGetMock.mock.calls[0][0]), 'https://ernie.test');
 
-        expect(countUrl.pathname).toBe('/portal/count');
+        expect(countUrl.pathname).toBe('/search/count');
         expect(countUrl.searchParams.get('q')).toBe(' climate ');
         expect(countUrl.searchParams.get('north')).toBe('53.123456789');
         expect(countUrl.searchParams.has('page')).toBe(false);
@@ -432,7 +432,7 @@ describe('Portal', () => {
         const nextButtons = screen.getAllByTestId('next-page');
         await user.click(nextButtons[0]);
 
-        expect(routerMock.get).toHaveBeenCalledWith('/portal', { page: 2 }, expect.any(Object));
+        expect(routerMock.get).toHaveBeenCalledWith('/search', { page: 2 }, expect.any(Object));
     });
 
     it('navigates with query param preserved on page change', async () => {
@@ -446,7 +446,7 @@ describe('Portal', () => {
         const nextButtons = screen.getAllByTestId('next-page');
         await user.click(nextButtons[0]);
 
-        expect(routerMock.get).toHaveBeenCalledWith('/portal?q=climate', { page: 2 }, expect.any(Object));
+        expect(routerMock.get).toHaveBeenCalledWith('/search?q=climate', { page: 2 }, expect.any(Object));
     });
 
     it('navigates with type param preserved on page change', async () => {

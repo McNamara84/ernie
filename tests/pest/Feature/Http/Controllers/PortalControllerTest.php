@@ -54,14 +54,14 @@ beforeEach(function () {
 
 describe('index', function () {
     it('renders the portal page', function () {
-        $response = $this->get('/portal');
+        $response = $this->get('/search');
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->component('portal'));
     });
 
     it('returns empty results when no published resources exist', function () {
-        $response = $this->get('/portal');
+        $response = $this->get('/search');
 
         $response->assertOk()
             ->assertInertia(
@@ -75,7 +75,7 @@ describe('index', function () {
     it('returns published resources', function () {
         ($this->createPublishedPortalResource)('Seismic Dataset');
 
-        $response = $this->get('/portal');
+        $response = $this->get('/search');
 
         $response->assertOk()
             ->assertInertia(
@@ -99,7 +99,7 @@ describe('index', function () {
             'title_type_id' => $this->mainTitleType->id,
         ]);
 
-        $response = $this->get('/portal');
+        $response = $this->get('/search');
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->has('resources', 1));
@@ -109,7 +109,7 @@ describe('index', function () {
         ($this->createPublishedPortalResource)('Seismic Wave Analysis');
         ($this->createPublishedPortalResource)('Climate Data');
 
-        $response = $this->get('/portal?q=Seismic');
+        $response = $this->get('/search?q=Seismic');
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->has('resources', 1));
@@ -130,7 +130,7 @@ describe('index', function () {
             Cache::forget($cacheKey->key());
         }
 
-        $response = $this->get('/portal?q=test&type=doi');
+        $response = $this->get('/search?q=test&type=doi');
 
         $response->assertOk()
             ->assertInertia(
@@ -149,14 +149,14 @@ describe('index', function () {
             'value' => 'Seismology',
         ]);
 
-        $response = $this->get('/portal');
+        $response = $this->get('/search');
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->has('keywordSuggestions'));
     });
 
     it('returns pagination data', function () {
-        $response = $this->get('/portal');
+        $response = $this->get('/search');
 
         $response->assertOk()
             ->assertInertia(
@@ -175,7 +175,7 @@ describe('index', function () {
             'point_longitude' => 13.0658,
         ]);
 
-        $response = $this->get('/portal');
+        $response = $this->get('/search');
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->missing('mapData'));
@@ -191,9 +191,9 @@ describe('index', function () {
 
         ($this->createPublishedPortalResource)('Cached Dataset');
 
-        $cacheKey = app(PortalPageCacheService::class)->keyForRequest(Request::create('/portal', 'GET'));
+        $cacheKey = app(PortalPageCacheService::class)->keyForRequest(Request::create('/search', 'GET'));
 
-        $this->get('/portal')
+        $this->get('/search')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->has('resources', 1));
 
@@ -203,7 +203,7 @@ describe('index', function () {
 
         expect(Cache::tags(CacheKey::PORTAL_PAGE_PAYLOAD->tags())->has($cacheKey))->toBeFalse();
 
-        $this->get('/portal')
+        $this->get('/search')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->has('resources', 2));
     });
@@ -211,7 +211,7 @@ describe('index', function () {
 
 describe('bounds parameter parsing', function () {
     it('passes valid bounds to filters', function () {
-        $response = $this->get('/portal?north=53&south=51&east=14&west=12');
+        $response = $this->get('/search?north=53&south=51&east=14&west=12');
 
         $response->assertOk()
             ->assertInertia(
@@ -226,7 +226,7 @@ describe('bounds parameter parsing', function () {
     });
 
     it('passes null bounds when no bounds params are present', function () {
-        $response = $this->get('/portal');
+        $response = $this->get('/search');
 
         $response->assertOk()
             ->assertInertia(
@@ -237,42 +237,42 @@ describe('bounds parameter parsing', function () {
     });
 
     it('passes null bounds when only some params are present', function () {
-        $response = $this->get('/portal?north=53&south=51');
+        $response = $this->get('/search?north=53&south=51');
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->where('filters.bounds', null));
     });
 
     it('passes null bounds for non-numeric values', function () {
-        $response = $this->get('/portal?north=abc&south=51&east=14&west=12');
+        $response = $this->get('/search?north=abc&south=51&east=14&west=12');
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->where('filters.bounds', null));
     });
 
     it('passes null bounds when latitude is out of range', function () {
-        $response = $this->get('/portal?north=95&south=51&east=14&west=12');
+        $response = $this->get('/search?north=95&south=51&east=14&west=12');
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->where('filters.bounds', null));
     });
 
     it('passes null bounds when longitude is out of range', function () {
-        $response = $this->get('/portal?north=53&south=51&east=200&west=12');
+        $response = $this->get('/search?north=53&south=51&east=200&west=12');
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->where('filters.bounds', null));
     });
 
     it('passes null bounds when north is less than south', function () {
-        $response = $this->get('/portal?north=40&south=50&east=14&west=12');
+        $response = $this->get('/search?north=40&south=50&east=14&west=12');
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->where('filters.bounds', null));
     });
 
     it('accepts boundary values at range limits', function () {
-        $response = $this->get('/portal?north=90&south=-90&east=180&west=-180');
+        $response = $this->get('/search?north=90&south=-90&east=180&west=-180');
 
         $response->assertOk()
             ->assertInertia(
@@ -286,7 +286,7 @@ describe('bounds parameter parsing', function () {
     });
 
     it('accepts north equal to south', function () {
-        $response = $this->get('/portal?north=52&south=52&east=14&west=12');
+        $response = $this->get('/search?north=52&south=52&east=14&west=12');
 
         $response->assertOk()
             ->assertInertia(
@@ -314,7 +314,7 @@ describe('bounds parameter parsing', function () {
             'point_longitude' => -43.2,
         ]);
 
-        $response = $this->get('/portal?north=54&south=50&east=15&west=11');
+        $response = $this->get('/search?north=54&south=50&east=15&west=11');
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->has('resources', 1));
@@ -335,7 +335,7 @@ describe('bounds parameter parsing', function () {
             'point_longitude' => -43.2,
         ]);
 
-        $response = $this->get('/portal?north=54&south=50&east=15&west=11');
+        $response = $this->get('/search?north=54&south=50&east=15&west=11');
 
         $response->assertOk()
             ->assertInertia(
@@ -346,7 +346,7 @@ describe('bounds parameter parsing', function () {
     });
 
     it('accepts decimal bounds values', function () {
-        $response = $this->get('/portal?north=52.517400&south=51.349700&east=13.761200&west=12.237100');
+        $response = $this->get('/search?north=52.517400&south=51.349700&east=13.761200&west=12.237100');
 
         $response->assertOk()
             ->assertInertia(

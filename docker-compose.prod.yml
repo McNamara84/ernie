@@ -25,7 +25,9 @@ services:
       start_period: 10s
     environment:
       - APP_KEY=${APP_KEY}
-      - APP_URL=https://ernie.rz-vm499.gfz.de
+      - APP_URL=${APP_URL:-https://dataservices.gfz.de}
+      # OAI-PMH identifiers are persistent and must not change with APP_URL.
+      - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
       - INERTIA_SSR_ENABLED=false
@@ -39,10 +41,11 @@ services:
       - DATACITE_IGSN_CLIENT_ID=${DATACITE_IGSN_CLIENT_ID:-gfz.igsn}
       - DATACITE_IGSN_USERNAME=${DATACITE_IGSN_USERNAME}
       - DATACITE_IGSN_PASSWORD=${DATACITE_IGSN_PASSWORD}
+      - DATACITE_USER_AGENT_EMAIL=${DATACITE_USER_AGENT_EMAIL:-datapub@gfz.de}
       - SESSION_DRIVER=file
       - SESSION_LIFETIME=120
       - SESSION_PATH=/
-      - SESSION_DOMAIN=ernie.rz-vm499.gfz.de
+      - SESSION_DOMAIN=dataservices.gfz.de
       - SESSION_SECURE_COOKIE=true
       - SESSION_SAME_SITE=lax
       - DB_HOST=db
@@ -79,7 +82,7 @@ services:
       - FUJI_USE_GITHUB=${FUJI_USE_GITHUB:-false}
       - FUJI_TEST_DEBUG=${FUJI_TEST_DEBUG:-false}
       - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
-      - SANCTUM_STATEFUL_DOMAINS=ernie.rz-vm499.gfz.de
+      - SANCTUM_STATEFUL_DOMAINS=dataservices.gfz.de
       - DB_SUMARIOPMD_HOST=${DB_SUMARIOPMD_HOST:-127.0.0.1}
       - DB_SUMARIOPMD_PORT=${DB_SUMARIOPMD_PORT:-3306}
       - DB_SUMARIOPMD_NAME=${DB_SUMARIOPMD_NAME:-sumario-pmd}
@@ -138,23 +141,42 @@ services:
       - app
     labels:
       - "traefik.enable=true"
-      # Router for the application (subdomain-based, no prefix needed)
-      - "traefik.http.routers.ernie-router.rule=Host(`ernie.rz-vm499.gfz.de`)"
+      # Canonical ERNIE router. More specific legacy paths are handled by the
+      # higher-priority router below.
+      - "traefik.http.routers.ernie-router.rule=Host(`dataservices.gfz.de`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
       - "traefik.http.routers.ernie-router.service=ernie-service"
-      # Temporary catch-all for the former Data Services host. Keep this router
-      # separate from ERNIE so the application remains available exclusively at
-      # ernie.rz-vm499.gfz.de until the canonical-domain cutover. The redirect is
-      # deliberately temporary: a permanent catch-all would be cached for future
-      # ERNIE landing-page paths that will later live on dataservices.gfz.de.
-      - "traefik.http.routers.dataservices-legacy-router.rule=Host(`dataservices.gfz.de`)"
+      # Redirect only confirmed first path segments to the retired TYPO3 host.
+      # The (/|$) boundary is essential: /igsn must not capture /igsns, and
+      # /thesaurus must not capture /thesauri.
+      - "traefik.http.routers.dataservices-legacy-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/(4dmb|arbodat|b2find|bfo|caos|contact|dekorp|dekorp-tryout|digis|dome|enmap|extern|generalinclude|geoxlabs|gipp|grace|gracefo|gravis|icdp|icgem|igets|igsn|igsn-new|igsnstats|igsntest|intermagnet|isg|lib|mesi|msl|msl-old|msl-tryout|muell|panmetaworks|panmetaworks-tryout|pik|portal|reassign|restricted|riesgos|SDDB|tereno|tereno-new|thesaurus|web|wsm)(/|$$)`)"
       - "traefik.http.routers.dataservices-legacy-router.entrypoints=https"
       - "traefik.http.routers.dataservices-legacy-router.service=ernie-service"
       - "traefik.http.routers.dataservices-legacy-router.middlewares=dataservices-legacy-redirect"
-      - "traefik.http.routers.dataservices-legacy-router.priority=200"
+      - "traefik.http.routers.dataservices-legacy-router.priority=300"
       - "traefik.http.middlewares.dataservices-legacy-redirect.redirectregex.regex=^https://dataservices[.]gfz[.]de/(.*)"
       - "traefik.http.middlewares.dataservices-legacy-redirect.redirectregex.replacement=https://dataservices.gfz-potsdam.de/$${1}"
       - "traefik.http.middlewares.dataservices-legacy-redirect.redirectregex.permanent=false"
+      # Preserve bookmarks for the ERNIE portal while /portal on the canonical
+      # host remains owned by the retired website.
+      - "traefik.http.routers.ernie-old-portal-router.rule=Host(`ernie.rz-vm499.gfz.de`) && PathRegexp(`^/portal(/|$$)`)"
+      - "traefik.http.routers.ernie-old-portal-router.entrypoints=https"
+      - "traefik.http.routers.ernie-old-portal-router.service=ernie-service"
+      - "traefik.http.routers.ernie-old-portal-router.middlewares=ernie-old-portal-redirect"
+      - "traefik.http.routers.ernie-old-portal-router.priority=300"
+      - "traefik.http.middlewares.ernie-old-portal-redirect.redirectregex.regex=^https://ernie[.]rz-vm499[.]gfz[.]de/portal(.*)"
+      - "traefik.http.middlewares.ernie-old-portal-redirect.redirectregex.replacement=https://dataservices.gfz.de/search$${1}"
+      - "traefik.http.middlewares.ernie-old-portal-redirect.redirectregex.permanent=true"
+      # All remaining requests on the former ERNIE host retain their path and
+      # query while moving to the canonical Data Services host.
+      - "traefik.http.routers.ernie-old-router.rule=Host(`ernie.rz-vm499.gfz.de`)"
+      - "traefik.http.routers.ernie-old-router.entrypoints=https"
+      - "traefik.http.routers.ernie-old-router.service=ernie-service"
+      - "traefik.http.routers.ernie-old-router.middlewares=ernie-old-redirect"
+      - "traefik.http.routers.ernie-old-router.priority=200"
+      - "traefik.http.middlewares.ernie-old-redirect.redirectregex.regex=^https://ernie[.]rz-vm499[.]gfz[.]de/(.*)"
+      - "traefik.http.middlewares.ernie-old-redirect.redirectregex.replacement=https://dataservices.gfz.de/$${1}"
+      - "traefik.http.middlewares.ernie-old-redirect.redirectregex.permanent=true"
       # Service
       - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik"
@@ -244,7 +266,9 @@ services:
         condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY}
-      - APP_URL=https://ernie.rz-vm499.gfz.de
+      - APP_URL=${APP_URL:-https://dataservices.gfz.de}
+      # Keep this identical to the app service for observer/job consistency.
+      - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
       - INERTIA_SSR_ENABLED=false
@@ -257,6 +281,7 @@ services:
       - DATACITE_IGSN_CLIENT_ID=${DATACITE_IGSN_CLIENT_ID:-gfz.igsn}
       - DATACITE_IGSN_USERNAME=${DATACITE_IGSN_USERNAME}
       - DATACITE_IGSN_PASSWORD=${DATACITE_IGSN_PASSWORD}
+      - DATACITE_USER_AGENT_EMAIL=${DATACITE_USER_AGENT_EMAIL:-datapub@gfz.de}
       - DB_HOST=db
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}

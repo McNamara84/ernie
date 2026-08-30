@@ -21,7 +21,7 @@ vi.mock('@inertiajs/react', () => ({
 
 vi.mock('@/routes', () => ({
     dashboard: () => ({ url: '/dashboard' }),
-    portal: () => ({ url: '/portal' }),
+    portal: () => ({ url: '/search' }),
     changelog: () => ({ url: '/changelog' }),
 }));
 
@@ -77,7 +77,7 @@ describe('ChangelogLayout', () => {
             render(<ChangelogLayout><div /></ChangelogLayout>);
             const portalLink = screen.getByRole('link', { name: 'Portal' });
             const changelogLink = screen.getByRole('link', { name: 'Changelog' });
-            expect(portalLink).toHaveAttribute('href', '/portal');
+            expect(portalLink).toHaveAttribute('href', '/search');
             expect(changelogLink).toHaveAttribute('href', '/changelog');
         });
 
@@ -112,7 +112,7 @@ describe('ChangelogLayout', () => {
             });
             render(<ChangelogLayout><div /></ChangelogLayout>);
             const backLink = screen.getByRole('link', { name: /back to portal/i });
-            expect(backLink).toHaveAttribute('href', '/portal');
+            expect(backLink).toHaveAttribute('href', '/search');
             expect(screen.queryByText(/back to dashboard/i)).not.toBeInTheDocument();
         });
 

@@ -89,7 +89,7 @@ export function PortalFilters({
             e.preventDefault();
 
             if (searchInput.trim() !== '') {
-                void axios.post('/portal/search-analytics', { search_term: searchInput }).catch(() => undefined);
+                void axios.post('/search/search-analytics', { search_term: searchInput }).catch(() => undefined);
             }
 
             onSearchChange(searchInput);

@@ -1756,7 +1756,7 @@
                 }
             }
         },
-        "/portal/count": {
+        "/search/count": {
             "get": {
                 "tags": ["Portal"],
                 "summary": "Count records matching the public portal filters",
@@ -1915,7 +1915,7 @@
                 }
             }
         },
-        "/portal/map": {
+        "/search/map": {
             "get": {
                 "tags": ["Portal"],
                 "summary": "Load clustered records for the public portal map",

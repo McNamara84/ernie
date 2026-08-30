@@ -89,7 +89,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/portal?q=earthquake',
+                '/search?q=earthquake',
                 {},
                 { preserveState: true, preserveScroll: true },
             );
@@ -105,7 +105,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/portal?q=test',
+                '/search?q=test',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );
@@ -121,7 +121,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/portal',
+                '/search',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );
@@ -170,7 +170,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/portal',
+                '/search',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );
@@ -224,7 +224,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/portal?datacenter%5B%5D=INTERMAGNET',
+                '/search?datacenter%5B%5D=INTERMAGNET',
                 {},
                 { preserveState: true, preserveScroll: false },
             );
@@ -233,7 +233,7 @@ describe('usePortalFilters', () => {
     });
 
     describe('clearFilters', () => {
-        it('navigates to /portal without any params', () => {
+        it('navigates to /search without any params', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: 'test', type: ['doi'], keywords: [],
@@ -247,7 +247,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/portal',
+                '/search',
                 {},
                 { preserveState: true, preserveScroll: true },
             );
@@ -283,7 +283,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/portal',
+                '/search',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );
@@ -404,7 +404,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/portal',
+                '/search',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );
@@ -585,7 +585,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/portal',
+                '/search',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );

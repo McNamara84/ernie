@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Portal Page', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/portal');
+        await page.goto('/search');
     });
 
     test.describe('Page Loading', () => {
@@ -105,7 +105,7 @@ test.describe('Portal Page', () => {
 
         test('clearing selection removes type from URL', async ({ page }) => {
             // Navigate with a type filter pre-selected
-            await page.goto('/portal?type[]=dataset');
+            await page.goto('/search?type[]=dataset');
             await page.waitForLoadState('networkidle');
 
             // The trigger must show "N selected" (not "All Resource Types")
@@ -194,7 +194,7 @@ test.describe('Portal Page', () => {
     test.describe('URL State Persistence', () => {
         test('filters are restored from URL on page load', async ({ page }) => {
             // Navigate directly with query params
-            await page.goto('/portal?q=climate&type[]=dataset&page=1');
+            await page.goto('/search?q=climate&type[]=dataset&page=1');
 
             const searchInput = page.getByPlaceholder(/search datasets/i);
             await expect(searchInput).toHaveValue('climate');

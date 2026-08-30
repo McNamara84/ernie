@@ -18,7 +18,7 @@ describe('portal filter URL builders', () => {
     it('serializes all list filters without empty defaults', () => {
         const url = new URL(buildPortalFilterUrl(filters), 'https://ernie.test');
 
-        expect(url.pathname).toBe('/portal');
+        expect(url.pathname).toBe('/search');
         expect(url.searchParams.get('q')).toBe('seismic data');
         expect(url.searchParams.getAll('type[]')).toEqual(['dataset', 'physical-object']);
         expect(url.searchParams.getAll('free_keywords[]')).toEqual(['gravity']);
@@ -44,7 +44,7 @@ describe('portal filter URL builders', () => {
             'https://ernie.test',
         );
 
-        expect(url.pathname).toBe('/portal/map');
+        expect(url.pathname).toBe('/search/map');
         expect(url.searchParams.get('q')).toBe('seismic data');
         expect(url.searchParams.get('north')).toBe('54.000000');
         expect(url.searchParams.get('viewport[north]')).toBe('53.123457');
@@ -57,7 +57,7 @@ describe('portal filter URL builders', () => {
     it('preserves exact direct-URL filters for counts while dropping pagination', () => {
         const url = new URL(buildPortalCountUrl('?q=%20climate%20&north=53.123456789&type%5B%5D=dataset&page=4'), 'https://ernie.test');
 
-        expect(url.pathname).toBe('/portal/count');
+        expect(url.pathname).toBe('/search/count');
         expect(url.searchParams.get('q')).toBe(' climate ');
         expect(url.searchParams.get('north')).toBe('53.123456789');
         expect(url.searchParams.getAll('type[]')).toEqual(['dataset']);

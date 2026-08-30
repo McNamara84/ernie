@@ -54,7 +54,7 @@ export function LandingPageShell({
                                 |
                             </span>
                             <a
-                                href="https://dataservices.gfz.de/web/about-us/data-protection"
+                                href="https://dataservices.gfz-potsdam.de/web/about-us/data-protection"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs text-gray-600 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-200"

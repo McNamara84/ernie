@@ -209,7 +209,7 @@ Stop immediately if:
 - [ ] The login page renders completely; logo, email, password, and `Log in` are
       visible.
 
-- [ ] `/portal` opens publicly, shows results or a plausible empty state, and
+- [ ] `/search` opens publicly, shows results or a plausible empty state, and
       responds to a search.
 
 ### 2.4 Login and Navigation

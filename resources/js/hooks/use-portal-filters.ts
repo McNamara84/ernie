@@ -122,7 +122,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
     );
 
     const clearFilters = useCallback(() => {
-        router.get('/portal', {}, { preserveState: true, preserveScroll: true });
+        router.get('/search', {}, { preserveState: true, preserveScroll: true });
     }, []);
 
     const hasActiveFilters = useMemo(() => {
