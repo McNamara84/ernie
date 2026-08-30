@@ -294,6 +294,7 @@ it('keeps the projection consistent across rollbacks, removals, and dependency c
         Right::class,
         $right->id,
         RefreshResourceListingProjectionsForDependencyJob::EVENT_DELETED,
+        affectedResourceIds: [$resource->id],
     ))->handle(
         app(ResourceListingProjectionRefreshService::class),
         app(ResourceCacheService::class),
@@ -376,7 +377,8 @@ it('rejects manipulated cursors and cursors from another sort context', function
 
     $this->getJson('/resources/load-more?per_page=2&sort_key=id&sort_direction=asc&cursor=manipulated')
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['cursor']);
+        ->assertJsonValidationErrors(['cursor'])
+        ->assertJsonPath('errors.cursor.0', 'The cursor is invalid.');
 
     $first = $this->getJson('/resources/load-more?per_page=2&sort_key=id&sort_direction=asc')->assertOk();
     $cursor = (string) $first->json('pagination.next_cursor');

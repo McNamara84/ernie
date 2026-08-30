@@ -10,16 +10,20 @@ use App\Models\DateType;
 use App\Models\DescriptionType;
 use App\Models\Institution;
 use App\Models\Person;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\Resources\ResourceFilterOptionsCacheInvalidationService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 /** Refresh projections when a denormalized lookup or display name changes. */
 final class ResourceListingProjectionDependencyObserver
 {
+    private const AFFECTED_RIGHT_RESOURCE_IDS = 'listingProjectionAffectedResourceIds';
+
     public function __construct(
         private readonly ResourceFilterOptionsCacheInvalidationService $filterOptionsCacheInvalidationService,
     ) {}
@@ -43,7 +47,31 @@ final class ResourceListingProjectionDependencyObserver
 
     public function deleted(Model $model): void
     {
+        if ($model instanceof Right) {
+            $this->dispatchDeletedRightResources($model);
+
+            return;
+        }
+
         $this->dispatch($model, RefreshResourceListingProjectionsForDependencyJob::EVENT_DELETED);
+    }
+
+    public function deleting(Model $model): void
+    {
+        if (! $model instanceof Right || ! Schema::hasTable('resource_listing_projections')) {
+            return;
+        }
+
+        $resourceIds = ResourceRight::query()
+            ->where('rights_id', $model->id)
+            ->orderBy('resource_id')
+            ->distinct()
+            ->pluck('resource_id')
+            ->map(static fn (mixed $resourceId): int => (int) $resourceId)
+            ->values()
+            ->all();
+
+        $model->setRelation(self::AFFECTED_RIGHT_RESOURCE_IDS, $resourceIds);
     }
 
     private function updatedChangeAffectsProjection(Model $model): bool
@@ -76,5 +104,22 @@ final class ResourceListingProjectionDependencyObserver
             (int) $dependencyId,
             $event,
         )->afterCommit();
+    }
+
+    private function dispatchDeletedRightResources(Right $right): void
+    {
+        /** @var list<int> $resourceIds */
+        $resourceIds = $right->relationLoaded(self::AFFECTED_RIGHT_RESOURCE_IDS)
+            ? $right->getRelation(self::AFFECTED_RIGHT_RESOURCE_IDS)
+            : [];
+
+        foreach (array_chunk($resourceIds, RefreshResourceListingProjectionsForDependencyJob::BATCH_SIZE) as $chunk) {
+            RefreshResourceListingProjectionsForDependencyJob::dispatch(
+                Right::class,
+                (int) $right->id,
+                RefreshResourceListingProjectionsForDependencyJob::EVENT_DELETED,
+                affectedResourceIds: $chunk,
+            )->afterCommit();
+        }
     }
 }

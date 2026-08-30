@@ -59,12 +59,16 @@ final class RefreshResourceListingProjectionsForDependencyJob implements ShouldQ
 
     public int $timeout = 120;
 
-    /** @param class-string $dependencyType */
+    /**
+     * @param  class-string  $dependencyType
+     * @param  list<int>|null  $affectedResourceIds
+     */
     public function __construct(
         public readonly string $dependencyType,
         public readonly int $dependencyId,
         public readonly string $event,
         public readonly int $afterResourceId = 0,
+        public readonly ?array $affectedResourceIds = null,
     ) {
         if (! in_array($dependencyType, self::SUPPORTED_DEPENDENCIES, true)) {
             throw new InvalidArgumentException('Unsupported resource listing projection dependency.');
@@ -91,14 +95,16 @@ final class RefreshResourceListingProjectionsForDependencyJob implements ShouldQ
             return;
         }
 
-        $resourceIds = $this->nextResourceIds();
+        $resourceIds = $this->affectedResourceIds === null
+            ? $this->nextResourceIds()
+            : collect($this->affectedResourceIds);
         if ($resourceIds->isEmpty()) {
             return;
         }
 
         $scheduler->scheduleMany($resourceIds);
 
-        if ($resourceIds->count() < self::BATCH_SIZE) {
+        if ($this->affectedResourceIds !== null || $resourceIds->count() < self::BATCH_SIZE) {
             return;
         }
 
@@ -217,11 +223,7 @@ final class RefreshResourceListingProjectionsForDependencyJob implements ShouldQ
                 ->limit(self::BATCH_SIZE)
                 ->pluck('resource_id'),
             Right::class => ResourceRight::query()
-                ->when(
-                    $this->event === self::EVENT_DELETED,
-                    fn ($query) => $query->whereNull('rights_id'),
-                    fn ($query) => $query->where('rights_id', $this->dependencyId),
-                )
+                ->where('rights_id', $this->dependencyId)
                 ->where('resource_id', '>', $this->afterResourceId)
                 ->orderBy('resource_id')
                 ->distinct()

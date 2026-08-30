@@ -26,7 +26,7 @@ final class ResourceListingCursorCodecService
             $payload = json_decode(Crypt::decryptString($token), true, flags: JSON_THROW_ON_ERROR);
         } catch (DecryptException|\JsonException) {
             throw ValidationException::withMessages([
-                'cursor' => ['The cursor is invalid or has expired.'],
+                'cursor' => ['The cursor is invalid.'],
             ]);
         }
 

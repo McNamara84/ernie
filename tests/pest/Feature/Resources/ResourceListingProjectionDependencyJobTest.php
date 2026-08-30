@@ -2,13 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Jobs\RefreshResourceListingProjectionsForDependencyJob;
 use App\Models\Datacenter;
+use App\Models\Description;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
 use App\Models\ResourceListingProjection;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\Right;
+use App\Models\Title;
 use App\Models\User;
 use App\Observers\ResourceListingProjectionDependencyObserver;
 use App\Services\ListingCountService;
@@ -120,6 +125,88 @@ it('updates curator and resource type projection values with targeted set-based 
         ->and($projection->resource_type_sort)->toBe('Physical Object')
         ->and($projection->resource_type_slug)->toBe('physical-object')
         ->and($projection->is_igsn)->toBeTrue();
+});
+
+it('refreshes only resources that referenced a deleted catalog right', function (): void {
+    $right = Right::factory()->create();
+    $affected = Resource::factory()->create(['access_level' => AccessLevel::OPEN]);
+    Title::factory()->create(['resource_id' => $affected->id]);
+    ResourceCreator::factory()->create(['resource_id' => $affected->id]);
+    Description::factory()->abstract()->create(['resource_id' => $affected->id]);
+    $affected->rights()->attach($right);
+
+    $unrelated = Resource::factory()->create();
+    ResourceRight::query()->create([
+        'resource_id' => $unrelated->id,
+        'rights_id' => null,
+        'rights_text' => 'Unresolved imported right',
+    ]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    expect(ResourceListingProjection::query()->findOrFail($affected->id)->workflow_status)->toBe('curation');
+
+    ResourceListingProjection::query()->whereKey($unrelated->id)->update([
+        'main_title' => 'Unrelated projection sentinel',
+    ]);
+
+    Queue::fake();
+    $right->delete();
+
+    Queue::assertPushed(
+        RefreshResourceListingProjectionsForDependencyJob::class,
+        1,
+    );
+    Queue::assertPushed(
+        RefreshResourceListingProjectionsForDependencyJob::class,
+        fn (RefreshResourceListingProjectionsForDependencyJob $job): bool => $job->dependencyType === Right::class
+            && $job->dependencyId === $right->id
+            && $job->event === RefreshResourceListingProjectionsForDependencyJob::EVENT_DELETED
+            && $job->affectedResourceIds === [$affected->id]
+            && $job->afterCommit === true,
+    );
+
+    /** @var RefreshResourceListingProjectionsForDependencyJob $job */
+    $job = Queue::pushed(RefreshResourceListingProjectionsForDependencyJob::class)->first();
+    runResourceListingProjectionDependencyJob($job);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    expect(ResourceListingProjection::query()->findOrFail($affected->id)->workflow_status)->toBe('draft')
+        ->and(ResourceListingProjection::query()->findOrFail($unrelated->id)->main_title)
+        ->toBe('Unrelated projection sentinel');
+});
+
+it('chunks resources affected by a deleted catalog right into bounded jobs', function (): void {
+    $right = Right::factory()->create();
+    $now = now();
+
+    collect(range(1, RefreshResourceListingProjectionsForDependencyJob::BATCH_SIZE + 1))
+        ->chunk(100)
+        ->each(fn ($chunk) => DB::table('resources')->insert($chunk->map(fn (): array => [
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all()));
+
+    $resourceIds = Resource::query()->orderBy('id')->pluck('id');
+    $resourceIds->chunk(100)->each(fn ($chunk) => DB::table('resource_rights')->insert(
+        $chunk->map(fn (int $resourceId): array => [
+            'resource_id' => $resourceId,
+            'rights_id' => $right->id,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all(),
+    ));
+
+    Queue::fake();
+    $right->delete();
+
+    $jobs = Queue::pushed(RefreshResourceListingProjectionsForDependencyJob::class)
+        ->filter(fn (RefreshResourceListingProjectionsForDependencyJob $job): bool => $job->dependencyType === Right::class)
+        ->values();
+
+    expect($jobs)->toHaveCount(2)
+        ->and($jobs->map(fn (RefreshResourceListingProjectionsForDependencyJob $job): int => count($job->affectedResourceIds ?? []))->all())
+        ->toBe([RefreshResourceListingProjectionsForDependencyJob::BATCH_SIZE, 1])
+        ->and($jobs->flatMap(fn (RefreshResourceListingProjectionsForDependencyJob $job): array => $job->affectedResourceIds ?? [])->all())
+        ->toBe($resourceIds->all());
 });
 
 it('refreshes at most 500 dependent resources per job and chains the remaining cursor', function (): void {
