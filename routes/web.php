@@ -88,9 +88,7 @@ if (app()->environment('local', 'testing')) {
     })->name('debug');
 }
 
-Route::get('/', function () {
-    return Inertia::render('welcome');
-})->name('home');
+Route::redirect('/', 'https://dataservices.gfz-potsdam.de')->name('home');
 
 Route::get('/about', function () {
     return Inertia::render('about');

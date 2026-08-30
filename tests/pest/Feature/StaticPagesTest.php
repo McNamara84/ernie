@@ -4,10 +4,8 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\withoutVite;
 
-it('displays the welcome page', function () {
-    withoutVite();
-    $response = $this->get(route('home'))->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->component('welcome'));
+it('redirects the home page to the retired Data Services website', function () {
+    $this->get(route('home'))->assertRedirect('https://dataservices.gfz-potsdam.de');
 });
 
 it('displays the about page', function () {

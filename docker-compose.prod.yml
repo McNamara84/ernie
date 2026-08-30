@@ -146,10 +146,10 @@ services:
       - "traefik.http.routers.ernie-router.rule=Host(`dataservices.gfz.de`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
       - "traefik.http.routers.ernie-router.service=ernie-service"
-      # Redirect only confirmed first path segments to the retired TYPO3 host.
-      # The (/|$) boundary is essential: /igsn must not capture /igsns, and
-      # /thesaurus must not capture /thesauri.
-      - "traefik.http.routers.dataservices-legacy-router.rule=Host(`dataservices.gfz.de`) && PathRegexp(`^/(4dmb|arbodat|b2find|bfo|caos|contact|dekorp|dekorp-tryout|digis|dome|enmap|extern|generalinclude|geoxlabs|gipp|grace|gracefo|gravis|icdp|icgem|igets|igsn|igsn-new|igsnstats|igsntest|intermagnet|isg|lib|mesi|msl|msl-old|msl-tryout|muell|panmetaworks|panmetaworks-tryout|pik|portal|reassign|restricted|riesgos|SDDB|tereno|tereno-new|thesaurus|web|wsm)(/|$$)`)"
+      # Redirect the exact root and confirmed first path segments to the retired
+      # TYPO3 host. The (/|$) boundary is essential: /igsn must not capture
+      # /igsns, and /thesaurus must not capture /thesauri.
+      - "traefik.http.routers.dataservices-legacy-router.rule=Host(`dataservices.gfz.de`) && (Path(`/`) || PathRegexp(`^/(4dmb|arbodat|b2find|bfo|caos|contact|dekorp|dekorp-tryout|digis|dome|enmap|extern|generalinclude|geoxlabs|gipp|grace|gracefo|gravis|icdp|icgem|igets|igsn|igsn-new|igsnstats|igsntest|intermagnet|isg|lib|mesi|msl|msl-old|msl-tryout|muell|panmetaworks|panmetaworks-tryout|pik|portal|reassign|restricted|riesgos|SDDB|tereno|tereno-new|thesaurus|web|wsm)(/|$$)`))"
       - "traefik.http.routers.dataservices-legacy-router.entrypoints=https"
       - "traefik.http.routers.dataservices-legacy-router.service=ernie-service"
       - "traefik.http.routers.dataservices-legacy-router.middlewares=dataservices-legacy-redirect"

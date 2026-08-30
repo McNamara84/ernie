@@ -77,7 +77,7 @@ it('uses one canonical production URL without changing persistent OAI identifier
         ->and(productionEnvironmentValue($appEnvironment, 'SANCTUM_STATEFUL_DOMAINS'))->toBe('dataservices.gfz.de');
 });
 
-it('routes only confirmed whole legacy path segments away from ERNIE', function (): void {
+it('routes only the exact root and confirmed whole legacy path segments away from ERNIE', function (): void {
     $compose = productionDomainCompose();
     $labels = productionTraefikLabels($compose['services']['webserver']['labels'] ?? []);
 
@@ -86,6 +86,7 @@ it('routes only confirmed whole legacy path segments away from ERNIE', function 
 
     $legacyRule = $labels['traefik.http.routers.dataservices-legacy-router.rule'] ?? '';
     expect($legacyRule)->toContain('Host(`dataservices.gfz.de`)')
+        ->and($legacyRule)->toContain('Path(`/`)')
         ->and($legacyRule)->toContain('PathRegexp(`')
         ->and($legacyRule)->toContain('(/|$$)');
 
@@ -110,7 +111,7 @@ it('routes only confirmed whole legacy path segments away from ERNIE', function 
             ->and(preg_match('~'.$legacyPattern.'~', "/{$segment}/example"))->toBe(1);
     }
 
-    foreach (['/', '/search', '/search/map', '/igsns', '/igsns-map', '/thesauri', '/images/gfz-logo_en.svg', '/10.5880/example/slug'] as $erniePath) {
+    foreach (['/search', '/search/map', '/login', '/igsns', '/igsns-map', '/thesauri', '/images/gfz-logo_en.svg', '/10.5880/example/slug'] as $erniePath) {
         expect(preg_match('~'.$legacyPattern.'~', $erniePath))->toBe(0);
     }
 
@@ -125,6 +126,9 @@ it('routes only confirmed whole legacy path segments away from ERNIE', function 
 
     expect(preg_replace('~'.$legacyRedirectRegex.'~', $legacyRedirectReplacement, $legacyUrl))
         ->toBe('https://dataservices.gfz-potsdam.de/panmetaworks/showshort.php?id=example');
+
+    expect(preg_replace('~'.$legacyRedirectRegex.'~', $legacyRedirectReplacement, 'https://dataservices.gfz.de/'))
+        ->toBe('https://dataservices.gfz-potsdam.de/');
 });
 
 it('maps former ERNIE portal bookmarks to search before applying the canonical redirect', function (): void {
