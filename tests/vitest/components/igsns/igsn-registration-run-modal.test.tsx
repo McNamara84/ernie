@@ -150,6 +150,49 @@ describe('IgsnRegistrationRunModal', () => {
         expect(mockToastSuccess).toHaveBeenCalledWith('IGSN registration queued.');
     });
 
+    it('preserves loaded issues when the parent refreshes the same run', async () => {
+        const pausedRun: IgsnRegistrationRun = {
+            ...baseRun,
+            status: 'paused',
+            pause_reason: 'DataCite authentication failed.',
+            paused_at: '2026-08-30T10:10:00+02:00',
+            can_resume: true,
+        };
+        const refreshedRun: IgsnRegistrationRun = {
+            ...pausedRun,
+            processed: 276,
+        };
+        mockGet.mockResolvedValueOnce({ data: { run: pausedRun } }).mockResolvedValueOnce({
+            data: {
+                items: [
+                    {
+                        id: 7,
+                        resource_id: 42,
+                        identifier: '10.60510/PERSISTENT-ISSUE',
+                        status: 'failed',
+                        operation: 'register',
+                        attempts: 1,
+                        last_http_status: 401,
+                        error_message: 'DataCite authentication failed.',
+                        processed_at: '2026-08-30T10:09:00+02:00',
+                    },
+                ],
+                pagination: { current_page: 2, last_page: 3, total: 3 },
+            },
+        });
+        const onOpenChange = vi.fn();
+        const { rerender } = render(<IgsnRegistrationRunModal open onOpenChange={onOpenChange} initialRun={pausedRun} />);
+
+        expect(await screen.findByText('10.60510/PERSISTENT-ISSUE')).toBeInTheDocument();
+        expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
+
+        rerender(<IgsnRegistrationRunModal open onOpenChange={onOpenChange} initialRun={refreshedRun} />);
+
+        expect(screen.getByText('10.60510/PERSISTENT-ISSUE')).toBeInTheDocument();
+        expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
+        expect(screen.getByText('276 / 1000')).toBeInTheDocument();
+    });
+
     it('requests cancellation without closing the dialog', async () => {
         const cancellationRequested: IgsnRegistrationRun = {
             ...baseRun,

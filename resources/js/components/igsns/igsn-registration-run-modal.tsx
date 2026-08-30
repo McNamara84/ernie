@@ -101,15 +101,19 @@ export function IgsnRegistrationRunModal({ open, onOpenChange, initialRun, onRun
     const [isActing, setIsActing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const terminalNotificationRef = useRef<string | null>(null);
+    const initialRunId = initialRun?.id ?? null;
 
     useEffect(() => {
         setRun(initialRun);
+    }, [initialRun]);
+
+    useEffect(() => {
         setIssues([]);
         setIssuePage(1);
         setIssueLastPage(1);
         setIssueTotal(0);
         setError(null);
-    }, [initialRun]);
+    }, [initialRunId]);
 
     const loadIssues = useCallback(async (runId: string, page = 1) => {
         const response = await axios.get<ItemsResponse>(`/igsns/batch-register/${runId}/items`, {
