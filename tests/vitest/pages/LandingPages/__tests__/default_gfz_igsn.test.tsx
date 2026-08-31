@@ -1,17 +1,16 @@
-import { screen, within } from '@testing-library/react';
-import { render } from '@tests/vitest/utils/render';
+import { render, screen, within } from '@tests/vitest/utils/render';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia's usePage hook
 vi.mock('@inertiajs/react', () => ({
     usePage: vi.fn(),
-    Head: ({ title, children }: { title?: string; children?: ReactNode }) => (
-        <>
-            <div data-testid="inertia-head-title">{title}</div>
-            {children}
-        </>
-    ),
+    Head: ({ title, children }: { title?: string; children?: ReactNode }) => {
+        if (title !== undefined) document.title = title;
+
+        return createPortal(children, document.head);
+    },
 }));
 
 import { usePage } from '@inertiajs/react';
@@ -58,6 +57,7 @@ describe('DefaultGfzIgsnTemplate', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        document.title = '';
     });
 
     describe('Layout Structure', () => {
@@ -89,7 +89,7 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             render(<DefaultGfzIgsnTemplate />);
 
-            expect(screen.getByTestId('inertia-head-title')).toHaveTextContent('Preview: Rock Sample Core XYZ | GFZ Data Services');
+            expect(document.title).toBe('Preview: Rock Sample Core XYZ | GFZ Data Services');
             expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
             expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('head-key', 'landing-page-robots');
         });
