@@ -150,7 +150,7 @@ export default function DefaultGfzTemplate() {
 
     return (
         <>
-            <Head title={documentTitle} />
+            <Head title={documentTitle}>{isPreview && <meta head-key="landing-page-robots" name="robots" content="noindex, nofollow" />}</Head>
             <LandingPageShell
                 isPreview={isPreview}
                 isDark={isDark}

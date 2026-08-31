@@ -250,7 +250,7 @@ describe('Session Preview Display', function () {
                 ->where('isPreview', true)
             )
             ->assertSee('<title inertia>Preview: Session preview dataset | GFZ Data Services</title>', false)
-            ->assertSee('<meta name="robots" content="noindex, nofollow">', false)
+            ->assertSee('<meta data-inertia="landing-page-robots" name="robots" content="noindex, nofollow">', false)
             ->assertDontSee('Preview: Session preview dataset | GFZ Data Services - ERNIE', false);
     });
 

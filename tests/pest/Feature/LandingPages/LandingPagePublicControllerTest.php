@@ -91,7 +91,7 @@ describe('Public Landing Page Access', function () {
                 ->where('isPreview', false)
             )
             ->assertSee('<title inertia>Published research dataset | GFZ Data Services</title>', false)
-            ->assertDontSee('<meta name="robots"', false)
+            ->assertDontSee('name="robots"', false)
             ->assertDontSee('Published research dataset | GFZ Data Services - ERNIE', false);
     });
 
@@ -272,7 +272,7 @@ describe('Preview Token Access', function () {
                 ->where('isPreview', true)
             )
             ->assertSee('<title inertia>Preview: Draft research dataset | GFZ Data Services</title>', false)
-            ->assertSee('<meta name="robots" content="noindex, nofollow">', false)
+            ->assertSee('<meta data-inertia="landing-page-robots" name="robots" content="noindex, nofollow">', false)
             ->assertDontSee('Preview: Draft research dataset | GFZ Data Services - ERNIE', false);
     });
 
@@ -340,7 +340,7 @@ describe('Preview Token Access', function () {
             )
             ->assertSee('<title inertia>Published query dataset | GFZ Data Services</title>', false)
             ->assertSee('<script type="application/ld+json">', false)
-            ->assertDontSee('<meta name="robots"', false)
+            ->assertDontSee('name="robots"', false)
             ->assertDontSee('Preview: Published query dataset', false);
 
         expect($landingPage->fresh()->view_count)->toBe(1)

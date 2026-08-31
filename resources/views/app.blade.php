@@ -52,7 +52,7 @@
             : config('app.name', 'Laravel') }}</title>
 
         @if(is_array($landingPageDocumentMetadata ?? null) && is_string($landingPageDocumentMetadata['robots'] ?? null))
-            <meta name="robots" content="{{ $landingPageDocumentMetadata['robots'] }}">
+            <meta data-inertia="landing-page-robots" name="robots" content="{{ $landingPageDocumentMetadata['robots'] }}">
         @endif
 
         @if(isset($landingPageMachineMetadata) && is_array($landingPageMachineMetadata))

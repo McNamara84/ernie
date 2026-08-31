@@ -155,6 +155,7 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         await expect(previewPage.getByText('Preview Mode')).toBeVisible({ timeout: 15000 });
         await expect(previewPage).toHaveTitle(/^Preview: .+ \| GFZ Data Services$/);
         await expect(previewPage.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+        await expect(previewPage.locator('meta[name="robots"]')).toHaveAttribute('data-inertia', 'landing-page-robots');
 
         // Sanity: should not be a generic Laravel error page
         await expect(previewPage.getByText(/server error|whoops/i)).not.toBeVisible();

@@ -1,10 +1,16 @@
 import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia's usePage hook
 vi.mock('@inertiajs/react', () => ({
     usePage: vi.fn(),
-    Head: ({ title }: { title?: string }) => <div data-testid="inertia-head-title">{title}</div>,
+    Head: ({ title, children }: { title?: string; children?: ReactNode }) => (
+        <>
+            <div data-testid="inertia-head-title">{title}</div>
+            {children}
+        </>
+    ),
 }));
 
 import { usePage } from '@inertiajs/react';
@@ -70,6 +76,7 @@ describe('DefaultGfzTemplate', () => {
         render(<DefaultGfzTemplate />);
 
         expect(screen.getByTestId('inertia-head-title')).toHaveTextContent('Test Dataset Title | GFZ Data Services');
+        expect(document.head.querySelector('meta[name="robots"]')).not.toBeInTheDocument();
     });
 
     it('shows preview banner when isPreview is true', () => {
@@ -84,6 +91,8 @@ describe('DefaultGfzTemplate', () => {
         render(<DefaultGfzTemplate />);
 
         expect(screen.getByText('Preview Mode')).toBeInTheDocument();
+        expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+        expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('head-key', 'landing-page-robots');
     });
 
     it('does not show preview banner when isPreview is false', () => {
