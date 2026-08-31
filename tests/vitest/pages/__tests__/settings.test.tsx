@@ -14,6 +14,8 @@ vi.mock('@inertiajs/react', () => ({
         setData,
         post: vi.fn(),
         processing: false,
+        isDirty: false,
+        recentlySuccessful: false,
     }),
     usePage: () => ({
         props: {
@@ -33,9 +35,7 @@ vi.mock('@/layouts/app-layout', () => ({
 }));
 
 vi.mock('@/components/ui/button', () => ({
-    Button: ({ children, ...props }: React.ComponentProps<'button'>) => (
-        <button {...props}>{children}</button>
-    ),
+    Button: ({ children, ...props }: React.ComponentProps<'button'>) => <button {...props}>{children}</button>,
 }));
 
 vi.mock('@/components/ui/input', () => ({
@@ -43,13 +43,16 @@ vi.mock('@/components/ui/input', () => ({
 }));
 
 vi.mock('@/components/ui/label', () => ({
-    Label: ({ children, ...props }: React.ComponentProps<'label'>) => (
-        <label {...props}>{children}</label>
-    ),
+    Label: ({ children, ...props }: React.ComponentProps<'label'>) => <label {...props}>{children}</label>,
 }));
 
 vi.mock('@/components/ui/checkbox', () => ({
-    Checkbox: ({ onCheckedChange, checked, indeterminate, ...props }: { onCheckedChange?: (checked: boolean) => void; checked?: boolean; indeterminate?: boolean } & React.ComponentProps<'input'>) => (
+    Checkbox: ({
+        onCheckedChange,
+        checked,
+        indeterminate,
+        ...props
+    }: { onCheckedChange?: (checked: boolean) => void; checked?: boolean; indeterminate?: boolean } & React.ComponentProps<'input'>) => (
         <input
             type="checkbox"
             checked={checked ?? false}
@@ -66,7 +69,15 @@ vi.mock('@/components/settings/thesaurus-card', () => ({
 
 // Default thesauri mock data for tests
 const defaultThesauri = [
-    { type: 'science_keywords', displayName: 'Science Keywords', isActive: true, isElmoActive: false, exists: true, conceptCount: 100, lastUpdated: null },
+    {
+        type: 'science_keywords',
+        displayName: 'Science Keywords',
+        isActive: true,
+        isElmoActive: false,
+        exists: true,
+        conceptCount: 100,
+        lastUpdated: null,
+    },
     { type: 'platforms', displayName: 'Platforms', isActive: true, isElmoActive: false, exists: true, conceptCount: 50, lastUpdated: null },
     { type: 'instruments', displayName: 'Instruments', isActive: true, isElmoActive: false, exists: true, conceptCount: 200, lastUpdated: null },
 ];
@@ -77,9 +88,7 @@ beforeEach(() => {
 
 describe('EditorSettings page', () => {
     it('renders centered active columns with line breaks in headers', () => {
-        const resourceTypes = [
-            { id: 1, name: 'Dataset', active: true, elmo_active: false },
-        ];
+        const resourceTypes = [{ id: 1, name: 'Dataset', active: true, elmo_active: false }];
         render(
             <EditorSettings
                 resourceTypes={resourceTypes}
@@ -94,11 +103,12 @@ describe('EditorSettings page', () => {
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
                 descriptionTypes={[]}
-            relationTypes={[]}
-            identifierTypes={[]}
-            datacenters={[]}
+                relationTypes={[]}
+                identifierTypes={[]}
+                datacenters={[]}
             />,
         );
+        fireEvent.click(screen.getByRole('button', { name: /^Resource Types/ }));
         // Find headers by their text content (handles different accessible name interpretations)
         const allHeaders = screen.getAllByRole('columnheader');
         const ernieHeader = allHeaders.find((h) => h.textContent?.includes('ERNIE') && h.textContent?.includes('active'));
@@ -118,22 +128,14 @@ describe('EditorSettings page', () => {
         expect(elmoCell).toHaveClass('text-center');
     });
 
-    it('uses a two-column layout with Licenses on the left and other cards on the right', () => {
+    it('uses one full-width accordion with all sections collapsed initially', () => {
         render(
             <EditorSettings
-                resourceTypes={[
-                    { id: 1, name: 'Dataset', active: true, elmo_active: false },
-                ]}
-                titleTypes={[
-                    { id: 1, name: 'Article', slug: 'article', active: true, elmo_active: false },
-                ]}
+                resourceTypes={[{ id: 1, name: 'Dataset', active: true, elmo_active: false }]}
+                titleTypes={[{ id: 1, name: 'Article', slug: 'article', active: true, elmo_active: false }]}
                 licenses={[]}
-                languages={[
-                    { id: 1, code: 'en', name: 'English', active: true, elmo_active: false },
-                ]}
-                dateTypes={[
-                    { id: 1, name: 'Accepted', slug: 'accepted', description: 'Test', active: true },
-                ]}
+                languages={[{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }]}
+                dateTypes={[{ id: 1, name: 'Accepted', slug: 'accepted', description: 'Test', active: true }]}
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
@@ -141,14 +143,15 @@ describe('EditorSettings page', () => {
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
                 descriptionTypes={[]}
-            relationTypes={[]}
-            identifierTypes={[]}
-            datacenters={[]}
+                relationTypes={[]}
+                identifierTypes={[]}
+                datacenters={[]}
             />,
         );
 
-        const grid = screen.getByTestId('settings-grid');
-        expect(grid).toHaveClass('md:grid-cols-2');
+        const accordion = screen.getByTestId('settings-accordion');
+        expect(accordion).toHaveClass('flex', 'flex-col');
+        expect(screen.queryByTestId('settings-grid')).not.toBeInTheDocument();
 
         // Verify all headings exist for each card
         expect(screen.getByText('Licenses')).toBeInTheDocument();
@@ -158,12 +161,11 @@ describe('EditorSettings page', () => {
         expect(screen.getByText('Date Types')).toBeInTheDocument();
         expect(screen.queryByText('Limits')).not.toBeInTheDocument();
         expect(screen.getByText('Thesauri')).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { expanded: false })).toHaveLength(15);
     });
 
     it('updates ERNIE active when toggled', () => {
-        const resourceTypes = [
-            { id: 1, name: 'Dataset', active: false, elmo_active: false },
-        ];
+        const resourceTypes = [{ id: 1, name: 'Dataset', active: false, elmo_active: false }];
         render(
             <EditorSettings
                 resourceTypes={resourceTypes}
@@ -178,21 +180,18 @@ describe('EditorSettings page', () => {
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
                 descriptionTypes={[]}
-            relationTypes={[]}
-            identifierTypes={[]}
-            datacenters={[]}
+                relationTypes={[]}
+                identifierTypes={[]}
+                datacenters={[]}
             />,
         );
+        fireEvent.click(screen.getByRole('button', { name: /^Resource Types/ }));
         fireEvent.click(screen.getByLabelText('ERNIE active'));
-        expect(setData).toHaveBeenCalledWith('resourceTypes', [
-            { id: 1, name: 'Dataset', active: true, elmo_active: false },
-        ]);
+        expect(setData).toHaveBeenCalledWith('resourceTypes', [{ id: 1, name: 'Dataset', active: true, elmo_active: false }]);
     });
 
     it('updates ELMO active when toggled', () => {
-        const resourceTypes = [
-            { id: 1, name: 'Dataset', active: true, elmo_active: false },
-        ];
+        const resourceTypes = [{ id: 1, name: 'Dataset', active: true, elmo_active: false }];
         render(
             <EditorSettings
                 resourceTypes={resourceTypes}
@@ -207,24 +206,20 @@ describe('EditorSettings page', () => {
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
                 descriptionTypes={[]}
-            relationTypes={[]}
-            identifierTypes={[]}
-            datacenters={[]}
+                relationTypes={[]}
+                identifierTypes={[]}
+                datacenters={[]}
             />,
         );
+        fireEvent.click(screen.getByRole('button', { name: /^Resource Types/ }));
         fireEvent.click(screen.getByLabelText('ELMO active'));
-        expect(setData).toHaveBeenCalledWith('resourceTypes', [
-            { id: 1, name: 'Dataset', active: true, elmo_active: true },
-        ]);
+        expect(setData).toHaveBeenCalledWith('resourceTypes', [{ id: 1, name: 'Dataset', active: true, elmo_active: true }]);
     });
-
 });
 
 describe('License settings', () => {
     it('updates license ERNIE active when toggled', () => {
-        const licenses = [
-            { id: 1, identifier: 'MIT', name: 'MIT License', active: false, elmo_active: false, excluded_resource_type_ids: [] },
-        ];
+        const licenses = [{ id: 1, identifier: 'MIT', name: 'MIT License', active: false, elmo_active: false, excluded_resource_type_ids: [] }];
         render(
             <EditorSettings
                 resourceTypes={[]}
@@ -239,11 +234,12 @@ describe('License settings', () => {
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
                 descriptionTypes={[]}
-            relationTypes={[]}
-            identifierTypes={[]}
-            datacenters={[]}
+                relationTypes={[]}
+                identifierTypes={[]}
+                datacenters={[]}
             />,
         );
+        fireEvent.click(screen.getByRole('button', { name: /^Licenses/ }));
         fireEvent.click(screen.getByLabelText('ERNIE active'));
         expect(setData).toHaveBeenCalledWith('licenses', [
             { id: 1, identifier: 'MIT', name: 'MIT License', active: true, elmo_active: false, excluded_resource_type_ids: [] },
@@ -253,9 +249,7 @@ describe('License settings', () => {
 
 describe('Language settings', () => {
     it('updates language ERNIE active when toggled', () => {
-        const languages = [
-            { id: 1, code: 'en', name: 'English', active: false, elmo_active: false },
-        ];
+        const languages = [{ id: 1, code: 'en', name: 'English', active: false, elmo_active: false }];
         render(
             <EditorSettings
                 resourceTypes={[]}
@@ -270,15 +264,14 @@ describe('Language settings', () => {
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
                 descriptionTypes={[]}
-            relationTypes={[]}
-            identifierTypes={[]}
-            datacenters={[]}
+                relationTypes={[]}
+                identifierTypes={[]}
+                datacenters={[]}
             />,
         );
+        fireEvent.click(screen.getByRole('button', { name: /^Languages/ }));
         fireEvent.click(screen.getByLabelText('ERNIE active'));
-        expect(setData).toHaveBeenCalledWith('languages', [
-            { id: 1, code: 'en', name: 'English', active: true, elmo_active: false },
-        ]);
+        expect(setData).toHaveBeenCalledWith('languages', [{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }]);
     });
 });
 
@@ -301,11 +294,12 @@ describe('Date Type settings', () => {
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
                 descriptionTypes={[]}
-            relationTypes={[]}
-            identifierTypes={[]}
-            datacenters={[]}
+                relationTypes={[]}
+                identifierTypes={[]}
+                datacenters={[]}
             />,
         );
+        fireEvent.click(screen.getByRole('button', { name: /^Date Types/ }));
         fireEvent.click(screen.getByLabelText('ERNIE active'));
         expect(setData).toHaveBeenCalledWith('dateTypes', [
             { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.', active: true },

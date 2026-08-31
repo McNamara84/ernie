@@ -5,11 +5,14 @@ import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type ContributorRoleRow, ContributorRolesCard } from '@/components/settings/contributor-roles-card';
+import { EditorSettingsSaveBar } from '@/components/settings/editor-settings-save-bar';
+import { EditorSettingsAccordion, EditorSettingsSection } from '@/components/settings/editor-settings-section';
 import { LicenseResourceTypePopover } from '@/components/settings/license-resource-type-popover';
 import { type PidSettingData, PidSettingsCard } from '@/components/settings/pid-settings-card';
+import { pluralizedCount, SettingsSectionSummary } from '@/components/settings/settings-section-summary';
 import { ThesaurusCard, type ThesaurusData } from '@/components/settings/thesaurus-card';
+import { TruncatedLicenseIdentifier } from '@/components/settings/truncated-license-identifier';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -145,6 +148,7 @@ export default function EditorSettings({
     const [newDomain, setNewDomain] = useState('');
     const [isAddingDomain, setIsAddingDomain] = useState(false);
     const [expandedIdentifierTypes, setExpandedIdentifierTypes] = useState<Set<number>>(new Set());
+    const [openSection, setOpenSection] = useState('');
 
     // Datacenter management - managed separately via API
     const [datacenters, setDatacenters] = useState<DatacenterRow[]>(initialDatacenters);
@@ -231,7 +235,7 @@ export default function EditorSettings({
         }
     };
 
-    const { data, setData, post, processing } = useForm({
+    const { data, setData, post, processing, isDirty, recentlySuccessful } = useForm({
         resourceTypes: resourceTypes.map((r) => ({
             id: r.id,
             name: r.name,
@@ -330,6 +334,7 @@ export default function EditorSettings({
             })),
         })),
     });
+    const pidSettingsData = data.pidSettings ?? [];
 
     const handleTypeChange = (index: number, value: string) => {
         setData(
@@ -460,14 +465,14 @@ export default function EditorSettings({
     const handlePidActiveChange = (type: string, isActive: boolean) => {
         setData(
             'pidSettings',
-            data.pidSettings.map((p) => (p.type === type ? { ...p, isActive } : p)),
+            pidSettingsData.map((p) => (p.type === type ? { ...p, isActive } : p)),
         );
     };
 
     const handlePidElmoActiveChange = (type: string, isElmoActive: boolean) => {
         setData(
             'pidSettings',
-            data.pidSettings.map((p) => (p.type === type ? { ...p, isElmoActive } : p)),
+            pidSettingsData.map((p) => (p.type === type ? { ...p, isElmoActive } : p)),
         );
     };
 
@@ -527,1146 +532,1190 @@ export default function EditorSettings({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Editor Settings" />
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
-                <Button type="submit" className="self-start" disabled={processing}>
-                    Save
-                </Button>
+                <EditorSettingsSaveBar isDirty={isDirty} processing={processing} recentlySuccessful={recentlySuccessful} />
 
-                <div className="grid items-start gap-4 md:grid-cols-2" data-testid="settings-grid">
-                    {/* Left Column - Licenses only */}
-                    <div className="flex flex-col gap-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Licenses</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>ID</TableHead>
-                                                <TableHead>Identifier</TableHead>
-                                                <TableHead>Name</TableHead>
-                                                <TableHead className="text-center">
-                                                    ERNIE
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={licenseErnieState.allChecked}
-                                                            indeterminate={licenseErnieState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'licenses',
-                                                                    data.licenses.map((l) => ({ ...l, active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ERNIE active for Licenses"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                                <TableHead className="text-center">
-                                                    ELMO
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={licenseElmoState.allChecked}
-                                                            indeterminate={licenseElmoState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'licenses',
-                                                                    data.licenses.map((l) => ({ ...l, elmo_active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ELMO active for Licenses"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                                <TableHead className="text-center">
-                                                    Resource
-                                                    <br />
-                                                    Types
-                                                </TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {data.licenses.map((license, index) => (
-                                                <TableRow key={license.id}>
-                                                    <TableCell>{license.id}</TableCell>
-                                                    <TableCell>{license.identifier}</TableCell>
-                                                    <TableCell>{license.name}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Label htmlFor={`lic-active-${license.id}`} className="sr-only">
-                                                            ERNIE active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`lic-active-${license.id}`}
-                                                            checked={license.active}
-                                                            onCheckedChange={(checked) => handleLicenseActiveChange(index, checked === true)}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Label htmlFor={`lic-elmo-active-${license.id}`} className="sr-only">
-                                                            ELMO active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`lic-elmo-active-${license.id}`}
-                                                            checked={license.elmo_active}
-                                                            onCheckedChange={(checked) => handleLicenseElmoActiveChange(index, checked === true)}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <LicenseResourceTypePopover
-                                                            licenseId={license.id}
-                                                            licenseName={license.name}
-                                                            resourceTypes={data.resourceTypes.map((rt) => ({
-                                                                id: rt.id,
-                                                                name: rt.name,
-                                                            }))}
-                                                            excludedIds={license.excluded_resource_type_ids}
-                                                            onExcludedChange={(ids) => handleLicenseExcludedResourceTypesChange(index, ids)}
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
+                <EditorSettingsAccordion value={openSection} onValueChange={setOpenSection}>
+                    {/* Licenses */}
+                    <EditorSettingsSection
+                        value="licenses"
+                        title="Licenses"
+                        summary={
+                            <SettingsSectionSummary
+                                items={[
+                                    pluralizedCount(data.licenses.length, 'license'),
+                                    `${data.licenses.filter((license) => license.active).length} ERNIE`,
+                                    `${data.licenses.filter((license) => license.elmo_active).length} ELMO`,
+                                ]}
+                            />
+                        }
+                    >
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>ID</TableHead>
+                                        <TableHead>Identifier</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead className="text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={licenseErnieState.allChecked}
+                                                    indeterminate={licenseErnieState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'licenses',
+                                                            data.licenses.map((l) => ({ ...l, active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ERNIE active for Licenses"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={licenseElmoState.allChecked}
+                                                    indeterminate={licenseElmoState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'licenses',
+                                                            data.licenses.map((l) => ({ ...l, elmo_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO active for Licenses"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
+                                            Resource
+                                            <br />
+                                            Types
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.licenses.map((license, index) => (
+                                        <TableRow key={license.id}>
+                                            <TableCell>{license.id}</TableCell>
+                                            <TableCell>
+                                                <TruncatedLicenseIdentifier identifier={license.identifier} />
+                                            </TableCell>
+                                            <TableCell>{license.name}</TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`lic-active-${license.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lic-active-${license.id}`}
+                                                    checked={license.active}
+                                                    onCheckedChange={(checked) => handleLicenseActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`lic-elmo-active-${license.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lic-elmo-active-${license.id}`}
+                                                    checked={license.elmo_active}
+                                                    onCheckedChange={(checked) => handleLicenseElmoActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <LicenseResourceTypePopover
+                                                    licenseId={license.id}
+                                                    licenseName={license.name}
+                                                    resourceTypes={data.resourceTypes.map((rt) => ({
+                                                        id: rt.id,
+                                                        name: rt.name,
+                                                    }))}
+                                                    excludedIds={license.excluded_resource_type_ids}
+                                                    onExcludedChange={(ids) => handleLicenseExcludedResourceTypesChange(index, ids)}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </EditorSettingsSection>
 
-                        {/* Landing Page Domains */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Globe className="size-5" />
-                                    Landing Page Domains
-                                </CardTitle>
-                                <CardDescription>
-                                    Manage domains available for external landing pages. These domains can be selected when setting up an external
-                                    landing page for a resource.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    {/* Add new domain */}
-                                    <div className="flex gap-2">
-                                        <Input
-                                            placeholder="https://example.org/"
-                                            value={newDomain}
-                                            onChange={(e) => setNewDomain(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    handleAddDomain();
-                                                }
-                                            }}
-                                        />
-                                        <Button type="button" onClick={handleAddDomain} disabled={isAddingDomain || !newDomain.trim()}>
-                                            {isAddingDomain ? 'Adding...' : 'Add'}
-                                        </Button>
-                                    </div>
-
-                                    {/* Domain list */}
-                                    {domains.length > 0 ? (
-                                        <div className="overflow-x-auto">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Domain</TableHead>
-                                                        <TableHead className="w-16 text-center">Actions</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {domains.map((domain) => (
-                                                        <TableRow key={domain.id}>
-                                                            <TableCell className="font-mono text-sm">{domain.domain}</TableCell>
-                                                            <TableCell className="text-center">
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleDeleteDomain(domain.id)}
-                                                                    title="Delete domain"
-                                                                    aria-label="Delete domain"
-                                                                >
-                                                                    <Trash2 className="size-4 text-destructive" aria-hidden="true" />
-                                                                </Button>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">
-                                            No domains configured yet. Add a domain URL above to get started.
-                                        </p>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Datacenters */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Database className="size-5" />
-                                    Datacenters
-                                </CardTitle>
-                                <CardDescription>
-                                    Manage datacenters that can be assigned to resources. Each validated resource must be assigned to exactly one
-                                    datacenter.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    {/* Add new datacenter */}
-                                    <div className="flex gap-2">
-                                        <Input
-                                            placeholder="Datacenter name"
-                                            value={newDatacenter}
-                                            onChange={(e) => setNewDatacenter(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    handleAddDatacenter();
-                                                }
-                                            }}
-                                        />
-                                        <Button type="button" onClick={handleAddDatacenter} disabled={isAddingDatacenter || !newDatacenter.trim()}>
-                                            {isAddingDatacenter ? 'Adding...' : 'Add'}
-                                        </Button>
-                                    </div>
-
-                                    {/* Datacenter list */}
-                                    {datacenters.length > 0 ? (
-                                        <div className="overflow-x-auto">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Name</TableHead>
-                                                        <TableHead className="w-24 text-center">Resources</TableHead>
-                                                        <TableHead className="w-16 text-center">Actions</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {datacenters.map((dc) => (
-                                                        <TableRow key={dc.id}>
-                                                            <TableCell>{dc.name}</TableCell>
-                                                            <TableCell className="text-center">{dc.resources_count}</TableCell>
-                                                            <TableCell className="text-center">
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleDeleteDatacenter(dc.id)}
-                                                                    disabled={dc.resources_count > 0}
-                                                                    title={
-                                                                        dc.resources_count > 0
-                                                                            ? 'Cannot delete: datacenter is assigned to resources'
-                                                                            : 'Delete datacenter'
-                                                                    }
-                                                                    aria-label="Delete datacenter"
-                                                                >
-                                                                    <Trash2 className="size-4 text-destructive" aria-hidden="true" />
-                                                                </Button>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">
-                                            No datacenters configured yet. Add a datacenter name above to get started.
-                                        </p>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Right Column - All other cards */}
-                    <div className="flex flex-col gap-4">
-                        {/* Resource Types */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Resource Types</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>ID</TableHead>
-                                                <TableHead>Name</TableHead>
-                                                <TableHead className="text-center">
-                                                    ERNIE
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={rtErnieState.allChecked}
-                                                            indeterminate={rtErnieState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'resourceTypes',
-                                                                    data.resourceTypes.map((r) => ({ ...r, active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ERNIE active for Resource Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                                <TableHead className="text-center">
-                                                    ELMO
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={rtElmoState.allChecked}
-                                                            indeterminate={rtElmoState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'resourceTypes',
-                                                                    data.resourceTypes.map((r) => ({ ...r, elmo_active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ELMO active for Resource Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {data.resourceTypes.map((type, index) => (
-                                                <TableRow key={type.id}>
-                                                    <TableCell>{type.id}</TableCell>
-                                                    <TableCell>
-                                                        <Label htmlFor={`rt-${type.id}`} className="sr-only">
-                                                            Name
-                                                        </Label>
-                                                        <Input
-                                                            id={`rt-${type.id}`}
-                                                            value={type.name}
-                                                            onChange={(e) => handleTypeChange(index, e.target.value)}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Label htmlFor={`active-${type.id}`} className="sr-only">
-                                                            ERNIE active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`active-${type.id}`}
-                                                            checked={type.active}
-                                                            onCheckedChange={(checked) => handleActiveChange(index, checked === true)}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Label htmlFor={`elmo-active-${type.id}`} className="sr-only">
-                                                            ELMO active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`elmo-active-${type.id}`}
-                                                            checked={type.elmo_active}
-                                                            onCheckedChange={(checked) => handleElmoActiveChange(index, checked === true)}
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Title Types */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Title Types</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>ID</TableHead>
-                                                <TableHead>Name</TableHead>
-                                                <TableHead>Slug</TableHead>
-                                                <TableHead className="text-center">
-                                                    ERNIE
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={ttErnieState.allChecked}
-                                                            indeterminate={ttErnieState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'titleTypes',
-                                                                    data.titleTypes.map((t) => ({ ...t, active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ERNIE active for Title Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                                <TableHead className="text-center">
-                                                    ELMO
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={ttElmoState.allChecked}
-                                                            indeterminate={ttElmoState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'titleTypes',
-                                                                    data.titleTypes.map((t) => ({ ...t, elmo_active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ELMO active for Title Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {data.titleTypes.map((type, index) => (
-                                                <TableRow key={type.id}>
-                                                    <TableCell>{type.id}</TableCell>
-                                                    <TableCell>
-                                                        <Label htmlFor={`tt-name-${type.id}`} className="sr-only">
-                                                            Name
-                                                        </Label>
-                                                        <Input
-                                                            id={`tt-name-${type.id}`}
-                                                            value={type.name}
-                                                            onChange={(e) => handleTitleTypeChange(index, 'name', e.target.value)}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Label htmlFor={`tt-slug-${type.id}`} className="sr-only">
-                                                            Slug
-                                                        </Label>
-                                                        <Input
-                                                            id={`tt-slug-${type.id}`}
-                                                            value={type.slug}
-                                                            onChange={(e) => handleTitleTypeChange(index, 'slug', e.target.value)}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Label htmlFor={`tt-active-${type.id}`} className="sr-only">
-                                                            ERNIE active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`tt-active-${type.id}`}
-                                                            checked={type.active}
-                                                            onCheckedChange={(checked) => handleTitleActiveChange(index, checked === true)}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Label htmlFor={`tt-elmo-active-${type.id}`} className="sr-only">
-                                                            ELMO active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`tt-elmo-active-${type.id}`}
-                                                            checked={type.elmo_active}
-                                                            onCheckedChange={(checked) => handleTitleElmoActiveChange(index, checked === true)}
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Languages */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Languages</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>ID</TableHead>
-                                                <TableHead>Code</TableHead>
-                                                <TableHead>Name</TableHead>
-                                                <TableHead className="text-center">
-                                                    ERNIE
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={langErnieState.allChecked}
-                                                            indeterminate={langErnieState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'languages',
-                                                                    data.languages.map((l) => ({ ...l, active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ERNIE active for Languages"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                                <TableHead className="text-center">
-                                                    ELMO
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={langElmoState.allChecked}
-                                                            indeterminate={langElmoState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'languages',
-                                                                    data.languages.map((l) => ({ ...l, elmo_active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ELMO active for Languages"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {data.languages.map((language, index) => (
-                                                <TableRow key={language.id}>
-                                                    <TableCell>{language.id}</TableCell>
-                                                    <TableCell>{language.code}</TableCell>
-                                                    <TableCell>{language.name}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Label htmlFor={`lang-active-${language.id}`} className="sr-only">
-                                                            ERNIE active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`lang-active-${language.id}`}
-                                                            checked={language.active}
-                                                            onCheckedChange={(checked) => handleLanguageActiveChange(index, checked === true)}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Label htmlFor={`lang-elmo-active-${language.id}`} className="sr-only">
-                                                            ELMO active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`lang-elmo-active-${language.id}`}
-                                                            checked={language.elmo_active}
-                                                            onCheckedChange={(checked) => handleLanguageElmoActiveChange(index, checked === true)}
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Date Types */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Date Types</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>ID</TableHead>
-                                                <TableHead>Name</TableHead>
-                                                <TableHead>Slug</TableHead>
-                                                <TableHead className="text-center">
-                                                    ERNIE
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={dtErnieState.allChecked}
-                                                            indeterminate={dtErnieState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'dateTypes',
-                                                                    data.dateTypes.map((d) => ({ ...d, active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ERNIE active for Date Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {data.dateTypes.map((dateType, index) => (
-                                                <TableRow key={dateType.id}>
-                                                    <TableCell>{dateType.id}</TableCell>
-                                                    <TableCell>{dateType.name}</TableCell>
-                                                    <TableCell>{dateType.slug}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Label htmlFor={`dt-active-${dateType.id}`} className="sr-only">
-                                                            ERNIE active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`dt-active-${dateType.id}`}
-                                                            checked={dateType.active}
-                                                            onCheckedChange={(checked) => handleDateTypeActiveChange(index, checked === true)}
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Description Types */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Description Types</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>ID</TableHead>
-                                                <TableHead>Name</TableHead>
-                                                <TableHead>Slug</TableHead>
-                                                <TableHead className="text-center">
-                                                    ERNIE
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={descTypeErnieState.allChecked}
-                                                            indeterminate={descTypeErnieState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'descriptionTypes',
-                                                                    data.descriptionTypes.map((d) =>
-                                                                        d.slug === 'Abstract' ? d : { ...d, active: checked === true },
-                                                                    ),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ERNIE active for Description Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                                <TableHead className="text-center">
-                                                    ELMO
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={descTypeElmoState.allChecked}
-                                                            indeterminate={descTypeElmoState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'descriptionTypes',
-                                                                    data.descriptionTypes.map((d) =>
-                                                                        d.slug === 'Abstract' ? d : { ...d, elmo_active: checked === true },
-                                                                    ),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ELMO active for Description Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {data.descriptionTypes.map((descType, index) => {
-                                                const isAbstract = descType.slug === 'Abstract';
-                                                return (
-                                                    <TableRow key={descType.id}>
-                                                        <TableCell>{descType.id}</TableCell>
-                                                        <TableCell>{descType.name}</TableCell>
-                                                        <TableCell>{descType.slug}</TableCell>
-                                                        <TableCell className="text-center">
-                                                            <Label htmlFor={`desc-active-${descType.id}`} className="sr-only">
-                                                                ERNIE active
-                                                            </Label>
-                                                            <Checkbox
-                                                                id={`desc-active-${descType.id}`}
-                                                                checked={descType.active}
-                                                                disabled={isAbstract}
-                                                                onCheckedChange={(checked) =>
-                                                                    handleDescriptionTypeActiveChange(index, checked === true)
-                                                                }
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <Label htmlFor={`desc-elmo-active-${descType.id}`} className="sr-only">
-                                                                ELMO active
-                                                            </Label>
-                                                            <Checkbox
-                                                                id={`desc-elmo-active-${descType.id}`}
-                                                                checked={descType.elmo_active}
-                                                                disabled={isAbstract}
-                                                                onCheckedChange={(checked) =>
-                                                                    handleDescriptionTypeElmoActiveChange(index, checked === true)
-                                                                }
-                                                            />
-                                                        </TableCell>
-                                                    </TableRow>
-                                                );
-                                            })}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Thesauri */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Thesauri</CardTitle>
-                                <CardDescription>
-                                    Manage controlled vocabularies for scientific keywords, platforms, instruments, and MSL laboratories.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <ThesaurusCard
-                                    thesauri={thesauri.map((t) => {
-                                        const formData = data.thesauri.find((d) => d.type === t.type);
-                                        return {
-                                            ...t,
-                                            isActive: formData?.isActive ?? t.isActive,
-                                            isElmoActive: formData?.isElmoActive ?? t.isElmoActive,
-                                        };
-                                    })}
-                                    onActiveChange={handleThesaurusActiveChange}
-                                    onElmoActiveChange={handleThesaurusElmoActiveChange}
-                                    onBulkActiveChange={handleBulkThesaurusActiveChange}
-                                    onBulkElmoActiveChange={handleBulkThesaurusElmoActiveChange}
+                    {/* Landing Page Domains */}
+                    <EditorSettingsSection
+                        value="landing-page-domains"
+                        title="Landing Page Domains"
+                        description="Manage domains available for external landing pages. These domains can be selected when setting up an external landing page for a resource."
+                        icon={<Globe className="size-5" />}
+                        summary={<SettingsSectionSummary items={[pluralizedCount(domains.length, 'domain'), 'Saved immediately']} />}
+                    >
+                        <div className="space-y-4">
+                            {/* Add new domain */}
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="https://example.org/"
+                                    value={newDomain}
+                                    onChange={(e) => setNewDomain(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleAddDomain();
+                                        }
+                                    }}
                                 />
-                            </CardContent>
-                        </Card>
+                                <Button type="button" onClick={handleAddDomain} disabled={isAddingDomain || !newDomain.trim()}>
+                                    {isAddingDomain ? 'Adding...' : 'Add'}
+                                </Button>
+                            </div>
 
-                        {/* Persistent Identifiers */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Persistent Identifiers</CardTitle>
-                                <CardDescription>
-                                    Manage persistent identifier registries: PID4INST (b2inst) for research instruments and ROR for research
-                                    organizations.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <PidSettingsCard
-                                    pidSettings={pidSettings.map((p) => {
-                                        const formData = data.pidSettings.find((d) => d.type === p.type);
-                                        return {
-                                            ...p,
-                                            isActive: formData?.isActive ?? p.isActive,
-                                            isElmoActive: formData?.isElmoActive ?? p.isElmoActive,
-                                        };
-                                    })}
-                                    onActiveChange={handlePidActiveChange}
-                                    onElmoActiveChange={handlePidElmoActiveChange}
-                                />
-                            </CardContent>
-                        </Card>
-
-                        {/* Contributor Roles (Persons) */}
-                        <ContributorRolesCard
-                            title="Contributor Roles (Persons)"
-                            description="Contributor types applicable to person contributors."
-                            roles={data.contributorPersonRoles}
-                            dataKey="contributorPersonRoles"
-                            onRoleChange={(index, field, value) => handleContributorRoleChange('contributorPersonRoles', index, field, value)}
-                            onSetAll={(roles) => setData('contributorPersonRoles', roles)}
-                        />
-
-                        {/* Contributor Roles (Institutions) */}
-                        <ContributorRolesCard
-                            title="Contributor Roles (Institutions)"
-                            description="Contributor types applicable to institution contributors."
-                            roles={data.contributorInstitutionRoles}
-                            dataKey="contributorInstitutionRoles"
-                            onRoleChange={(index, field, value) => handleContributorRoleChange('contributorInstitutionRoles', index, field, value)}
-                            onSetAll={(roles) => setData('contributorInstitutionRoles', roles)}
-                        />
-
-                        {/* Contributor Roles (Both) */}
-                        <ContributorRolesCard
-                            title="Contributor Roles (Both)"
-                            description="Contributor types applicable to both person and institution contributors."
-                            roles={data.contributorBothRoles}
-                            dataKey="contributorBothRoles"
-                            onRoleChange={(index, field, value) => handleContributorRoleChange('contributorBothRoles', index, field, value)}
-                            onSetAll={(roles) => setData('contributorBothRoles', roles)}
-                        />
-
-                        {/* Relation Types */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Relation Types</CardTitle>
-                                <CardDescription>DataCite relationType values for Related Identifiers.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
+                            {/* Domain list */}
+                            {domains.length > 0 ? (
                                 <div className="overflow-x-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead>ID</TableHead>
-                                                <TableHead>Name</TableHead>
-                                                <TableHead>Slug</TableHead>
-                                                <TableHead className="text-center">
-                                                    ERNIE
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={relTypeErnieState.allChecked}
-                                                            indeterminate={relTypeErnieState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'relationTypes',
-                                                                    data.relationTypes.map((r) => ({ ...r, active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ERNIE active for Relation Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                                <TableHead className="text-center">
-                                                    ELMO
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={relTypeElmoState.allChecked}
-                                                            indeterminate={relTypeElmoState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'relationTypes',
-                                                                    data.relationTypes.map((r) => ({ ...r, elmo_active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ELMO active for Relation Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
+                                                <TableHead>Domain</TableHead>
+                                                <TableHead className="w-16 text-center">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {data.relationTypes.map((relType, index) => (
-                                                <TableRow key={relType.id}>
-                                                    <TableCell>{relType.id}</TableCell>
-                                                    <TableCell>{relType.name}</TableCell>
-                                                    <TableCell className="font-mono text-sm">{relType.slug}</TableCell>
+                                            {domains.map((domain) => (
+                                                <TableRow key={domain.id}>
+                                                    <TableCell className="font-mono text-sm">{domain.domain}</TableCell>
                                                     <TableCell className="text-center">
-                                                        <Label htmlFor={`rel-active-${relType.id}`} className="sr-only">
-                                                            ERNIE active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`rel-active-${relType.id}`}
-                                                            checked={relType.active}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'relationTypes',
-                                                                    data.relationTypes.map((r, i) =>
-                                                                        i === index ? { ...r, active: checked === true } : r,
-                                                                    ),
-                                                                );
-                                                            }}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Label htmlFor={`rel-elmo-active-${relType.id}`} className="sr-only">
-                                                            ELMO active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`rel-elmo-active-${relType.id}`}
-                                                            checked={relType.elmo_active}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'relationTypes',
-                                                                    data.relationTypes.map((r, i) =>
-                                                                        i === index ? { ...r, elmo_active: checked === true } : r,
-                                                                    ),
-                                                                );
-                                                            }}
-                                                        />
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleDeleteDomain(domain.id)}
+                                                            title="Delete domain"
+                                                            aria-label="Delete domain"
+                                                        >
+                                                            <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+                                                        </Button>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
                                     </Table>
                                 </div>
-                            </CardContent>
-                        </Card>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">No domains configured yet. Add a domain URL above to get started.</p>
+                            )}
+                        </div>
+                    </EditorSettingsSection>
 
-                        {/* Identifier Types */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Identifier Types</CardTitle>
-                                <CardDescription>DataCite relatedIdentifierType values with validation and detection patterns.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
+                    {/* Datacenters */}
+                    <EditorSettingsSection
+                        value="datacenters"
+                        title="Datacenters"
+                        description="Manage datacenters that can be assigned to resources. Each validated resource must be assigned to exactly one datacenter."
+                        icon={<Database className="size-5" />}
+                        summary={
+                            <SettingsSectionSummary
+                                items={[
+                                    pluralizedCount(datacenters.length, 'datacenter'),
+                                    pluralizedCount(
+                                        datacenters.reduce((count, datacenter) => count + datacenter.resources_count, 0),
+                                        'assigned resource',
+                                    ),
+                                    'Saved immediately',
+                                ]}
+                            />
+                        }
+                    >
+                        <div className="space-y-4">
+                            {/* Add new datacenter */}
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="Datacenter name"
+                                    value={newDatacenter}
+                                    onChange={(e) => setNewDatacenter(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleAddDatacenter();
+                                        }
+                                    }}
+                                />
+                                <Button type="button" onClick={handleAddDatacenter} disabled={isAddingDatacenter || !newDatacenter.trim()}>
+                                    {isAddingDatacenter ? 'Adding...' : 'Add'}
+                                </Button>
+                            </div>
+
+                            {/* Datacenter list */}
+                            {datacenters.length > 0 ? (
                                 <div className="overflow-x-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead className="w-8" />
-                                                <TableHead>ID</TableHead>
                                                 <TableHead>Name</TableHead>
-                                                <TableHead>Slug</TableHead>
-                                                <TableHead className="text-center">
-                                                    ERNIE
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={idTypeErnieState.allChecked}
-                                                            indeterminate={idTypeErnieState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'identifierTypes',
-                                                                    data.identifierTypes.map((it) => ({ ...it, active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ERNIE active for Identifier Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                                <TableHead className="text-center">
-                                                    ELMO
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={idTypeElmoState.allChecked}
-                                                            indeterminate={idTypeElmoState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'identifierTypes',
-                                                                    data.identifierTypes.map((it) => ({ ...it, elmo_active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ELMO active for Identifier Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
-                                                <TableHead className="text-center">Patterns</TableHead>
+                                                <TableHead className="w-24 text-center">Resources</TableHead>
+                                                <TableHead className="w-16 text-center">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {data.identifierTypes.map((idType, typeIndex) => {
-                                                const isExpanded = expandedIdentifierTypes.has(idType.id);
-                                                return (
-                                                    <Fragment key={idType.id}>
-                                                        <TableRow>
-                                                            <TableCell>
-                                                                {idType.patterns.length > 0 && (
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-6"
-                                                                        onClick={() => {
-                                                                            setExpandedIdentifierTypes((prev) => {
-                                                                                const next = new Set(prev);
-                                                                                if (next.has(idType.id)) {
-                                                                                    next.delete(idType.id);
-                                                                                } else {
-                                                                                    next.add(idType.id);
-                                                                                }
-                                                                                return next;
-                                                                            });
-                                                                        }}
-                                                                        aria-label={isExpanded ? 'Collapse patterns' : 'Expand patterns'}
-                                                                    >
-                                                                        {isExpanded ? (
-                                                                            <ChevronDown className="size-4" />
-                                                                        ) : (
-                                                                            <ChevronRight className="size-4" />
-                                                                        )}
-                                                                    </Button>
+                                            {datacenters.map((dc) => (
+                                                <TableRow key={dc.id}>
+                                                    <TableCell>{dc.name}</TableCell>
+                                                    <TableCell className="text-center">{dc.resources_count}</TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleDeleteDatacenter(dc.id)}
+                                                            disabled={dc.resources_count > 0}
+                                                            title={
+                                                                dc.resources_count > 0
+                                                                    ? 'Cannot delete: datacenter is assigned to resources'
+                                                                    : 'Delete datacenter'
+                                                            }
+                                                            aria-label="Delete datacenter"
+                                                        >
+                                                            <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No datacenters configured yet. Add a datacenter name above to get started.
+                                </p>
+                            )}
+                        </div>
+                    </EditorSettingsSection>
+                    {/* Resource Types */}
+                    <EditorSettingsSection
+                        value="resource-types"
+                        title="Resource Types"
+                        summary={
+                            <SettingsSectionSummary
+                                items={[
+                                    pluralizedCount(data.resourceTypes.length, 'resource type'),
+                                    `${data.resourceTypes.filter((type) => type.active).length} ERNIE`,
+                                    `${data.resourceTypes.filter((type) => type.elmo_active).length} ELMO`,
+                                ]}
+                            />
+                        }
+                    >
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>ID</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead className="text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={rtErnieState.allChecked}
+                                                    indeterminate={rtErnieState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'resourceTypes',
+                                                            data.resourceTypes.map((r) => ({ ...r, active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ERNIE active for Resource Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={rtElmoState.allChecked}
+                                                    indeterminate={rtElmoState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'resourceTypes',
+                                                            data.resourceTypes.map((r) => ({ ...r, elmo_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO active for Resource Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.resourceTypes.map((type, index) => (
+                                        <TableRow key={type.id}>
+                                            <TableCell>{type.id}</TableCell>
+                                            <TableCell>
+                                                <Label htmlFor={`rt-${type.id}`} className="sr-only">
+                                                    Name
+                                                </Label>
+                                                <Input
+                                                    id={`rt-${type.id}`}
+                                                    value={type.name}
+                                                    onChange={(e) => handleTypeChange(index, e.target.value)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`active-${type.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`active-${type.id}`}
+                                                    checked={type.active}
+                                                    onCheckedChange={(checked) => handleActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`elmo-active-${type.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`elmo-active-${type.id}`}
+                                                    checked={type.elmo_active}
+                                                    onCheckedChange={(checked) => handleElmoActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </EditorSettingsSection>
+
+                    {/* Title Types */}
+                    <EditorSettingsSection
+                        value="title-types"
+                        title="Title Types"
+                        summary={
+                            <SettingsSectionSummary
+                                items={[
+                                    pluralizedCount(data.titleTypes.length, 'title type'),
+                                    `${data.titleTypes.filter((type) => type.active).length} ERNIE`,
+                                    `${data.titleTypes.filter((type) => type.elmo_active).length} ELMO`,
+                                ]}
+                            />
+                        }
+                    >
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>ID</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Slug</TableHead>
+                                        <TableHead className="text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={ttErnieState.allChecked}
+                                                    indeterminate={ttErnieState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'titleTypes',
+                                                            data.titleTypes.map((t) => ({ ...t, active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ERNIE active for Title Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={ttElmoState.allChecked}
+                                                    indeterminate={ttElmoState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'titleTypes',
+                                                            data.titleTypes.map((t) => ({ ...t, elmo_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO active for Title Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.titleTypes.map((type, index) => (
+                                        <TableRow key={type.id}>
+                                            <TableCell>{type.id}</TableCell>
+                                            <TableCell>
+                                                <Label htmlFor={`tt-name-${type.id}`} className="sr-only">
+                                                    Name
+                                                </Label>
+                                                <Input
+                                                    id={`tt-name-${type.id}`}
+                                                    value={type.name}
+                                                    onChange={(e) => handleTitleTypeChange(index, 'name', e.target.value)}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Label htmlFor={`tt-slug-${type.id}`} className="sr-only">
+                                                    Slug
+                                                </Label>
+                                                <Input
+                                                    id={`tt-slug-${type.id}`}
+                                                    value={type.slug}
+                                                    onChange={(e) => handleTitleTypeChange(index, 'slug', e.target.value)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`tt-active-${type.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`tt-active-${type.id}`}
+                                                    checked={type.active}
+                                                    onCheckedChange={(checked) => handleTitleActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`tt-elmo-active-${type.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`tt-elmo-active-${type.id}`}
+                                                    checked={type.elmo_active}
+                                                    onCheckedChange={(checked) => handleTitleElmoActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </EditorSettingsSection>
+
+                    {/* Languages */}
+                    <EditorSettingsSection
+                        value="languages"
+                        title="Languages"
+                        summary={
+                            <SettingsSectionSummary
+                                items={[
+                                    pluralizedCount(data.languages.length, 'language'),
+                                    `${data.languages.filter((language) => language.active).length} ERNIE`,
+                                    `${data.languages.filter((language) => language.elmo_active).length} ELMO`,
+                                ]}
+                            />
+                        }
+                    >
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>ID</TableHead>
+                                        <TableHead>Code</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead className="text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={langErnieState.allChecked}
+                                                    indeterminate={langErnieState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'languages',
+                                                            data.languages.map((l) => ({ ...l, active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ERNIE active for Languages"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={langElmoState.allChecked}
+                                                    indeterminate={langElmoState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'languages',
+                                                            data.languages.map((l) => ({ ...l, elmo_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO active for Languages"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.languages.map((language, index) => (
+                                        <TableRow key={language.id}>
+                                            <TableCell>{language.id}</TableCell>
+                                            <TableCell>{language.code}</TableCell>
+                                            <TableCell>{language.name}</TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`lang-active-${language.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lang-active-${language.id}`}
+                                                    checked={language.active}
+                                                    onCheckedChange={(checked) => handleLanguageActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`lang-elmo-active-${language.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lang-elmo-active-${language.id}`}
+                                                    checked={language.elmo_active}
+                                                    onCheckedChange={(checked) => handleLanguageElmoActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </EditorSettingsSection>
+
+                    {/* Date Types */}
+                    <EditorSettingsSection
+                        value="date-types"
+                        title="Date Types"
+                        summary={
+                            <SettingsSectionSummary
+                                items={[
+                                    pluralizedCount(data.dateTypes.length, 'date type'),
+                                    `${data.dateTypes.filter((type) => type.active).length} ERNIE`,
+                                ]}
+                            />
+                        }
+                    >
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>ID</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Slug</TableHead>
+                                        <TableHead className="text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={dtErnieState.allChecked}
+                                                    indeterminate={dtErnieState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'dateTypes',
+                                                            data.dateTypes.map((d) => ({ ...d, active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ERNIE active for Date Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.dateTypes.map((dateType, index) => (
+                                        <TableRow key={dateType.id}>
+                                            <TableCell>{dateType.id}</TableCell>
+                                            <TableCell>{dateType.name}</TableCell>
+                                            <TableCell>{dateType.slug}</TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`dt-active-${dateType.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`dt-active-${dateType.id}`}
+                                                    checked={dateType.active}
+                                                    onCheckedChange={(checked) => handleDateTypeActiveChange(index, checked === true)}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </EditorSettingsSection>
+
+                    {/* Description Types */}
+                    <EditorSettingsSection
+                        value="description-types"
+                        title="Description Types"
+                        summary={
+                            <SettingsSectionSummary
+                                items={[
+                                    pluralizedCount(data.descriptionTypes.length, 'description type'),
+                                    `${data.descriptionTypes.filter((type) => type.active).length} ERNIE`,
+                                    `${data.descriptionTypes.filter((type) => type.elmo_active).length} ELMO`,
+                                ]}
+                            />
+                        }
+                    >
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>ID</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Slug</TableHead>
+                                        <TableHead className="text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={descTypeErnieState.allChecked}
+                                                    indeterminate={descTypeErnieState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'descriptionTypes',
+                                                            data.descriptionTypes.map((d) =>
+                                                                d.slug === 'Abstract' ? d : { ...d, active: checked === true },
+                                                            ),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ERNIE active for Description Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={descTypeElmoState.allChecked}
+                                                    indeterminate={descTypeElmoState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'descriptionTypes',
+                                                            data.descriptionTypes.map((d) =>
+                                                                d.slug === 'Abstract' ? d : { ...d, elmo_active: checked === true },
+                                                            ),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO active for Description Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.descriptionTypes.map((descType, index) => {
+                                        const isAbstract = descType.slug === 'Abstract';
+                                        return (
+                                            <TableRow key={descType.id}>
+                                                <TableCell>{descType.id}</TableCell>
+                                                <TableCell>{descType.name}</TableCell>
+                                                <TableCell>{descType.slug}</TableCell>
+                                                <TableCell className="text-center">
+                                                    <Label htmlFor={`desc-active-${descType.id}`} className="sr-only">
+                                                        ERNIE active
+                                                    </Label>
+                                                    <Checkbox
+                                                        id={`desc-active-${descType.id}`}
+                                                        checked={descType.active}
+                                                        disabled={isAbstract}
+                                                        onCheckedChange={(checked) => handleDescriptionTypeActiveChange(index, checked === true)}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Label htmlFor={`desc-elmo-active-${descType.id}`} className="sr-only">
+                                                        ELMO active
+                                                    </Label>
+                                                    <Checkbox
+                                                        id={`desc-elmo-active-${descType.id}`}
+                                                        checked={descType.elmo_active}
+                                                        disabled={isAbstract}
+                                                        onCheckedChange={(checked) => handleDescriptionTypeElmoActiveChange(index, checked === true)}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </EditorSettingsSection>
+
+                    {/* Thesauri */}
+                    <EditorSettingsSection
+                        value="thesauri"
+                        title="Thesauri"
+                        description="Manage controlled vocabularies for scientific keywords, platforms, instruments, and MSL laboratories."
+                        summary={
+                            <SettingsSectionSummary
+                                items={[
+                                    pluralizedCount(data.thesauri.length, 'thesaurus', 'thesauri'),
+                                    `${data.thesauri.filter((thesaurus) => thesaurus.isActive).length} ERNIE`,
+                                    `${data.thesauri.filter((thesaurus) => thesaurus.isElmoActive).length} ELMO`,
+                                ]}
+                            />
+                        }
+                    >
+                        <ThesaurusCard
+                            thesauri={thesauri.map((t) => {
+                                const formData = data.thesauri.find((d) => d.type === t.type);
+                                return {
+                                    ...t,
+                                    isActive: formData?.isActive ?? t.isActive,
+                                    isElmoActive: formData?.isElmoActive ?? t.isElmoActive,
+                                };
+                            })}
+                            onActiveChange={handleThesaurusActiveChange}
+                            onElmoActiveChange={handleThesaurusElmoActiveChange}
+                            onBulkActiveChange={handleBulkThesaurusActiveChange}
+                            onBulkElmoActiveChange={handleBulkThesaurusElmoActiveChange}
+                        />
+                    </EditorSettingsSection>
+
+                    {/* Persistent Identifiers */}
+                    <EditorSettingsSection
+                        value="persistent-identifiers"
+                        title="Persistent Identifiers"
+                        description="Manage persistent identifier registries: PID4INST (b2inst) for research instruments and ROR for research organizations."
+                        summary={
+                            <SettingsSectionSummary
+                                items={[
+                                    pluralizedCount(pidSettingsData.length, 'registry', 'registries'),
+                                    `${pidSettingsData.filter((pidSetting) => pidSetting.isActive).length} ERNIE`,
+                                    `${pidSettingsData.filter((pidSetting) => pidSetting.isElmoActive).length} ELMO`,
+                                ]}
+                            />
+                        }
+                    >
+                        <PidSettingsCard
+                            pidSettings={pidSettings.map((p) => {
+                                const formData = pidSettingsData.find((d) => d.type === p.type);
+                                return {
+                                    ...p,
+                                    isActive: formData?.isActive ?? p.isActive,
+                                    isElmoActive: formData?.isElmoActive ?? p.isElmoActive,
+                                };
+                            })}
+                            onActiveChange={handlePidActiveChange}
+                            onElmoActiveChange={handlePidElmoActiveChange}
+                        />
+                    </EditorSettingsSection>
+
+                    {/* Contributor Roles (Persons) */}
+                    <ContributorRolesCard
+                        value="contributor-person-roles"
+                        title="Contributor Roles (Persons)"
+                        description="Contributor types applicable to person contributors."
+                        roles={data.contributorPersonRoles}
+                        dataKey="contributorPersonRoles"
+                        onRoleChange={(index, field, value) => handleContributorRoleChange('contributorPersonRoles', index, field, value)}
+                        onSetAll={(roles) => setData('contributorPersonRoles', roles)}
+                    />
+
+                    {/* Contributor Roles (Institutions) */}
+                    <ContributorRolesCard
+                        value="contributor-institution-roles"
+                        title="Contributor Roles (Institutions)"
+                        description="Contributor types applicable to institution contributors."
+                        roles={data.contributorInstitutionRoles}
+                        dataKey="contributorInstitutionRoles"
+                        onRoleChange={(index, field, value) => handleContributorRoleChange('contributorInstitutionRoles', index, field, value)}
+                        onSetAll={(roles) => setData('contributorInstitutionRoles', roles)}
+                    />
+
+                    {/* Contributor Roles (Both) */}
+                    <ContributorRolesCard
+                        value="contributor-both-roles"
+                        title="Contributor Roles (Both)"
+                        description="Contributor types applicable to both person and institution contributors."
+                        roles={data.contributorBothRoles}
+                        dataKey="contributorBothRoles"
+                        onRoleChange={(index, field, value) => handleContributorRoleChange('contributorBothRoles', index, field, value)}
+                        onSetAll={(roles) => setData('contributorBothRoles', roles)}
+                    />
+
+                    {/* Relation Types */}
+                    <EditorSettingsSection
+                        value="relation-types"
+                        title="Relation Types"
+                        description="DataCite relationType values for Related Identifiers."
+                        summary={
+                            <SettingsSectionSummary
+                                items={[
+                                    pluralizedCount(data.relationTypes.length, 'relation type'),
+                                    `${data.relationTypes.filter((type) => type.active).length} ERNIE`,
+                                    `${data.relationTypes.filter((type) => type.elmo_active).length} ELMO`,
+                                ]}
+                            />
+                        }
+                    >
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>ID</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Slug</TableHead>
+                                        <TableHead className="text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={relTypeErnieState.allChecked}
+                                                    indeterminate={relTypeErnieState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'relationTypes',
+                                                            data.relationTypes.map((r) => ({ ...r, active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ERNIE active for Relation Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={relTypeElmoState.allChecked}
+                                                    indeterminate={relTypeElmoState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'relationTypes',
+                                                            data.relationTypes.map((r) => ({ ...r, elmo_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO active for Relation Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.relationTypes.map((relType, index) => (
+                                        <TableRow key={relType.id}>
+                                            <TableCell>{relType.id}</TableCell>
+                                            <TableCell>{relType.name}</TableCell>
+                                            <TableCell className="font-mono text-sm">{relType.slug}</TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`rel-active-${relType.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`rel-active-${relType.id}`}
+                                                    checked={relType.active}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'relationTypes',
+                                                            data.relationTypes.map((r, i) => (i === index ? { ...r, active: checked === true } : r)),
+                                                        );
+                                                    }}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Label htmlFor={`rel-elmo-active-${relType.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`rel-elmo-active-${relType.id}`}
+                                                    checked={relType.elmo_active}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'relationTypes',
+                                                            data.relationTypes.map((r, i) =>
+                                                                i === index ? { ...r, elmo_active: checked === true } : r,
+                                                            ),
+                                                        );
+                                                    }}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </EditorSettingsSection>
+
+                    {/* Identifier Types */}
+                    <EditorSettingsSection
+                        value="identifier-types"
+                        title="Identifier Types"
+                        description="DataCite relatedIdentifierType values with validation and detection patterns."
+                        summary={
+                            <SettingsSectionSummary
+                                items={[
+                                    pluralizedCount(data.identifierTypes.length, 'identifier type'),
+                                    `${data.identifierTypes.filter((type) => type.active).length} ERNIE`,
+                                    `${data.identifierTypes.filter((type) => type.elmo_active).length} ELMO`,
+                                    pluralizedCount(
+                                        data.identifierTypes.reduce((count, type) => count + type.patterns.length, 0),
+                                        'pattern',
+                                    ),
+                                ]}
+                            />
+                        }
+                    >
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-8" />
+                                        <TableHead>ID</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Slug</TableHead>
+                                        <TableHead className="text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={idTypeErnieState.allChecked}
+                                                    indeterminate={idTypeErnieState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'identifierTypes',
+                                                            data.identifierTypes.map((it) => ({ ...it, active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ERNIE active for Identifier Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                            <div className="mt-1">
+                                                <Checkbox
+                                                    checked={idTypeElmoState.allChecked}
+                                                    indeterminate={idTypeElmoState.indeterminate}
+                                                    onCheckedChange={(checked) => {
+                                                        setData(
+                                                            'identifierTypes',
+                                                            data.identifierTypes.map((it) => ({ ...it, elmo_active: checked === true })),
+                                                        );
+                                                    }}
+                                                    aria-label="Select all ELMO active for Identifier Types"
+                                                />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead className="text-center">Patterns</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.identifierTypes.map((idType, typeIndex) => {
+                                        const isExpanded = expandedIdentifierTypes.has(idType.id);
+                                        return (
+                                            <Fragment key={idType.id}>
+                                                <TableRow>
+                                                    <TableCell>
+                                                        {idType.patterns.length > 0 && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="size-6"
+                                                                onClick={() => {
+                                                                    setExpandedIdentifierTypes((prev) => {
+                                                                        const next = new Set(prev);
+                                                                        if (next.has(idType.id)) {
+                                                                            next.delete(idType.id);
+                                                                        } else {
+                                                                            next.add(idType.id);
+                                                                        }
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                                aria-label={isExpanded ? 'Collapse patterns' : 'Expand patterns'}
+                                                            >
+                                                                {isExpanded ? (
+                                                                    <ChevronDown className="size-4" />
+                                                                ) : (
+                                                                    <ChevronRight className="size-4" />
                                                                 )}
-                                                            </TableCell>
-                                                            <TableCell>{idType.id}</TableCell>
-                                                            <TableCell>{idType.name}</TableCell>
-                                                            <TableCell className="font-mono text-sm">{idType.slug}</TableCell>
-                                                            <TableCell className="text-center">
-                                                                <Label htmlFor={`id-active-${idType.id}`} className="sr-only">
-                                                                    ERNIE active
-                                                                </Label>
-                                                                <Checkbox
-                                                                    id={`id-active-${idType.id}`}
-                                                                    checked={idType.active}
-                                                                    onCheckedChange={(checked) => {
-                                                                        setData(
-                                                                            'identifierTypes',
-                                                                            data.identifierTypes.map((it, i) =>
-                                                                                i === typeIndex ? { ...it, active: checked === true } : it,
-                                                                            ),
-                                                                        );
-                                                                    }}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell className="text-center">
-                                                                <Label htmlFor={`id-elmo-active-${idType.id}`} className="sr-only">
-                                                                    ELMO active
-                                                                </Label>
-                                                                <Checkbox
-                                                                    id={`id-elmo-active-${idType.id}`}
-                                                                    checked={idType.elmo_active}
-                                                                    onCheckedChange={(checked) => {
-                                                                        setData(
-                                                                            'identifierTypes',
-                                                                            data.identifierTypes.map((it, i) =>
-                                                                                i === typeIndex ? { ...it, elmo_active: checked === true } : it,
-                                                                            ),
-                                                                        );
-                                                                    }}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell className="text-center text-sm text-muted-foreground">
-                                                                {idType.patterns.length}
-                                                            </TableCell>
-                                                        </TableRow>
-                                                        {isExpanded && (
-                                                            <TableRow className="bg-muted/50">
-                                                                <TableCell />
-                                                                <TableCell colSpan={6} className="p-2">
-                                                                    <Table>
-                                                                        <TableHeader>
-                                                                            <TableRow>
-                                                                                <TableHead className="text-xs">Type</TableHead>
-                                                                                <TableHead className="text-xs">Pattern</TableHead>
-                                                                                <TableHead className="text-center text-xs">Active</TableHead>
-                                                                                <TableHead className="text-center text-xs">Priority</TableHead>
-                                                                            </TableRow>
-                                                                        </TableHeader>
-                                                                        <TableBody>
-                                                                            {idType.patterns.map((pattern, patternIndex) => (
-                                                                                <TableRow key={`pattern-${pattern.id}`}>
-                                                                                    <TableCell className="text-xs text-muted-foreground">
-                                                                                        {pattern.type}
-                                                                                    </TableCell>
-                                                                                    <TableCell>
-                                                                                        <Input
-                                                                                            value={pattern.pattern}
-                                                                                            className="font-mono text-xs"
-                                                                                            aria-label={`${idType.name} ${pattern.type} pattern`}
-                                                                                            onChange={(e) => {
-                                                                                                setData(
-                                                                                                    'identifierTypes',
-                                                                                                    data.identifierTypes.map((it, i) =>
-                                                                                                        i === typeIndex
-                                                                                                            ? {
-                                                                                                                  ...it,
-                                                                                                                  patterns: it.patterns.map(
-                                                                                                                      (p, pi) =>
-                                                                                                                          pi === patternIndex
-                                                                                                                              ? {
-                                                                                                                                    ...p,
-                                                                                                                                    pattern:
-                                                                                                                                        e.target
-                                                                                                                                            .value,
-                                                                                                                                }
-                                                                                                                              : p,
-                                                                                                                  ),
-                                                                                                              }
-                                                                                                            : it,
-                                                                                                    ),
-                                                                                                );
-                                                                                            }}
-                                                                                        />
-                                                                                    </TableCell>
-                                                                                    <TableCell className="text-center">
-                                                                                        <Checkbox
-                                                                                            checked={pattern.is_active}
-                                                                                            aria-label={`${idType.name} ${pattern.type} pattern active`}
-                                                                                            onCheckedChange={(checked) => {
-                                                                                                setData(
-                                                                                                    'identifierTypes',
-                                                                                                    data.identifierTypes.map((it, i) =>
-                                                                                                        i === typeIndex
-                                                                                                            ? {
-                                                                                                                  ...it,
-                                                                                                                  patterns: it.patterns.map(
-                                                                                                                      (p, pi) =>
-                                                                                                                          pi === patternIndex
-                                                                                                                              ? {
-                                                                                                                                    ...p,
-                                                                                                                                    is_active:
-                                                                                                                                        checked ===
-                                                                                                                                        true,
-                                                                                                                                }
-                                                                                                                              : p,
-                                                                                                                  ),
-                                                                                                              }
-                                                                                                            : it,
-                                                                                                    ),
-                                                                                                );
-                                                                                            }}
-                                                                                        />
-                                                                                    </TableCell>
-                                                                                    <TableCell className="text-center">
-                                                                                        <Input
-                                                                                            type="number"
-                                                                                            min={0}
-                                                                                            max={100}
-                                                                                            value={pattern.priority}
-                                                                                            className="mx-auto w-16 text-center text-xs"
-                                                                                            aria-label={`${idType.name} ${pattern.type} pattern priority`}
-                                                                                            onChange={(e) => {
-                                                                                                setData(
-                                                                                                    'identifierTypes',
-                                                                                                    data.identifierTypes.map((it, i) =>
-                                                                                                        i === typeIndex
-                                                                                                            ? {
-                                                                                                                  ...it,
-                                                                                                                  patterns: it.patterns.map(
-                                                                                                                      (p, pi) =>
-                                                                                                                          pi === patternIndex
-                                                                                                                              ? {
-                                                                                                                                    ...p,
-                                                                                                                                    priority: Number(
-                                                                                                                                        e.target
-                                                                                                                                            .value,
-                                                                                                                                    ),
-                                                                                                                                }
-                                                                                                                              : p,
-                                                                                                                  ),
-                                                                                                              }
-                                                                                                            : it,
-                                                                                                    ),
-                                                                                                );
-                                                                                            }}
-                                                                                        />
-                                                                                    </TableCell>
-                                                                                </TableRow>
-                                                                            ))}
-                                                                        </TableBody>
-                                                                    </Table>
-                                                                </TableCell>
-                                                            </TableRow>
+                                                            </Button>
                                                         )}
-                                                    </Fragment>
-                                                );
-                                            })}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
-
-                <Button type="submit" className="self-start" disabled={processing}>
-                    Save
-                </Button>
+                                                    </TableCell>
+                                                    <TableCell>{idType.id}</TableCell>
+                                                    <TableCell>{idType.name}</TableCell>
+                                                    <TableCell className="font-mono text-sm">{idType.slug}</TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Label htmlFor={`id-active-${idType.id}`} className="sr-only">
+                                                            ERNIE active
+                                                        </Label>
+                                                        <Checkbox
+                                                            id={`id-active-${idType.id}`}
+                                                            checked={idType.active}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'identifierTypes',
+                                                                    data.identifierTypes.map((it, i) =>
+                                                                        i === typeIndex ? { ...it, active: checked === true } : it,
+                                                                    ),
+                                                                );
+                                                            }}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Label htmlFor={`id-elmo-active-${idType.id}`} className="sr-only">
+                                                            ELMO active
+                                                        </Label>
+                                                        <Checkbox
+                                                            id={`id-elmo-active-${idType.id}`}
+                                                            checked={idType.elmo_active}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'identifierTypes',
+                                                                    data.identifierTypes.map((it, i) =>
+                                                                        i === typeIndex ? { ...it, elmo_active: checked === true } : it,
+                                                                    ),
+                                                                );
+                                                            }}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-center text-sm text-muted-foreground">
+                                                        {idType.patterns.length}
+                                                    </TableCell>
+                                                </TableRow>
+                                                {isExpanded && (
+                                                    <TableRow className="bg-muted/50">
+                                                        <TableCell />
+                                                        <TableCell colSpan={6} className="p-2">
+                                                            <Table>
+                                                                <TableHeader>
+                                                                    <TableRow>
+                                                                        <TableHead className="text-xs">Type</TableHead>
+                                                                        <TableHead className="text-xs">Pattern</TableHead>
+                                                                        <TableHead className="text-center text-xs">Active</TableHead>
+                                                                        <TableHead className="text-center text-xs">Priority</TableHead>
+                                                                    </TableRow>
+                                                                </TableHeader>
+                                                                <TableBody>
+                                                                    {idType.patterns.map((pattern, patternIndex) => (
+                                                                        <TableRow key={`pattern-${pattern.id}`}>
+                                                                            <TableCell className="text-xs text-muted-foreground">
+                                                                                {pattern.type}
+                                                                            </TableCell>
+                                                                            <TableCell>
+                                                                                <Input
+                                                                                    value={pattern.pattern}
+                                                                                    className="font-mono text-xs"
+                                                                                    aria-label={`${idType.name} ${pattern.type} pattern`}
+                                                                                    onChange={(e) => {
+                                                                                        setData(
+                                                                                            'identifierTypes',
+                                                                                            data.identifierTypes.map((it, i) =>
+                                                                                                i === typeIndex
+                                                                                                    ? {
+                                                                                                          ...it,
+                                                                                                          patterns: it.patterns.map((p, pi) =>
+                                                                                                              pi === patternIndex
+                                                                                                                  ? {
+                                                                                                                        ...p,
+                                                                                                                        pattern: e.target.value,
+                                                                                                                    }
+                                                                                                                  : p,
+                                                                                                          ),
+                                                                                                      }
+                                                                                                    : it,
+                                                                                            ),
+                                                                                        );
+                                                                                    }}
+                                                                                />
+                                                                            </TableCell>
+                                                                            <TableCell className="text-center">
+                                                                                <Checkbox
+                                                                                    checked={pattern.is_active}
+                                                                                    aria-label={`${idType.name} ${pattern.type} pattern active`}
+                                                                                    onCheckedChange={(checked) => {
+                                                                                        setData(
+                                                                                            'identifierTypes',
+                                                                                            data.identifierTypes.map((it, i) =>
+                                                                                                i === typeIndex
+                                                                                                    ? {
+                                                                                                          ...it,
+                                                                                                          patterns: it.patterns.map((p, pi) =>
+                                                                                                              pi === patternIndex
+                                                                                                                  ? {
+                                                                                                                        ...p,
+                                                                                                                        is_active: checked === true,
+                                                                                                                    }
+                                                                                                                  : p,
+                                                                                                          ),
+                                                                                                      }
+                                                                                                    : it,
+                                                                                            ),
+                                                                                        );
+                                                                                    }}
+                                                                                />
+                                                                            </TableCell>
+                                                                            <TableCell className="text-center">
+                                                                                <Input
+                                                                                    type="number"
+                                                                                    min={0}
+                                                                                    max={100}
+                                                                                    value={pattern.priority}
+                                                                                    className="mx-auto w-16 text-center text-xs"
+                                                                                    aria-label={`${idType.name} ${pattern.type} pattern priority`}
+                                                                                    onChange={(e) => {
+                                                                                        setData(
+                                                                                            'identifierTypes',
+                                                                                            data.identifierTypes.map((it, i) =>
+                                                                                                i === typeIndex
+                                                                                                    ? {
+                                                                                                          ...it,
+                                                                                                          patterns: it.patterns.map((p, pi) =>
+                                                                                                              pi === patternIndex
+                                                                                                                  ? {
+                                                                                                                        ...p,
+                                                                                                                        priority: Number(
+                                                                                                                            e.target.value,
+                                                                                                                        ),
+                                                                                                                    }
+                                                                                                                  : p,
+                                                                                                          ),
+                                                                                                      }
+                                                                                                    : it,
+                                                                                            ),
+                                                                                        );
+                                                                                    }}
+                                                                                />
+                                                                            </TableCell>
+                                                                        </TableRow>
+                                                                    ))}
+                                                                </TableBody>
+                                                            </Table>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </Fragment>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </EditorSettingsSection>
+                </EditorSettingsAccordion>
             </form>
         </AppLayout>
     );
