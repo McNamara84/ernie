@@ -975,7 +975,9 @@ describe('Docs page', () => {
         await openDatasetsTab(groupLeaderPage.user);
         expect(screen.getByText('Custom Landing Page Templates')).toBeInTheDocument();
         expect(screen.getByText('Additional Information')).toBeInTheDocument();
-        expect(screen.getByText(/For IGSN templates, every module can also be moved between columns/i)).toBeInTheDocument();
+        expect(screen.getByText(/For Resource and IGSN templates.*move them between the left and right columns/i)).toBeInTheDocument();
+        expect(screen.getByText(/Every Resource module can be placed in either column/i)).toBeInTheDocument();
+        expect(screen.getByText(/Each template type only offers the modules intended for its landing pages/i)).toBeInTheDocument();
         expect(screen.getByText(/Sample Image displays the locally managed or approved external legacy photo/i)).toBeInTheDocument();
     });
 

@@ -7,7 +7,7 @@ import type {
     LandingPageDisplayLimits,
     LandingPageMetadataLink,
     LandingPageResource,
-    LeftColumnSection,
+    ResourceSection,
     SectionOrder,
 } from '@/types/landing-page';
 
@@ -25,7 +25,12 @@ import { ResourceHero } from './components/ResourceHero';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
 import { type MetadataSectionKey } from './lib/metadata-sections';
-import { normalizeLeftColumnOrder, normalizeRightColumnOrder, RESOURCE_LEFT_COLUMN_SECTIONS, RIGHT_COLUMN_SECTIONS } from './lib/section-catalog';
+import {
+    normalizeResourceColumnOrders,
+    RESOURCE_LEFT_COLUMN_SECTIONS,
+    RESOURCE_METADATA_SECTIONS,
+    RIGHT_COLUMN_SECTIONS,
+} from './lib/section-catalog';
 
 /**
  * Props passed to landing page templates via Inertia
@@ -56,6 +61,34 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
     citationAuthors: 50,
 };
 
+const RESOURCE_METADATA_SECTION_SET = new Set<ResourceSection>(RESOURCE_METADATA_SECTIONS);
+type ResourceMetadataSectionKey = Exclude<MetadataSectionKey, 'descriptions'>;
+
+function metadataOrderForColumn(order: readonly ResourceSection[]): ResourceMetadataSectionKey[] {
+    return order.filter((key): key is ResourceMetadataSectionKey => RESOURCE_METADATA_SECTION_SET.has(key));
+}
+
+function composeResourceColumn(
+    order: readonly ResourceSection[],
+    standaloneSections: Partial<Record<ResourceSection, ReactNode>>,
+    metadataSection: ReactNode,
+): ReactNode[] {
+    let metadataAdded = false;
+
+    return order
+        .map((key) => {
+            if (RESOURCE_METADATA_SECTION_SET.has(key)) {
+                if (metadataAdded) return null;
+                metadataAdded = true;
+
+                return metadataSection;
+            }
+
+            return standaloneSections[key] ?? null;
+        })
+        .filter((section): section is ReactNode => section !== null && section !== undefined && section !== false);
+}
+
 export default function DefaultGfzTemplate() {
     const { resource, documentTitle, landingPage, isPreview, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
         usePage<DefaultGfzTemplatePageProps>().props;
@@ -70,20 +103,22 @@ export default function DefaultGfzTemplate() {
         peopleDisplayLimits.citationAuthors,
     );
 
-    const rightOrder = sectionOrder?.rightColumn ? normalizeRightColumnOrder(sectionOrder.rightColumn) : RIGHT_COLUMN_SECTIONS;
-    const leftOrder = sectionOrder?.leftColumn ? normalizeLeftColumnOrder(sectionOrder.leftColumn, 'resource') : RESOURCE_LEFT_COLUMN_SECTIONS;
+    const orders = sectionOrder
+        ? normalizeResourceColumnOrders(sectionOrder.leftColumn, sectionOrder.rightColumn)
+        : {
+              left: RESOURCE_LEFT_COLUMN_SECTIONS as ResourceSection[],
+              right: RIGHT_COLUMN_SECTIONS as ResourceSection[],
+          };
     const downloadsUnavailable = landingPage?.downloads_unavailable === true;
-    const metadataOrder = rightOrder.filter((key): key is MetadataSectionKey => key !== 'location');
-    const firstMetadataIndex = rightOrder.findIndex((key) => key !== 'location');
-    const locationIndex = rightOrder.indexOf('location');
-    const renderLocationBeforeMetadata = locationIndex !== -1 && (firstMetadataIndex === -1 || locationIndex < firstMetadataIndex);
+    const leftMetadataOrder = metadataOrderForColumn(orders.left);
+    const rightMetadataOrder = metadataOrderForColumn(orders.right);
 
-    const rightSectionRegistry = useMemo((): { metadata: ReactNode; location: ReactNode } => {
+    const metadataSections = useMemo((): { left: ReactNode; right: ReactNode } => {
         const jsonLdExportUrl = landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined;
-        return {
-            metadata: (
+        const renderMetadataSection = (key: string, metadataOrder: MetadataSectionKey[]): ReactNode =>
+            metadataOrder.length === 0 ? null : (
                 <AbstractSection
-                    key="metadata"
+                    key={key}
                     descriptions={resource.descriptions || []}
                     creators={resource.creators || []}
                     contributors={resource.contributors || []}
@@ -95,12 +130,15 @@ export default function DefaultGfzTemplate() {
                     sectionOrder={metadataOrder}
                     displayLimits={peopleDisplayLimits}
                 />
-            ),
-            location: <LocationSection key="location" geoLocations={resource.geo_locations || []} isDark={isDark} />,
-        };
-    }, [resource, landingPage, isDark, metadataOrder, peopleDisplayLimits, metadataLinks]);
+            );
 
-    const leftSectionRegistry = useMemo((): Record<LeftColumnSection, ReactNode> => {
+        return {
+            left: renderMetadataSection('left-metadata', leftMetadataOrder),
+            right: renderMetadataSection('right-metadata', rightMetadataOrder),
+        };
+    }, [resource, landingPage, leftMetadataOrder, rightMetadataOrder, peopleDisplayLimits, metadataLinks]);
+
+    const standaloneSectionRegistry = useMemo((): Partial<Record<ResourceSection, ReactNode>> => {
         return {
             files: downloadsUnavailable ? null : (
                 <FilesSection
@@ -140,13 +178,12 @@ export default function DefaultGfzTemplate() {
                     resource={resource}
                 />
             ),
-            // IGSN-only sections — not rendered in the default resource template
-            general: null,
-            sample_family: null,
-            acquisition: null,
-            repositories: null,
+            location: <LocationSection key="location" geoLocations={resource.geo_locations || []} isDark={isDark} />,
         };
-    }, [resource, landingPage, mainTitle, downloadsUnavailable, citationStyles, peopleDisplayLimits.citationAuthors]);
+    }, [resource, landingPage, mainTitle, downloadsUnavailable, citationStyles, peopleDisplayLimits.citationAuthors, isDark]);
+
+    const leftColumnSections = composeResourceColumn(orders.left, standaloneSectionRegistry, metadataSections.left);
+    const rightColumnSections = composeResourceColumn(orders.right, standaloneSectionRegistry, metadataSections.right);
 
     return (
         <>
@@ -166,12 +203,8 @@ export default function DefaultGfzTemplate() {
                         citationPresentation={citationPresentation}
                     />
                 }
-                rightColumnSections={
-                    renderLocationBeforeMetadata
-                        ? [rightSectionRegistry.location, rightSectionRegistry.metadata]
-                        : [rightSectionRegistry.metadata, rightSectionRegistry.location]
-                }
-                leftColumnSections={leftOrder.map((key) => leftSectionRegistry[key]).filter(Boolean)}
+                rightColumnSections={rightColumnSections}
+                leftColumnSections={leftColumnSections}
             />
         </>
     );

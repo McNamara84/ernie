@@ -30,16 +30,17 @@ class UpdateLandingPageTemplateRequest extends FormRequest
     {
         /** @var LandingPageTemplate $template */
         $template = $this->route('landingPageTemplate');
-        $allowedLeftColumnSections = LandingPageTemplate::leftColumnSectionsForTemplateType($template->template_type);
-        $allowedRightColumnSections = LandingPageTemplate::rightColumnSectionsForTemplateType($template->template_type);
         $isIgsn = $template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN;
+        $allowedSections = $isIgsn
+            ? LandingPageTemplate::IGSN_SECTIONS
+            : LandingPageTemplate::RESOURCE_SECTIONS;
 
         return [
             'name' => ['sometimes', 'filled', 'string', 'min:1', 'max:255', Rule::unique('landing_page_templates', 'name')->ignore($template->id)],
-            'right_column_order' => $isIgsn ? ['sometimes', 'required_with:left_column_order', 'array'] : ['sometimes', 'array'],
-            'right_column_order.*' => ['required', 'string', Rule::in($isIgsn ? LandingPageTemplate::IGSN_SECTIONS : $allowedRightColumnSections)],
-            'left_column_order' => $isIgsn ? ['sometimes', 'required_with:right_column_order', 'array'] : ['sometimes', 'array'],
-            'left_column_order.*' => ['required', 'string', Rule::in($isIgsn ? LandingPageTemplate::IGSN_SECTIONS : $allowedLeftColumnSections)],
+            'right_column_order' => ['sometimes', 'required_with:left_column_order', 'array'],
+            'right_column_order.*' => ['required', 'string', Rule::in($allowedSections)],
+            'left_column_order' => ['sometimes', 'required_with:right_column_order', 'array'],
+            'left_column_order.*' => ['required', 'string', Rule::in($allowedSections)],
             'creator_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'contributor_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'citation_author_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
@@ -83,30 +84,35 @@ class UpdateLandingPageTemplateRequest extends FormRequest
                 }
             }
 
-            $allowedLeftColumnSections = LandingPageTemplate::leftColumnSectionsForTemplateType($template->template_type);
-
-            if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
-                && ($this->has('right_column_order') || $this->has('left_column_order'))) {
+            if ($this->has('right_column_order') || $this->has('left_column_order')) {
                 if ($this->has('left_column_order') && ! $this->has('right_column_order')) {
                     $validator->errors()->add(
                         'right_column_order',
-                        'The right column order is required when changing an IGSN layout.'
+                        'The right column order is required when changing a landing page template layout.'
                     );
                 }
 
                 if ($this->has('right_column_order') && ! $this->has('left_column_order')) {
                     $validator->errors()->add(
                         'left_column_order',
-                        'The left column order is required when changing an IGSN layout.'
+                        'The left column order is required when changing a landing page template layout.'
                     );
                 }
 
                 $rightOrder = $this->input('right_column_order', []);
                 $leftOrder = $this->input('left_column_order', []);
-                if (is_array($rightOrder)
-                    && is_array($leftOrder)
-                    && ! $validator->errors()->has('right_column_order')
-                    && ! $validator->errors()->has('left_column_order')
+                if (! is_array($rightOrder)
+                    || ! is_array($leftOrder)
+                    || $validator->errors()->hasAny([
+                        'right_column_order',
+                        'right_column_order.*',
+                        'left_column_order',
+                        'left_column_order.*',
+                    ])) {
+                    return;
+                }
+
+                if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
                     && ! LandingPageTemplate::isValidIgsnSectionLayout($leftOrder, $rightOrder)) {
                     $validator->errors()->add(
                         'right_column_order',
@@ -114,27 +120,11 @@ class UpdateLandingPageTemplateRequest extends FormRequest
                     );
                 }
 
-                return;
-            }
-
-            // Validate right column order contains exactly all valid sections
-            if ($this->has('right_column_order') && ! $validator->errors()->has('right_column_order')) {
-                $rightOrder = $this->input('right_column_order', []);
-                if (is_array($rightOrder) && ! LandingPageTemplate::isValidSectionOrder($rightOrder, LandingPageTemplate::RIGHT_COLUMN_SECTIONS)) {
+                if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE
+                    && ! LandingPageTemplate::isValidResourceSectionLayout($leftOrder, $rightOrder)) {
                     $validator->errors()->add(
                         'right_column_order',
-                        'Right column order must contain exactly all valid section keys without duplicates.'
-                    );
-                }
-            }
-
-            // Validate left column order contains exactly all valid sections
-            if ($this->has('left_column_order') && ! $validator->errors()->has('left_column_order')) {
-                $leftOrder = $this->input('left_column_order', []);
-                if (is_array($leftOrder) && ! LandingPageTemplate::isValidSectionOrder($leftOrder, $allowedLeftColumnSections)) {
-                    $validator->errors()->add(
-                        'left_column_order',
-                        'Left column order must contain exactly all valid section keys without duplicates.'
+                        'Resource columns must contain every valid resource section exactly once and keep metadata sections grouped within each column.'
                     );
                 }
             }
@@ -148,22 +138,6 @@ class UpdateLandingPageTemplateRequest extends FormRequest
     {
         if ($this->has('name') && is_string($this->input('name'))) {
             $this->merge(['name' => trim($this->input('name'))]);
-        }
-
-        /** @var LandingPageTemplate|null $template */
-        $template = $this->route('landingPageTemplate');
-        if ($this->has('right_column_order') && $template?->template_type !== LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
-            $rightOrder = $this->input('right_column_order');
-
-            if (is_array($rightOrder)) {
-                $stringKeys = array_values(array_filter($rightOrder, 'is_string'));
-
-                if (count($stringKeys) === count($rightOrder)) {
-                    $this->merge([
-                        'right_column_order' => LandingPageTemplate::normalizeRightColumnOrder($stringKeys),
-                    ]);
-                }
-            }
         }
     }
 }

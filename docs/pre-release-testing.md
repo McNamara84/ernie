@@ -690,6 +690,17 @@ Modify only purpose-created `MANUAL-TEST` users.
 - [ ] The test template can be selected in the landing page dialog and changes the
       preview as expected.
 
+- [ ] In a cloned Resource template, Files and Location can each be moved to the
+      opposite column and remain there after saving and reopening the editor.
+
+- [ ] The Resource template editor offers no IGSN-only modules. Description,
+      people, funding, keyword, and metadata-download modules remain grouped in
+      the existing shared metadata card when assigned to either column.
+
+- [ ] A Resource template column can be emptied by moving all of its modules to
+      the other column; preview and an already published landing page both adopt
+      the saved layout after refresh.
+
 - [ ] Cancelling preserves the template; confirmed deletion removes only the
       `MANUAL-TEST` template.
 

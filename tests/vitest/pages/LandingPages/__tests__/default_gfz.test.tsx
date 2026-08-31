@@ -1,4 +1,4 @@
-import { render, screen } from '@tests/vitest/utils/render';
+import { render, screen, within } from '@tests/vitest/utils/render';
 import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -621,6 +621,126 @@ describe('DefaultGfzTemplate', () => {
             expect(logo).not.toHaveClass('dark:grayscale');
             expect(logo).not.toHaveClass('dark:invert');
             expect(logo).not.toHaveClass('dark:mix-blend-screen');
+        });
+
+        it('renders standalone Resource modules in their configured target columns', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        geo_locations: [
+                            {
+                                id: 1,
+                                place: 'Potsdam',
+                                point_longitude: 13.0645,
+                                point_latitude: 52.3906,
+                                west_bound_longitude: null,
+                                east_bound_longitude: null,
+                                south_bound_latitude: null,
+                                north_bound_latitude: null,
+                                polygon_points: null,
+                                geo_type: null,
+                                elevation: null,
+                                elevation_unit: null,
+                                location_type: null,
+                                location_description: null,
+                                locality_description: null,
+                                country: 'Germany',
+                                province: null,
+                                county: null,
+                                city: 'Potsdam',
+                            },
+                        ],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionOrder: {
+                        leftColumn: ['location', 'licenses', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
+                        rightColumn: [
+                            'files',
+                            'abstract',
+                            'methods',
+                            'technical_info',
+                            'series_information',
+                            'table_of_contents',
+                            'other',
+                            'creators',
+                            'contributors',
+                            'funders',
+                            'keywords',
+                            'metadata_download',
+                        ],
+                    },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            const leftColumn = screen.getByTestId('landing-page-left-column');
+            const rightColumn = screen.getByTestId('landing-page-right-column');
+            expect(within(leftColumn).getByTestId('geolocation-section')).toBeInTheDocument();
+            expect(within(leftColumn).queryByTestId('files-section')).not.toBeInTheDocument();
+            expect(within(rightColumn).getByTestId('files-section')).toBeInTheDocument();
+            expect(within(rightColumn).queryByTestId('geolocation-section')).not.toBeInTheDocument();
+        });
+
+        it('retains one shared metadata card per occupied column', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        descriptions: [
+                            { id: 1, value: 'Left abstract', description_type: 'Abstract' },
+                            { id: 2, value: 'Left methods', description_type: 'Methods' },
+                            { id: 3, value: 'Right technical details', description_type: 'TechnicalInfo' },
+                        ],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionOrder: {
+                        leftColumn: ['abstract', 'methods', 'files', 'licenses', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
+                        rightColumn: [
+                            'technical_info',
+                            'series_information',
+                            'table_of_contents',
+                            'other',
+                            'creators',
+                            'contributors',
+                            'funders',
+                            'keywords',
+                            'metadata_download',
+                            'location',
+                        ],
+                    },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            const leftColumn = screen.getByTestId('landing-page-left-column');
+            const rightColumn = screen.getByTestId('landing-page-right-column');
+            expect(screen.getAllByTestId('metadata-section')).toHaveLength(2);
+            expect(within(leftColumn).getAllByTestId('metadata-section')).toHaveLength(1);
+            expect(within(leftColumn).getByText('Left abstract')).toBeInTheDocument();
+            expect(within(leftColumn).getByText('Left methods')).toBeInTheDocument();
+            expect(within(leftColumn).queryByText('Right technical details')).not.toBeInTheDocument();
+            expect(within(rightColumn).getAllByTestId('metadata-section')).toHaveLength(1);
+            expect(within(rightColumn).getByText('Right technical details')).toBeInTheDocument();
+        });
+
+        it('keeps the canonical Resource layout in one metadata card on the right', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            expect(within(screen.getByTestId('landing-page-left-column')).queryByTestId('metadata-section')).not.toBeInTheDocument();
+            expect(within(screen.getByTestId('landing-page-right-column')).getAllByTestId('metadata-section')).toHaveLength(1);
         });
 
         it('handles a right column order that only contains location', () => {

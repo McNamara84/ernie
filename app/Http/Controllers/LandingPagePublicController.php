@@ -348,13 +348,11 @@ class LandingPagePublicController extends Controller
                 );
                 $sectionOrder = ['rightColumn' => $igsnOrders['right'], 'leftColumn' => $igsnOrders['left']];
             } else {
-                $sectionOrder = [
-                    'rightColumn' => $templateConfig->right_column_order,
-                    'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder(
-                        $templateConfig->left_column_order,
-                        $templateConfig->template_type,
-                    ),
-                ];
+                $resourceOrders = LandingPageTemplate::normalizeResourceSectionOrders(
+                    $templateConfig->left_column_order,
+                    $templateConfig->right_column_order,
+                );
+                $sectionOrder = ['rightColumn' => $resourceOrders['right'], 'leftColumn' => $resourceOrders['left']];
             }
             $customLogoUrl = $templateConfig->logo_url;
 

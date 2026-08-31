@@ -1,5 +1,17 @@
 [
     {
+        "version": "1.0.6",
+        "date": "2026-08-31",
+        "features": [],
+        "improvements": [
+            {
+                "title": "Flexible Resource Landing Page Layouts",
+                "description": "Admins and Group Leaders can now move every Resource-specific module between the left and right columns of cloned Resource landing-page templates. Existing metadata modules remain together in their shared card, while preview, inherited templates, and published landing pages adopt the saved column layout immediately."
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.0.5",
         "date": "2026-08-31",
         "features": [],

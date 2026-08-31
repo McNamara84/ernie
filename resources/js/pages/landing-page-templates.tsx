@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { Copy, GripVertical, ImagePlus, LayoutTemplate, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { type ChangeEvent, useCallback, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -29,16 +29,9 @@ import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
-import {
-    LEFT_SECTION_LABELS,
-    normalizeIgsnColumnOrders,
-    normalizeLeftColumnOrder,
-    normalizeRightColumnOrder,
-    RIGHT_SECTION_LABELS,
-    SECTION_LABELS,
-} from '@/pages/LandingPages/lib/section-catalog';
+import { normalizeIgsnColumnOrders, normalizeResourceColumnOrders, SECTION_LABELS } from '@/pages/LandingPages/lib/section-catalog';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import type { IgsnSection, LandingPageTemplateConfig, LandingPageTemplateDatacenter, TemplateSection } from '@/types/landing-page';
+import type { IgsnSection, LandingPageTemplateConfig, LandingPageTemplateDatacenter, ResourceSection, TemplateSection } from '@/types/landing-page';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Pages', href: '/landing-pages' }];
 const DISPLAY_LIMIT_MIN = 1;
@@ -93,58 +86,62 @@ function SortableSectionItem({ id, label }: { id: string; label: string }) {
     );
 }
 
-// --- Section Order Editor ---
-function SectionOrderEditor({
-    title,
-    items,
-    labels,
-    onReorder,
-    description,
-}: {
-    title: string;
-    items: string[];
-    labels: Record<string, string>;
-    onReorder: (items: string[]) => void;
-    description?: string;
-}) {
-    const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+type LayoutScope = 'igsn' | 'resource';
+type LayoutSection = IgsnSection | ResourceSection;
+type TemplateColumnId = `${LayoutScope}-left-column` | `${LayoutScope}-right-column`;
 
-    const handleDragEnd = useCallback(
-        (event: DragEndEvent) => {
-            const { active, over } = event;
-            if (!over || active.id === over.id) return;
-            const oldIndex = items.indexOf(String(active.id));
-            const newIndex = items.indexOf(String(over.id));
-            if (oldIndex === -1 || newIndex === -1) return;
-            onReorder(arrayMove(items, oldIndex, newIndex));
-        },
-        [items, onReorder],
-    );
-
-    return (
-        <div className="space-y-2">
-            <Label className="text-sm font-medium">{title}</Label>
-            {description && <p className="text-xs text-muted-foreground">{description}</p>}
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={items} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-1.5">
-                        {items.map((key) => (
-                            <SortableSectionItem key={key} id={key} label={labels[key] ?? key} />
-                        ))}
-                    </div>
-                </SortableContext>
-            </DndContext>
-        </div>
-    );
+function columnIds(scope: LayoutScope): { left: TemplateColumnId; right: TemplateColumnId } {
+    return {
+        left: `${scope}-left-column`,
+        right: `${scope}-right-column`,
+    };
 }
 
-type IgsnColumnId = 'igsn-left-column' | 'igsn-right-column';
-
-function findIgsnColumn(id: string, left: readonly IgsnSection[], right: readonly IgsnSection[]): IgsnColumnId | null {
-    if (id === 'igsn-left-column' || left.includes(id as IgsnSection)) return 'igsn-left-column';
-    if (id === 'igsn-right-column' || right.includes(id as IgsnSection)) return 'igsn-right-column';
+function findTemplateColumn<T extends LayoutSection>(
+    scope: LayoutScope,
+    id: string,
+    left: readonly T[],
+    right: readonly T[],
+): TemplateColumnId | null {
+    const columns = columnIds(scope);
+    if (id === columns.left || left.includes(id as T)) return columns.left;
+    if (id === columns.right || right.includes(id as T)) return columns.right;
 
     return null;
+}
+
+export function moveTemplateSection<T extends LayoutSection>(
+    scope: LayoutScope,
+    left: readonly T[],
+    right: readonly T[],
+    activeId: string,
+    overId: string,
+): { left: T[]; right: T[] } {
+    const columns = columnIds(scope);
+    const sourceColumn = findTemplateColumn(scope, activeId, left, right);
+    const targetColumn = findTemplateColumn(scope, overId, left, right);
+    if (sourceColumn === null || targetColumn === null || activeId === overId) return { left: [...left], right: [...right] };
+
+    const next = { left: [...left], right: [...right] };
+    const source = sourceColumn === columns.left ? next.left : next.right;
+    const target = targetColumn === columns.left ? next.left : next.right;
+    const oldIndex = source.indexOf(activeId as T);
+    if (oldIndex === -1) return next;
+
+    if (sourceColumn === targetColumn) {
+        const overIndex = overId === targetColumn ? target.length - 1 : target.indexOf(overId as T);
+        return overIndex < 0
+            ? next
+            : sourceColumn === columns.left
+              ? { left: arrayMove(next.left, oldIndex, overIndex), right: next.right }
+              : { left: next.left, right: arrayMove(next.right, oldIndex, overIndex) };
+    }
+
+    const [moved] = source.splice(oldIndex, 1);
+    const overIndex = overId === targetColumn ? target.length : target.indexOf(overId as T);
+    target.splice(overIndex < 0 ? target.length : overIndex, 0, moved);
+
+    return next;
 }
 
 export function moveIgsnSection(
@@ -153,33 +150,19 @@ export function moveIgsnSection(
     activeId: string,
     overId: string,
 ): { left: IgsnSection[]; right: IgsnSection[] } {
-    const sourceColumn = findIgsnColumn(activeId, left, right);
-    const targetColumn = findIgsnColumn(overId, left, right);
-    if (sourceColumn === null || targetColumn === null || activeId === overId) return { left: [...left], right: [...right] };
-
-    const next = { left: [...left], right: [...right] };
-    const source = sourceColumn === 'igsn-left-column' ? next.left : next.right;
-    const target = targetColumn === 'igsn-left-column' ? next.left : next.right;
-    const oldIndex = source.indexOf(activeId as IgsnSection);
-    if (oldIndex === -1) return next;
-
-    if (sourceColumn === targetColumn) {
-        const overIndex = overId === targetColumn ? target.length - 1 : target.indexOf(overId as IgsnSection);
-        return overIndex < 0
-            ? next
-            : sourceColumn === 'igsn-left-column'
-              ? { left: arrayMove(next.left, oldIndex, overIndex), right: next.right }
-              : { left: next.left, right: arrayMove(next.right, oldIndex, overIndex) };
-    }
-
-    const [moved] = source.splice(oldIndex, 1);
-    const overIndex = overId === targetColumn ? target.length : target.indexOf(overId as IgsnSection);
-    target.splice(overIndex < 0 ? target.length : overIndex, 0, moved);
-
-    return next;
+    return moveTemplateSection('igsn', left, right, activeId, overId);
 }
 
-function IgsnColumn({ id, title, items }: { id: IgsnColumnId; title: string; items: IgsnSection[] }) {
+export function moveResourceSection(
+    left: readonly ResourceSection[],
+    right: readonly ResourceSection[],
+    activeId: string,
+    overId: string,
+): { left: ResourceSection[]; right: ResourceSection[] } {
+    return moveTemplateSection('resource', left, right, activeId, overId);
+}
+
+function TemplateColumn<T extends LayoutSection>({ id, title, items }: { id: TemplateColumnId; title: string; items: T[] }) {
     const { setNodeRef, isOver } = useDroppable({ id });
 
     return (
@@ -201,27 +184,34 @@ function IgsnColumn({ id, title, items }: { id: IgsnColumnId; title: string; ite
     );
 }
 
-function IgsnSectionOrderEditor({
+function FlexibleSectionOrderEditor<T extends LayoutSection>({
+    scope,
     left,
     right,
     onChange,
+    normalize,
+    description,
 }: {
-    left: IgsnSection[];
-    right: IgsnSection[];
-    onChange: (orders: { left: IgsnSection[]; right: IgsnSection[] }) => void;
+    scope: LayoutScope;
+    left: T[];
+    right: T[];
+    onChange: (orders: { left: T[]; right: T[] }) => void;
+    normalize: (left: readonly T[], right: readonly T[]) => { left: T[]; right: T[] };
+    description: string;
 }) {
     const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-    const snapshot = useRef<{ left: IgsnSection[]; right: IgsnSection[] } | null>(null);
+    const snapshot = useRef<{ left: T[]; right: T[] } | null>(null);
 
     const handleDragStart = (event: DragStartEvent) => {
-        if (findIgsnColumn(String(event.active.id), left, right) !== null) snapshot.current = { left: [...left], right: [...right] };
+        if (findTemplateColumn(scope, String(event.active.id), left, right) !== null) snapshot.current = { left: [...left], right: [...right] };
     };
     const handleDragOver = (event: DragOverEvent) => {
         if (!event.over) return;
         const activeId = String(event.active.id);
         const overId = String(event.over.id);
-        if (findIgsnColumn(activeId, left, right) !== findIgsnColumn(overId, left, right)) {
-            onChange(moveIgsnSection(left, right, activeId, overId));
+        if (findTemplateColumn(scope, activeId, left, right) !== findTemplateColumn(scope, overId, left, right)) {
+            const moved = moveTemplateSection(scope, left, right, activeId, overId);
+            onChange(normalize(moved.left, moved.right));
         }
     };
     const handleDragEnd = (event: DragEndEvent) => {
@@ -233,12 +223,15 @@ function IgsnSectionOrderEditor({
 
         const initialOrders = snapshot.current ?? { left, right };
         snapshot.current = null;
-        onChange(moveIgsnSection(initialOrders.left, initialOrders.right, String(event.active.id), String(event.over.id)));
+        const moved = moveTemplateSection(scope, initialOrders.left, initialOrders.right, String(event.active.id), String(event.over.id));
+        onChange(normalize(moved.left, moved.right));
     };
+
+    const columns = columnIds(scope);
 
     return (
         <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Every IGSN module can be reordered or moved between either column.</p>
+            <p className="text-xs text-muted-foreground">{description}</p>
             <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -251,8 +244,8 @@ function IgsnSectionOrderEditor({
                 }}
             >
                 <div className="grid gap-6 md:grid-cols-2">
-                    <IgsnColumn id="igsn-left-column" title="Left Column (sidebar)" items={left} />
-                    <IgsnColumn id="igsn-right-column" title="Right Column (main content)" items={right} />
+                    <TemplateColumn id={columns.left} title="Left Column (sidebar)" items={left} />
+                    <TemplateColumn id={columns.right} title="Right Column (main content)" items={right} />
                 </div>
             </DndContext>
         </div>
@@ -417,8 +410,9 @@ export default function LandingPageTemplatesPage() {
             setEditLeftOrder(orders.left);
             setEditRightOrder(orders.right);
         } else {
-            setEditRightOrder(normalizeRightColumnOrder(tmpl.right_column_order));
-            setEditLeftOrder(normalizeLeftColumnOrder(tmpl.left_column_order, tmpl.template_type));
+            const orders = normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order);
+            setEditLeftOrder(orders.left);
+            setEditRightOrder(orders.right);
         }
         setEditCreatorDisplayLimit(String(tmpl.creator_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditContributorDisplayLimit(String(tmpl.contributor_display_limit ?? DISPLAY_LIMIT_DEFAULT));
@@ -444,6 +438,10 @@ export default function LandingPageTemplatesPage() {
         if (!editTemplate) return;
         setSaving(true);
         try {
+            const normalizedOrders =
+                editTemplate.template_type === 'igsn'
+                    ? normalizeIgsnColumnOrders(editLeftOrder, editRightOrder)
+                    : normalizeResourceColumnOrders(editLeftOrder, editRightOrder);
             const payload = editTemplate.is_default
                 ? {
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
@@ -453,9 +451,8 @@ export default function LandingPageTemplatesPage() {
                   }
                 : {
                       name: editName.trim(),
-                      right_column_order: editTemplate.template_type === 'igsn' ? editRightOrder : normalizeRightColumnOrder(editRightOrder),
-                      left_column_order:
-                          editTemplate.template_type === 'igsn' ? editLeftOrder : normalizeLeftColumnOrder(editLeftOrder, editTemplate.template_type),
+                      right_column_order: normalizedOrders.right,
+                      left_column_order: normalizedOrders.left,
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
                       citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
@@ -666,7 +663,7 @@ export default function LandingPageTemplatesPage() {
                                         <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
                                             {(tmpl.template_type === 'igsn'
                                                 ? normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order).left
-                                                : normalizeLeftColumnOrder(tmpl.left_column_order, tmpl.template_type)
+                                                : normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order).left
                                             ).map((key) => (
                                                 <li key={key}>{SECTION_LABELS[key] ?? key}</li>
                                             ))}
@@ -677,7 +674,7 @@ export default function LandingPageTemplatesPage() {
                                         <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
                                             {(tmpl.template_type === 'igsn'
                                                 ? normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order).right
-                                                : normalizeRightColumnOrder(tmpl.right_column_order)
+                                                : normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order).right
                                             ).map((key) => (
                                                 <li key={key}>{SECTION_LABELS[key] ?? key}</li>
                                             ))}
@@ -886,31 +883,29 @@ export default function LandingPageTemplatesPage() {
                                 <Separator />
 
                                 {editTemplate?.template_type === 'igsn' ? (
-                                    <IgsnSectionOrderEditor
+                                    <FlexibleSectionOrderEditor
+                                        scope="igsn"
                                         left={editLeftOrder as IgsnSection[]}
                                         right={editRightOrder as IgsnSection[]}
+                                        normalize={normalizeIgsnColumnOrders}
+                                        description="Every IGSN module can be reordered or moved between either column."
                                         onChange={(orders) => {
                                             setEditLeftOrder(orders.left);
                                             setEditRightOrder(orders.right);
                                         }}
                                     />
                                 ) : (
-                                    <div className="grid gap-6 md:grid-cols-2">
-                                        <SectionOrderEditor
-                                            title="Left Column (sidebar)"
-                                            items={editLeftOrder}
-                                            labels={LEFT_SECTION_LABELS}
-                                            description="Resource templates render files, licenses and rights, contact details, and related material in the sidebar."
-                                            onReorder={(items) => setEditLeftOrder(items as TemplateSection[])}
-                                        />
-                                        <SectionOrderEditor
-                                            title="Right Column (main content)"
-                                            items={editRightOrder}
-                                            labels={RIGHT_SECTION_LABELS}
-                                            description="Description modules render inside one shared metadata card. Location / Map stays outside that card and snaps to the top or bottom position."
-                                            onReorder={(items) => setEditRightOrder(normalizeRightColumnOrder(items as TemplateSection[]))}
-                                        />
-                                    </div>
+                                    <FlexibleSectionOrderEditor
+                                        scope="resource"
+                                        left={editLeftOrder as ResourceSection[]}
+                                        right={editRightOrder as ResourceSection[]}
+                                        normalize={normalizeResourceColumnOrders}
+                                        description="Every Resource module can be reordered or moved between either column. Metadata modules remain grouped inside the existing shared metadata card."
+                                        onChange={(orders) => {
+                                            setEditLeftOrder(orders.left);
+                                            setEditRightOrder(orders.right);
+                                        }}
+                                    />
                                 )}
                             </>
                         )}
