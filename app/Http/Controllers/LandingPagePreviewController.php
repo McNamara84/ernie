@@ -9,6 +9,7 @@ use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\Citations\LandingPageCitationService;
+use App\Services\LandingPageDocumentMetadataService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -141,6 +142,7 @@ class LandingPagePreviewController extends Controller
         LandingPageResourceTransformer $transformer,
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
+        LandingPageDocumentMetadataService $documentMetadataService,
     ): Response {
         $sessionKey = "landing_page_preview.{$resource->id}";
         $previewData = Session::get($sessionKey);
@@ -172,6 +174,7 @@ class LandingPagePreviewController extends Controller
 
         // Prepare the same frontend payload as LandingPagePublicController
         $resourceData = $transformer->transform($resource);
+        $documentMetadata = $documentMetadataService->resolve($resourceData, $template, true);
 
         $sectionOrder = null;
         $customLogoUrl = null;
@@ -237,6 +240,7 @@ class LandingPagePreviewController extends Controller
 
         return Inertia::render("LandingPages/{$template}", [
             'resource' => $resourceData,
+            'documentTitle' => $documentMetadata['title'],
             'citationStyles' => $citationService->format($resource),
             'landingPage' => $tempLandingPage,
             'isPreview' => true,
@@ -249,6 +253,8 @@ class LandingPagePreviewController extends Controller
                 'contributors' => $templateConfig->contributor_display_limit,
                 'citationAuthors' => $templateConfig->citation_author_display_limit,
             ],
+        ])->withViewData([
+            'landingPageDocumentMetadata' => $documentMetadata,
         ]);
     }
 

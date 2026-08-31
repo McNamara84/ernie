@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { type ReactNode, useMemo } from 'react';
 
 import type {
@@ -38,6 +38,7 @@ import { normalizeLeftColumnOrder, normalizeRightColumnOrder, RESOURCE_LEFT_COLU
  */
 interface DefaultGfzTemplatePageProps {
     resource: LandingPageResource;
+    documentTitle: string;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
     sectionOrder?: SectionOrder | null;
@@ -56,7 +57,7 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
 };
 
 export default function DefaultGfzTemplate() {
-    const { resource, landingPage, isPreview, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
+    const { resource, documentTitle, landingPage, isPreview, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
         usePage<DefaultGfzTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
@@ -148,27 +149,30 @@ export default function DefaultGfzTemplate() {
     }, [resource, landingPage, mainTitle, downloadsUnavailable, citationStyles, peopleDisplayLimits.citationAuthors]);
 
     return (
-        <LandingPageShell
-            isPreview={isPreview}
-            isDark={isDark}
-            mainAriaLabel="Dataset details"
-            customLogoUrl={customLogoUrl}
-            hero={
-                <ResourceHero
-                    resourceType={resourceType}
-                    status={status}
-                    mainTitle={mainTitle}
-                    subtitle={subtitle}
-                    citation={citation}
-                    citationPresentation={citationPresentation}
-                />
-            }
-            rightColumnSections={
-                renderLocationBeforeMetadata
-                    ? [rightSectionRegistry.location, rightSectionRegistry.metadata]
-                    : [rightSectionRegistry.metadata, rightSectionRegistry.location]
-            }
-            leftColumnSections={leftOrder.map((key) => leftSectionRegistry[key]).filter(Boolean)}
-        />
+        <>
+            <Head title={documentTitle}>{isPreview && <meta head-key="landing-page-robots" name="robots" content="noindex, nofollow" />}</Head>
+            <LandingPageShell
+                isPreview={isPreview}
+                isDark={isDark}
+                mainAriaLabel="Dataset details"
+                customLogoUrl={customLogoUrl}
+                hero={
+                    <ResourceHero
+                        resourceType={resourceType}
+                        status={status}
+                        mainTitle={mainTitle}
+                        subtitle={subtitle}
+                        citation={citation}
+                        citationPresentation={citationPresentation}
+                    />
+                }
+                rightColumnSections={
+                    renderLocationBeforeMetadata
+                        ? [rightSectionRegistry.location, rightSectionRegistry.metadata]
+                        : [rightSectionRegistry.metadata, rightSectionRegistry.location]
+                }
+                leftColumnSections={leftOrder.map((key) => leftSectionRegistry[key]).filter(Boolean)}
+            />
+        </>
     );
 }

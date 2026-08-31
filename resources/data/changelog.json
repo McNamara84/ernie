@@ -47,6 +47,10 @@
             {
                 "title": "Configurable GFZ IGSN Landing Page Branding",
                 "description": "The built-in landing-page copy templates are now clearly named Templates Resources and Templates IGSN. Admins and Group Leaders can assign GFZ German Research Centre for Geosciences and additional datacenters to a custom IGSN template, including its custom header logo, while the independent GFZ Resource template assignment remains protected and existing assignments stay unchanged during deployment."
+            },
+            {
+                "title": "Descriptive Landing Page Browser Titles",
+                "description": "Generated Resource and IGSN landing pages now use their main title followed by GFZ Data Services in browser tabs and initial HTML. Draft and session previews are clearly prefixed with Preview and marked noindex, nofollow, while external redirects and internal ERNIE titles remain unchanged."
             }
         ],
         "fixes": [

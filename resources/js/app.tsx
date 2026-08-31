@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import { initializeFontSize } from './hooks/use-font-size';
 import { buildCsrfHeaders, syncXsrfTokenToAxios } from './lib/csrf-token';
+import { formatInertiaPageTitle } from './lib/inertia-page-title';
 import { createQueryClient } from './lib/query-client';
 import { normalizeUrlLike } from './lib/url-normalizer';
 import { QueryProvider } from './providers/query-provider';
@@ -331,7 +332,7 @@ try {
 const queryClient = createQueryClient();
 
 createInertiaApp({
-    title: (title) => (title ? `${title} - ${appName}` : appName),
+    title: (title, page) => formatInertiaPageTitle(title, page, appName),
     resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob<ResolvedComponent>('./pages/**/*.tsx', { import: 'default' })),
     setup({ el, App, props }) {
         // Initialize font size before rendering

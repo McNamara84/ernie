@@ -1,10 +1,25 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@tests/vitest/utils/render';
+import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia's usePage hook
 vi.mock('@inertiajs/react', () => ({
     usePage: vi.fn(),
-    Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    Head: ({ title, children }: { title?: string; children?: ReactNode }) => {
+        if (title !== undefined) document.title = title;
+
+        const managedChildren = Children.map(children, (child) => {
+            if (!isValidElement<Record<string, unknown>>(child)) return child;
+
+            return cloneElement(child, {
+                'data-inertia': child.props['head-key'] ?? '',
+                'head-key': undefined,
+            });
+        });
+
+        return createPortal(managedChildren, document.head);
+    },
 }));
 
 import { usePage } from '@inertiajs/react';
@@ -39,6 +54,7 @@ describe('DefaultGfzTemplate', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        document.title = '';
     });
 
     it('renders the main layout structure', () => {
@@ -57,6 +73,22 @@ describe('DefaultGfzTemplate', () => {
         expect(screen.getByText('Abstract')).toBeInTheDocument();
     });
 
+    it('renders the server-provided document title through Inertia Head', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: mockResource,
+                documentTitle: 'Test Dataset Title | GFZ Data Services',
+                landingPage: mockLandingPage,
+                isPreview: false,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+
+        render(<DefaultGfzTemplate />);
+
+        expect(document.title).toBe('Test Dataset Title | GFZ Data Services');
+        expect(document.head.querySelector('meta[name="robots"]')).not.toBeInTheDocument();
+    });
+
     it('shows preview banner when isPreview is true', () => {
         mockUsePage.mockReturnValue({
             props: {
@@ -69,6 +101,8 @@ describe('DefaultGfzTemplate', () => {
         render(<DefaultGfzTemplate />);
 
         expect(screen.getByText('Preview Mode')).toBeInTheDocument();
+        expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+        expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('data-inertia', 'landing-page-robots');
     });
 
     it('does not show preview banner when isPreview is false', () => {

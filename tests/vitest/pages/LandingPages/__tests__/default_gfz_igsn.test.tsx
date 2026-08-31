@@ -1,12 +1,25 @@
-import { screen, within } from '@testing-library/react';
-import { render } from '@tests/vitest/utils/render';
-import type { ReactNode } from 'react';
+import { render, screen, within } from '@tests/vitest/utils/render';
+import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia's usePage hook
 vi.mock('@inertiajs/react', () => ({
     usePage: vi.fn(),
-    Head: ({ children }: { children?: ReactNode }) => <>{children}</>,
+    Head: ({ title, children }: { title?: string; children?: ReactNode }) => {
+        if (title !== undefined) document.title = title;
+
+        const managedChildren = Children.map(children, (child) => {
+            if (!isValidElement<Record<string, unknown>>(child)) return child;
+
+            return cloneElement(child, {
+                'data-inertia': child.props['head-key'] ?? '',
+                'head-key': undefined,
+            });
+        });
+
+        return createPortal(managedChildren, document.head);
+    },
 }));
 
 import { usePage } from '@inertiajs/react';
@@ -53,6 +66,7 @@ describe('DefaultGfzIgsnTemplate', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        document.title = '';
     });
 
     describe('Layout Structure', () => {
@@ -69,6 +83,24 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             // Check for main title
             expect(screen.getByText('Rock Sample Core XYZ')).toBeInTheDocument();
+            expect(document.head.querySelector('meta[name="robots"]')).not.toBeInTheDocument();
+        });
+
+        it('renders the server-provided preview title through Inertia Head', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    documentTitle: 'Preview: Rock Sample Core XYZ | GFZ Data Services',
+                    landingPage: mockLandingPage,
+                    isPreview: true,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(document.title).toBe('Preview: Rock Sample Core XYZ | GFZ Data Services');
+            expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+            expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('data-inertia', 'landing-page-robots');
         });
 
         it('renders License & Rights independently of the unavailable Files module', () => {

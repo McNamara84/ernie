@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { type ReactNode, useMemo } from 'react';
 
 import type {
@@ -39,6 +39,7 @@ import { IGSN_LEFT_COLUMN_SECTIONS, IGSN_RIGHT_COLUMN_SECTIONS, normalizeIgsnCol
  */
 interface DefaultGfzIgsnTemplatePageProps {
     resource: LandingPageResource;
+    documentTitle: string;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
     sectionOrder?: SectionOrder | null;
@@ -64,7 +65,7 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
  * with IGSN-specific General and Acquisition modules in the left column.
  */
 export default function DefaultGfzIgsnTemplate() {
-    const { resource, landingPage, isPreview, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
+    const { resource, documentTitle, landingPage, isPreview, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
         usePage<DefaultGfzIgsnTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
@@ -172,24 +173,27 @@ export default function DefaultGfzIgsnTemplate() {
     }, [resource, landingPage, isDark, peopleDisplayLimits, metadataLinks, mainTitle, citationStyles]);
 
     return (
-        <LandingPageShell
-            isPreview={isPreview}
-            isDark={isDark}
-            mainAriaLabel="Sample details"
-            customLogoUrl={customLogoUrl}
-            hero={
-                <ResourceHero
-                    resourceType="IGSN"
-                    status={status}
-                    mainTitle={mainTitle}
-                    subtitle={subtitle}
-                    citation={citation}
-                    citationPresentation={citationPresentation}
-                    useIgsnIcon={true}
-                />
-            }
-            rightColumnSections={orders.right.map((key) => sectionRegistry[key]).filter(Boolean)}
-            leftColumnSections={orders.left.map((key) => sectionRegistry[key]).filter(Boolean)}
-        />
+        <>
+            <Head title={documentTitle}>{isPreview && <meta head-key="landing-page-robots" name="robots" content="noindex, nofollow" />}</Head>
+            <LandingPageShell
+                isPreview={isPreview}
+                isDark={isDark}
+                mainAriaLabel="Sample details"
+                customLogoUrl={customLogoUrl}
+                hero={
+                    <ResourceHero
+                        resourceType="IGSN"
+                        status={status}
+                        mainTitle={mainTitle}
+                        subtitle={subtitle}
+                        citation={citation}
+                        citationPresentation={citationPresentation}
+                        useIgsnIcon={true}
+                    />
+                }
+                rightColumnSections={orders.right.map((key) => sectionRegistry[key]).filter(Boolean)}
+                leftColumnSections={orders.left.map((key) => sectionRegistry[key]).filter(Boolean)}
+            />
+        </>
     );
 }

@@ -1,7 +1,19 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
 import { ResourcesPage } from '../helpers/page-objects/ResourcesPage';
+
+async function gotoWithLocalTlsRetry(page: Page, path: string): Promise<void> {
+    const navigate = () => page.goto(path, { waitUntil: 'domcontentloaded' as const, timeout: 60_000 });
+
+    await navigate().catch((error: unknown) => {
+        if (!(error instanceof Error) || !error.message.includes('SSL connect error')) {
+            throw error;
+        }
+
+        return navigate();
+    });
+}
 
 test.describe('Landing Page Preview (Setup Modal)', () => {
     test.beforeEach(async ({ page, request }) => {
@@ -70,7 +82,7 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
                 .toMatch(/^200:.*javascript/i);
         }
 
-        await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 60_000 });
+        await gotoWithLocalTlsRetry(page, '/login');
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
         await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
         await page.getByRole('button', { name: 'Log in' }).click();
@@ -92,10 +104,13 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
 
         await resourcesPage.verifyResourcesDisplayed();
 
-        // Open landing page setup modal for the first visible resource via the bulk actions toolbar.
-        const firstResourceRow = resourcesPage.resourceTable.locator('tbody tr').first();
-        await expect(firstResourceRow).toBeVisible();
-        await firstResourceRow.getByRole('checkbox').click();
+        // Use the dedicated fixture without a saved landing page so Preview must
+        // create the session-based preview that this test is intended to cover.
+        const previewResourceTitle = 'Playwright: Curation Resource (no landing page)';
+        await resourcesPage.search(previewResourceTitle);
+        const previewResourceRow = resourcesPage.resourceTable.locator('tbody tr').filter({ hasText: previewResourceTitle }).first();
+        await expect(previewResourceRow).toBeVisible();
+        await previewResourceRow.getByRole('checkbox').click();
         await expect(page.getByText(/^1 resource selected$/)).toBeVisible();
         const setupLandingPageButton = page.getByTestId('resources-action-setup-landing-page');
         if (!(await setupLandingPageButton.isVisible().catch(() => false))) {
@@ -117,42 +132,23 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
 
         const [previewPage] = await Promise.all([context.waitForEvent('page'), previewButton.click()]);
 
-        // Depending on environment/config, the preview can open either:
-        // - the internal preview route: /resources/{id}/landing-page/preview
-        // - semantic URL with preview token: /{doi}/{slug}?preview=... or /draft-{id}/{slug}?preview=...
-        //
-        // We use a simplified pattern that validates the general structure without
-        // duplicating the exact regex from route constraints. This reduces maintenance
-        // burden - if route patterns change, this test only needs updating if the
-        // general URL structure changes.
-        const previewUrlRegex = new RegExp(
-            // Match: /resources/N/landing-page/preview OR /10.NNNN/path/slug?preview= OR /draft-N/slug?preview=
-            '/(resources/\\d+/landing-page/preview|10\\.\\d+/.+/[a-z0-9-]+\\?preview=|draft-\\d+/[a-z0-9-]+\\?preview=)',
-        );
+        const sessionPreviewPath = /^\/resources\/\d+\/landing-page\/preview$/;
 
         // Firefox can briefly expose the opener URL for the synchronously
         // created placeholder tab. Wait for the actual preview navigation
         // instead of treating any URL other than about:blank as final.
-        await previewPage.waitForURL((url) => previewUrlRegex.test(url.href), {
+        await previewPage.waitForURL((url) => sessionPreviewPath.test(url.pathname), {
             timeout: 30_000,
-            waitUntil: 'domcontentloaded',
+            waitUntil: 'commit',
         });
 
-        // Verify the preview URL format.
-        const previewUrl = previewPage.url();
-        const isValidPreviewUrl = previewUrlRegex.test(previewUrl);
-        expect(
-            isValidPreviewUrl,
-            `Expected preview URL to match pattern: /resources/{id}/landing-page/preview or /{doi}/{slug}?preview= or /draft-{id}/{slug}?preview=. Got: ${previewUrl}`,
-        ).toBeTruthy();
-
-        // For semantic URLs, verify the preview token parameter is actually present
-        if (!previewUrl.includes('/landing-page/preview')) {
-            expect(previewUrl).toContain('?preview=');
-        }
+        expect(new URL(previewPage.url()).pathname).toMatch(sessionPreviewPath);
 
         // The default template shows this banner in preview mode
         await expect(previewPage.getByText('Preview Mode')).toBeVisible({ timeout: 15000 });
+        await expect(previewPage).toHaveTitle(/^Preview: .+ \| GFZ Data Services$/);
+        await expect(previewPage.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+        await expect(previewPage.locator('meta[name="robots"]')).toHaveAttribute('data-inertia', 'landing-page-robots');
 
         // Sanity: should not be a generic Laravel error page
         await expect(previewPage.getByText(/server error|whoops/i)).not.toBeVisible();
