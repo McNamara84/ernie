@@ -13,8 +13,8 @@ export function SettingsSectionSummary({ items }: SettingsSectionSummaryProps) {
 
     return (
         <span className="flex flex-wrap gap-1.5" aria-label={accessibleSummary}>
-            {items.map((item) => (
-                <Badge key={item} variant="secondary" className="font-normal" aria-hidden="true">
+            {items.map((item, index) => (
+                <Badge key={index} variant="secondary" className="font-normal" aria-hidden="true">
                     {item}
                 </Badge>
             ))}

@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import { render, screen } from '@tests/vitest/utils/render';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { pluralizedCount, SettingsSectionSummary } from '@/components/settings/settings-section-summary';
 
@@ -20,5 +20,18 @@ describe('SettingsSectionSummary', () => {
         expect(screen.getByText('3 licenses')).toHaveAttribute('aria-hidden', 'true');
         expect(screen.getByText('2 ERNIE')).toHaveAttribute('aria-hidden', 'true');
         expect(screen.getByText('1 ELMO')).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('renders duplicate labels without React key collisions', () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        try {
+            render(<SettingsSectionSummary items={['1 active', '1 active']} />);
+
+            expect(screen.getAllByText('1 active')).toHaveLength(2);
+            expect(consoleError).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
     });
 });
