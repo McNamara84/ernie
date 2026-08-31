@@ -404,6 +404,52 @@ describe('Session Preview Display', function () {
         expect($template->fresh()?->left_column_order)->toBe($storedOrder);
     });
 
+    test('preview display passes a complete cross-column Resource template layout unchanged', function () {
+        $left = [
+            'abstract',
+            'methods',
+            'licenses',
+            'citation',
+            'dates',
+            'contact',
+            'model_description',
+            'related_work',
+            'location',
+        ];
+        $right = [
+            'files',
+            'technical_info',
+            'series_information',
+            'table_of_contents',
+            'other',
+            'creators',
+            'contributors',
+            'funders',
+            'keywords',
+            'metadata_download',
+        ];
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+            'left_column_order' => $left,
+            'right_column_order' => $right,
+        ]);
+
+        Session::put("landing_page_preview.{$this->resource->id}", [
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $template->id,
+            'resource_id' => $this->resource->id,
+        ]);
+
+        $this->get("/resources/{$this->resource->id}/landing-page/preview")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('landingPage.landing_page_template_id', $template->id)
+                ->where('sectionOrder.leftColumn', $left)
+                ->where('sectionOrder.rightColumn', $right)
+            );
+    });
+
     test('preview display passes custom section order and logo for igsn custom templates', function () {
         $physicalObjectType = ResourceType::firstOrCreate(
             ['slug' => 'physical-object'],

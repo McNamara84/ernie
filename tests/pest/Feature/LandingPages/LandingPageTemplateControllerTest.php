@@ -101,6 +101,116 @@ describe('Flexible IGSN columns for Issue 1168', function (): void {
     });
 });
 
+describe('Flexible Resource template columns', function (): void {
+    it('accepts every Resource module in either column including an empty column', function (): void {
+        expect(LandingPageTemplate::isValidResourceSectionLayout(
+            LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
+            LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+        ))->toBeTrue()
+            ->and(LandingPageTemplate::isValidResourceSectionLayout([], LandingPageTemplate::RESOURCE_SECTIONS))->toBeTrue()
+            ->and(LandingPageTemplate::isValidResourceSectionLayout(LandingPageTemplate::RESOURCE_SECTIONS, []))->toBeTrue();
+    });
+
+    it('rejects incomplete duplicate foreign and regrouped Resource layouts', function (): void {
+        $withoutLocation = array_values(array_filter(
+            LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+            static fn (string $key): bool => $key !== 'location',
+        ));
+        $splitMetadata = [
+            'abstract',
+            'location',
+            ...array_values(array_filter(
+                LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+                static fn (string $key): bool => ! in_array($key, ['abstract', 'location'], true),
+            )),
+        ];
+
+        expect(LandingPageTemplate::isValidResourceSectionLayout(
+            LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
+            $withoutLocation,
+        ))->toBeFalse()
+            ->and(LandingPageTemplate::isValidResourceSectionLayout(
+                [...LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS, 'location'],
+                LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+            ))->toBeFalse()
+            ->and(LandingPageTemplate::isValidResourceSectionLayout(
+                [...LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS, 'sample_image'],
+                LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+            ))->toBeFalse()
+            ->and(LandingPageTemplate::isValidResourceSectionLayout(
+                LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
+                $splitMetadata,
+            ))->toBeFalse();
+    });
+
+    it('normalizes legacy Resource layouts while preserving known cross-column ownership', function (): void {
+        $orders = LandingPageTemplate::normalizeResourceSectionOrders(
+            ['location', 'descriptions', 'files', 'files', 'unknown'],
+            ['contact', 'abstract'],
+        );
+        $combined = [...$orders['left'], ...$orders['right']];
+
+        expect(LandingPageTemplate::isValidResourceSectionLayout($orders['left'], $orders['right']))->toBeTrue()
+            ->and($combined)->toHaveCount(count(LandingPageTemplate::RESOURCE_SECTIONS))
+            ->and(collect($combined)->duplicates()->all())->toBe([])
+            ->and($orders['left'][0])->toBe('location')
+            ->and($orders['right'][0])->toBe('contact');
+    });
+
+    it('persists a cross-column Resource layout and requires both columns together', function (): void {
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+        $left = array_values(array_filter(
+            LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
+            static fn (string $key): bool => $key !== 'files',
+        ));
+        $right = ['files', ...LandingPageTemplate::RIGHT_COLUMN_SECTIONS];
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'left_column_order' => $left,
+                'right_column_order' => $right,
+            ])
+            ->assertOk();
+
+        expect($template->fresh()->left_column_order)->toBe($left)
+            ->and($template->fresh()->right_column_order)->toBe($right);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", ['left_column_order' => LandingPageTemplate::RESOURCE_SECTIONS])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('right_column_order');
+    });
+
+    it('rejects IGSN-only modules and metadata block splitting in Resource layouts', function (): void {
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'left_column_order' => [...LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS, 'general'],
+                'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('left_column_order.7');
+
+        $splitRight = [
+            'abstract',
+            'location',
+            ...array_values(array_filter(
+                LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+                static fn (string $key): bool => ! in_array($key, ['abstract', 'location'], true),
+            )),
+        ];
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'left_column_order' => LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
+                'right_column_order' => $splitRight,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('right_column_order');
+    });
+});
+
 function locationFirstRightColumnOrder(): array
 {
     return [
@@ -446,7 +556,7 @@ describe('Update', function (): void {
             ->and($template->citation_author_display_limit)->toBe(70);
     });
 
-    it('normalizes location to the end when it is submitted in the middle of the right column order', function (): void {
+    it('rejects a standalone module that splits the shared Resource metadata block', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         $submittedRightOrder = [
@@ -466,11 +576,11 @@ describe('Update', function (): void {
 
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
+                'left_column_order' => LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
                 'right_column_order' => $submittedRightOrder,
             ])
-            ->assertOk();
-
-        expect($template->fresh()->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS);
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('right_column_order');
     });
 
     it('prevents updating the default template', function (): void {
@@ -514,7 +624,7 @@ describe('Update', function (): void {
             ->assertJsonValidationErrors(['creator_display_limit', 'contributor_display_limit', 'citation_author_display_limit']);
     })->with([0, -1, 501, 'abc', 10.5]);
 
-    it('forgets affected cached public landing page render data after template updates', function (): void {
+    it('forgets affected cached public landing page render data after a Resource column change', function (): void {
         Cache::flush();
 
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
@@ -531,9 +641,11 @@ describe('Update', function (): void {
 
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
-                'creator_display_limit' => 45,
-                'contributor_display_limit' => 55,
-                'citation_author_display_limit' => 65,
+                'left_column_order' => array_values(array_filter(
+                    LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
+                    static fn (string $key): bool => $key !== 'files',
+                )),
+                'right_column_order' => ['files', ...LandingPageTemplate::RIGHT_COLUMN_SECTIONS],
             ])
             ->assertOk();
 
@@ -627,9 +739,10 @@ describe('Update', function (): void {
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'name' => 'Valid Name',
+                'left_column_order' => LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
                 'right_column_order' => ['abstract', 'invalid_section'],
             ])
-            ->assertJsonValidationErrors(['right_column_order']);
+            ->assertJsonValidationErrors(['right_column_order.1']);
     });
 
     it('rejects right column with missing sections', function (): void {
@@ -639,6 +752,7 @@ describe('Update', function (): void {
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'name' => 'Valid Name',
+                'left_column_order' => LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
                 'right_column_order' => ['abstract', 'creators'],
             ])
             ->assertJsonValidationErrors(['right_column_order']);
@@ -651,8 +765,9 @@ describe('Update', function (): void {
             ->putJson("/landing-pages/{$template->id}", [
                 'name' => 'Valid Name',
                 'left_column_order' => ['files', 'nonexistent'],
+                'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
             ])
-            ->assertJsonValidationErrors(['left_column_order']);
+            ->assertJsonValidationErrors(['left_column_order.1']);
     });
 
     it('rejects files in the left column for igsn templates', function (): void {
@@ -672,8 +787,9 @@ describe('Update', function (): void {
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'left_column_order' => $leftOrder,
+                'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
             ])
-            ->assertJsonValidationErrors(['left_column_order']);
+            ->assertJsonValidationErrors(['right_column_order']);
     })->with([
         'missing citation' => [['files', 'dates', 'contact', 'model_description', 'related_work']],
         'duplicate citation' => [
@@ -1429,22 +1545,14 @@ describe('Update Edge Cases', function (): void {
             ->and($template->left_column_order)->toBe($originalLeftOrder);
     });
 
-    it('updates only right column order', function (): void {
+    it('requires the left column when updating the right column order', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
-        $originalName = $template->name;
-        $originalLeftOrder = $template->left_column_order;
-
         $newRightOrder = locationFirstRightColumnOrder();
 
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", ['right_column_order' => $newRightOrder])
-            ->assertOk();
-
-        $template->refresh();
-
-        expect($template->name)->toBe($originalName)
-            ->and($template->right_column_order)->toBe($newRightOrder)
-            ->and($template->left_column_order)->toBe($originalLeftOrder);
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('left_column_order');
     });
 
     it('allows group leaders to update custom templates', function (): void {
@@ -1486,12 +1594,13 @@ describe('Update Edge Cases', function (): void {
     it('validates left column section order completeness', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        // Only 2 of 6 required left column sections
+        // Only 2 of all required Resource modules.
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'left_column_order' => ['files', 'contact'],
+                'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
             ])
-            ->assertJsonValidationErrors(['left_column_order']);
+            ->assertJsonValidationErrors(['right_column_order']);
     });
 });
 

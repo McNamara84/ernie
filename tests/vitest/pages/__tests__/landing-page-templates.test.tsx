@@ -827,8 +827,80 @@ describe('LandingPageTemplatesPage', () => {
             expect(leftEditorTitle).toBeInTheDocument();
             expect(rightEditorTitle).toBeInTheDocument();
             expect(leftEditorTitle.compareDocumentPosition(rightEditorTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-            expect(screen.getByText(/Description modules render inside one shared metadata card/i)).toBeInTheDocument();
+            expect(screen.getByText(/Every Resource module can be reordered or moved between either column/i)).toBeInTheDocument();
             expect(within(screen.getByRole('dialog')).getByText('Cite this Resource')).toBeInTheDocument();
+        });
+
+        it('moves a Resource module to the other column and persists both complete columns', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getAllByRole('button', { name: /Edit/i })[0]);
+
+            act(() => dndContextMock.startHandlers.at(-1)?.({ active: { id: 'files' } }));
+            act(() => dndContextMock.overHandlers.at(-1)?.({ active: { id: 'files' }, over: { id: 'abstract' } }));
+            act(() => dndContextMock.handlers.at(-1)?.({ active: { id: 'files' }, over: { id: 'abstract' } }));
+
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    `/landing-pages/${customTemplate.id}`,
+                    expect.objectContaining({
+                        left_column_order: expect.not.arrayContaining(['files']),
+                        right_column_order: expect.arrayContaining(['files', 'abstract']),
+                    }),
+                );
+            });
+
+            const payload = mockedAxiosPut.mock.calls.at(-1)?.[1] as {
+                left_column_order: string[];
+                right_column_order: string[];
+            };
+            expect(payload.right_column_order.indexOf('files')).toBe(payload.right_column_order.indexOf('abstract') - 1);
+            expect(new Set([...payload.left_column_order, ...payload.right_column_order]).size).toBe(19);
+        });
+
+        it('keeps Resource metadata grouped and restores the layout after a drop outside both columns', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getAllByRole('button', { name: /Edit/i })[0]);
+
+            act(() => dndContextMock.startHandlers.at(-1)?.({ active: { id: 'abstract' } }));
+            act(() => dndContextMock.overHandlers.at(-1)?.({ active: { id: 'abstract' }, over: { id: 'files' } }));
+            act(() => dndContextMock.handlers.at(-1)?.({ active: { id: 'abstract' }, over: null }));
+
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            const payload = await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalled();
+
+                return mockedAxiosPut.mock.calls.at(-1)?.[1] as {
+                    left_column_order: string[];
+                    right_column_order: string[];
+                };
+            });
+            expect(payload.left_column_order).not.toContain('abstract');
+            expect(payload.right_column_order).toContain('abstract');
+        });
+
+        it('shows only Resource modules in a Resource template editor', async () => {
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getAllByRole('button', { name: /Edit/i })[0]);
+
+            const dialog = screen.getByRole('dialog');
+            expect(within(dialog).queryByText('General')).not.toBeInTheDocument();
+            expect(within(dialog).queryByText('Sample Family')).not.toBeInTheDocument();
+            expect(within(dialog).queryByText('Acquisition')).not.toBeInTheDocument();
+            expect(within(dialog).queryByText('Repositories')).not.toBeInTheDocument();
+            expect(within(dialog).queryByText('Sample Image')).not.toBeInTheDocument();
+            expect(within(dialog).getByText('Files & Downloads')).toBeInTheDocument();
+            expect(within(dialog).getByText('Location / Map')).toBeInTheDocument();
         });
 
         it('reorders citation by drag-and-drop and persists it exactly once', async () => {

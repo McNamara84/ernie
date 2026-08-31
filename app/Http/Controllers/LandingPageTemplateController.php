@@ -431,14 +431,14 @@ class LandingPageTemplateController extends Controller
                 $template->left_column_order,
                 $template->right_column_order,
             );
-            $payload['left_column_order'] = $orders['left'];
-            $payload['right_column_order'] = $orders['right'];
         } else {
-            $payload['left_column_order'] = LandingPageTemplate::normalizeLeftColumnOrder(
+            $orders = LandingPageTemplate::normalizeResourceSectionOrders(
                 $template->left_column_order,
-                $template->template_type,
+                $template->right_column_order,
             );
         }
+        $payload['left_column_order'] = $orders['left'];
+        $payload['right_column_order'] = $orders['right'];
 
         return $payload;
     }

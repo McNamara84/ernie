@@ -127,6 +127,22 @@ class LandingPageTemplate extends Model
         'related_work',
     ];
 
+    /** Resource metadata modules rendered together inside the shared metadata card. */
+    public const RESOURCE_METADATA_SECTIONS = [
+        ...self::DESCRIPTION_COLUMN_SECTIONS,
+        'creators',
+        'contributors',
+        'funders',
+        'keywords',
+        'metadata_download',
+    ];
+
+    /** Every independently configurable module supported by resource templates. */
+    public const RESOURCE_SECTIONS = [
+        ...self::RESOURCE_LEFT_COLUMN_SECTIONS,
+        ...self::RIGHT_COLUMN_SECTIONS,
+    ];
+
     /**
      * Valid left-column sections for IGSN landing pages.
      *
@@ -379,6 +395,20 @@ class LandingPageTemplate extends Model
     }
 
     /**
+     * Validate both resource columns as one complete layout while retaining the
+     * shared metadata-card grouping within each column.
+     *
+     * @param  array<int, string>  $left
+     * @param  array<int, string>  $right
+     */
+    public static function isValidResourceSectionLayout(array $left, array $right): bool
+    {
+        return self::isValidSectionOrder([...$left, ...$right], self::RESOURCE_SECTIONS)
+            && self::hasContiguousResourceMetadataBlock($left)
+            && self::hasContiguousResourceMetadataBlock($right);
+    }
+
+    /**
      * Keep `location` as a standalone card before or after the shared metadata card.
      *
      * When the editor submits `location` in the middle of the right-column list,
@@ -530,6 +560,144 @@ class LandingPageTemplate extends Model
         }
 
         return ['left' => $normalizedLeft, 'right' => $normalizedRight];
+    }
+
+    /**
+     * Normalize legacy or malformed resource layouts across both columns.
+     *
+     * Known module ownership and relative ordering are preserved. Missing
+     * modules are restored to their canonical column, while metadata modules in
+     * each column stay together because they render inside one shared card.
+     *
+     * @param  array<int, string>  $left
+     * @param  array<int, string>  $right
+     * @return array{left: list<string>, right: list<string>}
+     */
+    public static function normalizeResourceSectionOrders(array $left, array $right): array
+    {
+        $valid = array_fill_keys(self::RESOURCE_SECTIONS, true);
+        $seen = [];
+        $normalizedLeft = [];
+        $normalizedRight = [];
+
+        self::appendKnownResourceSections($normalizedLeft, $left, $valid, $seen);
+        self::appendKnownResourceSections($normalizedRight, $right, $valid, $seen);
+
+        $hasStoredCitation = isset($seen['citation']);
+
+        if (! isset($seen['licenses'])) {
+            $seen['licenses'] = true;
+            $filesIndex = array_search('files', $normalizedLeft, true);
+            $citationIndex = array_search('citation', $normalizedLeft, true);
+            $insertAt = $filesIndex !== false
+                ? $filesIndex + 1
+                : ($citationIndex !== false ? $citationIndex : count($normalizedLeft));
+            array_splice($normalizedLeft, $insertAt, 0, ['licenses']);
+        }
+
+        foreach (self::RESOURCE_LEFT_COLUMN_SECTIONS as $key) {
+            if ($key === 'licenses' || ($key === 'citation' && ! $hasStoredCitation)) {
+                continue;
+            }
+
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $normalizedLeft[] = $key;
+            }
+        }
+
+        if (! $hasStoredCitation) {
+            $seen['citation'] = true;
+            $normalizedLeft[] = 'citation';
+        }
+
+        foreach (self::RIGHT_COLUMN_SECTIONS as $key) {
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $normalizedRight[] = $key;
+            }
+        }
+
+        return [
+            'left' => self::groupResourceMetadataSections($normalizedLeft),
+            'right' => self::groupResourceMetadataSections($normalizedRight),
+        ];
+    }
+
+    /**
+     * @param  list<string>  $target
+     * @param  array<int, string>  $stored
+     * @param  array<string, true>  $valid
+     * @param  array<string, true>  $seen
+     */
+    private static function appendKnownResourceSections(array &$target, array $stored, array $valid, array &$seen): void
+    {
+        foreach ($stored as $key) {
+            $keys = $key === 'descriptions' ? self::DESCRIPTION_COLUMN_SECTIONS : [$key];
+
+            foreach ($keys as $expandedKey) {
+                if (! isset($valid[$expandedKey]) || isset($seen[$expandedKey])) {
+                    continue;
+                }
+
+                $seen[$expandedKey] = true;
+                $target[] = $expandedKey;
+            }
+        }
+    }
+
+    /**
+     * Keep all metadata modules in their existing relative order and place the
+     * shared block at the first metadata module's position.
+     *
+     * @param  list<string>  $order
+     * @return list<string>
+     */
+    private static function groupResourceMetadataSections(array $order): array
+    {
+        $metadataSet = array_fill_keys(self::RESOURCE_METADATA_SECTIONS, true);
+        $metadata = [];
+        $standalone = [];
+        $insertAt = null;
+
+        foreach ($order as $key) {
+            if (isset($metadataSet[$key])) {
+                $insertAt ??= count($standalone);
+                $metadata[] = $key;
+            } else {
+                $standalone[] = $key;
+            }
+        }
+
+        if ($metadata === []) {
+            return $standalone;
+        }
+
+        array_splice($standalone, $insertAt ?? count($standalone), 0, $metadata);
+
+        return $standalone;
+    }
+
+    /** @param array<int, string> $order */
+    private static function hasContiguousResourceMetadataBlock(array $order): bool
+    {
+        $metadataSet = array_fill_keys(self::RESOURCE_METADATA_SECTIONS, true);
+        $insideBlock = false;
+        $blockEnded = false;
+
+        foreach ($order as $key) {
+            if (isset($metadataSet[$key])) {
+                if ($blockEnded) {
+                    return false;
+                }
+
+                $insideBlock = true;
+            } elseif ($insideBlock) {
+                $blockEnded = true;
+            }
+        }
+
+        return true;
     }
 
     /**

@@ -58,7 +58,29 @@ export type IgsnSection =
     | 'sample_image'
     | 'location';
 
-export type TemplateSection = LeftColumnSection | RightColumnSection | IgsnSection;
+/** Every module supported by regular resource landing-page templates. */
+export type ResourceSection =
+    | 'files'
+    | 'licenses'
+    | 'citation'
+    | 'dates'
+    | 'contact'
+    | 'model_description'
+    | 'related_work'
+    | 'abstract'
+    | 'methods'
+    | 'technical_info'
+    | 'series_information'
+    | 'table_of_contents'
+    | 'other'
+    | 'creators'
+    | 'contributors'
+    | 'funders'
+    | 'keywords'
+    | 'metadata_download'
+    | 'location';
+
+export type TemplateSection = LeftColumnSection | RightColumnSection | IgsnSection | ResourceSection;
 
 /**
  * Section order configuration for landing page templates.

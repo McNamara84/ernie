@@ -341,6 +341,8 @@ Use `--limit` for bounded rollout batches, repeat `--doi` to select multiple han
 
 IGSN landing-page templates expose every IGSN module, including Sample Image and Location, in a shared two-column editor. Modules can be reordered within a column or moved across columns; each module must occur exactly once across the saved layout. The built-in `Templates IGSN` copy template places Sample Image in the right column immediately before Location.
 
+Cloned Resource landing-page templates use the same two-column interaction, but expose only Resource modules. Every module can be reordered or moved between columns and must occur exactly once across the complete layout. Description, people, funding, keyword, and metadata-download modules retain the existing shared metadata card in each occupied column; moving them does not create separate cards. The built-in `Templates Resources` copy template remains immutable and keeps the canonical layout used for new clones.
+
 ### DataCite landing-page domain migration
 
 The admin-only actions on `/resources` and `/igsns` use a persistent queue and the shared application cache. The Docker worker consumes the dedicated `datacite` queue. Queue connections whose configured driver is `sync` or `null` are rejected regardless of the connection name, because the run must survive request timeouts, browser navigation, deployments, and worker restarts.

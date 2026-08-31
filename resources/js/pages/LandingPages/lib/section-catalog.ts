@@ -1,6 +1,15 @@
-import type { IgsnSection, LandingPageTemplateConfig, LeftColumnSection, RightColumnSection, TemplateSection } from '@/types/landing-page';
+import type {
+    IgsnSection,
+    LandingPageTemplateConfig,
+    LeftColumnSection,
+    ResourceSection,
+    RightColumnSection,
+    TemplateSection,
+} from '@/types/landing-page';
 
 import { DESCRIPTION_SECTION_KEYS, LEGACY_DESCRIPTIONS_SECTION_KEY } from './metadata-sections';
+
+type CanonicalRightColumnSection = Exclude<RightColumnSection, 'descriptions'>;
 
 export const RIGHT_SECTION_LABELS: Record<RightColumnSection, string> = {
     descriptions: 'Abstract & Descriptions',
@@ -64,7 +73,7 @@ export const SECTION_LABELS: Record<TemplateSection, string> = {
     ...IGSN_SECTION_LABELS,
 };
 
-export const RIGHT_COLUMN_SECTIONS: RightColumnSection[] = [
+export const RIGHT_COLUMN_SECTIONS: CanonicalRightColumnSection[] = [
     ...DESCRIPTION_SECTION_KEYS,
     'creators',
     'contributors',
@@ -74,7 +83,7 @@ export const RIGHT_COLUMN_SECTIONS: RightColumnSection[] = [
     'location',
 ];
 
-export const RESOURCE_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
+export const RESOURCE_LEFT_COLUMN_SECTIONS: Array<Extract<ResourceSection, LeftColumnSection>> = [
     'files',
     'licenses',
     'citation',
@@ -82,6 +91,20 @@ export const RESOURCE_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
     'contact',
     'model_description',
     'related_work',
+];
+
+export const RESOURCE_METADATA_SECTIONS: ResourceSection[] = [
+    ...DESCRIPTION_SECTION_KEYS,
+    'creators',
+    'contributors',
+    'funders',
+    'keywords',
+    'metadata_download',
+];
+
+export const RESOURCE_SECTIONS: ResourceSection[] = [
+    ...(RESOURCE_LEFT_COLUMN_SECTIONS as ResourceSection[]),
+    ...(RIGHT_COLUMN_SECTIONS as ResourceSection[]),
 ];
 
 export const IGSN_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
@@ -168,7 +191,7 @@ export function normalizeRightColumnOrder(stored: readonly TemplateSection[]): R
             if (key === 'location') return true;
             if (key === LEGACY_DESCRIPTIONS_SECTION_KEY) return true;
 
-            return RIGHT_COLUMN_SECTIONS.includes(key as RightColumnSection);
+            return RIGHT_COLUMN_SECTIONS.includes(key as CanonicalRightColumnSection);
         }) === 'location';
 
     const metadataItems: RightColumnSection[] = [];
@@ -188,7 +211,7 @@ export function normalizeRightColumnOrder(stored: readonly TemplateSection[]): R
             continue;
         }
 
-        if (!RIGHT_COLUMN_SECTIONS.includes(key as RightColumnSection) || seen.has(key as RightColumnSection)) {
+        if (!RIGHT_COLUMN_SECTIONS.includes(key as CanonicalRightColumnSection) || seen.has(key as RightColumnSection)) {
             continue;
         }
 
@@ -262,4 +285,73 @@ export function normalizeIgsnColumnOrders(
     }
 
     return { left, right };
+}
+
+function groupResourceMetadataSections(order: ResourceSection[]): ResourceSection[] {
+    const metadataSet = new Set<ResourceSection>(RESOURCE_METADATA_SECTIONS);
+    const metadata: ResourceSection[] = [];
+    const standalone: ResourceSection[] = [];
+    let insertAt: number | null = null;
+
+    for (const section of order) {
+        if (metadataSet.has(section)) {
+            insertAt ??= standalone.length;
+            metadata.push(section);
+        } else {
+            standalone.push(section);
+        }
+    }
+
+    if (metadata.length > 0) {
+        standalone.splice(insertAt ?? standalone.length, 0, ...metadata);
+    }
+
+    return standalone;
+}
+
+export function normalizeResourceColumnOrders(
+    storedLeft: readonly TemplateSection[],
+    storedRight: readonly TemplateSection[],
+): { left: ResourceSection[]; right: ResourceSection[] } {
+    const valid = new Set<ResourceSection>(RESOURCE_SECTIONS);
+    const seen = new Set<ResourceSection>();
+    const left: ResourceSection[] = [];
+    const right: ResourceSection[] = [];
+
+    const appendKnown = (target: ResourceSection[], values: readonly TemplateSection[]) => {
+        for (const value of values) {
+            const sections = value === LEGACY_DESCRIPTIONS_SECTION_KEY ? DESCRIPTION_SECTION_KEYS : [value];
+
+            for (const candidate of sections) {
+                const section = candidate as ResourceSection;
+                if (!valid.has(section) || seen.has(section)) continue;
+                seen.add(section);
+                target.push(section);
+            }
+        }
+    };
+
+    appendKnown(left, storedLeft);
+    appendKnown(right, storedRight);
+    const hasStoredCitation = seen.has('citation');
+
+    if (!seen.has('licenses')) {
+        const filesIndex = left.indexOf('files');
+        const citationIndex = left.indexOf('citation');
+        const insertAt = filesIndex !== -1 ? filesIndex + 1 : citationIndex !== -1 ? citationIndex : left.length;
+        left.splice(insertAt, 0, 'licenses');
+        seen.add('licenses');
+    }
+
+    appendKnown(left, hasStoredCitation ? RESOURCE_LEFT_COLUMN_SECTIONS : RESOURCE_LEFT_COLUMN_SECTIONS.filter((section) => section !== 'citation'));
+    if (!hasStoredCitation) {
+        seen.add('citation');
+        left.push('citation');
+    }
+    appendKnown(right, RIGHT_COLUMN_SECTIONS);
+
+    return {
+        left: groupResourceMetadataSections(left),
+        right: groupResourceMetadataSections(right),
+    };
 }

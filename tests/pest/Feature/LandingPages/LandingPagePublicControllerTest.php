@@ -988,6 +988,62 @@ describe('External Landing Page Redirect', function () {
 });
 
 describe('Landing Page with Custom Template', function () {
+    test('inherits a cross-column Resource layout from the resource datacenter', function () {
+        $left = [
+            'abstract',
+            'methods',
+            'licenses',
+            'citation',
+            'dates',
+            'contact',
+            'model_description',
+            'related_work',
+            'location',
+        ];
+        $right = [
+            'files',
+            'technical_info',
+            'series_information',
+            'table_of_contents',
+            'other',
+            'creators',
+            'contributors',
+            'funders',
+            'keywords',
+            'metadata_download',
+        ];
+        $template = LandingPageTemplate::factory()->create([
+            'left_column_order' => $left,
+            'right_column_order' => $right,
+        ]);
+        $datacenter = Datacenter::factory()->create([
+            'landing_page_template_id' => $template->id,
+        ]);
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/test.public.resource.inherited',
+            'datacenter_id' => $datacenter->id,
+        ]);
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/test.public.resource.inherited',
+                'slug' => 'resource-inherited-cross-column-template',
+                'template' => 'default_gfz',
+                'landing_page_template_id' => null,
+            ]);
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('landingPageTemplateSource', 'datacenter')
+                ->where('effectiveLandingPageTemplate.id', $template->id)
+                ->where('sectionOrder.leftColumn', $left)
+                ->where('sectionOrder.rightColumn', $right)
+            );
+    });
+
     test('inherits a custom IGSN template and header logo from the GFZ datacenter', function () {
         $physicalObjectType = ResourceType::firstOrCreate(
             ['slug' => 'physical-object'],
