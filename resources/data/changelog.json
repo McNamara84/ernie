@@ -1,5 +1,17 @@
 [
     {
+        "version": "1.0.7",
+        "date": "2026-08-31",
+        "features": [],
+        "improvements": [
+            {
+                "title": "Focused Editor Settings",
+                "description": "Editor Settings are now organized as a full-width accordion that starts collapsed and keeps one section open at a time. Section headings show the summaries relevant to their controls, including live item and ERNIE/ELMO counts where available. Long license identifiers stay compact while their complete value remains accessible, and a sticky save bar clearly distinguishes unsaved form changes from Domains and Datacenters that save immediately."
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.0.6",
         "date": "2026-08-31",
         "features": [],
