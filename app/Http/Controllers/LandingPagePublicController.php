@@ -274,9 +274,10 @@ class LandingPagePublicController extends Controller
     ): HttpResponse|RedirectResponse {
         // Normalize preview token: treat empty string as null for consistent checks
         $previewToken = $this->normalizePreviewToken($previewToken);
+        $isPublished = $landingPage->isPublished();
 
         // Check access permissions
-        if (! $landingPage->isPublished()) {
+        if (! $isPublished) {
             if ($previewToken === null) {
                 abort(HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
             }
@@ -284,6 +285,7 @@ class LandingPagePublicController extends Controller
                 abort(HttpResponse::HTTP_FORBIDDEN, 'Invalid preview token');
             }
         }
+        $isPreview = ! $isPublished;
 
         // External landing pages: 301 redirect to the configured external URL
         if ($landingPage->isExternal()) {
@@ -302,26 +304,25 @@ class LandingPagePublicController extends Controller
             }
 
             // Increment view count for published pages (before redirect)
-            if ($landingPage->isPublished() && $previewToken === null) {
+            if (! $isPreview) {
                 $viewCounter->record($request, $landingPage);
             }
 
-            // Use 301 (permanent) for published pages accessed without a preview token,
-            // and 302 (temporary) for draft previews. Browsers/proxies cache 301 responses,
-            // which would cause issues when previewing drafts that may change or be removed.
-            $statusCode = ($landingPage->isPublished() && $previewToken === null)
-                ? HttpResponse::HTTP_MOVED_PERMANENTLY
-                : HttpResponse::HTTP_FOUND;
+            // Published pages always use a permanent redirect. Only authorized draft
+            // previews use a temporary redirect so browsers do not cache preview targets.
+            $statusCode = $isPreview
+                ? HttpResponse::HTTP_FOUND
+                : HttpResponse::HTTP_MOVED_PERMANENTLY;
 
             return redirect()->to($externalUrl, $statusCode);
         }
 
-        // Increment view count only for published pages without preview token
-        if ($landingPage->isPublished() && $previewToken === null) {
+        // Published requests remain public even when an irrelevant preview query is present.
+        if (! $isPreview) {
             $viewCounter->record($request, $landingPage);
         }
 
-        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $templateResolver, $documentMetadataService, $machineMetadataService, $previewToken): array {
+        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $templateResolver, $documentMetadataService, $machineMetadataService, $isPreview): array {
             // Load resource with all necessary relationships
             $resource = Resource::with($transformer->requiredRelations())
                 ->findOrFail($landingPage->resource_id);
@@ -335,7 +336,7 @@ class LandingPagePublicController extends Controller
             $documentMetadata = $documentMetadataService->resolve(
                 $resourceData,
                 $effectiveTemplate,
-                $previewToken !== null,
+                $isPreview,
             );
 
             $resolvedTemplate = $templateResolver->forLandingPage($resource, $landingPage);
@@ -357,15 +358,15 @@ class LandingPagePublicController extends Controller
             }
             $customLogoUrl = $templateConfig->logo_url;
 
-            $machineMetadata = $previewToken === null
-                ? $machineMetadataService->for($resource, $landingPage)
-                : null;
+            $machineMetadata = $isPreview
+                ? null
+                : $machineMetadataService->for($resource, $landingPage);
 
             $landingPageData = $this->applyDownloadsUnavailableDisplayPolicy(
                 LandingPageController::serializeLandingPagePayload($resource, $landingPage)
             );
 
-            if ($landingPage->isPublished() && $previewToken === null) {
+            if (! $isPreview) {
                 $landingPageData = $this->attachTrackedDownloadUrls($landingPageData, $landingPage);
             }
 
@@ -377,7 +378,7 @@ class LandingPagePublicController extends Controller
                     'citationStyles' => $citationService->format($resource),
                     'landingPage' => $landingPageData,
                     'metadataLinks' => $machineMetadata['metadataLinks'] ?? [],
-                    'isPreview' => (bool) $previewToken,
+                    'isPreview' => $isPreview,
                     'sectionOrder' => $sectionOrder,
                     'customLogoUrl' => $customLogoUrl,
                     'landingPageTemplateSource' => $resolvedTemplate['source'],
@@ -395,9 +396,9 @@ class LandingPagePublicController extends Controller
             ];
         };
 
-        $renderData = $previewToken === null
-            ? $renderDataCache->remember($landingPage, $buildRenderData)
-            : $buildRenderData();
+        $renderData = $isPreview
+            ? $buildRenderData()
+            : $renderDataCache->remember($landingPage, $buildRenderData);
 
         $inertiaResponse = Inertia::render("LandingPages/{$renderData['template']}", $renderData['props']);
         $viewData = $renderData['viewData'] ?? [];

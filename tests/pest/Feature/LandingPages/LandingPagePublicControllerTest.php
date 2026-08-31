@@ -309,18 +309,45 @@ describe('Preview Token Access', function () {
         $response->assertStatus(403);
     });
 
-    test('can access published page with preview token', function () {
+    test('ignores preview query parameters for published pages', function () {
+        config([
+            'bot_protection.enabled' => true,
+            'bot_protection.landing_cache_ttl' => 600,
+        ]);
+        Cache::flush();
+
+        Title::factory()->for($this->resource)->create([
+            'value' => 'Published query dataset',
+        ]);
         $landingPage = LandingPage::factory()
             ->published()
             ->create([
                 'resource_id' => $this->resource->id,
                 'doi_prefix' => '10.5880/test.public.001',
                 'slug' => 'published-preview-test',
+                'ftp_url' => 'https://downloads.example.org/published.zip',
+                'view_count' => 0,
             ]);
 
-        $response = $this->get(landingPageUrl($landingPage, $landingPage->preview_token));
+        $response = $this->get(landingPageUrl($landingPage, 'irrelevant-token'));
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('documentTitle', 'Published query dataset | GFZ Data Services')
+                ->where('isPreview', false)
+                ->where('landingPage.tracked_ftp_url', route('landing-page.download.primary', ['landingPage' => $landingPage->id]))
+                ->has('metadataLinks')
+            )
+            ->assertSee('<title inertia>Published query dataset | GFZ Data Services</title>', false)
+            ->assertSee('<script type="application/ld+json">', false)
+            ->assertDontSee('<meta name="robots"', false)
+            ->assertDontSee('Preview: Published query dataset', false);
+
+        expect($landingPage->fresh()->view_count)->toBe(1)
+            ->and(landingPageDailyViewCount($landingPage))->toBe(1)
+            ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has(
+                CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id),
+            ))->toBeTrue();
     });
 });
 
@@ -482,7 +509,7 @@ describe('Landing Page Caching', function () {
             ->and(Cache::tags($tags)->has($versionedKey))->toBeTrue();
     });
 
-    test('preview token requests are not stored in the public render cache', function () {
+    test('draft preview token requests are not stored in the public render cache', function () {
         config([
             'bot_protection.enabled' => true,
             'bot_protection.landing_cache_ttl' => 600,
@@ -491,7 +518,7 @@ describe('Landing Page Caching', function () {
         Cache::flush();
 
         $landingPage = LandingPage::factory()
-            ->published()
+            ->draft()
             ->create([
                 'resource_id' => $this->resource->id,
                 'doi_prefix' => '10.5880/test.public.001',
@@ -742,7 +769,7 @@ describe('Tracked Download URLs', function () {
 
     test('preview payloads do not expose tracked download URLs', function () {
         $landingPage = LandingPage::factory()
-            ->published()
+            ->draft()
             ->create([
                 'resource_id' => $this->resource->id,
                 'doi_prefix' => '10.5880/test.public.001',
@@ -895,7 +922,7 @@ describe('External Landing Page Redirect', function () {
         $response->assertStatus(302);
     });
 
-    test('published external page with preview token uses temporary redirect', function () {
+    test('published external page ignores preview query and uses permanent redirect', function () {
         $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
 
         $landingPage = LandingPage::factory()
@@ -907,13 +934,16 @@ describe('External Landing Page Redirect', function () {
                 'slug' => 'external-published-preview-test',
                 'external_domain_id' => $domain->id,
                 'external_path' => 'dataset/published',
+                'view_count' => 0,
             ]);
 
-        // Even for published pages, preview token access should use 302
-        $response = $this->get($landingPage->getPublicPath().'?preview='.$landingPage->preview_token);
+        $response = $this->get($landingPage->getPublicPath().'?preview=irrelevant-token');
 
         $response->assertRedirect('https://data.gfz.de/dataset/published');
-        $response->assertStatus(302);
+        $response->assertStatus(301);
+
+        expect($landingPage->fresh()->view_count)->toBe(1)
+            ->and(landingPageDailyViewCount($landingPage))->toBe(1);
     });
 
     test('external draft does not increment view count with preview token', function () {
