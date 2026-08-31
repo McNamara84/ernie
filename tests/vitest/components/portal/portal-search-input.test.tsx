@@ -139,7 +139,32 @@ describe('PortalSearchInput', () => {
         const user = userEvent.setup();
         render(<Harness initialValue="s" />);
 
-        await user.click(screen.getByRole('combobox', { name: 'Search' }));
+        const input = screen.getByRole('combobox', { name: 'Search' });
+
+        await user.click(input);
         expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        expect(input).not.toHaveAttribute('aria-controls');
+        expect(input).not.toHaveAttribute('aria-activedescendant');
+    });
+
+    it('only exposes suggestion id references while the popup is visible', async () => {
+        const user = userEvent.setup();
+        render(<Harness initialValue="seis" />);
+
+        const input = screen.getByRole('combobox', { name: 'Search' });
+        expect(input).not.toHaveAttribute('aria-controls');
+        expect(input).not.toHaveAttribute('aria-activedescendant');
+
+        await user.click(input);
+        const listbox = screen.getByRole('listbox', { name: 'Free keyword suggestions' });
+        expect(input).toHaveAttribute('aria-controls', listbox.id);
+
+        await user.keyboard('{ArrowDown}');
+        expect(input).toHaveAttribute('aria-activedescendant', `${listbox.id}-0`);
+
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('listbox', { name: 'Free keyword suggestions' })).not.toBeInTheDocument();
+        expect(input).not.toHaveAttribute('aria-controls');
+        expect(input).not.toHaveAttribute('aria-activedescendant');
     });
 });

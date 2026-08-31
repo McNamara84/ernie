@@ -112,8 +112,8 @@ export function PortalSearchInput({ value, onValueChange, onSubmit, selectedKeyw
                         type="text"
                         role="combobox"
                         aria-expanded={showSuggestions}
-                        aria-controls={listboxId}
-                        aria-activedescendant={highlightedIndex >= 0 ? `${listboxId}-${highlightedIndex}` : undefined}
+                        aria-controls={showSuggestions ? listboxId : undefined}
+                        aria-activedescendant={showSuggestions && highlightedIndex >= 0 ? `${listboxId}-${highlightedIndex}` : undefined}
                         autoComplete="off"
                         placeholder={selectedKeywords.length > 0 ? 'Add text or keyword...' : 'Search text or keywords...'}
                         value={value}
