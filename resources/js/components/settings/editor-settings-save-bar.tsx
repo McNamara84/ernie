@@ -1,6 +1,6 @@
 import { CheckCircle2, CircleAlert } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 
 interface EditorSettingsSaveBarProps {
     isDirty: boolean;
@@ -33,9 +33,9 @@ export function EditorSettingsSaveBar({ isDirty, processing, recentlySuccessful 
                     <span>Domains and datacenters save immediately.</span>
                 </div>
             </div>
-            <Button type="submit" className="shrink-0 self-start sm:self-auto" disabled={processing || !isDirty}>
+            <LoadingButton type="submit" className="shrink-0 self-start sm:self-auto" loading={processing} disabled={!isDirty}>
                 {processing ? 'Saving…' : 'Save changes'}
-            </Button>
+            </LoadingButton>
         </div>
     );
 }

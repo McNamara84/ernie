@@ -676,6 +676,18 @@ describe('Docs page', () => {
         expect(screen.getByText('Editor Configuration')).toBeInTheDocument();
     });
 
+    it('documents the editor settings accordion and save behavior', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByRole('heading', { name: 'Page Layout and Saving' })).toBeInTheDocument();
+        expect(screen.getByText(/All sections start collapsed/i)).toBeInTheDocument();
+        expect(screen.getByText(/Unsaved values remain intact when you switch sections/i)).toBeInTheDocument();
+        expect(screen.getByText(/editor tables and activation controls use the sticky/i)).toHaveTextContent('Save changes');
+        expect(screen.getByText(/Adding or deleting/i)).toHaveTextContent('Landing Page Domains');
+        expect(screen.getByText(/Adding or deleting/i)).toHaveTextContent('Datacenters');
+        expect(screen.getByText(/background downloads also start immediately/i)).toBeInTheDocument();
+    });
+
     it('hides editor settings for curator', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Editor Configuration is the h3 inside the Editor Settings section

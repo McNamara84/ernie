@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { EditorSettingsSaveBar } from '@/components/settings/editor-settings-save-bar';
@@ -27,6 +27,8 @@ describe('EditorSettingsSaveBar', () => {
 
         expect(screen.getByTestId('settings-save-status')).toHaveTextContent('Saving changes…');
         expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Saving…' })).toHaveAttribute('aria-busy', 'true');
+        expect(screen.getByRole('button', { name: 'Saving…' }).querySelector('[data-slot="spinner"]')).toBeInTheDocument();
     });
 
     it('announces a recently successful save', () => {

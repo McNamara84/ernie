@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -9,14 +9,9 @@ import {
     LICENSE_IDENTIFIER_VISIBLE_LENGTH,
     TruncatedLicenseIdentifier,
 } from '@/components/settings/truncated-license-identifier';
-import { TooltipProvider } from '@/components/ui/tooltip';
 
 function renderIdentifier(identifier: string) {
-    return render(
-        <TooltipProvider>
-            <TruncatedLicenseIdentifier identifier={identifier} />
-        </TooltipProvider>,
-    );
+    return render(<TruncatedLicenseIdentifier identifier={identifier} />);
 }
 
 describe('TruncatedLicenseIdentifier', () => {

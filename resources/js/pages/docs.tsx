@@ -335,6 +335,19 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             destinations such as <strong>Users</strong>, <strong>Landing Pages</strong>, and role-specific operations pages:
                         </p>
 
+                        <h4>Page Layout and Saving</h4>
+                        <p>
+                            Settings are organized in a full-width accordion. All sections start collapsed, and opening a section closes the
+                            previously open section. Unsaved values remain intact when you switch sections. Each section heading shows the summaries
+                            relevant to its controls, such as item totals and ERNIE or ELMO activation counts where available.
+                        </p>
+                        <p>
+                            Changes to the editor tables and activation controls use the sticky <strong>Save changes</strong> action. Adding or
+                            deleting <strong>Landing Page Domains</strong> and <strong>Datacenters</strong> is saved immediately instead. Checks for
+                            thesaurus or PID updates and the corresponding background downloads also start immediately and do not wait for the global
+                            save action.
+                        </p>
+
                         <h4>Configurable Options</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
@@ -342,6 +355,9 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             </li>
                             <li>
                                 <strong>Title Types:</strong> Configure available title types
+                            </li>
+                            <li>
+                                <strong>Description Types:</strong> Configure available description types
                             </li>
                             <li>
                                 <strong>Licenses:</strong> Enable/disable specific licenses
@@ -353,6 +369,12 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                                 <strong>Date Types:</strong> Enable/disable date type options
                             </li>
                             <li>
+                                <strong>Contributor Roles:</strong> Configure roles and their person or institution categories
+                            </li>
+                            <li>
+                                <strong>Relation and Identifier Types:</strong> Configure related identifier types and validation patterns
+                            </li>
+                            <li>
                                 <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments), ICS
                                 Chronostratigraphy, GEMET, Analytical Methods for Geochemistry and Cosmochemistry, European Science Vocabulary
                                 (EuroSciVoc), and Multi-Scale Laboratories
@@ -362,12 +384,15 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                                 instruments, ROR for research organizations, and RAiD for research activities
                             </li>
                             <li>
+                                <strong>Landing Page Domains:</strong> Manage the domains available for external landing pages
+                            </li>
+                            <li>
                                 <strong>Datacenters:</strong> Manage the list of available datacenters for resource assignment
                             </li>
                         </ul>
 
                         <h4>Datacenter Management</h4>
-                        <p>The Datacenters card allows you to:</p>
+                        <p>The Datacenters section allows you to:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Add new datacenters by entering a name and clicking &quot;Add&quot;</li>
                             <li>View how many resources are assigned to each datacenter</li>
@@ -379,12 +404,12 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             The settings tables for Resource Types, Title Types, Licenses, and Languages provide a <strong>header checkbox</strong> in
                             both the &quot;ERNIE active&quot; and &quot;ELMO active&quot; columns. The Date Types table only has an ERNIE header
                             checkbox (ELMO is not supported for Date Types). Use these checkboxes to select or deselect all options in a column at
-                            once. When some options are selected and others are not, the checkbox shows an indeterminate state (—). The Thesauri card
-                            provides an &quot;All ERNIE&quot; / &quot;All ELMO&quot; row at the top for the same purpose.
+                            once. When some options are selected and others are not, the checkbox shows an indeterminate state (—). The Thesauri
+                            section provides an &quot;All ERNIE&quot; / &quot;All ELMO&quot; row at the top for the same purpose.
                         </p>
 
                         <h4>Thesaurus Management</h4>
-                        <p>The Thesauri card allows you to:</p>
+                        <p>The Thesauri section allows you to:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Enable/disable individual thesauri for ERNIE and/or ELMO</li>
                             <li>Check for updates by comparing local vs. remote counts</li>
@@ -394,7 +419,7 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                         </ul>
 
                         <h4>Persistent Identifiers Management</h4>
-                        <p>The Persistent Identifiers card allows you to manage PID registries:</p>
+                        <p>The Persistent Identifiers section allows you to manage PID registries:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
                                 <strong>PID4INST (b2inst):</strong> Instruments from the EUDAT b2inst registry can be linked to datasets as DataCite

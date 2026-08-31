@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -67,11 +67,9 @@ vi.mock('@inertiajs/react', async () => {
 
 vi.mock('@/routes', () => ({ settings: () => ({ url: '/settings' }) }));
 
-vi.mock('@/layouts/app-layout', async () => {
-    const { TooltipProvider } = await import('@/components/ui/tooltip');
-
+vi.mock('@/layouts/app-layout', () => {
     return {
-        default: ({ children }: { children?: React.ReactNode }) => <TooltipProvider>{children}</TooltipProvider>,
+        default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     };
 });
 
