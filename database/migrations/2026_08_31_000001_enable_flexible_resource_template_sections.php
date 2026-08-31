@@ -82,8 +82,29 @@ return new class extends Migration
 
     public function down(): void
     {
-        // No-op: moving modules back to their historical columns would discard
-        // intentional user configuration and is not a safe rollback.
+        DB::table('landing_page_templates')
+            ->where('template_type', 'resource')
+            ->select(['id', 'left_column_order', 'right_column_order'])
+            ->orderBy('id')
+            ->each(function (object $row): void {
+                $storedLeft = $this->decodeOrder($row->left_column_order);
+                $storedRight = $this->decodeOrder($row->right_column_order);
+
+                if ($storedLeft === self::LEFT_CANONICAL && $storedRight === self::RIGHT_CANONICAL) {
+                    return;
+                }
+
+                // The previous application version only renders Resource modules
+                // from their historical columns. Restore that compatible shape so
+                // a deployment rollback cannot make moved modules disappear.
+                DB::table('landing_page_templates')
+                    ->where('id', $row->id)
+                    ->update([
+                        'left_column_order' => json_encode(self::LEFT_CANONICAL, JSON_THROW_ON_ERROR),
+                        'right_column_order' => json_encode(self::RIGHT_CANONICAL, JSON_THROW_ON_ERROR),
+                        'updated_at' => now(),
+                    ]);
+            });
     }
 
     /**

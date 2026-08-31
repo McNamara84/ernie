@@ -2073,15 +2073,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Reorder Sections">
                                 <p>
-                                    Click the edit icon on a template card. For Resource templates, use <strong>drag &amp; drop</strong> to rearrange
-                                    sections within the right or left column. For IGSN templates, every module can also be moved between columns.
+                                    Click the edit icon on a template card. For Resource and IGSN templates, use <strong>drag &amp; drop</strong> to
+                                    rearrange modules within a column or move them between the left and right columns. Each template type only offers
+                                    the modules intended for its landing pages.
                                 </p>
                                 <p>
-                                    Resource templates expose separate right-column controls for <strong>Abstract</strong>, <strong>Methods</strong>,
-                                    <strong>Technical Information</strong>, <strong>Series Information</strong>, <strong>Table of Contents</strong>,
-                                    and <strong>Additional Information</strong>, followed by Creators, Contributors, Funding References, Keywords,
-                                    Metadata Download, and Location / Map. On Resource landing pages, these metadata modules still render together
-                                    inside one shared card; <strong>Location / Map</strong> remains a separate card above or below it.
+                                    Resource templates provide Resource-specific modules such as Files &amp; Downloads, License &amp; Rights,
+                                    Citation, Dates, Contact, Model Description, Related Work, <strong>Abstract</strong>, <strong>Methods</strong>,{' '}
+                                    <strong>Technical Information</strong>, <strong>Series Information</strong>, <strong>Table of Contents</strong>,{' '}
+                                    <strong>Additional Information</strong>, Creators, Contributors, Funding References, Keywords, Metadata Download,
+                                    and Location / Map. Every Resource module can be placed in either column. On Resource landing pages, the metadata
+                                    modules assigned to the same column still render together inside one shared card; <strong>Location / Map</strong>{' '}
+                                    remains a separate card at its selected position.
                                 </p>
                                 <p>
                                     For IGSN landing pages, each module renders in its own card and can be placed in either column. IGSN modules

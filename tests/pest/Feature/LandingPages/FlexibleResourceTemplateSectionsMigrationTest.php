@@ -70,19 +70,37 @@ it('expands legacy metadata and repairs malformed Resource layouts idempotently'
         ->and($template->fresh()->right_column_order)->toBe($firstRight);
 });
 
-it('keeps intentional cross-column Resource ownership on rollback', function (): void {
-    $left = ['abstract', ...LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS];
-    $right = array_values(array_filter(
-        LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
-        static fn (string $key): bool => $key !== 'abstract',
-    ));
+it('restores legacy Resource column ownership on rollback without changing IGSN layouts', function (): void {
+    $left = [
+        'location',
+        'abstract',
+        ...array_values(array_filter(
+            LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
+            static fn (string $key): bool => $key !== 'files',
+        )),
+    ];
+    $right = [
+        'files',
+        ...array_values(array_filter(
+            LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+            static fn (string $key): bool => ! in_array($key, ['abstract', 'location'], true),
+        )),
+    ];
     $template = LandingPageTemplate::factory()->create([
         'left_column_order' => $left,
         'right_column_order' => $right,
     ]);
+    $igsnLeft = ['general', 'location'];
+    $igsnRight = ['abstract', 'sample_image'];
+    $igsn = LandingPageTemplate::factory()->igsn()->create([
+        'left_column_order' => $igsnLeft,
+        'right_column_order' => $igsnRight,
+    ]);
 
     flexibleResourceTemplateSectionsMigration()->down();
 
-    expect($template->fresh()->left_column_order)->toBe($left)
-        ->and($template->fresh()->right_column_order)->toBe($right);
+    expect($template->fresh()->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS)
+        ->and($template->fresh()->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
+        ->and($igsn->fresh()->left_column_order)->toBe($igsnLeft)
+        ->and($igsn->fresh()->right_column_order)->toBe($igsnRight);
 });
