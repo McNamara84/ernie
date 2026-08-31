@@ -742,7 +742,7 @@ describe('Update', function (): void {
                 'left_column_order' => LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
                 'right_column_order' => ['abstract', 'invalid_section'],
             ])
-            ->assertJsonValidationErrors(['right_column_order.1']);
+            ->assertOnlyJsonValidationErrors(['right_column_order.1']);
     });
 
     it('rejects right column with missing sections', function (): void {
@@ -767,7 +767,7 @@ describe('Update', function (): void {
                 'left_column_order' => ['files', 'nonexistent'],
                 'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
             ])
-            ->assertJsonValidationErrors(['left_column_order.1']);
+            ->assertOnlyJsonValidationErrors(['left_column_order.1']);
     });
 
     it('rejects files in the left column for igsn templates', function (): void {

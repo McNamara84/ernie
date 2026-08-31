@@ -103,8 +103,12 @@ class UpdateLandingPageTemplateRequest extends FormRequest
                 $leftOrder = $this->input('left_column_order', []);
                 if (! is_array($rightOrder)
                     || ! is_array($leftOrder)
-                    || $validator->errors()->has('right_column_order')
-                    || $validator->errors()->has('left_column_order')) {
+                    || $validator->errors()->hasAny([
+                        'right_column_order',
+                        'right_column_order.*',
+                        'left_column_order',
+                        'left_column_order.*',
+                    ])) {
                     return;
                 }
 
