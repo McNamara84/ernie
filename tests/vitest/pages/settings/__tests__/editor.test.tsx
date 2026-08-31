@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { render, screen, waitFor, within } from '@tests/vitest/utils/render';
+import { act, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +10,7 @@ import EditorSettings from '@/pages/settings/index';
 
 const formHarness = vi.hoisted(() => ({
     initialData: null as Record<string, unknown> | null,
+    replaceData: null as ((data: Record<string, unknown>) => void) | null,
     post: vi.fn(),
 }));
 
@@ -25,6 +26,7 @@ vi.mock('axios', () => ({
 
 vi.mock('@inertiajs/react', async () => {
     const ReactModule = await import('react');
+    const { isDeepStrictEqual } = await import('node:util');
 
     return {
         Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -41,13 +43,14 @@ vi.mock('@inertiajs/react', async () => {
 
                 setDataState(keyOrData);
             };
+            formHarness.replaceData = (nextData) => setData(nextData);
 
             return {
                 data,
                 setData,
                 post: (url: string) => formHarness.post(url, data),
                 processing: false,
-                isDirty: JSON.stringify(data) !== JSON.stringify(defaults),
+                isDirty: !isDeepStrictEqual(data, defaults),
                 recentlySuccessful: false,
             };
         },
@@ -172,6 +175,7 @@ function section(value: string): HTMLElement {
 describe('EditorSettings accordion page', () => {
     beforeEach(() => {
         formHarness.initialData = null;
+        formHarness.replaceData = null;
         formHarness.post.mockReset();
         axiosMocks.post.mockReset();
         axiosMocks.delete.mockReset();
@@ -295,6 +299,16 @@ describe('EditorSettings accordion page', () => {
                 resourceTypes: expect.arrayContaining([expect.objectContaining({ name: 'Updated Dataset' })]),
             }),
         );
+    });
+
+    it('does not mark semantically equal data as dirty when object keys are reordered', () => {
+        renderSettings();
+
+        const reorderedData = Object.fromEntries(Object.entries(formHarness.initialData ?? {}).reverse());
+        act(() => formHarness.replaceData?.(reorderedData));
+
+        expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+        expect(screen.getByTestId('settings-save-status')).toHaveTextContent('No unsaved changes');
     });
 
     it('never substitutes an abbreviated license identifier into submitted form data', async () => {
