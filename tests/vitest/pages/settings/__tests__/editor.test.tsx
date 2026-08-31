@@ -193,6 +193,7 @@ describe('EditorSettings accordion page', () => {
             .map((trigger) => trigger.closest('[data-accordion-value]')?.getAttribute('data-accordion-value'));
 
         expect(renderedOrder).toEqual(EDITOR_SETTINGS_SECTION_ORDER);
+        expect(sectionTrigger(/^Resource Types/)).toHaveAccessibleName(/2 resource types, 1 ERNIE, 1 ELMO/);
         within(accordion)
             .getAllByRole('button')
             .forEach((trigger) => expect(trigger).toHaveAttribute('aria-expanded', 'false'));

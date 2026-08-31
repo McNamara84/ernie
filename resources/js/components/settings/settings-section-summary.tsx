@@ -12,7 +12,8 @@ export function SettingsSectionSummary({ items }: SettingsSectionSummaryProps) {
     const accessibleSummary = items.join(', ');
 
     return (
-        <span className="flex flex-wrap gap-1.5" aria-label={accessibleSummary}>
+        <span className="flex flex-wrap gap-1.5">
+            <span className="sr-only">{`: ${accessibleSummary}`}</span>
             {items.map((item, index) => (
                 <Badge key={index} variant="secondary" className="font-normal" aria-hidden="true">
                     {item}

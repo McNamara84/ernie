@@ -13,10 +13,16 @@ describe('SettingsSectionSummary', () => {
         expect(pluralizedCount(3, 'registry', 'registries')).toBe('3 registries');
     });
 
-    it('provides one concise accessible summary while hiding decorative badges', () => {
-        render(<SettingsSectionSummary items={['3 licenses', '2 ERNIE', '1 ELMO']} />);
+    it('contributes one concise summary to a parent control accessible name while hiding decorative badges', () => {
+        render(
+            <button type="button">
+                Licenses
+                <SettingsSectionSummary items={['3 licenses', '2 ERNIE', '1 ELMO']} />
+            </button>,
+        );
 
-        expect(screen.getByLabelText('3 licenses, 2 ERNIE, 1 ELMO')).toBeInTheDocument();
+        expect(screen.getByRole('button')).toHaveAccessibleName('Licenses: 3 licenses, 2 ERNIE, 1 ELMO');
+        expect(screen.getByText(': 3 licenses, 2 ERNIE, 1 ELMO')).toHaveClass('sr-only');
         expect(screen.getByText('3 licenses')).toHaveAttribute('aria-hidden', 'true');
         expect(screen.getByText('2 ERNIE')).toHaveAttribute('aria-hidden', 'true');
         expect(screen.getByText('1 ELMO')).toHaveAttribute('aria-hidden', 'true');
