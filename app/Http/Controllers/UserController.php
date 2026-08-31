@@ -14,6 +14,7 @@ use App\Http\Requests\UpdateUserRoleRequest;
 use App\Mail\WelcomeNewUser;
 use App\Models\GuidedTour;
 use App\Models\User;
+use App\Models\UserGuidedTourAssignment;
 use App\Services\GuidedTours\GuidedTourAssignmentService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -60,7 +61,7 @@ class UserController extends Controller
                     'last_seen_at' => $user->last_seen_at?->toISOString(),
                     'is_online' => $user->isOnline(),
                     'guided_tour_assignments' => $user->guidedTourAssignments
-                        ->map(fn ($assignment) => [
+                        ->map(fn (UserGuidedTourAssignment $assignment) => [
                             'guided_tour_id' => $assignment->guided_tour_id,
                             'status' => $assignment->status,
                             'assignment_source' => $assignment->assignment_source,
