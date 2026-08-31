@@ -1,5 +1,5 @@
 import { render, screen, within } from '@tests/vitest/utils/render';
-import type { ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,7 +9,16 @@ vi.mock('@inertiajs/react', () => ({
     Head: ({ title, children }: { title?: string; children?: ReactNode }) => {
         if (title !== undefined) document.title = title;
 
-        return createPortal(children, document.head);
+        const managedChildren = Children.map(children, (child) => {
+            if (!isValidElement<Record<string, unknown>>(child)) return child;
+
+            return cloneElement(child, {
+                'data-inertia': child.props['head-key'] ?? '',
+                'head-key': undefined,
+            });
+        });
+
+        return createPortal(managedChildren, document.head);
     },
 }));
 
@@ -91,7 +100,7 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             expect(document.title).toBe('Preview: Rock Sample Core XYZ | GFZ Data Services');
             expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
-            expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('head-key', 'landing-page-robots');
+            expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('data-inertia', 'landing-page-robots');
         });
 
         it('renders License & Rights independently of the unavailable Files module', () => {
