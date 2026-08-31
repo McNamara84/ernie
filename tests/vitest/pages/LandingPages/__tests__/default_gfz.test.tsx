@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Mock Inertia's usePage hook
 vi.mock('@inertiajs/react', () => ({
     usePage: vi.fn(),
-    Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    Head: ({ title }: { title?: string }) => <div data-testid="inertia-head-title">{title}</div>,
 }));
 
 import { usePage } from '@inertiajs/react';
@@ -55,6 +55,21 @@ describe('DefaultGfzTemplate', () => {
         // Check for main structural elements
         expect(screen.getByText('Test Dataset Title')).toBeInTheDocument();
         expect(screen.getByText('Abstract')).toBeInTheDocument();
+    });
+
+    it('renders the server-provided document title through Inertia Head', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: mockResource,
+                documentTitle: 'Test Dataset Title | GFZ Data Services',
+                landingPage: mockLandingPage,
+                isPreview: false,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+
+        render(<DefaultGfzTemplate />);
+
+        expect(screen.getByTestId('inertia-head-title')).toHaveTextContent('Test Dataset Title | GFZ Data Services');
     });
 
     it('shows preview banner when isPreview is true', () => {

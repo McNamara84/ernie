@@ -1,12 +1,11 @@
 import { screen, within } from '@testing-library/react';
 import { render } from '@tests/vitest/utils/render';
-import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia's usePage hook
 vi.mock('@inertiajs/react', () => ({
     usePage: vi.fn(),
-    Head: ({ children }: { children?: ReactNode }) => <>{children}</>,
+    Head: ({ title }: { title?: string }) => <div data-testid="inertia-head-title">{title}</div>,
 }));
 
 import { usePage } from '@inertiajs/react';
@@ -69,6 +68,21 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             // Check for main title
             expect(screen.getByText('Rock Sample Core XYZ')).toBeInTheDocument();
+        });
+
+        it('renders the server-provided preview title through Inertia Head', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    documentTitle: 'Preview: Rock Sample Core XYZ | GFZ Data Services',
+                    landingPage: mockLandingPage,
+                    isPreview: true,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getByTestId('inertia-head-title')).toHaveTextContent('Preview: Rock Sample Core XYZ | GFZ Data Services');
         });
 
         it('renders License & Rights independently of the unavailable Files module', () => {
