@@ -88,8 +88,13 @@ export function PortalHeader() {
             {/* Top Branding Bar */}
             <div className="bg-portal-header">
                 <div className="flex h-16 items-center justify-between px-6">
-                    <h1 className="text-xl font-semibold tracking-wide text-portal-header-foreground">GFZ Data Services Portal</h1>
-                    <img src="/images/gfz-logo_en.svg" alt="GFZ Helmholtz Centre for Geosciences" className="h-10" />
+                    <h1
+                        className="sr-only text-xl font-semibold tracking-wide text-portal-header-foreground md:not-sr-only"
+                        data-testid="portal-wordmark"
+                    >
+                        GFZ Data Services Portal
+                    </h1>
+                    <img src="/images/gfz-logo_en.svg" alt="GFZ Helmholtz Centre for Geosciences" className="ml-auto h-10" />
                 </div>
             </div>
 

@@ -142,7 +142,7 @@ describe('index', function () {
             );
     });
 
-    it('returns keyword suggestions', function () {
+    it('keeps keyword suggestions out of the initial page payload', function () {
         $resource = ($this->createPublishedPortalResource)();
         Subject::factory()->create([
             'resource_id' => $resource->id,
@@ -152,7 +152,7 @@ describe('index', function () {
         $response = $this->get('/search');
 
         $response->assertOk()
-            ->assertInertia(fn ($page) => $page->has('keywordSuggestions'));
+            ->assertInertia(fn ($page) => $page->missing('keywordSuggestions'));
     });
 
     it('returns pagination data', function () {

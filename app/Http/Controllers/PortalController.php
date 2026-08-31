@@ -66,7 +66,6 @@ class PortalController extends Controller
                 'filter_fingerprint' => $filterFingerprint,
             ],
             'filters' => $this->filterService->forFrontend($filters),
-            'keywordSuggestions' => $this->keywordService->getFreeKeywordSuggestions(),
             'thesaurusFacets' => $this->keywordService->getThesaurusFacets(),
             'temporalRange' => $temporalRange,
             'resourceTypeFacets' => $this->searchService->getResourceTypeFacets(),

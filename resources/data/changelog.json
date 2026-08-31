@@ -21,6 +21,22 @@
                 "description": "The public Data Portal now opens reliably even with very large collections. Its map loads the area currently in view, groups nearby locations into clear clusters, and reveals individual points and geographic shapes as users zoom in. Searching, filtering, moving, and zooming the map remain responsive while the result list and map stay in sync."
             },
             {
+                "title": "Unified Portal Search",
+                "description": "The public Data Portal now combines text search and Free Keywords in one compact field. Matching published keywords appear as suggestions while typing and can be added as removable exact-match chips, while any other phrase can still be submitted as a regular search."
+            },
+            {
+                "title": "Compact Hierarchical Portal Filters",
+                "description": "Thesaurus vocabularies now share one compact hierarchy that starts with only its root categories visible. Time, location, resource type, and Datacenter filters are grouped into expandable sections that open automatically when active and show concise selection counts."
+            },
+            {
+                "title": "Viewport-Fitted Portal Workspace",
+                "description": "The Data Portal now stays within the available browser height. Results and the map remain fixed in place while the filter controls scroll independently, and the redundant introduction, duplicate result count, and page footer have been removed to provide more room for discovery."
+            },
+            {
+                "title": "Responsive Results and Map Views",
+                "description": "On tablets and phones, Portal filters now open in a drawer and Results and Map use clear switchable views instead of competing for limited screen space. Larger screens retain the resizable side-by-side results and map workspace."
+            },
+            {
                 "title": "Focused FAIR Assessment Results",
                 "description": "The Assessment resource ranking now excludes Draft and Review records by default while retaining an opt-in filter. Assessment summaries and the IGSN ranking remain unchanged."
             },

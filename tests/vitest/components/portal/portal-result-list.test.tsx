@@ -101,7 +101,9 @@ describe('PortalResultList', () => {
             expect(screen.getByRole('button', { name: /next/i })).toBeEnabled();
         });
 
-        it('keeps results visible when the total count failed', () => {
+        it('keeps results visible and retries when the total count failed', async () => {
+            const user = userEvent.setup();
+            const onRetryCount = vi.fn();
             render(
                 <PortalResultList
                     {...defaultProps}
@@ -110,11 +112,13 @@ describe('PortalResultList', () => {
                         last_page: null,
                         count_status: 'failed',
                     })}
+                    onRetryCount={onRetryCount}
                 />,
             );
 
-            expect(screen.getByText(/count unavailable/i)).toBeInTheDocument();
             expect(screen.getByText('Resource 1')).toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: /retry count/i }));
+            expect(onRetryCount).toHaveBeenCalledOnce();
         });
     });
 

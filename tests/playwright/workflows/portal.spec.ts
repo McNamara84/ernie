@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /**
  * Portal E2E Tests
@@ -7,29 +7,61 @@ import { expect, test } from '@playwright/test';
  * The portal is publicly accessible (no login required).
  */
 
+const searchInput = (page: Page) => page.getByRole('combobox', { name: 'Search' });
+
+async function openPortal(page: Page, path = '/search') {
+    const navigate = () => page.goto(path, { waitUntil: 'domcontentloaded' as const, timeout: 60_000 });
+    const response = await navigate().catch((error: unknown) => {
+        if (!(error instanceof Error) || !error.message.includes('SSL connect error')) {
+            throw error;
+        }
+
+        // WebKit on Windows can reject the local Traefik certificate on the
+        // first handshake even with ignoreHTTPSErrors enabled.
+        return navigate();
+    });
+
+    expect(response, `Expected ${path} to return an HTTP response`).not.toBeNull();
+    expect(response!.status(), `Expected ${path} to load without an HTTP error`).toBeLessThan(400);
+    await expect(page.getByTestId('portal-workspace')).toBeVisible();
+}
+
+async function openFilterSection(page: Page, name: 'Resource Type' | 'Datacenter') {
+    const trigger = page.getByRole('button', { name: new RegExp(`^${name}(?: \\d+)?$`) });
+    await trigger.scrollIntoViewIfNeeded();
+
+    if ((await trigger.getAttribute('data-state')) !== 'open') {
+        await trigger.click();
+    }
+
+    await expect(trigger).toHaveAttribute('data-state', 'open');
+}
+
 test.describe('Portal Page', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/search');
+        await openPortal(page);
     });
 
     test.describe('Page Loading', () => {
         test('portal page loads successfully', async ({ page }) => {
-            // Verify portal header branding is visible
-            await expect(page.getByText('GFZ Data Services Portal')).toBeVisible();
+            await expect(page.getByTestId('portal-wordmark')).toBeVisible();
+            await expect(page.getByRole('heading', { level: 1, name: 'GFZ Data Services Portal' })).toBeVisible();
         });
 
         test('displays filters sidebar', async ({ page }) => {
-            await expect(page.getByText('Filters')).toBeVisible();
-            await expect(page.getByText('Resource Type', { exact: true })).toBeVisible();
+            const sidebar = page.getByTestId('portal-filter-sidebar');
+
+            await expect(sidebar).toBeVisible();
+            await expect(sidebar.getByText('Filters', { exact: true })).toBeVisible();
+            await expect(sidebar.getByRole('button', { name: 'Resource Type', exact: true })).toBeVisible();
         });
 
         test('displays map component', async ({ page }) => {
-            // Map toggle button should be visible
-            await expect(page.getByRole('button', { name: /map/i })).toBeVisible();
+            await expect(page.getByTestId('portal-map-container')).toBeVisible();
+            await expect(page.locator('.leaflet-container').first()).toBeVisible();
         });
 
         test('displays results area', async ({ page }) => {
-            // Either results or empty state should be visible
             const hasResults = await page.getByTestId('portal-results-list').first().isVisible();
             const hasEmptyState = await page.getByText(/no results/i).isVisible();
             expect(hasResults || hasEmptyState).toBe(true);
@@ -38,111 +70,106 @@ test.describe('Portal Page', () => {
 
     test.describe('Search Functionality', () => {
         test('search input is focusable and accepts text', async ({ page }) => {
-            const searchInput = page.getByPlaceholder(/search datasets/i);
-            await expect(searchInput).toBeVisible();
+            const input = searchInput(page);
+            await expect(input).toBeVisible();
 
-            await searchInput.fill('climate');
-            await expect(searchInput).toHaveValue('climate');
+            await input.fill('climate');
+            await expect(input).toHaveValue('climate');
         });
 
         test('search updates URL with query parameter', async ({ page }) => {
-            const searchInput = page.getByPlaceholder(/search datasets/i);
-            await searchInput.fill('test query');
-
-            // Submit the search
+            await searchInput(page).fill('test query');
             await page.getByRole('button', { name: 'Search', exact: true }).click();
 
-            // Wait for URL to update
-            await page.waitForURL(/q=test/);
-            expect(page.url()).toContain('q=');
+            await expect(page).toHaveURL(/q=test(?:\+|%20)query/);
+            expect(new URL(page.url()).searchParams.get('q')).toBe('test query');
         });
 
-        test('clear search button removes query', async ({ page }) => {
-            const searchInput = page.getByPlaceholder(/search datasets/i);
-            await searchInput.fill('something');
+        test('clear search button clears the draft query', async ({ page }) => {
+            await searchInput(page).fill('something');
             await page.getByRole('button', { name: 'Search', exact: true }).click();
-            await page.waitForURL(/q=/);
+            await expect(page).toHaveURL(/q=something/);
 
-            // Clear the search using the X button
-            await page.getByRole('button', { name: /clear search/i }).click();
+            await page.getByRole('button', { name: 'Clear search' }).click();
 
-            // Input should be cleared
-            await expect(searchInput).toHaveValue('');
+            await expect(searchInput(page)).toHaveValue('');
         });
     });
 
     test.describe('Type Filter', () => {
         test('displays resource type filter popover trigger', async ({ page }) => {
+            await openFilterSection(page, 'Resource Type');
             await expect(page.getByRole('button', { name: 'All Resource Types' })).toBeVisible();
         });
 
         test('default selection shows All Resource Types', async ({ page }) => {
+            await openFilterSection(page, 'Resource Type');
             const trigger = page.getByRole('button', { name: 'All Resource Types' });
+
             await expect(trigger).toBeVisible();
             await expect(trigger).toContainText('All Resource Types');
         });
 
         test('popover opens and shows search input', async ({ page }) => {
+            await openFilterSection(page, 'Resource Type');
             await page.getByRole('button', { name: 'All Resource Types' }).click();
+
             await expect(page.getByPlaceholder('Search types...')).toBeVisible();
         });
 
         test('selecting a type updates URL with type parameter', async ({ page }) => {
-            // Open the popover
+            await openFilterSection(page, 'Resource Type');
             await page.getByRole('button', { name: 'All Resource Types' }).click();
 
-            // Ensure at least one facet option is rendered
             const options = page.getByRole('option');
-            await expect(options.first()).toBeVisible({ timeout: 5000 });
-
-            // Click the first available type option
+            await expect(options.first()).toBeVisible();
             await options.first().click();
 
-            // URL should contain type[] parameter
-            await page.waitForURL(/type/, { timeout: 10000 });
-            expect(page.url()).toContain('type');
+            await expect(page).toHaveURL(/[?&]type(?:%5B\d*%5D|\[\d*\])=/i);
         });
 
         test('clearing selection removes type from URL', async ({ page }) => {
-            // Navigate with a type filter pre-selected
-            await page.goto('/search?type[]=dataset');
-            await page.waitForLoadState('networkidle');
+            await openPortal(page, '/search?type[]=dataset');
+            await openFilterSection(page, 'Resource Type');
 
-            // The trigger must show "N selected" (not "All Resource Types")
-            const trigger = page.getByRole('button').filter({ hasText: /selected/ });
-            await expect(trigger).toBeVisible({ timeout: 5000 });
-
-            // Open popover and press clear
+            const trigger = page.getByRole('button', { name: /^\d+ selected/ });
+            await expect(trigger).toBeVisible();
             await trigger.click();
+
             const clearButton = page.getByRole('button', { name: /clear filter/i });
             await expect(clearButton).toBeVisible();
             await clearButton.click();
 
-            // URL should no longer contain type[] parameter
-            await expect(async () => {
-                const url = new URL(page.url());
-                expect(url.searchParams.has('type[]')).toBe(false);
-                expect(url.searchParams.has('type')).toBe(false);
-            }).toPass({ timeout: 5000 });
+            await expect
+                .poll(() => {
+                    const url = new URL(page.url());
+                    return url.searchParams.has('type[]') || url.searchParams.has('type');
+                })
+                .toBe(false);
         });
     });
 
     test.describe('Datacenter Filter', () => {
-        test('shows the filtered results from the top after applying a datacenter', async ({ page }) => {
+        test('scrolls only the sidebar and shows filtered results from the top', async ({ page }) => {
+            await page.setViewportSize({ width: 1280, height: 500 });
+
+            const sidebar = page.getByTestId('portal-filter-sidebar');
+            const sidebarViewport = sidebar.locator(':scope > [data-slot="scroll-area"] > [data-slot="scroll-area-viewport"]');
+
+            await openFilterSection(page, 'Datacenter');
             const trigger = page.getByRole('button', { name: 'All Datacenters' });
             await trigger.scrollIntoViewIfNeeded();
-            await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-            await trigger.click();
 
+            await sidebarViewport.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+            await expect.poll(() => sidebarViewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+            expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+            await trigger.click();
             const option = page.getByRole('option', { name: /Playwright: Portal Datacenter/ });
             await expect(option).toBeVisible();
-
-            const scrollBeforeFiltering = await page.evaluate(() => window.scrollY);
-            expect(scrollBeforeFiltering).toBeGreaterThan(0);
-
             await option.click();
-            await expect(page).toHaveURL(/datacenter/);
 
+            await expect(page).toHaveURL(/datacenter/);
             await expect(page.getByTestId('portal-results-list').first()).toBeVisible();
             await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
         });
@@ -150,15 +177,11 @@ test.describe('Portal Page', () => {
 
     test.describe('Map Interaction', () => {
         test('map can be collapsed and expanded', async ({ page }) => {
-            const mapToggle = page.getByRole('button', { name: /map/i });
+            await page.getByRole('button', { name: 'Collapse map' }).click();
+            await expect(page.getByTestId('portal-map-container')).toHaveCount(0);
 
-            // Click to collapse
-            await mapToggle.click();
-
-            // Click to expand
-            await mapToggle.click();
-
-            // Map should be visible (use first() since there might be multiple)
+            await page.getByRole('button', { name: 'Show map', exact: true }).click();
+            await expect(page.getByTestId('portal-map-container')).toBeVisible();
             await expect(page.locator('.leaflet-container').first()).toBeVisible();
         });
 
@@ -169,83 +192,62 @@ test.describe('Portal Page', () => {
 
     test.describe('Filter Sidebar Toggle', () => {
         test('sidebar can be collapsed', async ({ page }) => {
-            const collapseButton = page.getByRole('button', { name: /collapse filters/i });
+            await page.getByRole('button', { name: 'Collapse filters' }).click();
 
-            await collapseButton.click();
-
-            // Search input should not be visible in collapsed state
-            await expect(page.getByPlaceholder(/search datasets/i)).not.toBeVisible();
+            await expect(searchInput(page)).toHaveCount(0);
+            await expect(page.getByRole('button', { name: 'Expand filters' })).toBeVisible();
         });
 
         test('collapsed sidebar can be expanded', async ({ page }) => {
-            // First collapse
-            const collapseButton = page.getByRole('button', { name: /collapse filters/i });
-            await collapseButton.click();
+            await page.getByRole('button', { name: 'Collapse filters' }).click();
+            await page.getByRole('button', { name: 'Expand filters' }).click();
 
-            // Then expand
-            const expandButton = page.getByRole('button', { name: /expand filters/i });
-            await expandButton.click();
-
-            // Search input should be visible again
-            await expect(page.getByPlaceholder(/search datasets/i)).toBeVisible();
+            await expect(searchInput(page)).toBeVisible();
         });
     });
 
     test.describe('URL State Persistence', () => {
         test('filters are restored from URL on page load', async ({ page }) => {
-            // Navigate directly with query params
-            await page.goto('/search?q=climate&type[]=dataset&page=1');
+            await openPortal(page, '/search?q=climate&type[]=dataset&page=1');
 
-            const searchInput = page.getByPlaceholder(/search datasets/i);
-            await expect(searchInput).toHaveValue('climate');
-
-            // The type filter trigger should show selection count instead of "All Resource Types"
-            const trigger = page.getByRole('button').filter({ hasText: /selected/ });
-            await expect(trigger).toBeVisible();
+            await expect(searchInput(page)).toHaveValue('climate');
+            await openFilterSection(page, 'Resource Type');
+            await expect(page.getByRole('button', { name: /^\d+ selected/ })).toBeVisible();
         });
 
         test('URL state survives page refresh', async ({ page }) => {
-            // Set some filters
-            const searchInput = page.getByPlaceholder(/search datasets/i);
-            await searchInput.fill('test');
+            await searchInput(page).fill('test');
             await page.getByRole('button', { name: 'Search', exact: true }).click();
-            await page.waitForURL(/q=test/);
+            await expect(page).toHaveURL(/q=test/);
 
-            // Refresh page
-            await page.reload();
+            await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
 
-            // Filters should be restored
-            await expect(searchInput).toHaveValue('test');
+            await expect(searchInput(page)).toHaveValue('test');
         });
     });
 
     test.describe('Results Display', () => {
         test('results show resource cards or empty state', async ({ page }) => {
-            // Wait for either results area or empty state to be visible
             const resultsArea = page.getByTestId('portal-results-list').first();
             const emptyState = page.getByText(/no results found/i);
 
-            // One of these should be visible within 5 seconds
             await expect(async () => {
                 const hasResults = await resultsArea.isVisible();
                 const hasEmpty = await emptyState.isVisible();
                 expect(hasResults || hasEmpty).toBe(true);
-            }).toPass({ timeout: 5000 });
+            }).toPass();
         });
 
         test('pagination appears when there are multiple pages', async ({ page }) => {
-            // This test is conditional - only checks pagination if there are enough results
-            const resultsText = page.getByText(/showing \d+-\d+ of \d+ results/i).first();
+            const resultsText = page.getByText(/showing \d+-\d+ of [\d,.]+ results/i).first();
 
             if (await resultsText.isVisible()) {
                 const text = await resultsText.textContent();
-                const match = text?.match(/of (\d+) results/);
-                if (match) {
-                    const total = parseInt(match[1], 10);
-                    if (total > 20) {
-                        // Should have pagination
-                        await expect(page.getByRole('button', { name: /next/i })).toBeVisible();
-                    }
+                const match = text?.match(/of ([\d,.]+) results/i);
+                const total = match ? Number.parseInt(match[1].replace(/[,.]/g, ''), 10) : 0;
+
+                if (total > 20) {
+                    await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeVisible();
                 }
             }
         });
@@ -253,31 +255,25 @@ test.describe('Portal Page', () => {
 
     test.describe('Accessibility', () => {
         test('page has proper heading structure', async ({ page }) => {
-            // Should have a level-1 heading for accessibility/SEO
-            const h1 = page.getByRole('heading', { level: 1 });
-            await expect(h1.first()).toBeVisible();
-            await expect(h1.first()).toHaveText('GFZ Data Services Portal');
+            const heading = page.getByRole('heading', { level: 1, name: 'GFZ Data Services Portal' });
+            await expect(heading).toBeVisible();
         });
 
         test('search input has associated label', async ({ page }) => {
-            const searchLabel = page.locator('label').filter({ hasText: 'Search' });
-            await expect(searchLabel).toBeVisible();
+            await expect(searchInput(page)).toBeVisible();
         });
 
         test('resource type filter is accessible via button', async ({ page }) => {
-            const filterButton = page.getByRole('button', { name: 'All Resource Types' });
-            await expect(filterButton).toBeVisible();
+            await openFilterSection(page, 'Resource Type');
+            await expect(page.getByRole('button', { name: 'All Resource Types' })).toBeVisible();
         });
 
         test('interactive elements are keyboard accessible', async ({ page }) => {
-            // Focus the search input directly
-            const searchInput = page.getByPlaceholder(/search datasets/i);
-            await searchInput.focus();
-
-            // Should be able to type
+            const input = searchInput(page);
+            await input.focus();
             await page.keyboard.type('keyboard test');
 
-            await expect(searchInput).toHaveValue('keyboard test');
+            await expect(input).toHaveValue('keyboard test');
         });
     });
 });

@@ -1756,6 +1756,75 @@
                 }
             }
         },
+        "/search/free-keyword-suggestions": {
+            "get": {
+                "tags": ["Portal"],
+                "summary": "Suggest free keywords for the public portal search",
+                "description": "Returns up to 20 free keywords used by published records. Prefix matches are ranked before substring matches, then by usage count and label.",
+                "operationId": "getPortalFreeKeywordSuggestions",
+                "security": [],
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": true,
+                        "description": "Case-insensitive free-keyword search term.",
+                        "schema": { "type": "string", "minLength": 2, "maxLength": 100 },
+                        "example": "seis"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ranked free-keyword suggestions used by published records.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/PortalKeywordSuggestionResponse" },
+                                "example": {
+                                    "data": [
+                                        { "value": "Seismology", "scheme": null, "count": 12 },
+                                        { "value": "Paleoseismology", "scheme": null, "count": 3 }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The query is missing or is outside the allowed length of 2 to 100 characters.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+                                "example": {
+                                    "message": "The q field is required.",
+                                    "errors": { "q": ["The q field is required."] }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Public portal suggestion rate limit exceeded (60 requests per minute by default).",
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until the client may retry.",
+                                "schema": { "type": "integer", "minimum": 0 }
+                            },
+                            "X-RateLimit-Limit": {
+                                "description": "Configured request limit for the current window.",
+                                "schema": { "type": "integer", "minimum": 1 }
+                            },
+                            "X-RateLimit-Remaining": {
+                                "description": "Requests remaining in the current window.",
+                                "schema": { "type": "integer", "minimum": 0 }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/search/count": {
             "get": {
                 "tags": ["Portal"],
@@ -2217,6 +2286,30 @@
             }
         },
         "schemas": {
+            "PortalKeywordSuggestion": {
+                "type": "object",
+                "description": "An uncontrolled keyword used by one or more published records.",
+                "properties": {
+                    "value": { "type": "string", "minLength": 1, "description": "Exact keyword label." },
+                    "scheme": { "type": "null", "description": "Always null because controlled-vocabulary terms are excluded." },
+                    "count": { "type": "integer", "minimum": 1, "description": "Number of published records using the keyword." }
+                },
+                "required": ["value", "scheme", "count"],
+                "additionalProperties": false
+            },
+            "PortalKeywordSuggestionResponse": {
+                "type": "object",
+                "description": "Ranked free-keyword suggestions for the public portal search.",
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "maxItems": 20,
+                        "items": { "$ref": "#/components/schemas/PortalKeywordSuggestion" }
+                    }
+                },
+                "required": ["data"],
+                "additionalProperties": false
+            },
             "PortalCountResponse": {
                 "type": "object",
                 "description": "Exact public portal result count for one normalized semantic filter combination.",

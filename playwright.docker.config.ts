@@ -45,6 +45,11 @@ export default defineConfig({
     /* Accept self-signed certificates */
     ignoreHTTPSErrors: true,
 
+    /* Keep local cross-browser runs independent from production-facing rate limits. */
+    extraHTTPHeaders: {
+      'X-ERNIE-Playwright-Test': '1',
+    },
+
     /* Collect trace when retrying the failed test */
     trace: 'on-first-retry',
     

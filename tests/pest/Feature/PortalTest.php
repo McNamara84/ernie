@@ -42,6 +42,7 @@ beforeEach(function () {
 it('publishes the portal endpoints under the search path tree', function () {
     expect(route('portal', absolute: false))->toBe('/search')
         ->and(route('portal.count', absolute: false))->toBe('/search/count')
+        ->and(route('portal.free-keyword-suggestions', absolute: false))->toBe('/search/free-keyword-suggestions')
         ->and(route('portal.map', absolute: false))->toBe('/search/map')
         ->and(route('portal.search-analytics', absolute: false))->toBe('/search/search-analytics');
 
@@ -93,6 +94,41 @@ describe('Portal Page Display', function () {
             'REMOTE_ADDR' => '203.0.113.10',
             'HTTP_USER_AGENT' => 'Mozilla/5.0',
         ])->get(route('portal'))->assertOk();
+    });
+
+    it('bypasses public discovery limits for marked Playwright requests outside production', function () {
+        config([
+            'app.env' => 'testing',
+            'bot_protection.enabled' => true,
+            'bot_protection.limits.public_portal_per_minute' => 1,
+        ]);
+
+        RateLimiter::clear('portal:public:203.0.113.11');
+
+        $playwrightRequest = fn () => $this
+            ->withHeader('X-ERNIE-Playwright-Test', '1')
+            ->withServerVariables([
+                'REMOTE_ADDR' => '203.0.113.11',
+                'HTTP_USER_AGENT' => 'Mozilla/5.0',
+            ])
+            ->get(route('portal'));
+
+        $playwrightRequest()->assertOk();
+        $playwrightRequest()->assertOk();
+
+        config(['app.env' => 'production']);
+        RateLimiter::clear('portal:public:203.0.113.12');
+
+        $productionRequest = fn () => $this
+            ->withHeader('X-ERNIE-Playwright-Test', '1')
+            ->withServerVariables([
+                'REMOTE_ADDR' => '203.0.113.12',
+                'HTTP_USER_AGENT' => 'Mozilla/5.0',
+            ])
+            ->get(route('portal'));
+
+        $productionRequest()->assertOk();
+        $productionRequest()->assertTooManyRequests();
     });
 });
 

@@ -85,12 +85,12 @@ describe('PortalThesaurusFilter', () => {
         vi.clearAllMocks();
     });
 
-    it('renders the thesaurus label and scheme section', () => {
+    it('renders all roots in one shared thesaurus card', () => {
         render(<PortalThesaurusFilter {...defaultProps} />);
 
         expect(screen.getByText('Thesaurus Keywords')).toBeInTheDocument();
-        expect(screen.getByText('GCMD Science Keywords')).toBeInTheDocument();
         expect(screen.getByText('EARTH SCIENCE')).toBeInTheDocument();
+        expect(screen.getAllByRole('tree')).toHaveLength(1);
     });
 
     it('renders an empty state when no facets are available', () => {
@@ -145,6 +145,7 @@ describe('PortalThesaurusFilter', () => {
 
         expect(screen.queryByText('BEDROCK')).not.toBeInTheDocument();
 
+        await user.click(screen.getByRole('button', { name: 'Expand EARTH SCIENCE' }));
         await user.click(screen.getByRole('button', { name: 'Expand SOLID EARTH' }));
         expect(screen.getByText('BEDROCK')).toBeInTheDocument();
 
@@ -163,7 +164,7 @@ describe('PortalThesaurusFilter', () => {
             />,
         );
 
-        const tree = screen.getByRole('tree', { name: 'GCMD Science Keywords thesaurus hierarchy' });
+        const tree = screen.getByRole('tree', { name: 'Thesaurus keyword hierarchies' });
         expect(tree).toBeInTheDocument();
         expect(tree).toHaveAttribute('aria-multiselectable', 'true');
 
@@ -183,7 +184,7 @@ describe('PortalThesaurusFilter', () => {
         expect(solidEarthItem).toHaveAttribute('aria-expanded', 'false');
     });
 
-    it('auto-expands ancestors of selected descendants and shows the selected count', () => {
+    it('auto-expands ancestors of selected descendants and shows the selected chip', () => {
         render(
             <PortalThesaurusFilter
                 facets={nestedFacets}
@@ -194,7 +195,7 @@ describe('PortalThesaurusFilter', () => {
 
         expect(screen.getByRole('button', { name: 'BEDROCK' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Collapse SOLID EARTH' })).toBeInTheDocument();
-        expect(screen.getByText('1 selected')).toBeInTheDocument();
+        expect(screen.getByLabelText('Remove thesaurus keyword BEDROCK')).toBeInTheDocument();
     });
 
     it('toggles a node when its label button is clicked', async () => {

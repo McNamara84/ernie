@@ -1157,6 +1157,24 @@ describe('Docs page', () => {
         expect(funding.compareDocumentPosition(portal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
+    it('documents unified and responsive portal filtering', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Text Search and Free Keyword Suggestions', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/Choose a suggestion to add it as an exact keyword chip/i)).toBeInTheDocument();
+        expect(screen.getByText(/All controlled vocabularies share one hierarchy/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Responsive Filters and Views', level: 4 })).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                return element.textContent?.includes('open the filters in the Filters drawer') ?? false;
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('documents the current schema version for IGSN exports', async () => {
         const { user } = renderDocsPage('beginner');
 

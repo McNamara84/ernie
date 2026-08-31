@@ -34,6 +34,7 @@ use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\PortalCountController;
+use App\Http\Controllers\PortalKeywordSuggestionController;
 use App\Http\Controllers\PortalMapController;
 use App\Http\Controllers\PortalSearchAnalyticsController;
 use App\Http\Controllers\PublicMetadataExportController;
@@ -111,6 +112,10 @@ Route::get('/search', [PortalController::class, 'index'])
 Route::get('/search/count', PortalCountController::class)
     ->middleware('throttle:public-portal')
     ->name('portal.count');
+
+Route::get('/search/free-keyword-suggestions', PortalKeywordSuggestionController::class)
+    ->middleware('throttle:public-portal-suggestions')
+    ->name('portal.free-keyword-suggestions');
 
 Route::get('/search/map', PortalMapController::class)
     ->middleware('throttle:public-portal-map')

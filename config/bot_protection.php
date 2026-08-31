@@ -37,6 +37,7 @@ return [
         'public_landing_jsonld_per_minute' => (int) env('BOT_PROTECTION_PUBLIC_LANDING_JSONLD_PER_MINUTE', 30),
         'public_portal_per_minute' => (int) env('BOT_PROTECTION_PUBLIC_PORTAL_PER_MINUTE', 20),
         'public_portal_map_per_minute' => (int) env('BOT_PROTECTION_PUBLIC_PORTAL_MAP_PER_MINUTE', 120),
+        'public_portal_suggestions_per_minute' => (int) env('BOT_PROTECTION_PUBLIC_PORTAL_SUGGESTIONS_PER_MINUTE', 60),
     ],
 
     'landing_cache_ttl' => (int) env('BOT_PROTECTION_LANDING_CACHE_TTL', 600),

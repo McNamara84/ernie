@@ -138,7 +138,6 @@ export interface PortalPageProps {
     resources: PortalResource[];
     pagination: PortalPagination;
     filters: PortalFilters;
-    keywordSuggestions: KeywordSuggestion[];
     thesaurusFacets?: PortalThesaurusFacet[];
     temporalRange: TemporalRange;
     resourceTypeFacets: ResourceTypeFacet[];

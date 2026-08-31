@@ -13,6 +13,7 @@ interface PortalGeoFilterProps {
     onToggle: (enabled: boolean) => void;
     bounds: GeoBounds | null;
     onBoundsChange: (bounds: GeoBounds | null) => void;
+    hideTitle?: boolean;
 }
 
 function parseCoord(value: string): number | null {
@@ -20,7 +21,7 @@ function parseCoord(value: string): number | null {
     return isNaN(num) ? null : num;
 }
 
-export function PortalGeoFilter({ enabled, onToggle, bounds, onBoundsChange }: PortalGeoFilterProps) {
+export function PortalGeoFilter({ enabled, onToggle, bounds, onBoundsChange, hideTitle = false }: PortalGeoFilterProps) {
     const [north, setNorth] = useState('');
     const [south, setSouth] = useState('');
     const [east, setEast] = useState('');
@@ -87,8 +88,8 @@ export function PortalGeoFilter({ enabled, onToggle, bounds, onBoundsChange }: P
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Geographic Filter</Label>
+            <div className={hideTitle ? 'flex items-center justify-end' : 'flex items-center justify-between'}>
+                {!hideTitle && <Label className="text-sm font-medium">Geographic Filter</Label>}
                 {enabled && bounds && (
                     <Badge variant="secondary" className="text-xs">
                         <MapPin className="mr-1 h-3 w-3" />

@@ -337,7 +337,6 @@ export function createMockPortalPageProps(overrides?: {
             ...overrides?.pagination,
         }),
         filters: createMockPortalFilters(overrides?.filters),
-        keywordSuggestions: [],
         thesaurusFacets: [],
         temporalRange: {},
         resourceTypeFacets: [],

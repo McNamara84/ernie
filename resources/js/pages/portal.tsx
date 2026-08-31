@@ -1,7 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { Map as MapIcon, MapPin, PanelRightClose, PanelRightOpen, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Filter, List, Map as MapIcon, MapPin, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { PortalFilters } from '@/components/portal/PortalFilters';
 import { PortalMap } from '@/components/portal/PortalMap';
@@ -9,10 +9,13 @@ import { PortalResultList } from '@/components/portal/PortalResultList';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { useNavigationStatus } from '@/hooks/use-navigation-status';
 import { usePortalFilters } from '@/hooks/use-portal-filters';
 import PortalLayout from '@/layouts/portal-layout';
 import { buildPortalCountUrl, buildPortalFilterUrl } from '@/lib/portal-filter-url';
+import { cn } from '@/lib/utils';
 import type { GeoBounds, PortalPageProps, TemporalFilterValue } from '@/types/portal';
 
 interface PortalCountResponse {
@@ -26,30 +29,34 @@ const STORAGE_KEY_COLLAPSED = 'portal-map-collapsed';
 const STORAGE_KEY_LAYOUT = 'portal-panel-layout';
 const DEFAULT_RESULTS_SIZE = 55;
 const DEFAULT_MAP_SIZE = 45;
+const DESKTOP_QUERY = '(min-width: 1280px)';
 
 export default function Portal({
     resources,
     pagination,
     filters,
-    keywordSuggestions,
     thesaurusFacets = [],
     temporalRange,
     resourceTypeFacets,
     datacenterFacets,
 }: PortalPageProps) {
+    const isDesktop = useMediaQuery(DESKTOP_QUERY);
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
+    const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+    const [mobileView, setMobileView] = useState<'results' | 'map'>('results');
+    const [searchDraft, setSearchDraft] = useState(filters.query ?? '');
     const [resolvedPagination, setResolvedPagination] = useState(pagination);
     const [countAttempt, setCountAttempt] = useState(0);
     const { isNavigating: isRefreshing } = useNavigationStatus('results');
 
+    useEffect(() => setResolvedPagination(pagination), [pagination]);
+    useEffect(() => setSearchDraft(filters.query ?? ''), [filters.query]);
     useEffect(() => {
-        setResolvedPagination(pagination);
-    }, [pagination]);
+        if (isDesktop) setIsFilterDrawerOpen(false);
+    }, [isDesktop]);
 
     useEffect(() => {
-        if (!pagination.filter_fingerprint || pagination.count_status === 'ready') {
-            return;
-        }
+        if (!pagination.filter_fingerprint || pagination.count_status === 'ready') return;
 
         const controller = new AbortController();
         const expectedFingerprint = pagination.filter_fingerprint;
@@ -58,10 +65,7 @@ export default function Portal({
         void axios
             .get<PortalCountResponse>(countUrl, { signal: controller.signal })
             .then(({ data }) => {
-                if (data.filter_fingerprint !== expectedFingerprint) {
-                    return;
-                }
-
+                if (data.filter_fingerprint !== expectedFingerprint) return;
                 setResolvedPagination((current) =>
                     current.filter_fingerprint === data.filter_fingerprint
                         ? { ...current, total: data.total, last_page: data.last_page, count_status: 'ready' }
@@ -69,10 +73,7 @@ export default function Portal({
                 );
             })
             .catch((error: unknown) => {
-                if (controller.signal.aborted || (isAxiosError(error) && error.code === 'ERR_CANCELED')) {
-                    return;
-                }
-
+                if (controller.signal.aborted || (isAxiosError(error) && error.code === 'ERR_CANCELED')) return;
                 setResolvedPagination((current) =>
                     current.filter_fingerprint === expectedFingerprint ? { ...current, count_status: 'failed' } : current,
                 );
@@ -81,42 +82,29 @@ export default function Portal({
         return () => controller.abort();
     }, [countAttempt, filters, pagination.count_status, pagination.filter_fingerprint]);
 
-    // Initialize map collapsed state from localStorage
     const [isMapCollapsed, setIsMapCollapsed] = useState(() => {
         if (typeof window === 'undefined') return false;
-        const saved = localStorage.getItem(STORAGE_KEY_COLLAPSED);
-        return saved === 'true';
+        return localStorage.getItem(STORAGE_KEY_COLLAPSED) === 'true';
     });
-
-    // Initialize panel sizes from localStorage
     const [panelSizes, setPanelSizes] = useState<{ results: number; map: number }>(() => {
         if (typeof window === 'undefined') return { results: DEFAULT_RESULTS_SIZE, map: DEFAULT_MAP_SIZE };
         const saved = localStorage.getItem(STORAGE_KEY_LAYOUT);
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved) as { results?: number; map?: number };
-                return {
-                    results: parsed.results ?? DEFAULT_RESULTS_SIZE,
-                    map: parsed.map ?? DEFAULT_MAP_SIZE,
-                };
-            } catch {
-                return { results: DEFAULT_RESULTS_SIZE, map: DEFAULT_MAP_SIZE };
-            }
+        if (!saved) return { results: DEFAULT_RESULTS_SIZE, map: DEFAULT_MAP_SIZE };
+
+        try {
+            const parsed = JSON.parse(saved) as { results?: number; map?: number };
+            return { results: parsed.results ?? DEFAULT_RESULTS_SIZE, map: parsed.map ?? DEFAULT_MAP_SIZE };
+        } catch {
+            return { results: DEFAULT_RESULTS_SIZE, map: DEFAULT_MAP_SIZE };
         }
-        return { results: DEFAULT_RESULTS_SIZE, map: DEFAULT_MAP_SIZE };
     });
 
-    // Persist map collapsed state to localStorage
-    useEffect(() => {
-        localStorage.setItem(STORAGE_KEY_COLLAPSED, String(isMapCollapsed));
-    }, [isMapCollapsed]);
+    useEffect(() => localStorage.setItem(STORAGE_KEY_COLLAPSED, String(isMapCollapsed)), [isMapCollapsed]);
 
-    // Handle layout changes and persist to localStorage
     const handleLayoutChanged = useCallback((layout: { [panelId: string]: number }) => {
-        const resultsSize = layout['results'] ?? DEFAULT_RESULTS_SIZE;
-        const mapSize = layout['map'] ?? DEFAULT_MAP_SIZE;
-        setPanelSizes({ results: resultsSize, map: mapSize });
-        localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify({ results: resultsSize, map: mapSize }));
+        const next = { results: layout.results ?? DEFAULT_RESULTS_SIZE, map: layout.map ?? DEFAULT_MAP_SIZE };
+        setPanelSizes(next);
+        localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify(next));
     }, []);
 
     const {
@@ -125,75 +113,52 @@ export default function Portal({
         setDatacenter,
         setKeywords,
         setFreeKeywords,
+        setSearchAndKeywords,
         setThesaurusKeywords,
         setBounds,
         clearBounds,
         setTemporal,
         clearFilters,
         hasActiveFilters,
-    } = usePortalFilters({
-        filters,
-        currentPage: pagination.current_page,
-    });
+    } = usePortalFilters({ filters, currentPage: pagination.current_page });
     const hasLegacyKeywordFilters =
-        (filters.keywords?.length ?? 0) > 0 && (filters.freeKeywords?.length ?? 0) === 0 && (filters.thesaurusKeywords?.length ?? 0) === 0;
+        filters.keywords.length > 0 && (filters.freeKeywords?.length ?? 0) === 0 && (filters.thesaurusKeywords?.length ?? 0) === 0;
+    const selectedKeywordValues = useMemo(
+        () => (hasLegacyKeywordFilters ? filters.keywords : (filters.freeKeywords ?? [])),
+        [filters.freeKeywords, filters.keywords, hasLegacyKeywordFilters],
+    );
 
-    // Geo filter toggle state – initialized from URL params
     const [geoFilterEnabled, setGeoFilterEnabled] = useState(() => filters.bounds !== null);
-
-    // Temporal filter toggle state – initialized from URL params
     const [temporalFilterEnabled, setTemporalFilterEnabled] = useState(() => filters.temporal !== null);
-
-    // Bounds from manual coordinate input (triggers map fly-to)
     const [flyToBounds, setFlyToBounds] = useState<GeoBounds | null>(null);
-
-    // Debounce timer ref for viewport changes
+    const [geoCount, setGeoCount] = useState(0);
     const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Sync geo filter enabled state when URL bounds change
-    useEffect(() => {
-        setGeoFilterEnabled(filters.bounds !== null);
-    }, [filters.bounds]);
+    useEffect(() => setGeoFilterEnabled(filters.bounds !== null), [filters.bounds]);
+    useEffect(() => setTemporalFilterEnabled(filters.temporal !== null), [filters.temporal]);
 
-    // Sync temporal filter enabled state when URL temporal changes
-    useEffect(() => {
-        setTemporalFilterEnabled(filters.temporal !== null);
-    }, [filters.temporal]);
-
-    // Handle map viewport changes with 500ms debounce
     const handleViewportChange = useCallback(
         (bounds: GeoBounds) => {
             if (!geoFilterEnabled) return;
-
-            if (viewportTimerRef.current) {
-                clearTimeout(viewportTimerRef.current);
-            }
-
-            viewportTimerRef.current = setTimeout(() => {
-                setBounds(bounds);
-            }, 500);
+            if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
+            viewportTimerRef.current = setTimeout(() => setBounds(bounds), 500);
         },
         [geoFilterEnabled, setBounds],
     );
 
-    // Cleanup debounce timer
-    useEffect(() => {
-        return () => {
-            if (viewportTimerRef.current) {
-                clearTimeout(viewportTimerRef.current);
-            }
-        };
-    }, []);
+    useEffect(
+        () => () => {
+            if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
+        },
+        [],
+    );
 
-    // Handle geo filter toggle
     const handleGeoFilterToggle = useCallback(
         (enabled: boolean) => {
             setGeoFilterEnabled(enabled);
             if (!enabled) {
-                if (viewportTimerRef.current) {
-                    clearTimeout(viewportTimerRef.current);
-                    viewportTimerRef.current = null;
-                }
+                if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
+                viewportTimerRef.current = null;
                 clearBounds();
                 setFlyToBounds(null);
             }
@@ -201,243 +166,239 @@ export default function Portal({
         [clearBounds],
     );
 
-    // Handle manual bounds change from coordinate inputs
     const handleBoundsChange = useCallback(
         (bounds: GeoBounds | null) => {
-            if (bounds) {
-                setFlyToBounds(bounds);
-                setBounds(bounds);
-            } else {
-                setFlyToBounds(null);
-                clearBounds();
-            }
+            setFlyToBounds(bounds);
+            if (bounds) setBounds(bounds);
+            else clearBounds();
         },
-        [setBounds, clearBounds],
+        [clearBounds, setBounds],
     );
 
-    // Handle temporal filter toggle
-    // Note: The child component (PortalTemporalFilter) already calls
-    // onTemporalChange(null) when toggled off, so we only manage the
-    // local toggle state here to avoid duplicate navigations.
-    const handleTemporalFilterToggle = useCallback((enabled: boolean) => {
-        setTemporalFilterEnabled(enabled);
-    }, []);
-
-    // Handle temporal filter value change
-    const handleTemporalChange = useCallback(
-        (temporal: TemporalFilterValue | null) => {
-            if (temporal) {
-                setTemporal(temporal);
-            } else {
-                setTemporal(null);
-            }
-        },
-        [setTemporal],
-    );
+    const handleTemporalChange = useCallback((temporal: TemporalFilterValue | null) => setTemporal(temporal), [setTemporal]);
 
     const handleKeywordChange = useCallback(
-        (keywords: string[]) => {
-            if (hasLegacyKeywordFilters) {
-                setKeywords(keywords);
-
-                return;
-            }
-
-            setFreeKeywords(keywords);
-        },
-        [hasLegacyKeywordFilters, setKeywords, setFreeKeywords],
+        (keywords: string[]) => (hasLegacyKeywordFilters ? setKeywords(keywords) : setFreeKeywords(keywords)),
+        [hasLegacyKeywordFilters, setFreeKeywords, setKeywords],
     );
 
-    // Extended clear that also resets geo and temporal filters
+    const handleKeywordSelect = useCallback(
+        (keyword: string) => {
+            const nextKeywords = selectedKeywordValues.includes(keyword) ? selectedKeywordValues : [...selectedKeywordValues, keyword];
+            setSearchDraft('');
+            setSearchAndKeywords('', nextKeywords, hasLegacyKeywordFilters);
+        },
+        [hasLegacyKeywordFilters, selectedKeywordValues, setSearchAndKeywords],
+    );
+
     const handleClearAllFilters = useCallback(() => {
-        if (viewportTimerRef.current) {
-            clearTimeout(viewportTimerRef.current);
-            viewportTimerRef.current = null;
-        }
+        if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
+        viewportTimerRef.current = null;
         setGeoFilterEnabled(false);
         setTemporalFilterEnabled(false);
         setFlyToBounds(null);
+        setSearchDraft('');
         clearFilters();
     }, [clearFilters]);
 
-    // Updated asynchronously by the visible map instance.
-    const [geoCount, setGeoCount] = useState(0);
-
     const handlePageChange = useCallback(
-        (page: number) => {
-            const url = buildPortalFilterUrl(filters);
-
-            router.get(url, { page }, { preserveState: true, preserveScroll: false });
-        },
+        (page: number) => router.get(buildPortalFilterUrl(filters), { page }, { preserveState: true, preserveScroll: false }),
         [filters],
+    );
+
+    const sharedFilterProps = {
+        filters,
+        searchValue: searchDraft,
+        onSearchValueChange: setSearchDraft,
+        onSearchChange: setSearch,
+        onKeywordSelect: handleKeywordSelect,
+        onTypeChange: setType,
+        onDatacenterChange: setDatacenter,
+        onKeywordsChange: handleKeywordChange,
+        onThesaurusKeywordsChange: setThesaurusKeywords,
+        onClearFilters: handleClearAllFilters,
+        hasActiveFilters,
+        thesaurusFacets,
+        geoFilterEnabled,
+        onGeoFilterToggle: handleGeoFilterToggle,
+        onBoundsChange: handleBoundsChange,
+        temporalRange,
+        temporalFilterEnabled,
+        onTemporalFilterToggle: setTemporalFilterEnabled,
+        onTemporalChange: handleTemporalChange,
+        resourceTypeFacets,
+        datacenterFacets,
+    };
+
+    const results = (
+        <PortalResultList
+            resources={resources}
+            pagination={resolvedPagination}
+            onPageChange={handlePageChange}
+            isLoading={isRefreshing}
+            hasActiveFilters={hasActiveFilters}
+            onClearFilters={handleClearAllFilters}
+            onRetryCount={() => setCountAttempt((attempt) => attempt + 1)}
+        />
+    );
+
+    const map = (
+        <PortalMap
+            filters={filters}
+            hideHeader
+            geoFilterEnabled={geoFilterEnabled}
+            onViewportChange={handleViewportChange}
+            onLocationCountChange={setGeoCount}
+            flyToBounds={flyToBounds}
+        />
     );
 
     return (
         <PortalLayout>
             <Head title="Data Portal" />
 
-            <div className="flex min-h-0 flex-1 flex-col">
-                <div className="border-b bg-background/80 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:px-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="space-y-1">
-                            <h2 className="text-lg font-semibold text-foreground">Explore published records</h2>
-                            <p className="text-sm text-muted-foreground">
-                                Search datasets and sample metadata by text, location, resource type, and time.
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            {resolvedPagination.total !== null ? (
-                                <Badge variant="outline">{resolvedPagination.total.toLocaleString()} results</Badge>
-                            ) : resolvedPagination.count_status === 'failed' ? (
-                                <Button variant="outline" size="sm" onClick={() => setCountAttempt((attempt) => attempt + 1)}>
-                                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                                    Retry count
-                                </Button>
-                            ) : (
-                                <Badge variant="outline">Counting results...</Badge>
-                            )}
-                            {hasActiveFilters && <Badge variant="secondary">Filters active</Badge>}
-                            {isRefreshing && (
-                                <Badge variant="secondary" data-testid="portal-refresh-badge">
-                                    Refreshing results...
-                                </Badge>
-                            )}
-                        </div>
-                    </div>
-                </div>
+            <div className="flex min-h-0 flex-1 overflow-hidden" data-testid="portal-workspace">
+                {isDesktop ? (
+                    <>
+                        <PortalFilters
+                            {...sharedFilterProps}
+                            isCollapsed={isFilterCollapsed}
+                            onToggleCollapse={() => setIsFilterCollapsed((collapsed) => !collapsed)}
+                        />
 
-                {/* Main Content */}
-                <div className="flex flex-1 overflow-hidden">
-                    {/* Filter Sidebar */}
-                    <PortalFilters
-                        filters={filters}
-                        onSearchChange={setSearch}
-                        onTypeChange={setType}
-                        onDatacenterChange={setDatacenter}
-                        onKeywordsChange={handleKeywordChange}
-                        onThesaurusKeywordsChange={setThesaurusKeywords}
-                        onClearFilters={handleClearAllFilters}
-                        hasActiveFilters={hasActiveFilters}
-                        isCollapsed={isFilterCollapsed}
-                        onToggleCollapse={() => setIsFilterCollapsed(!isFilterCollapsed)}
-                        totalResults={resolvedPagination.total}
-                        countStatus={resolvedPagination.count_status}
-                        keywordSuggestions={keywordSuggestions}
-                        thesaurusFacets={thesaurusFacets}
-                        geoFilterEnabled={geoFilterEnabled}
-                        onGeoFilterToggle={handleGeoFilterToggle}
-                        onBoundsChange={handleBoundsChange}
-                        temporalRange={temporalRange}
-                        temporalFilterEnabled={temporalFilterEnabled}
-                        onTemporalFilterToggle={handleTemporalFilterToggle}
-                        onTemporalChange={handleTemporalChange}
-                        resourceTypeFacets={resourceTypeFacets}
-                        datacenterFacets={datacenterFacets}
-                    />
-
-                    {/* Results + Map Container - Stacked layout for smaller screens */}
-                    <div className="flex flex-1 flex-col overflow-hidden 2xl:hidden">
-                        {/* Results List */}
-                        <div className="flex flex-1 flex-col overflow-hidden">
-                            <PortalResultList
-                                resources={resources}
-                                pagination={resolvedPagination}
-                                onPageChange={handlePageChange}
-                                isLoading={isRefreshing}
-                                hasActiveFilters={hasActiveFilters}
-                                onClearFilters={handleClearAllFilters}
-                            />
-                        </div>
-
-                        {/* Map - collapsible on smaller screens */}
-                        <div className="border-t">
-                            <PortalMap
-                                filters={filters}
-                                geoFilterEnabled={geoFilterEnabled}
-                                onViewportChange={handleViewportChange}
-                                onLocationCountChange={setGeoCount}
-                                flyToBounds={flyToBounds}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Resizable layout for 2xl+ screens */}
-                    <div className="hidden flex-1 overflow-hidden 2xl:flex">
-                        <ResizablePanelGroup orientation="horizontal" className="h-full" onLayoutChanged={handleLayoutChanged}>
-                            {/* Results Panel */}
-                            <ResizablePanel id="results" defaultSize={isMapCollapsed ? 100 : panelSizes.results} minSize={30}>
-                                <div className="flex h-full flex-col overflow-hidden">
-                                    <PortalResultList
-                                        resources={resources}
-                                        pagination={resolvedPagination}
-                                        onPageChange={handlePageChange}
-                                        isLoading={isRefreshing}
-                                        hasActiveFilters={hasActiveFilters}
-                                        onClearFilters={handleClearAllFilters}
-                                    />
-                                </div>
-                            </ResizablePanel>
-
-                            {/* Resize Handle */}
-                            {!isMapCollapsed && <ResizableHandle withHandle />}
-
-                            {/* Map Panel - collapsible */}
-                            {!isMapCollapsed && (
-                                <ResizablePanel id="map" defaultSize={panelSizes.map} minSize={20}>
-                                    <div className="flex h-full flex-col border-l">
-                                        {/* Map Header with collapse button */}
-                                        <div className="flex items-center justify-between border-b px-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                                <MapIcon className="h-4 w-4" />
-                                                <span className="font-medium">Map</span>
-                                                <span className="text-sm text-muted-foreground">
-                                                    ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
-                                                </span>
-                                                {geoFilterEnabled && filters.bounds && (
-                                                    <Badge variant="secondary" className="text-xs">
-                                                        <MapPin className="mr-1 h-3 w-3" />
-                                                        Spatial filter
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                            <Button variant="ghost" size="icon" onClick={() => setIsMapCollapsed(true)} title="Collapse map">
-                                                <PanelRightClose className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                        {/* Map Content */}
-                                        <div className="flex-1">
-                                            <PortalMap
-                                                filters={filters}
-                                                hideHeader
-                                                geoFilterEnabled={geoFilterEnabled}
-                                                onViewportChange={handleViewportChange}
-                                                onLocationCountChange={setGeoCount}
-                                                flyToBounds={flyToBounds}
-                                            />
-                                        </div>
-                                    </div>
+                        <div className="flex min-w-0 flex-1 overflow-hidden">
+                            <ResizablePanelGroup orientation="horizontal" className="h-full" onLayoutChanged={handleLayoutChanged}>
+                                <ResizablePanel id="results" defaultSize={isMapCollapsed ? 100 : panelSizes.results} minSize={30}>
+                                    <div className="flex h-full min-w-0 flex-col overflow-hidden">{results}</div>
                                 </ResizablePanel>
-                            )}
-                        </ResizablePanelGroup>
 
-                        {/* Collapsed Map Toggle Button */}
-                        {isMapCollapsed && (
-                            <div className="flex flex-col border-l">
-                                <Button variant="ghost" size="icon" className="m-2" onClick={() => setIsMapCollapsed(false)} title="Show map">
-                                    <PanelRightOpen className="h-4 w-4" />
-                                </Button>
-                                <div className="flex flex-1 items-center justify-center">
-                                    <span
-                                        className="cursor-pointer text-xs text-muted-foreground [writing-mode:vertical-lr]"
+                                {!isMapCollapsed && <ResizableHandle withHandle />}
+
+                                {!isMapCollapsed && (
+                                    <ResizablePanel id="map" defaultSize={panelSizes.map} minSize={20}>
+                                        <div className="flex h-full min-w-0 flex-col border-l">
+                                            <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
+                                                <div className="flex min-w-0 items-center gap-2">
+                                                    <MapIcon className="h-4 w-4 shrink-0" />
+                                                    <span className="font-medium">Map</span>
+                                                    <span className="truncate text-sm text-muted-foreground">
+                                                        ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
+                                                    </span>
+                                                    {geoFilterEnabled && filters.bounds && (
+                                                        <Badge variant="secondary" className="text-xs">
+                                                            <MapPin className="mr-1 h-3 w-3" />
+                                                            Spatial filter
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => setIsMapCollapsed(true)}
+                                                    title="Collapse map"
+                                                    aria-label="Collapse map"
+                                                >
+                                                    <PanelRightClose className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                            <div className="min-h-0 flex-1">{map}</div>
+                                        </div>
+                                    </ResizablePanel>
+                                )}
+                            </ResizablePanelGroup>
+
+                            {isMapCollapsed && (
+                                <div className="flex w-12 shrink-0 flex-col items-center border-l">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="mt-2"
+                                        onClick={() => setIsMapCollapsed(false)}
+                                        title="Show map"
+                                        aria-label="Show map"
+                                    >
+                                        <PanelRightOpen className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="h-auto w-full flex-1 rounded-none px-0 py-2 text-xs font-normal text-muted-foreground [writing-mode:vertical-lr]"
                                         onClick={() => setIsMapCollapsed(false)}
                                     >
                                         Show Map ({geoCount})
-                                    </span>
+                                    </Button>
                                 </div>
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                        <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsFilterDrawerOpen(true)}
+                                className="relative"
+                                data-testid="portal-filter-drawer-trigger"
+                            >
+                                <Filter className="mr-1.5 h-4 w-4" /> Filters
+                                {hasActiveFilters && (
+                                    <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full border-2 border-background bg-primary" />
+                                )}
+                            </Button>
+                            <div className="ml-auto flex rounded-md border p-0.5" aria-label="Portal view">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-pressed={mobileView === 'results'}
+                                    onClick={() => setMobileView('results')}
+                                    className={cn('h-8', mobileView === 'results' && 'bg-muted')}
+                                    data-testid="portal-mobile-results-tab"
+                                >
+                                    <List className="mr-1.5 h-4 w-4" /> Results
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-pressed={mobileView === 'map'}
+                                    onClick={() => setMobileView('map')}
+                                    className={cn('h-8', mobileView === 'map' && 'bg-muted')}
+                                    data-testid="portal-mobile-map-tab"
+                                >
+                                    <MapIcon className="mr-1.5 h-4 w-4" /> Map
+                                </Button>
                             </div>
-                        )}
+                        </div>
+
+                        <Sheet open={isFilterDrawerOpen} onOpenChange={setIsFilterDrawerOpen}>
+                            <SheetContent side="left" className="w-[min(92vw,20rem)] gap-0 p-0 sm:max-w-xs">
+                                <SheetHeader className="sr-only">
+                                    <SheetTitle>Search filters</SheetTitle>
+                                    <SheetDescription>Filter published datasets and samples.</SheetDescription>
+                                </SheetHeader>
+                                <PortalFilters
+                                    {...sharedFilterProps}
+                                    isCollapsed={false}
+                                    onToggleCollapse={() => setIsFilterDrawerOpen(false)}
+                                    showCollapseButton={false}
+                                    className="w-full border-r-0"
+                                />
+                            </SheetContent>
+                        </Sheet>
+
+                        <div className="min-h-0 flex-1 overflow-hidden">
+                            {mobileView === 'results' ? (
+                                <div className="flex h-full flex-col" data-testid="portal-mobile-results-view">
+                                    {results}
+                                </div>
+                            ) : (
+                                <div className="h-full" data-testid="portal-mobile-map-view">
+                                    {map}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </PortalLayout>
     );

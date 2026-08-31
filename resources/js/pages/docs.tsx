@@ -1814,17 +1814,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>Enable the spatial filter when you want the result list to follow the selected map area</li>
                         </ul>
 
-                        <h4>Free Keywords</h4>
+                        <h4>Text Search and Free Keyword Suggestions</h4>
                         <p>
-                            The <strong>Free Keywords</strong> filter is a searchable multi-select for uncontrolled keywords that were entered as
-                            plain text during curation. Select one or more values to require exact matches on those free-form terms.
+                            The single <strong>Search</strong> field accepts arbitrary text and suggests free keywords used by published records after
+                            you enter at least two characters. Choose a suggestion to add it as an exact keyword chip, or submit the typed value with
+                            Enter or the magnifying-glass button to run a normal full-text search. Text and multiple exact keyword chips can be
+                            combined, and each chip can be removed independently.
                         </p>
 
                         <h4>Thesaurus Keywords</h4>
                         <p>
-                            Controlled vocabulary terms are now filtered separately in the <strong>Thesaurus Keywords</strong> section. ERNIE shows a
-                            dedicated tree for each thesaurus and hides unused branches automatically, so you only browse terms that are already used
-                            by published records.
+                            All controlled vocabularies share one hierarchy in the <strong>Thesaurus Keywords</strong> card. It initially shows only
+                            the available root categories, such as Science Keywords, Platforms, and Instruments. Expand a root and then only the
+                            branches you need to browse terms used by published records.
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Select a parent node to include matching descendant terms automatically</li>
@@ -1832,10 +1834,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>Remove individual selections from the chips above the tree without resetting the other filters</li>
                         </ul>
 
+                        <h4>Responsive Filters and Views</h4>
+                        <p>
+                            On larger screens, the filter sidebar scrolls independently from the results and map and both side areas can be collapsed.
+                            On smaller screens, open the filters in the <strong>Filters</strong> drawer and use the <strong>Results</strong> and{' '}
+                            <strong>Map</strong> controls to switch between the two views.
+                        </p>
+
                         <h4>Other Portal Filters</h4>
                         <p>
-                            Resource type, datacenter, temporal range, and spatial map filters continue to work together with the split keyword
-                            filters. When the result set refreshes, the current results stay visible until the new response arrives.
+                            Resource type, datacenter, temporal range, and spatial map filters continue to work together with the unified search and
+                            thesaurus filters. When the result set refreshes, the current results stay visible until the new response arrives.
                         </p>
 
                         <h4>Result Preview</h4>
