@@ -3,6 +3,7 @@ import createServer from '@inertiajs/react/server';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import ReactDOMServer from 'react-dom/server';
 
+import { formatInertiaPageTitle } from './lib/inertia-page-title';
 import { createQueryClient } from './lib/query-client';
 import { QueryProvider } from './providers/query-provider';
 
@@ -12,7 +13,7 @@ createServer((page) =>
     createInertiaApp({
         page,
         render: ReactDOMServer.renderToString,
-        title: (title) => (title ? `${title} - ${appName}` : appName),
+        title: (title, currentPage) => formatInertiaPageTitle(title, currentPage, appName),
         resolve: (name) =>
             resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob<ResolvedComponent>('./pages/**/*.tsx', { import: 'default' })),
         setup: ({ App, props }) => {

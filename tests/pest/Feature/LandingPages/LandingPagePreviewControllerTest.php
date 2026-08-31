@@ -7,6 +7,7 @@ use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\ResourceType;
+use App\Models\Title;
 use App\Models\User;
 use Illuminate\Support\Facades\Session;
 
@@ -232,6 +233,27 @@ describe('Session Preview Creation', function () {
 });
 
 describe('Session Preview Display', function () {
+    test('uses a preview document title and raw noindex metadata', function () {
+        Title::factory()->for($this->resource)->create([
+            'value' => 'Session preview dataset',
+        ]);
+        Session::put("landing_page_preview.{$this->resource->id}", [
+            'template' => 'default_gfz',
+            'resource_id' => $this->resource->id,
+        ]);
+
+        $response = $this->get("/resources/{$this->resource->id}/landing-page/preview");
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('documentTitle', 'Preview: Session preview dataset | GFZ Data Services')
+                ->where('isPreview', true)
+            )
+            ->assertSee('<title inertia>Preview: Session preview dataset | GFZ Data Services</title>', false)
+            ->assertSee('<meta name="robots" content="noindex, nofollow">', false)
+            ->assertDontSee('Preview: Session preview dataset | GFZ Data Services - ERNIE', false);
+    });
+
     test('can view temporary preview from session', function () {
         Session::put("landing_page_preview.{$this->resource->id}", [
             'template' => 'default_gfz',

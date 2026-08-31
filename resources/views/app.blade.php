@@ -47,7 +47,13 @@
             }
         </style>
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title inertia>{{ is_array($landingPageDocumentMetadata ?? null) && is_string($landingPageDocumentMetadata['title'] ?? null)
+            ? $landingPageDocumentMetadata['title']
+            : config('app.name', 'Laravel') }}</title>
+
+        @if(is_array($landingPageDocumentMetadata ?? null) && is_string($landingPageDocumentMetadata['robots'] ?? null))
+            <meta name="robots" content="{{ $landingPageDocumentMetadata['robots'] }}">
+        @endif
 
         @if(isset($landingPageMachineMetadata) && is_array($landingPageMachineMetadata))
             @if(is_string($landingPageMachineMetadata['jsonLdJson'] ?? null))

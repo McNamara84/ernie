@@ -11,6 +11,7 @@ use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\BotProtection\LandingPageViewCounterService;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataCiteLinkedDataExporter;
+use App\Services\LandingPageDocumentMetadataService;
 use App\Services\LandingPageMachineMetadataService;
 use App\Services\LandingPageMetadataLinkService;
 use App\Services\LandingPageResourceTransformer;
@@ -80,6 +81,7 @@ class LandingPagePublicController extends Controller
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
+        LandingPageDocumentMetadataService $documentMetadataService,
         LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
         string $doiPrefix,
@@ -134,6 +136,7 @@ class LandingPagePublicController extends Controller
             $viewCounter,
             $citationService,
             $templateResolver,
+            $documentMetadataService,
             $machineMetadataService,
             $metadataLinkService,
             $previewToken,
@@ -154,6 +157,7 @@ class LandingPagePublicController extends Controller
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
+        LandingPageDocumentMetadataService $documentMetadataService,
         LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
         int $resourceId,
@@ -186,6 +190,7 @@ class LandingPagePublicController extends Controller
             $viewCounter,
             $citationService,
             $templateResolver,
+            $documentMetadataService,
             $machineMetadataService,
             $metadataLinkService,
             $previewToken,
@@ -262,6 +267,7 @@ class LandingPagePublicController extends Controller
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
+        LandingPageDocumentMetadataService $documentMetadataService,
         LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
         ?string $previewToken
@@ -315,7 +321,7 @@ class LandingPagePublicController extends Controller
             $viewCounter->record($request, $landingPage);
         }
 
-        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $templateResolver, $machineMetadataService, $previewToken): array {
+        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $templateResolver, $documentMetadataService, $machineMetadataService, $previewToken): array {
             // Load resource with all necessary relationships
             $resource = Resource::with($transformer->requiredRelations())
                 ->findOrFail($landingPage->resource_id);
@@ -326,6 +332,11 @@ class LandingPagePublicController extends Controller
             $landingPage->loadMissing(['files', 'links', 'landingPageTemplate']);
 
             $resourceData = $transformer->transform($resource);
+            $documentMetadata = $documentMetadataService->resolve(
+                $resourceData,
+                $effectiveTemplate,
+                $previewToken !== null,
+            );
 
             $resolvedTemplate = $templateResolver->forLandingPage($resource, $landingPage);
             $templateConfig = $resolvedTemplate['template'];
@@ -362,6 +373,7 @@ class LandingPagePublicController extends Controller
                 'template' => $effectiveTemplate,
                 'props' => [
                     'resource' => $resourceData,
+                    'documentTitle' => $documentMetadata['title'],
                     'citationStyles' => $citationService->format($resource),
                     'landingPage' => $landingPageData,
                     'metadataLinks' => $machineMetadata['metadataLinks'] ?? [],
@@ -376,9 +388,10 @@ class LandingPagePublicController extends Controller
                         'citationAuthors' => $templateConfig->citation_author_display_limit,
                     ],
                 ],
-                'viewData' => $machineMetadata === null
-                    ? []
-                    : ['landingPageMachineMetadata' => $machineMetadata],
+                'viewData' => array_filter([
+                    'landingPageDocumentMetadata' => $documentMetadata,
+                    'landingPageMachineMetadata' => $machineMetadata,
+                ], static fn (mixed $value): bool => $value !== null),
             ];
         };
 

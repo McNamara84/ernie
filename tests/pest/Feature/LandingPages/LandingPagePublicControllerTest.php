@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\CacheKey;
 use App\Http\Controllers\LandingPagePublicController;
 use App\Models\Datacenter;
+use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\LandingPageDailyStatistic;
 use App\Models\LandingPageDomain;
@@ -13,6 +14,7 @@ use App\Models\Resource;
 use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\Right;
+use App\Models\Title;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
@@ -68,6 +70,91 @@ function invokeLandingPagePublicControllerHelper(string $method, mixed ...$argum
 }
 
 describe('Public Landing Page Access', function () {
+    test('uses the main title and public brand in Inertia and raw HTML', function () {
+        Title::factory()->for($this->resource)->create([
+            'value' => 'Published research dataset',
+        ]);
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'published-document-title',
+                'template' => 'default_gfz',
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('documentTitle', 'Published research dataset | GFZ Data Services')
+                ->where('isPreview', false)
+            )
+            ->assertSee('<title inertia>Published research dataset | GFZ Data Services</title>', false)
+            ->assertDontSee('<meta name="robots"', false)
+            ->assertDontSee('Published research dataset | GFZ Data Services - ERNIE', false);
+    });
+
+    test('escapes markup-like main title characters in raw HTML', function () {
+        $dangerousTitle = 'Research <dataset> & "observations"';
+        Title::factory()->for($this->resource)->create(['value' => $dangerousTitle]);
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'escaped-document-title',
+                'template' => 'default_gfz',
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage))->assertOk();
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('documentTitle', $dangerousTitle.' | GFZ Data Services')
+        );
+
+        expect($response->getContent())
+            ->toContain('<title inertia>'.e($dangerousTitle.' | GFZ Data Services').'</title>')
+            ->not->toContain('<title inertia>'.$dangerousTitle.' | GFZ Data Services</title>');
+    });
+
+    test('uses the local sample name for published IGSNs whose main title is tba', function () {
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'is_active' => true],
+        );
+        $resource = Resource::factory()->create([
+            'doi' => '10.60510/test.document.title',
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+        Title::factory()->for($resource)->create(['value' => ':tba']);
+        IgsnMetadata::query()->create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+        ]);
+        $resource->alternateIdentifiers()->create([
+            'value' => 'Local sample GFZ-001',
+            'type' => 'Local accession number',
+            'position' => 0,
+        ]);
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => $resource->doi,
+                'slug' => 'igsn-local-document-title',
+                'template' => 'default_gfz_igsn',
+            ]);
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz_igsn')
+                ->where('documentTitle', 'Local sample GFZ-001 | GFZ Data Services')
+            )
+            ->assertSee('<title inertia>Local sample GFZ-001 | GFZ Data Services</title>', false);
+    });
+
     test('can access published landing page', function () {
         $landingPage = LandingPage::factory()
             ->published()
@@ -164,6 +251,31 @@ describe('Public Landing Page Access', function () {
 });
 
 describe('Preview Token Access', function () {
+    test('marks token previews in the title and raw robots metadata', function () {
+        Title::factory()->for($this->resource)->create([
+            'value' => 'Draft research dataset',
+        ]);
+        $landingPage = LandingPage::factory()
+            ->draft()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'draft-document-title',
+                'template' => 'default_gfz',
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage, $landingPage->preview_token));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('documentTitle', 'Preview: Draft research dataset | GFZ Data Services')
+                ->where('isPreview', true)
+            )
+            ->assertSee('<title inertia>Preview: Draft research dataset | GFZ Data Services</title>', false)
+            ->assertSee('<meta name="robots" content="noindex, nofollow">', false)
+            ->assertDontSee('Preview: Draft research dataset | GFZ Data Services - ERNIE', false);
+    });
+
     test('can access draft with valid preview token', function () {
         $landingPage = LandingPage::factory()
             ->draft()
@@ -325,13 +437,17 @@ describe('Landing Page Caching', function () {
             ->assertInertia(fn ($page) => $page->where('landingPage.ftp_url', 'https://data.gfz.de/new.zip'));
     });
 
-    test('ignores a legacy unversioned render payload and caches citation styles under the v4 key', function () {
+    test('ignores a legacy unversioned render payload and caches complete head data under the v5 key', function () {
         config([
             'bot_protection.enabled' => true,
             'bot_protection.landing_cache_ttl' => 600,
         ]);
 
         Cache::flush();
+
+        Title::factory()->for($this->resource)->create([
+            'value' => 'Cached document title',
+        ]);
 
         $landingPage = LandingPage::factory()
             ->published()
@@ -359,6 +475,7 @@ describe('Landing Page Caching', function () {
             ->assertInertia(fn ($page) => $page
                 ->has('citationStyles', 5)
                 ->where('citationStyles.0.id', 'apa-7')
+                ->where('documentTitle', 'Cached document title | GFZ Data Services')
             );
 
         expect(Cache::tags($tags)->has($legacyKey))->toBeTrue()

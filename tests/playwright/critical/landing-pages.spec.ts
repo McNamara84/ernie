@@ -23,6 +23,8 @@ test.describe('Landing Page - Basic Display', () => {
 
     // Verify title
     await landingPage.verifyTitle('TEST: Mandatory Fields Only');
+    await expect(page).toHaveTitle('TEST: Mandatory Fields Only | GFZ Data Services');
+    await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
 
     // Verify abstract is displayed
     await landingPage.verifyAbstractVisible('minimal test resource');
