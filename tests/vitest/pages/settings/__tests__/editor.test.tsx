@@ -214,9 +214,26 @@ describe('EditorSettings accordion page', () => {
         expect(licenses).toHaveAttribute('aria-expanded', 'false');
     });
 
-    it('keeps force-mounted Thesaurus and PID content alive while switching sections', async () => {
+    it('mounts regular section content only while that section is open', async () => {
         const user = userEvent.setup();
         renderSettings();
+
+        expect(screen.queryByDisplayValue('Dataset')).not.toBeInTheDocument();
+
+        await user.click(sectionTrigger(/^Resource Types/));
+        const resourceTypeName = within(section('resource-types')).getByDisplayValue('Dataset');
+        expect(resourceTypeName).toBeVisible();
+
+        await user.click(sectionTrigger(/^Licenses/));
+        expect(resourceTypeName).not.toBeInTheDocument();
+    });
+
+    it('keeps opt-in force-mounted Thesaurus and PID content alive while switching sections', async () => {
+        const user = userEvent.setup();
+        renderSettings();
+
+        expect(screen.getByTestId('thesaurus-card-mock')).not.toBeVisible();
+        expect(screen.getByTestId('pid-settings-card-mock')).not.toBeVisible();
 
         await user.click(sectionTrigger(/^Thesauri/));
         const thesaurusContent = screen.getByTestId('thesaurus-card-mock');
@@ -245,6 +262,9 @@ describe('EditorSettings accordion page', () => {
         await user.click(sectionTrigger(/^Resource Types/));
         await user.click(within(resourceTypes).getByLabelText('Select all ERNIE active for Resource Types'));
 
+        expect(within(resourceTypes).getByText('2 ERNIE')).toBeInTheDocument();
+
+        await user.click(sectionTrigger(/^Resource Types/));
         expect(within(resourceTypes).getByText('2 ERNIE')).toBeInTheDocument();
     });
 

@@ -60,9 +60,19 @@ interface EditorSettingsSectionProps {
     summary: ReactNode;
     children: ReactNode;
     className?: string;
+    forceMount?: boolean;
 }
 
-export function EditorSettingsSection({ value, title, description, icon, summary, children, className }: EditorSettingsSectionProps) {
+export function EditorSettingsSection({
+    value,
+    title,
+    description,
+    icon,
+    summary,
+    children,
+    className,
+    forceMount = false,
+}: EditorSettingsSectionProps) {
     const openSection = useContext(OpenEditorSettingsSectionContext);
     const isOpen = openSection === value;
 
@@ -85,7 +95,12 @@ export function EditorSettingsSection({ value, title, description, icon, summary
                     {summary}
                 </span>
             </AccordionTrigger>
-            <AccordionContent forceMount hidden={!isOpen} aria-hidden={!isOpen} className="px-4 pb-5 sm:px-6 sm:pb-6">
+            <AccordionContent
+                forceMount={forceMount ? true : undefined}
+                hidden={forceMount && !isOpen}
+                aria-hidden={forceMount && !isOpen ? true : undefined}
+                className="px-4 pb-5 sm:px-6 sm:pb-6"
+            >
                 {children}
             </AccordionContent>
         </AccordionItem>

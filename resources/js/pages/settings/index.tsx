@@ -1263,6 +1263,7 @@ export default function EditorSettings({
                         value="thesauri"
                         title="Thesauri"
                         description="Manage controlled vocabularies for scientific keywords, platforms, instruments, and MSL laboratories."
+                        forceMount
                         summary={
                             <SettingsSectionSummary
                                 items={[
@@ -1294,6 +1295,7 @@ export default function EditorSettings({
                         value="persistent-identifiers"
                         title="Persistent Identifiers"
                         description="Manage persistent identifier registries: PID4INST (b2inst) for research instruments and ROR for research organizations."
+                        forceMount
                         summary={
                             <SettingsSectionSummary
                                 items={[
