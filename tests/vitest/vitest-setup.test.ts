@@ -46,8 +46,10 @@ describe('Vitest jsdom error handling', () => {
             );
 
             const stderrOutput = stderrWrite.mock.calls.map(([chunk]) => String(chunk)).join('');
+            const causeStack = cause.stack;
 
-            expect(stderrOutput).toContain(cause.stack);
+            expect(causeStack).toBeDefined();
+            expect(stderrOutput).toContain(causeStack ?? cause.message);
         } finally {
             stderrWrite.mockRestore();
         }
