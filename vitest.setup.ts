@@ -4,16 +4,40 @@ import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest';
 
 import { server } from './tests/vitest/helpers/msw-server';
 
-const originalConsoleError = console.error;
 const ignoredJsdomErrors = new Set(['Could not parse CSS stylesheet', 'Not implemented: navigation to another Document']);
 
-console.error = (...args: Parameters<typeof console.error>) => {
-    if (args.length === 1 && typeof args[0] === 'string' && ignoredJsdomErrors.has(args[0])) {
+type JsdomError = Error & { type?: string };
+type JsdomVirtualConsole = {
+    off: (eventName: 'jsdomError', listener: (error: JsdomError) => void) => void;
+    on: (eventName: 'jsdomError', listener: (error: JsdomError) => void) => void;
+    removeAllListeners: (eventName: 'jsdomError') => void;
+};
+
+const vitestJsdom = (
+    globalThis as typeof globalThis & {
+        jsdom?: { virtualConsole: JsdomVirtualConsole };
+    }
+).jsdom;
+
+function forwardRelevantJsdomError(error: JsdomError) {
+    if (ignoredJsdomErrors.has(error.message)) {
         return;
     }
 
-    originalConsoleError(...args);
-};
+    if (error.type === 'unhandled-exception' && error.cause !== undefined) {
+        console.error(error.cause instanceof Error ? (error.cause.stack ?? error.cause.message) : error.cause);
+
+        return;
+    }
+
+    console.error(error.message);
+}
+
+// Filter at jsdom's source instead of patching console.error. Navigation is
+// queued asynchronously and can otherwise be reported after the console patch
+// has already been restored during suite teardown.
+vitestJsdom?.virtualConsole.removeAllListeners('jsdomError');
+vitestJsdom?.virtualConsole.on('jsdomError', forwardRelevantJsdomError);
 
 // Start MSW before any test runs so that fetch calls inside hooks/components
 // are intercepted deterministically. `onUnhandledRequest: 'error'` prevents
@@ -87,7 +111,7 @@ class MockIntersectionObserver implements IntersectionObserver {
                     time: Date.now(),
                 },
             ],
-            this
+            this,
         );
     }
 
@@ -167,7 +191,7 @@ HTMLAnchorElement.prototype.click = function () {
 
 afterAll(() => {
     server.close();
-    console.error = originalConsoleError;
+    vitestJsdom?.virtualConsole.off('jsdomError', forwardRelevantJsdomError);
     HTMLAnchorElement.prototype.click = nativeAnchorClick;
 });
 
