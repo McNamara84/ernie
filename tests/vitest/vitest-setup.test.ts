@@ -12,7 +12,7 @@ const virtualConsole = (
 
 describe('Vitest jsdom error handling', () => {
     it('suppresses expected navigation and CSS limitations but forwards other errors', () => {
-        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        const stderrWrite = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
         try {
             virtualConsole.emit(
@@ -22,10 +22,34 @@ describe('Vitest jsdom error handling', () => {
             virtualConsole.emit('jsdomError', Object.assign(new Error('Could not parse CSS stylesheet'), { type: 'css-parsing' }));
             virtualConsole.emit('jsdomError', Object.assign(new Error('Unexpected jsdom failure'), { type: 'resource-loading' }));
 
-            expect(consoleError).toHaveBeenCalledOnce();
-            expect(consoleError).toHaveBeenCalledWith('Unexpected jsdom failure');
+            const stderrOutput = stderrWrite.mock.calls.map(([chunk]) => String(chunk)).join('');
+
+            expect(stderrOutput).not.toContain('Not implemented: navigation to another Document');
+            expect(stderrOutput).not.toContain('Could not parse CSS stylesheet');
+            expect(stderrOutput).toContain('Unexpected jsdom failure');
         } finally {
-            consoleError.mockRestore();
+            stderrWrite.mockRestore();
+        }
+    });
+
+    it('forwards the underlying cause of unhandled exceptions', () => {
+        const stderrWrite = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+        const cause = new Error('Unexpected asynchronous failure');
+
+        try {
+            virtualConsole.emit(
+                'jsdomError',
+                Object.assign(new Error('Uncaught [Error: Unexpected asynchronous failure]'), {
+                    cause,
+                    type: 'unhandled-exception',
+                }),
+            );
+
+            const stderrOutput = stderrWrite.mock.calls.map(([chunk]) => String(chunk)).join('');
+
+            expect(stderrOutput).toContain(cause.stack);
+        } finally {
+            stderrWrite.mockRestore();
         }
     });
 });

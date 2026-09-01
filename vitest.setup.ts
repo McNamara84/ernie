@@ -6,10 +6,8 @@ import { server } from './tests/vitest/helpers/msw-server';
 
 const ignoredJsdomErrors = new Set(['Could not parse CSS stylesheet', 'Not implemented: navigation to another Document']);
 
-type JsdomError = Error & { type?: string };
 type JsdomVirtualConsole = {
-    on: (eventName: 'jsdomError', listener: (error: JsdomError) => void) => void;
-    removeAllListeners: (eventName: 'jsdomError') => void;
+    emit: (eventName: string | symbol, ...args: unknown[]) => boolean;
 };
 
 const vitestJsdom = (
@@ -18,25 +16,21 @@ const vitestJsdom = (
     }
 ).jsdom;
 
-function forwardRelevantJsdomError(error: JsdomError) {
-    if (ignoredJsdomErrors.has(error.message)) {
-        return;
-    }
+if (vitestJsdom) {
+    const { virtualConsole } = vitestJsdom;
+    const emit = virtualConsole.emit.bind(virtualConsole);
 
-    if (error.type === 'unhandled-exception' && error.cause !== undefined) {
-        console.error(error.cause instanceof Error ? (error.cause.stack ?? error.cause.message) : error.cause);
+    // Filter before event dispatch so the listener registry remains untouched.
+    // Keep this wrapper until Vitest disposes the per-file environment so queued
+    // tasks can still report unexpected errors after final hooks have completed.
+    virtualConsole.emit = (eventName, ...args) => {
+        if (eventName === 'jsdomError' && args[0] instanceof Error && ignoredJsdomErrors.has(args[0].message)) {
+            return false;
+        }
 
-        return;
-    }
-
-    console.error(error.message);
+        return emit(eventName, ...args);
+    };
 }
-
-// Filter at jsdom's source instead of patching console.error. Keep this listener
-// attached until Vitest disposes the per-file jsdom environment so queued tasks
-// can still report unexpected errors after the final suite hook has completed.
-vitestJsdom?.virtualConsole.removeAllListeners('jsdomError');
-vitestJsdom?.virtualConsole.on('jsdomError', forwardRelevantJsdomError);
 
 // Start MSW before any test runs so that fetch calls inside hooks/components
 // are intercepted deterministically. `onUnhandledRequest: 'error'` prevents
