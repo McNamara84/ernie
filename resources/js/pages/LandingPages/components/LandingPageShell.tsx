@@ -23,7 +23,8 @@ export function LandingPageShell({
     leftColumnSections,
     rightColumnSections,
 }: LandingPageShellProps) {
-    const defaultHeaderLogoClassName = 'h-24 max-w-full object-contain dark:grayscale dark:invert dark:mix-blend-screen';
+    const headerLogoClassName = 'h-auto w-auto max-w-full object-contain';
+    const defaultHeaderLogoClassName = `${headerLogoClassName} dark:grayscale dark:invert dark:mix-blend-screen`;
 
     return (
         <>
@@ -64,9 +65,9 @@ export function LandingPageShell({
                         </div>
                         <div className="flex justify-center">
                             {customLogoUrl ? (
-                                <img src={customLogoUrl} alt="GFZ Data Services" className="h-auto w-auto max-w-full object-contain" />
+                                <img src={customLogoUrl} alt="GFZ Data Services" className={headerLogoClassName} />
                             ) : (
-                                <img src="/images/gfz-ds-logo.png" alt="GFZ Data Services" className={defaultHeaderLogoClassName} />
+                                <img src="/images/GFZ-Header_2026.webp" alt="GFZ Data Services" className={defaultHeaderLogoClassName} />
                             )}
                         </div>
                     </header>
