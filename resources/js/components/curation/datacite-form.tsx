@@ -2240,7 +2240,7 @@ export default function DataCiteForm({
                 relationType: string;
                 relationTypeInformation?: string;
                 citationLabel?: string;
-                source?: 'relation_suggestion_assistant';
+                source?: 'relation_suggestion_assistant' | 'legacy_igsn_dif';
             }[];
             fundingReferences: {
                 funderName: string;

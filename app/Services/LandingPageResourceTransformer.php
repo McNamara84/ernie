@@ -558,6 +558,10 @@ final class LandingPageResourceTransformer
             $descriptionJson = $meta->description_json ?? [];
             $legacyDif = $meta->legacy_dif_json ?? [];
             $legacyAggregates = is_array($legacyDif['aggregates'] ?? null) ? $legacyDif['aggregates'] : [];
+            $storedOperator = is_string($meta->operator) ? trim($meta->operator) : '';
+            $operators = $storedOperator !== ''
+                ? [$storedOperator]
+                : $this->legacyStringList($legacyAggregates, 'operators');
             $descriptionGroups = $this->igsnDescriptionNormalizer->normalizeCsvPayload($descriptionJson);
             $legacyDescriptions = array_values(array_filter(
                 is_array($descriptionJson['material_descriptions'] ?? null) ? $descriptionJson['material_descriptions'] : [],
@@ -663,7 +667,7 @@ final class LandingPageResourceTransformer
                 'navigation_types' => $this->legacyStringList($legacyAggregates, 'navigation_types'),
                 'field_names' => $this->legacyStringList($legacyAggregates, 'field_names'),
                 'classification_comments' => $this->legacyStringList($legacyAggregates, 'classification_comments'),
-                'operators' => $this->legacyStringList($legacyAggregates, 'operators'),
+                'operators' => $operators,
                 'methods' => $this->legacyStructuredList($legacyAggregates, 'methods', ['scheme', 'value']),
                 'total_lengths' => $this->legacyStructuredList($legacyAggregates, 'total_lengths', ['numeric_value', 'unit']),
                 'age_ranges' => $this->legacyStructuredList($legacyAggregates, 'age_ranges', ['start', 'end', 'unit', 'end_unit']),

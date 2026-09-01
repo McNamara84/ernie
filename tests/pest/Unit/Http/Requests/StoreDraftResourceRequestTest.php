@@ -165,6 +165,25 @@ it('keeps related-work citation label limits aligned between draft and store req
         ->and($storeRequest->rules())->toHaveKey('relatedIdentifiers.*.source');
 });
 
+it('accepts known internal related-work provenance values but rejects unknown values', function (): void {
+    foreach ([new StoreDraftResourceRequest, new StoreResourceRequest] as $request) {
+        $rules = [
+            'relatedIdentifiers' => $request->rules()['relatedIdentifiers'],
+            'relatedIdentifiers.*.source' => $request->rules()['relatedIdentifiers.*.source'],
+        ];
+
+        foreach (RelatedIdentifier::INTERNAL_SOURCES as $source) {
+            expect(Validator::make([
+                'relatedIdentifiers' => [['source' => $source]],
+            ], $rules)->errors()->toArray())->toBe([]);
+        }
+
+        expect(Validator::make([
+            'relatedIdentifiers' => [['source' => 'client_assigned']],
+        ], $rules)->errors()->toArray())->toHaveKey('relatedIdentifiers.0.source');
+    }
+});
+
 it('accepts funding references and instruments beyond the former array limits', function (): void {
     foreach ([new StoreDraftResourceRequest, new StoreResourceRequest] as $request) {
         $rules = $request->rules();

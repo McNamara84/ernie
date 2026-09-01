@@ -20,7 +20,7 @@ export function IgsnMethodsSection({ igsn }: IgsnMethodsSectionProps): ReactNode
         const key = `${label.toLowerCase()}|${value.toLowerCase()}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        rows.push({ label, value });
+        rows.push({ key, label, value });
     }
 
     if (rows.length === 0) return null;

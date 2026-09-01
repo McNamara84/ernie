@@ -1606,7 +1606,7 @@ class ResourceStorageService
     {
         $source = $existingRelatedIdentifier?->source;
 
-        return $source === RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT ? $source : null;
+        return is_string($source) && in_array($source, RelatedIdentifier::INTERNAL_SOURCES, true) ? $source : null;
     }
 
     /**

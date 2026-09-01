@@ -965,6 +965,9 @@ entity "igsn_metadata" as igsn_metadata {
     sample_image_storage_path : VARCHAR(2048)
     sample_image_mime_type : VARCHAR(100)
     sample_image_size : BIGINT <<unsigned>>
+    legacy_dif_schema_namespace : VARCHAR(255) <<nullable>>
+    legacy_dif_json : JSON <<nullable>>
+    legacy_dif_imported_at : TIMESTAMP <<nullable>>
     * upload_status : VARCHAR(50) = 'pending'
     upload_error_message : TEXT
     csv_filename : VARCHAR(255)

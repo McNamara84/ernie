@@ -552,7 +552,11 @@ class IgsnDifXmlParser
                 ->where('identifier_type_id', $doiTypeId)
                 ->where('relation_type_id', $citesTypeId)
                 ->get()
-                ->contains(fn (RelatedIdentifier $related): bool => $this->normalizeDoi($related->identifier) === $doi);
+                ->contains(function (RelatedIdentifier $related) use ($doi): bool {
+                    $existingDoi = $this->normalizeDoi($related->identifier);
+
+                    return $existingDoi !== null && strcasecmp($existingDoi, $doi) === 0;
+                });
             if ($exists) {
                 continue;
             }
