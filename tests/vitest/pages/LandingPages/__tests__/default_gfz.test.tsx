@@ -132,8 +132,9 @@ describe('DefaultGfzTemplate', () => {
 
         const logo = screen.getByAltText('GFZ Data Services');
         expect(logo).toBeInTheDocument();
-        expect(logo).toHaveAttribute('src', '/images/gfz-ds-logo.png');
-        expect(logo).toHaveClass('h-24', 'max-w-full', 'object-contain', 'dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
+        expect(logo).toHaveAttribute('src', '/images/GFZ-Header_2026.webp');
+        expect(logo).toHaveClass('h-auto', 'w-auto', 'max-w-full', 'object-contain', 'dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
+        expect(logo).not.toHaveClass('h-24');
     });
 
     it('renders the Legal Notice link', () => {

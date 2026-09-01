@@ -11,6 +11,10 @@
             {
                 "title": "Flexible Resource Landing Page Layouts",
                 "description": "Admins and Group Leaders can now move every Resource-specific module between the left and right columns of cloned Resource landing-page templates. Existing metadata modules remain together in their shared card, while preview, inherited templates, and published landing pages adopt the saved column layout immediately."
+            },
+            {
+                "title": "Refreshed Default Landing Page Branding",
+                "description": "The built-in Resource and IGSN landing-page templates now use the updated GFZ Data Services header artwork. The new header follows the same responsive sizing as custom template logos, preserves its proportions, and scales down cleanly on smaller screens."
             }
         ],
         "fixes": [
