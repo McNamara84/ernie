@@ -1,12 +1,16 @@
 [
     {
-        "version": "1.0.7",
-        "date": "2026-08-02",
+        "version": "1.0.6",
+        "date": "2026-09-02",
         "features": [],
         "improvements": [
             {
                 "title": "Focused Editor Settings",
                 "description": "Editor Settings are now organized as a full-width accordion that starts collapsed and keeps one section open at a time. Section headings show the summaries relevant to their controls, including live item and ERNIE/ELMO counts where available. Long license identifiers stay compact while their complete value remains accessible, and a sticky save bar clearly distinguishes unsaved form changes from Domains and Datacenters that save immediately."
+            },
+            {
+                "title": "Flexible Resource Landing Page Layouts",
+                "description": "Admins and Group Leaders can now move every Resource-specific module between the left and right columns of cloned Resource landing-page templates. Existing metadata modules remain together in their shared card, while preview, inherited templates, and published landing pages adopt the saved column layout immediately."
             }
         ],
         "fixes": [
@@ -19,18 +23,6 @@
                 "description": "A dry-run-first igsn:backfill-legacy-dif-metadata command can now repair already imported IGSNs across every legacy datacenter without deleting or reimporting them. It supports DOI and datacenter filters, validated resumable batch options, spreadsheet-safe CSV audits, missing and unknown DIF reporting, additive conflict-safe updates, idempotent reruns, landing-page cache invalidation, automatic full-metadata DataCite synchronization for changed registered records, and retry of failed sync items."
             }
         ]
-    },
-    {
-        "version": "1.0.6",
-        "date": "2026-08-31",
-        "features": [],
-        "improvements": [
-            {
-                "title": "Flexible Resource Landing Page Layouts",
-                "description": "Admins and Group Leaders can now move every Resource-specific module between the left and right columns of cloned Resource landing-page templates. Existing metadata modules remain together in their shared card, while preview, inherited templates, and published landing pages adopt the saved column layout immediately."
-            }
-        ],
-        "fixes": []
     },
     {
         "version": "1.0.5",

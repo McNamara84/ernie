@@ -46,7 +46,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return { hasError: true, error };
     }
 
-    componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
         // Log error to console in development
         console.error('ErrorBoundary caught an error:', error, errorInfo);
 
@@ -62,7 +62,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         window.location.reload();
     };
 
-    render(): ReactNode {
+    override render(): ReactNode {
         if (this.state.hasError) {
             // Allow custom fallback UI
             if (this.props.fallback) {
@@ -131,7 +131,7 @@ export class SectionErrorBoundary extends Component<SectionErrorBoundaryProps, S
         return { hasError: true };
     }
 
-    componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
         console.error(`Error in section "${this.props.sectionName || 'unknown'}":`, error, errorInfo);
     }
 
@@ -139,7 +139,7 @@ export class SectionErrorBoundary extends Component<SectionErrorBoundaryProps, S
         this.setState({ hasError: false });
     };
 
-    render(): ReactNode {
+    override render(): ReactNode {
         if (this.state.hasError) {
             return (
                 <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/5 p-3">

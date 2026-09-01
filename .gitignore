@@ -36,7 +36,9 @@ yarn-error.log
 /.fleet
 /.idea
 /.nova
-/.vscode
+/.vscode/*
+!/.vscode/extensions.json
+!/.vscode/settings.json
 /.zed
 clover.xml
 
