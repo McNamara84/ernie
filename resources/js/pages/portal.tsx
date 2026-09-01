@@ -32,6 +32,7 @@ const DEFAULT_MAP_SIZE = 45;
 const DESKTOP_QUERY = '(min-width: 1280px)';
 
 export default function Portal({
+    portal,
     resources,
     pagination,
     filters,
@@ -60,7 +61,7 @@ export default function Portal({
 
         const controller = new AbortController();
         const expectedFingerprint = pagination.filter_fingerprint;
-        const countUrl = buildPortalCountUrl(window.location.search);
+        const countUrl = buildPortalCountUrl(window.location.search, portal.basePath);
 
         void axios
             .get<PortalCountResponse>(countUrl, { signal: controller.signal })
@@ -80,7 +81,7 @@ export default function Portal({
             });
 
         return () => controller.abort();
-    }, [countAttempt, filters, pagination.count_status, pagination.filter_fingerprint]);
+    }, [countAttempt, filters, pagination.count_status, pagination.filter_fingerprint, portal.basePath]);
 
     const [isMapCollapsed, setIsMapCollapsed] = useState(() => {
         if (typeof window === 'undefined') return false;
@@ -120,7 +121,7 @@ export default function Portal({
         setTemporal,
         clearFilters,
         hasActiveFilters,
-    } = usePortalFilters({ filters, currentPage: pagination.current_page });
+    } = usePortalFilters({ filters, currentPage: pagination.current_page, basePath: portal.basePath });
     const hasLegacyKeywordFilters =
         filters.keywords.length > 0 && (filters.freeKeywords?.length ?? 0) === 0 && (filters.thesaurusKeywords?.length ?? 0) === 0;
     const selectedKeywordValues = useMemo(
@@ -202,11 +203,12 @@ export default function Portal({
     }, [clearFilters]);
 
     const handlePageChange = useCallback(
-        (page: number) => router.get(buildPortalFilterUrl(filters), { page }, { preserveState: true, preserveScroll: false }),
-        [filters],
+        (page: number) => router.get(buildPortalFilterUrl(filters, portal.basePath), { page }, { preserveState: true, preserveScroll: false }),
+        [filters, portal.basePath],
     );
 
     const sharedFilterProps = {
+        basePath: portal.basePath,
         filters,
         searchValue: searchDraft,
         onSearchValueChange: setSearchDraft,
@@ -228,6 +230,7 @@ export default function Portal({
         onTemporalChange: handleTemporalChange,
         resourceTypeFacets,
         datacenterFacets,
+        showResourceTypeFilter: portal.showResourceTypeFilter,
     };
 
     const results = (
@@ -244,6 +247,7 @@ export default function Portal({
 
     const map = (
         <PortalMap
+            basePath={portal.basePath}
             filters={filters}
             hideHeader
             geoFilterEnabled={geoFilterEnabled}
@@ -254,8 +258,8 @@ export default function Portal({
     );
 
     return (
-        <PortalLayout>
-            <Head title="Data Portal" />
+        <PortalLayout portalKind={portal.kind}>
+            <Head title={portal.title} />
 
             <div className="flex min-h-0 flex-1 overflow-hidden" data-testid="portal-workspace">
                 {isDesktop ? (

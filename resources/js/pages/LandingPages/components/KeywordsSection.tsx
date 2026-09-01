@@ -14,7 +14,7 @@ import {
 } from '@/lib/keyword-schemes';
 import { buildPortalFilterUrl } from '@/lib/portal-filter-url';
 import type { LandingPageSubject } from '@/types/landing-page';
-import type { PortalFilters } from '@/types/portal';
+import type { PortalBasePath, PortalFilters } from '@/types/portal';
 
 import { CollapsibleList } from './CollapsibleList';
 
@@ -111,33 +111,50 @@ function getThesaurusKeywordToken(subject: LandingPageSubject): string | null {
     return `${subjectScheme}${THESAURUS_NOTATION_DELIMITER}${classificationCode}`;
 }
 
-function getPortalUrl(subject: LandingPageSubject): string | null {
+function getPortalUrl(subject: LandingPageSubject, basePath: PortalBasePath): string | null {
     if (!subject.subject_scheme || subject.subject_scheme === '') {
-        return buildPortalFilterUrl({
-            ...EMPTY_PORTAL_FILTERS,
-            freeKeywords: [subject.subject],
-        });
+        return buildPortalFilterUrl(
+            {
+                ...EMPTY_PORTAL_FILTERS,
+                freeKeywords: [subject.subject],
+            },
+            basePath,
+        );
     }
 
     const thesaurusKeyword = getThesaurusKeywordToken(subject);
     if (thesaurusKeyword) {
-        return buildPortalFilterUrl({
-            ...EMPTY_PORTAL_FILTERS,
-            thesaurusKeywords: [thesaurusKeyword],
-        });
+        return buildPortalFilterUrl(
+            {
+                ...EMPTY_PORTAL_FILTERS,
+                thesaurusKeywords: [thesaurusKeyword],
+            },
+            basePath,
+        );
     }
 
-    return buildPortalFilterUrl({
-        ...EMPTY_PORTAL_FILTERS,
-        keywords: [subject.subject],
-    });
+    return buildPortalFilterUrl(
+        {
+            ...EMPTY_PORTAL_FILTERS,
+            keywords: [subject.subject],
+        },
+        basePath,
+    );
 }
 
 /**
  * Renders a keyword badge that links to the portal with the keyword as filter.
  */
-function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style: { bg: string; text: string; actionTone: string } }) {
-    const portalUrl = getPortalUrl(subject);
+function KeywordBadge({
+    subject,
+    style,
+    basePath,
+}: {
+    subject: LandingPageSubject;
+    style: { bg: string; text: string; actionTone: string };
+    basePath: PortalBasePath;
+}) {
+    const portalUrl = getPortalUrl(subject, basePath);
     const normalizedScheme = normalizeKeywordScheme(subject.subject_scheme);
     const config = normalizedScheme ? SCHEME_CONFIG[normalizedScheme] : undefined;
     const { bg, text, actionTone } = style;
@@ -182,12 +199,13 @@ function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style: 
 
 interface KeywordsSectionProps {
     subjects: LandingPageSubject[];
+    portalBasePath?: PortalBasePath;
 }
 
 /**
  * Renders keywords grouped by thesaurus scheme (ordered) and free keywords.
  */
-export function KeywordsSection({ subjects }: KeywordsSectionProps) {
+export function KeywordsSection({ subjects, portalBasePath = '/doi-search' }: KeywordsSectionProps) {
     // Single-pass grouping: bucket subjects by scheme, then emit in defined order
     const schemeGroups = new Map<string, LandingPageSubject[]>();
     const freeKeywords: LandingPageSubject[] = [];
@@ -230,7 +248,11 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
                 itemLabel="keywords"
                 renderItem={(item) => (
                     <li key={item.subject.id}>
-                        <KeywordBadge subject={item.subject} style={item.group === 'free' ? FREE_KEYWORD_STYLE : LINKED_KEYWORD_STYLE} />
+                        <KeywordBadge
+                            subject={item.subject}
+                            style={item.group === 'free' ? FREE_KEYWORD_STYLE : LINKED_KEYWORD_STYLE}
+                            basePath={portalBasePath}
+                        />
                     </li>
                 )}
                 wrapper={(children) => {

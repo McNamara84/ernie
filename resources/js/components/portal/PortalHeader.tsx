@@ -1,9 +1,11 @@
 import { Link } from '@inertiajs/react';
-import { Home, Menu, X } from 'lucide-react';
+import { ChevronDown, Home, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { legalNotice, portal } from '@/routes';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { legalNotice } from '@/routes';
+import type { PortalKind } from '@/types/portal';
 
 interface NavItem {
     label: string;
@@ -15,13 +17,17 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
     { label: 'Home', href: 'https://dataservices.gfz-potsdam.de/web', external: true, icon: <Home className="h-4 w-4" /> },
-    { label: 'Find', href: portal().url, external: false, active: true },
     { label: 'Publish Data', href: 'https://dataservices.gfz-potsdam.de/web/publish-data/publication-instructions', external: true },
     { label: 'Samples (IGSN)', href: 'https://dataservices.gfz-potsdam.de/web/samples/introduction', external: true },
     { label: 'Support', href: 'https://dataservices.gfz-potsdam.de/web/about-us', external: true },
     { label: 'About Us', href: 'https://dataservices.gfz-potsdam.de/web/about-us', external: true },
     { label: 'Legal Notice', href: legalNotice().url, external: false },
     { label: 'Data Protection', href: 'https://dataservices.gfz-potsdam.de/web/about-us/data-protection', external: true },
+];
+
+const FIND_ITEMS: Array<NavItem & { kind: PortalKind }> = [
+    { kind: 'doi', label: 'Data Portal', href: '/doi-search', external: false },
+    { kind: 'igsn', label: 'IGSN Portal', href: '/igsn-search', external: false },
 ];
 
 function NavLink({ item }: { item: NavItem }) {
@@ -80,7 +86,7 @@ function MobileNavLink({ item, onClick }: { item: NavItem; onClick: () => void }
     );
 }
 
-export function PortalHeader() {
+export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     return (
@@ -103,7 +109,33 @@ export function PortalHeader() {
                 <div className="flex items-center justify-between px-6">
                     {/* Desktop menu */}
                     <ul className="hidden items-center gap-1 py-1 md:flex">
-                        {NAV_ITEMS.map((item) => (
+                        <li>
+                            <NavLink item={NAV_ITEMS[0]} />
+                        </li>
+                        <li>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button
+                                        type="button"
+                                        className="flex items-center gap-1 rounded-sm bg-portal-nav-active px-3 py-2 text-sm font-semibold text-portal-nav-foreground transition-colors hover:bg-portal-nav-active"
+                                        aria-current="page"
+                                    >
+                                        Find
+                                        <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="min-w-44">
+                                    {FIND_ITEMS.map((item) => (
+                                        <DropdownMenuItem key={item.kind} asChild>
+                                            <Link href={item.href} aria-current={portalKind === item.kind ? 'page' : undefined}>
+                                                {item.label}
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </li>
+                        {NAV_ITEMS.slice(1).map((item) => (
                             <li key={item.label}>
                                 <NavLink item={item} />
                             </li>
@@ -131,7 +163,25 @@ export function PortalHeader() {
                 {mobileMenuOpen && (
                     <div className="border-t border-portal-nav-active md:hidden" data-testid="mobile-menu">
                         <ul className="py-1">
-                            {NAV_ITEMS.map((item) => (
+                            <li>
+                                <MobileNavLink item={NAV_ITEMS[0]} onClick={() => setMobileMenuOpen(false)} />
+                            </li>
+                            <li>
+                                <span className="block px-4 pt-3 pb-1 text-xs font-semibold tracking-wide text-portal-nav-foreground/75 uppercase">
+                                    Find
+                                </span>
+                                <ul>
+                                    {FIND_ITEMS.map((item) => (
+                                        <li key={item.kind}>
+                                            <MobileNavLink
+                                                item={{ ...item, active: portalKind === item.kind }}
+                                                onClick={() => setMobileMenuOpen(false)}
+                                            />
+                                        </li>
+                                    ))}
+                                </ul>
+                            </li>
+                            {NAV_ITEMS.slice(1).map((item) => (
                                 <li key={item.label}>
                                     <MobileNavLink item={item} onClick={() => setMobileMenuOpen(false)} />
                                 </li>

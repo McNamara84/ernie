@@ -9,7 +9,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 const searchInput = (page: Page) => page.getByRole('combobox', { name: 'Search' });
 
-async function openPortal(page: Page, path = '/search') {
+async function openPortal(page: Page, path = '/doi-search') {
     const navigate = () => page.goto(path, { waitUntil: 'domcontentloaded' as const, timeout: 60_000 });
     const response = await navigate().catch((error: unknown) => {
         if (!(error instanceof Error) || !error.message.includes('SSL connect error')) {
@@ -65,6 +65,22 @@ test.describe('Portal Page', () => {
             const hasResults = await page.getByTestId('portal-results-list').first().isVisible();
             const hasEmptyState = await page.getByText(/no results/i).isVisible();
             expect(hasResults || hasEmptyState).toBe(true);
+        });
+    });
+
+    test.describe('Find Navigation', () => {
+        test('offers both portal destinations and navigates to the IGSN portal', async ({ page }) => {
+            await page.getByRole('button', { name: 'Find', exact: true }).click();
+
+            const dataPortalLink = page.getByRole('menuitem', { name: 'Data Portal' });
+            const igsnPortalLink = page.getByRole('menuitem', { name: 'IGSN Portal' });
+            await expect(dataPortalLink).toHaveAttribute('href', '/doi-search');
+            await expect(igsnPortalLink).toHaveAttribute('href', '/igsn-search');
+
+            await igsnPortalLink.click();
+
+            await expect(page).toHaveURL(/\/igsn-search$/);
+            await expect(page).toHaveTitle(/IGSN Portal/);
         });
     });
 
@@ -129,7 +145,7 @@ test.describe('Portal Page', () => {
         });
 
         test('clearing selection removes type from URL', async ({ page }) => {
-            await openPortal(page, '/search?type[]=dataset');
+            await openPortal(page, '/doi-search?type[]=dataset');
             await openFilterSection(page, 'Resource Type');
 
             const trigger = page.getByRole('button', { name: /^\d+ selected/ });
@@ -208,7 +224,7 @@ test.describe('Portal Page', () => {
 
     test.describe('URL State Persistence', () => {
         test('filters are restored from URL on page load', async ({ page }) => {
-            await openPortal(page, '/search?q=climate&type[]=dataset&page=1');
+            await openPortal(page, '/doi-search?q=climate&type[]=dataset&page=1');
 
             await expect(searchInput(page)).toHaveValue('climate');
             await openFilterSection(page, 'Resource Type');
@@ -276,4 +292,29 @@ test.describe('Portal Page', () => {
             await expect(input).toHaveValue('keyboard test');
         });
     });
+});
+
+test.describe('IGSN Portal Page', () => {
+    test.beforeEach(async ({ page }) => {
+        await openPortal(page, '/igsn-search');
+    });
+
+    test('uses the IGSN title and omits the resource type filter', async ({ page }) => {
+        await expect(page).toHaveTitle(/IGSN Portal/);
+        await expect(page.getByRole('button', { name: 'Resource Type', exact: true })).toHaveCount(0);
+    });
+
+    test('keeps searches inside the IGSN portal', async ({ page }) => {
+        await searchInput(page).fill('sample');
+        await page.getByRole('button', { name: 'Search', exact: true }).click();
+
+        await expect(page).toHaveURL(/\/igsn-search\?q=sample/);
+    });
+});
+
+test('the former shared search route is no longer available', async ({ page }) => {
+    const response = await page.goto('/search', { waitUntil: 'domcontentloaded' });
+
+    expect(response).not.toBeNull();
+    expect(response!.status()).toBe(404);
 });

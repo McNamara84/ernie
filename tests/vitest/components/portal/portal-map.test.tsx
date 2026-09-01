@@ -128,6 +128,7 @@ describe('PortalMap', () => {
                 filters,
                 expect.objectContaining({ north: 53, south: 51, east: 14, west: 12, width: 800, height: 600, zoom: 4 }),
                 false,
+                '/doi-search',
             ),
         );
     });
@@ -274,7 +275,12 @@ describe('PortalMap', () => {
         act(() => mapEvents.get('moveend')?.());
 
         expect(onViewportChange).toHaveBeenCalledWith({ north: 53, south: 51, east: 14, west: 12 });
-        expect(usePortalMapDataMock).toHaveBeenLastCalledWith(filters, expect.objectContaining({ width: 800, height: 600 }), false);
+        expect(usePortalMapDataMock).toHaveBeenLastCalledWith(
+            filters,
+            expect.objectContaining({ width: 800, height: 600 }),
+            false,
+            '/doi-search',
+        );
     });
 
     it('debounces resize-driven technical viewport requests', () => {
@@ -301,6 +307,7 @@ describe('PortalMap', () => {
                 filters,
                 expect.objectContaining({ north: 53, south: 51, east: 14, west: 12, width: 800, height: 600, zoom: 4 }),
                 false,
+                '/doi-search',
             );
         } finally {
             vi.useRealTimers();

@@ -6,7 +6,7 @@ import { AppFooter } from '@/components/app-footer';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { changelog as changelogRoute, dashboard, portal } from '@/routes';
+import { changelog as changelogRoute, dashboard } from '@/routes';
 import { type SharedData } from '@/types';
 
 export default function ChangelogLayout({ children }: PropsWithChildren) {
@@ -16,7 +16,8 @@ export default function ChangelogLayout({ children }: PropsWithChildren) {
     } = usePage<SharedData>();
 
     const navLinks = [
-        { label: 'Portal', href: portal().url },
+        { label: 'Data Portal', href: '/doi-search' },
+        { label: 'IGSN Portal', href: '/igsn-search' },
         { label: 'Changelog', href: changelogRoute().url },
     ];
 
@@ -32,7 +33,7 @@ export default function ChangelogLayout({ children }: PropsWithChildren) {
                                     Back to Dashboard
                                 </Link>
                             ) : (
-                                <Link href={portal().url}>
+                                <Link href="/doi-search">
                                     <ArrowLeft className="mr-1.5 h-4 w-4" />
                                     Back to Portal
                                 </Link>

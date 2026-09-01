@@ -21,7 +21,7 @@ vi.mock('@inertiajs/react', () => ({
 
 vi.mock('@/routes', () => ({
     dashboard: () => ({ url: '/dashboard' }),
-    portal: () => ({ url: '/search' }),
+    portal: () => ({ url: '/doi-search' }),
     changelog: () => ({ url: '/changelog' }),
 }));
 
@@ -73,11 +73,13 @@ describe('ChangelogLayout', () => {
             expect(screen.getByTestId('app-footer')).toBeInTheDocument();
         });
 
-        it('renders navigation links for Portal and Changelog', () => {
+        it('renders navigation links for both portals and Changelog', () => {
             render(<ChangelogLayout><div /></ChangelogLayout>);
-            const portalLink = screen.getByRole('link', { name: 'Portal' });
+            const dataPortalLink = screen.getByRole('link', { name: 'Data Portal' });
+            const igsnPortalLink = screen.getByRole('link', { name: 'IGSN Portal' });
             const changelogLink = screen.getByRole('link', { name: 'Changelog' });
-            expect(portalLink).toHaveAttribute('href', '/search');
+            expect(dataPortalLink).toHaveAttribute('href', '/doi-search');
+            expect(igsnPortalLink).toHaveAttribute('href', '/igsn-search');
             expect(changelogLink).toHaveAttribute('href', '/changelog');
         });
 
@@ -91,9 +93,9 @@ describe('ChangelogLayout', () => {
 
         it('does not highlight non-current pages', () => {
             render(<ChangelogLayout><div /></ChangelogLayout>);
-            const portalLink = screen.getByRole('link', { name: 'Portal' });
-            expect(portalLink).not.toHaveClass('bg-accent');
-            expect(portalLink).not.toHaveAttribute('aria-current');
+            const dataPortalLink = screen.getByRole('link', { name: 'Data Portal' });
+            expect(dataPortalLink).not.toHaveClass('bg-accent');
+            expect(dataPortalLink).not.toHaveAttribute('aria-current');
         });
     });
 
@@ -112,7 +114,7 @@ describe('ChangelogLayout', () => {
             });
             render(<ChangelogLayout><div /></ChangelogLayout>);
             const backLink = screen.getByRole('link', { name: /back to portal/i });
-            expect(backLink).toHaveAttribute('href', '/search');
+            expect(backLink).toHaveAttribute('href', '/doi-search');
             expect(screen.queryByText(/back to dashboard/i)).not.toBeInTheDocument();
         });
 

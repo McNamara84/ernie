@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\CacheKey;
+use App\Enums\PortalScope;
 use App\Models\DateType;
 use App\Models\LandingPage;
 use App\Models\Resource;
@@ -12,7 +13,6 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\PortalSearchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\withoutVite;
@@ -21,7 +21,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     withoutVite();
-    Cache::forget(CacheKey::PORTAL_TEMPORAL_RANGE->key());
+    CacheKey::PORTAL_TEMPORAL_RANGE->forgetPortalVariants();
 
     $this->datasetType = ResourceType::factory()->create([
         'name' => 'Dataset',
@@ -277,6 +277,27 @@ describe('Temporal Filter - Combined With Other Filters', function () {
 });
 
 describe('Temporal Range Data', function () {
+    it('scopes and caches temporal ranges independently for both portals', function () {
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'Physical Object',
+            'slug' => 'physical-object',
+        ]);
+
+        createPublishedResourceWithDate(
+            $this->datasetType, 'DOI Resource', $this->createdType,
+            dateValue: '1995',
+        );
+        createPublishedResourceWithDate(
+            $physicalObjectType, 'IGSN Sample', $this->createdType,
+            dateValue: '2024',
+        );
+
+        expect($this->searchService->getTemporalRange(PortalScope::DOI)['Created'])
+            ->toBe(['min' => 1995, 'max' => 1995])
+            ->and($this->searchService->getTemporalRange(PortalScope::IGSN)['Created'])
+            ->toBe(['min' => 2024, 'max' => 2024]);
+    });
+
     it('returns correct temporal range for active date types', function () {
         createPublishedResourceWithDate(
             $this->datasetType, 'Old', $this->createdType,
@@ -364,7 +385,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
         );
 
         // year_from/year_to are clamped to the computed range (2023–2023)
-        $this->get('/search?date_type=Created&year_from=2020&year_to=2025')
+        $this->get('/doi-search?date_type=Created&year_from=2020&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal.dateType', 'Created')
@@ -373,7 +394,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
                 ->has('resources', 1)
             );
 
-        $this->getJson('/search/count?date_type=Created&year_from=2020&year_to=2025')
+        $this->getJson('/doi-search/count?date_type=Created&year_from=2020&year_to=2025')
             ->assertOk()
             ->assertJsonPath('total', 1);
     });
@@ -384,7 +405,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
             dateValue: '2023',
         );
 
-        $this->get('/search?date_type=InvalidType&year_from=2020&year_to=2025')
+        $this->get('/doi-search?date_type=InvalidType&year_from=2020&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -393,7 +414,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
     });
 
     it('ignores temporal filter when year_from > year_to', function () {
-        $this->get('/search?date_type=Created&year_from=2025&year_to=2020')
+        $this->get('/doi-search?date_type=Created&year_from=2025&year_to=2020')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -401,7 +422,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
     });
 
     it('ignores temporal filter when parameters are missing', function () {
-        $this->get('/search?date_type=Created')
+        $this->get('/doi-search?date_type=Created')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -414,7 +435,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
             dateValue: '2023',
         );
 
-        $this->get('/search')
+        $this->get('/doi-search')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('temporalRange')
@@ -422,7 +443,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
     });
 
     it('ignores temporal filter when year_from is not numeric', function () {
-        $this->get('/search?date_type=Created&year_from=abc&year_to=2025')
+        $this->get('/doi-search?date_type=Created&year_from=abc&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -430,7 +451,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
     });
 
     it('ignores temporal filter when year_from is out of range (too low)', function () {
-        $this->get('/search?date_type=Created&year_from=1800&year_to=2025')
+        $this->get('/doi-search?date_type=Created&year_from=1800&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -439,7 +460,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
 
     it('ignores temporal filter when year_to is out of range (too high)', function () {
         $futureYear = (int) date('Y') + 5;
-        $this->get("/search?date_type=Created&year_from=2000&year_to={$futureYear}")
+        $this->get("/doi-search?date_type=Created&year_from=2000&year_to={$futureYear}")
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -454,7 +475,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
             dateValue: '2022',
         );
 
-        $this->get('/search?date_type=Coverage&year_from=2020&year_to=2025')
+        $this->get('/doi-search?date_type=Coverage&year_from=2020&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)
@@ -472,7 +493,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
         );
 
         // Range is 2015–2020. year_from=2010 should clamp to 2015, year_to=2025 should clamp to 2020.
-        $this->get('/search?date_type=Created&year_from=2010&year_to=2025')
+        $this->get('/doi-search?date_type=Created&year_from=2010&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal.dateType', 'Created')
@@ -491,7 +512,7 @@ describe('Temporal Filter - Controller URL Parsing', function () {
         // Actually year_from=2021 > year_to, so basic validation already rejects.
         // Use a case where both are valid individually but clamping inverts:
         // Range 2020–2020, year_from=1900 year_to=2019 → clamped to 2020..2019 → inverted → null
-        $this->get('/search?date_type=Created&year_from=1900&year_to=2019')
+        $this->get('/doi-search?date_type=Created&year_from=1900&year_to=2019')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)

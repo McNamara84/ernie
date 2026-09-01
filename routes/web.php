@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\PortalScope;
 use App\Http\Controllers\Api\CitationLookupController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\BatchIgsnController;
@@ -103,27 +104,37 @@ Route::get('/changelog', function () {
     return Inertia::render('changelog');
 })->name('changelog');
 
-// Public Portal (Dataset Discovery)
+// Public Portals (DOI and IGSN discovery)
 // ===========================================================
-Route::get('/search', [PortalController::class, 'index'])
-    ->middleware('throttle:public-portal')
-    ->name('portal');
+$registerPortalRoutes = static function (string $prefix, string $name, PortalScope $scope): void {
+    Route::get($prefix, [PortalController::class, 'index'])
+        ->defaults('portalScope', $scope->value)
+        ->middleware('throttle:public-portal')
+        ->name("portal.{$name}");
 
-Route::get('/search/count', PortalCountController::class)
-    ->middleware('throttle:public-portal')
-    ->name('portal.count');
+    Route::get("{$prefix}/count", PortalCountController::class)
+        ->defaults('portalScope', $scope->value)
+        ->middleware('throttle:public-portal')
+        ->name("portal.{$name}.count");
 
-Route::get('/search/free-keyword-suggestions', PortalKeywordSuggestionController::class)
-    ->middleware('throttle:public-portal-suggestions')
-    ->name('portal.free-keyword-suggestions');
+    Route::get("{$prefix}/free-keyword-suggestions", PortalKeywordSuggestionController::class)
+        ->defaults('portalScope', $scope->value)
+        ->middleware('throttle:public-portal-suggestions')
+        ->name("portal.{$name}.free-keyword-suggestions");
 
-Route::get('/search/map', PortalMapController::class)
-    ->middleware('throttle:public-portal-map')
-    ->name('portal.map');
+    Route::get("{$prefix}/map", PortalMapController::class)
+        ->defaults('portalScope', $scope->value)
+        ->middleware('throttle:public-portal-map')
+        ->name("portal.{$name}.map");
 
-Route::post('/search/search-analytics', [PortalSearchAnalyticsController::class, 'store'])
-    ->middleware('throttle:public-portal')
-    ->name('portal.search-analytics');
+    Route::post("{$prefix}/search-analytics", [PortalSearchAnalyticsController::class, 'store'])
+        ->defaults('portalScope', $scope->value)
+        ->middleware('throttle:public-portal')
+        ->name("portal.{$name}.search-analytics");
+};
+
+$registerPortalRoutes('/doi-search', 'doi', PortalScope::DOI);
+$registerPortalRoutes('/igsn-search', 'igsn', PortalScope::IGSN);
 
 // OAI-PMH Harvesting Endpoint
 // ===========================================================

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\PortalScope;
 use App\Models\AlternateIdentifier;
 use App\Models\Datacenter;
 use App\Models\Description;
@@ -73,7 +74,7 @@ function createPortalSearchServiceWithResolvedThesaurusNodes(array $resolvedNode
          * @param  array<int, string>  $selectedNodeIds
          * @return array<int, array{id: string, scheme: string, subject_schemes: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
          */
-        public function resolveSelectedThesaurusNodes(array $selectedNodeIds): array
+        public function resolveSelectedThesaurusNodes(array $selectedNodeIds, ?PortalScope $scope = null): array
         {
             return array_map(
                 static fn (array $resolvedNode): array => [

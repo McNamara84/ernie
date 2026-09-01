@@ -2,6 +2,16 @@
  * Portal types for the public dataset discovery page.
  */
 
+export type PortalKind = 'doi' | 'igsn';
+export type PortalBasePath = '/doi-search' | '/igsn-search';
+
+export interface PortalContext {
+    kind: PortalKind;
+    title: 'Data Portal' | 'IGSN Portal';
+    basePath: PortalBasePath;
+    showResourceTypeFilter: boolean;
+}
+
 /**
  * Creator information in citation format.
  */
@@ -135,6 +145,7 @@ export interface PortalThesaurusFacet {
  * Props for the portal page.
  */
 export interface PortalPageProps {
+    portal: PortalContext;
     resources: PortalResource[];
     pagination: PortalPagination;
     filters: PortalFilters;

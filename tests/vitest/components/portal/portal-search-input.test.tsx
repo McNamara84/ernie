@@ -26,12 +26,14 @@ vi.mock('axios', () => ({ default: { post: axiosPostMock } }));
 vi.mock('@/hooks/use-portal-keyword-suggestions', () => ({ usePortalKeywordSuggestions: () => suggestionsState }));
 
 function Harness({
+    basePath = '/doi-search',
     initialValue = '',
     selectedKeywords = [],
     onSubmit = vi.fn(),
     onKeywordSelect = vi.fn(),
     onKeywordsChange = vi.fn(),
 }: {
+    basePath?: '/doi-search' | '/igsn-search';
     initialValue?: string;
     selectedKeywords?: string[];
     onSubmit?: (query: string) => void;
@@ -41,6 +43,7 @@ function Harness({
     const [value, setValue] = useState(initialValue);
     return (
         <PortalSearchInput
+            basePath={basePath}
             value={value}
             onValueChange={setValue}
             onSubmit={onSubmit}
@@ -80,7 +83,16 @@ describe('PortalSearchInput', () => {
         await user.click(screen.getByRole('button', { name: 'Search' }));
 
         expect(onSubmit).toHaveBeenCalledWith('climate change');
-        expect(axiosPostMock).toHaveBeenCalledWith('/search/search-analytics', { search_term: 'climate change' });
+        expect(axiosPostMock).toHaveBeenCalledWith('/doi-search/search-analytics', { search_term: 'climate change' });
+    });
+
+    it('records IGSN searches on the IGSN endpoint', async () => {
+        const user = userEvent.setup();
+        render(<Harness basePath="/igsn-search" initialValue="basalt sample" />);
+
+        await user.click(screen.getByRole('button', { name: 'Search' }));
+
+        expect(axiosPostMock).toHaveBeenCalledWith('/igsn-search/search-analytics', { search_term: 'basalt sample' });
     });
 
     it('shows asynchronous suggestions and turns a chosen suggestion into an exact keyword', async () => {

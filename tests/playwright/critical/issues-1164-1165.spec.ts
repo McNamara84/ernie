@@ -47,7 +47,7 @@ test.describe('Issues #1164 and #1165 - legacy IGSN identity and repository priv
     });
 
     test('finds the published sample through its legacy identity Handle', async ({ page }) => {
-        await page.goto(`/search?q=${encodeURIComponent(LEGACY_IGSN)}`);
+        await page.goto(`/igsn-search?q=${encodeURIComponent(LEGACY_IGSN)}`);
 
         await expect(page.getByTestId('portal-results-list').first()).toBeVisible();
         await expect(page.getByText(FIXTURE_TITLE, { exact: true }).first()).toBeVisible();

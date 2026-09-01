@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\PortalScope;
 use Illuminate\Http\Request;
 
 /**
@@ -17,6 +18,7 @@ final class PortalFilterService
     /**
      * @param  array<string, array{min: int, max: int}>  $temporalRange
      * @return array{
+     *     portal_scope: string|null,
      *     query: string|null,
      *     type: list<string>,
      *     exclude_type: string|null,
@@ -30,7 +32,7 @@ final class PortalFilterService
      *     per_page: int
      * }
      */
-    public function fromRequest(Request $request, array $temporalRange): array
+    public function fromRequest(Request $request, array $temporalRange, ?PortalScope $scope = null): array
     {
         $rawType = $request->query('type', []);
         $isLegacyDoi = is_string($rawType) && trim($rawType) === 'doi';
@@ -39,6 +41,15 @@ final class PortalFilterService
         // Keep the frontend type list empty so URL generation preserves
         // ?type=doi through the dedicated exclude_type flag.
         $typeSlugs = $isLegacyDoi ? [] : $this->normalizeTypeSlugs($rawType);
+
+        if ($scope === PortalScope::DOI) {
+            $typeSlugs = array_values(array_filter(
+                $typeSlugs,
+                static fn (string $slug): bool => $slug !== PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE,
+            ));
+        } elseif ($scope === PortalScope::IGSN) {
+            $typeSlugs = [];
+        }
 
         $legacyKeywords = $this->normalizeStringFilters($request->query('keywords', []));
         $freeKeywords = $this->normalizeStringFilters($request->query('free_keywords', []));
@@ -51,9 +62,10 @@ final class PortalFilterService
         $query = $request->query('q');
 
         return [
+            'portal_scope' => $scope?->value,
             'query' => is_string($query) ? $query : null,
             'type' => $typeSlugs,
-            'exclude_type' => $isLegacyDoi ? 'physical-object' : null,
+            'exclude_type' => $scope === null && $isLegacyDoi ? PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE : null,
             'keywords' => $legacyKeywords,
             'free_keywords' => $freeKeywords,
             'thesaurus_keywords' => $thesaurusKeywords,

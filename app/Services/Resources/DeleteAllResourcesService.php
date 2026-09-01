@@ -193,11 +193,11 @@ final class DeleteAllResourcesService
 
     private function invalidatePortalFacets(): void
     {
-        foreach ([CacheKey::PORTAL_DATACENTER_FACETS, CacheKey::PORTAL_RESOURCE_TYPE_FACETS] as $cacheKey) {
+        foreach ([CacheKey::PORTAL_DATACENTER_FACETS, CacheKey::PORTAL_RESOURCE_TYPE_FACETS, CacheKey::PORTAL_TEMPORAL_RANGE] as $cacheKey) {
             if ($this->supportsTagging()) {
                 Cache::tags($cacheKey->tags())->flush();
             } else {
-                Cache::forget($cacheKey->key());
+                $cacheKey->forgetPortalVariants();
             }
         }
     }

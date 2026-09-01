@@ -28,14 +28,19 @@ beforeEach(function () {
         'name' => 'Dataset',
         'slug' => 'dataset',
     ]);
+    $this->physicalObjectType = ResourceType::factory()->create([
+        'name' => 'Physical Object',
+        'slug' => 'physical-object',
+    ]);
 
     $this->createKeyword = function (
         string $keyword,
         bool $published = true,
         ?string $scheme = null,
+        ?ResourceType $resourceType = null,
     ): void {
         $resource = Resource::factory()->create([
-            'resource_type_id' => $this->resourceType->id,
+            'resource_type_id' => ($resourceType ?? $this->resourceType)->id,
         ]);
 
         LandingPage::factory()->create([
@@ -52,8 +57,29 @@ beforeEach(function () {
     };
 });
 
+it('scopes suggestions and their caches to the selected portal', function () {
+    ($this->createKeyword)('Portal Dataset Keyword');
+    ($this->createKeyword)('Portal Sample Keyword', resourceType: $this->physicalObjectType);
+
+    $this->getJson(route('portal.doi.free-keyword-suggestions', ['q' => 'portal']))
+        ->assertOk()
+        ->assertExactJson([
+            'data' => [
+                ['value' => 'Portal Dataset Keyword', 'scheme' => null, 'count' => 1],
+            ],
+        ]);
+
+    $this->getJson(route('portal.igsn.free-keyword-suggestions', ['q' => 'portal']))
+        ->assertOk()
+        ->assertExactJson([
+            'data' => [
+                ['value' => 'Portal Sample Keyword', 'scheme' => null, 'count' => 1],
+            ],
+        ]);
+});
+
 it('validates the bounded suggestion query', function (array $query, string $errorKey) {
-    $this->getJson(route('portal.free-keyword-suggestions', $query))
+    $this->getJson(route('portal.doi.free-keyword-suggestions', $query))
         ->assertUnprocessable()
         ->assertJsonValidationErrors($errorKey);
 })->with([
@@ -70,7 +96,7 @@ it('matches case-insensitively and ranks prefixes before substrings', function (
     ($this->createKeyword)('Paleoseismology');
     ($this->createKeyword)('Paleoseismology');
 
-    $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'SEIS']))
+    $this->getJson(route('portal.doi.free-keyword-suggestions', ['q' => 'SEIS']))
         ->assertOk()
         ->assertExactJson([
             'data' => [
@@ -89,7 +115,7 @@ it('returns at most twenty published free keywords', function () {
     ($this->createKeyword)('Ocean unpublished', false);
     ($this->createKeyword)('Ocean controlled', true, 'Science Keywords');
 
-    $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'ocean']))
+    $this->getJson(route('portal.doi.free-keyword-suggestions', ['q' => 'ocean']))
         ->assertOk()
         ->assertJsonCount(20, 'data')
         ->assertJsonMissing(['value' => 'Ocean unpublished'])
@@ -109,6 +135,6 @@ it('uses an independent public suggestion rate limit', function () {
         'HTTP_USER_AGENT' => 'Mozilla/5.0',
     ]);
 
-    $visitor->getJson(route('portal.free-keyword-suggestions', ['q' => 'ocean']))->assertOk();
-    $visitor->getJson(route('portal.free-keyword-suggestions', ['q' => 'ocean']))->assertTooManyRequests();
+    $visitor->getJson(route('portal.doi.free-keyword-suggestions', ['q' => 'ocean']))->assertOk();
+    $visitor->getJson(route('portal.doi.free-keyword-suggestions', ['q' => 'ocean']))->assertTooManyRequests();
 });

@@ -42,7 +42,7 @@ it('ignores malformed ai user agent configuration values', function (): void {
 });
 
 it('builds rate limit keys from surface classification and ip address', function (): void {
-    $request = Request::create('/search', 'GET', server: [
+    $request = Request::create('/doi-search', 'GET', server: [
         'REMOTE_ADDR' => '192.0.2.10',
         'HTTP_USER_AGENT' => 'GPTBot',
     ]);
@@ -51,7 +51,7 @@ it('builds rate limit keys from surface classification and ip address', function
 });
 
 it('builds public rate limit keys for normal visitors', function (): void {
-    $request = Request::create('/search', 'GET', server: [
+    $request = Request::create('/igsn-search', 'GET', server: [
         'REMOTE_ADDR' => '192.0.2.11',
         'HTTP_USER_AGENT' => 'Mozilla/5.0',
     ]);

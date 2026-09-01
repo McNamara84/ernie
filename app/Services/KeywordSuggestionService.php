@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CacheKey;
+use App\Enums\PortalScope;
+use App\Models\Resource;
 use App\Models\Subject;
 use App\Models\ThesaurusSetting;
 use App\Support\GemetVocabularyParser;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
@@ -49,9 +52,9 @@ class KeywordSuggestionService
      *
      * @return array<int, array{value: string, scheme: string|null, count: int}>
      */
-    public function getSuggestions(): array
+    public function getSuggestions(?PortalScope $scope = null): array
     {
-        return $this->getFreeKeywordSuggestions();
+        return $this->getFreeKeywordSuggestions($scope);
     }
 
     /**
@@ -59,14 +62,14 @@ class KeywordSuggestionService
      *
      * @return array<int, array{value: string, scheme: null, count: int}>
      */
-    public function getFreeKeywordSuggestions(): array
+    public function getFreeKeywordSuggestions(?PortalScope $scope = null): array
     {
         /** @var array<int, array{value: string, scheme: null, count: int}> */
         return $this->getCacheInstance(CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->tags())
             ->remember(
-                CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->key(),
+                CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->key($scope?->value),
                 CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->ttl(),
-                fn (): array => $this->fetchFreeKeywordSuggestions(),
+                fn (): array => $this->fetchFreeKeywordSuggestions($scope),
             );
     }
 
@@ -79,7 +82,7 @@ class KeywordSuggestionService
      *
      * @return array<int, array{value: string, scheme: null, count: int}>
      */
-    public function searchFreeKeywordSuggestions(string $query, int $limit = 20): array
+    public function searchFreeKeywordSuggestions(string $query, int $limit = 20, ?PortalScope $scope = null): array
     {
         $query = trim($query);
         if (mb_strlen($query) < 2) {
@@ -89,7 +92,7 @@ class KeywordSuggestionService
         $normalizedQuery = mb_strtolower($query);
         $boundedLimit = max(1, min(20, $limit));
         $matches = array_values(array_filter(
-            $this->getFreeKeywordSuggestions(),
+            $this->getFreeKeywordSuggestions($scope),
             static fn (array $suggestion): bool => mb_stripos($suggestion['value'], $normalizedQuery) !== false,
         ));
 
@@ -117,14 +120,14 @@ class KeywordSuggestionService
      *
      * @return array<int, array{scheme: string, roots: array<int, array<string, mixed>>}>
      */
-    public function getThesaurusFacets(): array
+    public function getThesaurusFacets(?PortalScope $scope = null): array
     {
         /** @var array<int, array{scheme: string, roots: array<int, array<string, mixed>>}> */
         return $this->getCacheInstance(CacheKey::PORTAL_THESAURUS_FACETS->tags())
             ->remember(
-                CacheKey::PORTAL_THESAURUS_FACETS->key(),
+                CacheKey::PORTAL_THESAURUS_FACETS->key($scope?->value),
                 CacheKey::PORTAL_THESAURUS_FACETS->ttl(),
-                fn (): array => $this->fetchThesaurusFacets(),
+                fn (): array => $this->fetchThesaurusFacets($scope),
             );
     }
 
@@ -135,7 +138,7 @@ class KeywordSuggestionService
      * @param  array<int, string>  $selectedNodeIds
      * @return array<int, array{id: string, scheme: string, subject_schemes: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
      */
-    public function resolveSelectedThesaurusNodes(array $selectedNodeIds): array
+    public function resolveSelectedThesaurusNodes(array $selectedNodeIds, ?PortalScope $scope = null): array
     {
         $normalizedIds = array_values(array_unique(array_filter(
             array_map(static fn (string $value): string => trim($value), $selectedNodeIds),
@@ -149,13 +152,13 @@ class KeywordSuggestionService
         $index = [];
         $notationIndex = [];
 
-        foreach ($this->getThesaurusFacets() as $facet) {
+        foreach ($this->getThesaurusFacets($scope) as $facet) {
             foreach ($facet['roots'] as $root) {
                 $this->indexFacetNode($root, $index, $notationIndex);
             }
         }
 
-        $usedSubjects = $this->getUsedControlledSubjectIndex();
+        $usedSubjects = $this->getUsedControlledSubjectIndex($scope);
         $resolved = [];
 
         foreach ($normalizedIds as $nodeId) {
@@ -186,10 +189,14 @@ class KeywordSuggestionService
      */
     public function invalidateCache(): void
     {
-        CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->forget();
-        CacheKey::PORTAL_KEYWORD_SUGGESTIONS->forget();
-        CacheKey::PORTAL_THESAURUS_FACETS->forget();
-        CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->forget();
+        foreach ([
+            CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS,
+            CacheKey::PORTAL_KEYWORD_SUGGESTIONS,
+            CacheKey::PORTAL_THESAURUS_FACETS,
+            CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX,
+        ] as $cacheKey) {
+            $cacheKey->forgetPortalVariants();
+        }
     }
 
     /**
@@ -200,16 +207,18 @@ class KeywordSuggestionService
      *
      * @return array<int, array{value: string, scheme: null, count: int}>
      */
-    private function fetchFreeKeywordSuggestions(): array
+    private function fetchFreeKeywordSuggestions(?PortalScope $scope = null): array
     {
         return Subject::query()
             ->freeText()
             ->select('value')
             ->selectRaw('COUNT(DISTINCT resource_id) as usage_count')
-            ->whereHas('resource', function ($query): void {
+            ->whereHas('resource', function (Builder $query) use ($scope): void {
+                /** @var Builder<Resource> $query */
                 $query->whereHas('landingPage', function ($q): void {
                     $q->where('is_published', true);
                 });
+                $this->applyPortalScope($query, $scope);
             })
             ->groupBy('value')
             ->orderBy('value')
@@ -227,9 +236,9 @@ class KeywordSuggestionService
      *
      * @return array<int, array{scheme: string, roots: array<int, array<string, mixed>>}>
      */
-    private function fetchThesaurusFacets(): array
+    private function fetchThesaurusFacets(?PortalScope $scope = null): array
     {
-        $usedSubjects = $this->getUsedControlledSubjectIndex();
+        $usedSubjects = $this->getUsedControlledSubjectIndex($scope);
         $facets = [];
 
         foreach ($this->getEnabledThesaurusSources() as $source) {
@@ -288,31 +297,33 @@ class KeywordSuggestionService
     /**
      * @return array<string, array{ids: array<string, true>, values: array<string, true>, schemes: array<string, true>}>
      */
-    private function getUsedControlledSubjectIndex(): array
+    private function getUsedControlledSubjectIndex(?PortalScope $scope = null): array
     {
         /** @var array<string, array{ids: array<string, true>, values: array<string, true>, schemes: array<string, true>}> */
         return $this->getCacheInstance(CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->tags())
             ->remember(
-                CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->key(),
+                CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->key($scope?->value),
                 CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->ttl(),
-                fn (): array => $this->buildUsedControlledSubjectIndex(),
+                fn (): array => $this->buildUsedControlledSubjectIndex($scope),
             );
     }
 
     /**
      * @return array<string, array{ids: array<string, true>, values: array<string, true>, schemes: array<string, true>}>
      */
-    private function buildUsedControlledSubjectIndex(): array
+    private function buildUsedControlledSubjectIndex(?PortalScope $scope = null): array
     {
         $usedSubjects = [];
 
         Subject::query()
             ->controlled()
             ->select('subject_scheme', 'value', 'value_uri')
-            ->whereHas('resource', function ($query): void {
+            ->whereHas('resource', function (Builder $query) use ($scope): void {
+                /** @var Builder<Resource> $query */
                 $query->whereHas('landingPage', function ($q): void {
                     $q->where('is_published', true);
                 });
+                $this->applyPortalScope($query, $scope);
             })
             ->get()
             ->each(function (Subject $subject) use (&$usedSubjects): void {
@@ -342,6 +353,24 @@ class KeywordSuggestionService
             });
 
         return $usedSubjects;
+    }
+
+    /**
+     * @param  Builder<\App\Models\Resource>  $query
+     */
+    private function applyPortalScope(Builder $query, ?PortalScope $scope): void
+    {
+        if ($scope === PortalScope::DOI) {
+            $query->whereDoesntHave(
+                'resourceType',
+                fn (Builder $typeQuery): Builder => $typeQuery->where('slug', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE),
+            );
+        } elseif ($scope === PortalScope::IGSN) {
+            $query->whereHas(
+                'resourceType',
+                fn (Builder $typeQuery): Builder => $typeQuery->where('slug', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE),
+            );
+        }
     }
 
     /**

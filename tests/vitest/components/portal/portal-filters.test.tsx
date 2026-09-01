@@ -122,6 +122,13 @@ describe('PortalFilters', () => {
         expect(screen.getByText('All Resource Types')).toBeInTheDocument();
     });
 
+    it('removes the complete resource type section in the IGSN portal', () => {
+        render(<PortalFilters {...defaultProps} basePath="/igsn-search" showResourceTypeFilter={false} resourceTypeFacets={[]} />);
+
+        expect(screen.queryByRole('button', { name: /resource type/i })).not.toBeInTheDocument();
+        expect(screen.queryByText('All Resource Types')).not.toBeInTheDocument();
+    });
+
     it('automatically opens groups that contain active filters and displays a count', () => {
         render(<PortalFilters {...defaultProps} filters={{ ...defaultFilters, type: ['dataset'] }} hasActiveFilters />);
 

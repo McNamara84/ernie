@@ -634,7 +634,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Download clicks</strong> on real file targets from the <strong>Files</strong> section
                             </li>
                             <li>
-                                <strong>Portal searches</strong> submitted explicitly through the public <code>/search</code> search box
+                                <strong>Portal searches</strong> submitted explicitly through the public <code>/doi-search</code> or{' '}
+                                <code>/igsn-search</code> search box
                             </li>
                         </ul>
 
@@ -1844,9 +1845,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Searching Published Records in the Portal</h3>
                         <p>
-                            The public Data Portal at <code>/search</code> lets you explore published datasets and physical samples with text,
-                            spatial, temporal, datacenter, and keyword filters. Every filter state is stored in the URL, so filtered views can be
-                            bookmarked and shared.
+                            The public Data Portal at <code>/doi-search</code> lets you explore published DOI resources, while the IGSN Portal at{' '}
+                            <code>/igsn-search</code> is dedicated to published physical samples. Both support text, spatial, temporal, datacenter,
+                            and keyword filters. Every filter state is stored in the URL, so filtered views can be bookmarked and shared.
                         </p>
 
                         <h4>Exploring Results on the Map</h4>

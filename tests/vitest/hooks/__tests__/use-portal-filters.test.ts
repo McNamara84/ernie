@@ -89,7 +89,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/search?q=earthquake',
+                '/doi-search?q=earthquake',
                 {},
                 { preserveState: true, preserveScroll: true },
             );
@@ -105,7 +105,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/search?q=test',
+                '/doi-search?q=test',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );
@@ -121,7 +121,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/search',
+                '/doi-search',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );
@@ -170,7 +170,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/search',
+                '/doi-search',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );
@@ -224,7 +224,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/search?datacenter%5B%5D=INTERMAGNET',
+                '/doi-search?datacenter%5B%5D=INTERMAGNET',
                 {},
                 { preserveState: true, preserveScroll: false },
             );
@@ -233,7 +233,7 @@ describe('usePortalFilters', () => {
     });
 
     describe('clearFilters', () => {
-        it('navigates to /search without any params', () => {
+        it('navigates to /doi-search without any params', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: 'test', type: ['doi'], keywords: [],
@@ -247,7 +247,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/search',
+                '/doi-search',
                 {},
                 { preserveState: true, preserveScroll: true },
             );
@@ -283,7 +283,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/search',
+                '/doi-search',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );
@@ -404,7 +404,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/search',
+                '/doi-search',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );
@@ -585,7 +585,7 @@ describe('usePortalFilters', () => {
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
-                '/search',
+                '/doi-search',
                 {},
                 expect.objectContaining({ preserveState: true }),
             );

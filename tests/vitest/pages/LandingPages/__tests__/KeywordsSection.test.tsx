@@ -58,9 +58,9 @@ describe('KeywordsSection', () => {
         const link = screen.getByRole('link', { name: 'geology' });
         const searchLink = screen.getByRole('link', { name: /Search for geology in the portal/i });
 
-        expect(link).toHaveAttribute('href', '/search?free_keywords%5B%5D=geology');
+        expect(link).toHaveAttribute('href', '/doi-search?free_keywords%5B%5D=geology');
         expect(link).not.toHaveAttribute('target');
-        expect(searchLink).toHaveAttribute('href', '/search?free_keywords%5B%5D=geology');
+        expect(searchLink).toHaveAttribute('href', '/doi-search?free_keywords%5B%5D=geology');
     });
 
     it('links controlled keywords through the portal thesaurus filter', () => {
@@ -70,7 +70,7 @@ describe('KeywordsSection', () => {
 
         expect(link).toHaveAttribute(
             'href',
-            '/search?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-seismology',
+            '/doi-search?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-seismology',
         );
     });
 
@@ -88,7 +88,7 @@ describe('KeywordsSection', () => {
         expect(screen.getByTestId('thesauri-keywords-list')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /^SEISMOLOGY$/i })).toHaveAttribute(
             'href',
-            '/search?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-seismology',
+            '/doi-search?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-seismology',
         );
     });
 
@@ -111,11 +111,11 @@ describe('KeywordsSection', () => {
         expect(screen.getByTestId('thesauri-keywords-list')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /^ICP-MS$/i })).toHaveAttribute(
             'href',
-            '/search?thesaurus_keywords%5B%5D=https%3A%2F%2Fexample.test%2Fanalytical%2Ficp-ms',
+            '/doi-search?thesaurus_keywords%5B%5D=https%3A%2F%2Fexample.test%2Fanalytical%2Ficp-ms',
         );
         expect(screen.getByRole('link', { name: /^Mathematics$/i })).toHaveAttribute(
             'href',
-            '/search?thesaurus_keywords%5B%5D=https%3A%2F%2Fexample.test%2Feuroscivoc%2Fmathematics',
+            '/doi-search?thesaurus_keywords%5B%5D=https%3A%2F%2Fexample.test%2Feuroscivoc%2Fmathematics',
         );
     });
 
@@ -135,7 +135,7 @@ describe('KeywordsSection', () => {
 
         expect(link).toHaveAttribute(
             'href',
-            '/search?thesaurus_keywords%5B%5D=Science+Keywords%3A%3A310607',
+            '/doi-search?thesaurus_keywords%5B%5D=Science+Keywords%3A%3A310607',
         );
     });
 
@@ -154,8 +154,8 @@ describe('KeywordsSection', () => {
         const link = screen.getByRole('link', { name: /^SEISMOLOGY$/i });
         const searchLink = screen.getByRole('link', { name: /Search for SEISMOLOGY in the portal/i });
 
-        expect(link).toHaveAttribute('href', '/search?keywords%5B%5D=SEISMOLOGY');
-        expect(searchLink).toHaveAttribute('href', '/search?keywords%5B%5D=SEISMOLOGY');
+        expect(link).toHaveAttribute('href', '/doi-search?keywords%5B%5D=SEISMOLOGY');
+        expect(searchLink).toHaveAttribute('href', '/doi-search?keywords%5B%5D=SEISMOLOGY');
     });
 
     it('shows a search prompt on the magnifying-glass action', () => {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\CacheKey;
+use App\Enums\PortalScope;
 use App\Services\ListingCountService;
 use App\Services\PortalFilterService;
 use App\Services\PortalSearchService;
@@ -19,10 +20,11 @@ final class PortalCountController extends Controller
         private readonly ListingCountService $listingCountService,
     ) {}
 
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request, string $portalScope): JsonResponse
     {
-        $temporalRange = $this->searchService->getTemporalRange();
-        $filters = $this->filterService->fromRequest($request, $temporalRange);
+        $scope = PortalScope::from($portalScope);
+        $temporalRange = $this->searchService->getTemporalRange($scope);
+        $filters = $this->filterService->fromRequest($request, $temporalRange, $scope);
         $fingerprint = $this->listingCountService->fingerprint($filters);
         $total = $this->listingCountService->remember(
             CacheKey::PORTAL_LISTING_COUNT,

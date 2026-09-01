@@ -2,11 +2,12 @@ import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
 
 import { buildPortalFilterUrl, mergePortalFilters } from '@/lib/portal-filter-url';
-import type { GeoBounds, PortalFilters, TemporalFilterValue } from '@/types/portal';
+import type { GeoBounds, PortalBasePath, PortalFilters, TemporalFilterValue } from '@/types/portal';
 
 interface UsePortalFiltersOptions {
     filters: PortalFilters;
     currentPage: number;
+    basePath?: PortalBasePath;
 }
 
 interface UsePortalFiltersReturn {
@@ -33,15 +34,15 @@ interface UsePortalFiltersReturn {
  * All filter changes are persisted to the URL for bookmarking/sharing
  * and trigger an Inertia page reload to fetch filtered results.
  */
-export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptions): UsePortalFiltersReturn {
+export function usePortalFilters({ filters, currentPage, basePath = '/doi-search' }: UsePortalFiltersOptions): UsePortalFiltersReturn {
     const updateFilters = useCallback(
         (newFilters: Partial<PortalFilters>, resetPage = true, preserveScroll = true) => {
             const resolvedFilters = mergePortalFilters(filters, newFilters);
-            const url = buildPortalFilterUrl(resolvedFilters, !resetPage && currentPage > 1 ? currentPage : null);
+            const url = buildPortalFilterUrl(resolvedFilters, basePath, !resetPage && currentPage > 1 ? currentPage : null);
 
             router.get(url, {}, { preserveState: true, preserveScroll });
         },
-        [filters, currentPage],
+        [basePath, filters, currentPage],
     );
 
     const setSearch = useCallback(
@@ -130,8 +131,8 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
     );
 
     const clearFilters = useCallback(() => {
-        router.get('/search', {}, { preserveState: true, preserveScroll: true });
-    }, []);
+        router.get(basePath, {}, { preserveState: true, preserveScroll: true });
+    }, [basePath]);
 
     const hasActiveFilters = useMemo(() => {
         return (

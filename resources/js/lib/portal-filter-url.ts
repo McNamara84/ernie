@@ -1,4 +1,4 @@
-import type { PortalFilters, PortalMapViewport } from '@/types/portal';
+import type { PortalBasePath, PortalFilters, PortalMapViewport } from '@/types/portal';
 
 function appendArrayParams(params: URLSearchParams, key: string, values: string[]): void {
     values.forEach((value) => {
@@ -22,7 +22,7 @@ export function mergePortalFilters(filters: PortalFilters, nextFilters: Partial<
     };
 }
 
-export function buildPortalFilterUrl(filters: PortalFilters, page: number | null = null): string {
+export function buildPortalFilterUrl(filters: PortalFilters, basePath: PortalBasePath = '/doi-search', page: number | null = null): string {
     const params = new URLSearchParams();
     const hasSplitKeywordFilters = (filters.freeKeywords?.length ?? 0) > 0 || (filters.thesaurusKeywords?.length ?? 0) > 0;
 
@@ -30,9 +30,9 @@ export function buildPortalFilterUrl(filters: PortalFilters, page: number | null
         params.set('q', filters.query.trim());
     }
 
-    if (filters.type.length > 0) {
+    if (basePath !== '/igsn-search' && filters.type.length > 0) {
         appendArrayParams(params, 'type', filters.type);
-    } else if (filters.exclude_type) {
+    } else if (basePath !== '/igsn-search' && filters.exclude_type) {
         params.set('type', 'doi');
     }
 
@@ -71,22 +71,32 @@ export function buildPortalFilterUrl(filters: PortalFilters, page: number | null
 
     const queryString = params.toString();
 
-    return queryString ? `/search?${queryString}` : '/search';
+    return queryString ? `${basePath}?${queryString}` : basePath;
 }
 
 /** Preserve the server's exact filter inputs so its count fingerprint stays identical. */
-export function buildPortalCountUrl(currentSearch: string): string {
+export function buildPortalCountUrl(currentSearch: string, basePath: PortalBasePath = '/doi-search'): string {
     const params = new URLSearchParams(currentSearch);
     params.delete('page');
 
+    if (basePath === '/igsn-search') {
+        params.delete('type');
+        params.delete('type[]');
+    }
+
     const queryString = params.toString();
 
-    return queryString ? `/search/count?${queryString}` : '/search/count';
+    return queryString ? `${basePath}/count?${queryString}` : `${basePath}/count`;
 }
 
 /** Build the lightweight map request while preserving the list's active filters. */
-export function buildPortalMapUrl(filters: PortalFilters, viewport: PortalMapViewport, includeExtent = false): string {
-    const filterUrl = buildPortalFilterUrl(filters);
+export function buildPortalMapUrl(
+    filters: PortalFilters,
+    viewport: PortalMapViewport,
+    includeExtent = false,
+    basePath: PortalBasePath = '/doi-search',
+): string {
+    const filterUrl = buildPortalFilterUrl(filters, basePath);
     const queryString = filterUrl.includes('?') ? filterUrl.slice(filterUrl.indexOf('?') + 1) : '';
     const params = new URLSearchParams(queryString);
 
@@ -102,5 +112,5 @@ export function buildPortalMapUrl(filters: PortalFilters, viewport: PortalMapVie
         params.set('include_extent', '1');
     }
 
-    return `/search/map?${params.toString()}`;
+    return `${basePath}/map?${params.toString()}`;
 }
