@@ -188,7 +188,7 @@ export interface RelatedIdentifier {
     relation_type: string;
     relation_type_information?: string | null;
     citation_label?: string | null;
-    source?: 'relation_suggestion_assistant' | null;
+    source?: 'relation_suggestion_assistant' | 'legacy_igsn_dif' | null;
     is_repository_curation?: boolean;
     position?: number;
     related_title?: string | null;

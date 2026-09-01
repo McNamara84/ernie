@@ -78,20 +78,21 @@ describe('Related Work Schemas', () => {
             expect(result.success).toBe(true);
         });
 
-        it('accepts repository curation provenance fields', () => {
+        it.each(['relation_suggestion_assistant', 'legacy_igsn_dif'] as const)('accepts the %s provenance value', (source) => {
+            const isRepositoryCuration = source === 'relation_suggestion_assistant';
             const result = relatedIdentifierSchema.safeParse({
                 id: 1,
                 identifier: '10.5880/test',
                 identifier_type: 'DOI',
                 relation_type: 'Cites',
-                source: 'relation_suggestion_assistant',
-                is_repository_curation: true,
+                source,
+                is_repository_curation: isRepositoryCuration,
             });
 
             expect(result.success).toBe(true);
             if (result.success) {
-                expect(result.data.source).toBe('relation_suggestion_assistant');
-                expect(result.data.is_repository_curation).toBe(true);
+                expect(result.data.source).toBe(source);
+                expect(result.data.is_repository_curation).toBe(isRepositoryCuration);
             }
         });
 

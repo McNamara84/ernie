@@ -257,7 +257,16 @@ final class IgsnLegacyDifBackfillService
         }
 
         foreach ($metadata['root_related_identifiers'] as $identifier) {
+            if (strcasecmp($identifier['identifier_type'], 'DOI') !== 0
+                || strcasecmp($identifier['relation_type'], 'hasDocument') !== 0) {
+                continue;
+            }
+
             $doi = $this->normalizeDoi($identifier['identifier']);
+            if ($doi === null) {
+                continue;
+            }
+
             $exists = $resource->relatedIdentifiers->contains(
                 fn ($related): bool => $related->identifierType->slug === 'DOI'
                     && $related->relationType->slug === 'Cites'
@@ -399,9 +408,15 @@ final class IgsnLegacyDifBackfillService
         return array_keys($names);
     }
 
-    private function normalizeDoi(string $value): string
+    private function normalizeDoi(string $value): ?string
     {
-        return mb_strtolower(trim(preg_replace('#^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)#i', '', $value) ?? $value));
+        $value = trim($value);
+        $value = preg_replace('#^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)#i', '', $value) ?? $value;
+        if (preg_match('#^10\.\d{4,9}/\S+$#i', $value) !== 1) {
+            return null;
+        }
+
+        return mb_strtolower($value);
     }
 
     private function normalizeComparable(mixed $value): string

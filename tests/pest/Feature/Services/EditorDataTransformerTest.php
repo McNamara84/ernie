@@ -1694,6 +1694,7 @@ describe('transformRelatedIdentifiers', function (): void {
             'identifier_type_id' => $identifierType->id,
             'relation_type_id' => $relationType->id,
             'citation_label' => 'Doe, J. (2024): Second item. GFZ.',
+            'source' => RelatedIdentifier::SOURCE_LEGACY_IGSN_DIF,
             'position' => 2,
         ]);
         RelatedIdentifier::create([
@@ -1705,20 +1706,31 @@ describe('transformRelatedIdentifiers', function (): void {
             'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
             'position' => 1,
         ]);
+        RelatedIdentifier::create([
+            'resource_id' => $this->resource->id,
+            'identifier' => '10.5880/test.2024.003',
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationType->id,
+            'position' => 3,
+        ]);
 
         $this->resource->load('relatedIdentifiers.identifierType', 'relatedIdentifiers.relationType');
 
         $result = $this->transformer->transformRelatedIdentifiers($this->resource);
 
-        expect($result)->toHaveCount(2)
+        expect($result)->toHaveCount(3)
             ->and($result[0]['identifier'])->toBe('10.5880/test.2024.001')
             ->and($result[1]['identifier'])->toBe('10.5880/test.2024.002')
+            ->and($result[2]['identifier'])->toBe('10.5880/test.2024.003')
             ->and($result[0]['identifier_type'])->toBe('DOI')
             ->and($result[0]['relation_type'])->toBe('Cites')
             ->and($result[0]['citation_label'])->toBe('Doe, J. (2024): First item. GFZ.')
             ->and($result[0]['source'])->toBe(RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT)
             ->and($result[0]['is_repository_curation'])->toBeTrue()
-            ->and($result[1]['is_repository_curation'])->toBeFalse();
+            ->and($result[1]['source'])->toBe(RelatedIdentifier::SOURCE_LEGACY_IGSN_DIF)
+            ->and($result[1]['is_repository_curation'])->toBeFalse()
+            ->and($result[2]['source'])->toBeNull()
+            ->and($result[2]['is_repository_curation'])->toBeFalse();
     });
 });
 

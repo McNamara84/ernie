@@ -791,7 +791,7 @@ describe('ResourceStorageService', function () {
             ->and($related->relation_type_information)->toBeNull();
     });
 
-    it('preserves assistant provenance for existing related identifiers when updating a resource', function () {
+    it('preserves internal provenance only for existing related identifiers when updating a resource', function () {
         $resourceType = ResourceType::first();
         $identifierType = IdentifierType::query()->where('slug', 'URL')->firstOrFail();
         $relationType = RelationType::query()->where('slug', 'References')->firstOrFail();
@@ -808,11 +808,19 @@ describe('ResourceStorageService', function () {
             'position' => 0,
         ]);
 
+        $legacyRelatedIdentifier = $resource->relatedIdentifiers()->create([
+            'identifier' => '10.5880/legacy-original',
+            'identifier_type_id' => IdentifierType::query()->where('slug', 'DOI')->firstOrFail()->id,
+            'relation_type_id' => RelationType::query()->where('slug', 'Cites')->firstOrFail()->id,
+            'source' => RelatedIdentifier::SOURCE_LEGACY_IGSN_DIF,
+            'position' => 1,
+        ]);
+
         $manualRelatedIdentifier = $resource->relatedIdentifiers()->create([
             'identifier' => 'https://example.org/manual-original',
             'identifier_type_id' => $identifierType->id,
             'relation_type_id' => $relationType->id,
-            'position' => 1,
+            'position' => 2,
         ]);
 
         $data = [
@@ -848,6 +856,13 @@ describe('ResourceStorageService', function () {
                     'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
                 ],
                 [
+                    'id' => $legacyRelatedIdentifier->id,
+                    'identifier' => '10.5880/legacy-edited',
+                    'identifierType' => 'DOI',
+                    'relationType' => 'Cites',
+                    'source' => RelatedIdentifier::SOURCE_LEGACY_IGSN_DIF,
+                ],
+                [
                     'id' => $manualRelatedIdentifier->id,
                     'identifier' => 'https://example.org/manual-edited',
                     'identifierType' => 'URL',
@@ -858,7 +873,7 @@ describe('ResourceStorageService', function () {
                     'identifier' => 'https://example.org/new-manual',
                     'identifierType' => 'URL',
                     'relationType' => 'References',
-                    'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
+                    'source' => RelatedIdentifier::SOURCE_LEGACY_IGSN_DIF,
                 ],
             ],
         ];
@@ -870,15 +885,18 @@ describe('ResourceStorageService', function () {
             ->orderBy('position')
             ->get();
 
-        expect($relatedIdentifiers)->toHaveCount(3)
+        expect($relatedIdentifiers)->toHaveCount(4)
             ->and($relatedIdentifiers[0]->id)->toBe($assistantRelatedIdentifier->id)
             ->and($relatedIdentifiers[0]->identifier)->toBe('https://example.org/curated-edited')
             ->and($relatedIdentifiers[0]->source)->toBe(RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT)
-            ->and($relatedIdentifiers[1]->id)->toBe($manualRelatedIdentifier->id)
-            ->and($relatedIdentifiers[1]->identifier)->toBe('https://example.org/manual-edited')
-            ->and($relatedIdentifiers[1]->source)->toBeNull()
-            ->and($relatedIdentifiers[2]->identifier)->toBe('https://example.org/new-manual')
-            ->and($relatedIdentifiers[2]->source)->toBeNull();
+            ->and($relatedIdentifiers[1]->id)->toBe($legacyRelatedIdentifier->id)
+            ->and($relatedIdentifiers[1]->identifier)->toBe('10.5880/legacy-edited')
+            ->and($relatedIdentifiers[1]->source)->toBe(RelatedIdentifier::SOURCE_LEGACY_IGSN_DIF)
+            ->and($relatedIdentifiers[2]->id)->toBe($manualRelatedIdentifier->id)
+            ->and($relatedIdentifiers[2]->identifier)->toBe('https://example.org/manual-edited')
+            ->and($relatedIdentifiers[2]->source)->toBeNull()
+            ->and($relatedIdentifiers[3]->identifier)->toBe('https://example.org/new-manual')
+            ->and($relatedIdentifiers[3]->source)->toBeNull();
     });
 
     it('does not coerce fractional related identifier ids when matching existing rows', function () {

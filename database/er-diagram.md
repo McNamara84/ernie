@@ -889,6 +889,9 @@ erDiagram
         varchar sample_image_storage_path "2048"
         varchar sample_image_mime_type "100"
         bigint sample_image_size "unsigned"
+        varchar legacy_dif_schema_namespace "255, nullable"
+        json legacy_dif_json "nullable"
+        timestamp legacy_dif_imported_at "nullable"
         varchar upload_status
         text upload_error_message
         varchar csv_filename

@@ -196,7 +196,7 @@ class StoreDraftResourceRequest extends FormRequest
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
-            'relatedIdentifiers.*.source' => ['nullable', 'string', Rule::in([RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT])],
+            'relatedIdentifiers.*.source' => ['nullable', 'string', Rule::in(RelatedIdentifier::INTERNAL_SOURCES)],
             'fundingReferences' => ['nullable', 'array', 'max:'.self::MAX_REPEATABLE_METADATA_ITEMS],
             'fundingReferences.*.funderName' => ['required', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifier' => ['nullable', 'string', 'max:500'],

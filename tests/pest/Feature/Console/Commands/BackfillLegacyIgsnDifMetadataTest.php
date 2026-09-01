@@ -5,8 +5,10 @@ declare(strict_types=1);
 use App\Console\Commands\BackfillLegacyIgsnDifMetadata;
 use App\Jobs\SyncImportedResourcesWithDataCiteJob;
 use App\Models\Datacenter;
+use App\Models\IdentifierType;
 use App\Models\IgsnMetadata;
 use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Services\Igsn\IgsnLegacyDifBackfillService;
 use Illuminate\Bus\PendingBatch;
@@ -171,4 +173,58 @@ it('queues DataCite synchronization only for changed registered IGSNs', function
         ->and($result['records'][0]['datacite_sync_status'])->toBe('pending')
         ->and($result['records'][1]['datacite_sync_status'])->toBe('not_queued')
         ->and($draft->igsnMetadata->fresh()->legacy_dif_json)->not->toBeNull();
+});
+
+it('ignores non-DOI and malformed root documents on every rerun', function (): void {
+    $resource = legacyDifBackfillResource('ICDPINVALIDDOCS');
+    fakeLegacyDifDocuments([
+        'ICDPINVALIDDOCS' => <<<'XML'
+        <resource>
+          <relatedIdentifiers>
+            <relatedIdentifier type="URL" relationType="hasDocument">https://example.org/document</relatedIdentifier>
+            <relatedIdentifier type="DOI" relationType="hasDocument">not-a-doi</relatedIdentifier>
+            <relatedIdentifier type="DOI" relationType="references">10.5880/valid.but.ineligible</relatedIdentifier>
+          </relatedIdentifiers>
+          <sample><field_name>Eligibility regression fixture</field_name></sample>
+        </resource>
+        XML,
+    ]);
+
+    $first = app(IgsnLegacyDifBackfillService::class)->run(apply: true);
+    $second = app(IgsnLegacyDifBackfillService::class)->run(apply: true);
+
+    expect($first)->toMatchArray(['changed' => 1, 'errors' => 0])
+        ->and($second)->toMatchArray(['changed' => 0, 'unchanged' => 1, 'errors' => 0])
+        ->and($second['sync_resource_ids'])->toBe([])
+        ->and(RelatedIdentifier::query()->whereBelongsTo($resource)->count())->toBe(0);
+});
+
+it('does not duplicate a Cites DOI that differs from the DIF value only by case', function (): void {
+    $resource = legacyDifBackfillResource('ICDPDOICASE');
+    $doiType = IdentifierType::query()->where('slug', 'DOI')->firstOrFail();
+    $citesType = RelationType::query()->where('slug', 'Cites')->firstOrFail();
+    $existing = $resource->relatedIdentifiers()->create([
+        'identifier' => '10.5880/ICDP.CaseSensitive',
+        'identifier_type_id' => $doiType->id,
+        'relation_type_id' => $citesType->id,
+        'position' => 0,
+    ]);
+    fakeLegacyDifDocuments([
+        'ICDPDOICASE' => <<<'XML'
+        <resource>
+          <relatedIdentifiers>
+            <relatedIdentifier type="DOI" relationType="hasDocument">https://doi.org/10.5880/icdp.casesensitive</relatedIdentifier>
+          </relatedIdentifiers>
+          <sample><field_name>Case-insensitive DOI regression fixture</field_name></sample>
+        </resource>
+        XML,
+    ]);
+
+    $first = app(IgsnLegacyDifBackfillService::class)->run(apply: true);
+    $second = app(IgsnLegacyDifBackfillService::class)->run(apply: true);
+
+    expect($first)->toMatchArray(['changed' => 1, 'errors' => 0])
+        ->and($second)->toMatchArray(['changed' => 0, 'unchanged' => 1, 'errors' => 0])
+        ->and($resource->relatedIdentifiers()->count())->toBe(1)
+        ->and($resource->relatedIdentifiers()->sole()->id)->toBe($existing->id);
 });

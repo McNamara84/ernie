@@ -1299,6 +1299,7 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
         'platform_type' => 'Drill Rig',
         'platform_name' => 'MSR Punto',
         'platform_description' => 'UDR',
+        'operator' => 'Curated operator',
         'current_archive' => 'BGR Berlin',
         'current_archive_contact' => 'Tina Kollaske <Tina.Kollaske@bgr.de>',
         'description_json' => [
@@ -1385,7 +1386,7 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
             'platform_description' => 'UDR',
             'field_names' => ['Torlesse Greywacke'],
             'classification_comments' => ['Reviewed'],
-            'operators' => ['GNS'],
+            'operators' => ['Curated operator'],
             'methods' => [['scheme' => 'MSCL', 'value' => 'no']],
             'total_lengths' => [['numeric_value' => '2400.1', 'unit' => 'm']],
             'geological_ages' => [['id' => 1, 'value' => 'Quaternary']],
@@ -1404,6 +1405,9 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
         ->and($data['igsn_metadata']['parent']['landing_page'])->toHaveKey('public_url')
         ->and(json_encode($data['igsn_metadata']))->not->toContain('Tina.Kollaske@bgr.de')
         ->not->toContain('archive@example.org');
+
+    $igsn->operator = '   ';
+    expect($transformer->transform($resource)['igsn_metadata']['operators'])->toBe(['GNS']);
 
     // sorted by position ascending
     expect($data)->toHaveKey('igsn_classifications')
