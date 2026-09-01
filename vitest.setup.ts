@@ -5,8 +5,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import { server } from './tests/vitest/helpers/msw-server';
 
 const ignoredJsdomErrors = new Set(['Could not parse CSS stylesheet', 'Not implemented: navigation to another Document']);
+const jsdomErrorFilterInstalled = Symbol.for('ernie.vitest.jsdom-error-filter-installed');
 
 type JsdomVirtualConsole = {
+    [key: symbol]: unknown;
     emit: (eventName: string | symbol, ...args: unknown[]) => boolean;
 };
 
@@ -16,7 +18,7 @@ const vitestJsdom = (
     }
 ).jsdom;
 
-if (vitestJsdom) {
+if (vitestJsdom && vitestJsdom.virtualConsole[jsdomErrorFilterInstalled] !== true) {
     const { virtualConsole } = vitestJsdom;
     const emit = virtualConsole.emit.bind(virtualConsole);
 
@@ -30,6 +32,8 @@ if (vitestJsdom) {
 
         return emit(eventName, ...args);
     };
+
+    Object.defineProperty(virtualConsole, jsdomErrorFilterInstalled, { value: true });
 }
 
 // Start MSW before any test runs so that fetch calls inside hooks/components
