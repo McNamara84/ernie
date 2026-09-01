@@ -160,6 +160,15 @@ npm run types
 npm run test:run
 ```
 
+TypeScript 7 uses four parallel type checkers for the application and test projects. This fixed value was the fastest configuration in local measurements across two to twelve checkers while avoiding the substantially higher memory use of larger worker counts.
+
+For continuous application feedback during development, run the native TypeScript 7 watcher alongside the Docker development stack. Use the separate test watcher when editing Vitest types or helpers:
+
+```bash
+npm run types:watch
+npm run types:watch:test
+```
+
 Vitest can repeat a focused test file to expose flaky behavior without multiplying the complete suite:
 
 ```bash

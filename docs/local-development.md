@@ -30,6 +30,8 @@ WSL2 is the recommended Windows setup because Docker bind mounts and host-side N
 4. Run Docker Compose and host-side Node commands from the WSL shell.
 5. Use your Windows browser for `https://ernie.localhost:3333` if preferred.
 
+The repository recommends Microsoft's TypeScript 7 extension for VS Code and enables its native language server with the workspace-local TypeScript 7 package. Accept the workspace extension recommendation after opening the checkout. Run `npm ci` first so the configured SDK path is available.
+
 ### Supported fallback: Windows checkout on NTFS
 
 If the repository stays under `D:\` or another NTFS path:
@@ -150,6 +152,8 @@ npm run docker:dev:parity
 | ESLint check                                     | Host shell                     | `npm run lint:check`                                |
 | ESLint auto-fix                                  | Host shell                     | `npm run lint`                                      |
 | TypeScript                                       | Host shell                     | `npm run types`                                     |
+| TypeScript application watcher                   | Host shell                     | `npm run types:watch`                               |
+| TypeScript test watcher                          | Host shell                     | `npm run types:watch:test`                          |
 | Playwright against the dev stack                 | Host shell                     | `npm run test:e2e:devstack`                         |
 | Canonical backend validation                     | Host shell                     | `npm run check:backend`                             |
 | Canonical frontend validation                    | Host shell                     | `npm run check:frontend`                            |
