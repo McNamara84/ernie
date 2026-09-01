@@ -128,7 +128,7 @@ final class IgsnLegacyDifSerializerService
         $attributes = [];
         foreach ($element->attributes as $attribute) {
             $localName = $attribute->localName ?? $attribute->nodeName;
-            $name = $attribute->prefix !== ''
+            $name = $attribute->prefix !== null && $attribute->prefix !== ''
                 ? $attribute->prefix.':'.$localName
                 : $localName;
             $attributes[$name] = trim($attribute->value);
