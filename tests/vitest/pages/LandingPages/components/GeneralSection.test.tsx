@@ -108,6 +108,23 @@ describe('GeneralSection', () => {
         expect(screen.getByText('2024-05-10')).toBeInTheDocument();
     });
 
+    it('renders all legacy request values without conflating requester and purpose', () => {
+        render(
+            <GeneralSection
+                igsn={baseIgsn({
+                    sample_requests: ['DFDP9999 A', 'DFDP9999 B'],
+                    sampled_by: ['Virginia Toy', 'Jane Doe'],
+                    sample_purpose: 'Petrological analysis',
+                })}
+                dates={[]}
+            />,
+        );
+
+        expect(screen.getByText('Request').nextElementSibling).toHaveTextContent('DFDP9999 A; DFDP9999 B');
+        expect(screen.getByText('Requested by').nextElementSibling).toHaveTextContent('Virginia Toy; Jane Doe');
+        expect(screen.getByText('Purpose').nextElementSibling).toHaveTextContent('Petrological analysis');
+    });
+
     it('hides Purpose when sample_purpose is whitespace-only', () => {
         const igsn = baseIgsn({ sample_purpose: '   ' });
 

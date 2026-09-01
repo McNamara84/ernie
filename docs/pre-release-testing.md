@@ -591,6 +591,31 @@ verify them after reopening:
 - [ ] `IGSN Editor` remains disabled unless it has explicitly been enabled for the
       release.
 
+#### 3.11.1 Legacy IGSN DIF enrichment and backfill
+
+- [ ] In DataCite Test mode, run a DOI-filtered dry run for one representative ICDP
+      IGSN and review `changed_fields`, `existing_values`, `source_values`, conflicts,
+      unknown paths, and the schema namespace in the CSV report.
+
+- [ ] Apply the same DOI-filtered scope and confirm that the command reports a sync
+      run as `skipped_test_mode`, without issuing a production DataCite request.
+
+- [ ] Repeat the identical dry run. It reports no further automatic changes; any
+      manual conflicts, missing DIF records, or unknown paths remain stable audit rows.
+
+- [ ] On the resulting landing page, verify Related Work, unbroken Funding Agency,
+      all Operators, Geological Age, Rock Type, Classification Comments, Request,
+      Requested by, release/sampling/collection dates, Methods, Drilling ranges,
+      launch/navigation metadata, repositories, image, and sampling location.
+
+- [ ] Confirm that the DataCite JSON export contains the root publication as `Cites`,
+      the funding reference, approved dates, Project Leader, and alternate identifiers;
+      Total Length is not exported as `sizes` and supplemental `IsCitedBy` is absent.
+
+- [ ] Exercise `--after-id`, `--limit`, repeated `--doi`, and repeated `--datacenter`
+      on a disposable stage scope. A missing or invalid DIF does not stop later records,
+      and the printed last Resource ID can resume the run without duplicates.
+
 ### 3.12 Personal Settings
 
 Test with curator and administrator.

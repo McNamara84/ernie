@@ -973,6 +973,56 @@ entity "igsn_metadata" as igsn_metadata {
     updated_at : TIMESTAMP
 }
 
+entity "igsn_operators" as igsn_operators {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    * value : TEXT
+    * normalized_value_hash : CHAR(64)
+    * position : INT <<unsigned>> = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "igsn_methods" as igsn_methods {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    scheme : VARCHAR(255) <<nullable>>
+    * value : TEXT
+    * normalized_value_hash : CHAR(64)
+    * position : INT <<unsigned>> = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "igsn_measurements" as igsn_measurements {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    * type : VARCHAR(32)
+    start_value : VARCHAR(255) <<nullable>>
+    end_value : VARCHAR(255) <<nullable>>
+    unit : VARCHAR(255) <<nullable>>
+    end_unit : VARCHAR(255) <<nullable>>
+    * normalized_value_hash : CHAR(64)
+    * position : INT <<unsigned>> = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "igsn_metadata_values" as igsn_metadata_values {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    * type : VARCHAR(64)
+    * value : TEXT
+    * normalized_value_hash : CHAR(64)
+    * position : INT <<unsigned>> = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 entity "igsn_classifications" as igsn_classifications {
     * **id** : BIGINT <<PK>>
     --
@@ -1366,6 +1416,10 @@ igsn_metadata }o--o| resources : "parent"
 igsn_classifications }o--|| resources
 igsn_geological_ages }o--|| resources
 igsn_geological_units }o--|| resources
+igsn_operators }o--|| resources
+igsn_methods }o--|| resources
+igsn_measurements }o--|| resources
+igsn_metadata_values }o--|| resources
 
 ' Suggested/Dismissed relations (Assistance feature)
 suggested_relations }o--|| resources

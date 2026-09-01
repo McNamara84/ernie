@@ -25,6 +25,8 @@ export type LeftColumnSection =
     | 'general'
     | 'sample_family'
     | 'acquisition'
+    | 'igsn_methods'
+    | 'igsn_drilling'
     | 'repositories'
     | 'citation'
     | 'dates'
@@ -37,6 +39,8 @@ export type IgsnSection =
     | 'general'
     | 'sample_family'
     | 'acquisition'
+    | 'igsn_methods'
+    | 'igsn_drilling'
     | 'repositories'
     | 'licenses'
     | 'citation'
@@ -511,8 +515,8 @@ export interface LandingPageRelatedIdentifier {
     relation_type: string;
     /** Persisted citation label for display without runtime DOI lookups */
     citation_label?: string | null;
-    /** Local ERNIE provenance for repository-curated additions */
-    source?: 'relation_suggestion_assistant' | null;
+    /** Internal ERNIE provenance assigned by a trusted server-side workflow */
+    source?: 'relation_suggestion_assistant' | 'legacy_igsn_dif' | null;
     /** True when ERNIE added the identifier through repository curation */
     is_repository_curation?: boolean;
     /** General resource type (e.g., 'Dataset', 'Text') */
@@ -769,6 +773,8 @@ export interface LandingPageIgsnMetadata {
     cruise_field_program: string | null;
     /** Sample purpose (rendered as "Purpose") */
     sample_purpose: string | null;
+    sample_requests?: string[];
+    sampled_by?: string[];
     collection_method: string | null;
     collection_method_description: string | null;
     collection_date_precision: string | null;
@@ -793,6 +799,32 @@ export interface LandingPageIgsnMetadata {
     platform_type?: string | null;
     platform_name?: string | null;
     platform_description?: string | null;
+    launch_platform_names?: string[];
+    launch_type_names?: string[];
+    navigation_types?: string[];
+    field_names?: string[];
+    classification_comments?: string[];
+    operators?: string[];
+    methods?: Array<{
+        scheme: string | null;
+        value: string | null;
+    }>;
+    total_lengths?: Array<{
+        numeric_value: string | null;
+        unit: string | null;
+    }>;
+    age_ranges?: Array<{
+        start: string | null;
+        end: string | null;
+        unit: string | null;
+        end_unit: string | null;
+    }>;
+    elevation_ranges?: Array<{
+        start: string | null;
+        end: string | null;
+        unit: string | null;
+        end_unit: string | null;
+    }>;
     sizes: Array<{
         id: number;
         numeric_value: string | null;
@@ -801,6 +833,7 @@ export interface LandingPageIgsnMetadata {
         label: string;
     }>;
     geological_units: LandingPageIgsnClassification[];
+    geological_ages?: LandingPageIgsnClassification[];
     /** Parent IGSN reference (null when standalone) */
     parent: {
         igsn: string;

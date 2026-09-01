@@ -72,6 +72,24 @@ function formatCoordinate(value: number): string {
     return value.toFixed(6);
 }
 
+function formatElevationRanges(igsn: LandingPageIgsnMetadata | null | undefined): string | null {
+    const ranges = (igsn?.elevation_ranges ?? [])
+        .map((range) => {
+            const start = range.start?.trim();
+            const end = range.end?.trim();
+            if (!start && !end) return null;
+
+            const startLabel = start ? `${start}${range.unit ? ` ${range.unit}` : ''}` : null;
+            const endUnit = range.end_unit ?? range.unit;
+            const endLabel = end ? `${end}${endUnit ? ` ${endUnit}` : ''}` : null;
+
+            return startLabel && endLabel ? `${startLabel} – ${endLabel}` : (startLabel ?? endLabel);
+        })
+        .filter((value): value is string => value !== null);
+
+    return ranges.length > 0 ? ranges.join('; ') : null;
+}
+
 function formatLineWaypointTooltip(point: { longitude: number; latitude: number }): string {
     return 'Lat: ' + formatCoordinate(point.latitude) + ', Lon: ' + formatCoordinate(point.longitude);
 }
@@ -454,34 +472,34 @@ export function LocationSection({ geoLocations, isDark = false, samplingLocation
     const hasGlobalCoverage = globalLocations.length > 0;
     const hasMappableLocations = mappableLocations.length > 0;
     const primary = geoLocations[0];
-    const rows: MetadataRow[] =
-        samplingLocation && primary
-            ? [
-                  { label: 'Latitude', value: hasPoint(primary) ? formatCoordinate(primary.point_latitude!) : null },
-                  { label: 'Longitude', value: hasPoint(primary) ? formatCoordinate(primary.point_longitude!) : null },
-                  { label: 'South Bound Latitude', value: hasBox(primary) ? formatCoordinate(primary.south_bound_latitude!) : null },
-                  { label: 'West Bound Longitude', value: hasBox(primary) ? formatCoordinate(primary.west_bound_longitude!) : null },
-                  { label: 'North Bound Latitude', value: hasBox(primary) ? formatCoordinate(primary.north_bound_latitude!) : null },
-                  { label: 'East Bound Longitude', value: hasBox(primary) ? formatCoordinate(primary.east_bound_longitude!) : null },
-                  { label: 'Polygon', value: hasPolygon(primary) ? `${primary.polygon_points!.length} coordinate pairs` : null },
-                  { label: 'Coordinate System', value: igsn?.coordinate_system ?? null },
-                  {
-                      label: 'Elevation',
-                      value:
-                          primary.elevation !== null && primary.elevation !== undefined
-                              ? `${primary.elevation}${primary.elevation_unit ? ` ${primary.elevation_unit}` : ''}`
-                              : null,
-                  },
-                  { label: 'Location Type', value: primary.location_type ?? null },
-                  { label: 'Location Name', value: primary.place ?? null },
-                  { label: 'Location Description', value: primary.location_description ?? null },
-                  { label: 'Locality Description', value: primary.locality_description ?? null },
-                  { label: 'Country', value: primary.country ?? null },
-                  { label: 'Province', value: primary.province ?? null },
-                  { label: 'County', value: primary.county ?? null },
-                  { label: 'City', value: primary.city ?? null },
-              ]
-            : [];
+    const rows: MetadataRow[] = samplingLocation
+        ? [
+              { label: 'Latitude', value: primary && hasPoint(primary) ? formatCoordinate(primary.point_latitude!) : null },
+              { label: 'Longitude', value: primary && hasPoint(primary) ? formatCoordinate(primary.point_longitude!) : null },
+              { label: 'South Bound Latitude', value: primary && hasBox(primary) ? formatCoordinate(primary.south_bound_latitude!) : null },
+              { label: 'West Bound Longitude', value: primary && hasBox(primary) ? formatCoordinate(primary.west_bound_longitude!) : null },
+              { label: 'North Bound Latitude', value: primary && hasBox(primary) ? formatCoordinate(primary.north_bound_latitude!) : null },
+              { label: 'East Bound Longitude', value: primary && hasBox(primary) ? formatCoordinate(primary.east_bound_longitude!) : null },
+              { label: 'Polygon', value: primary && hasPolygon(primary) ? `${primary.polygon_points!.length} coordinate pairs` : null },
+              { label: 'Coordinate System', value: igsn?.coordinate_system ?? null },
+              {
+                  label: 'Elevation',
+                  value:
+                      primary?.elevation !== null && primary?.elevation !== undefined
+                          ? `${primary.elevation}${primary.elevation_unit ? ` ${primary.elevation_unit}` : ''}`
+                          : null,
+              },
+              { label: 'Elevation Range', value: formatElevationRanges(igsn) },
+              { label: 'Location Type', value: primary?.location_type ?? null },
+              { label: 'Location Name', value: primary?.place ?? null },
+              { label: 'Location Description', value: primary?.location_description ?? null },
+              { label: 'Locality Description', value: primary?.locality_description ?? null },
+              { label: 'Country', value: primary?.country ?? null },
+              { label: 'Province', value: primary?.province ?? null },
+              { label: 'County', value: primary?.county ?? null },
+              { label: 'City', value: primary?.city ?? null },
+          ]
+        : [];
     const hasDetails = hasVisibleMetadataRows(rows);
     const heading = samplingLocation ? 'Sampling Location' : 'Location';
 

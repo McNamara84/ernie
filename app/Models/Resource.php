@@ -66,6 +66,10 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, IgsnClassification> $igsnClassifications
  * @property-read Collection<int, IgsnGeologicalAge> $igsnGeologicalAges
  * @property-read Collection<int, IgsnGeologicalUnit> $igsnGeologicalUnits
+ * @property-read Collection<int, IgsnOperator> $igsnOperators
+ * @property-read Collection<int, IgsnMethod> $igsnMethods
+ * @property-read Collection<int, IgsnMeasurement> $igsnMeasurements
+ * @property-read Collection<int, IgsnMetadataValue> $igsnMetadataValues
  * @property-read Collection<int, AlternateIdentifier> $alternateIdentifiers
  * @property-read Collection<int, ResourceInstrument> $instruments
  * @property-read Datacenter|null $datacenter
@@ -371,6 +375,42 @@ class Resource extends Model
     {
         /** @var HasMany<IgsnGeologicalUnit, static> $relation */
         $relation = $this->hasMany(IgsnGeologicalUnit::class)->orderBy('position');
+
+        return $relation;
+    }
+
+    /** @return HasMany<IgsnOperator, static> */
+    public function igsnOperators(): HasMany
+    {
+        /** @var HasMany<IgsnOperator, static> $relation */
+        $relation = $this->hasMany(IgsnOperator::class)->orderBy('position');
+
+        return $relation;
+    }
+
+    /** @return HasMany<IgsnMethod, static> */
+    public function igsnMethods(): HasMany
+    {
+        /** @var HasMany<IgsnMethod, static> $relation */
+        $relation = $this->hasMany(IgsnMethod::class)->orderBy('position');
+
+        return $relation;
+    }
+
+    /** @return HasMany<IgsnMeasurement, static> */
+    public function igsnMeasurements(): HasMany
+    {
+        /** @var HasMany<IgsnMeasurement, static> $relation */
+        $relation = $this->hasMany(IgsnMeasurement::class)->orderBy('type')->orderBy('position');
+
+        return $relation;
+    }
+
+    /** @return HasMany<IgsnMetadataValue, static> */
+    public function igsnMetadataValues(): HasMany
+    {
+        /** @var HasMany<IgsnMetadataValue, static> $relation */
+        $relation = $this->hasMany(IgsnMetadataValue::class)->orderBy('type')->orderBy('position');
 
         return $relation;
     }

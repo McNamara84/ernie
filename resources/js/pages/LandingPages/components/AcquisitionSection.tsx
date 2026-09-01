@@ -85,7 +85,10 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
               : [];
 
     const geologicalUnits = dedup((igsn?.geological_units ?? []).map((unit) => unit.value.trim()).filter(Boolean)).join(', ');
-
+    const geologicalAges = dedup((igsn?.geological_ages ?? []).map((age) => age.value.trim()).filter(Boolean)).join(', ');
+    const rockTypes = dedup((igsn?.field_names ?? []).map((value) => value.trim()).filter(Boolean)).join(', ');
+    const classificationComments = dedup((igsn?.classification_comments ?? []).map((value) => value.trim()).filter(Boolean)).join('; ');
+    const operators = dedup((igsn?.operators ?? []).map((value) => value.trim()).filter(Boolean)).join('; ');
     const sizes = (igsn?.sizes ?? [])
         .map((size) => {
             const type = size.type ? size.type.charAt(0).toUpperCase() + size.type.slice(1) : 'Size';
@@ -103,7 +106,12 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
             .filter((name): name is string => name !== null),
     ).join(', ');
 
-    const collectionDate = findDateByType(dates, 'Collected');
+    const collectedDates = dates.filter((date) => date.date_type_slug === 'Collected' || date.date_type === 'Collected');
+    const samplingDate = collectedDates.find((date) => date.date_information?.toLowerCase().includes('legacy igsn sampling date'));
+    const collectionDate =
+        collectedDates.find((date) => date.date_information?.toLowerCase().includes('legacy igsn collection period')) ??
+        collectedDates.find((date) => date.start_date || date.end_date) ??
+        findDateByType(dates, 'Collected');
     const startDate = collectionDate?.start_date ?? collectionDate?.date_value ?? null;
     const endDate = collectionDate?.end_date ?? collectionDate?.date_value ?? null;
 
@@ -117,6 +125,9 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
     const rows: MetadataRow[] = [
         { label: 'Material', value: valueOrMissing(material) },
         { label: `${materialLabel} Classification`, value: valueOrMissing(classification || null) },
+        { label: 'Rock Type', value: valueOrMissing(rockTypes || null) },
+        { label: 'Classification Comments', value: valueOrMissing(classificationComments || null) },
+        { label: 'Geological Age', value: valueOrMissing(geologicalAges || null) },
         { label: 'Geological Unit', value: valueOrMissing(geologicalUnits || null) },
         { label: 'Comments', value: valueOrMissing(comments) },
         { label: 'Minimum Depth', value: valueOrMissing(igsn?.depth_min ?? null) },
@@ -128,8 +139,11 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
         { label: 'Platform Type', value: valueOrMissing(igsn?.platform_type ?? null) },
         { label: 'Platform Name', value: valueOrMissing(igsn?.platform_name ?? null) },
         { label: 'Platform Description', value: valueOrMissing(igsn?.platform_description ?? null) },
+        { label: 'Operator', value: valueOrMissing(operators || null) },
         { label: 'Funding Agency', value: valueOrMissing(fundingAgency || null) },
         { label: 'Chief Scientist', value: valueOrMissing(chiefScientists || null) },
+        { label: 'Sampling Date', value: valueOrMissing(samplingDate?.date_value ?? null) },
+        { label: 'Collection Date Precision', value: valueOrMissing(igsn?.collection_date_precision ?? null) },
         { label: 'Start Date', value: valueOrMissing(startDate) },
         { label: 'End Date', value: valueOrMissing(endDate) },
     ];
@@ -146,9 +160,9 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
                 Acquisition
             </h2>
             <div className="space-y-3">
-                <MetadataList rows={rows.slice(0, 2)} />
+                <MetadataList rows={rows.slice(0, 3)} />
                 <IgsnDescriptionGroups groups={descriptionGroups} />
-                <MetadataList rows={rows.slice(2)} />
+                <MetadataList rows={rows.slice(3)} />
             </div>
         </LandingPageCard>
     );

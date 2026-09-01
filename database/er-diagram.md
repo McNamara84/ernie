@@ -897,6 +897,52 @@ erDiagram
         timestamp updated_at
     }
 
+    igsn_operators {
+        bigint id PK
+        bigint resource_id FK
+        text value
+        char normalized_value_hash "64"
+        int position "unsigned"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    igsn_methods {
+        bigint id PK
+        bigint resource_id FK
+        varchar scheme "nullable"
+        text value
+        char normalized_value_hash "64"
+        int position "unsigned"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    igsn_measurements {
+        bigint id PK
+        bigint resource_id FK
+        varchar type "32"
+        varchar start_value "nullable"
+        varchar end_value "nullable"
+        varchar unit "nullable"
+        varchar end_unit "nullable"
+        char normalized_value_hash "64"
+        int position "unsigned"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    igsn_metadata_values {
+        bigint id PK
+        bigint resource_id FK
+        varchar type "64"
+        text value
+        char normalized_value_hash "64"
+        int position "unsigned"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     igsn_classifications {
         bigint id PK
         bigint resource_id FK
@@ -1280,6 +1326,10 @@ erDiagram
     igsn_classifications }o--|| resources : "for sample"
     igsn_geological_ages }o--|| resources : "for sample"
     igsn_geological_units }o--|| resources : "for sample"
+    igsn_operators }o--|| resources : "for sample"
+    igsn_methods }o--|| resources : "for sample"
+    igsn_measurements }o--|| resources : "for sample"
+    igsn_metadata_values }o--|| resources : "for sample"
 
     %% Suggested/Dismissed relations (Assistance feature)
     suggested_relations }o--|| resources : "for resource"

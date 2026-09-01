@@ -534,6 +534,71 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(acquisition.getByText('2023-06-30')).toBeInTheDocument();
         });
 
+        it('renders the complete legacy DIF report fields in their semantic modules', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        igsn_metadata: {
+                            igsn: 'ICDP5052ECZI101',
+                            name: '5052_2_B_23_Z',
+                            material: 'Rock',
+                            sample_type: 'Core',
+                            sample_purpose: 'NN',
+                            sample_requests: ['DFDP9999 A'],
+                            sampled_by: ['Virginia Toy'],
+                            field_names: ['Torlesse Greywacke'],
+                            classification_comments: ['Reviewed classification'],
+                            geological_ages: [{ id: 1, value: 'quaternary-cretaceous-carboniferous' }],
+                            geological_units: [],
+                            operators: ['GNS', 'Webster Drilling'],
+                            methods: [
+                                { scheme: 'MSCL', value: 'no' },
+                                { scheme: 'Lithological Description', value: 'yes' },
+                            ],
+                            total_lengths: [{ numeric_value: '2400.1000', unit: 'm' }],
+                            launch_platform_names: [],
+                            launch_type_names: [],
+                            navigation_types: [],
+                            elevation_ranges: [],
+                            age_ranges: [],
+                            comments: [],
+                            sizes: [],
+                            parent: null,
+                        },
+                        igsn_classifications: [{ id: 1, value: 'metamorphic rocks' }],
+                        funding_references: [{ id: 1, funder_name: 'International Continental Scientific Drilling Program' }],
+                        dates: [
+                            {
+                                id: 1,
+                                date_type: 'Available',
+                                date_type_slug: 'Available',
+                                date_value: '2017-03-01',
+                                start_date: null,
+                                end_date: null,
+                                date_information: null,
+                            },
+                        ],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getByText('DFDP9999 A')).toBeInTheDocument();
+            expect(screen.getByText('Virginia Toy')).toBeInTheDocument();
+            expect(screen.getByText('Torlesse Greywacke')).toBeInTheDocument();
+            expect(screen.getByText('quaternary-cretaceous-carboniferous')).toBeInTheDocument();
+            expect(screen.getByText('GNS; Webster Drilling')).toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: 'Methods' })).toBeInTheDocument();
+            expect(screen.getByText('Lithological Description')).toBeInTheDocument();
+            expect(screen.getByText('yes')).toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: 'Drilling' })).toBeInTheDocument();
+            expect(screen.getByText('2400.1 m')).toBeInTheDocument();
+        });
+
         it('hides General and Acquisition modules when no IGSN data is provided', () => {
             mockUsePage.mockReturnValue({
                 props: {

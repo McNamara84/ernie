@@ -66,6 +66,21 @@ class RelatedIdentifier extends Model
 
     public const SOURCE_RELATION_SUGGESTION_ASSISTANT = 'relation_suggestion_assistant';
 
+    public const SOURCE_LEGACY_IGSN_DIF = 'legacy_igsn_dif';
+
+    /**
+     * Provenance values assigned only by trusted server-side workflows.
+     *
+     * Requests may carry these values back for existing rows, but storage
+     * must never use the client value to assign provenance.
+     *
+     * @var list<string>
+     */
+    public const INTERNAL_SOURCES = [
+        self::SOURCE_RELATION_SUGGESTION_ASSISTANT,
+        self::SOURCE_LEGACY_IGSN_DIF,
+    ];
+
     protected $casts = [
         'position' => 'integer',
     ];
