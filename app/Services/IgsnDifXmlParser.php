@@ -427,13 +427,7 @@ class IgsnDifXmlParser
             $relation->contributorTypes()->syncWithoutDetaching([$this->dataCollectorType->id]);
         }
 
-        if (is_string($collection['collector_detail']) && $collection['collector_detail'] !== '') {
-            Affiliation::firstOrCreate([
-                'affiliatable_type' => ResourceContributor::class,
-                'affiliatable_id' => $relation->id,
-                'name' => $collection['collector_detail'],
-            ]);
-        }
+        $this->persistContributorAffiliation($relation, $collection['collector_detail']);
     }
 
     private function matchingCreatorEntity(Resource $resource, string $collector): ?Model
@@ -734,13 +728,35 @@ class IgsnDifXmlParser
             }
 
             foreach ($contributor['affiliations'] as $affiliation) {
-                Affiliation::firstOrCreate([
-                    'affiliatable_type' => ResourceContributor::class,
-                    'affiliatable_id' => $relation->id,
-                    'name' => $affiliation,
-                ]);
+                $this->persistContributorAffiliation($relation, $affiliation);
             }
         }
+    }
+
+    private function persistContributorAffiliation(ResourceContributor $contributor, mixed $value): void
+    {
+        if (! is_string($value)) {
+            return;
+        }
+
+        $name = trim(preg_replace('/\s+/u', ' ', $value) ?? $value);
+        if ($name === '' || strcasecmp($name, 'N/A') === 0) {
+            return;
+        }
+
+        $normalized = $this->normalizeText($name);
+        $exists = $contributor->affiliations()->get()->contains(
+            fn (Affiliation $affiliation): bool => $this->normalizeText($affiliation->name) === $normalized,
+        );
+        if ($exists) {
+            return;
+        }
+
+        Affiliation::create([
+            'affiliatable_type' => ResourceContributor::class,
+            'affiliatable_id' => $contributor->id,
+            'name' => $name,
+        ]);
     }
 
     private function createLegacyContributorEntity(string $name, ContributorType $type): Model

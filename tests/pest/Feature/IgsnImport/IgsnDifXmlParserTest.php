@@ -1327,4 +1327,53 @@ describe('IgsnDifXmlParser', function () {
             ->and($leader->contributorable->name_identifier_scheme)->toBeNull()
             ->and($leader->contributorable->scheme_uri)->toBeNull();
     });
+
+    it('normalizes contributor affiliations and avoids whitespace duplicates', function () {
+        $collectorType = ContributorType::query()->where('slug', 'DataCollector')->firstOrFail();
+        $leaderType = ContributorType::query()->where('slug', 'ProjectLeader')->firstOrFail();
+
+        $collector = Person::create(['family_name' => 'Roe', 'given_name' => 'Richard']);
+        $collectorRelation = ResourceContributor::create([
+            'resource_id' => $this->resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $collector->id,
+            'position' => 0,
+        ]);
+        $collectorRelation->contributorTypes()->attach($collectorType);
+        $collectorRelation->affiliations()->create(['name' => ' ICDP Operations ']);
+
+        $leader = Person::create(['family_name' => 'Doe', 'given_name' => 'Jane']);
+        $leaderRelation = ResourceContributor::create([
+            'resource_id' => $this->resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $leader->id,
+            'position' => 1,
+        ]);
+        $leaderRelation->contributorTypes()->attach($leaderType);
+        $leaderRelation->affiliations()->create(['name' => ' GFZ ']);
+
+        $xml = <<<'XML'
+        <resource>
+          <contributors>
+            <contributor contributorType="ProjectLeader">
+              <name>Doe, Jane</name>
+              <affiliation><name>GFZ</name></affiliation>
+              <affiliation><name>  University   of Potsdam  </name></affiliation>
+              <affiliation><name>   </name></affiliation>
+            </contributor>
+          </contributors>
+          <sample>
+            <collector>Roe, Richard</collector>
+            <collector_detail>ICDP Operations</collector_detail>
+          </sample>
+        </resource>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata, additive: true))->toBeTrue();
+
+        expect($collectorRelation->affiliations()->pluck('name')->all())
+            ->toBe([' ICDP Operations '])
+            ->and($leaderRelation->affiliations()->orderBy('id')->pluck('name')->all())
+            ->toBe([' GFZ ', 'University of Potsdam']);
+    });
 });
