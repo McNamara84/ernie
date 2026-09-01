@@ -8,7 +8,6 @@ const ignoredJsdomErrors = new Set(['Could not parse CSS stylesheet', 'Not imple
 
 type JsdomError = Error & { type?: string };
 type JsdomVirtualConsole = {
-    off: (eventName: 'jsdomError', listener: (error: JsdomError) => void) => void;
     on: (eventName: 'jsdomError', listener: (error: JsdomError) => void) => void;
     removeAllListeners: (eventName: 'jsdomError') => void;
 };
@@ -33,9 +32,9 @@ function forwardRelevantJsdomError(error: JsdomError) {
     console.error(error.message);
 }
 
-// Filter at jsdom's source instead of patching console.error. Navigation is
-// queued asynchronously and can otherwise be reported after the console patch
-// has already been restored during suite teardown.
+// Filter at jsdom's source instead of patching console.error. Keep this listener
+// attached until Vitest disposes the per-file jsdom environment so queued tasks
+// can still report unexpected errors after the final suite hook has completed.
 vitestJsdom?.virtualConsole.removeAllListeners('jsdomError');
 vitestJsdom?.virtualConsole.on('jsdomError', forwardRelevantJsdomError);
 
@@ -191,7 +190,6 @@ HTMLAnchorElement.prototype.click = function () {
 
 afterAll(() => {
     server.close();
-    vitestJsdom?.virtualConsole.off('jsdomError', forwardRelevantJsdomError);
     HTMLAnchorElement.prototype.click = nativeAnchorClick;
 });
 
