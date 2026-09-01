@@ -311,6 +311,9 @@ describe('AcquisitionSection', () => {
         [
             'Material',
             'Material Classification',
+            'Rock Type',
+            'Classification Comments',
+            'Geological Age',
             'Geological Unit',
             'Comments',
             'Minimum Depth',
@@ -322,8 +325,11 @@ describe('AcquisitionSection', () => {
             'Platform Type',
             'Platform Name',
             'Platform Description',
+            'Operator',
             'Funding Agency',
             'Chief Scientist',
+            'Sampling Date',
+            'Collection Date Precision',
             'Start Date',
             'End Date',
         ].forEach((label) => {
@@ -381,6 +387,61 @@ describe('AcquisitionSection', () => {
         expect(screen.getByText('Start Date')).toBeInTheDocument();
         expect(screen.getByText('End Date')).toBeInTheDocument();
         expect(screen.getAllByText('2023-06-01')).toHaveLength(2);
+    });
+
+    it('keeps sampling date and collection period distinct and shows their precision', () => {
+        const dates: LandingPageResourceDate[] = [
+            makeDate({
+                id: 1,
+                date_value: '2023-06-15T10:30:00Z',
+                date_information: 'Legacy IGSN sampling date',
+            }),
+            makeDate({
+                id: 2,
+                start_date: '2023-06-01',
+                end_date: '2023-06-30',
+                date_information: 'Legacy IGSN collection period',
+            }),
+        ];
+
+        render(
+            <AcquisitionSection
+                igsn={baseIgsn({ collection_date_precision: 'day' })}
+                classifications={[]}
+                descriptions={[]}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={dates}
+            />,
+        );
+
+        expect(screen.getByText('Sampling Date').nextElementSibling).toHaveTextContent('2023-06-15T10:30:00Z');
+        expect(screen.getByText('Collection Date Precision').nextElementSibling).toHaveTextContent('day');
+        expect(screen.getByText('Start Date').nextElementSibling).toHaveTextContent('2023-06-01');
+        expect(screen.getByText('End Date').nextElementSibling).toHaveTextContent('2023-06-30');
+    });
+
+    it('renders the imported geological operator and classification details additively', () => {
+        render(
+            <AcquisitionSection
+                igsn={baseIgsn({
+                    field_names: ['Greywacke'],
+                    classification_comments: ['Reviewed classification'],
+                    geological_ages: [{ id: 1, value: 'Jurassic' }],
+                    operators: ['GNS', 'Webster Drilling'],
+                })}
+                classifications={[]}
+                descriptions={[]}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={[]}
+            />,
+        );
+
+        expect(screen.getByText('Rock Type').nextElementSibling).toHaveTextContent('Greywacke');
+        expect(screen.getByText('Classification Comments').nextElementSibling).toHaveTextContent('Reviewed classification');
+        expect(screen.getByText('Geological Age').nextElementSibling).toHaveTextContent('Jurassic');
+        expect(screen.getByText('Operator').nextElementSibling).toHaveTextContent('GNS; Webster Drilling');
     });
 
     it('falls back to date_value when start_date is missing', () => {

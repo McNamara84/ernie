@@ -10,7 +10,9 @@ use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
+use App\Models\IgsnMeasurement;
 use App\Models\IgsnMetadata;
+use App\Models\IgsnMetadataValue;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
@@ -35,6 +37,7 @@ use App\Support\IgsnIdentifier;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 
 final class LandingPageResourceTransformer
 {
@@ -89,6 +92,10 @@ final class LandingPageResourceTransformer
             'igsnClassifications',
             'igsnGeologicalAges',
             'igsnGeologicalUnits',
+            'igsnOperators',
+            'igsnMethods',
+            'igsnMeasurements',
+            'igsnMetadataValues',
             'alternateIdentifiers',
             'sizes',
         ];
@@ -556,12 +563,21 @@ final class LandingPageResourceTransformer
             $parent = $meta->parentResource;
             $parentLandingPage = $parent?->landingPage;
             $descriptionJson = $meta->description_json ?? [];
-            $legacyDif = $meta->legacy_dif_json ?? [];
-            $legacyAggregates = is_array($legacyDif['aggregates'] ?? null) ? $legacyDif['aggregates'] : [];
             $storedOperator = is_string($meta->operator) ? trim($meta->operator) : '';
-            $operators = $storedOperator !== ''
-                ? [$storedOperator]
-                : $this->legacyStringList($legacyAggregates, 'operators');
+            $operators = ($resource->relationLoaded('igsnOperators')
+                ? $resource->igsnOperators->sortBy('position')->pluck('value')->values()->all()
+                : []);
+            if ($operators === [] && $storedOperator !== '') {
+                $operators = [$storedOperator];
+            }
+            /** @var SupportCollection<string, Collection<int, IgsnMetadataValue>> $metadataValues */
+            $metadataValues = new SupportCollection($resource->relationLoaded('igsnMetadataValues')
+                ? $resource->igsnMetadataValues->groupBy(static fn (IgsnMetadataValue $value): string => $value->type->value)->all()
+                : []);
+            /** @var SupportCollection<string, Collection<int, IgsnMeasurement>> $measurements */
+            $measurements = new SupportCollection($resource->relationLoaded('igsnMeasurements')
+                ? $resource->igsnMeasurements->groupBy(static fn (IgsnMeasurement $measurement): string => $measurement->type->value)->all()
+                : []);
             $descriptionGroups = $this->igsnDescriptionNormalizer->normalizeCsvPayload($descriptionJson);
             $legacyDescriptions = array_values(array_filter(
                 is_array($descriptionJson['material_descriptions'] ?? null) ? $descriptionJson['material_descriptions'] : [],
@@ -634,8 +650,8 @@ final class LandingPageResourceTransformer
                 'material' => $meta->material,
                 'cruise_field_program' => $meta->cruise_field_program,
                 'sample_purpose' => $meta->sample_purpose,
-                'sample_requests' => $this->legacyStringList($legacyAggregates, 'sample_requests'),
-                'sampled_by' => $this->legacyStringList($legacyAggregates, 'sampled_by'),
+                'sample_requests' => $this->igsnMetadataValueList($metadataValues, 'sample_request'),
+                'sampled_by' => $this->igsnMetadataValueList($metadataValues, 'sampled_by'),
                 'depth_min' => $meta->depth_min,
                 'depth_max' => $meta->depth_max,
                 'depth_scale' => $meta->depth_scale,
@@ -662,16 +678,20 @@ final class LandingPageResourceTransformer
                 'platform_type' => $meta->platform_type,
                 'platform_name' => $meta->platform_name,
                 'platform_description' => $meta->platform_description,
-                'launch_platform_names' => $this->legacyStringList($legacyAggregates, 'launch_platform_names'),
-                'launch_type_names' => $this->legacyStringList($legacyAggregates, 'launch_type_names'),
-                'navigation_types' => $this->legacyStringList($legacyAggregates, 'navigation_types'),
-                'field_names' => $this->legacyStringList($legacyAggregates, 'field_names'),
-                'classification_comments' => $this->legacyStringList($legacyAggregates, 'classification_comments'),
+                'launch_platform_names' => $this->igsnMetadataValueList($metadataValues, 'launch_platform_name'),
+                'launch_type_names' => $this->igsnMetadataValueList($metadataValues, 'launch_type_name'),
+                'navigation_types' => $this->igsnMetadataValueList($metadataValues, 'navigation_type'),
+                'field_names' => $this->igsnMetadataValueList($metadataValues, 'field_name'),
+                'classification_comments' => $this->igsnMetadataValueList($metadataValues, 'classification_comment'),
                 'operators' => $operators,
-                'methods' => $this->legacyStructuredList($legacyAggregates, 'methods', ['scheme', 'value']),
-                'total_lengths' => $this->legacyStructuredList($legacyAggregates, 'total_lengths', ['numeric_value', 'unit']),
-                'age_ranges' => $this->legacyStructuredList($legacyAggregates, 'age_ranges', ['start', 'end', 'unit', 'end_unit']),
-                'elevation_ranges' => $this->legacyStructuredList($legacyAggregates, 'elevation_ranges', ['start', 'end', 'unit', 'end_unit']),
+                'methods' => ($resource->relationLoaded('igsnMethods') ? $resource->igsnMethods : new Collection)
+                    ->sortBy('position')
+                    ->values()
+                    ->map(static fn ($method): array => ['scheme' => $method->scheme, 'value' => $method->value])
+                    ->all(),
+                'total_lengths' => $this->igsnMeasurementList($measurements, 'total_length', totalLength: true),
+                'age_ranges' => $this->igsnMeasurementList($measurements, 'age_range'),
+                'elevation_ranges' => $this->igsnMeasurementList($measurements, 'elevation_range'),
                 'sizes' => $sizes->map(static fn ($size): array => [
                     'id' => $size->id,
                     'numeric_value' => $size->numeric_value,
@@ -809,47 +829,45 @@ final class LandingPageResourceTransformer
         return $value === '' ? null : $value;
     }
 
-    /**
-     * @param  array<string, mixed>  $aggregates
+    /** @param SupportCollection<string, Collection<int, IgsnMetadataValue>> $values
      * @return list<string>
      */
-    private function legacyStringList(array $aggregates, string $key): array
+    private function igsnMetadataValueList(SupportCollection $values, string $type): array
     {
-        $values = is_array($aggregates[$key] ?? null) ? $aggregates[$key] : [];
-
-        return array_values(array_filter(
-            array_map(
-                static fn (mixed $value): ?string => is_string($value) && trim($value) !== '' ? trim($value) : null,
-                $values,
-            ),
-            static fn (?string $value): bool => $value !== null,
-        ));
-    }
-
-    /**
-     * @param  array<string, mixed>  $aggregates
-     * @param  list<string>  $fields
-     * @return list<array<string, string|null>>
-     */
-    private function legacyStructuredList(array $aggregates, string $key, array $fields): array
-    {
-        $items = is_array($aggregates[$key] ?? null) ? $aggregates[$key] : [];
-        $result = [];
-        foreach ($items as $item) {
-            if (! is_array($item)) {
-                continue;
-            }
-            $normalized = [];
-            foreach ($fields as $field) {
-                $value = $item[$field] ?? null;
-                $normalized[$field] = is_string($value) && trim($value) !== '' ? trim($value) : null;
-            }
-            if (array_filter($normalized, static fn (?string $value): bool => $value !== null) !== []) {
-                $result[] = $normalized;
-            }
+        $group = $values->get($type);
+        if (! $group instanceof Collection) {
+            return [];
         }
 
-        return $result;
+        return array_values($group
+            ->sortBy('position')
+            ->map(static fn (IgsnMetadataValue $value): string => (string) $value->value)
+            ->values()
+            ->all());
+    }
+
+    /** @param SupportCollection<string, Collection<int, IgsnMeasurement>> $measurements
+     * @return list<array<string, string|null>>
+     */
+    private function igsnMeasurementList(SupportCollection $measurements, string $type, bool $totalLength = false): array
+    {
+        $group = $measurements->get($type);
+        if (! $group instanceof Collection) {
+            return [];
+        }
+
+        return array_values($group
+            ->sortBy('position')
+            ->values()
+            ->map(static fn (IgsnMeasurement $measurement): array => $totalLength
+                ? ['numeric_value' => is_string($measurement->start_value) ? $measurement->start_value : null, 'unit' => is_string($measurement->unit) ? $measurement->unit : null]
+                : [
+                    'start' => is_string($measurement->start_value) ? $measurement->start_value : null,
+                    'end' => is_string($measurement->end_value) ? $measurement->end_value : null,
+                    'unit' => is_string($measurement->unit) ? $measurement->unit : null,
+                    'end_unit' => is_string($measurement->end_unit) ? $measurement->end_unit : null,
+                ])
+            ->all());
     }
 
     private function sanitizeLandingPageHtml(?string $html, DescriptionFormattingService $descriptionFormattingService): ?string

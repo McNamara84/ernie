@@ -889,13 +889,56 @@ erDiagram
         varchar sample_image_storage_path "2048"
         varchar sample_image_mime_type "100"
         bigint sample_image_size "unsigned"
-        varchar legacy_dif_schema_namespace "255, nullable"
-        json legacy_dif_json "nullable"
-        timestamp legacy_dif_imported_at "nullable"
         varchar upload_status
         text upload_error_message
         varchar csv_filename
         int csv_row_number
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    igsn_operators {
+        bigint id PK
+        bigint resource_id FK
+        text value
+        char normalized_value_hash "64"
+        int position "unsigned"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    igsn_methods {
+        bigint id PK
+        bigint resource_id FK
+        varchar scheme "nullable"
+        text value
+        char normalized_value_hash "64"
+        int position "unsigned"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    igsn_measurements {
+        bigint id PK
+        bigint resource_id FK
+        varchar type "32"
+        varchar start_value "nullable"
+        varchar end_value "nullable"
+        varchar unit "nullable"
+        varchar end_unit "nullable"
+        char normalized_value_hash "64"
+        int position "unsigned"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    igsn_metadata_values {
+        bigint id PK
+        bigint resource_id FK
+        varchar type "64"
+        text value
+        char normalized_value_hash "64"
+        int position "unsigned"
         timestamp created_at
         timestamp updated_at
     }
@@ -1283,6 +1326,10 @@ erDiagram
     igsn_classifications }o--|| resources : "for sample"
     igsn_geological_ages }o--|| resources : "for sample"
     igsn_geological_units }o--|| resources : "for sample"
+    igsn_operators }o--|| resources : "for sample"
+    igsn_methods }o--|| resources : "for sample"
+    igsn_measurements }o--|| resources : "for sample"
+    igsn_metadata_values }o--|| resources : "for sample"
 
     %% Suggested/Dismissed relations (Assistance feature)
     suggested_relations }o--|| resources : "for resource"

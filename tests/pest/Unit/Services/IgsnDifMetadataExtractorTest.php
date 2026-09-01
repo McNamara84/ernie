@@ -414,12 +414,10 @@ it('extracts issue 1225 root documents and ignores supplemental inverse duplicat
     expect($metadata['root_related_identifiers'])->toBe([
         ['identifier' => 'https://doi.org/10.2204/iodp.sd.8.12.2009', 'identifier_type' => 'DOI', 'relation_type' => 'hasDocument'],
         ['identifier' => '10.5880/ICDP.5052.001', 'identifier_type' => 'DOI', 'relation_type' => 'hasDocument'],
-    ])->and($metadata['publish_dates'])->toBe(['2017-3-1'])
+    ])->and($metadata['publish_dates'])->toBe(['2017-03-01'])
         ->and($metadata['legacy_dif']['schema_namespace'])->toBe('http://pmd.gfz-potsdam.de/igsn/schemas/description/1.3')
         ->and($metadata['legacy_dif']['sample_count'])->toBe(1)
-        ->and(array_column($metadata['legacy_dif']['fields'], 'path'))->toContain(
-            'resource/supplementalMetadata/record/sample/@publishdate',
-        );
+        ->and($metadata['legacy_dif'])->not->toHaveKey('fields');
 });
 
 it('aggregates every report field across sample blocks without losing structured values', function (): void {
@@ -451,18 +449,18 @@ it('aggregates every report field across sample blocks without losing structured
     </resource>
     XML);
 
-    $aggregates = $metadata['legacy_dif']['aggregates'];
-    expect($aggregates['field_names'])->toBe(['Torlesse Greywacke', 'Second rock type'])
+    expect($metadata['metadata_values']['field_name'])->toBe(['Torlesse Greywacke', 'Second rock type'])
         ->and($metadata['geological_ages'])->toBe(['Quaternary', 'Cretaceous'])
-        ->and($aggregates['methods'])->toBe([
+        ->and($metadata['methods'])->toBe([
             ['scheme' => 'MSCL', 'value' => 'no'],
             ['scheme' => 'XRF', 'value' => 'yes'],
-        ])->and($aggregates['operators'])->toBe(['Operator B', 'Operator A'])
+        ])->and($metadata['operators'])->toBe(['Operator B'])
         ->and($metadata['funding_agencies'])->toBe(['Funding A, Funding B'])
-        ->and($aggregates['sample_requests'])->toBe(['DFDP9999 A'])
-        ->and($aggregates['sampled_by'])->toBe(['Virginia Toy'])
-        ->and($aggregates['total_lengths'])->toBe([['numeric_value' => '2400.1', 'unit' => 'm']])
-        ->and($metadata['other_names'])->toBe(['Local A', 'Local B']);
+        ->and($metadata['metadata_values']['sample_request'])->toBe(['DFDP9999 A'])
+        ->and($metadata['metadata_values']['sampled_by'])->toBe(['Virginia Toy'])
+        ->and($metadata['total_lengths'])->toBe([['numeric_value' => '2400.1', 'unit' => 'm']])
+        ->and($metadata['other_names'])->toBe(['Local A', 'Local B'])
+        ->and(array_column($metadata['conflicts'], 'field'))->toContain('operator_source');
 });
 
 it('does not select a conflicting scalar from multiple sample blocks', function (): void {
@@ -474,8 +472,7 @@ it('does not select a conflicting scalar from multiple sample blocks', function 
     XML);
 
     expect($metadata['scalars']['sample_type'])->toBeNull()
-        ->and(array_column($metadata['conflicts'], 'field'))->toContain('sample_type')
-        ->and(array_column($metadata['legacy_dif']['conflicts'], 'field'))->toContain('sample_type');
+        ->and(array_column($metadata['conflicts'], 'field'))->toContain('sample_type');
 });
 
 it('retains unknown non-empty DIF fields for audit instead of discarding them', function (): void {
@@ -483,12 +480,26 @@ it('retains unknown non-empty DIF fields for audit instead of discarding them', 
         '<resource><sample><future_metadata code="x">value</future_metadata></sample></resource>',
     );
 
-    expect($metadata['legacy_dif']['unknown_paths'])->toBe(['resource/sample/future_metadata'])
-        ->and($metadata['legacy_dif']['fields'])->toContain([
-            'path' => 'resource/sample/future_metadata',
-            'value' => 'value',
-            'attributes' => ['code' => 'x'],
-            'namespace' => null,
-            'sample_index' => 0,
-        ]);
+    expect($metadata['legacy_dif']['unknown_paths'])->toBe(['resource/sample/future_metadata [sample=0]'])
+        ->and($metadata['legacy_dif'])->not->toHaveKey('fields');
+});
+
+it('treats a familiar leaf under an unknown path as unknown', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(
+        '<resource><unexpected><name>Must be audited</name></unexpected><sample /></resource>',
+    );
+
+    expect($metadata['legacy_dif']['unknown_paths'])->toBe(['resource/unexpected/name']);
+});
+
+it('normalizes equivalent publish dates before deciding whether they conflict', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(<<<'XML'
+    <resource>
+      <sample><publish_date>2017-3-1</publish_date></sample>
+      <sample><publish_date>2017-03-01</publish_date></sample>
+    </resource>
+    XML);
+
+    expect($metadata['publish_dates'])->toBe(['2017-03-01'])
+        ->and(array_column($metadata['conflicts'], 'field'))->not->toContain('publish_date');
 });

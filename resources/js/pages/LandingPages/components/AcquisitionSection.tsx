@@ -89,19 +89,6 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
     const rockTypes = dedup((igsn?.field_names ?? []).map((value) => value.trim()).filter(Boolean)).join(', ');
     const classificationComments = dedup((igsn?.classification_comments ?? []).map((value) => value.trim()).filter(Boolean)).join('; ');
     const operators = dedup((igsn?.operators ?? []).map((value) => value.trim()).filter(Boolean)).join('; ');
-    const launchPlatforms = dedup((igsn?.launch_platform_names ?? []).map((value) => value.trim()).filter(Boolean)).join(', ');
-    const launchTypes = dedup((igsn?.launch_type_names ?? []).map((value) => value.trim()).filter(Boolean)).join(', ');
-    const navigationTypes = dedup((igsn?.navigation_types ?? []).map((value) => value.trim()).filter(Boolean)).join(', ');
-    const elevationRanges = (igsn?.elevation_ranges ?? [])
-        .map((range) => {
-            const start = range.start ? `${range.start}${range.unit ? ` ${range.unit}` : ''}` : null;
-            const end = range.end ? `${range.end}${range.end_unit || range.unit ? ` ${range.end_unit ?? range.unit}` : ''}` : null;
-            if (start && end) return `${start} – ${end}`;
-            return start ?? end;
-        })
-        .filter((value): value is string => Boolean(value))
-        .join('; ');
-
     const sizes = (igsn?.sizes ?? [])
         .map((size) => {
             const type = size.type ? size.type.charAt(0).toUpperCase() + size.type.slice(1) : 'Size';
@@ -119,7 +106,12 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
             .filter((name): name is string => name !== null),
     ).join(', ');
 
-    const collectionDate = findDateByType(dates, 'Collected');
+    const collectedDates = dates.filter((date) => date.date_type_slug === 'Collected' || date.date_type === 'Collected');
+    const samplingDate = collectedDates.find((date) => date.date_information?.toLowerCase().includes('legacy igsn sampling date'));
+    const collectionDate =
+        collectedDates.find((date) => date.date_information?.toLowerCase().includes('legacy igsn collection period')) ??
+        collectedDates.find((date) => date.start_date || date.end_date) ??
+        findDateByType(dates, 'Collected');
     const startDate = collectionDate?.start_date ?? collectionDate?.date_value ?? null;
     const endDate = collectionDate?.end_date ?? collectionDate?.date_value ?? null;
 
@@ -147,13 +139,11 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
         { label: 'Platform Type', value: valueOrMissing(igsn?.platform_type ?? null) },
         { label: 'Platform Name', value: valueOrMissing(igsn?.platform_name ?? null) },
         { label: 'Platform Description', value: valueOrMissing(igsn?.platform_description ?? null) },
-        { label: 'Launch Platform', value: valueOrMissing(launchPlatforms || null) },
-        { label: 'Launch Type', value: valueOrMissing(launchTypes || null) },
-        { label: 'Navigation Type', value: valueOrMissing(navigationTypes || null) },
-        { label: 'Elevation Range', value: valueOrMissing(elevationRanges || null) },
         { label: 'Operator', value: valueOrMissing(operators || null) },
         { label: 'Funding Agency', value: valueOrMissing(fundingAgency || null) },
         { label: 'Chief Scientist', value: valueOrMissing(chiefScientists || null) },
+        { label: 'Sampling Date', value: valueOrMissing(samplingDate?.date_value ?? null) },
+        { label: 'Collection Date Precision', value: valueOrMissing(igsn?.collection_date_precision ?? null) },
         { label: 'Start Date', value: valueOrMissing(startDate) },
         { label: 'End Date', value: valueOrMissing(endDate) },
     ];

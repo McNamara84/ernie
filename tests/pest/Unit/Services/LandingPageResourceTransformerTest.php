@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\Igsn\IgsnClassificationType;
+use App\Enums\Igsn\IgsnMeasurementType;
+use App\Enums\Igsn\IgsnMetadataValueType;
 use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
@@ -12,7 +14,11 @@ use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
+use App\Models\IgsnMeasurement;
 use App\Models\IgsnMetadata;
+use App\Models\IgsnMetadataValue;
+use App\Models\IgsnMethod;
+use App\Models\IgsnOperator;
 use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Publisher;
@@ -1311,18 +1317,6 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
             'original_archive' => 'Legacy Core Archive',
             'original_archive_contact' => 'archive@example.org',
         ],
-        'legacy_dif_json' => [
-            'version' => 1,
-            'aggregates' => [
-                'field_names' => ['Torlesse Greywacke'],
-                'classification_comments' => ['Reviewed'],
-                'operators' => ['GNS'],
-                'sample_requests' => ['DFDP9999 A'],
-                'sampled_by' => ['Virginia Toy'],
-                'methods' => [['scheme' => 'MSCL', 'value' => 'no']],
-                'total_lengths' => [['numeric_value' => '2400.1', 'unit' => 'm']],
-            ],
-        ],
     ]);
     $igsn->setRelation('parentResource', $parent);
 
@@ -1342,6 +1336,29 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
     ]);
     $geologicalAge = new IgsnGeologicalAge;
     $geologicalAge->forceFill(['id' => 1, 'value' => 'Quaternary', 'position' => 0]);
+    $operator = new IgsnOperator;
+    $operator->forceFill(['id' => 1, 'value' => 'GNS', 'position' => 0]);
+    $method = new IgsnMethod;
+    $method->forceFill(['id' => 1, 'scheme' => 'MSCL', 'value' => 'no', 'position' => 0]);
+    $totalLength = new IgsnMeasurement;
+    $totalLength->forceFill([
+        'id' => 1,
+        'type' => IgsnMeasurementType::TotalLength,
+        'start_value' => '2400.1',
+        'unit' => 'm',
+        'position' => 0,
+    ]);
+    $metadataValues = collect([
+        [IgsnMetadataValueType::FieldName, 'Torlesse Greywacke'],
+        [IgsnMetadataValueType::ClassificationComment, 'Reviewed'],
+        [IgsnMetadataValueType::SampleRequest, 'DFDP9999 A'],
+        [IgsnMetadataValueType::SampledBy, 'Virginia Toy'],
+    ])->map(function (array $item, int $index): IgsnMetadataValue {
+        $value = new IgsnMetadataValue;
+        $value->forceFill(['id' => $index + 1, 'type' => $item[0], 'value' => $item[1], 'position' => 0]);
+
+        return $value;
+    });
 
     $resource->setRelation('titles', new EloquentCollection);
     $resource->setRelation('creators', new EloquentCollection);
@@ -1356,6 +1373,10 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
     $resource->setRelation('igsnMetadata', $igsn);
     $resource->setRelation('igsnClassifications', new EloquentCollection([$classificationB, $classificationA]));
     $resource->setRelation('igsnGeologicalAges', new EloquentCollection([$geologicalAge]));
+    $resource->setRelation('igsnOperators', new EloquentCollection([$operator]));
+    $resource->setRelation('igsnMethods', new EloquentCollection([$method]));
+    $resource->setRelation('igsnMeasurements', new EloquentCollection([$totalLength]));
+    $resource->setRelation('igsnMetadataValues', new EloquentCollection($metadataValues->all()));
 
     $data = $transformer->transform($resource);
 
@@ -1386,7 +1407,7 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
             'platform_description' => 'UDR',
             'field_names' => ['Torlesse Greywacke'],
             'classification_comments' => ['Reviewed'],
-            'operators' => ['Curated operator'],
+            'operators' => ['GNS'],
             'methods' => [['scheme' => 'MSCL', 'value' => 'no']],
             'total_lengths' => [['numeric_value' => '2400.1', 'unit' => 'm']],
             'geological_ages' => [['id' => 1, 'value' => 'Quaternary']],

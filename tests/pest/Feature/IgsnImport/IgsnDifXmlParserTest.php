@@ -2,6 +2,8 @@
 
 use App\Enums\AccessLevel;
 use App\Enums\Igsn\IgsnClassificationType;
+use App\Enums\Igsn\IgsnMeasurementType;
+use App\Enums\Igsn\IgsnMetadataValueType;
 use App\Models\Affiliation;
 use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
@@ -11,7 +13,11 @@ use App\Models\GeoLocation;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
+use App\Models\IgsnMeasurement;
 use App\Models\IgsnMetadata;
+use App\Models\IgsnMetadataValue;
+use App\Models\IgsnMethod;
+use App\Models\IgsnOperator;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
 use App\Models\Resource;
@@ -1191,10 +1197,14 @@ describe('IgsnDifXmlParser', function () {
             ->and(IgsnGeologicalAge::query()->whereBelongsTo($this->resource)->sole()->value)
             ->toBe('quaternary-cretaceous-carboniferous');
 
-        $legacy = $this->igsnMetadata->fresh()->legacy_dif_json;
-        expect($legacy['aggregates']['field_names'])->toBe(['Torlesse Greywacke'])
-            ->and($legacy['aggregates']['methods'])->toBe([['scheme' => 'MSCL', 'value' => 'no']])
-            ->and($legacy['aggregates']['total_lengths'])->toBe([['numeric_value' => '893.2', 'unit' => 'm']])
+        expect(IgsnMetadataValue::query()->whereBelongsTo($this->resource)->sole()->value)
+            ->toBe('Torlesse Greywacke')
+            ->and(IgsnMethod::query()->whereBelongsTo($this->resource)->sole()->only(['scheme', 'value']))
+            ->toBe(['scheme' => 'MSCL', 'value' => 'no'])
+            ->and(IgsnMeasurement::query()->whereBelongsTo($this->resource)->sole()->only(['start_value', 'unit']))
+            ->toBe(['start_value' => '893.2', 'unit' => 'm'])
+            ->and(IgsnOperator::query()->whereBelongsTo($this->resource)->sole()->value)
+            ->toBe('Institute of Geological and Nuclear Sciences Limited (GNS)')
             ->and($this->resource->sizes()->doesntExist())->toBeTrue();
 
         $attributes = (new DataCiteJsonExporter)->export($this->resource->fresh())['data']['attributes'];
@@ -1212,8 +1222,8 @@ describe('IgsnDifXmlParser', function () {
         )->and($attributes['fundingReferences'])->toContain([
             'funderName' => 'Marsden Fund, International Continental Scientific Drilling Program',
         ])->and($attributes['dates'])->toContain(
-            ['dateType' => 'Available', 'date' => '2017-03-01'],
-            ['dateType' => 'Collected', 'date' => '2014-12-14T18:30:00Z'],
+            ['dateType' => 'Available', 'date' => '2017-03-01', 'dateInformation' => 'Legacy IGSN publish date'],
+            ['dateType' => 'Collected', 'date' => '2014-12-14T18:30:00Z', 'dateInformation' => 'Legacy IGSN sampling date'],
         )->and($attributes)->not->toHaveKey('sizes');
     });
 
@@ -1229,6 +1239,70 @@ describe('IgsnDifXmlParser', function () {
 
         $metadata = $this->igsnMetadata->fresh();
         expect($metadata->operator)->toBe('Curated operator')
-            ->and($metadata->legacy_dif_json['aggregates']['operators'])->toBe(['Legacy operator']);
+            ->and(IgsnOperator::query()->whereBelongsTo($this->resource)->orderBy('position')->pluck('value')->all())
+            ->toBe(['Curated operator', 'Legacy operator']);
+    });
+
+    it('persists issue 1226 and 1227 metadata with supplemental precedence and typed cardinalities', function () {
+        $xml = <<<'XML'
+        <resource>
+          <contributors>
+            <contributor type="Other"><name>Root operator</name></contributor>
+            <contributor type="Funder"><name>Root funder</name></contributor>
+            <contributor contributorType="ProjectLeader">
+              <name>Doe, Jane</name>
+              <affiliation><name>GFZ Potsdam</name></affiliation>
+              <identifier>https://orcid.org/0000-0002-1825-0097</identifier>
+            </contributor>
+          </contributors>
+          <sample>
+            <operators><operator>Operator A</operator><operator>Operator B</operator></operators>
+            <funding_agency>Funding Agency A, Program B</funding_agency>
+            <geological_age>Jurassic</geological_age>
+            <classification_comment>Reviewed classification</classification_comment>
+            <sample_request>Request 42</sample_request>
+            <sampled_by>Requester A</sampled_by>
+            <methods><method methodScheme="XRF">Method A</method></methods>
+            <length>25.5</length><length_unit>m</length_unit>
+            <age_min>10</age_min><age_max>20</age_max><age_unit>Ma</age_unit>
+            <elevation>100</elevation><elevation_end>110</elevation_end>
+            <elevation_unit>m</elevation_unit><elevation_end_unit>m</elevation_end_unit>
+            <launch_platform_name>SO-273</launch_platform_name>
+            <launch_type_name>Piston corer</launch_type_name>
+            <navigation_type>GPS</navigation_type>
+          </sample>
+        </resource>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata, additive: true))->toBeTrue();
+
+        expect(IgsnOperator::query()->whereBelongsTo($this->resource)->orderBy('position')->pluck('value')->all())
+            ->toBe(['Operator A', 'Operator B'])
+            ->and($this->igsnMetadata->fresh()->operator)->toBeNull()
+            ->and($this->resource->fundingReferences()->sole()->funder_name)->toBe('Funding Agency A, Program B')
+            ->and($this->resource->igsnGeologicalAges()->sole()->value)->toBe('Jurassic')
+            ->and($this->resource->igsnMethods()->sole()->only(['scheme', 'value']))
+            ->toBe(['scheme' => 'XRF', 'value' => 'Method A'])
+            ->and($this->resource->igsnMeasurements()->get()->groupBy(fn ($item) => $item->type->value)->keys()->all())
+            ->toBe([
+                IgsnMeasurementType::AgeRange->value,
+                IgsnMeasurementType::ElevationRange->value,
+                IgsnMeasurementType::TotalLength->value,
+            ])
+            ->and($this->resource->igsnMetadataValues()->get()->groupBy(fn ($item) => $item->type->value)->keys()->sort()->values()->all())
+            ->toBe(collect([
+                IgsnMetadataValueType::ClassificationComment->value,
+                IgsnMetadataValueType::SampleRequest->value,
+                IgsnMetadataValueType::SampledBy->value,
+                IgsnMetadataValueType::LaunchPlatformName->value,
+                IgsnMetadataValueType::LaunchTypeName->value,
+                IgsnMetadataValueType::NavigationType->value,
+            ])->sort()->values()->all());
+
+        $leader = $this->resource->contributors()->with(['contributorable', 'contributorTypes'])->sole();
+        expect($leader->contributorable)->toBeInstanceOf(Person::class)
+            ->and($leader->contributorable->name_identifier)->toBe('https://orcid.org/0000-0002-1825-0097')
+            ->and($leader->contributorTypes->sole()->slug)->toBe('ProjectLeader')
+            ->and($leader->affiliations()->sole()->name)->toBe('GFZ Potsdam');
     });
 });

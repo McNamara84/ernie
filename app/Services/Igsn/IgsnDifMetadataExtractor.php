@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Igsn;
 
 use App\Enums\Igsn\IgsnClassificationType;
+use App\Support\DataCiteDateNormalizer;
 
 /**
  * Extracts legacy DIF XML into a normalized, persistence-free structure.
@@ -15,7 +16,7 @@ class IgsnDifMetadataExtractor
     private const KNOWN_LEAF_NAMES = [
         'identifier', 'name', 'parentIdentifier', 'relatedIdentifier', 'description',
         'resourceType', 'material', 'alternateMaterial', 'collectionMethod',
-        'alternateCollectionMethod', 'collectionTime', 'sampleAccess', 'geometry',
+        'alternateCollectionMethod', 'collectionTime', 'sampleAccess',
         'user_code', 'sample_type', 'igsn', 'parent_igsn', 'is_private', 'publish_date',
         'latitude', 'longitude', 'latitude_end', 'longitude_end', 'end_latitude',
         'end_longitude', 'max_latitude', 'max_longitude', 'coordinate_system',
@@ -33,9 +34,34 @@ class IgsnDifMetadataExtractor
         'collection_end_date', 'collection_date_precision', 'current_archive',
         'current_archive_contact', 'original_archive', 'original_archive_contact',
         'sample_other_name', 'sample_other_names', 'sample_purpose', 'sample_request',
-        'sampled_by', 'navigation_type', 'launch_platform_name', 'launch_type_name',
+        'sampled_by', 'sample_access', 'elevationUnit', 'navigation_type', 'launch_platform_name', 'launch_type_name',
         'sample_image', 'sample_image_path', 'external_url',
         '@type', '@publishdate', '@xsi:schemaLocation', '@schemaLocation',
+        '@contributorType',
+    ];
+
+    /** @var list<string> */
+    private const KNOWN_SAMPLE_DIRECT_NAMES = [
+        'name', 'description', 'resourceType', 'material', 'alternateMaterial', 'collectionMethod',
+        'alternateCollectionMethod', 'collectionTime', 'user_code', 'sample_type', 'igsn', 'parent_igsn',
+        'is_private', 'publish_date', 'latitude', 'longitude', 'latitude_end',
+        'longitude_end', 'end_latitude', 'end_longitude', 'max_latitude', 'max_longitude',
+        'coordinate_system', 'elevation', 'elevation_end', 'elevation_unit', 'elevationUnit',
+        'elevation_end_unit', 'sampling_date', 'primary_location_type',
+        'primary_location_name', 'location_type', 'location_description', 'locality',
+        'locality_description', 'country', 'province', 'county', 'city', 'classification',
+        'classification_comment', 'field_name', 'depth_min', 'depth_max', 'depth_scale',
+        'size', 'size_unit', 'age_min', 'age_max', 'age_unit', 'geological_age',
+        'geological_unit', 'collection_method', 'collection_method_descr',
+        'collection_method_description', 'length', 'length_unit', 'sample_comment',
+        'comment', 'cruise_field_prgrm', 'cruise_field_program', 'platform_type',
+        'platform_name', 'platform_descr', 'platform_description', 'operator',
+        'funding_agency', 'collector', 'collector_detail', 'collection_start_date',
+        'collection_end_date', 'collection_date_precision', 'current_archive',
+        'current_archive_contact', 'original_archive', 'original_archive_contact',
+        'sample_other_name', 'sample_other_names', 'sample_purpose', 'sample_request', 'sample_access',
+        'sampled_by', 'navigation_type', 'launch_platform_name', 'launch_type_name',
+        'sample_image', 'sample_image_path', 'external_url', '@publishdate',
     ];
 
     public function __construct(
@@ -161,6 +187,21 @@ class IgsnDifMetadataExtractor
                 $materialValues[] = $normalized;
             }
         }
+        if ($materialValues === []) {
+            foreach ($this->valuesAcrossSamples($samples, ['alternateMaterial']) as $rawMaterial) {
+                $normalized = $this->vocabularyNormalizer->normalizeMaterial($rawMaterial);
+                if ($normalized !== null) {
+                    $materialValues[] = $normalized;
+                }
+            }
+        }
+        if ($materialValues === []) {
+            $rootMaterial = $this->first($root, ['material', 'alternateMaterial']);
+            $normalizedRootMaterial = $this->vocabularyNormalizer->normalizeMaterial($rootMaterial);
+            if ($normalizedRootMaterial !== null) {
+                $materialValues[] = $normalizedRootMaterial;
+            }
+        }
         $material = $this->resolveScalarValues('material', $materialValues, $conflicts);
         $classifications = $this->classificationFields($samples);
         $rootRelatedIdentifiers = $this->rootRelatedIdentifiers($root);
@@ -180,20 +221,32 @@ class IgsnDifMetadataExtractor
             ),
         ));
 
-        $fundingAgencies = $this->uniqueValues([
-            ...$this->valuesAcrossSamples($samples, ['funding_agency']),
-            ...$rootFunders,
-        ]);
-        $operators = $this->uniqueValues([
+        $supplementalFunders = $this->valuesAcrossSamples($samples, ['funding_agency']);
+        $supplementalOperators = $this->uniqueValues([
             ...$this->descendantValuesAcrossSamples($samples, 'operators', 'operator'),
             ...$this->valuesAcrossSamples($samples, ['operator']),
-            ...$rootOperators,
         ]);
-        $publishDates = $this->publishDates($samples);
+        $fundingAgencies = $this->preferredValues(
+            'funding_agency_source',
+            $supplementalFunders,
+            $rootFunders,
+            $conflicts,
+        );
+        $operators = $this->preferredValues(
+            'operator_source',
+            $supplementalOperators,
+            $rootOperators,
+            $conflicts,
+        );
+        $publishDates = $this->normalizeDateValues('publish_date', $this->publishDates($samples), false, $conflicts);
         $samplingDates = $this->valuesAcrossSamples($samples, ['sampling_date']);
+        if ($samplingDates === []) {
+            $samplingDates = $this->valuesAcrossSamples($samples, ['collectionTime']);
+        }
         if ($samplingDates === []) {
             $samplingDates = $this->directValues($root, 'collectionTime');
         }
+        $samplingDates = $this->normalizeDateValues('sampling_date', $samplingDates, true, $conflicts);
         $publishDatesForProjection = $publishDates;
         if (count($publishDates) > 1) {
             $conflicts[] = [
@@ -213,32 +266,31 @@ class IgsnDifMetadataExtractor
         $parentIgsn = $this->scalarAcrossSamples($samples, ['parent_igsn'], 'parent_igsn', $conflicts)
             ?? $this->first($root, ['parentIdentifier']);
 
-        $legacy['aggregates'] = [
-            'field_names' => $this->valuesAcrossSamples($samples, ['field_name']),
-            'classification_comments' => $this->valuesAcrossSamples($samples, ['classification_comment']),
-            'methods' => $methods,
-            'operators' => $operators,
-            'funding_agencies' => $fundingAgencies,
-            'sample_requests' => $this->valuesAcrossSamples($samples, ['sample_request']),
-            'sampled_by' => $this->valuesAcrossSamples($samples, ['sampled_by']),
-            'publish_dates' => $publishDates,
-            'sampling_dates' => $samplingDates,
-            'total_lengths' => $totalLengths,
-            'launch_platform_names' => $this->valuesAcrossSamples($samples, ['launch_platform_name']),
-            'launch_type_names' => $this->valuesAcrossSamples($samples, ['launch_type_name']),
-            'navigation_types' => $this->valuesAcrossSamples($samples, ['navigation_type']),
-            'age_ranges' => $this->rangesAcrossSamples($samples, 'age_min', 'age_max', 'age_unit'),
-            'elevation_ranges' => $this->rangesAcrossSamples($samples, 'elevation', 'elevation_end', 'elevation_unit', 'elevation_end_unit'),
-            'is_private_values' => $this->valuesAcrossSamples($samples, ['is_private']),
+        $fieldNames = $this->valuesAcrossSamples($samples, ['field_name']);
+        $classificationComments = $this->valuesAcrossSamples($samples, ['classification_comment']);
+        $sampleRequests = $this->valuesAcrossSamples($samples, ['sample_request']);
+        $sampledBy = $this->valuesAcrossSamples($samples, ['sampled_by']);
+        $launchPlatformNames = $this->valuesAcrossSamples($samples, ['launch_platform_name']);
+        $launchTypeNames = $this->valuesAcrossSamples($samples, ['launch_type_name']);
+        $navigationTypes = $this->valuesAcrossSamples($samples, ['navigation_type']);
+        $ageRanges = $this->rangesAcrossSamples($samples, 'age_min', 'age_max', 'age_unit');
+        $elevationRanges = $this->rangesAcrossSamples(
+            $samples,
+            'elevation',
+            'elevation_end',
+            'elevation_unit',
+            'elevation_end_unit',
+        );
+        $legacyAudit = [
+            'schema_namespace' => $legacy['schema_namespace'],
+            'sample_count' => $legacy['sample_count'],
+            'unknown_paths' => $this->unknownPaths($legacy['fields']),
         ];
-        $legacy['root_related_identifiers'] = $rootRelatedIdentifiers;
-        $legacy['root_contributors'] = $rootContributors;
-        $legacy['conflicts'] = &$conflicts;
-        $legacy['unknown_paths'] = $this->unknownPaths($legacy['fields']);
 
         return [
             'scalars' => [
-                'sample_type' => $this->scalarAcrossSamples($samples, ['sample_type'], 'sample_type', $conflicts),
+                'sample_type' => $this->scalarAcrossSamples($samples, ['sample_type', 'resourceType'], 'sample_type', $conflicts)
+                    ?? $this->first($root, ['resourceType']),
                 'material' => $material,
                 'is_private' => $isPrivate,
                 'user_code' => $this->scalarAcrossSamples($samples, ['user_code'], 'user_code', $conflicts),
@@ -247,7 +299,12 @@ class IgsnDifMetadataExtractor
                 'depth_max' => $this->scalarAcrossSamples($samples, ['depth_max'], 'depth_max', $conflicts),
                 'depth_scale' => $this->scalarAcrossSamples($samples, ['depth_scale'], 'depth_scale', $conflicts),
                 'sample_purpose' => $this->scalarAcrossSamples($samples, ['sample_purpose'], 'sample_purpose', $conflicts),
-                'collection_method' => $this->scalarAcrossSamples($samples, ['collection_method'], 'collection_method', $conflicts),
+                'collection_method' => $this->scalarAcrossSamples(
+                    $samples,
+                    ['collection_method', 'collectionMethod', 'alternateCollectionMethod'],
+                    'collection_method',
+                    $conflicts,
+                ) ?? $this->first($root, ['collectionMethod', 'alternateCollectionMethod']),
                 'collection_method_description' => $this->scalarAcrossSamples($samples, ['collection_method_descr', 'collection_method_description'], 'collection_method_description', $conflicts),
                 'collection_date_precision' => $this->scalarAcrossSamples($samples, ['collection_date_precision'], 'collection_date_precision', $conflicts),
                 'platform_type' => $this->scalarAcrossSamples($samples, ['platform_type'], 'platform_type', $conflicts),
@@ -268,7 +325,7 @@ class IgsnDifMetadataExtractor
             )),
             'parent_igsn' => $parentIgsn,
             'sample_access' => $this->first($root, ['sampleAccess'])
-                ?? $this->scalarAcrossSamples($samples, ['sample_access'], 'sample_access', $conflicts),
+                ?? $this->scalarAcrossSamples($samples, ['sample_access', 'sampleAccess'], 'sample_access', $conflicts),
             'sample_image' => $this->imageFieldsAcrossSamples($samples, $conflicts),
             'description_groups' => $descriptionGroups,
             'material_descriptions' => $this->descriptionNormalizer->legacyValues($descriptionGroups),
@@ -299,12 +356,94 @@ class IgsnDifMetadataExtractor
             'sizes' => $this->sizesAcrossSamples($samples),
             'root_related_identifiers' => $rootRelatedIdentifiers,
             'root_contributors' => $rootContributors,
+            'operators' => $operators,
+            'methods' => $methods,
+            'total_lengths' => $totalLengths,
+            'age_ranges' => $ageRanges,
+            'elevation_ranges' => $elevationRanges,
+            'metadata_values' => [
+                'field_name' => $fieldNames,
+                'classification_comment' => $classificationComments,
+                'sample_request' => $sampleRequests,
+                'sampled_by' => $sampledBy,
+                'launch_platform_name' => $launchPlatformNames,
+                'launch_type_name' => $launchTypeNames,
+                'navigation_type' => $navigationTypes,
+            ],
             'funding_agencies' => $fundingAgencies,
             'publish_dates' => $publishDatesForProjection,
             'sampling_dates' => $samplingDates,
             'conflicts' => $conflicts,
-            'legacy_dif' => $legacy,
+            'legacy_dif' => $legacyAudit,
         ];
+    }
+
+    /**
+     * Supplemental values are authoritative; root values only fill an empty source.
+     *
+     * @param  list<string>  $supplemental
+     * @param  list<string>  $root
+     * @param  list<array<string, mixed>>  $conflicts
+     * @return list<string>
+     */
+    private function preferredValues(string $field, array $supplemental, array $root, array &$conflicts): array
+    {
+        $supplemental = $this->uniqueValues($supplemental);
+        $root = $this->uniqueValues($root);
+
+        if ($supplemental === []) {
+            return $root;
+        }
+
+        if ($root !== [] && $this->normalizedList($supplemental) !== $this->normalizedList($root)) {
+            $conflicts[] = [
+                'field' => $field,
+                'supplemental_values' => $supplemental,
+                'root_values' => $root,
+            ];
+        }
+
+        return $supplemental;
+    }
+
+    /** @param list<string> $values
+     * @return list<string>
+     */
+    private function normalizedList(array $values): array
+    {
+        $values = array_map($this->normalizedValueKey(...), $values);
+        sort($values);
+
+        return $values;
+    }
+
+    /**
+     * @param  list<string>  $values
+     * @param  list<array<string, mixed>>  $conflicts
+     * @return list<string>
+     */
+    private function normalizeDateValues(
+        string $field,
+        array $values,
+        bool $preserveDateTime,
+        array &$conflicts,
+    ): array {
+        $normalized = [];
+        foreach ($values as $value) {
+            $candidate = trim($value);
+            if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $candidate, $matches) === 1) {
+                $candidate = sprintf('%04d-%02d-%02d', (int) $matches[1], (int) $matches[2], (int) $matches[3]);
+            }
+            $date = DataCiteDateNormalizer::normalize($candidate, $preserveDateTime);
+            if ($date === null) {
+                $conflicts[] = ['field' => 'invalid_'.$field, 'values' => [$value]];
+
+                continue;
+            }
+            $normalized[] = $date;
+        }
+
+        return $this->uniqueValues($normalized);
     }
 
     /**
@@ -706,11 +845,15 @@ class IgsnDifMetadataExtractor
             if ($name === null) {
                 continue;
             }
+            $affiliationNodes = $node->xpath(
+                './/*[local-name()="affiliation"]/*[local-name()="name"] | .//*[local-name()="affiliation"][not(*)]',
+            );
+            $identifierNodes = $node->xpath('.//*[local-name()="identifier"]');
             $contributors[] = [
-                'type' => $this->attribute($node, ['type']),
+                'type' => $this->attribute($node, ['type', 'contributorType']),
                 'name' => $name,
-                'affiliations' => $this->descendantValues($node, 'affiliation', 'name'),
-                'identifiers' => $this->directValues($node, 'identifier'),
+                'affiliations' => is_array($affiliationNodes) ? $this->normalizeNodes($affiliationNodes) : [],
+                'identifiers' => is_array($identifierNodes) ? $this->normalizeNodes($identifierNodes) : [],
             ];
         }
 
@@ -739,17 +882,61 @@ class IgsnDifMetadataExtractor
      */
     private function unknownPaths(array $fields): array
     {
-        $known = array_fill_keys(self::KNOWN_LEAF_NAMES, true);
         $unknown = [];
         foreach ($fields as $field) {
-            $parts = explode('/', $field['path']);
-            $leaf = end($parts);
-            if (! isset($known[$leaf])) {
-                $unknown[] = $field['path'];
+            if (! $this->isKnownFieldPath($field['path'])) {
+                $unknown[] = $field['path'].($field['sample_index'] === null
+                    ? ''
+                    : sprintf(' [sample=%d]', $field['sample_index']));
             }
         }
 
         return $this->uniqueValues($unknown);
+    }
+
+    private function isKnownFieldPath(string $path): bool
+    {
+        $parts = explode('/', $path);
+        $leaf = end($parts);
+        if (! in_array($leaf, self::KNOWN_LEAF_NAMES, true)) {
+            return false;
+        }
+
+        $sampleMarker = '/sample/';
+        $samplePosition = strpos('/'.$path, $sampleMarker);
+        if ($samplePosition !== false) {
+            $relative = substr('/'.$path, $samplePosition + strlen($sampleMarker));
+            if (! str_contains($relative, '/')) {
+                return in_array($relative, self::KNOWN_SAMPLE_DIRECT_NAMES, true);
+            }
+
+            return in_array($relative, [
+                'operators/operator',
+                'methods/method',
+                'sample_other_names/sample_other_name',
+                'descriptions/description',
+                'comments/comment',
+                'relatedIdentifiers/relatedIdentifier',
+            ], true);
+        }
+
+        if (preg_match('#^resource/(?:identifier|name|parentIdentifier|description|resourceType|material|alternateMaterial|collectionMethod|alternateCollectionMethod|collectionTime|sampleAccess|sample_comment|comment)$#', $path) === 1) {
+            return true;
+        }
+        if (preg_match('#^resource/@(?:xsi:)?schemaLocation$#', $path) === 1) {
+            return true;
+        }
+        if ($path === 'resource/relatedIdentifiers/relatedIdentifier') {
+            return true;
+        }
+        if (preg_match('#^resource/contributors/contributor/@(?:type|contributorType)$#', $path) === 1) {
+            return true;
+        }
+
+        return preg_match(
+            '#^resource/(?:contributors/contributor|collector)(?:(?:/affiliations?/affiliation)|/affiliation)?/(?:name|identifier)$#',
+            $path,
+        ) === 1;
     }
 
     /**

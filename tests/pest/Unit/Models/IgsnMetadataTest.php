@@ -6,7 +6,6 @@ use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon;
 
 covers(IgsnMetadata::class);
 
@@ -26,9 +25,6 @@ describe('fillable', function () {
             'upload_error_message',
             'csv_filename',
             'csv_row_number',
-            'legacy_dif_json',
-            'legacy_dif_schema_namespace',
-            'legacy_dif_imported_at',
         );
     });
 });
@@ -52,16 +48,6 @@ describe('casts', function () {
 
         expect($model->description_json)->toBeArray()
             ->and($model->description_json)->toBe(['key' => 'value']);
-    });
-
-    it('casts the versioned legacy DIF payload and timestamp', function () {
-        $model = new IgsnMetadata([
-            'legacy_dif_json' => ['version' => 1],
-            'legacy_dif_imported_at' => '2026-08-31 12:00:00',
-        ]);
-
-        expect($model->legacy_dif_json)->toBe(['version' => 1])
-            ->and($model->legacy_dif_imported_at)->toBeInstanceOf(Carbon::class);
     });
 
     it('casts csv_row_number to integer', function () {

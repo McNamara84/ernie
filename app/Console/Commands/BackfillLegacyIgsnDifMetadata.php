@@ -73,6 +73,9 @@ final class BackfillLegacyIgsnDifMetadata extends Command
             foreach ($result['records'] as &$record) {
                 if ($record['datacite_sync_status'] === 'pending') {
                     $record['sync_run_id'] = $syncRunId;
+                    $record['datacite_sync_status'] = config('datacite.test_mode') !== false
+                        ? 'skipped_test_mode'
+                        : 'queued';
                 }
             }
             unset($record);
@@ -82,14 +85,22 @@ final class BackfillLegacyIgsnDifMetadata extends Command
             ? 'Legacy IGSN DIF metadata backfill applied.'
             : 'Dry run only; no data was changed and no DataCite sync was queued.');
         $this->table(
-            ['Scanned', 'Changed', 'Unchanged', 'Manual review', 'Missing DIF', 'Unknown paths', 'Cache failures', 'Errors', 'Sync candidates'],
+            [
+                'Scanned', 'Changed', 'Unchanged', 'Manual review', 'Privacy conflicts',
+                'Missing DIF', 'Invalid DIF', 'Unknown paths', 'Portal errors',
+                'Database errors', 'Cache failures', 'Errors', 'Sync candidates',
+            ],
             [[
                 $result['scanned'],
                 $result['changed'],
                 $result['unchanged'],
                 $result['manual_review'],
+                $result['privacy_conflict'],
                 $result['missing_dif'],
+                $result['invalid_dif'],
                 $result['unknown_paths'],
+                $result['portal_errors'],
+                $result['database_errors'],
                 $result['cache_invalidation_failures'],
                 $result['errors'],
                 count($result['sync_resource_ids']),
@@ -101,6 +112,9 @@ final class BackfillLegacyIgsnDifMetadata extends Command
         }
         if ($result['manual_review'] > 0) {
             $this->warn('Some values were left unchanged and need manual review; inspect the CSV report.');
+        }
+        if ($result['cache_invalidation_failures'] > 0) {
+            $this->warn('Some landing-page caches could not be invalidated; the metadata changes remain applied and eligible IGSNs remain queued for synchronization.');
         }
 
         $reportFailed = false;
@@ -155,7 +169,8 @@ final class BackfillLegacyIgsnDifMetadata extends Command
 
         $columns = [
             'resource_id', 'doi', 'handle', 'datacenter', 'schema_namespace', 'status',
-            'changed_fields', 'conflicts', 'unknown_paths', 'missing_dif',
+            'changed_fields', 'existing_values', 'source_values', 'inserted_values',
+            'conflicts', 'unknown_paths', 'missing_dif',
             'datacite_sync_status', 'sync_run_id', 'message',
         ];
         try {

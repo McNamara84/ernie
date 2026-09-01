@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\AccessLevel;
+use App\Enums\ContributorCategory;
 use App\Enums\Igsn\IgsnClassificationType;
+use App\Enums\Igsn\IgsnMeasurementType;
+use App\Enums\Igsn\IgsnMetadataValueType;
 use App\Models\Affiliation;
 use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
@@ -16,7 +19,11 @@ use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
+use App\Models\IgsnMeasurement;
 use App\Models\IgsnMetadata;
+use App\Models\IgsnMetadataValue;
+use App\Models\IgsnMethod;
+use App\Models\IgsnOperator;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
@@ -92,10 +99,21 @@ class IgsnDifXmlParser
                 $this->persistSizes($metadata['sizes'], $resource);
                 $this->persistRelatedIdentifiers($metadata['root_related_identifiers'], $resource);
                 $this->persistFundingReferences($metadata['funding_agencies'], $resource);
-                $this->persistNamedDates($metadata['publish_dates'], 'Available', $resource);
-                $this->persistNamedDates($metadata['sampling_dates'], 'Collected', $resource, preserveDateTime: true);
+                $this->persistNamedDates(
+                    $metadata['publish_dates'],
+                    'Available',
+                    $resource,
+                    dateInformation: 'Legacy IGSN publish date',
+                );
+                $this->persistNamedDates(
+                    $metadata['sampling_dates'],
+                    'Collected',
+                    $resource,
+                    preserveDateTime: true,
+                    dateInformation: 'Legacy IGSN sampling date',
+                );
                 $this->persistRootContributors($metadata['root_contributors'], $resource);
-                $this->persistLegacyDif($metadata['legacy_dif'], $igsnMetadata, $additive);
+                $this->persistLegacyRelations($metadata, $resource, $igsnMetadata);
 
                 if ($igsnMetadata->isDirty()) {
                     $igsnMetadata->save();
@@ -171,8 +189,10 @@ class IgsnDifXmlParser
         }
         $igsnMetadata->description_json = $description !== [] ? $description : null;
 
-        if ($metadata['sample_access'] !== null && (! $additive || $this->isEmptyStoredValue($igsnMetadata->sample_access))) {
-            $igsnMetadata->sample_access = $metadata['sample_access'];
+        if ($metadata['sample_access'] !== null) {
+            if (! $additive || $this->isEmptyStoredValue($igsnMetadata->sample_access)) {
+                $igsnMetadata->sample_access = $metadata['sample_access'];
+            }
             if ($resource->access_level === null) {
                 $resource->access_level = AccessLevel::fromSampleAccess($metadata['sample_access']);
             }
@@ -329,11 +349,13 @@ class IgsnDifXmlParser
             return;
         }
 
-        $exists = $resource->dates()
+        $existing = $resource->dates()
             ->where('date_type_id', $this->collectedDateTypeId)
             ->get()
-            ->contains(fn (ResourceDate $date): bool => $this->canonicalStoredPeriod($date) === $incoming);
-        if ($exists) {
+            ->first(fn (ResourceDate $date): bool => $this->canonicalStoredPeriod($date) === $incoming);
+        if ($existing !== null) {
+            $this->appendDateInformation($existing, 'Legacy IGSN collection period');
+
             return;
         }
 
@@ -343,6 +365,7 @@ class IgsnDifXmlParser
             'date_value' => $incoming['date_value'],
             'start_date' => $incoming['start_date'],
             'end_date' => $incoming['end_date'],
+            'date_information' => 'Legacy IGSN collection period',
         ]);
     }
 
@@ -351,8 +374,8 @@ class IgsnDifXmlParser
      */
     private function canonicalCollectionPeriod(mixed $start, mixed $end): ?array
     {
-        $start = is_string($start) && trim($start) !== '' ? trim($start) : null;
-        $end = is_string($end) && trim($end) !== '' ? trim($end) : null;
+        $start = is_string($start) ? $this->normalizeLegacyDate($start, true) : null;
+        $end = is_string($end) ? $this->normalizeLegacyDate($end, true) : null;
 
         if ($start === null && $end === null) {
             return null;
@@ -428,7 +451,10 @@ class IgsnDifXmlParser
         $target = $this->normalizePersonName($collector);
         foreach ($resource->creators()->with('creatorable')->get() as $creator) {
             $entity = $creator->creatorable;
-            $name = $entity instanceof Person ? $entity->full_name : ($entity->name ?? '');
+            if (! $entity instanceof Person) {
+                continue;
+            }
+            $name = $entity->full_name;
             if ($this->normalizePersonName($name) === $target) {
                 return $entity;
             }
@@ -445,7 +471,11 @@ class IgsnDifXmlParser
             return Person::firstOrCreate(['family_name' => $familyName, 'given_name' => $givenName]);
         }
 
-        return Institution::firstOrCreate(['name' => $collector]);
+        $parts = preg_split('/\s+/u', trim($collector), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $familyName = array_pop($parts) ?? trim($collector);
+        $givenName = $parts !== [] ? implode(' ', $parts) : null;
+
+        return Person::firstOrCreate(['family_name' => $familyName, 'given_name' => $givenName]);
     }
 
     /** @param array<string, mixed> $metadata */
@@ -595,6 +625,7 @@ class IgsnDifXmlParser
         string $type,
         Resource $resource,
         bool $preserveDateTime = false,
+        ?string $dateInformation = null,
     ): void {
         if ($values === []) {
             return;
@@ -613,20 +644,39 @@ class IgsnDifXmlParser
             if ($normalized === null) {
                 continue;
             }
-            $exists = $resource->dates()
+            $existing = $resource->dates()
                 ->where('date_type_id', $dateTypeId)
-                ->where('date_value', $normalized)
                 ->whereNull('start_date')
                 ->whereNull('end_date')
-                ->exists();
-            if (! $exists) {
+                ->get()
+                ->first(fn (ResourceDate $date): bool => is_string($date->date_value)
+                    && $this->normalizeLegacyDate($date->date_value, $preserveDateTime) === $normalized);
+            if ($existing !== null) {
+                $this->appendDateInformation($existing, $dateInformation);
+            } else {
                 ResourceDate::create([
                     'resource_id' => $resource->id,
                     'date_type_id' => $dateTypeId,
                     'date_value' => $normalized,
+                    'date_information' => $dateInformation,
                 ]);
             }
         }
+    }
+
+    private function appendDateInformation(ResourceDate $date, ?string $information): void
+    {
+        if ($information === null || $information === '') {
+            return;
+        }
+        $existing = is_string($date->date_information) ? trim($date->date_information) : '';
+        $parts = array_values(array_filter(array_map('trim', explode(';', $existing))));
+        if (collect($parts)->contains(fn (string $part): bool => strcasecmp($part, $information) === 0)) {
+            return;
+        }
+        $parts[] = $information;
+        $date->date_information = implode('; ', $parts);
+        $date->save();
     }
 
     /**
@@ -636,7 +686,7 @@ class IgsnDifXmlParser
     {
         foreach ($contributors as $contributor) {
             $sourceType = $contributor['type'];
-            if ($sourceType === null || strcasecmp($sourceType, 'Funder') === 0) {
+            if ($sourceType === null || strcasecmp($sourceType, 'ProjectLeader') !== 0) {
                 continue;
             }
 
@@ -653,6 +703,12 @@ class IgsnDifXmlParser
                 ->get()
                 ->first(function (ResourceContributor $existing) use ($contributor, $type): bool {
                     $entity = $existing->contributorable;
+                    if ($type->category === ContributorCategory::PERSON && ! $entity instanceof Person) {
+                        return false;
+                    }
+                    if ($type->category === ContributorCategory::INSTITUTION && ! $entity instanceof Institution) {
+                        return false;
+                    }
                     $name = $entity instanceof Person ? $entity->full_name : ($entity->name ?? '');
 
                     return $this->normalizePersonName((string) $name) === $this->normalizePersonName($contributor['name'])
@@ -660,7 +716,7 @@ class IgsnDifXmlParser
                 });
 
             if (! $relation instanceof ResourceContributor) {
-                $entity = $this->createLegacyContributorEntity($contributor['name'], $sourceType);
+                $entity = $this->createLegacyContributorEntity($contributor['name'], $type);
                 $maximum = $resource->contributors()->max('position');
                 $relation = ResourceContributor::create([
                     'resource_id' => $resource->id,
@@ -669,6 +725,22 @@ class IgsnDifXmlParser
                     'position' => $maximum === null ? 0 : ((int) $maximum) + 1,
                 ]);
                 $relation->contributorTypes()->syncWithoutDetaching([$type->id]);
+            }
+
+            $entity = $relation->contributorable;
+            if ($entity instanceof Person && $entity->name_identifier === null) {
+                foreach ($contributor['identifiers'] as $identifier) {
+                    $orcid = $this->normalizeOrcid($identifier);
+                    if ($orcid === null) {
+                        continue;
+                    }
+                    $entity->update([
+                        'name_identifier' => $orcid,
+                        'name_identifier_scheme' => 'ORCID',
+                        'scheme_uri' => 'https://orcid.org',
+                    ]);
+                    break;
+                }
             }
 
             foreach ($contributor['affiliations'] as $affiliation) {
@@ -681,9 +753,9 @@ class IgsnDifXmlParser
         }
     }
 
-    private function createLegacyContributorEntity(string $name, string $type): Model
+    private function createLegacyContributorEntity(string $name, ContributorType $type): Model
     {
-        if (strcasecmp($type, 'ProjectLeader') !== 0) {
+        if ($type->category === ContributorCategory::INSTITUTION) {
             return Institution::firstOrCreate(['name' => trim($name)]);
         }
 
@@ -700,55 +772,173 @@ class IgsnDifXmlParser
         return Person::firstOrCreate(['family_name' => $familyName, 'given_name' => $givenName]);
     }
 
-    /** @param array<string, mixed> $legacy */
-    private function persistLegacyDif(array $legacy, IgsnMetadata $metadata, bool $additive): void
+    private function normalizeOrcid(string $value): ?string
     {
-        $payload = $additive
-            ? $this->mergeLegacyPayload($metadata->legacy_dif_json ?? [], $legacy)
-            : $legacy;
-
-        if ($payload !== ($metadata->legacy_dif_json ?? [])) {
-            $metadata->legacy_dif_json = $payload;
-            $metadata->legacy_dif_imported_at = now();
+        $value = preg_replace('#^https?://orcid\.org/#i', '', trim($value)) ?? trim($value);
+        if (preg_match('/^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$/i', $value) !== 1) {
+            return null;
         }
-        if (! $additive || $metadata->legacy_dif_schema_namespace === null) {
-            $metadata->legacy_dif_schema_namespace = $legacy['schema_namespace'] ?? null;
+
+        return 'https://orcid.org/'.strtoupper($value);
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function persistLegacyRelations(array $metadata, Resource $resource, IgsnMetadata $igsnMetadata): void
+    {
+        /** @var list<array{numeric_value: string, unit: string|null}> $totalLengths */
+        $totalLengths = $metadata['total_lengths'];
+        /** @var list<array{start: string|null, end: string|null, unit: string|null, end_unit: string|null}> $ageRanges */
+        $ageRanges = $metadata['age_ranges'];
+        /** @var list<array{start: string|null, end: string|null, unit: string|null, end_unit: string|null}> $elevationRanges */
+        $elevationRanges = $metadata['elevation_ranges'];
+        $operators = $metadata['operators'];
+        if (is_string($igsnMetadata->operator) && trim($igsnMetadata->operator) !== '') {
+            array_unshift($operators, trim($igsnMetadata->operator));
+        }
+
+        $this->persistOperators($resource, $operators);
+        $this->persistMethods($resource, $metadata['methods']);
+        $this->persistMeasurements($resource, IgsnMeasurementType::TotalLength, array_map(
+            static fn (array $item): array => [
+                'start_value' => $item['numeric_value'],
+                'end_value' => null,
+                'unit' => $item['unit'],
+                'end_unit' => null,
+            ],
+            $totalLengths,
+        ));
+        $this->persistMeasurements($resource, IgsnMeasurementType::AgeRange, array_map(
+            static fn (array $item): array => [
+                'start_value' => $item['start'],
+                'end_value' => $item['end'],
+                'unit' => $item['unit'],
+                'end_unit' => $item['end_unit'],
+            ],
+            $ageRanges,
+        ));
+        $this->persistMeasurements($resource, IgsnMeasurementType::ElevationRange, array_map(
+            static fn (array $item): array => [
+                'start_value' => $item['start'],
+                'end_value' => $item['end'],
+                'unit' => $item['unit'],
+                'end_unit' => $item['end_unit'],
+            ],
+            $elevationRanges,
+        ));
+
+        foreach ($metadata['metadata_values'] as $type => $values) {
+            $this->persistMetadataValues($resource, IgsnMetadataValueType::from($type), $values);
         }
     }
 
     /**
-     * @param  array<string, mixed>  $existing
-     * @param  array<string, mixed>  $incoming
-     * @return array<string, mixed>
+     * @param  list<string>  $values
      */
-    private function mergeLegacyPayload(array $existing, array $incoming): array
+    private function persistOperators(Resource $resource, array $values): void
     {
-        if ($existing === []) {
-            return $incoming;
-        }
-
-        $merged = $existing;
-        foreach ($incoming as $key => $value) {
-            if (! array_key_exists($key, $merged) || $merged[$key] === null || $merged[$key] === []) {
-                $merged[$key] = $value;
-
+        $nextPosition = ((int) ($resource->igsnOperators()->max('position') ?? -1)) + 1;
+        foreach ($values as $value) {
+            $value = trim($value);
+            if ($value === '') {
                 continue;
             }
-            if (! is_array($merged[$key]) || ! is_array($value)) {
-                continue;
-            }
-
-            if (array_is_list($merged[$key]) && array_is_list($value)) {
-                $merged[$key] = $this->mergeStructuredList($merged[$key], $value);
-            } else {
-                $merged[$key] = $this->mergeLegacyPayload($merged[$key], $value);
+            $operator = IgsnOperator::firstOrCreate(
+                [
+                    'resource_id' => $resource->id,
+                    'normalized_value_hash' => $this->valueHash([$value]),
+                ],
+                ['value' => $value, 'position' => $nextPosition],
+            );
+            if ($operator->wasRecentlyCreated) {
+                $nextPosition++;
             }
         }
-
-        return $merged;
     }
 
-    /** @param list<mixed> $existing
+    /** @param list<array{scheme: string|null, value: string}> $methods */
+    private function persistMethods(Resource $resource, array $methods): void
+    {
+        $nextPosition = ((int) ($resource->igsnMethods()->max('position') ?? -1)) + 1;
+        foreach ($methods as $method) {
+            $value = trim($method['value']);
+            if ($value === '') {
+                continue;
+            }
+            $scheme = is_string($method['scheme']) && trim($method['scheme']) !== ''
+                ? trim($method['scheme'])
+                : null;
+            $model = IgsnMethod::firstOrCreate(
+                [
+                    'resource_id' => $resource->id,
+                    'normalized_value_hash' => $this->valueHash([$scheme, $value]),
+                ],
+                ['scheme' => $scheme, 'value' => $value, 'position' => $nextPosition],
+            );
+            if ($model->wasRecentlyCreated) {
+                $nextPosition++;
+            }
+        }
+    }
+
+    /**
+     * @param  list<array{start_value: string|null, end_value: string|null, unit: string|null, end_unit: string|null}>  $items
+     */
+    private function persistMeasurements(Resource $resource, IgsnMeasurementType $type, array $items): void
+    {
+        $nextPosition = ((int) ($resource->igsnMeasurements()->where('type', $type->value)->max('position') ?? -1)) + 1;
+        foreach ($items as $item) {
+            $parts = [$item['start_value'], $item['end_value'], $item['unit'], $item['end_unit']];
+            if (array_filter($parts, static fn (?string $value): bool => is_string($value) && trim($value) !== '') === []) {
+                continue;
+            }
+            $model = IgsnMeasurement::firstOrCreate(
+                [
+                    'resource_id' => $resource->id,
+                    'type' => $type->value,
+                    'normalized_value_hash' => $this->valueHash($parts),
+                ],
+                [...$item, 'position' => $nextPosition],
+            );
+            if ($model->wasRecentlyCreated) {
+                $nextPosition++;
+            }
+        }
+    }
+
+    /** @param list<string> $values */
+    private function persistMetadataValues(Resource $resource, IgsnMetadataValueType $type, array $values): void
+    {
+        $nextPosition = ((int) ($resource->igsnMetadataValues()->where('type', $type->value)->max('position') ?? -1)) + 1;
+        foreach ($values as $value) {
+            $value = trim($value);
+            if ($value === '') {
+                continue;
+            }
+            $model = IgsnMetadataValue::firstOrCreate(
+                [
+                    'resource_id' => $resource->id,
+                    'type' => $type->value,
+                    'normalized_value_hash' => $this->valueHash([$value]),
+                ],
+                ['value' => $value, 'position' => $nextPosition],
+            );
+            if ($model->wasRecentlyCreated) {
+                $nextPosition++;
+            }
+        }
+    }
+
+    /** @param list<string|null> $parts */
+    private function valueHash(array $parts): string
+    {
+        return hash('sha256', implode("\x1f", array_map(
+            fn (?string $value): string => $this->normalizeText((string) $value),
+            $parts,
+        )));
+    }
+
+    /**
+     * @param  list<mixed>  $existing
      * @param  list<mixed>  $incoming
      * @return list<mixed>
      */

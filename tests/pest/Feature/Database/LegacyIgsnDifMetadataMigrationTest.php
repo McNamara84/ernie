@@ -2,29 +2,56 @@
 
 declare(strict_types=1);
 
-use App\Models\IgsnMetadata;
+use App\Enums\Igsn\IgsnMeasurementType;
+use App\Enums\Igsn\IgsnMetadataValueType;
+use App\Models\IgsnMeasurement;
+use App\Models\IgsnMetadataValue;
+use App\Models\IgsnMethod;
+use App\Models\IgsnOperator;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use Illuminate\Support\Facades\Schema;
 
-it('stores the versioned legacy DIF payload and provenance columns', function (): void {
-    expect(Schema::hasColumns('igsn_metadata', [
-        'legacy_dif_schema_namespace',
-        'legacy_dif_json',
-        'legacy_dif_imported_at',
-    ]))->toBeTrue();
+it('stores projected legacy DIF values in typed relational tables', function (): void {
+    expect(Schema::hasTable('igsn_operators'))->toBeTrue()
+        ->and(Schema::hasTable('igsn_methods'))->toBeTrue()
+        ->and(Schema::hasTable('igsn_measurements'))->toBeTrue()
+        ->and(Schema::hasTable('igsn_metadata_values'))->toBeTrue();
 
     $resource = Resource::factory()->create();
-    $metadata = IgsnMetadata::create([
+    $operator = IgsnOperator::create([
         'resource_id' => $resource->id,
-        'legacy_dif_schema_namespace' => 'http://pmd.gfz-potsdam.de/igsn/schemas/description/1.3',
-        'legacy_dif_json' => ['version' => 1, 'fields' => [['path' => 'resource/name', 'value' => 'Sample']]],
-        'legacy_dif_imported_at' => '2026-08-31 12:00:00',
-    ])->fresh();
+        'value' => 'Operator A',
+        'normalized_value_hash' => hash('sha256', 'operator a'),
+        'position' => 0,
+    ]);
+    $method = IgsnMethod::create([
+        'resource_id' => $resource->id,
+        'scheme' => 'MSCL',
+        'value' => 'yes',
+        'normalized_value_hash' => hash('sha256', "mscl\x1fyes"),
+        'position' => 0,
+    ]);
+    $measurement = IgsnMeasurement::create([
+        'resource_id' => $resource->id,
+        'type' => IgsnMeasurementType::TotalLength,
+        'start_value' => '42.5',
+        'unit' => 'm',
+        'normalized_value_hash' => hash('sha256', "42.5\x1f\x1fm\x1f"),
+        'position' => 0,
+    ]);
+    $value = IgsnMetadataValue::create([
+        'resource_id' => $resource->id,
+        'type' => IgsnMetadataValueType::FieldName,
+        'value' => 'Greywacke',
+        'normalized_value_hash' => hash('sha256', 'greywacke'),
+        'position' => 0,
+    ]);
 
-    expect($metadata->legacy_dif_json['version'])->toBe(1)
-        ->and($metadata->legacy_dif_json['fields'][0]['value'])->toBe('Sample')
-        ->and($metadata->legacy_dif_imported_at)->not->toBeNull();
+    expect($operator->resource->is($resource))->toBeTrue()
+        ->and($method->resource->is($resource))->toBeTrue()
+        ->and($measurement->type)->toBe(IgsnMeasurementType::TotalLength)
+        ->and($value->type)->toBe(IgsnMetadataValueType::FieldName);
 });
 
 it('inserts IGSN Methods and Drilling after Acquisition without disturbing custom order', function (): void {

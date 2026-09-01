@@ -55,9 +55,6 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $sample_image_storage_path
  * @property string|null $sample_image_mime_type
  * @property int|null $sample_image_size
- * @property string|null $legacy_dif_schema_namespace
- * @property array<mixed>|null $legacy_dif_json
- * @property Carbon|null $legacy_dif_imported_at
  * @property string $upload_status
  * @property string|null $upload_error_message
  * @property string|null $csv_filename
@@ -77,7 +74,6 @@ use Illuminate\Support\Facades\Storage;
     'coordinate_system', 'user_code', 'description_json',
     'sample_image_source_url', 'sample_image_external_url', 'sample_image_storage_path',
     'sample_image_mime_type', 'sample_image_size',
-    'legacy_dif_schema_namespace', 'legacy_dif_json', 'legacy_dif_imported_at',
     'upload_status', 'upload_error_message', 'csv_filename', 'csv_row_number',
 ])]
 #[Table('igsn_metadata')]
@@ -95,8 +91,6 @@ class IgsnMetadata extends Model
         'description_json' => 'array',
         'csv_row_number' => 'integer',
         'sample_image_size' => 'integer',
-        'legacy_dif_json' => 'array',
-        'legacy_dif_imported_at' => 'datetime',
     ];
 
     /**

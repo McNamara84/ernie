@@ -965,13 +965,60 @@ entity "igsn_metadata" as igsn_metadata {
     sample_image_storage_path : VARCHAR(2048)
     sample_image_mime_type : VARCHAR(100)
     sample_image_size : BIGINT <<unsigned>>
-    legacy_dif_schema_namespace : VARCHAR(255) <<nullable>>
-    legacy_dif_json : JSON <<nullable>>
-    legacy_dif_imported_at : TIMESTAMP <<nullable>>
     * upload_status : VARCHAR(50) = 'pending'
     upload_error_message : TEXT
     csv_filename : VARCHAR(255)
     csv_row_number : INT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "igsn_operators" as igsn_operators {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    * value : TEXT
+    * normalized_value_hash : CHAR(64)
+    * position : INT <<unsigned>> = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "igsn_methods" as igsn_methods {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    scheme : VARCHAR(255) <<nullable>>
+    * value : TEXT
+    * normalized_value_hash : CHAR(64)
+    * position : INT <<unsigned>> = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "igsn_measurements" as igsn_measurements {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    * type : VARCHAR(32)
+    start_value : VARCHAR(255) <<nullable>>
+    end_value : VARCHAR(255) <<nullable>>
+    unit : VARCHAR(255) <<nullable>>
+    end_unit : VARCHAR(255) <<nullable>>
+    * normalized_value_hash : CHAR(64)
+    * position : INT <<unsigned>> = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "igsn_metadata_values" as igsn_metadata_values {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    * type : VARCHAR(64)
+    * value : TEXT
+    * normalized_value_hash : CHAR(64)
+    * position : INT <<unsigned>> = 0
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -1369,6 +1416,10 @@ igsn_metadata }o--o| resources : "parent"
 igsn_classifications }o--|| resources
 igsn_geological_ages }o--|| resources
 igsn_geological_units }o--|| resources
+igsn_operators }o--|| resources
+igsn_methods }o--|| resources
+igsn_measurements }o--|| resources
+igsn_metadata_values }o--|| resources
 
 ' Suggested/Dismissed relations (Assistance feature)
 suggested_relations }o--|| resources
