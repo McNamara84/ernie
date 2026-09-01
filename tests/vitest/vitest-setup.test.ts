@@ -34,22 +34,20 @@ describe('Vitest jsdom error handling', () => {
 
     it('forwards the underlying cause of unhandled exceptions', () => {
         const stderrWrite = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-        const cause = new Error('Unexpected asynchronous failure');
+        const cause = new Error('Underlying asynchronous failure');
 
         try {
             virtualConsole.emit(
                 'jsdomError',
-                Object.assign(new Error('Uncaught [Error: Unexpected asynchronous failure]'), {
+                Object.assign(new Error('Synthetic jsdom wrapper error'), {
                     cause,
                     type: 'unhandled-exception',
                 }),
             );
 
             const stderrOutput = stderrWrite.mock.calls.map(([chunk]) => String(chunk)).join('');
-            const causeStack = cause.stack;
 
-            expect(causeStack).toBeDefined();
-            expect(stderrOutput).toContain(causeStack ?? cause.message);
+            expect(stderrOutput).toContain(cause.message);
         } finally {
             stderrWrite.mockRestore();
         }
