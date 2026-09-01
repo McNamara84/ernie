@@ -6,6 +6,7 @@ use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 covers(IgsnMetadata::class);
 
@@ -60,7 +61,7 @@ describe('casts', function () {
         ]);
 
         expect($model->legacy_dif_json)->toBe(['version' => 1])
-            ->and($model->legacy_dif_imported_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+            ->and($model->legacy_dif_imported_at)->toBeInstanceOf(Carbon::class);
     });
 
     it('casts csv_row_number to integer', function () {

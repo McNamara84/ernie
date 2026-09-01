@@ -33,8 +33,16 @@ export function GeneralSection({ igsn, dates }: GeneralSectionProps): ReactNode 
 
     const trimmedPurpose = igsn?.sample_purpose?.trim();
     const purpose = trimmedPurpose ? <span className="whitespace-pre-line">{trimmedPurpose}</span> : null;
-    const requests = (igsn?.sample_requests ?? []).map((value) => value.trim()).filter(Boolean).join('; ') || null;
-    const requestedBy = (igsn?.sampled_by ?? []).map((value) => value.trim()).filter(Boolean).join('; ') || null;
+    const requests =
+        (igsn?.sample_requests ?? [])
+            .map((value) => value.trim())
+            .filter(Boolean)
+            .join('; ') || null;
+    const requestedBy =
+        (igsn?.sampled_by ?? [])
+            .map((value) => value.trim())
+            .filter(Boolean)
+            .join('; ') || null;
 
     const rows: MetadataRow[] = [
         { label: 'Project', value: igsn?.user_code ?? null },
