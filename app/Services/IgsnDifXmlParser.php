@@ -10,8 +10,8 @@ use App\Models\Affiliation;
 use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
-use App\Models\GeoLocation;
 use App\Models\FundingReference;
+use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
@@ -19,11 +19,11 @@ use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
 use App\Models\Institution;
 use App\Models\Person;
+use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceDate;
-use App\Models\RelationType;
-use App\Models\RelatedIdentifier;
 use App\Models\Size;
 use App\Services\Igsn\IgsnDifMetadataExtractor;
 use App\Services\Igsn\IgsnGeometryNormalizer;
@@ -53,8 +53,7 @@ class IgsnDifXmlParser
         Resource $resource,
         IgsnMetadata $igsnMetadata,
         bool $additive = false,
-    ): bool
-    {
+    ): bool {
         try {
             $metadata = $this->extractor->extract($difXml);
         } catch (\InvalidArgumentException $exception) {
