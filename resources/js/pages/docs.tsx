@@ -555,6 +555,28 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             failure exit code.
                         </p>
 
+                        <h4>Backfill Complete Legacy IGSN DIF Metadata</h4>
+                        <p>
+                            This dry-run-first administrator command audits all locally stored IGSNs against DIF 1.1, 1.2, and 1.3 from the legacy
+                            portal. It preserves every non-empty source field and adds missing standard metadata such as publication links, funders,
+                            dates, contributors, sample details, structured methods, and drilling values. Existing conflicting values are retained
+                            and reported for manual review.
+                        </p>
+                        <DocsCodeBlock code="php artisan igsn:backfill-legacy-dif-metadata --report=/path/to/igsn-dif-audit.csv" />
+                        <DocsCodeBlock code="php artisan igsn:backfill-legacy-dif-metadata --datacenter=IGSNDB.ICDP --doi=ICDP5052ECZI101" />
+                        <p className="text-sm text-muted-foreground">
+                            Review missing DIF records, unknown paths, and scalar or privacy conflicts before applying. Filters for <code>--doi</code>{' '}
+                            and <code>--datacenter</code> are repeatable; <code>--after-id</code>, <code>--limit</code>, and <code>--chunk</code> support
+                            bounded resumable runs. Total Length remains local drilling metadata and is not sent as a DataCite size.
+                        </p>
+                        <DocsCodeBlock code="php artisan igsn:backfill-legacy-dif-metadata --apply --report=/path/to/igsn-dif-apply.csv" />
+                        <p className="text-sm text-muted-foreground">
+                            Apply mode is additive and automatically starts a full-metadata DataCite synchronization for every changed registered
+                            IGSN. The command prints its sync-run UUID. Local repairs remain stored if a later asynchronous item fails; retry only
+                            those failed items with <code>php artisan igsn:backfill-legacy-dif-metadata --retry-sync=&lt;uuid&gt;</code>. A second dry
+                            run over the same scope should propose no further automatic changes.
+                        </p>
+
                         <h4>Repair Legacy IGSN Classifications</h4>
                         <p>
                             Use this administrator-only maintenance command to audit classifications from the legacy IGSN portal and add values or

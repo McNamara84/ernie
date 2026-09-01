@@ -66,6 +66,8 @@ class RelatedIdentifier extends Model
 
     public const SOURCE_RELATION_SUGGESTION_ASSISTANT = 'relation_suggestion_assistant';
 
+    public const SOURCE_LEGACY_IGSN_DIF = 'legacy_igsn_dif';
+
     protected $casts = [
         'position' => 'integer',
     ];

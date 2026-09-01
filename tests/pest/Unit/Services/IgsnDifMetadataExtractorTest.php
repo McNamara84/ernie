@@ -370,7 +370,7 @@ it('preserves repeated size values until they are paired with their labels', fun
     ]);
 });
 
-it('extracts image metadata only from the first sample block', function (): void {
+it('keeps targeted image extraction on the first sample and reports full-import conflicts', function (): void {
     $extractor = new IgsnDifMetadataExtractor;
     $xml = <<<'XML'
     <resource>
@@ -383,9 +383,9 @@ it('extracts image metadata only from the first sample block', function (): void
         'file_name' => 'first.jpg',
         'base_url' => 'https://example.test/first/',
     ])->and($extractor->extract($xml)['sample_image'])->toBe([
-        'file_name' => 'first.jpg',
-        'base_url' => 'https://example.test/first/',
-    ]);
+        'file_name' => null,
+        'base_url' => null,
+    ])->and(array_column($extractor->extract($xml)['conflicts'], 'field'))->toContain('sample_image', 'sample_image_path');
 });
 
 it('returns empty image fields for a sample without image metadata', function (): void {
@@ -393,4 +393,102 @@ it('returns empty image fields for a sample without image metadata', function ()
         'file_name' => null,
         'base_url' => null,
     ]);
+});
+
+it('extracts issue 1225 root documents and ignores supplemental inverse duplicates', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(<<<'XML'
+    <resource xmlns="http://pmd.gfz-potsdam.de/igsn/schemas/description/1.3">
+      <relatedIdentifiers>
+        <relatedIdentifier type="DOI" relationType="hasDocument">https://doi.org/10.2204/iodp.sd.8.12.2009</relatedIdentifier>
+        <relatedIdentifier type="DOI" relationType="hasDocument">10.5880/ICDP.5052.001</relatedIdentifier>
+      </relatedIdentifiers>
+      <supplementalMetadata><record><sample publishdate="2017-10-18">
+        <publish_date>2017-3-1</publish_date>
+        <relatedIdentifiers>
+          <relatedIdentifier relatedIdentifierType="DOI" relationType="IsCitedBy">10.2204/iodp.sd.8.12.2009</relatedIdentifier>
+        </relatedIdentifiers>
+      </sample></record></supplementalMetadata>
+    </resource>
+    XML);
+
+    expect($metadata['root_related_identifiers'])->toBe([
+        ['identifier' => 'https://doi.org/10.2204/iodp.sd.8.12.2009', 'identifier_type' => 'DOI', 'relation_type' => 'hasDocument'],
+        ['identifier' => '10.5880/ICDP.5052.001', 'identifier_type' => 'DOI', 'relation_type' => 'hasDocument'],
+    ])->and($metadata['publish_dates'])->toBe(['2017-3-1'])
+        ->and($metadata['legacy_dif']['schema_namespace'])->toBe('http://pmd.gfz-potsdam.de/igsn/schemas/description/1.3')
+        ->and($metadata['legacy_dif']['sample_count'])->toBe(1)
+        ->and(array_column($metadata['legacy_dif']['fields'], 'path'))->toContain(
+            'resource/supplementalMetadata/record/sample/@publishdate',
+        );
+});
+
+it('aggregates every report field across sample blocks without losing structured values', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(<<<'XML'
+    <resource>
+      <contributors>
+        <contributor type="Other"><name>Operator A</name></contributor>
+        <contributor type="Funder"><name>Funding A, Funding B</name></contributor>
+      </contributors>
+      <sample>
+        <material>Rock</material>
+        <field_name>Torlesse Greywacke</field_name>
+        <geological_age>Quaternary</geological_age>
+        <methods><method methodScheme="MSCL">no</method><method methodScheme="XRF">yes</method></methods>
+        <sample_request>DFDP9999 A</sample_request>
+        <sampled_by>Virginia Toy</sampled_by>
+        <length>2400.1</length><length_unit>m</length_unit>
+        <sample_other_names><sample_other_name>Local A</sample_other_name></sample_other_names>
+      </sample>
+      <sample>
+        <material>Rock</material>
+        <field_name>Second rock type</field_name>
+        <geological_age>Cretaceous</geological_age>
+        <methods><method methodScheme="MSCL">no</method></methods>
+        <operators><operator>Operator B</operator></operators>
+        <length>2400.1</length><length_unit>m</length_unit>
+        <sample_other_names><sample_other_name>Local B</sample_other_name></sample_other_names>
+      </sample>
+    </resource>
+    XML);
+
+    $aggregates = $metadata['legacy_dif']['aggregates'];
+    expect($aggregates['field_names'])->toBe(['Torlesse Greywacke', 'Second rock type'])
+        ->and($metadata['geological_ages'])->toBe(['Quaternary', 'Cretaceous'])
+        ->and($aggregates['methods'])->toBe([
+            ['scheme' => 'MSCL', 'value' => 'no'],
+            ['scheme' => 'XRF', 'value' => 'yes'],
+        ])->and($aggregates['operators'])->toBe(['Operator B', 'Operator A'])
+        ->and($metadata['funding_agencies'])->toBe(['Funding A, Funding B'])
+        ->and($aggregates['sample_requests'])->toBe(['DFDP9999 A'])
+        ->and($aggregates['sampled_by'])->toBe(['Virginia Toy'])
+        ->and($aggregates['total_lengths'])->toBe([['numeric_value' => '2400.1', 'unit' => 'm']])
+        ->and($metadata['other_names'])->toBe(['Local A', 'Local B']);
+});
+
+it('does not select a conflicting scalar from multiple sample blocks', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(<<<'XML'
+    <resource>
+      <sample><material>Rock</material><sample_type>Core</sample_type></sample>
+      <sample><material>Rock</material><sample_type>Cuttings</sample_type></sample>
+    </resource>
+    XML);
+
+    expect($metadata['scalars']['sample_type'])->toBeNull()
+        ->and(array_column($metadata['conflicts'], 'field'))->toContain('sample_type')
+        ->and(array_column($metadata['legacy_dif']['conflicts'], 'field'))->toContain('sample_type');
+});
+
+it('retains unknown non-empty DIF fields for audit instead of discarding them', function (): void {
+    $metadata = (new IgsnDifMetadataExtractor)->extract(
+        '<resource><sample><future_metadata code="x">value</future_metadata></sample></resource>',
+    );
+
+    expect($metadata['legacy_dif']['unknown_paths'])->toBe(['resource/sample/future_metadata'])
+        ->and($metadata['legacy_dif']['fields'])->toContain([
+            'path' => 'resource/sample/future_metadata',
+            'value' => 'value',
+            'attributes' => ['code' => 'x'],
+            'namespace' => null,
+            'sample_index' => 0,
+        ]);
 });

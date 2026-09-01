@@ -962,6 +962,8 @@ describe('LandingPageTemplatesPage', () => {
             expect(within(dialog).getByText('General')).toBeInTheDocument();
             expect(within(dialog).getByText('Sample Family')).toBeInTheDocument();
             expect(within(dialog).getByText('Acquisition')).toBeInTheDocument();
+            expect(within(dialog).getByText('IGSN Methods')).toBeInTheDocument();
+            expect(within(dialog).getByText('Drilling')).toBeInTheDocument();
             expect(within(dialog).getByText('License & Rights')).toBeInTheDocument();
             expect(within(dialog).getByText('Cite this Resource')).toBeInTheDocument();
             expect(within(dialog).getByText('Sample Image')).toBeInTheDocument();
@@ -979,6 +981,8 @@ describe('LandingPageTemplatesPage', () => {
                             'general',
                             'sample_family',
                             'acquisition',
+                            'igsn_methods',
+                            'igsn_drilling',
                             'repositories',
                             'licenses',
                             'dates',

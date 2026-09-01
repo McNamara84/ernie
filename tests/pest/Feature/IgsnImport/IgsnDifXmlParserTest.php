@@ -7,6 +7,7 @@ use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\GeoLocation;
+use App\Models\FundingReference;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
@@ -16,7 +17,9 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\RelatedIdentifier;
 use App\Models\Size;
+use App\Services\DataCiteJsonExporter;
 use App\Services\IgsnDifXmlParser;
 use App\Services\LandingPageResourceTransformer;
 use Illuminate\Support\Facades\Log;
@@ -1139,5 +1142,93 @@ describe('IgsnDifXmlParser', function () {
                 'country' => 'Germany',
                 'city' => 'Heppenheim',
             ]);
+    });
+
+    it('persists issue 1225 and report metadata idempotently in standard and legacy storage', function () {
+        $this->artisan('db:seed', ['--class' => 'IdentifierTypeSeeder']);
+        $this->artisan('db:seed', ['--class' => 'RelationTypeSeeder']);
+
+        $xml = <<<'XML'
+        <resource xmlns="http://pmd.gfz-potsdam.de/igsn/schemas/description/1.3">
+          <relatedIdentifiers>
+            <relatedIdentifier type="DOI" relationType="hasDocument">https://doi.org/10.2204/iodp.sd.8.12.2009</relatedIdentifier>
+            <relatedIdentifier type="DOI" relationType="hasDocument">10.5880/ICDP.5052.001</relatedIdentifier>
+          </relatedIdentifiers>
+          <contributors>
+            <contributor type="Other"><name>Institute of Geological and Nuclear Sciences Limited (GNS)</name></contributor>
+            <contributor type="Funder"><name>Marsden Fund, International Continental Scientific Drilling Program</name></contributor>
+          </contributors>
+          <supplementalMetadata><record><sample>
+            <material>Rock</material>
+            <field_name>Torlesse Greywacke</field_name>
+            <geological_age>quaternary-cretaceous-carboniferous</geological_age>
+            <methods><method methodScheme="MSCL">no</method></methods>
+            <publish_date>2017-3-1</publish_date>
+            <sampling_date>2014-12-14T18:30:00Z</sampling_date>
+            <length>893.2</length><length_unit>m</length_unit>
+            <relatedIdentifiers>
+              <relatedIdentifier relatedIdentifierType="DOI" relationType="IsCitedBy">10.2204/iodp.sd.8.12.2009</relatedIdentifier>
+            </relatedIdentifiers>
+          </sample></record></supplementalMetadata>
+        </resource>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue()
+            ->and($this->parser->enrichFromDifXml($xml, $this->resource->fresh(), $this->igsnMetadata->fresh(), additive: true))->toBeTrue();
+
+        $relations = RelatedIdentifier::query()->whereBelongsTo($this->resource)->with(['identifierType', 'relationType'])->get();
+        expect($relations)->toHaveCount(2)
+            ->and($relations->pluck('identifier')->all())->toBe(['10.2204/iodp.sd.8.12.2009', '10.5880/ICDP.5052.001'])
+            ->and($relations->every(fn (RelatedIdentifier $relation): bool => $relation->identifierType->slug === 'DOI'
+                && $relation->relationType->slug === 'Cites'
+                && $relation->source === RelatedIdentifier::SOURCE_LEGACY_IGSN_DIF))->toBeTrue()
+            ->and(FundingReference::query()->whereBelongsTo($this->resource)->sole()->funder_name)
+            ->toBe('Marsden Fund, International Continental Scientific Drilling Program');
+
+        $dates = ResourceDate::query()->whereBelongsTo($this->resource)->with('dateType')->get()->keyBy('dateType.slug');
+        expect($dates['Available']->date_value)->toBe('2017-03-01')
+            ->and($dates['Collected']->date_value)->toBe('2014-12-14T18:30:00Z')
+            ->and(IgsnGeologicalAge::query()->whereBelongsTo($this->resource)->sole()->value)
+            ->toBe('quaternary-cretaceous-carboniferous');
+
+        $legacy = $this->igsnMetadata->fresh()->legacy_dif_json;
+        expect($legacy['aggregates']['field_names'])->toBe(['Torlesse Greywacke'])
+            ->and($legacy['aggregates']['methods'])->toBe([['scheme' => 'MSCL', 'value' => 'no']])
+            ->and($legacy['aggregates']['total_lengths'])->toBe([['numeric_value' => '893.2', 'unit' => 'm']])
+            ->and($this->resource->sizes()->doesntExist())->toBeTrue();
+
+        $attributes = (new DataCiteJsonExporter)->export($this->resource->fresh())['data']['attributes'];
+        expect($attributes['relatedIdentifiers'])->toContain(
+            [
+                'relatedIdentifier' => '10.2204/iodp.sd.8.12.2009',
+                'relatedIdentifierType' => 'DOI',
+                'relationType' => 'Cites',
+            ],
+            [
+                'relatedIdentifier' => '10.5880/ICDP.5052.001',
+                'relatedIdentifierType' => 'DOI',
+                'relationType' => 'Cites',
+            ],
+        )->and($attributes['fundingReferences'])->toContain([
+            'funderName' => 'Marsden Fund, International Continental Scientific Drilling Program',
+        ])->and($attributes['dates'])->toContain(
+            ['dateType' => 'Available', 'date' => '2017-03-01'],
+            ['dateType' => 'Collected', 'date' => '2014-12-14T18:30:00Z'],
+        )->and($attributes)->not->toHaveKey('sizes');
+    });
+
+    it('keeps an existing scalar during additive backfill while retaining the DIF source value', function () {
+        $this->igsnMetadata->update(['operator' => 'Curated operator']);
+
+        expect($this->parser->enrichFromDifXml(
+            '<resource><sample><operators><operator>Legacy operator</operator></operators></sample></resource>',
+            $this->resource,
+            $this->igsnMetadata,
+            additive: true,
+        ))->toBeTrue();
+
+        $metadata = $this->igsnMetadata->fresh();
+        expect($metadata->operator)->toBe('Curated operator')
+            ->and($metadata->legacy_dif_json['aggregates']['operators'])->toBe(['Legacy operator']);
     });
 });

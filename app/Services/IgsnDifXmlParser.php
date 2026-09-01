@@ -11,6 +11,8 @@ use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\GeoLocation;
+use App\Models\FundingReference;
+use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
@@ -20,10 +22,13 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceDate;
+use App\Models\RelationType;
+use App\Models\RelatedIdentifier;
 use App\Models\Size;
 use App\Services\Igsn\IgsnDifMetadataExtractor;
 use App\Services\Igsn\IgsnGeometryNormalizer;
 use App\Services\Igsn\IgsnSampleImageUrlService;
+use App\Support\DataCiteDateNormalizer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -43,7 +48,12 @@ class IgsnDifXmlParser
         private readonly IgsnSampleImageUrlService $sampleImageUrlService = new IgsnSampleImageUrlService,
     ) {}
 
-    public function enrichFromDifXml(string $difXml, Resource $resource, IgsnMetadata $igsnMetadata): bool
+    public function enrichFromDifXml(
+        string $difXml,
+        Resource $resource,
+        IgsnMetadata $igsnMetadata,
+        bool $additive = false,
+    ): bool
     {
         try {
             $metadata = $this->extractor->extract($difXml);
@@ -72,15 +82,21 @@ class IgsnDifXmlParser
         }
 
         try {
-            DB::transaction(function () use ($metadata, $resource, $igsnMetadata): void {
-                $this->persistScalars($metadata, $resource, $igsnMetadata);
-                $this->persistSampleImageDescriptor($metadata['sample_image'], $igsnMetadata);
+            DB::transaction(function () use ($metadata, $resource, $igsnMetadata, $additive): void {
+                $this->persistScalars($metadata, $resource, $igsnMetadata, $additive);
+                $this->persistSampleImageDescriptor($metadata['sample_image'], $igsnMetadata, $additive);
                 $this->persistAlternateIdentifiers($metadata, $resource);
                 $this->persistGeoLocation($metadata['location'], $resource);
                 $this->persistCollectionDate($metadata['collection'], $resource);
                 $this->persistCollector($metadata['collection'], $resource);
                 $this->persistValueRelations($metadata, $resource);
                 $this->persistSizes($metadata['sizes'], $resource);
+                $this->persistRelatedIdentifiers($metadata['root_related_identifiers'], $resource);
+                $this->persistFundingReferences($metadata['funding_agencies'], $resource);
+                $this->persistNamedDates($metadata['publish_dates'], 'Available', $resource);
+                $this->persistNamedDates($metadata['sampling_dates'], 'Collected', $resource, preserveDateTime: true);
+                $this->persistRootContributors($metadata['root_contributors'], $resource);
+                $this->persistLegacyDif($metadata['legacy_dif'], $igsnMetadata, $additive);
 
                 if ($igsnMetadata->isDirty()) {
                     $igsnMetadata->save();
@@ -102,8 +118,12 @@ class IgsnDifXmlParser
     }
 
     /** @param array{file_name: string|null, base_url: string|null} $image */
-    private function persistSampleImageDescriptor(array $image, IgsnMetadata $igsnMetadata): void
+    private function persistSampleImageDescriptor(array $image, IgsnMetadata $igsnMetadata, bool $additive): void
     {
+        if ($additive && ($igsnMetadata->sample_image_source_url !== null || $igsnMetadata->sample_image_external_url !== null)) {
+            return;
+        }
+
         $resolved = $this->sampleImageUrlService->resolve($image['base_url'], $image['file_name']);
 
         if ($resolved['status'] === IgsnSampleImageUrlService::STATUS_MANAGED) {
@@ -129,24 +149,30 @@ class IgsnDifXmlParser
     }
 
     /** @param array<string, mixed> $metadata */
-    private function persistScalars(array $metadata, Resource $resource, IgsnMetadata $igsnMetadata): void
+    private function persistScalars(array $metadata, Resource $resource, IgsnMetadata $igsnMetadata, bool $additive): void
     {
         foreach ($metadata['scalars'] as $field => $value) {
-            if ($value !== null) {
+            if ($value !== null && (! $additive || $this->isEmptyStoredValue($igsnMetadata->{$field}))) {
                 $igsnMetadata->{$field} = $value;
             }
         }
 
         $description = $igsnMetadata->description_json ?? [];
-        if ($metadata['parent_igsn'] !== null) {
+        if ($metadata['parent_igsn'] !== null && (! $additive || empty($description['parent_igsn_handle']))) {
             $description['parent_igsn_handle'] = strtoupper($metadata['parent_igsn']);
         }
-        $this->replaceDescriptionValues($description, 'material_descriptions', $metadata['material_descriptions']);
-        $this->replaceDescriptionGroups($description, $metadata['description_groups']);
-        $this->replaceDescriptionValues($description, 'comments', $metadata['comments']);
+        if ($additive) {
+            $this->mergeDescriptionValues($description, 'material_descriptions', $metadata['material_descriptions']);
+            $this->mergeDescriptionGroups($description, $metadata['description_groups']);
+            $this->mergeDescriptionValues($description, 'comments', $metadata['comments']);
+        } else {
+            $this->replaceDescriptionValues($description, 'material_descriptions', $metadata['material_descriptions']);
+            $this->replaceDescriptionGroups($description, $metadata['description_groups']);
+            $this->replaceDescriptionValues($description, 'comments', $metadata['comments']);
+        }
         $igsnMetadata->description_json = $description !== [] ? $description : null;
 
-        if ($metadata['sample_access'] !== null) {
+        if ($metadata['sample_access'] !== null && (! $additive || $this->isEmptyStoredValue($igsnMetadata->sample_access))) {
             $igsnMetadata->sample_access = $metadata['sample_access'];
             if ($resource->access_level === null) {
                 $resource->access_level = AccessLevel::fromSampleAccess($metadata['sample_access']);
@@ -491,6 +517,292 @@ class IgsnDifXmlParser
     }
 
     /**
+     * @param  list<array{identifier: string, identifier_type: string, relation_type: string}>  $identifiers
+     */
+    private function persistRelatedIdentifiers(array $identifiers, Resource $resource): void
+    {
+        if ($identifiers === []) {
+            return;
+        }
+
+        $doiTypeId = IdentifierType::query()
+            ->where('slug', 'DOI')
+            ->orWhere('name', 'DOI')
+            ->value('id');
+        $citesTypeId = RelationType::query()
+            ->where('slug', 'Cites')
+            ->orWhere('name', 'Cites')
+            ->value('id');
+        if ($doiTypeId === null || $citesTypeId === null) {
+            throw new \RuntimeException('DOI/Cites lookup values are required for legacy IGSN relations.');
+        }
+
+        $nextPosition = ((int) ($resource->relatedIdentifiers()->max('position') ?? -1)) + 1;
+        foreach ($identifiers as $identifier) {
+            if (strcasecmp($identifier['identifier_type'], 'DOI') !== 0
+                || strcasecmp($identifier['relation_type'], 'hasDocument') !== 0) {
+                continue;
+            }
+
+            $doi = $this->normalizeDoi($identifier['identifier']);
+            if ($doi === null) {
+                continue;
+            }
+
+            $exists = $resource->relatedIdentifiers()
+                ->where('identifier_type_id', $doiTypeId)
+                ->where('relation_type_id', $citesTypeId)
+                ->get()
+                ->contains(fn (RelatedIdentifier $related): bool => $this->normalizeDoi($related->identifier) === $doi);
+            if ($exists) {
+                continue;
+            }
+
+            RelatedIdentifier::create([
+                'resource_id' => $resource->id,
+                'identifier' => $doi,
+                'identifier_type_id' => $doiTypeId,
+                'relation_type_id' => $citesTypeId,
+                'source' => RelatedIdentifier::SOURCE_LEGACY_IGSN_DIF,
+                'position' => $nextPosition++,
+            ]);
+        }
+    }
+
+    /** @param list<string> $funders */
+    private function persistFundingReferences(array $funders, Resource $resource): void
+    {
+        foreach ($funders as $funder) {
+            $normalized = $this->normalizeText($funder);
+            $exists = $resource->fundingReferences()->get()->contains(
+                fn (FundingReference $reference): bool => $this->normalizeText($reference->funder_name) === $normalized,
+            );
+            if (! $exists) {
+                FundingReference::create([
+                    'resource_id' => $resource->id,
+                    'funder_name' => trim($funder),
+                ]);
+            }
+        }
+    }
+
+    /** @param list<string> $values */
+    private function persistNamedDates(
+        array $values,
+        string $type,
+        Resource $resource,
+        bool $preserveDateTime = false,
+    ): void {
+        if ($values === []) {
+            return;
+        }
+
+        $dateTypeId = DateType::query()
+            ->where('slug', $type)
+            ->orWhere('name', $type)
+            ->value('id');
+        if ($dateTypeId === null) {
+            return;
+        }
+
+        foreach ($values as $value) {
+            $normalized = $this->normalizeLegacyDate($value, $preserveDateTime);
+            if ($normalized === null) {
+                continue;
+            }
+            $exists = $resource->dates()
+                ->where('date_type_id', $dateTypeId)
+                ->where('date_value', $normalized)
+                ->whereNull('start_date')
+                ->whereNull('end_date')
+                ->exists();
+            if (! $exists) {
+                ResourceDate::create([
+                    'resource_id' => $resource->id,
+                    'date_type_id' => $dateTypeId,
+                    'date_value' => $normalized,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * @param  list<array{type: string|null, name: string, affiliations: list<string>, identifiers: list<string>}>  $contributors
+     */
+    private function persistRootContributors(array $contributors, Resource $resource): void
+    {
+        foreach ($contributors as $contributor) {
+            $sourceType = $contributor['type'];
+            if ($sourceType === null || strcasecmp($sourceType, 'Funder') === 0) {
+                continue;
+            }
+
+            $type = ContributorType::query()
+                ->where('slug', $sourceType)
+                ->orWhere('name', $sourceType)
+                ->first();
+            if (! $type instanceof ContributorType) {
+                continue;
+            }
+
+            $relation = $resource->contributors()
+                ->with(['contributorable', 'contributorTypes'])
+                ->get()
+                ->first(function (ResourceContributor $existing) use ($contributor, $type): bool {
+                    $entity = $existing->contributorable;
+                    $name = $entity instanceof Person ? $entity->full_name : ($entity->name ?? '');
+
+                    return $this->normalizePersonName((string) $name) === $this->normalizePersonName($contributor['name'])
+                        && $existing->contributorTypes->contains('id', $type->id);
+                });
+
+            if (! $relation instanceof ResourceContributor) {
+                $entity = $this->createLegacyContributorEntity($contributor['name'], $sourceType);
+                $maximum = $resource->contributors()->max('position');
+                $relation = ResourceContributor::create([
+                    'resource_id' => $resource->id,
+                    'contributorable_type' => $entity::class,
+                    'contributorable_id' => $entity->getKey(),
+                    'position' => $maximum === null ? 0 : ((int) $maximum) + 1,
+                ]);
+                $relation->contributorTypes()->syncWithoutDetaching([$type->id]);
+            }
+
+            foreach ($contributor['affiliations'] as $affiliation) {
+                Affiliation::firstOrCreate([
+                    'affiliatable_type' => ResourceContributor::class,
+                    'affiliatable_id' => $relation->id,
+                    'name' => $affiliation,
+                ]);
+            }
+        }
+    }
+
+    private function createLegacyContributorEntity(string $name, string $type): Model
+    {
+        if (strcasecmp($type, 'ProjectLeader') !== 0) {
+            return Institution::firstOrCreate(['name' => trim($name)]);
+        }
+
+        if (str_contains($name, ',')) {
+            [$familyName, $givenName] = array_pad(array_map('trim', explode(',', $name, 2)), 2, null);
+
+            return Person::firstOrCreate(['family_name' => $familyName, 'given_name' => $givenName]);
+        }
+
+        $parts = preg_split('/\s+/u', trim($name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $familyName = array_pop($parts) ?? trim($name);
+        $givenName = $parts !== [] ? implode(' ', $parts) : null;
+
+        return Person::firstOrCreate(['family_name' => $familyName, 'given_name' => $givenName]);
+    }
+
+    /** @param array<string, mixed> $legacy */
+    private function persistLegacyDif(array $legacy, IgsnMetadata $metadata, bool $additive): void
+    {
+        $payload = $additive
+            ? $this->mergeLegacyPayload($metadata->legacy_dif_json ?? [], $legacy)
+            : $legacy;
+
+        if ($payload !== ($metadata->legacy_dif_json ?? [])) {
+            $metadata->legacy_dif_json = $payload;
+            $metadata->legacy_dif_imported_at = now();
+        }
+        if (! $additive || $metadata->legacy_dif_schema_namespace === null) {
+            $metadata->legacy_dif_schema_namespace = $legacy['schema_namespace'] ?? null;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $existing
+     * @param  array<string, mixed>  $incoming
+     * @return array<string, mixed>
+     */
+    private function mergeLegacyPayload(array $existing, array $incoming): array
+    {
+        if ($existing === []) {
+            return $incoming;
+        }
+
+        $merged = $existing;
+        foreach ($incoming as $key => $value) {
+            if (! array_key_exists($key, $merged) || $merged[$key] === null || $merged[$key] === []) {
+                $merged[$key] = $value;
+
+                continue;
+            }
+            if (! is_array($merged[$key]) || ! is_array($value)) {
+                continue;
+            }
+
+            if (array_is_list($merged[$key]) && array_is_list($value)) {
+                $merged[$key] = $this->mergeStructuredList($merged[$key], $value);
+            } else {
+                $merged[$key] = $this->mergeLegacyPayload($merged[$key], $value);
+            }
+        }
+
+        return $merged;
+    }
+
+    /** @param list<mixed> $existing
+     * @param  list<mixed>  $incoming
+     * @return list<mixed>
+     */
+    private function mergeStructuredList(array $existing, array $incoming): array
+    {
+        $result = $existing;
+        $seen = [];
+        foreach ($existing as $value) {
+            $seen[$this->structuredValueKey($value)] = true;
+        }
+        foreach ($incoming as $value) {
+            $key = $this->structuredValueKey($value);
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $result[] = $value;
+            }
+        }
+
+        return $result;
+    }
+
+    private function structuredValueKey(mixed $value): string
+    {
+        if (is_array($value)) {
+            ksort($value);
+        }
+
+        return $this->normalizeText(json_encode($value, JSON_THROW_ON_ERROR));
+    }
+
+    private function normalizeLegacyDate(string $value, bool $preserveDateTime): ?string
+    {
+        $value = trim($value);
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $value, $matches) === 1) {
+            $value = sprintf('%04d-%02d-%02d', (int) $matches[1], (int) $matches[2], (int) $matches[3]);
+        }
+
+        return DataCiteDateNormalizer::normalize($value, $preserveDateTime);
+    }
+
+    private function normalizeDoi(string $value): ?string
+    {
+        $value = trim($value);
+        $value = preg_replace('#^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)#i', '', $value) ?? $value;
+        if (preg_match('#^10\.\d{4,9}/\S+$#i', $value) !== 1) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private function isEmptyStoredValue(mixed $value): bool
+    {
+        return $value === null || (is_string($value) && trim($value) === '');
+    }
+
+    /**
      * @param  array<int, mixed>  $existing
      * @param  list<string>  $incoming
      * @return list<string>
@@ -536,6 +848,36 @@ class IgsnDifXmlParser
         }
 
         $description['description_groups'] = $groups;
+    }
+
+    /**
+     * @param  array<mixed>  $description
+     * @param  list<string>  $values
+     */
+    private function mergeDescriptionValues(array &$description, string $key, array $values): void
+    {
+        if ($values === []) {
+            return;
+        }
+
+        $existing = is_array($description[$key] ?? null) ? $description[$key] : [];
+        $description[$key] = $this->mergeUnique($existing, $values);
+    }
+
+    /**
+     * @param  array<mixed>  $description
+     * @param  list<array{entries: list<array{value: string, scheme: string|null}>}>  $groups
+     */
+    private function mergeDescriptionGroups(array &$description, array $groups): void
+    {
+        if ($groups === []) {
+            return;
+        }
+
+        $existing = is_array($description['description_groups'] ?? null)
+            ? array_values($description['description_groups'])
+            : [];
+        $description['description_groups'] = $this->mergeStructuredList($existing, $groups);
     }
 
     private function normalizeText(string $value): string

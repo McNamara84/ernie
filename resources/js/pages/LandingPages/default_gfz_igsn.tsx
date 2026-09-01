@@ -17,6 +17,8 @@ import { CiteThisResourceSection } from './components/CiteThisResourceSection';
 import { ContactSection } from './components/ContactSection';
 import { DatesSection } from './components/DatesSection';
 import { GeneralSection } from './components/GeneralSection';
+import { IgsnDrillingSection } from './components/IgsnDrillingSection';
+import { IgsnMethodsSection } from './components/IgsnMethodsSection';
 import { LandingPageShell } from './components/LandingPageShell';
 import { LicenseAndRightsSection } from './components/LicenseAndRightsSection';
 import { LocationSection } from './components/LocationSection';
@@ -120,6 +122,8 @@ export default function DefaultGfzIgsnTemplate() {
                     dates={resource.dates || []}
                 />
             ),
+            igsn_methods: <IgsnMethodsSection key="igsn_methods" igsn={resource.igsn_metadata} />,
+            igsn_drilling: <IgsnDrillingSection key="igsn_drilling" igsn={resource.igsn_metadata} />,
             repositories: <RepositoriesSection key="repositories" igsn={resource.igsn_metadata} datasetTitle={mainTitle} />,
             citation: (
                 <CiteThisResourceSection

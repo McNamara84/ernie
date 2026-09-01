@@ -85,6 +85,22 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
               : [];
 
     const geologicalUnits = dedup((igsn?.geological_units ?? []).map((unit) => unit.value.trim()).filter(Boolean)).join(', ');
+    const geologicalAges = dedup((igsn?.geological_ages ?? []).map((age) => age.value.trim()).filter(Boolean)).join(', ');
+    const rockTypes = dedup((igsn?.field_names ?? []).map((value) => value.trim()).filter(Boolean)).join(', ');
+    const classificationComments = dedup((igsn?.classification_comments ?? []).map((value) => value.trim()).filter(Boolean)).join('; ');
+    const operators = dedup((igsn?.operators ?? []).map((value) => value.trim()).filter(Boolean)).join('; ');
+    const launchPlatforms = dedup((igsn?.launch_platform_names ?? []).map((value) => value.trim()).filter(Boolean)).join(', ');
+    const launchTypes = dedup((igsn?.launch_type_names ?? []).map((value) => value.trim()).filter(Boolean)).join(', ');
+    const navigationTypes = dedup((igsn?.navigation_types ?? []).map((value) => value.trim()).filter(Boolean)).join(', ');
+    const elevationRanges = (igsn?.elevation_ranges ?? [])
+        .map((range) => {
+            const start = range.start ? `${range.start}${range.unit ? ` ${range.unit}` : ''}` : null;
+            const end = range.end ? `${range.end}${range.end_unit || range.unit ? ` ${range.end_unit ?? range.unit}` : ''}` : null;
+            if (start && end) return `${start} – ${end}`;
+            return start ?? end;
+        })
+        .filter((value): value is string => Boolean(value))
+        .join('; ');
 
     const sizes = (igsn?.sizes ?? [])
         .map((size) => {
@@ -117,6 +133,9 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
     const rows: MetadataRow[] = [
         { label: 'Material', value: valueOrMissing(material) },
         { label: `${materialLabel} Classification`, value: valueOrMissing(classification || null) },
+        { label: 'Rock Type', value: valueOrMissing(rockTypes || null) },
+        { label: 'Classification Comments', value: valueOrMissing(classificationComments || null) },
+        { label: 'Geological Age', value: valueOrMissing(geologicalAges || null) },
         { label: 'Geological Unit', value: valueOrMissing(geologicalUnits || null) },
         { label: 'Comments', value: valueOrMissing(comments) },
         { label: 'Minimum Depth', value: valueOrMissing(igsn?.depth_min ?? null) },
@@ -128,6 +147,11 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
         { label: 'Platform Type', value: valueOrMissing(igsn?.platform_type ?? null) },
         { label: 'Platform Name', value: valueOrMissing(igsn?.platform_name ?? null) },
         { label: 'Platform Description', value: valueOrMissing(igsn?.platform_description ?? null) },
+        { label: 'Launch Platform', value: valueOrMissing(launchPlatforms || null) },
+        { label: 'Launch Type', value: valueOrMissing(launchTypes || null) },
+        { label: 'Navigation Type', value: valueOrMissing(navigationTypes || null) },
+        { label: 'Elevation Range', value: valueOrMissing(elevationRanges || null) },
+        { label: 'Operator', value: valueOrMissing(operators || null) },
         { label: 'Funding Agency', value: valueOrMissing(fundingAgency || null) },
         { label: 'Chief Scientist', value: valueOrMissing(chiefScientists || null) },
         { label: 'Start Date', value: valueOrMissing(startDate) },
@@ -146,9 +170,9 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
                 Acquisition
             </h2>
             <div className="space-y-3">
-                <MetadataList rows={rows.slice(0, 2)} />
+                <MetadataList rows={rows.slice(0, 3)} />
                 <IgsnDescriptionGroups groups={descriptionGroups} />
-                <MetadataList rows={rows.slice(2)} />
+                <MetadataList rows={rows.slice(3)} />
             </div>
         </LandingPageCard>
     );

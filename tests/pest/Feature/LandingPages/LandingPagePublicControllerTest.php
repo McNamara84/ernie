@@ -1303,6 +1303,8 @@ describe('Landing Page with Custom Template', function () {
                     'general',
                     'sample_family',
                     'acquisition',
+                    'igsn_methods',
+                    'igsn_drilling',
                     'repositories',
                     'licenses',
                     'dates',
