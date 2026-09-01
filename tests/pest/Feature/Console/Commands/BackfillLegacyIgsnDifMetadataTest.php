@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Console\Commands\BackfillLegacyIgsnDifMetadata;
 use App\Jobs\SyncImportedResourcesWithDataCiteJob;
+use App\Models\ContributorType;
 use App\Models\Datacenter;
 use App\Models\IdentifierType;
 use App\Models\IgsnMetadata;
@@ -252,6 +253,31 @@ it('writes a complete CSV audit and marks test mode synchronization as skipped',
     }
 });
 
+it('neutralizes spreadsheet formulas in every string CSV cell', function (): void {
+    $reportPath = storage_path('framework/testing/legacy-igsn-dif-formula-audit.csv');
+    @unlink($reportPath);
+
+    try {
+        $method = new ReflectionMethod(BackfillLegacyIgsnDifMetadata::class, 'writeCsv');
+        $method->invoke(app(BackfillLegacyIgsnDifMetadata::class), $reportPath, [[
+            'resource_id' => 1,
+            'doi' => '=1+1',
+            'handle' => '+1+1',
+            'datacenter' => '-1+1',
+            'schema_namespace' => '@SUM(1:1)',
+        ]]);
+
+        $csv = file_get_contents($reportPath);
+        expect($csv)->not->toBeFalse()
+            ->and((string) $csv)->toContain("'=1+1")
+            ->and((string) $csv)->toContain("'+1+1")
+            ->and((string) $csv)->toContain("'-1+1")
+            ->and((string) $csv)->toContain("'@SUM(1:1)");
+    } finally {
+        @unlink($reportPath);
+    }
+});
+
 it('fails cleanly for invalid sync retry ids and unwritable report targets', function (): void {
     $this->artisan('igsn:backfill-legacy-dif-metadata', ['--retry-sync' => 'not-a-uuid'])
         ->expectsOutputToContain('must be a UUID')
@@ -269,6 +295,26 @@ it('fails cleanly for invalid sync retry ids and unwritable report targets', fun
         @unlink($parentPath);
     }
 });
+
+it('rejects invalid numeric options before an apply backfill can run', function (string $option, string $value, string $message): void {
+    $resource = legacyDifBackfillResource('ICDPINVALIDOPTION');
+    fakeLegacyDifDocuments([
+        'ICDPINVALIDOPTION' => '<resource><sample><field_name>Must not be persisted</field_name></sample></resource>',
+    ]);
+
+    $this->artisan('igsn:backfill-legacy-dif-metadata', [
+        '--apply' => true,
+        $option => $value,
+    ])->expectsOutputToContain($message)
+        ->assertExitCode(2);
+
+    expect($resource->igsnMetadataValues()->count())->toBe(0);
+})->with([
+    'non-numeric limit' => ['--limit', 'abc', '--limit option must be a non-negative integer'],
+    'negative after-id' => ['--after-id', '-1', '--after-id option must be a non-negative integer'],
+    'zero chunk' => ['--chunk', '0', '--chunk option must be an integer from 1 to 100'],
+    'oversized chunk' => ['--chunk', '101', '--chunk option must be an integer from 1 to 100'],
+]);
 
 it('automatically dispatches a full metadata DataCite batch after apply', function (): void {
     Bus::fake();
@@ -357,6 +403,107 @@ it('does not duplicate a Cites DOI that differs from the DIF value only by case'
         ->and($second)->toMatchArray(['changed' => 0, 'unchanged' => 1, 'errors' => 0])
         ->and($resource->relatedIdentifiers()->count())->toBe(1)
         ->and($resource->relatedIdentifiers()->sole()->id)->toBe($existing->id);
+});
+
+it('upgrades a value-matching Local identifier to a Local accession number', function (): void {
+    $resource = legacyDifBackfillResource('ICDPALTIDTYPE');
+    $identifier = $resource->alternateIdentifiers()->create([
+        'value' => 'Legacy sample name',
+        'type' => 'Local',
+        'position' => 0,
+    ]);
+    fakeLegacyDifDocuments([
+        'ICDPALTIDTYPE' => '<resource><sample><name>Legacy sample name</name></sample></resource>',
+    ]);
+
+    $dryRun = app(IgsnLegacyDifBackfillService::class)->run();
+    expect($dryRun)->toMatchArray(['changed' => 1, 'unchanged' => 0])
+        ->and($dryRun['records'][0]['changed_fields'])->toContain('alternate_identifiers.name');
+
+    $apply = app(IgsnLegacyDifBackfillService::class)->run(apply: true);
+    $secondDryRun = app(IgsnLegacyDifBackfillService::class)->run();
+
+    expect($apply)->toMatchArray(['changed' => 1, 'errors' => 0])
+        ->and($identifier->fresh()->type)->toBe('Local accession number')
+        ->and($resource->alternateIdentifiers()->count())->toBe(1)
+        ->and($secondDryRun)->toMatchArray(['changed' => 0, 'unchanged' => 1]);
+});
+
+it('backfills missing collector and project leader details on existing contributors', function (): void {
+    $resource = legacyDifBackfillResource('ICDPCONTRIBUTORDETAILS');
+    $collectorType = ContributorType::query()->where('slug', 'DataCollector')->firstOrFail();
+    $leaderType = ContributorType::query()->where('slug', 'ProjectLeader')->firstOrFail();
+
+    $collector = Person::create(['family_name' => 'Roe', 'given_name' => 'Richard']);
+    $collectorRelation = $resource->contributors()->create([
+        'contributorable_type' => Person::class,
+        'contributorable_id' => $collector->id,
+        'position' => 0,
+    ]);
+    $collectorRelation->contributorTypes()->attach($collectorType);
+
+    $leader = Person::create(['family_name' => 'Doe', 'given_name' => 'Jane']);
+    $leaderRelation = $resource->contributors()->create([
+        'contributorable_type' => Person::class,
+        'contributorable_id' => $leader->id,
+        'position' => 1,
+    ]);
+    $leaderRelation->contributorTypes()->attach($leaderType);
+
+    fakeLegacyDifDocuments([
+        'ICDPCONTRIBUTORDETAILS' => <<<'XML'
+        <resource>
+          <contributors>
+            <contributor contributorType="ProjectLeader">
+              <name>Doe, Jane</name>
+              <affiliation><name>GFZ Potsdam</name></affiliation>
+              <identifier>https://orcid.org/0000-0002-1825-0097</identifier>
+            </contributor>
+          </contributors>
+          <sample><collector>Roe, Richard</collector><collector_detail>ICDP Operations</collector_detail></sample>
+        </resource>
+        XML,
+    ]);
+
+    $dryRun = app(IgsnLegacyDifBackfillService::class)->run();
+    expect($dryRun)->toMatchArray(['changed' => 1, 'unchanged' => 0])
+        ->and($dryRun['records'][0]['changed_fields'])
+        ->toContain('contributors.DataCollector.affiliations')
+        ->toContain('contributors.ProjectLeader.affiliations')
+        ->toContain('contributors.ProjectLeader.orcid');
+
+    $apply = app(IgsnLegacyDifBackfillService::class)->run(apply: true);
+    $secondDryRun = app(IgsnLegacyDifBackfillService::class)->run();
+
+    expect($apply)->toMatchArray(['changed' => 1, 'errors' => 0])
+        ->and($collectorRelation->affiliations()->sole()->name)->toBe('ICDP Operations')
+        ->and($leaderRelation->affiliations()->sole()->name)->toBe('GFZ Potsdam')
+        ->and($leader->fresh()->name_identifier)->toBe('https://orcid.org/0000-0002-1825-0097')
+        ->and($secondDryRun)->toMatchArray(['changed' => 0, 'unchanged' => 1]);
+});
+
+it('fills the same derived place detected by the dry run', function (): void {
+    $resource = legacyDifBackfillResource('ICDPLOCATIONFALLBACK');
+    $resource->geoLocations()->create([
+        'country' => 'Germany',
+        'province' => 'Brandenburg',
+        'city' => 'Potsdam',
+    ]);
+    fakeLegacyDifDocuments([
+        'ICDPLOCATIONFALLBACK' => <<<'XML'
+        <resource><sample><country>Germany</country><province>Brandenburg</province><city>Potsdam</city></sample></resource>
+        XML,
+    ]);
+
+    $dryRun = app(IgsnLegacyDifBackfillService::class)->run();
+    expect($dryRun)->toMatchArray(['changed' => 1, 'unchanged' => 0])
+        ->and($dryRun['records'][0]['changed_fields'])->toContain('geo_locations.place');
+
+    app(IgsnLegacyDifBackfillService::class)->run(apply: true);
+    $secondDryRun = app(IgsnLegacyDifBackfillService::class)->run();
+
+    expect($resource->geoLocations()->sole()->place)->toBe('Potsdam, Brandenburg, Germany')
+        ->and($secondDryRun)->toMatchArray(['changed' => 0, 'unchanged' => 1]);
 });
 
 it('backfills the complete approved projection and is idempotent when it is the only missing data', function (): void {

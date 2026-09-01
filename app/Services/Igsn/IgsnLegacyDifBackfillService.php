@@ -13,7 +13,9 @@ use App\Services\IgsnDifXmlParser;
 use App\Services\LegacyIgsnPortalService;
 use App\Support\DataCiteDateNormalizer;
 use App\Support\IgsnIdentifier;
+use App\Support\IgsnLocationNormalizer;
 use App\Support\LegacyIgsnDatacenterCatalog;
+use App\Support\OrcidNormalizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -114,6 +116,7 @@ final class IgsnLegacyDifBackfillService
                     'igsnMetadataValues',
                     'contributors.contributorable',
                     'contributors.contributorTypes',
+                    'contributors.affiliations',
                 ])
                 ->whereHas('igsnMetadata')
                 ->where('id', '>', $cursor)
@@ -527,7 +530,8 @@ final class IgsnLegacyDifBackfillService
             $changedFields[] = 'igsn_metadata.sample_image';
         }
 
-        if ($metadata['name'] !== null && ! $this->hasAlternateIdentifier($resource, $metadata['name'])) {
+        if ($metadata['name'] !== null
+            && ! $this->hasAlternateIdentifier($resource, $metadata['name'], 'Local accession number')) {
             $changedFields[] = 'alternate_identifiers.name';
         }
         foreach ($metadata['other_names'] as $name) {
@@ -585,7 +589,7 @@ final class IgsnLegacyDifBackfillService
     private function diffLocation(Resource $resource, array $location, array &$changedFields): void
     {
         $sourceText = [
-            'place' => $location['place'],
+            'place' => IgsnLocationNormalizer::place($location),
             'location_type' => $location['location_type'],
             'location_description' => $location['location_description'],
             'locality_description' => $location['locality_description'],
@@ -654,17 +658,30 @@ final class IgsnLegacyDifBackfillService
     {
         $expected = [];
         if (is_string($metadata['collection']['collector']) && trim($metadata['collection']['collector']) !== '') {
-            $expected[] = ['name' => $metadata['collection']['collector'], 'type' => 'DataCollector'];
+            $collectorAffiliation = $metadata['collection']['collector_detail'];
+            $expected[] = [
+                'name' => $metadata['collection']['collector'],
+                'type' => 'DataCollector',
+                'affiliations' => is_string($collectorAffiliation) && trim($collectorAffiliation) !== ''
+                    ? [$collectorAffiliation]
+                    : [],
+                'identifiers' => [],
+            ];
         }
         foreach ($metadata['root_contributors'] as $contributor) {
             if (strcasecmp((string) $contributor['type'], 'ProjectLeader') === 0) {
-                $expected[] = ['name' => $contributor['name'], 'type' => 'ProjectLeader'];
+                $expected[] = [
+                    'name' => $contributor['name'],
+                    'type' => 'ProjectLeader',
+                    'affiliations' => $contributor['affiliations'],
+                    'identifiers' => $contributor['identifiers'],
+                ];
             }
         }
 
         foreach ($expected as $contributor) {
             $targetName = $this->normalizePersonName($contributor['name']);
-            $exists = $resource->contributors->contains(function ($existing) use ($contributor, $targetName): bool {
+            $existing = $resource->contributors->first(function ($existing) use ($contributor, $targetName): bool {
                 $entity = $existing->contributorable;
                 if (! $entity instanceof Person) {
                     return false;
@@ -673,20 +690,47 @@ final class IgsnLegacyDifBackfillService
                 return $this->normalizePersonName($entity->full_name) === $targetName
                     && $existing->contributorTypes->contains('slug', $contributor['type']);
             });
-            if (! $exists) {
+            if ($existing === null) {
                 $changedFields[] = 'contributors.'.$contributor['type'];
+
+                continue;
+            }
+
+            $existingAffiliations = $existing->affiliations->pluck('name')->all();
+            if ($this->hasMissingStringValues($existingAffiliations, $contributor['affiliations'])) {
+                $changedFields[] = 'contributors.'.$contributor['type'].'.affiliations';
+            }
+
+            $expectedOrcid = $this->firstValidOrcid($contributor['identifiers']);
+            $entity = $existing->contributorable;
+            if ($expectedOrcid !== null
+                && $entity instanceof Person
+                && $this->isEmpty($entity->name_identifier)) {
+                $changedFields[] = 'contributors.'.$contributor['type'].'.orcid';
             }
         }
     }
 
-    private function hasAlternateIdentifier(Resource $resource, string $value, ?string $type = null): bool
+    private function hasAlternateIdentifier(Resource $resource, string $value, string $type): bool
     {
         $normalized = $this->normalizeComparable($value);
 
         return $resource->alternateIdentifiers->contains(
             fn ($identifier): bool => $this->normalizeComparable($identifier->value) === $normalized
-                && ($type === null || strcasecmp((string) $identifier->type, $type) === 0),
+                && strcasecmp((string) $identifier->type, $type) === 0,
         );
+    }
+
+    /** @param list<string> $identifiers */
+    private function firstValidOrcid(array $identifiers): ?string
+    {
+        foreach ($identifiers as $identifier) {
+            if (OrcidNormalizer::isValid($identifier)) {
+                return 'https://orcid.org/'.strtoupper(OrcidNormalizer::extractBareId($identifier));
+            }
+        }
+
+        return null;
     }
 
     /** @param array<int, mixed> $existing

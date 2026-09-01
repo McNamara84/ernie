@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.7",
-        "date": "2026-08-31",
+        "date": "2026-08-02",
         "features": [],
         "improvements": [
             {
@@ -16,7 +16,7 @@
             },
             {
                 "title": "Safe Existing IGSN Metadata Backfill",
-                "description": "A dry-run-first igsn:backfill-legacy-dif-metadata command can now repair already imported IGSNs across every legacy datacenter without deleting or reimporting them. It supports DOI and datacenter filters, resumable batches, CSV audits, missing and unknown DIF reporting, additive conflict-safe updates, idempotent reruns, landing-page cache invalidation, automatic full-metadata DataCite synchronization for changed registered records, and retry of failed sync items."
+                "description": "A dry-run-first igsn:backfill-legacy-dif-metadata command can now repair already imported IGSNs across every legacy datacenter without deleting or reimporting them. It supports DOI and datacenter filters, validated resumable batch options, spreadsheet-safe CSV audits, missing and unknown DIF reporting, additive conflict-safe updates, idempotent reruns, landing-page cache invalidation, automatic full-metadata DataCite synchronization for changed registered records, and retry of failed sync items."
             }
         ]
     },

@@ -36,6 +36,8 @@ use App\Services\Igsn\IgsnDifMetadataExtractor;
 use App\Services\Igsn\IgsnGeometryNormalizer;
 use App\Services\Igsn\IgsnSampleImageUrlService;
 use App\Support\DataCiteDateNormalizer;
+use App\Support\IgsnLocationNormalizer;
+use App\Support\OrcidNormalizer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -252,7 +254,7 @@ class IgsnDifXmlParser
     private function persistGeoLocation(array $location, Resource $resource): void
     {
         $text = [
-            'place' => $location['place'] ?? $this->fallbackPlace($location),
+            'place' => IgsnLocationNormalizer::place($location),
             'location_type' => $location['location_type'],
             'location_description' => $location['location_description'],
             'locality_description' => $location['locality_description'],
@@ -318,18 +320,6 @@ class IgsnDifXmlParser
         }
 
         $location->fill($geometry);
-    }
-
-    /** @param array<string, mixed> $location */
-    private function fallbackPlace(array $location): ?string
-    {
-        $parts = array_values(array_filter([
-            $location['city'],
-            $location['province'],
-            $location['country'],
-        ], static fn (mixed $value): bool => is_string($value) && $value !== ''));
-
-        return $parts !== [] ? implode(', ', array_unique($parts)) : null;
     }
 
     /** @param array<string, mixed> $collection */
@@ -728,7 +718,7 @@ class IgsnDifXmlParser
             }
 
             $entity = $relation->contributorable;
-            if ($entity instanceof Person && $entity->name_identifier === null) {
+            if ($entity instanceof Person && $this->isEmptyStoredValue($entity->name_identifier)) {
                 foreach ($contributor['identifiers'] as $identifier) {
                     $orcid = $this->normalizeOrcid($identifier);
                     if ($orcid === null) {
@@ -774,12 +764,11 @@ class IgsnDifXmlParser
 
     private function normalizeOrcid(string $value): ?string
     {
-        $value = preg_replace('#^https?://orcid\.org/#i', '', trim($value)) ?? trim($value);
-        if (preg_match('/^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$/i', $value) !== 1) {
+        if (! OrcidNormalizer::isValid($value)) {
             return null;
         }
 
-        return 'https://orcid.org/'.strtoupper($value);
+        return 'https://orcid.org/'.strtoupper(OrcidNormalizer::extractBareId($value));
     }
 
     /** @param array<string, mixed> $metadata */

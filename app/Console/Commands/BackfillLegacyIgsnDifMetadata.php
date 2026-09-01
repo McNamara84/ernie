@@ -42,11 +42,14 @@ final class BackfillLegacyIgsnDifMetadata extends Command
         }
 
         try {
+            $afterId = $this->integerOption('after-id', minimum: 0);
+            $limit = $this->integerOption('limit', minimum: 0);
+            $chunk = $this->integerOption('chunk', minimum: 1, maximum: 100);
             $result = $this->backfill->run(
                 apply: (bool) $this->option('apply'),
-                afterId: max(0, (int) $this->option('after-id')),
-                limit: max(0, (int) $this->option('limit')),
-                chunk: max(1, min(100, (int) $this->option('chunk'))),
+                afterId: $afterId,
+                limit: $limit,
+                chunk: $chunk,
                 dois: array_values(array_filter($this->option('doi'), 'is_string')),
                 datacenters: array_values(array_filter($this->option('datacenter'), 'is_string')),
             );
@@ -176,10 +179,49 @@ final class BackfillLegacyIgsnDifMetadata extends Command
         try {
             fputcsv($stream, $columns, escape: '');
             foreach ($rows as $row) {
-                fputcsv($stream, array_map(static fn (string $column): int|string|null => $row[$column] ?? null, $columns), escape: '');
+                fputcsv($stream, array_map(
+                    fn (string $column): int|string|null => $this->spreadsheetSafeCell($row[$column] ?? null),
+                    $columns,
+                ), escape: '');
             }
         } finally {
             fclose($stream);
         }
+    }
+
+    private function integerOption(string $name, int $minimum, ?int $maximum = null): int
+    {
+        $value = $this->option($name);
+        if (! is_int($value) && ! is_string($value)) {
+            throw new \InvalidArgumentException(sprintf('The --%s option must be an integer.', $name));
+        }
+
+        $value = (string) $value;
+        if (preg_match('/^(?:0|[1-9][0-9]*)$/D', $value) !== 1) {
+            throw new \InvalidArgumentException(sprintf('The --%s option must be a non-negative integer.', $name));
+        }
+
+        $parsed = filter_var($value, FILTER_VALIDATE_INT, [
+            'options' => array_filter([
+                'min_range' => $minimum,
+                'max_range' => $maximum,
+            ], static fn (?int $range): bool => $range !== null),
+        ]);
+        if ($parsed === false) {
+            $range = $maximum === null ? sprintf('%d or greater', $minimum) : sprintf('%d to %d', $minimum, $maximum);
+
+            throw new \InvalidArgumentException(sprintf('The --%s option must be an integer from %s.', $name, $range));
+        }
+
+        return $parsed;
+    }
+
+    private function spreadsheetSafeCell(int|string|null $value): int|string|null
+    {
+        if (! is_string($value) || $value === '' || ! str_contains('=+-@', $value[0])) {
+            return $value;
+        }
+
+        return "'".$value;
     }
 }

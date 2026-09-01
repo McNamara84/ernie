@@ -1305,4 +1305,26 @@ describe('IgsnDifXmlParser', function () {
             ->and($leader->contributorTypes->sole()->slug)->toBe('ProjectLeader')
             ->and($leader->affiliations()->sole()->name)->toBe('GFZ Potsdam');
     });
+
+    it('rejects a correctly shaped project leader ORCID with an invalid checksum', function () {
+        $xml = <<<'XML'
+        <resource>
+          <contributors>
+            <contributor contributorType="ProjectLeader">
+              <name>Doe, Jane</name>
+              <identifier>https://orcid.org/0000-0002-1825-0098</identifier>
+            </contributor>
+          </contributors>
+          <sample><field_name>ORCID checksum regression fixture</field_name></sample>
+        </resource>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata, additive: true))->toBeTrue();
+
+        $leader = $this->resource->contributors()->with('contributorable')->sole();
+        expect($leader->contributorable)->toBeInstanceOf(Person::class)
+            ->and($leader->contributorable->name_identifier)->toBeNull()
+            ->and($leader->contributorable->name_identifier_scheme)->toBeNull()
+            ->and($leader->contributorable->scheme_uri)->toBeNull();
+    });
 });
