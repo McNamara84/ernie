@@ -308,6 +308,28 @@ Authenticated Solr and the direct legacy database remain optional enrichment sou
 
 Both app and queue services must use `QUEUE_CONNECTION=database`, and the worker command must consume `imports`. The single-import start endpoint returns `202 Accepted`; later portal or persistence failures are reported through the import status endpoint.
 
+#### Backfill complete legacy IGSN DIF metadata
+
+New legacy imports preserve every non-empty DIF 1.1, 1.2, and 1.3 value in a versioned source payload and project supported metadata into ERNIE's standard relations. This includes all sample blocks, root `hasDocument` publication DOIs as DataCite `Cites`, funders, Available and Collected dates, contributors, geological ages, Rock Type, request information, structured methods, drilling lengths, launch/navigation values, and elevation ranges. The known supplemental `IsCitedBy` copies are intentionally ignored because their direction is wrong and the equivalent root publications are authoritative. Total Length remains local IGSN drilling metadata and is never exported as DataCite `sizes`.
+
+Use the dry-run-first command to audit and repair IGSNs already stored in ERNIE across all configured legacy datacenters:
+
+```bash
+npm run artisan -- igsn:backfill-legacy-dif-metadata --report=storage/app/igsn-dif-dry-run.csv
+npm run artisan -- igsn:backfill-legacy-dif-metadata --datacenter=IGSNDB.ICDP --doi=ICDP5052ECZI101
+npm run artisan -- igsn:backfill-legacy-dif-metadata --apply --report=storage/app/igsn-dif-applied.csv
+```
+
+Review missing DIF records, unknown non-empty paths, scalar and privacy conflicts, and technical errors before using `--apply`. Apply mode is additive: it fills missing values and appends missing repeated values while preserving conflicting local values for manual review. Repeat `--doi` or `--datacenter` for a restricted scope, use `--limit` for a bounded batch, and resume after the printed Resource ID with `--after-id`. Portal requests are limited to 100 handles per request even when a larger `--chunk` is supplied.
+
+Every changed registered IGSN is queued automatically for a full-metadata DataCite synchronization after its local transaction completes. The console and CSV report contain the sync-run UUID. Local changes remain intact if an asynchronous DataCite item fails; retry only those failures with:
+
+```bash
+npm run artisan -- igsn:backfill-legacy-dif-metadata --retry-sync=<sync-run-uuid>
+```
+
+After each applied scope, repeat the same dry run. It should report no further automatic changes; unresolved conflicts, unknown paths, and missing DIF records remain visible for manual follow-up.
+
 #### Repair legacy IGSN classifications
 
 New legacy imports preserve all supported classifications from every `<sample>` block in their original order. This includes the Medusa, Sonne273, Earth Shape, and ICDP values covered by issues #1191, #1200, #1202, and #1210. Unknown controlled values remain rejected and are reported without rolling back unrelated DIF metadata.

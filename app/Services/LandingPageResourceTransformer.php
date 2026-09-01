@@ -87,6 +87,7 @@ final class LandingPageResourceTransformer
             'publisher',
             'igsnMetadata.parentResource.landingPage.externalDomain',
             'igsnClassifications',
+            'igsnGeologicalAges',
             'igsnGeologicalUnits',
             'alternateIdentifiers',
             'sizes',
@@ -555,6 +556,8 @@ final class LandingPageResourceTransformer
             $parent = $meta->parentResource;
             $parentLandingPage = $parent?->landingPage;
             $descriptionJson = $meta->description_json ?? [];
+            $legacyDif = $meta->legacy_dif_json ?? [];
+            $legacyAggregates = is_array($legacyDif['aggregates'] ?? null) ? $legacyDif['aggregates'] : [];
             $descriptionGroups = $this->igsnDescriptionNormalizer->normalizeCsvPayload($descriptionJson);
             $legacyDescriptions = array_values(array_filter(
                 is_array($descriptionJson['material_descriptions'] ?? null) ? $descriptionJson['material_descriptions'] : [],
@@ -596,6 +599,9 @@ final class LandingPageResourceTransformer
             $geologicalUnits = $resource->relationLoaded('igsnGeologicalUnits')
                 ? $resource->igsnGeologicalUnits
                 : new Collection;
+            $geologicalAges = $resource->relationLoaded('igsnGeologicalAges')
+                ? $resource->igsnGeologicalAges
+                : new Collection;
             $name = $alternateIdentifiers
                 ->sortBy('position')
                 ->first(static fn ($identifier): bool => strcasecmp($identifier->type, 'Local accession number') === 0)
@@ -624,6 +630,8 @@ final class LandingPageResourceTransformer
                 'material' => $meta->material,
                 'cruise_field_program' => $meta->cruise_field_program,
                 'sample_purpose' => $meta->sample_purpose,
+                'sample_requests' => $this->legacyStringList($legacyAggregates, 'sample_requests'),
+                'sampled_by' => $this->legacyStringList($legacyAggregates, 'sampled_by'),
                 'depth_min' => $meta->depth_min,
                 'depth_max' => $meta->depth_max,
                 'depth_scale' => $meta->depth_scale,
@@ -650,6 +658,16 @@ final class LandingPageResourceTransformer
                 'platform_type' => $meta->platform_type,
                 'platform_name' => $meta->platform_name,
                 'platform_description' => $meta->platform_description,
+                'launch_platform_names' => $this->legacyStringList($legacyAggregates, 'launch_platform_names'),
+                'launch_type_names' => $this->legacyStringList($legacyAggregates, 'launch_type_names'),
+                'navigation_types' => $this->legacyStringList($legacyAggregates, 'navigation_types'),
+                'field_names' => $this->legacyStringList($legacyAggregates, 'field_names'),
+                'classification_comments' => $this->legacyStringList($legacyAggregates, 'classification_comments'),
+                'operators' => $this->legacyStringList($legacyAggregates, 'operators'),
+                'methods' => $this->legacyStructuredList($legacyAggregates, 'methods', ['scheme', 'value']),
+                'total_lengths' => $this->legacyStructuredList($legacyAggregates, 'total_lengths', ['numeric_value', 'unit']),
+                'age_ranges' => $this->legacyStructuredList($legacyAggregates, 'age_ranges', ['start', 'end', 'unit', 'end_unit']),
+                'elevation_ranges' => $this->legacyStructuredList($legacyAggregates, 'elevation_ranges', ['start', 'end', 'unit', 'end_unit']),
                 'sizes' => $sizes->map(static fn ($size): array => [
                     'id' => $size->id,
                     'numeric_value' => $size->numeric_value,
@@ -660,6 +678,10 @@ final class LandingPageResourceTransformer
                 'geological_units' => $geologicalUnits->sortBy('position')->values()->map(static fn ($unit): array => [
                     'id' => $unit->id,
                     'value' => $unit->value,
+                ])->all(),
+                'geological_ages' => $geologicalAges->sortBy('position')->values()->map(static fn ($age): array => [
+                    'id' => $age->id,
+                    'value' => $age->value,
                 ])->all(),
                 'parent' => $parentIgsn === null ? null : [
                     'igsn' => $parentIgsn,
@@ -781,6 +803,49 @@ final class LandingPageResourceTransformer
         $value = trim($value);
 
         return $value === '' ? null : $value;
+    }
+
+    /**
+     * @param  array<string, mixed>  $aggregates
+     * @return list<string>
+     */
+    private function legacyStringList(array $aggregates, string $key): array
+    {
+        $values = is_array($aggregates[$key] ?? null) ? $aggregates[$key] : [];
+
+        return array_values(array_filter(
+            array_map(
+                static fn (mixed $value): ?string => is_string($value) && trim($value) !== '' ? trim($value) : null,
+                $values,
+            ),
+            static fn (?string $value): bool => $value !== null,
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $aggregates
+     * @param  list<string>  $fields
+     * @return list<array<string, string|null>>
+     */
+    private function legacyStructuredList(array $aggregates, string $key, array $fields): array
+    {
+        $items = is_array($aggregates[$key] ?? null) ? $aggregates[$key] : [];
+        $result = [];
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $normalized = [];
+            foreach ($fields as $field) {
+                $value = $item[$field] ?? null;
+                $normalized[$field] = is_string($value) && trim($value) !== '' ? trim($value) : null;
+            }
+            if (array_filter($normalized, static fn (?string $value): bool => $value !== null) !== []) {
+                $result[] = $normalized;
+            }
+        }
+
+        return $result;
     }
 
     private function sanitizeLandingPageHtml(?string $html, DescriptionFormattingService $descriptionFormattingService): ?string

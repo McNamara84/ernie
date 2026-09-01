@@ -11,9 +11,37 @@ use App\Enums\Igsn\IgsnClassificationType;
  */
 class IgsnDifMetadataExtractor
 {
+    /** @var list<string> */
+    private const KNOWN_LEAF_NAMES = [
+        'identifier', 'name', 'parentIdentifier', 'relatedIdentifier', 'description',
+        'resourceType', 'material', 'alternateMaterial', 'collectionMethod',
+        'alternateCollectionMethod', 'collectionTime', 'sampleAccess', 'geometry',
+        'user_code', 'sample_type', 'igsn', 'parent_igsn', 'is_private', 'publish_date',
+        'latitude', 'longitude', 'latitude_end', 'longitude_end', 'end_latitude',
+        'end_longitude', 'max_latitude', 'max_longitude', 'coordinate_system',
+        'elevation', 'elevation_end', 'elevation_unit', 'elevation_end_unit',
+        'sampling_date', 'primary_location_type', 'primary_location_name',
+        'location_type', 'location_description', 'locality', 'locality_description',
+        'country', 'province', 'county', 'city', 'classification',
+        'classification_comment', 'field_name', 'depth_min', 'depth_max', 'depth_scale',
+        'size', 'size_unit', 'age_min', 'age_max', 'age_unit', 'geological_age',
+        'geological_unit', 'method', 'collection_method', 'collection_method_descr',
+        'collection_method_description', 'length', 'length_unit', 'sample_comment',
+        'comment', 'cruise_field_prgrm', 'cruise_field_program', 'platform_type',
+        'platform_name', 'platform_descr', 'platform_description', 'operator',
+        'funding_agency', 'collector', 'collector_detail', 'collection_start_date',
+        'collection_end_date', 'collection_date_precision', 'current_archive',
+        'current_archive_contact', 'original_archive', 'original_archive_contact',
+        'sample_other_name', 'sample_other_names', 'sample_purpose', 'sample_request',
+        'sampled_by', 'navigation_type', 'launch_platform_name', 'launch_type_name',
+        'sample_image', 'sample_image_path', 'external_url',
+        '@type', '@publishdate', '@xsi:schemaLocation', '@schemaLocation',
+    ];
+
     public function __construct(
         private readonly IgsnVocabularyNormalizerService $vocabularyNormalizer = new IgsnVocabularyNormalizerService,
         private readonly IgsnDescriptionNormalizerService $descriptionNormalizer = new IgsnDescriptionNormalizerService,
+        private readonly IgsnLegacyDifSerializerService $legacySerializer = new IgsnLegacyDifSerializerService,
     ) {}
 
     /**
@@ -94,7 +122,8 @@ class IgsnDifMetadataExtractor
     public function extract(string $difXml): ?array
     {
         $root = @simplexml_load_string($difXml, \SimpleXMLElement::class, LIBXML_NONET);
-        if ($root === false) {
+        $legacy = $this->legacySerializer->serialize($difXml);
+        if ($root === false || $legacy === null) {
             return null;
         }
 
@@ -103,89 +132,178 @@ class IgsnDifMetadataExtractor
             return null;
         }
 
-        $sample = $samples[0];
-        $latitudeValues = $this->splitValues($this->directRawValues($sample, 'latitude'), false);
-        $longitudeValues = $this->splitValues($this->directRawValues($sample, 'longitude'), false);
-        $pairs = $this->coordinatePairs($latitudeValues, $longitudeValues);
+        $conflicts = [];
+        $pairs = [];
+        foreach ($samples as $sample) {
+            $latitudeValues = $this->splitValues($this->directRawValues($sample, 'latitude'), false);
+            $longitudeValues = $this->splitValues($this->directRawValues($sample, 'longitude'), false);
+            $pairs = array_merge($pairs, $this->coordinatePairs($latitudeValues, $longitudeValues));
 
-        $endLatitude = $this->first($sample, ['latitude_end', 'end_latitude', 'max_latitude']);
-        $endLongitude = $this->first($sample, ['longitude_end', 'end_longitude', 'max_longitude']);
-        if ($endLatitude !== null && $endLongitude !== null) {
-            $pairs[] = ['latitude' => $endLatitude, 'longitude' => $endLongitude];
+            $endLatitude = $this->first($sample, ['latitude_end', 'end_latitude', 'max_latitude']);
+            $endLongitude = $this->first($sample, ['longitude_end', 'end_longitude', 'max_longitude']);
+            if ($endLatitude !== null && $endLongitude !== null) {
+                $pairs[] = ['latitude' => $endLatitude, 'longitude' => $endLongitude];
+            }
         }
+        $pairs = $this->uniqueCoordinatePairs($pairs);
 
-        $descriptionGroups = $this->descriptionGroups($root, $sample);
+        $descriptionGroups = $this->descriptionGroupsForSamples($root, $samples);
         $comments = array_merge(
             $this->directValues($root, 'sample_comment'),
             $this->directValues($root, 'comment'),
-            $this->directValues($sample, 'sample_comment'),
-            $this->directValues($sample, 'comment'),
-            $this->descendantValues($sample, 'comments', 'comment'),
+            $this->valuesAcrossSamples($samples, ['sample_comment', 'comment']),
+            $this->descendantValuesAcrossSamples($samples, 'comments', 'comment'),
         );
-        $material = $this->vocabularyNormalizer->normalizeMaterial($this->first($sample, ['material']));
+        $materialValues = [];
+        foreach ($this->valuesAcrossSamples($samples, ['material']) as $rawMaterial) {
+            $normalized = $this->vocabularyNormalizer->normalizeMaterial($rawMaterial);
+            if ($normalized !== null) {
+                $materialValues[] = $normalized;
+            }
+        }
+        $material = $this->resolveScalarValues('material', $materialValues, $conflicts);
         $classifications = $this->classificationFields($samples);
+        $rootRelatedIdentifiers = $this->rootRelatedIdentifiers($root);
+        $rootContributors = $this->rootContributors($root);
+        $rootFunders = array_values(array_map(
+            static fn (array $contributor): string => $contributor['name'],
+            array_filter(
+                $rootContributors,
+                static fn (array $contributor): bool => strcasecmp($contributor['type'] ?? '', 'Funder') === 0,
+            ),
+        ));
+        $rootOperators = array_values(array_map(
+            static fn (array $contributor): string => $contributor['name'],
+            array_filter(
+                $rootContributors,
+                static fn (array $contributor): bool => strcasecmp($contributor['type'] ?? '', 'Other') === 0,
+            ),
+        ));
+
+        $fundingAgencies = $this->uniqueValues([
+            ...$this->valuesAcrossSamples($samples, ['funding_agency']),
+            ...$rootFunders,
+        ]);
+        $operators = $this->uniqueValues([
+            ...$this->descendantValuesAcrossSamples($samples, 'operators', 'operator'),
+            ...$this->valuesAcrossSamples($samples, ['operator']),
+            ...$rootOperators,
+        ]);
+        $publishDates = $this->publishDates($samples);
+        $samplingDates = $this->valuesAcrossSamples($samples, ['sampling_date']);
+        if ($samplingDates === []) {
+            $samplingDates = $this->directValues($root, 'collectionTime');
+        }
+        $publishDatesForProjection = $publishDates;
+        if (count($publishDates) > 1) {
+            $conflicts[] = [
+                'field' => 'publish_date',
+                'values' => array_map(
+                    static fn (string $value): array => ['value' => $value, 'sample_indexes' => []],
+                    $publishDates,
+                ),
+            ];
+            $publishDatesForProjection = [];
+        }
+        $totalLengths = $this->numberUnitPairsAcrossSamples($samples, 'length', 'length_unit');
+        $methods = $this->methodsAcrossSamples($samples);
+        $isPrivate = $this->booleanAcrossSamples($samples, 'is_private', $conflicts);
+        $name = $this->scalarAcrossSamples($samples, ['name'], 'name', $conflicts)
+            ?? $this->first($root, ['name']);
+        $parentIgsn = $this->scalarAcrossSamples($samples, ['parent_igsn'], 'parent_igsn', $conflicts)
+            ?? $this->first($root, ['parentIdentifier']);
+
+        $legacy['aggregates'] = [
+            'field_names' => $this->valuesAcrossSamples($samples, ['field_name']),
+            'classification_comments' => $this->valuesAcrossSamples($samples, ['classification_comment']),
+            'methods' => $methods,
+            'operators' => $operators,
+            'funding_agencies' => $fundingAgencies,
+            'sample_requests' => $this->valuesAcrossSamples($samples, ['sample_request']),
+            'sampled_by' => $this->valuesAcrossSamples($samples, ['sampled_by']),
+            'publish_dates' => $publishDates,
+            'sampling_dates' => $samplingDates,
+            'total_lengths' => $totalLengths,
+            'launch_platform_names' => $this->valuesAcrossSamples($samples, ['launch_platform_name']),
+            'launch_type_names' => $this->valuesAcrossSamples($samples, ['launch_type_name']),
+            'navigation_types' => $this->valuesAcrossSamples($samples, ['navigation_type']),
+            'age_ranges' => $this->rangesAcrossSamples($samples, 'age_min', 'age_max', 'age_unit'),
+            'elevation_ranges' => $this->rangesAcrossSamples($samples, 'elevation', 'elevation_end', 'elevation_unit', 'elevation_end_unit'),
+            'is_private_values' => $this->valuesAcrossSamples($samples, ['is_private']),
+        ];
+        $legacy['root_related_identifiers'] = $rootRelatedIdentifiers;
+        $legacy['root_contributors'] = $rootContributors;
+        $legacy['conflicts'] = &$conflicts;
+        $legacy['unknown_paths'] = $this->unknownPaths($legacy['fields']);
 
         return [
             'scalars' => [
-                'sample_type' => $this->first($sample, ['sample_type']),
+                'sample_type' => $this->scalarAcrossSamples($samples, ['sample_type'], 'sample_type', $conflicts),
                 'material' => $material,
-                'user_code' => $this->first($sample, ['user_code']),
-                'cruise_field_program' => $this->first($sample, ['cruise_field_prgrm', 'cruise_field_program']),
-                'depth_min' => $this->first($sample, ['depth_min']),
-                'depth_max' => $this->first($sample, ['depth_max']),
-                'depth_scale' => $this->first($sample, ['depth_scale']),
-                'sample_purpose' => $this->first($sample, ['sample_purpose']),
-                'collection_method' => $this->first($sample, ['collection_method']),
-                'collection_method_description' => $this->first($sample, ['collection_method_descr', 'collection_method_description']),
-                'collection_date_precision' => $this->first($sample, ['collection_date_precision']),
-                'platform_type' => $this->first($sample, ['platform_type']),
-                'platform_name' => $this->first($sample, ['platform_name']),
-                'platform_description' => $this->first($sample, ['platform_descr', 'platform_description']),
-                'current_archive' => $this->first($sample, ['current_archive']),
-                'current_archive_contact' => $this->first($sample, ['current_archive_contact']),
-                'original_archive' => $this->first($sample, ['original_archive']),
-                'original_archive_contact' => $this->first($sample, ['original_archive_contact']),
-                'operator' => $this->first($sample, ['operator']),
-                'coordinate_system' => $this->first($sample, ['coordinate_system']),
+                'is_private' => $isPrivate,
+                'user_code' => $this->scalarAcrossSamples($samples, ['user_code'], 'user_code', $conflicts),
+                'cruise_field_program' => $this->scalarAcrossSamples($samples, ['cruise_field_prgrm', 'cruise_field_program'], 'cruise_field_program', $conflicts),
+                'depth_min' => $this->scalarAcrossSamples($samples, ['depth_min'], 'depth_min', $conflicts),
+                'depth_max' => $this->scalarAcrossSamples($samples, ['depth_max'], 'depth_max', $conflicts),
+                'depth_scale' => $this->scalarAcrossSamples($samples, ['depth_scale'], 'depth_scale', $conflicts),
+                'sample_purpose' => $this->scalarAcrossSamples($samples, ['sample_purpose'], 'sample_purpose', $conflicts),
+                'collection_method' => $this->scalarAcrossSamples($samples, ['collection_method'], 'collection_method', $conflicts),
+                'collection_method_description' => $this->scalarAcrossSamples($samples, ['collection_method_descr', 'collection_method_description'], 'collection_method_description', $conflicts),
+                'collection_date_precision' => $this->scalarAcrossSamples($samples, ['collection_date_precision'], 'collection_date_precision', $conflicts),
+                'platform_type' => $this->scalarAcrossSamples($samples, ['platform_type'], 'platform_type', $conflicts),
+                'platform_name' => $this->scalarAcrossSamples($samples, ['platform_name'], 'platform_name', $conflicts),
+                'platform_description' => $this->scalarAcrossSamples($samples, ['platform_descr', 'platform_description'], 'platform_description', $conflicts),
+                'current_archive' => $this->scalarAcrossSamples($samples, ['current_archive'], 'current_archive', $conflicts),
+                'current_archive_contact' => $this->scalarAcrossSamples($samples, ['current_archive_contact'], 'current_archive_contact', $conflicts),
+                'original_archive' => $this->scalarAcrossSamples($samples, ['original_archive'], 'original_archive', $conflicts),
+                'original_archive_contact' => $this->scalarAcrossSamples($samples, ['original_archive_contact'], 'original_archive_contact', $conflicts),
+                'operator' => count($operators) === 1 ? $operators[0] : null,
+                'coordinate_system' => $this->scalarAcrossSamples($samples, ['coordinate_system'], 'coordinate_system', $conflicts),
             ],
-            'name' => $this->first($sample, ['name']) ?? $this->first($root, ['name']),
+            'name' => $name,
             'other_names' => $this->splitValues(array_merge(
-                $this->directValues($sample, 'sample_other_name'),
-                $this->directValues($sample, 'sample_other_names'),
+                $this->valuesAcrossSamples($samples, ['sample_other_name']),
+                $this->valuesAcrossSamples($samples, ['sample_other_names']),
+                $this->descendantValuesAcrossSamples($samples, 'sample_other_names', 'sample_other_name'),
             )),
-            'parent_igsn' => $this->first($sample, ['parent_igsn']),
-            'sample_access' => $this->first($root, ['sampleAccess']) ?? $this->first($sample, ['sample_access']),
-            'sample_image' => $this->imageFields($sample),
+            'parent_igsn' => $parentIgsn,
+            'sample_access' => $this->first($root, ['sampleAccess'])
+                ?? $this->scalarAcrossSamples($samples, ['sample_access'], 'sample_access', $conflicts),
+            'sample_image' => $this->imageFieldsAcrossSamples($samples, $conflicts),
             'description_groups' => $descriptionGroups,
             'material_descriptions' => $this->descriptionNormalizer->legacyValues($descriptionGroups),
             'comments' => $this->uniqueValues($comments),
             'location' => [
                 'pairs' => $pairs,
-                'place' => $this->first($sample, ['primary_location_name', 'locality']),
-                'location_type' => $this->first($sample, ['primary_location_type', 'location_type']),
-                'location_description' => $this->first($sample, ['location_description']),
-                'locality_description' => $this->first($sample, ['locality_description']),
-                'country' => $this->first($sample, ['country']),
-                'province' => $this->first($sample, ['province']),
-                'county' => $this->first($sample, ['county']),
-                'city' => $this->first($sample, ['city']),
-                'elevation' => $this->first($sample, ['elevation']),
-                'elevation_unit' => $this->first($sample, ['elevation_unit', 'elevationUnit']),
+                'place' => $this->scalarAcrossSamples($samples, ['primary_location_name', 'locality'], 'place', $conflicts),
+                'location_type' => $this->scalarAcrossSamples($samples, ['primary_location_type', 'location_type'], 'location_type', $conflicts),
+                'location_description' => $this->scalarAcrossSamples($samples, ['location_description'], 'location_description', $conflicts),
+                'locality_description' => $this->scalarAcrossSamples($samples, ['locality_description'], 'locality_description', $conflicts),
+                'country' => $this->scalarAcrossSamples($samples, ['country'], 'country', $conflicts),
+                'province' => $this->scalarAcrossSamples($samples, ['province'], 'province', $conflicts),
+                'county' => $this->scalarAcrossSamples($samples, ['county'], 'county', $conflicts),
+                'city' => $this->scalarAcrossSamples($samples, ['city'], 'city', $conflicts),
+                'elevation' => $this->scalarAcrossSamples($samples, ['elevation'], 'elevation', $conflicts),
+                'elevation_unit' => $this->scalarAcrossSamples($samples, ['elevation_unit', 'elevationUnit'], 'elevation_unit', $conflicts),
             ],
             'collection' => [
-                'start' => $this->first($sample, ['collection_start_date']),
-                'end' => $this->first($sample, ['collection_end_date']),
-                'collector' => $this->first($sample, ['collector']) ?? $this->nestedName($root, 'collector'),
-                'collector_detail' => $this->first($sample, ['collector_detail']) ?? $this->nestedName($root, 'collector', 'affiliation'),
+                'start' => $this->scalarAcrossSamples($samples, ['collection_start_date'], 'collection_start_date', $conflicts),
+                'end' => $this->scalarAcrossSamples($samples, ['collection_end_date'], 'collection_end_date', $conflicts),
+                'collector' => $this->scalarAcrossSamples($samples, ['collector'], 'collector', $conflicts) ?? $this->nestedName($root, 'collector'),
+                'collector_detail' => $this->scalarAcrossSamples($samples, ['collector_detail'], 'collector_detail', $conflicts) ?? $this->nestedName($root, 'collector', 'affiliation'),
             ],
             'classifications' => $classifications['items'],
             'rejected_classifications' => $classifications['rejected'],
-            'geological_ages' => $this->splitValues($this->directValues($sample, 'geological_age')),
-            'geological_units' => $this->splitValues($this->directValues($sample, 'geological_unit')),
-            'sizes' => $this->sizes(
-                $this->splitValues($this->directRawValues($sample, 'size'), false),
-                $this->splitValues($this->directRawValues($sample, 'size_unit'), false),
-            ),
+            'geological_ages' => $this->splitValues($this->valuesAcrossSamples($samples, ['geological_age'])),
+            'geological_units' => $this->splitValues($this->valuesAcrossSamples($samples, ['geological_unit'])),
+            'sizes' => $this->sizesAcrossSamples($samples),
+            'root_related_identifiers' => $rootRelatedIdentifiers,
+            'root_contributors' => $rootContributors,
+            'funding_agencies' => $fundingAgencies,
+            'publish_dates' => $publishDatesForProjection,
+            'sampling_dates' => $samplingDates,
+            'conflicts' => $conflicts,
+            'legacy_dif' => $legacy,
         ];
     }
 
@@ -295,6 +413,432 @@ class IgsnDifMetadataExtractor
             'file_name' => $this->first($sample, ['sample_image']),
             'base_url' => $this->first($sample, ['sample_image_path']),
         ];
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $samples
+     * @param  list<array<string, mixed>>  $conflicts
+     * @return array{file_name: string|null, base_url: string|null}
+     */
+    private function imageFieldsAcrossSamples(array $samples, array &$conflicts): array
+    {
+        return [
+            'file_name' => $this->scalarAcrossSamples($samples, ['sample_image'], 'sample_image', $conflicts),
+            'base_url' => $this->scalarAcrossSamples($samples, ['sample_image_path'], 'sample_image_path', $conflicts),
+        ];
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $samples
+     * @param  list<string>  $names
+     * @return list<string>
+     */
+    private function valuesAcrossSamples(array $samples, array $names): array
+    {
+        $values = [];
+        foreach ($samples as $sample) {
+            foreach ($names as $name) {
+                $values = array_merge($values, $this->directValues($sample, $name));
+            }
+        }
+
+        return $this->uniqueValues($values);
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $samples
+     * @return list<string>
+     */
+    private function descendantValuesAcrossSamples(array $samples, string $container, string $name): array
+    {
+        $values = [];
+        foreach ($samples as $sample) {
+            $values = array_merge($values, $this->descendantValues($sample, $container, $name));
+        }
+
+        return $this->uniqueValues($values);
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $samples
+     * @param  list<string>  $names
+     * @param  list<array<string, mixed>>  $conflicts
+     */
+    private function scalarAcrossSamples(
+        array $samples,
+        array $names,
+        string $field,
+        array &$conflicts,
+    ): ?string {
+        $values = [];
+        foreach ($samples as $sampleIndex => $sample) {
+            foreach ($names as $name) {
+                $directValues = $this->directValues($sample, $name);
+                foreach ($directValues as $value) {
+                    $key = $this->normalizedValueKey($value);
+                    $values[$key] ??= ['value' => $value, 'sample_indexes' => []];
+                    $values[$key]['sample_indexes'][] = $sampleIndex;
+                }
+                if ($directValues !== []) {
+                    break;
+                }
+            }
+        }
+
+        if ($values === []) {
+            return null;
+        }
+        if (count($values) === 1) {
+            return (string) reset($values)['value'];
+        }
+
+        $conflicts[] = [
+            'field' => $field,
+            'values' => array_values($values),
+        ];
+
+        return null;
+    }
+
+    /**
+     * @param  list<string>  $values
+     * @param  list<array<string, mixed>>  $conflicts
+     */
+    private function resolveScalarValues(string $field, array $values, array &$conflicts): ?string
+    {
+        $values = $this->uniqueValues($values);
+        if ($values === []) {
+            return null;
+        }
+        if (count($values) === 1) {
+            return $values[0];
+        }
+
+        $conflicts[] = [
+            'field' => $field,
+            'values' => array_map(
+                static fn (string $value): array => ['value' => $value, 'sample_indexes' => []],
+                $values,
+            ),
+        ];
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $samples
+     * @param  list<array<string, mixed>>  $conflicts
+     */
+    private function booleanAcrossSamples(array $samples, string $name, array &$conflicts): ?bool
+    {
+        $raw = $this->scalarAcrossSamples($samples, [$name], $name, $conflicts);
+        if ($raw === null) {
+            return null;
+        }
+
+        return match (mb_strtolower(trim($raw))) {
+            '1', 'true', 'yes', 'y' => true,
+            '0', 'false', 'no', 'n' => false,
+            default => null,
+        };
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $samples
+     * @return list<array{scheme: string|null, value: string}>
+     */
+    private function methodsAcrossSamples(array $samples): array
+    {
+        $methods = [];
+        $seen = [];
+        foreach ($samples as $sample) {
+            $nodes = $sample->xpath('./*[local-name()="methods"]/*[local-name()="method"]');
+            if (! is_array($nodes)) {
+                continue;
+            }
+
+            foreach ($nodes as $node) {
+                $value = trim((string) $node);
+                if ($value === '' || strcasecmp($value, 'N/A') === 0) {
+                    continue;
+                }
+                $scheme = $this->attribute($node, ['methodScheme']);
+                $key = $this->normalizedValueKey((string) $scheme).'|'.$this->normalizedValueKey($value);
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $methods[] = ['scheme' => $scheme, 'value' => $value];
+            }
+        }
+
+        return $methods;
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $samples
+     * @return list<array{numeric_value: string, unit: string|null}>
+     */
+    private function numberUnitPairsAcrossSamples(array $samples, string $valueName, string $unitName): array
+    {
+        $pairs = [];
+        $seen = [];
+        foreach ($samples as $sample) {
+            $values = $this->splitValues($this->directRawValues($sample, $valueName), false);
+            $units = $this->splitValues($this->directRawValues($sample, $unitName), false);
+            foreach ($values as $index => $value) {
+                if (! is_numeric($value)) {
+                    continue;
+                }
+                $unit = $units[$index] ?? ($units[0] ?? null);
+                $key = $this->normalizedValueKey($value).'|'.$this->normalizedValueKey((string) $unit);
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $pairs[] = ['numeric_value' => $value, 'unit' => $unit];
+            }
+        }
+
+        return $pairs;
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $samples
+     * @return list<array{start: string|null, end: string|null, unit: string|null, end_unit: string|null}>
+     */
+    private function rangesAcrossSamples(
+        array $samples,
+        string $startName,
+        string $endName,
+        string $unitName,
+        ?string $endUnitName = null,
+    ): array {
+        $ranges = [];
+        $seen = [];
+        foreach ($samples as $sample) {
+            $start = $this->first($sample, [$startName]);
+            $end = $this->first($sample, [$endName]);
+            $unit = $this->first($sample, [$unitName]);
+            $endUnit = $endUnitName !== null ? $this->first($sample, [$endUnitName]) : null;
+            if ($start === null && $end === null) {
+                continue;
+            }
+            $range = ['start' => $start, 'end' => $end, 'unit' => $unit, 'end_unit' => $endUnit];
+            $key = $this->normalizedValueKey(json_encode($range, JSON_THROW_ON_ERROR));
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $ranges[] = $range;
+            }
+        }
+
+        return $ranges;
+    }
+
+    /** @param array<int, \SimpleXMLElement> $samples
+     * @return list<string>
+     */
+    private function publishDates(array $samples): array
+    {
+        $values = [];
+        foreach ($samples as $sample) {
+            $elementValues = $this->directValues($sample, 'publish_date');
+            if ($elementValues !== []) {
+                $values = array_merge($values, $elementValues);
+
+                continue;
+            }
+            $attribute = $this->attribute($sample, ['publishdate']);
+            if ($attribute !== null) {
+                $values[] = $attribute;
+            }
+        }
+
+        return $this->uniqueValues($values);
+    }
+
+    /**
+     * @return list<array{identifier: string, identifier_type: string, relation_type: string}>
+     */
+    private function rootRelatedIdentifiers(\SimpleXMLElement $root): array
+    {
+        $nodes = $root->xpath('./*[local-name()="relatedIdentifiers"]/*[local-name()="relatedIdentifier"]');
+        if (! is_array($nodes)) {
+            return [];
+        }
+
+        $identifiers = [];
+        $seen = [];
+        foreach ($nodes as $node) {
+            $identifier = trim((string) $node);
+            $type = $this->attribute($node, ['type', 'relatedIdentifierType']) ?? 'DOI';
+            $relationType = $this->attribute($node, ['relationType']) ?? '';
+            if ($identifier === '' || strcasecmp($relationType, 'hasDocument') !== 0) {
+                continue;
+            }
+            $key = $this->normalizedValueKey($type).'|'.$this->normalizedValueKey($relationType).'|'.$this->normalizedValueKey($identifier);
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $identifiers[] = [
+                    'identifier' => $identifier,
+                    'identifier_type' => $type,
+                    'relation_type' => $relationType,
+                ];
+            }
+        }
+
+        return $identifiers;
+    }
+
+    /**
+     * @return list<array{type: string|null, name: string, affiliations: list<string>, identifiers: list<string>}>
+     */
+    private function rootContributors(\SimpleXMLElement $root): array
+    {
+        $nodes = $root->xpath('./*[local-name()="contributors"]/*[local-name()="contributor"]');
+        if (! is_array($nodes)) {
+            return [];
+        }
+
+        $contributors = [];
+        foreach ($nodes as $node) {
+            $name = $this->first($node, ['name']);
+            if ($name === null) {
+                continue;
+            }
+            $contributors[] = [
+                'type' => $this->attribute($node, ['type']),
+                'name' => $name,
+                'affiliations' => $this->descendantValues($node, 'affiliation', 'name'),
+                'identifiers' => $this->directValues($node, 'identifier'),
+            ];
+        }
+
+        return $contributors;
+    }
+
+    /** @param list<string> $names */
+    private function attribute(\SimpleXMLElement $element, array $names): ?string
+    {
+        foreach ($names as $name) {
+            $nodes = $element->xpath('./@*[local-name()="'.$name.'"]');
+            if (is_array($nodes) && isset($nodes[0])) {
+                $value = trim((string) $nodes[0]);
+                if ($value !== '') {
+                    return $value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<array{path: string, value: string, attributes: array<string, string>, namespace: string|null, sample_index: int|null}>  $fields
+     * @return list<string>
+     */
+    private function unknownPaths(array $fields): array
+    {
+        $known = array_fill_keys(self::KNOWN_LEAF_NAMES, true);
+        $unknown = [];
+        foreach ($fields as $field) {
+            $parts = explode('/', $field['path']);
+            $leaf = end($parts);
+            if (! isset($known[$leaf])) {
+                $unknown[] = $field['path'];
+            }
+        }
+
+        return $this->uniqueValues($unknown);
+    }
+
+    /**
+     * @param  list<array{latitude: string, longitude: string}>  $pairs
+     * @return list<array{latitude: string, longitude: string}>
+     */
+    private function uniqueCoordinatePairs(array $pairs): array
+    {
+        $unique = [];
+        foreach ($pairs as $pair) {
+            $key = $this->normalizedValueKey($pair['latitude']).'|'.$this->normalizedValueKey($pair['longitude']);
+            $unique[$key] ??= $pair;
+        }
+
+        return array_values($unique);
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $samples
+     * @return list<array{numeric_value: string, unit: string|null, type: string|null}>
+     */
+    private function sizesAcrossSamples(array $samples): array
+    {
+        $sizes = [];
+        $seen = [];
+        foreach ($samples as $sample) {
+            foreach ($this->sizes(
+                $this->splitValues($this->directRawValues($sample, 'size'), false),
+                $this->splitValues($this->directRawValues($sample, 'size_unit'), false),
+            ) as $size) {
+                $key = $this->normalizedValueKey(json_encode($size, JSON_THROW_ON_ERROR));
+                if (! isset($seen[$key])) {
+                    $seen[$key] = true;
+                    $sizes[] = $size;
+                }
+            }
+        }
+
+        return $sizes;
+    }
+
+    /**
+     * @param  array<int, \SimpleXMLElement>  $samples
+     * @return list<array{entries: list<array{value: string, scheme: string|null}>}>
+     */
+    private function descriptionGroupsForSamples(\SimpleXMLElement $root, array $samples): array
+    {
+        $groups = [];
+        foreach ($samples as $sample) {
+            $containers = $sample->xpath('./*[local-name()="descriptions"]');
+            if (is_array($containers)) {
+                foreach ($containers as $container) {
+                    $nodes = $container->xpath('./*[local-name()="description"]');
+                    if (is_array($nodes)) {
+                        $groups[] = ['entries' => $this->descriptionEntries($nodes)];
+                    }
+                }
+            }
+        }
+
+        $groups = $this->descriptionNormalizer->normalizeGroups($groups);
+        if ($groups !== []) {
+            return $groups;
+        }
+
+        $entries = [];
+        foreach ($samples as $sample) {
+            $nodes = $sample->xpath('./*[local-name()="description"]');
+            $entries = array_merge($entries, $this->descriptionEntries(is_array($nodes) ? $nodes : []));
+        }
+        $seen = [];
+        foreach ($entries as $entry) {
+            $seen[$this->descriptionValueKey($entry['value'])] = true;
+        }
+        $rootNodes = $root->xpath('./*[local-name()="description"]');
+        foreach ($this->descriptionEntries(is_array($rootNodes) ? $rootNodes : []) as $entry) {
+            $key = $this->descriptionValueKey($entry['value']);
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $entries[] = $entry;
+            }
+        }
+
+        return $this->descriptionNormalizer->normalizeGroups([['entries' => $entries]]);
+    }
+
+    private function normalizedValueKey(string $value): string
+    {
+        return mb_strtolower(trim(preg_replace('/\s+/u', ' ', $value) ?? $value));
     }
 
     /** @return list<string> */

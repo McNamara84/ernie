@@ -11,6 +11,7 @@ use App\Models\DescriptionType;
 use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
+use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\Person;
@@ -1309,6 +1310,18 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
             'original_archive' => 'Legacy Core Archive',
             'original_archive_contact' => 'archive@example.org',
         ],
+        'legacy_dif_json' => [
+            'version' => 1,
+            'aggregates' => [
+                'field_names' => ['Torlesse Greywacke'],
+                'classification_comments' => ['Reviewed'],
+                'operators' => ['GNS'],
+                'sample_requests' => ['DFDP9999 A'],
+                'sampled_by' => ['Virginia Toy'],
+                'methods' => [['scheme' => 'MSCL', 'value' => 'no']],
+                'total_lengths' => [['numeric_value' => '2400.1', 'unit' => 'm']],
+            ],
+        ],
     ]);
     $igsn->setRelation('parentResource', $parent);
 
@@ -1326,6 +1339,8 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
         'classification_type' => IgsnClassificationType::ROCK,
         'position' => 2,
     ]);
+    $geologicalAge = new IgsnGeologicalAge;
+    $geologicalAge->forceFill(['id' => 1, 'value' => 'Quaternary', 'position' => 0]);
 
     $resource->setRelation('titles', new EloquentCollection);
     $resource->setRelation('creators', new EloquentCollection);
@@ -1339,6 +1354,7 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
     $resource->setRelation('dates', new EloquentCollection([$date]));
     $resource->setRelation('igsnMetadata', $igsn);
     $resource->setRelation('igsnClassifications', new EloquentCollection([$classificationB, $classificationA]));
+    $resource->setRelation('igsnGeologicalAges', new EloquentCollection([$geologicalAge]));
 
     $data = $transformer->transform($resource);
 
@@ -1356,6 +1372,8 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
             'material' => 'Granite',
             'cruise_field_program' => 'Alpine 2023',
             'sample_purpose' => 'Tectonic study',
+            'sample_requests' => ['DFDP9999 A'],
+            'sampled_by' => ['Virginia Toy'],
             'collection_method' => 'Drilling',
             'description_groups' => [['entries' => [
                 ['value' => 'Fine-grained basalt', 'scheme' => 'Rock Type'],
@@ -1365,6 +1383,12 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
             'platform_type' => 'Drill Rig',
             'platform_name' => 'MSR Punto',
             'platform_description' => 'UDR',
+            'field_names' => ['Torlesse Greywacke'],
+            'classification_comments' => ['Reviewed'],
+            'operators' => ['GNS'],
+            'methods' => [['scheme' => 'MSCL', 'value' => 'no']],
+            'total_lengths' => [['numeric_value' => '2400.1', 'unit' => 'm']],
+            'geological_ages' => [['id' => 1, 'value' => 'Quaternary']],
             'current_archive_contact' => 'Tina Kollaske',
             'original_archive_contact' => 'Legacy Core Archive contact',
             'repository_contacts' => [
