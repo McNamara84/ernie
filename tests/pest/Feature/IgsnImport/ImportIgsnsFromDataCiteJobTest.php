@@ -107,9 +107,50 @@ describe('ImportIgsnsFromDataCiteJob', function () {
             'images_processed' => 1,
             'images_stored' => 1,
             'images_external' => 0,
+            'images_unavailable' => 0,
             'images_failed' => 0,
             'image_warnings' => [],
         ])->and(Resource::where('doi', '10.60510/gfso273n39')->firstOrFail()->igsnMetadata->sample_image_storage_path)->not->toBeNull();
+    });
+
+    it('reports an unavailable external image without failing the IGSN import', function (): void {
+        $this->importService->shouldReceive('getTotalIgsnCount')->once()->andReturn(1);
+        $this->importService->shouldReceive('fetchAllIgsns')->once()->andReturn((function () {
+            yield ['id' => '10.60510/SSDPRR02EST3601', 'attributes' => ['doi' => '10.60510/SSDPRR02EST3601']];
+        })());
+        $this->transformer->shouldReceive('transform')->once()->andReturnUsing(function (): Resource {
+            $resource = createMockResourceWithIgsn('10.60510/ssdprr02est3601');
+            $resource->igsnMetadata->update([
+                'sample_image_source_url' => 'http://www-icdp.icdp-online.org/sites/lusklint/news/cores/CPH_RR02_1_A_20_4.F17946.jpg',
+            ]);
+
+            return $resource;
+        });
+        $this->enrichmentService->shouldReceive('enrich')->once()->andReturn(true);
+        Http::fake(['data.icdp-online.org/*' => Http::response('', 404)]);
+
+        $importId = Str::uuid()->toString();
+        (new ImportIgsnsFromDataCiteJob($this->user->id, $importId))->handle(
+            $this->importService,
+            $this->transformer,
+            $this->enrichmentService,
+        );
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status)->toMatchArray([
+            'status' => 'completed',
+            'images_total' => 1,
+            'images_processed' => 1,
+            'images_external' => 0,
+            'images_unavailable' => 1,
+            'images_failed' => 0,
+            'image_warnings' => [[
+                'doi' => '10.60510/ssdprr02est3601',
+                'error' => 'http_404',
+            ]],
+        ]);
+
+        expect(Resource::where('doi', '10.60510/ssdprr02est3601')->firstOrFail()->igsnMetadata->sampleImageUrl())->toBeNull();
     });
 
     it('uses the dedicated imports queue', function (): void {

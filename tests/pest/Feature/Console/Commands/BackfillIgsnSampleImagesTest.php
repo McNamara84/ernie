@@ -62,6 +62,7 @@ function issue1168FakePortal(array $documents, bool $includeImage = true): void
     ];
     if ($includeImage) {
         $fakes['dataservices.gfz-potsdam.de/*'] = Http::response(issue1168BackfillJpeg(), 200, ['Content-Type' => 'image/jpeg']);
+        $fakes['data.icdp-online.org/*'] = Http::response(issue1168BackfillJpeg(), 206, ['Content-Type' => 'image/jpeg']);
     }
     Http::fake($fakes);
 }

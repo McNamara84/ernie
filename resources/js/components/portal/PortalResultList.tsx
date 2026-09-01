@@ -32,7 +32,7 @@ export function PortalResultList({
 }: PortalResultListProps) {
     const { current_page, last_page, from, to, total, has_more, count_status } = pagination;
     const resultsHeader = (
-        <div className="flex min-h-12 items-center justify-between gap-3 border-b px-4 py-2">
+        <div className="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b px-4 py-2">
             <p className="text-sm text-muted-foreground" aria-live="polite">
                 {total === 0
                     ? '0 results'
@@ -102,11 +102,11 @@ export function PortalResultList({
     const showPagination = current_page > 1 || has_more || (last_page !== null && last_page > 1);
 
     return (
-        <div className="flex flex-1 flex-col" data-testid="portal-results-list" aria-busy={isLoading}>
+        <div className="flex min-h-0 flex-1 flex-col" data-testid="portal-results-list" aria-busy={isLoading}>
             {resultsHeader}
 
             {/* Results List */}
-            <ScrollArea className="flex-1">
+            <ScrollArea className="min-h-0 flex-1">
                 <div className={`flex flex-col gap-2 p-4 transition-opacity ${isLoading ? 'opacity-70' : 'opacity-100'}`}>
                     {resources.map((resource) => (
                         <PortalResultCard key={resource.id} resource={resource} />
@@ -116,7 +116,7 @@ export function PortalResultList({
 
             {/* Pagination */}
             {showPagination && (
-                <div className="flex items-center justify-center gap-2 border-t px-4 py-3">
+                <div className="flex shrink-0 items-center justify-center gap-2 border-t px-4 py-3">
                     <Button variant="outline" size="sm" onClick={() => onPageChange(current_page - 1)} disabled={current_page === 1 || isLoading}>
                         <ChevronLeft className="mr-1 h-4 w-4" />
                         Previous

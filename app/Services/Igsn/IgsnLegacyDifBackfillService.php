@@ -30,8 +30,10 @@ final class IgsnLegacyDifBackfillService
         private readonly IgsnDifMetadataExtractor $extractor,
         private readonly IgsnDifXmlParser $parser,
         private readonly LandingPageRenderDataCacheService $landingPageCache,
-        private readonly IgsnSampleImageUrlService $sampleImageUrlService = new IgsnSampleImageUrlService,
-        private readonly IgsnGeometryNormalizer $geometryNormalizer = new IgsnGeometryNormalizer,
+        private readonly IgsnSampleImageUrlService $sampleImageUrlService,
+        private readonly IgsnExternalSampleImageProbeService $externalImageProbe,
+        private readonly IgsnSampleImageStorageService $sampleImageStorageService,
+        private readonly IgsnGeometryNormalizer $geometryNormalizer,
     ) {}
 
     /**
@@ -48,6 +50,8 @@ final class IgsnLegacyDifBackfillService
      *     unknown_paths: int,
      *     portal_errors: int,
      *     database_errors: int,
+     *     image_unavailable: int,
+     *     image_probe_errors: int,
      *     errors: int,
      *     cache_invalidation_failures: int,
      *     last_scanned_resource_id: int|null,
@@ -70,7 +74,8 @@ final class IgsnLegacyDifBackfillService
         $datacenterNames = $this->normalizeDatacenterFilter($datacenters);
         /** @var array{
          *     scanned: int, changed: int, unchanged: int, manual_review: int, privacy_conflict: int,
-         *     missing_dif: int, invalid_dif: int, unknown_paths: int, portal_errors: int, database_errors: int, errors: int,
+         *     missing_dif: int, invalid_dif: int, unknown_paths: int, portal_errors: int, database_errors: int,
+         *     image_unavailable: int, image_probe_errors: int, errors: int,
          *     cache_invalidation_failures: int, last_scanned_resource_id: int|null,
          *     sync_resource_ids: list<int>, records: list<array<string, int|string|null>>
          * } $stats
@@ -86,6 +91,8 @@ final class IgsnLegacyDifBackfillService
             'unknown_paths' => 0,
             'portal_errors' => 0,
             'database_errors' => 0,
+            'image_unavailable' => 0,
+            'image_probe_errors' => 0,
             'errors' => 0,
             'cache_invalidation_failures' => 0,
             'last_scanned_resource_id' => null,
@@ -196,12 +203,17 @@ final class IgsnLegacyDifBackfillService
                     }
 
                     $diff = $this->diff($resource, $metadata);
+                    if ($diff['sample_image']['status'] === IgsnExternalSampleImageProbeService::STATUS_UNAVAILABLE) {
+                        $stats['image_unavailable']++;
+                    } elseif ($diff['sample_image']['status'] === IgsnExternalSampleImageProbeService::STATUS_FAILED) {
+                        $stats['image_probe_errors']++;
+                    }
                     $syncEligible = $this->isDataCiteSyncEligible($resource);
                     $applyStarted = false;
                     $cacheInvalidationFailed = false;
                     if ($apply && $diff['changed']) {
                         $applyStarted = true;
-                        $this->apply((int) $resource->id, $difXml);
+                        $this->apply((int) $resource->id, $difXml, $diff['sample_image']);
                         if ($syncEligible) {
                             $stats['sync_resource_ids'][] = (int) $resource->id;
                         }
@@ -239,6 +251,9 @@ final class IgsnLegacyDifBackfillService
                         'conflicts' => implode(' | ', $diff['conflicts']),
                         'unknown_paths' => implode(' | ', $metadata['legacy_dif']['unknown_paths']),
                         'missing_dif' => 0,
+                        'sample_image_status' => $diff['sample_image']['status'],
+                        'sample_image_url' => $diff['sample_image']['url'],
+                        'sample_image_message' => $diff['sample_image']['message'],
                         'datacite_sync_status' => $apply && $diff['changed'] && $syncEligible ? 'pending' : 'not_queued',
                         'sync_run_id' => null,
                         'message' => $cacheInvalidationFailed ? 'Landing-page cache invalidation failed; the database update remains applied.' : '',
@@ -273,6 +288,8 @@ final class IgsnLegacyDifBackfillService
             'unknown_paths' => $stats['unknown_paths'],
             'portal_errors' => $stats['portal_errors'],
             'database_errors' => $stats['database_errors'],
+            'image_unavailable' => $stats['image_unavailable'],
+            'image_probe_errors' => $stats['image_probe_errors'],
             'errors' => $stats['errors'],
             'cache_invalidation_failures' => $stats['cache_invalidation_failures'],
             'last_scanned_resource_id' => $stats['last_scanned_resource_id'],
@@ -283,7 +300,18 @@ final class IgsnLegacyDifBackfillService
 
     /**
      * @param  array<string, mixed>  $metadata
-     * @return array{changed: bool, changed_fields: list<string>, conflicts: list<string>}
+     * @return array{
+     *     changed: bool,
+     *     changed_fields: list<string>,
+     *     conflicts: list<string>,
+     *     sample_image: array{
+     *         status: string,
+     *         url: string|null,
+     *         message: string,
+     *         source_url: string|null,
+     *         probe: array{status: string, url: string|null, message: string}|null
+     *     }
+     * }
      */
     private function diff(Resource $resource, array $metadata): array
     {
@@ -317,7 +345,7 @@ final class IgsnLegacyDifBackfillService
         }
 
         $this->diffLegacySpecificValues($resource, $metadata, $changedFields);
-        $this->diffExistingImportTargets($resource, $metadata, $changedFields);
+        $sampleImage = $this->diffExistingImportTargets($resource, $metadata, $changedFields);
 
         foreach ($metadata['root_related_identifiers'] as $identifier) {
             if (strcasecmp($identifier['identifier_type'], 'DOI') !== 0
@@ -376,16 +404,35 @@ final class IgsnLegacyDifBackfillService
             'changed' => $changedFields !== [],
             'changed_fields' => $changedFields,
             'conflicts' => $conflicts,
+            'sample_image' => $sampleImage,
         ];
     }
 
-    private function apply(int $resourceId, string $difXml): void
+    /**
+     * @param  array{
+     *     status: string,
+     *     url: string|null,
+     *     message: string,
+     *     source_url: string|null,
+     *     probe: array{status: string, url: string|null, message: string}|null
+     * }  $sampleImage
+     */
+    private function apply(int $resourceId, string $difXml, array $sampleImage): void
     {
-        DB::transaction(function () use ($resourceId, $difXml): void {
+        DB::transaction(function () use ($resourceId, $difXml, $sampleImage): void {
             $resource = Resource::query()->whereKey($resourceId)->lockForUpdate()->firstOrFail();
             $igsn = $resource->igsnMetadata()->lockForUpdate()->first();
             if ($igsn === null || ! $this->parser->enrichFromDifXml($difXml, $resource, $igsn, additive: true)) {
                 throw new RuntimeException('Unable to apply the legacy DIF metadata.');
+            }
+
+            if (is_string($sampleImage['source_url']) && $sampleImage['source_url'] !== '') {
+                if ($igsn->sample_image_source_url === null) {
+                    $igsn->forceFill(['sample_image_source_url' => $sampleImage['source_url']])->save();
+                }
+                if (is_array($sampleImage['probe'])) {
+                    $this->sampleImageStorageService->sync($igsn, externalProbeResult: $sampleImage['probe']);
+                }
             }
         });
     }
@@ -484,12 +531,26 @@ final class IgsnLegacyDifBackfillService
     /**
      * @param  array<string, mixed>  $metadata
      * @param  list<string>  $changedFields
+     * @return array{
+     *     status: string,
+     *     url: string|null,
+     *     message: string,
+     *     source_url: string|null,
+     *     probe: array{status: string, url: string|null, message: string}|null
+     * }
      */
-    private function diffExistingImportTargets(Resource $resource, array $metadata, array &$changedFields): void
+    private function diffExistingImportTargets(Resource $resource, array $metadata, array &$changedFields): array
     {
+        $sampleImage = [
+            'status' => 'not_applicable',
+            'url' => null,
+            'message' => '',
+            'source_url' => null,
+            'probe' => null,
+        ];
         $igsn = $resource->igsnMetadata;
         if ($igsn === null) {
-            return;
+            return $sampleImage;
         }
 
         if ($metadata['sample_access'] !== null
@@ -521,13 +582,43 @@ final class IgsnLegacyDifBackfillService
             $metadata['sample_image']['base_url'],
             $metadata['sample_image']['file_name'],
         );
-        if (in_array($resolvedImage['status'], [
-            IgsnSampleImageUrlService::STATUS_MANAGED,
-            IgsnSampleImageUrlService::STATUS_EXTERNAL,
-        ], true)
+        if ($resolvedImage['status'] === IgsnSampleImageUrlService::STATUS_MANAGED
             && $igsn->sample_image_source_url === null
             && $igsn->sample_image_external_url === null) {
             $changedFields[] = 'igsn_metadata.sample_image';
+        }
+
+        $externalImage = $resolvedImage;
+        if ($externalImage['status'] !== IgsnSampleImageUrlService::STATUS_EXTERNAL) {
+            $storedImage = $this->sampleImageUrlService->classifySourceUrl($igsn->sample_image_source_url);
+            if ($storedImage['status'] === IgsnSampleImageUrlService::STATUS_EXTERNAL) {
+                $externalImage = $storedImage;
+            }
+        }
+
+        if ($externalImage['status'] === IgsnSampleImageUrlService::STATUS_EXTERNAL
+            && is_string($externalImage['external_url'])
+            && is_string($externalImage['source_url'])) {
+            $probe = $this->externalImageProbe->probe($externalImage['external_url']);
+            $sampleImage = [
+                'status' => $probe['status'],
+                'url' => $probe['url'],
+                'message' => $probe['message'],
+                'source_url' => $externalImage['source_url'],
+                'probe' => $probe,
+            ];
+
+            if ($igsn->sample_image_source_url === null) {
+                $changedFields[] = 'igsn_metadata.sample_image_source_url';
+            }
+            if ($probe['status'] === IgsnExternalSampleImageProbeService::STATUS_AVAILABLE
+                && $igsn->sample_image_external_url !== $probe['url']) {
+                $changedFields[] = 'igsn_metadata.sample_image_external_url';
+            }
+            if ($probe['status'] === IgsnExternalSampleImageProbeService::STATUS_UNAVAILABLE
+                && $igsn->sample_image_external_url !== null) {
+                $changedFields[] = 'igsn_metadata.sample_image_external_url';
+            }
         }
 
         if ($metadata['name'] !== null
@@ -581,6 +672,8 @@ final class IgsnLegacyDifBackfillService
                 break;
             }
         }
+
+        return $sampleImage;
     }
 
     /** @param array<string, mixed> $location
@@ -857,6 +950,11 @@ final class IgsnLegacyDifBackfillService
                 'identifier_type' => $identifier->identifierType->slug,
                 'relation_type' => $identifier->relationType->slug,
             ])->values()->all(),
+            'sample_image' => [
+                'source_url' => $igsn?->sample_image_source_url,
+                'external_url' => $igsn?->sample_image_external_url,
+                'storage_path' => $igsn?->sample_image_storage_path,
+            ],
         ];
     }
 
@@ -988,6 +1086,9 @@ final class IgsnLegacyDifBackfillService
             'conflicts' => '',
             'unknown_paths' => '',
             'missing_dif' => $status === 'missing_dif' ? 1 : 0,
+            'sample_image_status' => '',
+            'sample_image_url' => null,
+            'sample_image_message' => '',
             'datacite_sync_status' => 'not_queued',
             'sync_run_id' => null,
             'message' => $message,

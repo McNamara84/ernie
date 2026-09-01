@@ -451,6 +451,13 @@ describe('ImportIgsnsModal', () => {
                 enriched: 80,
                 skipped_dois: ['10.60510/SKIP1'],
                 failed_dois: [{ doi: '10.60510/FAIL1', error: 'Test error' }],
+                images_total: 2,
+                images_processed: 2,
+                images_stored: 1,
+                images_external: 0,
+                images_unavailable: 1,
+                images_failed: 0,
+                image_warnings: [{ doi: '10.60510/ssdprr02est3601', error: 'http_404' }],
                 started_at: now,
                 completed_at: now,
             },
@@ -468,6 +475,8 @@ describe('ImportIgsnsModal', () => {
         // Verify statistics are shown
         expect(screen.getByText('90')).toBeInTheDocument();
         expect(screen.getByText('80')).toBeInTheDocument();
+        expect(screen.getByText(/1 unavailable, 0 failed/i)).toBeInTheDocument();
+        expect(screen.getByText(/10.60510\/ssdprr02est3601: http_404/i)).toBeInTheDocument();
     });
 
     it('shows failed state with error message', async () => {

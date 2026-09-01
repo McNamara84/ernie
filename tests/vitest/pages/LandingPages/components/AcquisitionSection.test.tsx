@@ -550,5 +550,14 @@ describe('AcquisitionSection', () => {
         expect(screen.getByText('Platform Type').nextElementSibling).toHaveTextContent('Drill Rig');
         expect(screen.getByText('Platform Name').nextElementSibling).toHaveTextContent('MSR Punto');
         expect(screen.getByText('Platform Description').nextElementSibling).toHaveTextContent('UDR');
+
+        const sharedGrid = container.querySelector('[data-slot="acquisition-metadata-grid"]');
+        const metadataLists = container.querySelectorAll('[data-slot="metadata-list"]');
+        expect(sharedGrid).toHaveClass('grid', 'grid-cols-[fit-content(12rem)_minmax(0,1fr)]');
+        expect(metadataLists.length).toBeGreaterThan(2);
+        metadataLists.forEach((list) => {
+            expect(list).toHaveAttribute('data-layout', 'subgrid');
+            expect(list).toHaveClass('grid-cols-subgrid');
+        });
     });
 });

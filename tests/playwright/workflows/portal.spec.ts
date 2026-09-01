@@ -251,6 +251,34 @@ test.describe('Portal Page', () => {
                 }
             }
         });
+
+        test('keeps pagination visible while the result cards scroll inside the workspace', async ({ page }) => {
+            await page.setViewportSize({ width: 1280, height: 500 });
+            await openPortal(page);
+
+            const workspace = page.getByTestId('portal-workspace');
+            const results = page.getByTestId('portal-results-list').first();
+            const resultsViewport = results.locator('[data-slot="scroll-area-viewport"]');
+            const nextButton = results.getByRole('button', { name: 'Next', exact: true });
+
+            await expect(results).toBeVisible();
+            await expect(nextButton).toBeVisible();
+            expect(await resultsViewport.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+
+            await resultsViewport.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+            await expect.poll(() => resultsViewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+            expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+            const workspaceBox = await workspace.boundingBox();
+            const nextBox = await nextButton.boundingBox();
+            expect(workspaceBox).not.toBeNull();
+            expect(nextBox).not.toBeNull();
+            expect(nextBox!.y).toBeGreaterThanOrEqual(workspaceBox!.y);
+            expect(nextBox!.y + nextBox!.height).toBeLessThanOrEqual(workspaceBox!.y + workspaceBox!.height);
+
+            await nextButton.click();
+            await expect(page).toHaveURL(/[?&]page=2(?:&|$)/);
+        });
     });
 
     test.describe('Accessibility', () => {

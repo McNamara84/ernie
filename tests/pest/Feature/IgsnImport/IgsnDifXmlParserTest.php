@@ -44,7 +44,7 @@ beforeEach(function () {
 });
 
 describe('IgsnDifXmlParser', function () {
-    it('persists safe managed and external sample image descriptors without downloading', function () {
+    it('persists safe image source descriptors without publishing unvalidated external URLs', function () {
         $managed = <<<'XML'
         <resource><sample>
           <sample_image>SO273-31D-18_wet.jpg</sample_image>
@@ -67,8 +67,9 @@ describe('IgsnDifXmlParser', function () {
         XML;
         expect($this->parser->enrichFromDifXml($external, $this->resource, $this->igsnMetadata))->toBeTrue();
         $this->igsnMetadata->refresh();
-        expect($this->igsnMetadata->sample_image_external_url)
-            ->toBe('https://data.icdp-online.org/sites/cosc/news/cores/CS_5054.jpg');
+        expect($this->igsnMetadata->sample_image_source_url)
+            ->toBe('http://www-icdp.icdp-online.org/sites/cosc/news/cores/CS_5054.jpg')
+            ->and($this->igsnMetadata->sample_image_external_url)->toBeNull();
     });
 
     it('keeps a matching managed image and clears it when the managed source changes', function () {

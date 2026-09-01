@@ -349,12 +349,23 @@ describe('PortalResultList', () => {
     });
 
     describe('List Layout', () => {
-        it('renders cards in a flex column container', () => {
-            render(<PortalResultList {...defaultProps} />);
+        it('allows the populated flex result viewport to shrink and keeps pagination outside it', () => {
+            render(
+                <PortalResultList
+                    {...defaultProps}
+                    pagination={createMockPagination({ current_page: 1, last_page: 2, total: 40, has_more: true })}
+                />,
+            );
 
-            // Check that there is a flex container
-            const container = document.querySelector('.flex-col');
-            expect(container).toBeInTheDocument();
+            const resultList = screen.getByTestId('portal-results-list');
+            const scrollArea = resultList.querySelector('[data-slot="scroll-area"]');
+            const resultsHeader = screen.getByText(/^Showing /).parentElement;
+            const pagination = screen.getByRole('button', { name: /next/i }).parentElement;
+
+            expect(resultList).toHaveClass('min-h-0');
+            expect(resultsHeader).toHaveClass('shrink-0');
+            expect(scrollArea).toHaveClass('min-h-0', 'flex-1');
+            expect(pagination).toHaveClass('shrink-0');
         });
     });
 });

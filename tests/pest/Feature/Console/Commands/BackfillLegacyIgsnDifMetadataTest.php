@@ -59,8 +59,13 @@ function legacyDifBackfillResource(string $handle, string $datacenter = 'ICDP'):
     return $resource;
 }
 
+function legacyDifBackfillJpeg(): string
+{
+    return (string) base64_decode('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9oADAMBAAIAAwAAABAf/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPxB//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPxB//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxB//9k=', true);
+}
+
 /** @param array<string, string|null> $documents */
-function fakeLegacyDifDocuments(array $documents): void
+function fakeLegacyDifDocuments(array $documents, int $externalImageStatus = 206, ?string $externalImageBody = null): void
 {
     Http::fake([
         'igsn-portal.example.test/*' => Http::response([
@@ -73,6 +78,11 @@ function fakeLegacyDifDocuments(array $documents): void
                 )->values()->all(),
             ],
         ]),
+        'data.icdp-online.org/*' => Http::response(
+            $externalImageBody ?? ($externalImageStatus < 400 ? legacyDifBackfillJpeg() : ''),
+            $externalImageStatus,
+            $externalImageStatus < 400 ? ['Content-Type' => 'image/jpeg'] : [],
+        ),
     ]);
 }
 
@@ -229,6 +239,74 @@ it('keeps applied metadata and reports a false cache invalidation result', funct
         ->and($resource->igsnMetadataValues()->sole()->value)->toBe('Cached rock');
 });
 
+it('reports and removes a definitively unavailable external image through the existing DIF backfill', function (): void {
+    $resource = legacyDifBackfillResource('SSDPRR02EST3601');
+    $sourceUrl = 'http://www-icdp.icdp-online.org/sites/lusklint/news/cores/CPH_RR02_1_A_20_4.F17946.jpg';
+    $externalUrl = 'https://data.icdp-online.org/sites/lusklint/news/cores/CPH_RR02_1_A_20_4.F17946.jpg';
+    $resource->igsnMetadata->update([
+        'sample_image_source_url' => $sourceUrl,
+        'sample_image_external_url' => $externalUrl,
+    ]);
+    fakeLegacyDifDocuments([
+        'SSDPRR02EST3601' => '<resource><sample><sample_image>CPH_RR02_1_A_20_4.F17946.jpg</sample_image><sample_image_path>http://www-icdp.icdp-online.org/sites/lusklint/news/cores/</sample_image_path></sample></resource>',
+    ], externalImageStatus: 404);
+
+    $dryRun = app(IgsnLegacyDifBackfillService::class)->run();
+    expect($dryRun)->toMatchArray([
+        'changed' => 1,
+        'image_unavailable' => 1,
+        'image_probe_errors' => 0,
+        'errors' => 0,
+    ])->and($dryRun['records'][0])->toMatchArray([
+        'status' => 'would_update',
+        'changed_fields' => 'igsn_metadata.sample_image_external_url',
+        'sample_image_status' => 'unavailable',
+        'sample_image_url' => $externalUrl,
+        'sample_image_message' => 'http_404',
+    ])->and($resource->igsnMetadata->fresh()->sample_image_external_url)->toBe($externalUrl);
+
+    $applied = app(IgsnLegacyDifBackfillService::class)->run(apply: true);
+    $appliedMetadata = $resource->igsnMetadata()->firstOrFail();
+    expect($applied)->toMatchArray(['changed' => 1, 'image_unavailable' => 1, 'errors' => 0])
+        ->and($appliedMetadata->sample_image_source_url)->toBe($sourceUrl)
+        ->and($appliedMetadata->sample_image_external_url)->toBeNull()
+        ->and($appliedMetadata->sampleImageUrl())->toBeNull();
+
+    $secondDryRun = app(IgsnLegacyDifBackfillService::class)->run();
+    expect($secondDryRun)->toMatchArray([
+        'changed' => 0,
+        'unchanged' => 1,
+        'image_unavailable' => 1,
+        'errors' => 0,
+    ]);
+});
+
+it('reports transient image probe failures without removing a published URL', function (): void {
+    $resource = legacyDifBackfillResource('ICDPIMAGEPROBE01');
+    $sourceUrl = 'http://www-icdp.icdp-online.org/sites/cosc/news/cores/temporary.jpg';
+    $externalUrl = 'https://data.icdp-online.org/sites/cosc/news/cores/temporary.jpg';
+    $resource->igsnMetadata->update([
+        'sample_image_source_url' => $sourceUrl,
+        'sample_image_external_url' => $externalUrl,
+    ]);
+    fakeLegacyDifDocuments([
+        'ICDPIMAGEPROBE01' => '<resource><sample><sample_image>temporary.jpg</sample_image><sample_image_path>http://www-icdp.icdp-online.org/sites/cosc/news/cores/</sample_image_path></sample></resource>',
+    ], externalImageStatus: 503);
+
+    $result = app(IgsnLegacyDifBackfillService::class)->run(apply: true);
+
+    expect($result)->toMatchArray([
+        'changed' => 0,
+        'unchanged' => 1,
+        'image_unavailable' => 0,
+        'image_probe_errors' => 1,
+        'errors' => 0,
+    ])->and($result['records'][0])->toMatchArray([
+        'sample_image_status' => 'failed',
+        'sample_image_message' => 'http_503',
+    ])->and($resource->igsnMetadata->fresh()->sample_image_external_url)->toBe($externalUrl);
+});
+
 it('writes a complete CSV audit and marks test mode synchronization as skipped', function (): void {
     legacyDifBackfillResource('ICDPREPORT001');
     fakeLegacyDifDocuments([
@@ -246,6 +324,7 @@ it('writes a complete CSV audit and marks test mode synchronization as skipped',
         $csv = file_get_contents($reportPath);
         expect($csv)->not->toBeFalse()
             ->and((string) $csv)->toContain('existing_values,source_values,inserted_values')
+            ->and((string) $csv)->toContain('sample_image_status,sample_image_url,sample_image_message')
             ->and((string) $csv)->toContain('skipped_test_mode')
             ->and((string) $csv)->toContain('Reported rock');
     } finally {

@@ -6,6 +6,7 @@ import { MetadataList, type MetadataRow } from './MetadataList';
 
 interface IgsnDescriptionGroupsProps {
     groups: LandingPageIgsnDescriptionGroup[];
+    subgrid?: boolean;
 }
 
 const readableScheme = (scheme: string): string =>
@@ -28,7 +29,7 @@ export const igsnDescriptionLabel = (scheme: string | null): string => {
     return /description$/i.test(readable) ? readable : `${readable} Description`;
 };
 
-export function IgsnDescriptionGroups({ groups }: IgsnDescriptionGroupsProps): ReactNode {
+export function IgsnDescriptionGroups({ groups, subgrid = false }: IgsnDescriptionGroupsProps): ReactNode {
     const visibleGroups = groups
         .map((group) => ({ entries: group.entries.filter((entry) => entry.value.trim() !== '') }))
         .filter((group) => group.entries.length > 0);
@@ -38,7 +39,7 @@ export function IgsnDescriptionGroups({ groups }: IgsnDescriptionGroupsProps): R
     }
 
     return (
-        <div data-slot="igsn-description-groups" className="space-y-3">
+        <div data-slot="igsn-description-groups" className={subgrid ? 'col-span-2 grid grid-cols-subgrid gap-y-3' : 'space-y-3'}>
             {visibleGroups.map((group, groupIndex) => {
                 const rows: MetadataRow[] = group.entries.map((entry, entryIndex) => ({
                     key: `description-${groupIndex}-${entryIndex}`,
@@ -50,9 +51,11 @@ export function IgsnDescriptionGroups({ groups }: IgsnDescriptionGroupsProps): R
                     <div
                         key={`description-group-${groupIndex}`}
                         data-slot="igsn-description-group"
-                        className={groupIndex > 0 ? 'border-t border-gray-200 pt-3 dark:border-gray-700' : undefined}
+                        className={`${subgrid ? 'col-span-2 grid grid-cols-subgrid' : ''} ${
+                            groupIndex > 0 ? 'border-t border-gray-200 pt-3 dark:border-gray-700' : ''
+                        }`.trim()}
                     >
-                        <MetadataList rows={rows} />
+                        <MetadataList rows={rows} subgrid={subgrid} />
                     </div>
                 );
             })}
