@@ -1756,7 +1756,7 @@
                 }
             }
         },
-        "/search/free-keyword-suggestions": {
+        "/{portal}-search/free-keyword-suggestions": {
             "get": {
                 "tags": ["Portal"],
                 "summary": "Suggest free keywords for the public portal search",
@@ -1764,6 +1764,13 @@
                 "operationId": "getPortalFreeKeywordSuggestions",
                 "security": [],
                 "parameters": [
+                    {
+                        "name": "portal",
+                        "in": "path",
+                        "required": true,
+                        "description": "Fixed discovery portal scope.",
+                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                    },
                     {
                         "name": "q",
                         "in": "query",
@@ -1825,7 +1832,7 @@
                 }
             }
         },
-        "/search/count": {
+        "/{portal}-search/count": {
             "get": {
                 "tags": ["Portal"],
                 "summary": "Count records matching the public portal filters",
@@ -1833,6 +1840,13 @@
                 "operationId": "getPortalCount",
                 "security": [],
                 "parameters": [
+                    {
+                        "name": "portal",
+                        "in": "path",
+                        "required": true,
+                        "description": "Fixed discovery portal scope. `doi` excludes physical samples; `igsn` returns only physical samples.",
+                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                    },
                     {
                         "name": "q",
                         "in": "query",
@@ -1844,14 +1858,14 @@
                         "name": "type",
                         "in": "query",
                         "required": false,
-                        "description": "Legacy resource-type shortcut. `doi` excludes physical objects; `igsn` selects physical objects.",
+                        "description": "Legacy resource-type shortcut. The fixed portal scope remains authoritative, and the IGSN portal ignores resource-type filters.",
                         "schema": { "type": "string", "enum": ["doi", "igsn"] }
                     },
                     {
                         "name": "type[]",
                         "in": "query",
                         "required": false,
-                        "description": "Selected resource-type slugs.",
+                        "description": "Selected resource-type slugs for the DOI portal. The IGSN portal ignores this parameter.",
                         "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
                         "style": "form",
                         "explode": true
@@ -1984,7 +1998,7 @@
                 }
             }
         },
-        "/search/map": {
+        "/{portal}-search/map": {
             "get": {
                 "tags": ["Portal"],
                 "summary": "Load clustered records for the public portal map",
@@ -1992,6 +2006,13 @@
                 "operationId": "getPortalMap",
                 "security": [],
                 "parameters": [
+                    {
+                        "name": "portal",
+                        "in": "path",
+                        "required": true,
+                        "description": "Fixed discovery portal scope. `doi` excludes physical samples; `igsn` returns only physical samples.",
+                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                    },
                     {
                         "name": "viewport[north]",
                         "in": "query",
@@ -2059,14 +2080,14 @@
                         "name": "type",
                         "in": "query",
                         "required": false,
-                        "description": "Legacy resource-type shortcut. `doi` excludes physical objects; `igsn` selects physical objects.",
+                        "description": "Legacy resource-type shortcut. The fixed portal scope remains authoritative, and the IGSN portal ignores resource-type filters.",
                         "schema": { "type": "string", "enum": ["doi", "igsn"] }
                     },
                     {
                         "name": "type[]",
                         "in": "query",
                         "required": false,
-                        "description": "Selected resource-type slugs.",
+                        "description": "Selected resource-type slugs for the DOI portal. The IGSN portal ignores this parameter.",
                         "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
                         "style": "form",
                         "explode": true

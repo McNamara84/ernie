@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CacheKey;
+use App\Enums\PortalScope;
 use App\Models\Datacenter;
 use App\Models\DateType;
 use App\Models\Description;
@@ -24,14 +25,13 @@ use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Service for searching and filtering resources in the public portal.
  *
  * Provides full-text search, type filtering, and pagination for the
- * publicly accessible portal page at /search.
+ * publicly accessible DOI and IGSN portal pages.
  */
 class PortalSearchService
 {
@@ -49,9 +49,9 @@ class PortalSearchService
     /**
      * Map legacy type filter values to resource type slugs.
      *
-     * Before the multi-select update, the portal used 'doi' and 'igsn'
-     * as type values.  We keep supporting these for backward-compatible
-     * URLs and bookmarks.
+     * Before the portals were split, the shared portal used 'doi' and 'igsn'
+     * as type values. Direct service callers retain this compatibility; the
+     * public routes now enforce their scope independently.
      *
      * 'doi'  → DB fallback for direct callers.  The primary path in
      *          PortalController derives visible slugs from cached facets
@@ -78,6 +78,7 @@ class PortalSearchService
      * Search resources with optional filters.
      *
      * @param  array{
+     *     portal_scope?: string|null,
      *     query?: string|null,
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
@@ -147,6 +148,7 @@ class PortalSearchService
      * Build the base query with filters applied.
      *
      * @param  array{
+     *     portal_scope?: string|null,
      *     query?: string|null,
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
@@ -196,6 +198,7 @@ class PortalSearchService
      * models or carrying list-only relations into the map request.
      *
      * @param  array{
+     *     portal_scope?: string|null,
      *     query?: string|null,
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
@@ -214,6 +217,11 @@ class PortalSearchService
             ->whereHas('landingPage', function (Builder $q): void {
                 $q->where('is_published', true);
             });
+
+        $scope = isset($filters['portal_scope'])
+            ? PortalScope::tryFrom($filters['portal_scope'])
+            : null;
+        $this->applyPortalScope($query, $scope);
 
         // Apply type filter
         $type = $filters['type'] ?? null;
@@ -248,7 +256,7 @@ class PortalSearchService
         $this->applyFreeKeywordFilter($query, $filters['free_keywords'] ?? null);
 
         // Apply thesaurus keyword filter
-        $this->applyThesaurusKeywordFilter($query, $filters['thesaurus_keywords'] ?? null);
+        $this->applyThesaurusKeywordFilter($query, $filters['thesaurus_keywords'] ?? null, $scope);
 
         // Apply datacenter filter
         $this->applyDatacenterFilter($query, $filters['datacenter'] ?? null);
@@ -262,6 +270,26 @@ class PortalSearchService
         }
 
         return $query;
+    }
+
+    /**
+     * Apply the non-user-overridable resource boundary for a public portal.
+     *
+     * @param  Builder<Resource>  $query
+     */
+    private function applyPortalScope(Builder $query, ?PortalScope $scope): void
+    {
+        if ($scope === PortalScope::DOI) {
+            $query->whereDoesntHave(
+                'resourceType',
+                fn (Builder $typeQuery): Builder => $typeQuery->where('slug', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE),
+            );
+        } elseif ($scope === PortalScope::IGSN) {
+            $query->whereHas(
+                'resourceType',
+                fn (Builder $typeQuery): Builder => $typeQuery->where('slug', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE),
+            );
+        }
     }
 
     /**
@@ -323,26 +351,34 @@ class PortalSearchService
      *
      * @return array<int, array{slug: string, name: string, count: int}>
      */
-    public function getResourceTypeFacets(): array
+    public function getResourceTypeFacets(?PortalScope $scope = null): array
     {
         $cacheKey = CacheKey::PORTAL_RESOURCE_TYPE_FACETS;
 
         /** @var array<int, array{slug: string, name: string, count: int}> */
         return $this->getCacheInstance($cacheKey->tags())
-            ->remember($cacheKey->key(), $cacheKey->ttl(), function (): array {
+            ->remember($cacheKey->key($scope?->value), $cacheKey->ttl(), function () use ($scope): array {
                 $results = ResourceType::query()
                     ->select('resource_types.slug', 'resource_types.name')
                     ->selectRaw('COUNT(resources.id) as resources_count')
                     ->join('resources', 'resources.resource_type_id', '=', 'resource_types.id')
                     ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
                     ->where('landing_pages.is_published', true)
+                    ->when(
+                        $scope === PortalScope::DOI,
+                        fn (Builder $query): Builder => $query->where('resource_types.slug', '!=', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE),
+                    )
+                    ->when(
+                        $scope === PortalScope::IGSN,
+                        fn (Builder $query): Builder => $query->where('resource_types.slug', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE),
+                    )
                     ->groupBy('resource_types.id', 'resource_types.slug', 'resource_types.name')
                     ->orderByDesc('resources_count')
                     ->get();
 
                 return $results->map(fn ($row): array => [
                     'slug' => $row->slug,
-                    'name' => $row->slug === 'physical-object' ? 'IGSN Samples' : $row->name,
+                    'name' => $row->slug === PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE ? 'IGSN Samples' : $row->name,
                     'count' => (int) $row->resources_count,
                 ])->all();
             });
@@ -356,19 +392,31 @@ class PortalSearchService
      *
      * @return array<int, array{name: string, count: int}>
      */
-    public function getDatacenterFacets(): array
+    public function getDatacenterFacets(?PortalScope $scope = null): array
     {
         $cacheKey = CacheKey::PORTAL_DATACENTER_FACETS;
 
         /** @var array<int, array{name: string, count: int}> */
         return $this->getCacheInstance($cacheKey->tags())
-            ->remember($cacheKey->key(), $cacheKey->ttl(), function (): array {
+            ->remember($cacheKey->key($scope?->value), $cacheKey->ttl(), function () use ($scope): array {
                 $results = Datacenter::query()
                     ->select('datacenters.name')
                     ->selectRaw('COUNT(DISTINCT resources.id) as resources_count')
                     ->join('resources', 'resources.datacenter_id', '=', 'datacenters.id')
                     ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
+                    ->leftJoin('resource_types', 'resource_types.id', '=', 'resources.resource_type_id')
                     ->where('landing_pages.is_published', true)
+                    ->when($scope === PortalScope::DOI, function (Builder $query): void {
+                        $query->where(function (Builder $typeQuery): void {
+                            $typeQuery
+                                ->whereNull('resource_types.slug')
+                                ->orWhere('resource_types.slug', '!=', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE);
+                        });
+                    })
+                    ->when(
+                        $scope === PortalScope::IGSN,
+                        fn (Builder $query): Builder => $query->where('resource_types.slug', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE),
+                    )
                     ->groupBy('datacenters.id', 'datacenters.name')
                     ->orderByDesc('resources_count')
                     ->get();
@@ -553,7 +601,7 @@ class PortalSearchService
      * @param  Builder<Resource>  $query
      * @param  string[]|null  $selectedNodeIds
      */
-    private function applyThesaurusKeywordFilter(Builder $query, ?array $selectedNodeIds): void
+    private function applyThesaurusKeywordFilter(Builder $query, ?array $selectedNodeIds, ?PortalScope $scope = null): void
     {
         if ($selectedNodeIds === null || $selectedNodeIds === []) {
             return;
@@ -568,7 +616,7 @@ class PortalSearchService
             return;
         }
 
-        $resolvedNodes = $this->keywordService->resolveSelectedThesaurusNodes($normalizedIds);
+        $resolvedNodes = $this->keywordService->resolveSelectedThesaurusNodes($normalizedIds, $scope);
         if (count($resolvedNodes) !== count($normalizedIds)) {
             $query->whereRaw('1 = 0');
 
@@ -725,80 +773,93 @@ class PortalSearchService
      *
      * @return array<string, array{min: int, max: int}>
      */
-    public function getTemporalRange(): array
+    public function getTemporalRange(?PortalScope $scope = null): array
     {
         $cacheKey = CacheKey::PORTAL_TEMPORAL_RANGE;
 
         /** @var array<string, array{min: int, max: int}> */
-        return Cache::remember($cacheKey->key(), $cacheKey->ttl(), function (): array {
-            $slugs = ['Created', 'Collected', 'Coverage'];
+        return $this->getCacheInstance($cacheKey->tags())
+            ->remember($cacheKey->key($scope?->value), $cacheKey->ttl(), function () use ($scope): array {
+                $slugs = ['Created', 'Collected', 'Coverage'];
 
-            $activeSlugs = DateType::query()
-                ->where('is_active', true)
-                ->whereIn('slug', $slugs)
-                ->pluck('slug')
-                ->all();
+                $activeSlugs = DateType::query()
+                    ->where('is_active', true)
+                    ->whereIn('slug', $slugs)
+                    ->pluck('slug')
+                    ->all();
 
-            if ($activeSlugs === []) {
-                return [];
-            }
-
-            // Query min/max years across date_value, start_date, and end_date
-            // Only for resources with published landing pages
-            $isSqlite = DB::getDriverName() === 'sqlite';
-
-            // SQLite: MIN/MAX with multiple args act as scalar LEAST/GREATEST
-            // MySQL: requires dedicated LEAST/GREATEST functions
-            $dvYear = $this->yearExpression('dates.date_value');
-            $sdYear = $this->yearExpression('dates.start_date');
-            $edYear = $this->yearExpression('dates.end_date');
-
-            // Fallback for open-ended ranges (NULL end_date) – treat as current year
-            // so the slider range aligns with applyTemporalFilter() semantics.
-            // Only applies when start_date is set (true date range), not for single dates.
-            /** @var literal-string $currentYearFallback */
-            $currentYearFallback = (string) date('Y');
-            /** @var literal-string $openEndedMax */
-            $openEndedMax = "CASE WHEN dates.start_date IS NOT NULL AND dates.end_date IS NULL THEN {$currentYearFallback} ELSE COALESCE({$edYear}, 0) END";
-
-            if ($isSqlite) {
-                $minYearExpr = "MIN(MIN(COALESCE({$dvYear}, 9999), COALESCE({$sdYear}, 9999), COALESCE({$edYear}, 9999))) as min_year";
-                $maxYearExpr = "MAX(MAX(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), {$openEndedMax})) as max_year";
-            } else {
-                $minYearExpr = "MIN(LEAST(COALESCE({$dvYear}, 9999), COALESCE({$sdYear}, 9999), COALESCE({$edYear}, 9999))) as min_year";
-                $maxYearExpr = "MAX(GREATEST(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), {$openEndedMax})) as max_year";
-            }
-
-            $results = DB::table('dates')
-                ->join('date_types', 'dates.date_type_id', '=', 'date_types.id')
-                ->join('resources', 'dates.resource_id', '=', 'resources.id')
-                ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
-                ->where('landing_pages.is_published', true)
-                ->whereIn('date_types.slug', $activeSlugs)
-                ->select(
-                    'date_types.slug',
-                    DB::raw($minYearExpr),
-                    DB::raw($maxYearExpr),
-                )
-                ->groupBy('date_types.slug')
-                ->orderBy('date_types.slug')
-                ->get();
-
-            $ranges = [];
-            foreach ($results as $row) {
-                $minYear = (int) $row->min_year;
-                $maxYear = (int) $row->max_year;
-
-                if ($minYear > 0 && $maxYear > 0 && $minYear <= $maxYear) {
-                    $ranges[$row->slug] = [
-                        'min' => $minYear,
-                        'max' => $maxYear,
-                    ];
+                if ($activeSlugs === []) {
+                    return [];
                 }
-            }
 
-            return $ranges;
-        });
+                // Query min/max years across date_value, start_date, and end_date
+                // Only for resources with published landing pages
+                $isSqlite = DB::getDriverName() === 'sqlite';
+
+                // SQLite: MIN/MAX with multiple args act as scalar LEAST/GREATEST
+                // MySQL: requires dedicated LEAST/GREATEST functions
+                $dvYear = $this->yearExpression('dates.date_value');
+                $sdYear = $this->yearExpression('dates.start_date');
+                $edYear = $this->yearExpression('dates.end_date');
+
+                // Fallback for open-ended ranges (NULL end_date) – treat as current year
+                // so the slider range aligns with applyTemporalFilter() semantics.
+                // Only applies when start_date is set (true date range), not for single dates.
+                /** @var literal-string $currentYearFallback */
+                $currentYearFallback = (string) date('Y');
+                /** @var literal-string $openEndedMax */
+                $openEndedMax = "CASE WHEN dates.start_date IS NOT NULL AND dates.end_date IS NULL THEN {$currentYearFallback} ELSE COALESCE({$edYear}, 0) END";
+
+                if ($isSqlite) {
+                    $minYearExpr = "MIN(MIN(COALESCE({$dvYear}, 9999), COALESCE({$sdYear}, 9999), COALESCE({$edYear}, 9999))) as min_year";
+                    $maxYearExpr = "MAX(MAX(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), {$openEndedMax})) as max_year";
+                } else {
+                    $minYearExpr = "MIN(LEAST(COALESCE({$dvYear}, 9999), COALESCE({$sdYear}, 9999), COALESCE({$edYear}, 9999))) as min_year";
+                    $maxYearExpr = "MAX(GREATEST(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), {$openEndedMax})) as max_year";
+                }
+
+                $results = DB::table('dates')
+                    ->join('date_types', 'dates.date_type_id', '=', 'date_types.id')
+                    ->join('resources', 'dates.resource_id', '=', 'resources.id')
+                    ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
+                    ->leftJoin('resource_types', 'resource_types.id', '=', 'resources.resource_type_id')
+                    ->where('landing_pages.is_published', true)
+                    ->when($scope === PortalScope::DOI, function ($query): void {
+                        $query->where(function ($typeQuery): void {
+                            $typeQuery
+                                ->whereNull('resource_types.slug')
+                                ->orWhere('resource_types.slug', '!=', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE);
+                        });
+                    })
+                    ->when(
+                        $scope === PortalScope::IGSN,
+                        fn ($query) => $query->where('resource_types.slug', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE),
+                    )
+                    ->whereIn('date_types.slug', $activeSlugs)
+                    ->select(
+                        'date_types.slug',
+                        DB::raw($minYearExpr),
+                        DB::raw($maxYearExpr),
+                    )
+                    ->groupBy('date_types.slug')
+                    ->orderBy('date_types.slug')
+                    ->get();
+
+                $ranges = [];
+                foreach ($results as $row) {
+                    $minYear = (int) $row->min_year;
+                    $maxYear = (int) $row->max_year;
+
+                    if ($minYear > 0 && $maxYear > 0 && $minYear <= $maxYear) {
+                        $ranges[$row->slug] = [
+                            'min' => $minYear,
+                            'max' => $maxYear,
+                        ];
+                    }
+                }
+
+                return $ranges;
+            });
     }
 
     /**

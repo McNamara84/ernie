@@ -150,7 +150,7 @@ describe('Portal Keyword Filter', function () {
             ],
         );
 
-        $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'seis']))
+        $this->getJson(route('portal.doi.free-keyword-suggestions', ['q' => 'seis']))
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.value', 'Seismology');
@@ -165,7 +165,7 @@ describe('Portal Keyword Filter', function () {
             ],
         );
 
-        $this->get(route('portal'))
+        $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('thesaurusFacets', 1)
@@ -190,7 +190,7 @@ describe('Portal Keyword Filter', function () {
             ],
         );
 
-        $this->get(route('portal'))
+        $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->has('thesaurusFacets', 0));
     });
@@ -208,7 +208,7 @@ describe('Portal Keyword Filter', function () {
             [['value' => 'Meteorology']],
         );
 
-        $this->get(route('portal', ['keywords' => ['Seismology']]))
+        $this->get(route('portal.doi', ['keywords' => ['Seismology']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -216,7 +216,7 @@ describe('Portal Keyword Filter', function () {
                 ->where('filters.keywords', ['Seismology'])
             );
 
-        $this->getJson(route('portal.count', ['keywords' => ['Seismology']]))
+        $this->getJson(route('portal.doi.count', ['keywords' => ['Seismology']]))
             ->assertOk()
             ->assertJsonPath('total', 1)
             ->assertJsonPath('last_page', 1)
@@ -242,7 +242,7 @@ describe('Portal Keyword Filter', function () {
         );
 
         // Only the resource with BOTH keywords should match
-        $this->get(route('portal', ['keywords' => ['Seismology', 'GNSS']]))
+        $this->get(route('portal.doi', ['keywords' => ['Seismology', 'GNSS']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -264,7 +264,7 @@ describe('Portal Keyword Filter', function () {
         );
 
         // Search for "Earthquake" + filter for "Seismology": only the first should match
-        $this->get(route('portal', ['q' => 'Earthquake', 'keywords' => ['Seismology']]))
+        $this->get(route('portal.doi', ['q' => 'Earthquake', 'keywords' => ['Seismology']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -291,7 +291,7 @@ describe('Portal Keyword Filter', function () {
         );
 
         // Filter for keyword "Seismology" + type "dataset" → only dataset
-        $this->get(route('portal', ['keywords' => ['Seismology'], 'type' => 'dataset']))
+        $this->get(route('portal.doi', ['keywords' => ['Seismology'], 'type' => 'dataset']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -313,7 +313,7 @@ describe('Portal Keyword Filter', function () {
         );
 
         // No resource has BOTH keywords
-        $this->get(route('portal', ['keywords' => ['Seismology', 'GNSS']]))
+        $this->get(route('portal.doi', ['keywords' => ['Seismology', 'GNSS']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 0)
@@ -328,7 +328,7 @@ describe('Portal Keyword Filter', function () {
         );
 
         // Empty keywords array should return all results
-        $this->get(route('portal', ['keywords' => []]))
+        $this->get(route('portal.doi', ['keywords' => []]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -343,7 +343,7 @@ describe('Portal Keyword Filter', function () {
         );
 
         // Text search should also match keyword values
-        $this->get(route('portal', ['q' => 'Paleoclimate']))
+        $this->get(route('portal.doi', ['q' => 'Paleoclimate']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -363,7 +363,7 @@ describe('Portal Keyword Filter', function () {
             [['value' => 'Seismology', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-seismology']],
         );
 
-        $this->get(route('portal', ['free_keywords' => ['Seismology']]))
+        $this->get(route('portal.doi', ['free_keywords' => ['Seismology']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -385,7 +385,7 @@ describe('Portal Keyword Filter', function () {
             [['value' => 'Seismology', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-seismology']],
         );
 
-        $this->get(route('portal', ['free_keywords' => ['Seismology']]))
+        $this->get(route('portal.doi', ['free_keywords' => ['Seismology']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -404,7 +404,7 @@ describe('Portal Keyword Filter', function () {
             ],
         );
 
-        $this->get(route('portal', [
+        $this->get(route('portal.doi', [
             'keywords' => [' Legacy Keyword ', 'Legacy Keyword'],
             'free_keywords' => ['  Seismology  ', 'Seismology', ''],
             'thesaurus_keywords' => [' science-earth ', 'science-earth', ''],
@@ -432,7 +432,7 @@ describe('Portal Keyword Filter', function () {
             [['value' => 'GNSS']],
         );
 
-        $this->get(route('portal', ['thesaurus_keywords' => ['science-earth']]))
+        $this->get(route('portal.doi', ['thesaurus_keywords' => ['science-earth']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -448,7 +448,7 @@ describe('Portal Keyword Filter', function () {
             [['value' => 'GNSS', 'subject_scheme' => 'NASA/GCMD Earth Science Keywords', 'value_uri' => 'science-gnss']],
         );
 
-        $this->get(route('portal', ['thesaurus_keywords' => ['science-earth']]))
+        $this->get(route('portal.doi', ['thesaurus_keywords' => ['science-earth']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -472,7 +472,7 @@ describe('Portal Keyword Filter', function () {
             [['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss']],
         );
 
-        $this->get(route('portal', ['thesaurus_keywords' => ['science-earth', 'platforms-root']]))
+        $this->get(route('portal.doi', ['thesaurus_keywords' => ['science-earth', 'platforms-root']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -487,7 +487,7 @@ describe('Portal Keyword Filter', function () {
             [['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss']],
         );
 
-        $this->get(route('portal', ['thesaurus_keywords' => ['missing-node']]))
+        $this->get(route('portal.doi', ['thesaurus_keywords' => ['missing-node']]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 0)
@@ -516,7 +516,7 @@ describe('Portal Keyword Suggestions', function () {
             'value' => 'DraftKeyword',
         ]);
 
-        $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'Keyword']))
+        $this->getJson(route('portal.doi.free-keyword-suggestions', ['q' => 'Keyword']))
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.value', 'PublishedKeyword');
@@ -529,7 +529,7 @@ describe('Portal Keyword Suggestions', function () {
             [['value' => 'ImportedFreeKeyword', 'subject_scheme' => '']],
         );
 
-        $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'Imported']))
+        $this->getJson(route('portal.doi.free-keyword-suggestions', ['q' => 'Imported']))
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.value', 'ImportedFreeKeyword');
@@ -549,7 +549,7 @@ describe('Portal Keyword Suggestions', function () {
             [['value' => 'Seismology']],
         );
 
-        $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'seis']))
+        $this->getJson(route('portal.doi.free-keyword-suggestions', ['q' => 'seis']))
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.value', 'Seismology')
@@ -567,7 +567,7 @@ describe('Portal Keyword Suggestions', function () {
             ],
         );
 
-        $this->getJson(route('portal.free-keyword-suggestions', ['q' => 'Keyword']))
+        $this->getJson(route('portal.doi.free-keyword-suggestions', ['q' => 'Keyword']))
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.value', 'FreeKeyword')

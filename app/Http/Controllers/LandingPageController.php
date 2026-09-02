@@ -960,8 +960,8 @@ class LandingPageController extends Controller
      */
     private function invalidatePortalFacets(): void
     {
-        foreach ([CacheKey::PORTAL_DATACENTER_FACETS, CacheKey::PORTAL_RESOURCE_TYPE_FACETS] as $cacheKey) {
-            $cacheKey->forget();
+        foreach ([CacheKey::PORTAL_DATACENTER_FACETS, CacheKey::PORTAL_RESOURCE_TYPE_FACETS, CacheKey::PORTAL_TEMPORAL_RANGE] as $cacheKey) {
+            $cacheKey->forgetPortalVariants();
         }
     }
 }

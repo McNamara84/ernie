@@ -111,7 +111,7 @@ it('routes only the exact root and confirmed whole legacy path segments away fro
             ->and(preg_match('~'.$legacyPattern.'~', "/{$segment}/example"))->toBe(1);
     }
 
-    foreach (['/search', '/search/map', '/login', '/igsns', '/igsns-map', '/thesauri', '/images/gfz-logo_en.svg', '/10.5880/example/slug'] as $erniePath) {
+    foreach (['/search', '/search/map', '/doi-search', '/doi-search/map', '/igsn-search', '/igsn-search/map', '/login', '/igsns', '/igsns-map', '/thesauri', '/images/gfz-logo_en.svg', '/10.5880/example/slug'] as $erniePath) {
         expect(preg_match('~'.$legacyPattern.'~', $erniePath))->toBe(0);
     }
 
@@ -131,7 +131,7 @@ it('routes only the exact root and confirmed whole legacy path segments away fro
         ->toBe('https://dataservices.gfz-potsdam.de/');
 });
 
-it('maps former ERNIE portal bookmarks to search before applying the canonical redirect', function (): void {
+it('maps former ERNIE portal bookmarks to the DOI portal before applying the canonical redirect', function (): void {
     $compose = productionDomainCompose();
     $labels = productionTraefikLabels($compose['services']['webserver']['labels'] ?? []);
 
@@ -140,7 +140,7 @@ it('maps former ERNIE portal bookmarks to search before applying the canonical r
         ->and($labels['traefik.http.routers.ernie-old-portal-router.priority'] ?? null)
         ->toBe('300')
         ->and($labels['traefik.http.middlewares.ernie-old-portal-redirect.redirectregex.replacement'] ?? null)
-        ->toBe('https://dataservices.gfz.de/search$${1}')
+        ->toBe('https://dataservices.gfz.de/doi-search$${1}')
         ->and($labels['traefik.http.routers.ernie-old-router.rule'] ?? null)
         ->toBe('Host(`ernie.rz-vm499.gfz.de`)')
         ->and($labels['traefik.http.routers.ernie-old-router.priority'] ?? null)
@@ -153,7 +153,7 @@ it('maps former ERNIE portal bookmarks to search before applying the canonical r
         $labels['traefik.http.middlewares.ernie-old-portal-redirect.redirectregex.replacement'] ?? '',
     );
     expect(preg_replace('~'.$portalRedirectRegex.'~', $portalRedirectReplacement, 'https://ernie.rz-vm499.gfz.de/portal?q=test'))
-        ->toBe('https://dataservices.gfz.de/search?q=test');
+        ->toBe('https://dataservices.gfz.de/doi-search?q=test');
 
     $canonicalRedirectRegex = $labels['traefik.http.middlewares.ernie-old-redirect.redirectregex.regex'] ?? '';
     $canonicalRedirectReplacement = productionComposeLiteral(

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\PortalScope;
 use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\KeywordSuggestionService;
 use App\Services\ListingCountService;
@@ -30,21 +31,23 @@ class PortalController extends Controller
         private readonly ListingCountService $listingCountService,
     ) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request, string $portalScope): Response
     {
+        $scope = PortalScope::from($portalScope);
+
         return Inertia::render('portal', $this->pageCache->remember(
             $request,
-            fn (): array => $this->buildPortalPayload($request),
+            fn (): array => $this->buildPortalPayload($request, $scope),
         ));
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function buildPortalPayload(Request $request): array
+    private function buildPortalPayload(Request $request, PortalScope $scope): array
     {
-        $temporalRange = $this->searchService->getTemporalRange();
-        $filters = $this->filterService->fromRequest($request, $temporalRange);
+        $temporalRange = $this->searchService->getTemporalRange($scope);
+        $filters = $this->filterService->fromRequest($request, $temporalRange, $scope);
         $paginator = $this->searchService->simpleSearch($filters);
         $filterFingerprint = $this->listingCountService->fingerprint($filters);
 
@@ -53,6 +56,7 @@ class PortalController extends Controller
             ->all();
 
         return [
+            'portal' => $scope->frontendDescriptor(),
             'resources' => $resources,
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
@@ -66,10 +70,12 @@ class PortalController extends Controller
                 'filter_fingerprint' => $filterFingerprint,
             ],
             'filters' => $this->filterService->forFrontend($filters),
-            'thesaurusFacets' => $this->keywordService->getThesaurusFacets(),
+            'thesaurusFacets' => $this->keywordService->getThesaurusFacets($scope),
             'temporalRange' => $temporalRange,
-            'resourceTypeFacets' => $this->searchService->getResourceTypeFacets(),
-            'datacenterFacets' => $this->searchService->getDatacenterFacets(),
+            'resourceTypeFacets' => $scope->showsResourceTypeFilter()
+                ? $this->searchService->getResourceTypeFacets($scope)
+                : [],
+            'datacenterFacets' => $this->searchService->getDatacenterFacets($scope),
         ];
     }
 }

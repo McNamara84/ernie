@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import type {
     DatacenterFacet,
     GeoBounds,
+    PortalBasePath,
     PortalFilters as PortalFilterValues,
     PortalThesaurusFacet,
     ResourceTypeFacet,
@@ -23,6 +24,7 @@ import type {
 } from '@/types/portal';
 
 interface PortalFiltersProps {
+    basePath?: PortalBasePath;
     filters: PortalFilterValues;
     searchValue: string;
     onSearchValueChange: (query: string) => void;
@@ -48,6 +50,7 @@ interface PortalFiltersProps {
     onTemporalChange: (temporal: TemporalFilterValue | null) => void;
     resourceTypeFacets: ResourceTypeFacet[];
     datacenterFacets: DatacenterFacet[];
+    showResourceTypeFilter?: boolean;
 }
 
 type FilterSection = 'thesaurus' | 'temporal' | 'geographic' | 'resource-type' | 'datacenter';
@@ -61,6 +64,7 @@ function CountBadge({ count }: { count: number }) {
 }
 
 export function PortalFilters({
+    basePath = '/doi-search',
     filters,
     searchValue,
     onSearchValueChange,
@@ -86,6 +90,7 @@ export function PortalFilters({
     onTemporalChange,
     resourceTypeFacets,
     datacenterFacets,
+    showResourceTypeFilter = true,
 }: PortalFiltersProps) {
     const selectedKeywordValues = (filters.freeKeywords?.length ?? 0) > 0 ? (filters.freeKeywords ?? []) : filters.keywords;
     const activeSections = useMemo<FilterSection[]>(() => {
@@ -150,6 +155,7 @@ export function PortalFilters({
 
             <div className="relative z-20 shrink-0 border-b bg-background/95 p-3 backdrop-blur">
                 <PortalSearchInput
+                    basePath={basePath}
                     value={searchValue}
                     onValueChange={onSearchValueChange}
                     onSubmit={onSearchChange}
@@ -223,23 +229,25 @@ export function PortalFilters({
                         </AccordionContent>
                     </AccordionItem>
 
-                    <AccordionItem value="resource-type">
-                        <AccordionTrigger className="items-center py-3 hover:no-underline">
-                            <span className="flex items-center gap-2">
-                                <Shapes className="h-4 w-4" />
-                                Resource Type
-                            </span>
-                            <CountBadge count={filters.type.length > 0 ? filters.type.length : filters.exclude_type ? 1 : 0} />
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <PortalResourceTypeFilter
-                                facets={resourceTypeFacets}
-                                selectedSlugs={filters.type}
-                                excludeType={filters.exclude_type}
-                                onSelectionChange={onTypeChange}
-                            />
-                        </AccordionContent>
-                    </AccordionItem>
+                    {showResourceTypeFilter && (
+                        <AccordionItem value="resource-type">
+                            <AccordionTrigger className="items-center py-3 hover:no-underline">
+                                <span className="flex items-center gap-2">
+                                    <Shapes className="h-4 w-4" />
+                                    Resource Type
+                                </span>
+                                <CountBadge count={filters.type.length > 0 ? filters.type.length : filters.exclude_type ? 1 : 0} />
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <PortalResourceTypeFilter
+                                    facets={resourceTypeFacets}
+                                    selectedSlugs={filters.type}
+                                    excludeType={filters.exclude_type}
+                                    onSelectionChange={onTypeChange}
+                                />
+                            </AccordionContent>
+                        </AccordionItem>
+                    )}
 
                     <AccordionItem value="datacenter">
                         <AccordionTrigger className="items-center py-3 hover:no-underline">

@@ -150,7 +150,7 @@ class VocabularyCacheService
         }
 
         if ($this->shouldInvalidatePortalThesaurusFacets($key)) {
-            CacheKey::PORTAL_THESAURUS_FACETS->forget();
+            CacheKey::PORTAL_THESAURUS_FACETS->forgetPortalVariants();
         }
     }
 

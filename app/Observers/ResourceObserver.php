@@ -296,13 +296,14 @@ class ResourceObserver
         $cacheKeys = [
             CacheKey::PORTAL_DATACENTER_FACETS,
             CacheKey::PORTAL_RESOURCE_TYPE_FACETS,
+            CacheKey::PORTAL_TEMPORAL_RANGE,
         ];
 
         foreach ($cacheKeys as $cacheKey) {
             if ($this->supportsTagging()) {
                 Cache::tags($cacheKey->tags())->flush();
             } else {
-                Cache::forget($cacheKey->key());
+                $cacheKey->forgetPortalVariants();
             }
         }
     }

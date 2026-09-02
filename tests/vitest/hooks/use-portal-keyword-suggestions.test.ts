@@ -31,7 +31,7 @@ describe('usePortalKeywordSuggestions', () => {
         await waitFor(() => expect(result.current.data).toEqual([{ value: 'Seismology', scheme: null, count: 4 }]));
 
         expect(apiRequestMock).toHaveBeenCalledWith(
-            '/search/free-keyword-suggestions?q=seis',
+            '/doi-search/free-keyword-suggestions?q=seis',
             expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
     });
@@ -42,7 +42,7 @@ describe('usePortalKeywordSuggestions', () => {
 
         await waitFor(() => expect(apiRequestMock).toHaveBeenCalled());
 
-        expect(apiRequestMock.mock.calls[0][0]).toBe('/search/free-keyword-suggestions?q=ocean');
+        expect(apiRequestMock.mock.calls[0][0]).toBe('/doi-search/free-keyword-suggestions?q=ocean');
     });
 
     it('normalizes cache keys without using the visitor locale', () => {
@@ -55,12 +55,26 @@ describe('usePortalKeywordSuggestions', () => {
             expect(localeLowerCaseSpy).not.toHaveBeenCalled();
             expect(
                 client.getQueryCache().find({
-                    queryKey: ['portal', 'keyword-suggestions', 'id'],
+                    queryKey: ['portal', 'keyword-suggestions', '/doi-search', 'id'],
                     exact: true,
                 }),
             ).toBeDefined();
         } finally {
             localeLowerCaseSpy.mockRestore();
         }
+    });
+
+    it('keeps IGSN suggestions on the IGSN endpoint and cache key', async () => {
+        apiRequestMock.mockResolvedValue({ data: [] });
+        const { client } = renderHookWithQueryClient(() => usePortalKeywordSuggestions('sample', '/igsn-search'));
+
+        await waitFor(() => expect(apiRequestMock).toHaveBeenCalled());
+        expect(apiRequestMock.mock.calls[0][0]).toBe('/igsn-search/free-keyword-suggestions?q=sample');
+        expect(
+            client.getQueryCache().find({
+                queryKey: ['portal', 'keyword-suggestions', '/igsn-search', 'sample'],
+                exact: true,
+            }),
+        ).toBeDefined();
     });
 });

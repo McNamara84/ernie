@@ -112,17 +112,25 @@ export function AppSidebar() {
             tourId: 'sidebar-resources',
         },
         {
-            title: 'Portal',
-            href: '/search',
+            title: 'Data Portal',
+            href: '/doi-search',
             icon: Search,
             openInNewTab: true,
             rel: 'noopener noreferrer',
-            tourId: 'sidebar-portal',
+            tourId: 'sidebar-data-portal',
         },
     ];
 
     // IGSN CURATION section
     const igsnCurationItems: NavItem[] = [
+        {
+            title: 'IGSN Portal',
+            href: '/igsn-search',
+            icon: Search,
+            openInNewTab: true,
+            rel: 'noopener noreferrer',
+            tourId: 'sidebar-igsn-portal',
+        },
         {
             title: 'IGSNs List',
             href: '/igsns',

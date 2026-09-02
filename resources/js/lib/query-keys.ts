@@ -25,7 +25,7 @@ export const queryKeys = {
     },
     portal: {
         map: (url: string) => ['portal', 'map', url] as const,
-        keywordSuggestions: (query: string) => ['portal', 'keyword-suggestions', query] as const,
+        keywordSuggestions: (basePath: string, query: string) => ['portal', 'keyword-suggestions', basePath, query] as const,
     },
 } as const;
 
@@ -40,6 +40,4 @@ export const apiEndpoints = {
     doiValidate: doiValidate.url(),
     pid4instInstruments: '/vocabularies/pid4inst-instruments',
     mslLaboratories: '/vocabularies/msl-laboratories',
-    portalMap: '/search/map',
-    portalKeywordSuggestions: '/search/free-keyword-suggestions',
 } as const;

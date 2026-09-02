@@ -331,6 +331,12 @@ export function createMockPortalPageProps(overrides?: {
 }): PortalPageProps {
     const resources = overrides?.resources ?? [];
     return {
+        portal: {
+            kind: 'doi',
+            title: 'Data Portal',
+            basePath: '/doi-search',
+            showResourceTypeFilter: true,
+        },
         resources,
         pagination: createMockPortalPagination({
             total: resources.length,

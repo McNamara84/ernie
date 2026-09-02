@@ -47,8 +47,9 @@ class ImportedResourceDataCiteSyncDispatcherService
 
         if ($resourceIds !== [] && ! $retry) {
             app(PortalKeywordCacheInvalidationService::class)->scheduleAfterCommit();
-            CacheKey::PORTAL_RESOURCE_TYPE_FACETS->forget();
-            CacheKey::PORTAL_DATACENTER_FACETS->forget();
+            CacheKey::PORTAL_RESOURCE_TYPE_FACETS->forgetPortalVariants();
+            CacheKey::PORTAL_DATACENTER_FACETS->forgetPortalVariants();
+            CacheKey::PORTAL_TEMPORAL_RANGE->forgetPortalVariants();
         }
 
         if (config('datacite.test_mode') !== false) {

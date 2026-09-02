@@ -6,8 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { usePortalKeywordSuggestions } from '@/hooks/use-portal-keyword-suggestions';
 import { cn } from '@/lib/utils';
+import type { PortalBasePath } from '@/types/portal';
 
 interface PortalSearchInputProps {
+    basePath?: PortalBasePath;
     value: string;
     onValueChange: (value: string) => void;
     onSubmit: (query: string) => void;
@@ -16,12 +18,20 @@ interface PortalSearchInputProps {
     onKeywordsChange: (keywords: string[]) => void;
 }
 
-export function PortalSearchInput({ value, onValueChange, onSubmit, selectedKeywords, onKeywordSelect, onKeywordsChange }: PortalSearchInputProps) {
+export function PortalSearchInput({
+    basePath = '/doi-search',
+    value,
+    onValueChange,
+    onSubmit,
+    selectedKeywords,
+    onKeywordSelect,
+    onKeywordsChange,
+}: PortalSearchInputProps) {
     const listboxId = useId();
     const inputRef = useRef<HTMLInputElement>(null);
     const [isFocused, setIsFocused] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
-    const { data: suggestions = [], isFetching, isError } = usePortalKeywordSuggestions(value);
+    const { data: suggestions = [], isFetching, isError } = usePortalKeywordSuggestions(value, basePath);
     const visibleSuggestions = suggestions.filter((suggestion) => !selectedKeywords.includes(suggestion.value));
     const showSuggestions = isFocused && value.trim().length >= 2;
 
@@ -50,12 +60,12 @@ export function PortalSearchInput({ value, onValueChange, onSubmit, selectedKeyw
             const query = value.trim();
 
             if (query !== '') {
-                void axios.post('/search/search-analytics', { search_term: query }).catch(() => undefined);
+                void axios.post(`${basePath}/search-analytics`, { search_term: query }).catch(() => undefined);
             }
 
             onSubmit(query);
         },
-        [onSubmit, value],
+        [basePath, onSubmit, value],
     );
 
     const handleKeyDown = useCallback(
