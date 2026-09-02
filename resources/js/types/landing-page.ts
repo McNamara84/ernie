@@ -144,6 +144,12 @@ export interface LandingPageTemplateConfig {
     /** Number of citation authors shown before et al. */
     citation_author_display_limit: number;
 
+    /** Date types hidden from the Dates module */
+    excluded_date_type_ids: number[];
+
+    /** Relation types hidden from the Related Work module */
+    excluded_relation_type_ids: number[];
+
     /** ID of user who created this template */
     created_by: number | null;
 
@@ -162,6 +168,13 @@ export interface LandingPageTemplateConfig {
     /** Timestamps */
     created_at: string;
     updated_at: string;
+}
+
+export interface LandingPageTypeOption {
+    id: number;
+    name: string;
+    slug: string;
+    is_active: boolean;
 }
 
 export interface LandingPageTemplateDatacenter {
@@ -200,6 +213,11 @@ export interface LandingPageDisplayLimits {
     creators: number;
     contributors: number;
     citationAuthors: number;
+}
+
+export interface LandingPageTypeVisibility {
+    excludedDateTypes: string[];
+    excludedRelationTypes: string[];
 }
 
 /**
@@ -941,6 +959,8 @@ export interface LandingPageTemplateProps {
     customLogoUrl?: string | null;
     /** Initial visible counts for creator/contributor sections */
     displayLimits?: LandingPageDisplayLimits;
+    /** Type-level exclusions for the Dates and Related Work modules */
+    typeVisibility?: LandingPageTypeVisibility;
     /** Five server-rendered official CSL citation styles */
     citationStyles?: LandingPageCitationStyle[];
     /** Public metadata downloads and discovery targets */

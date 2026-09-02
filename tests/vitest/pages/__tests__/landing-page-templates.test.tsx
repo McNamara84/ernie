@@ -6,7 +6,7 @@ import axios from 'axios';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { LandingPageTemplateConfig, LandingPageTemplateDatacenter } from '@/types/landing-page';
+import type { LandingPageTemplateConfig, LandingPageTemplateDatacenter, LandingPageTypeOption } from '@/types/landing-page';
 
 const defaultRightOrder: LandingPageTemplateConfig['right_column_order'] = [
     'abstract',
@@ -91,6 +91,8 @@ vi.mock('@inertiajs/react', () => ({
             auth: { user: { can_manage_landing_page_templates: true } },
             templates: mockTemplates,
             datacenters: mockDatacenters,
+            dateTypes: mockDateTypes,
+            relationTypes: mockRelationTypes,
             logoUploadConstraints: mockLogoUploadConstraints,
         },
     }),
@@ -170,6 +172,8 @@ const defaultTemplate: LandingPageTemplateConfig = {
     creator_display_limit: 50,
     contributor_display_limit: 50,
     citation_author_display_limit: 50,
+    excluded_date_type_ids: [],
+    excluded_relation_type_ids: [],
     created_by: null,
     creator: null,
     landing_pages_count: 5,
@@ -191,6 +195,8 @@ const customTemplate: LandingPageTemplateConfig = {
     creator_display_limit: 25,
     contributor_display_limit: 75,
     citation_author_display_limit: 10,
+    excluded_date_type_ids: [2],
+    excluded_relation_type_ids: [12],
     created_by: 1,
     creator: { id: 1, name: 'Admin User' },
     landing_pages_count: 2,
@@ -212,6 +218,8 @@ const customTemplateNoLogo: LandingPageTemplateConfig = {
     creator_display_limit: 50,
     contributor_display_limit: 50,
     citation_author_display_limit: 50,
+    excluded_date_type_ids: [],
+    excluded_relation_type_ids: [],
     created_by: 1,
     creator: { id: 1, name: 'Admin User' },
     landing_pages_count: 0,
@@ -230,6 +238,8 @@ const defaultIgsnTemplate: LandingPageTemplateConfig = {
 
 let mockTemplates: LandingPageTemplateConfig[] = [];
 let mockDatacenters: LandingPageTemplateDatacenter[] = [];
+let mockDateTypes: LandingPageTypeOption[] = [];
+let mockRelationTypes: LandingPageTypeOption[] = [];
 const mockLogoUploadConstraints = {
     minWidth: 960,
     minHeight: 192,
@@ -254,6 +264,14 @@ describe('LandingPageTemplatesPage', () => {
         dndContextMock.overHandlers.length = 0;
         mockTemplates = [defaultTemplate, customTemplate, customTemplateNoLogo];
         mockDatacenters = [];
+        mockDateTypes = [
+            { id: 1, name: 'Created', slug: 'Created', is_active: true },
+            { id: 2, name: 'Available', slug: 'Available', is_active: false },
+        ];
+        mockRelationTypes = [
+            { id: 11, name: 'Is Cited By', slug: 'IsCitedBy', is_active: true },
+            { id: 12, name: 'Cites', slug: 'Cites', is_active: false },
+        ];
         mockLogoUploadConstraints.maxSizeKb = 2048;
     });
 
@@ -683,6 +701,63 @@ describe('LandingPageTemplatesPage', () => {
             });
         });
 
+        it('shows every type, marks globally inactive options, and restores saved exclusions', async () => {
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getAllByRole('button', { name: /Edit/i })[0]);
+
+            expect(screen.getByRole('group', { name: 'Dates visibility' })).toBeInTheDocument();
+            expect(screen.getByRole('group', { name: 'Related Work visibility' })).toBeInTheDocument();
+            expect(screen.getAllByText('Globally inactive')).toHaveLength(2);
+            expect(screen.getByRole('checkbox', { name: /Created/i })).toBeChecked();
+            expect(screen.getByRole('checkbox', { name: /Available/i })).not.toBeChecked();
+            expect(screen.getByRole('checkbox', { name: /Is Cited By/i })).toBeChecked();
+            expect(screen.getByRole('checkbox', { name: /^Cites/i })).not.toBeChecked();
+        });
+
+        it('saves the inverse type visibility selections for custom templates', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getAllByRole('button', { name: /Edit/i })[0]);
+            await user.click(screen.getByRole('checkbox', { name: /Created/i }));
+            await user.click(screen.getByRole('checkbox', { name: /Available/i }));
+            await user.click(screen.getByRole('checkbox', { name: /Is Cited By/i }));
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    `/landing-pages/${customTemplate.id}`,
+                    expect.objectContaining({
+                        excluded_date_type_ids: [1],
+                        excluded_relation_type_ids: [11, 12],
+                    }),
+                );
+            });
+        });
+
+        it('can hide and show every date type in one action', async () => {
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getAllByRole('button', { name: /Edit/i })[0]);
+            const datesGroup = screen.getByRole('group', { name: 'Dates visibility' });
+
+            await user.click(within(datesGroup).getByRole('button', { name: 'Hide all' }));
+            expect(within(datesGroup).getByText('0 of 2 shown')).toBeInTheDocument();
+            within(datesGroup)
+                .getAllByRole('checkbox')
+                .forEach((checkbox) => expect(checkbox).not.toBeChecked());
+
+            await user.click(within(datesGroup).getByRole('button', { name: 'Show all' }));
+            expect(within(datesGroup).getByText('2 of 2 shown')).toBeInTheDocument();
+            within(datesGroup)
+                .getAllByRole('checkbox')
+                .forEach((checkbox) => expect(checkbox).toBeChecked());
+        });
+
         it('saves only display limits for default templates', async () => {
             mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
             mockTemplates = [defaultTemplate];
@@ -693,6 +768,8 @@ describe('LandingPageTemplatesPage', () => {
 
             expect(screen.getByText('Edit Display Limits')).toBeInTheDocument();
             expect(screen.queryByLabelText('Template Name')).not.toBeInTheDocument();
+            expect(screen.queryByRole('group', { name: 'Dates visibility' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('group', { name: 'Related Work visibility' })).not.toBeInTheDocument();
 
             await user.clear(screen.getByLabelText('Creators shown initially'));
             await user.type(screen.getByLabelText('Creators shown initially'), '35');

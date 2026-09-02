@@ -826,6 +826,56 @@ describe('DefaultGfzTemplate', () => {
         });
     });
 
+    it('applies type visibility only to Dates and Related Work while preserving Model Description', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: {
+                    ...mockResource,
+                    dates: [
+                        {
+                            id: 1,
+                            date_type: 'Created',
+                            date_type_slug: 'Created',
+                            date_value: '2026-01-15',
+                            start_date: null,
+                            end_date: null,
+                            date_information: null,
+                        },
+                    ],
+                    related_identifiers: [
+                        {
+                            id: 1,
+                            identifier: '10.5880/supplement',
+                            identifier_type: 'DOI',
+                            relation_type: 'IsSupplementTo',
+                            citation_label: 'Visible model supplement',
+                        },
+                        {
+                            id: 2,
+                            identifier: '10.5880/reference',
+                            identifier_type: 'DOI',
+                            relation_type: 'References',
+                            citation_label: 'Hidden related work',
+                        },
+                    ],
+                },
+                landingPage: mockLandingPage,
+                isPreview: false,
+                typeVisibility: {
+                    excludedDateTypes: ['Created'],
+                    excludedRelationTypes: ['References'],
+                },
+            },
+        } as unknown as ReturnType<typeof usePage>);
+
+        render(<DefaultGfzTemplate />);
+
+        expect(screen.queryByRole('heading', { name: 'Dates' })).not.toBeInTheDocument();
+        expect(screen.queryByText('Hidden related work')).not.toBeInTheDocument();
+        expect(screen.getByText('Visible model supplement')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Dataset Description' })).toBeInTheDocument();
+    });
+
     describe('citation section order', () => {
         const resourceWithDate = {
             ...mockResource,

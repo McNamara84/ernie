@@ -7,6 +7,7 @@ import type {
     LandingPageDisplayLimits,
     LandingPageMetadataLink,
     LandingPageResource,
+    LandingPageTypeVisibility,
     ResourceSection,
     SectionOrder,
 } from '@/types/landing-page';
@@ -49,6 +50,7 @@ interface DefaultGfzTemplatePageProps {
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
+    typeVisibility?: LandingPageTypeVisibility;
     citationStyles?: LandingPageCitationStyle[];
     metadataLinks?: LandingPageMetadataLink[];
     /** Inertia PageProps requires index signature for dynamic SSR props */
@@ -90,8 +92,18 @@ function composeResourceColumn(
 }
 
 export default function DefaultGfzTemplate() {
-    const { resource, documentTitle, landingPage, isPreview, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
-        usePage<DefaultGfzTemplatePageProps>().props;
+    const {
+        resource,
+        documentTitle,
+        landingPage,
+        isPreview,
+        metadataLinks,
+        sectionOrder,
+        customLogoUrl,
+        displayLimits,
+        citationStyles,
+        typeVisibility,
+    } = usePage<DefaultGfzTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
 
@@ -161,7 +173,7 @@ export default function DefaultGfzTemplate() {
                     citationAuthorLimit={peopleDisplayLimits.citationAuthors}
                 />
             ),
-            dates: <DatesSection key="dates" dates={resource.dates || []} />,
+            dates: <DatesSection key="dates" dates={resource.dates || []} excludedDateTypes={typeVisibility?.excludedDateTypes} />,
             contact: <ContactSection key="contact" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />,
             model_description: (
                 <ModelDescriptionSection
@@ -176,11 +188,12 @@ export default function DefaultGfzTemplate() {
                     relatedIdentifiers={resource.related_identifiers || []}
                     relatedItems={resource.related_items || []}
                     resource={resource}
+                    excludedRelationTypes={typeVisibility?.excludedRelationTypes}
                 />
             ),
             location: <LocationSection key="location" geoLocations={resource.geo_locations || []} isDark={isDark} />,
         };
-    }, [resource, landingPage, mainTitle, downloadsUnavailable, citationStyles, peopleDisplayLimits.citationAuthors, isDark]);
+    }, [resource, landingPage, mainTitle, downloadsUnavailable, citationStyles, peopleDisplayLimits.citationAuthors, isDark, typeVisibility]);
 
     const leftColumnSections = composeResourceColumn(orders.left, standaloneSectionRegistry, metadataSections.left);
     const rightColumnSections = composeResourceColumn(orders.right, standaloneSectionRegistry, metadataSections.right);

@@ -7,8 +7,10 @@ use App\Http\Controllers\LandingPageTemplateController;
 use App\Http\Requests\LandingPageTemplate\UploadLandingPageTemplateLogoRequest;
 use App\Http\Requests\StoreLandingPageTemplateRequest;
 use App\Http\Requests\UpdateLandingPageTemplateRequest;
+use App\Models\DateType;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\User;
 use App\Policies\LandingPageTemplatePolicy;
@@ -298,6 +300,47 @@ describe('Index', function (): void {
             );
     });
 
+    it('returns every type including inactive options and serialized exclusions', function (): void {
+        $activeDate = DateType::factory()->create([
+            'name' => 'Alpha Date',
+            'slug' => 'AlphaDate',
+            'is_active' => true,
+        ]);
+        $inactiveDate = DateType::factory()->inactive()->create([
+            'name' => 'Beta Date',
+            'slug' => 'BetaDate',
+        ]);
+        $activeRelation = RelationType::query()->create([
+            'name' => 'Alpha Relation',
+            'slug' => 'AlphaRelation',
+            'is_active' => true,
+        ]);
+        $inactiveRelation = RelationType::query()->create([
+            'name' => 'Beta Relation',
+            'slug' => 'BetaRelation',
+            'is_active' => false,
+        ]);
+        $template = LandingPageTemplate::factory()->create(['name' => 'Visibility Template']);
+        $template->excludedDateTypes()->attach($inactiveDate->id);
+        $template->excludedRelationTypes()->attach($inactiveRelation->id);
+
+        $this->actingAs($this->admin)
+            ->get('/landing-pages')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('dateTypes', 2)
+                ->where('dateTypes.0.id', $activeDate->id)
+                ->where('dateTypes.1.id', $inactiveDate->id)
+                ->where('dateTypes.1.is_active', false)
+                ->has('relationTypes', 2)
+                ->where('relationTypes.0.id', $activeRelation->id)
+                ->where('relationTypes.1.id', $inactiveRelation->id)
+                ->where('relationTypes.1.is_active', false)
+                ->where('templates.2.excluded_date_type_ids', [$inactiveDate->id])
+                ->where('templates.2.excluded_relation_type_ids', [$inactiveRelation->id])
+            );
+    });
+
     it('orders defaults first and keeps resource templates ahead of igsn templates', function (): void {
         LandingPageTemplate::factory()->create([
             'name' => 'Zulu Resource Clone',
@@ -353,7 +396,9 @@ describe('Clone', function (): void {
             ->and($template->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS)
             ->and($template->creator_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
             ->and($template->contributor_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
-            ->and($template->citation_author_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT);
+            ->and($template->citation_author_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
+            ->and($template->excludedDateTypes()->exists())->toBeFalse()
+            ->and($template->excludedRelationTypes()->exists())->toBeFalse();
     });
 
     it('copies display limits from the selected default template when cloning', function (): void {
@@ -528,6 +573,74 @@ describe('Clone', function (): void {
 // ─── Update ──────────────────────────────────────────────────────────────────
 
 describe('Update', function (): void {
+    it('persists and clears date and relation type exclusions', function (): void {
+        $dateTypes = [
+            DateType::factory()->create(['name' => 'Visible Date One', 'slug' => 'VisibleDateOne']),
+            DateType::factory()->create(['name' => 'Visible Date Two', 'slug' => 'VisibleDateTwo']),
+        ];
+        $relationTypes = [
+            RelationType::query()->create(['name' => 'Visible Relation One', 'slug' => 'VisibleRelationOne', 'is_active' => true]),
+            RelationType::query()->create(['name' => 'Visible Relation Two', 'slug' => 'VisibleRelationTwo', 'is_active' => false]),
+        ];
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'excluded_date_type_ids' => [$dateTypes[1]->id, $dateTypes[0]->id],
+                'excluded_relation_type_ids' => [$relationTypes[1]->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('template.excluded_date_type_ids', [$dateTypes[0]->id, $dateTypes[1]->id])
+            ->assertJsonPath('template.excluded_relation_type_ids', [$relationTypes[1]->id]);
+
+        expect($template->excludedDateTypes()->pluck('date_types.id')->sort()->values()->all())
+            ->toBe([$dateTypes[0]->id, $dateTypes[1]->id])
+            ->and($template->excludedRelationTypes()->pluck('relation_types.id')->all())
+            ->toBe([$relationTypes[1]->id]);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'excluded_date_type_ids' => [],
+                'excluded_relation_type_ids' => [],
+            ])
+            ->assertOk()
+            ->assertJsonPath('template.excluded_date_type_ids', [])
+            ->assertJsonPath('template.excluded_relation_type_ids', []);
+
+        expect($template->excludedDateTypes()->exists())->toBeFalse()
+            ->and($template->excludedRelationTypes()->exists())->toBeFalse();
+    });
+
+    it('validates type exclusion ids and rejects duplicates', function (): void {
+        $dateType = DateType::factory()->create(['name' => 'Validation Date', 'slug' => 'ValidationDate']);
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'excluded_date_type_ids' => [$dateType->id, $dateType->id],
+                'excluded_relation_type_ids' => [999999],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'excluded_date_type_ids.0',
+                'excluded_date_type_ids.1',
+                'excluded_relation_type_ids.0',
+            ]);
+    });
+
+    it('keeps type visibility immutable on built-in copy templates', function (): void {
+        $dateType = DateType::factory()->create(['name' => 'Default Date', 'slug' => 'DefaultDate']);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$this->defaultTemplate->id}", [
+                'excluded_date_type_ids' => [$dateType->id],
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('error', 'default_template_immutable');
+
+        expect($this->defaultTemplate->excludedDateTypes()->exists())->toBeFalse();
+    });
+
     it('updates template name and section order', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
@@ -647,6 +760,26 @@ describe('Update', function (): void {
                 )),
                 'right_column_order' => ['files', ...LandingPageTemplate::RIGHT_COLUMN_SECTIONS],
             ])
+            ->assertOk();
+
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
+    });
+
+    it('forgets affected cached render data after only type exclusions change', function (): void {
+        Cache::flush();
+
+        $dateType = DateType::factory()->create(['name' => 'Cached Date', 'slug' => 'CachedDate']);
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+        $resource = Resource::factory()->create();
+        $landingPage = LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+            'landing_page_template_id' => $template->id,
+        ]);
+        $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
+        Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($cacheKey, ['template' => 'default_gfz', 'props' => []], 600);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", ['excluded_date_type_ids' => [$dateType->id]])
             ->assertOk();
 
         expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();

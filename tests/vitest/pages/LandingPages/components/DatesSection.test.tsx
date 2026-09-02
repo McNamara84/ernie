@@ -69,4 +69,42 @@ describe('DatesSection', () => {
         expect(screen.getByText('Collected')).toBeInTheDocument();
         expect(screen.getByText('Collected 2')).toBeInTheDocument();
     });
+
+    it('filters excluded date types case-insensitively before rendering', () => {
+        render(
+            <DatesSection
+                excludedDateTypes={[' AVAILABLE ']}
+                dates={[
+                    makeDate({ id: 1, date_type: 'Available', date_type_slug: 'available', date_value: '2024-01-15' }),
+                    makeDate({ id: 2, date_type: 'Collected', date_type_slug: 'Collected', date_value: '2024-01-16' }),
+                ]}
+            />,
+        );
+
+        expect(screen.queryByText('Available')).not.toBeInTheDocument();
+        expect(screen.queryByText('2024-01-15')).not.toBeInTheDocument();
+        expect(screen.getByText('Collected')).toBeInTheDocument();
+        expect(screen.getByText('2024-01-16')).toBeInTheDocument();
+    });
+
+    it('keeps untyped dates visible and hides the card when every typed row is excluded', () => {
+        const { rerender } = render(
+            <DatesSection
+                excludedDateTypes={['available']}
+                dates={[makeDate({ date_type: null, date_type_slug: null, date_value: '2024-02-01' })]}
+            />,
+        );
+
+        expect(screen.getByText('Date')).toBeInTheDocument();
+        expect(screen.getByText('2024-02-01')).toBeInTheDocument();
+
+        rerender(
+            <DatesSection
+                excludedDateTypes={['available']}
+                dates={[makeDate({ date_type: 'Available', date_type_slug: 'available', date_value: '2024-02-02' })]}
+            />,
+        );
+
+        expect(screen.queryByRole('region', { name: 'Dates' })).not.toBeInTheDocument();
+    });
 });

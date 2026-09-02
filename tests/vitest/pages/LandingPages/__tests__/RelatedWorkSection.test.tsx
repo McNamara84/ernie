@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RelatedWorkSection } from '@/pages/LandingPages/components/RelatedWorkSection';
-import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
+import type { LandingPageRelatedIdentifier, LandingPageRelatedItem, LandingPageResource } from '@/types/landing-page';
 
 vi.mock('@/pages/LandingPages/components/relation-browser/RelationBrowserGraph', () => ({
     RelationBrowserGraph: ({ relatedIdentifiers }: { relatedIdentifiers: LandingPageRelatedIdentifier[] }) => (
@@ -58,6 +58,34 @@ function makeRelatedIdentifier(overrides: Partial<LandingPageRelatedIdentifier> 
         relation_type: 'References',
         citation_label: null,
         related_title: null,
+        ...overrides,
+    };
+}
+
+function makeRelatedItem(overrides: Partial<LandingPageRelatedItem> = {}): LandingPageRelatedItem {
+    return {
+        id: 10,
+        related_item_type: 'JournalArticle',
+        relation_type: 'References',
+        relation_type_slug: 'References',
+        publication_year: 2024,
+        volume: null,
+        issue: null,
+        number: null,
+        number_type: null,
+        first_page: null,
+        last_page: null,
+        publisher: null,
+        edition: null,
+        identifier: '10.1234/reference',
+        identifier_type: 'DOI',
+        related_metadata_scheme: null,
+        scheme_uri: null,
+        scheme_type: null,
+        position: 1,
+        titles: [{ id: 1, title: 'Inline reference', title_type: 'MainTitle', language: 'en' }],
+        creators: [],
+        contributors: [],
         ...overrides,
     };
 }
@@ -175,6 +203,62 @@ describe('RelatedWorkSection', () => {
         expect(screen.queryByText('Hidden first supplement')).not.toBeInTheDocument();
         expect(screen.queryByText('Hidden second supplement')).not.toBeInTheDocument();
         expect(screen.getByText('Visible reference')).toBeInTheDocument();
+    });
+
+    it('filters identifiers, repository curation, inline items, and the relation browser by relation type', async () => {
+        const user = userEvent.setup();
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                excludedRelationTypes={[' cites ']}
+                relatedIdentifiers={[
+                    makeRelatedIdentifier({ id: 1, relation_type: 'References', citation_label: 'Visible reference' }),
+                    makeRelatedIdentifier({ id: 2, relation_type: 'Cites', identifier: '10.5880/hidden', citation_label: 'Hidden relation' }),
+                    makeRelatedIdentifier({
+                        id: 3,
+                        relation_type: 'CITES',
+                        identifier: '10.5880/hidden-curated',
+                        citation_label: 'Hidden curated relation',
+                        source: 'relation_suggestion_assistant',
+                        is_repository_curation: true,
+                    }),
+                ]}
+                relatedItems={[
+                    makeRelatedItem({
+                        id: 10,
+                        relation_type_slug: 'Cites',
+                        titles: [{ id: 10, title: 'Hidden inline item', title_type: 'MainTitle', language: 'en' }],
+                    }),
+                    makeRelatedItem({
+                        id: 11,
+                        relation_type_slug: 'References',
+                        titles: [{ id: 11, title: 'Visible inline item', title_type: 'MainTitle', language: 'en' }],
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('Visible reference')).toBeInTheDocument();
+        expect(screen.getByText('Visible inline item')).toBeInTheDocument();
+        expect(screen.queryByText('Hidden relation')).not.toBeInTheDocument();
+        expect(screen.queryByText('Hidden curated relation')).not.toBeInTheDocument();
+        expect(screen.queryByText('Hidden inline item')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Open Relation Browser' }));
+        expect(await screen.findByTestId('relation-browser-graph')).toHaveTextContent('1');
+    });
+
+    it('hides the module when every identifier and inline item uses an excluded relation type', () => {
+        const { container } = render(
+            <RelatedWorkSection
+                resource={mockResource}
+                excludedRelationTypes={['References']}
+                relatedIdentifiers={[makeRelatedIdentifier()]}
+                relatedItems={[makeRelatedItem()]}
+            />,
+        );
+
+        expect(container.firstChild).toBeNull();
     });
 
     it('renders headings as region, h2, and alphabetically sorted h3 groups', () => {

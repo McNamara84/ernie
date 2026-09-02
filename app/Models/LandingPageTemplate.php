@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -46,6 +47,8 @@ use Illuminate\Support\Str;
  * @property-read Collection<int, LandingPage> $landingPages
  * @property-read Collection<int, Datacenter> $datacenters
  * @property-read Collection<int, Datacenter> $igsnDatacenters
+ * @property-read Collection<int, DateType> $excludedDateTypes
+ * @property-read Collection<int, RelationType> $excludedRelationTypes
  */
 class LandingPageTemplate extends Model
 {
@@ -298,6 +301,62 @@ class LandingPageTemplate extends Model
     public function igsnDatacenters(): HasMany
     {
         return $this->hasMany(Datacenter::class, 'igsn_landing_page_template_id');
+    }
+
+    /**
+     * Get the date types hidden from this template's Dates module.
+     *
+     * @return BelongsToMany<DateType, $this>
+     */
+    public function excludedDateTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            DateType::class,
+            'landing_page_template_date_type_exclusions',
+        );
+    }
+
+    /**
+     * Get the relation types hidden from this template's Related Work module.
+     *
+     * @return BelongsToMany<RelationType, $this>
+     */
+    public function excludedRelationTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            RelationType::class,
+            'landing_page_template_relation_type_exclusions',
+        );
+    }
+
+    /** @return list<string> */
+    public function excludedDateTypeSlugs(): array
+    {
+        $this->loadMissing('excludedDateTypes:id,slug');
+
+        return array_values(
+            $this->excludedDateTypes
+                ->pluck('slug')
+                ->filter(static fn (mixed $slug): bool => is_string($slug) && $slug !== '')
+                ->map(static fn (string $slug): string => $slug)
+                ->sort()
+                ->all(),
+        );
+    }
+
+    /** @return list<string> */
+    public function excludedRelationTypeSlugs(): array
+    {
+        $this->loadMissing('excludedRelationTypes:id,slug');
+
+        return array_values(
+            $this->excludedRelationTypes
+                ->pluck('slug')
+                ->filter(static fn (mixed $slug): bool => is_string($slug) && $slug !== '')
+                ->map(static fn (string $slug): string => $slug)
+                ->sort()
+                ->all(),
+        );
     }
 
     /**

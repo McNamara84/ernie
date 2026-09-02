@@ -8,7 +8,10 @@ import { hasVisibleMetadataRows, MetadataList, type MetadataRow } from './Metada
 
 interface DatesSectionProps {
     dates: LandingPageResourceDate[];
+    excludedDateTypes?: readonly string[];
 }
+
+const normalizeTypeSlug = (value: string | null | undefined): string => value?.trim().toLowerCase() ?? '';
 
 const getDateLabel = (date: LandingPageResourceDate): string => {
     const label = date.date_type?.trim() || date.date_type_slug?.trim();
@@ -36,9 +39,11 @@ const buildDateValue = (date: LandingPageResourceDate): ReactNode | null => {
     );
 };
 
-export function DatesSection({ dates }: DatesSectionProps): ReactNode {
+export function DatesSection({ dates, excludedDateTypes = [] }: DatesSectionProps): ReactNode {
+    const excludedTypeSlugs = new Set(excludedDateTypes.map(normalizeTypeSlug).filter(Boolean));
     const seenLabels = new Map<string, number>();
     const rows: MetadataRow[] = dates
+        .filter((date) => !excludedTypeSlugs.has(normalizeTypeSlug(date.date_type_slug)))
         .filter((date) => !isCoverageDate(date))
         .map((date) => {
             const baseLabel = getDateLabel(date);

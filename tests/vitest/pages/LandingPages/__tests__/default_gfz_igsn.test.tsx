@@ -872,6 +872,39 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(citation.compareDocumentPosition(dates) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
 
+        it('keeps an excluded Available date in General while hiding it from Dates', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...fullyVisibleResource,
+                        dates: [
+                            {
+                                id: 2,
+                                date_type: 'Available',
+                                date_type_slug: 'Available',
+                                date_value: '2026-03-04',
+                                start_date: null,
+                                end_date: null,
+                                date_information: null,
+                            },
+                        ],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    typeVisibility: {
+                        excludedDateTypes: ['Available'],
+                        excludedRelationTypes: [],
+                    },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getByText('Release Date')).toBeInTheDocument();
+            expect(screen.getByText('2026-03-04')).toBeInTheDocument();
+            expect(screen.queryByRole('heading', { name: 'Dates' })).not.toBeInTheDocument();
+        });
+
         it('appends citation after an old custom IGSN order that does not contain it', () => {
             renderWithLeftOrder(['dates', 'acquisition', 'general', 'contact', 'model_description', 'related_work']);
 

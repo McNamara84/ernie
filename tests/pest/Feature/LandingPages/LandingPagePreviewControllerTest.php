@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\LandingPagePreviewController;
+use App\Models\DateType;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Title;
@@ -451,6 +453,15 @@ describe('Session Preview Display', function () {
     });
 
     test('preview display passes custom section order and logo for igsn custom templates', function () {
+        $dateType = DateType::factory()->create([
+            'name' => 'Hidden Preview Date',
+            'slug' => 'HiddenPreviewDate',
+        ]);
+        $relationType = RelationType::query()->create([
+            'name' => 'Hidden Preview Relation',
+            'slug' => 'HiddenPreviewRelation',
+            'is_active' => true,
+        ]);
         $physicalObjectType = ResourceType::firstOrCreate(
             ['slug' => 'physical-object'],
             ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
@@ -468,6 +479,8 @@ describe('Session Preview Display', function () {
             'contributor_display_limit' => 14,
             'citation_author_display_limit' => 15,
         ]);
+        $template->excludedDateTypes()->attach($dateType->id);
+        $template->excludedRelationTypes()->attach($relationType->id);
 
         Session::put("landing_page_preview.{$resource->id}", [
             'template' => 'default_gfz_igsn',
@@ -503,6 +516,8 @@ describe('Session Preview Display', function () {
                 ->where('displayLimits.creators', 13)
                 ->where('displayLimits.contributors', 14)
                 ->where('displayLimits.citationAuthors', 15)
+                ->where('typeVisibility.excludedDateTypes', ['HiddenPreviewDate'])
+                ->where('typeVisibility.excludedRelationTypes', ['HiddenPreviewRelation'])
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/custom-igsn-logo.png'))
             );
     });

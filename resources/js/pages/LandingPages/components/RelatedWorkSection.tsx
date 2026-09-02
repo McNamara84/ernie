@@ -19,7 +19,11 @@ interface RelatedWorkSectionProps {
     resource: LandingPageResource;
     /** Render configured IGSN DOI values as canonical handles. */
     useIgsnHandles?: boolean;
+    /** Relation-type slugs hidden from every part of this module. */
+    excludedRelationTypes?: readonly string[];
 }
+
+const normalizeTypeSlug = (value: string | null | undefined): string => value?.trim().toLowerCase() ?? '';
 
 /**
  * Converts CamelCase to readable text with spaces.
@@ -98,12 +102,31 @@ function getRelatedIdentifierPlainClassName(rel: LandingPageRelatedIdentifier): 
  * Displays all Related Identifiers grouped by RelationType.
  * IsSupplementTo relations are excluded because the description section owns them.
  */
-export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], resource, useIgsnHandles = false }: RelatedWorkSectionProps) {
+export function RelatedWorkSection({
+    relatedIdentifiers,
+    relatedItems = [],
+    resource,
+    useIgsnHandles = false,
+    excludedRelationTypes = [],
+}: RelatedWorkSectionProps) {
     const [browserOpen, setBrowserOpen] = useState(false);
     const [expanded, setExpanded] = useState(false);
 
+    const excludedTypeSlugs = useMemo(() => new Set(excludedRelationTypes.map(normalizeTypeSlug).filter(Boolean)), [excludedRelationTypes]);
+    const visibleRelatedIdentifiers = useMemo(
+        () => relatedIdentifiers.filter((relation) => !excludedTypeSlugs.has(normalizeTypeSlug(relation.relation_type))),
+        [excludedTypeSlugs, relatedIdentifiers],
+    );
+    const visibleRelatedItems = useMemo(
+        () => relatedItems.filter((item) => !excludedTypeSlugs.has(normalizeTypeSlug(item.relation_type_slug))),
+        [excludedTypeSlugs, relatedItems],
+    );
+
     // Exclude all description-owned relations (memoized for referential stability).
-    const filteredRelations = useMemo(() => relatedIdentifiers.filter((rel) => rel.relation_type !== 'IsSupplementTo'), [relatedIdentifiers]);
+    const filteredRelations = useMemo(
+        () => visibleRelatedIdentifiers.filter((rel) => rel.relation_type !== 'IsSupplementTo'),
+        [visibleRelatedIdentifiers],
+    );
 
     const initialRelations = useMemo(() => filteredRelations.filter((rel) => !isRepositoryCurationRelatedIdentifier(rel)), [filteredRelations]);
 
@@ -168,7 +191,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
         }
         return new Set(orderedIds.slice(COLLAPSE_THRESHOLD));
     }, [sortedTypes, groupedByType, sortedRepositoryCurationTypes, groupedRepositoryCurationByType, expanded]);
-    if (displayableRelations.length === 0 && relatedItems.length === 0) {
+    if (displayableRelations.length === 0 && visibleRelatedItems.length === 0) {
         return null;
     }
 
@@ -313,7 +336,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                     </div>
                 )}
 
-                {relatedItems.length > 0 && (
+                {visibleRelatedItems.length > 0 && (
                     <div data-testid="related-items-list">
                         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
                             Citations
@@ -323,7 +346,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                             </Badge>
                         </h3>
                         <ul className="space-y-2">
-                            {[...relatedItems]
+                            {[...visibleRelatedItems]
                                 .sort((a, b) => a.position - b.position)
                                 .map((item) => {
                                     const mainTitle = item.titles.find((t) => t.title_type === 'MainTitle')?.title ?? item.titles[0]?.title ?? '';

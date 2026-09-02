@@ -5,6 +5,14 @@
         "features": [],
         "improvements": [
             {
+                "title": "Configurable Landing Page Dates",
+                "description": "Admins and Group Leaders can now choose which Date Types appear in the Dates module of each cloned Resource or IGSN landing-page template. All current and future types remain visible by default, inactive vocabulary entries can still be configured, and the IGSN General and Acquisition modules keep their independent date information."
+            },
+            {
+                "title": "Configurable Landing Page Related Work",
+                "description": "Admins and Group Leaders can now hide individual Relation Types from the Related Work module of each cloned landing-page template. The setting consistently covers related identifiers, curated repository links, inline related items, citations, and the Relation Browser while leaving Model Description supplements unchanged."
+            },
+            {
                 "title": "Dedicated Data and IGSN Portals",
                 "description": "Public discovery is now split into a Data Portal at /doi-search and an IGSN Portal at /igsn-search. The Data Portal excludes physical samples and their Resource Type option, while the IGSN Portal shows only physical samples and no redundant Resource Type filter. Both destinations are available from the Find navigation menu."
             },
