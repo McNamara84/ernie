@@ -118,6 +118,9 @@ Default Fast Mode services:
 - db
 - redis
 - queue
+- scheduler
+
+The scheduler waits for the application and database to become healthy, refreshes the persisted license usage ranking once at startup, and then runs Laravel's configured schedule continuously. The ranking is refreshed weekly after that initial backfill, so opening the Data Editor never needs to aggregate all stored resource-license associations.
 
 Optional profiles:
 
@@ -143,6 +146,7 @@ npm run docker:dev:parity
 | Reset Docker volumes                             | Host shell                     | `npm run docker:dev:reset`                          |
 | Laravel Artisan                                  | npm wrapper into app container | `npm run artisan -- <command>`                      |
 | Example controller generator                     | npm wrapper into app container | `npm run artisan -- make:controller TestController` |
+| Refresh the license usage ranking                | npm wrapper into app container | `npm run artisan -- rights:update-usage-count`      |
 | Composer                                         | npm wrapper into app container | `npm run composer:app -- <command>`                 |
 | Pest (2 GB, optimized complete suite)            | Host shell via npm wrapper     | `npm run test:php`                                  |
 | Pest deprecation details                         | Host shell via npm wrapper     | `npm run test:php:deprecations`                     |
@@ -426,8 +430,21 @@ The initial boot may still need to:
 - install npm dependencies
 - run migrations
 - seed baseline data
+- calculate the initial license usage ranking
 
 Subsequent startups are usually much faster because Docker volumes keep `vendor`, `node_modules`, and the MySQL data directory.
+
+### The License dropdown is entirely alphabetical
+
+The Data Editor orders active licenses by the persisted `rights.usage_count` value and uses the license name as the tie-breaker. If every counter is `0`, the whole list therefore appears alphabetical.
+
+Check that the `scheduler` service is running and inspect its startup output. For an immediate diagnostic refresh, run:
+
+```bash
+npm run artisan -- rights:update-usage-count
+```
+
+Restarting the scheduler also performs this refresh before `schedule:work` starts. A failed startup refresh leaves the previous complete counter snapshot in place and causes the scheduler container to restart instead of silently serving a partially updated ranking.
 
 ## MySQL-Sensitive Pest Slice
 

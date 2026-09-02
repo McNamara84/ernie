@@ -78,7 +78,10 @@ class Right extends Model
      */
     public function scopeOrderByUsageCount(Builder $query): Builder
     {
-        return $query->orderBy('usage_count', 'desc')->orderBy('name');
+        return $query
+            ->orderBy('usage_count', 'desc')
+            ->orderBy('name')
+            ->orderBy('identifier');
     }
 
     /** @return BelongsToMany<Resource, static, Pivot, 'pivot'> */
