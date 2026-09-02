@@ -270,6 +270,15 @@ class PlaywrightTestSeeder extends Seeder
                 'sample_type' => 'Rock core',
                 'material' => 'Granite',
                 'collection_method' => 'Field collection',
+                'collection_method_description' => 'Playwright acquisition layout description',
+                'description_json' => [
+                    'description_groups' => [[
+                        'entries' => [[
+                            'value' => 'Coarse-grained granite with quartz veins',
+                            'scheme' => 'Lithological Description',
+                        ]],
+                    ]],
+                ],
                 'upload_status' => IgsnMetadata::STATUS_PENDING,
             ],
         );

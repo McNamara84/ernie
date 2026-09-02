@@ -15,6 +15,8 @@ export interface MetadataRow {
 
 interface MetadataListProps {
     rows: MetadataRow[];
+    /** Inherit a shared two-column grid from a containing metadata section. */
+    subgrid?: boolean;
 }
 
 /**
@@ -52,7 +54,7 @@ export const hasVisibleMetadataRows = (rows: MetadataRow[]): boolean => rows.som
  * presence of the rendered list to decide whether to render the wrapping
  * card at all.
  */
-export function MetadataList({ rows }: MetadataListProps): ReactNode {
+export function MetadataList({ rows, subgrid = false }: MetadataListProps): ReactNode {
     const visible = rows.filter((row) => !isMetadataValueEmpty(row.value));
 
     if (visible.length === 0) {
@@ -60,10 +62,14 @@ export function MetadataList({ rows }: MetadataListProps): ReactNode {
     }
 
     return (
-        <dl data-slot="metadata-list" className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm">
+        <dl
+            data-slot="metadata-list"
+            data-layout={subgrid ? 'subgrid' : 'independent'}
+            className={subgrid ? 'col-span-2 grid grid-cols-subgrid gap-y-2 text-sm' : 'grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm'}
+        >
             {visible.map((row) => (
                 <Fragment key={row.key ?? row.label}>
-                    <dt className="font-medium text-gray-600 dark:text-gray-400">{row.label}</dt>
+                    <dt className="font-medium wrap-break-word text-gray-600 dark:text-gray-400">{row.label}</dt>
                     <dd className="min-w-0 wrap-break-word text-gray-900 dark:text-gray-100">{row.value}</dd>
                 </Fragment>
             ))}

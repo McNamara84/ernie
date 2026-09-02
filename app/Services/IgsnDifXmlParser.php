@@ -160,10 +160,12 @@ class IgsnDifXmlParser
 
         if ($resolved['status'] === IgsnSampleImageUrlService::STATUS_EXTERNAL) {
             $igsnMetadata->sample_image_source_url = $resolved['source_url'];
-            $igsnMetadata->sample_image_external_url = $resolved['external_url'];
-            $igsnMetadata->sample_image_storage_path = null;
-            $igsnMetadata->sample_image_mime_type = null;
-            $igsnMetadata->sample_image_size = null;
+            if (! $additive) {
+                $igsnMetadata->sample_image_external_url = null;
+                $igsnMetadata->sample_image_storage_path = null;
+                $igsnMetadata->sample_image_mime_type = null;
+                $igsnMetadata->sample_image_size = null;
+            }
         }
     }
 

@@ -19,12 +19,14 @@ final class IgsnSampleImageStorageService
 {
     public function __construct(
         private readonly IgsnSampleImageUrlService $urlService,
+        private readonly IgsnExternalSampleImageProbeService $externalProbe,
     ) {}
 
     /**
+     * @param  array{status: string, url: string|null, message: string}|null  $externalProbeResult
      * @return array{status: string, message: string}
      */
-    public function sync(IgsnMetadata $metadata, bool $force = false): array
+    public function sync(IgsnMetadata $metadata, bool $force = false, ?array $externalProbeResult = null): array
     {
         $classification = $this->urlService->classifySourceUrl($metadata->sample_image_source_url);
 
@@ -37,17 +39,49 @@ final class IgsnSampleImageStorageService
         }
 
         if ($classification['status'] === IgsnSampleImageUrlService::STATUS_EXTERNAL) {
-            return $this->persistExternal($metadata, (string) $classification['external_url']);
+            return $this->persistExternal($metadata, (string) $classification['external_url'], $externalProbeResult);
         }
 
         return $this->storeManaged($metadata, (string) $classification['source_url'], $force);
     }
 
     /**
+     * @param  array{status: string, url: string|null, message: string}|null  $probeResult
      * @return array{status: string, message: string}
      */
-    private function persistExternal(IgsnMetadata $metadata, string $externalUrl): array
+    private function persistExternal(IgsnMetadata $metadata, string $externalUrl, ?array $probeResult): array
     {
+        if ($probeResult === null || $probeResult['url'] !== $externalUrl) {
+            $probeResult = $this->externalProbe->probe($externalUrl);
+        }
+
+        if ($probeResult['status'] === IgsnExternalSampleImageProbeService::STATUS_FAILED) {
+            Log::warning('IGSN external sample image probe failed', [
+                'resource_id' => $metadata->resource_id,
+                'doi' => $this->resourceDoiForLogging($metadata),
+                'external_url' => $externalUrl,
+                'error_class' => $probeResult['message'],
+            ]);
+
+            return ['status' => 'failed', 'message' => $probeResult['message']];
+        }
+
+        if ($probeResult['status'] === IgsnExternalSampleImageProbeService::STATUS_UNAVAILABLE) {
+            if ($metadata->sample_image_external_url !== null
+                || $metadata->sample_image_storage_path !== null
+                || $metadata->sample_image_mime_type !== null
+                || $metadata->sample_image_size !== null) {
+                $metadata->forceFill([
+                    'sample_image_external_url' => null,
+                    'sample_image_storage_path' => null,
+                    'sample_image_mime_type' => null,
+                    'sample_image_size' => null,
+                ])->save();
+            }
+
+            return ['status' => 'unavailable', 'message' => $probeResult['message']];
+        }
+
         $oldPath = $metadata->sample_image_storage_path;
         $changed = $metadata->sample_image_external_url !== $externalUrl
             || $oldPath !== null

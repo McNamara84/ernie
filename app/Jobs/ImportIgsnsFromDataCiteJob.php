@@ -1500,6 +1500,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             'images_processed' => 0,
             'images_stored' => 0,
             'images_external' => 0,
+            'images_unavailable' => 0,
             'images_skipped' => 0,
             'images_failed' => 0,
         ];
@@ -1527,11 +1528,12 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             match ($result['status']) {
                 'stored' => $counts['images_stored']++,
                 'external' => $counts['images_external']++,
+                'unavailable' => $counts['images_unavailable']++,
                 'failed' => $counts['images_failed']++,
                 default => $counts['images_skipped']++,
             };
 
-            if ($result['status'] === 'failed' && count($warnings) < 100) {
+            if (in_array($result['status'], ['failed', 'unavailable'], true) && count($warnings) < 100) {
                 $warnings[] = [
                     'doi' => (string) $metadata->resource->doi,
                     'error' => $result['message'],
@@ -1543,7 +1545,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
     }
 
     /**
-     * @param  array{images_total: int, images_processed: int, images_stored: int, images_external: int, images_skipped: int, images_failed: int}  $counts
+     * @param  array{images_total: int, images_processed: int, images_stored: int, images_external: int, images_unavailable: int, images_skipped: int, images_failed: int}  $counts
      * @param  list<array{doi: string, error: string}>  $warnings
      */
     private function publishImageProgress(array $counts, array $warnings): void

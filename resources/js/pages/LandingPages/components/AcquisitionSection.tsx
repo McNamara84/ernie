@@ -159,10 +159,10 @@ export function AcquisitionSection({ igsn, classifications, contributors, fundin
             <h2 id="heading-acquisition" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Acquisition
             </h2>
-            <div className="space-y-3">
-                <MetadataList rows={rows.slice(0, 3)} />
-                <IgsnDescriptionGroups groups={descriptionGroups} />
-                <MetadataList rows={rows.slice(3)} />
+            <div data-slot="acquisition-metadata-grid" className="grid grid-cols-[fit-content(12rem)_minmax(0,1fr)] gap-x-4 gap-y-3">
+                <MetadataList rows={rows.slice(0, 3)} subgrid />
+                <IgsnDescriptionGroups groups={descriptionGroups} subgrid />
+                <MetadataList rows={rows.slice(3)} subgrid />
             </div>
         </LandingPageCard>
     );

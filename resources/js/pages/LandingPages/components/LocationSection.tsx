@@ -72,22 +72,10 @@ function formatCoordinate(value: number): string {
     return value.toFixed(6);
 }
 
-function formatElevationRanges(igsn: LandingPageIgsnMetadata | null | undefined): string | null {
-    const ranges = (igsn?.elevation_ranges ?? [])
-        .map((range) => {
-            const start = range.start?.trim();
-            const end = range.end?.trim();
-            if (!start && !end) return null;
+function formatMeasurement(value: string | number | null | undefined, unit: string | null | undefined): string | null {
+    if (value === null || value === undefined || String(value).trim() === '') return null;
 
-            const startLabel = start ? `${start}${range.unit ? ` ${range.unit}` : ''}` : null;
-            const endUnit = range.end_unit ?? range.unit;
-            const endLabel = end ? `${end}${endUnit ? ` ${endUnit}` : ''}` : null;
-
-            return startLabel && endLabel ? `${startLabel} – ${endLabel}` : (startLabel ?? endLabel);
-        })
-        .filter((value): value is string => value !== null);
-
-    return ranges.length > 0 ? ranges.join('; ') : null;
+    return `${String(value).trim()}${unit ? ` ${unit}` : ''}`;
 }
 
 function formatLineWaypointTooltip(point: { longitude: number; latitude: number }): string {
@@ -472,6 +460,11 @@ export function LocationSection({ geoLocations, isDark = false, samplingLocation
     const hasGlobalCoverage = globalLocations.length > 0;
     const hasMappableLocations = mappableLocations.length > 0;
     const primary = geoLocations[0];
+    const primaryElevationRange = igsn?.elevation_ranges?.[0];
+    const elevation =
+        formatMeasurement(primaryElevationRange?.start, primaryElevationRange?.unit) ??
+        formatMeasurement(primary?.elevation, primary?.elevation_unit);
+    const finalDepth = formatMeasurement(primaryElevationRange?.end, primaryElevationRange?.end_unit ?? primaryElevationRange?.unit);
     const rows: MetadataRow[] = samplingLocation
         ? [
               { label: 'Latitude', value: primary && hasPoint(primary) ? formatCoordinate(primary.point_latitude!) : null },
@@ -482,14 +475,8 @@ export function LocationSection({ geoLocations, isDark = false, samplingLocation
               { label: 'East Bound Longitude', value: primary && hasBox(primary) ? formatCoordinate(primary.east_bound_longitude!) : null },
               { label: 'Polygon', value: primary && hasPolygon(primary) ? `${primary.polygon_points!.length} coordinate pairs` : null },
               { label: 'Coordinate System', value: igsn?.coordinate_system ?? null },
-              {
-                  label: 'Elevation',
-                  value:
-                      primary?.elevation !== null && primary?.elevation !== undefined
-                          ? `${primary.elevation}${primary.elevation_unit ? ` ${primary.elevation_unit}` : ''}`
-                          : null,
-              },
-              { label: 'Elevation Range', value: formatElevationRanges(igsn) },
+              { label: 'Elevation', value: elevation },
+              { label: 'Final Depth', value: finalDepth },
               { label: 'Location Type', value: primary?.location_type ?? null },
               { label: 'Location Name', value: primary?.place ?? null },
               { label: 'Location Description', value: primary?.location_description ?? null },

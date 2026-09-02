@@ -54,6 +54,20 @@ export class LandingPage {
   readonly geoLocationSection: Locator;
   readonly mapContainer: Locator;
 
+  private async navigate(url: string, timeout = 90_000): Promise<void> {
+    const attempt = () => this.page.goto(url, { timeout });
+
+    await attempt().catch((error: unknown) => {
+      if (!(error instanceof Error) || !error.message.includes('SSL connect error')) {
+        throw error;
+      }
+
+      // WebKit on Windows can reject the local Traefik certificate on the
+      // first handshake even with ignoreHTTPSErrors enabled.
+      return attempt();
+    });
+  }
+
   // Subjects/Keywords section
   readonly subjectsSection: Locator;
   readonly keywordsList: Locator;
@@ -224,7 +238,7 @@ export class LandingPage {
       );
     }
 
-    await this.page.goto(data.public_url, { timeout: 90_000 });
+    await this.navigate(data.public_url);
   }
 
   /**
@@ -249,7 +263,7 @@ export class LandingPage {
       throw new Error(`Test helper returned an invalid preview URL for landing page "${slug}".`);
     }
 
-    await this.page.goto(data.preview_url, { timeout: 90_000 });
+    await this.navigate(data.preview_url);
   }
 
   /**

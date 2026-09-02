@@ -91,7 +91,8 @@ final class BackfillLegacyIgsnDifMetadata extends Command
             [
                 'Scanned', 'Changed', 'Unchanged', 'Manual review', 'Privacy conflicts',
                 'Missing DIF', 'Invalid DIF', 'Unknown paths', 'Portal errors',
-                'Database errors', 'Cache failures', 'Errors', 'Sync candidates',
+                'Database errors', 'Image unavailable', 'Image probe errors',
+                'Cache failures', 'Errors', 'Sync candidates',
             ],
             [[
                 $result['scanned'],
@@ -104,6 +105,8 @@ final class BackfillLegacyIgsnDifMetadata extends Command
                 $result['unknown_paths'],
                 $result['portal_errors'],
                 $result['database_errors'],
+                $result['image_unavailable'],
+                $result['image_probe_errors'],
                 $result['cache_invalidation_failures'],
                 $result['errors'],
                 count($result['sync_resource_ids']),
@@ -174,6 +177,7 @@ final class BackfillLegacyIgsnDifMetadata extends Command
             'resource_id', 'doi', 'handle', 'datacenter', 'schema_namespace', 'status',
             'changed_fields', 'existing_values', 'source_values', 'inserted_values',
             'conflicts', 'unknown_paths', 'missing_dif',
+            'sample_image_status', 'sample_image_url', 'sample_image_message',
             'datacite_sync_status', 'sync_run_id', 'message',
         ];
         try {

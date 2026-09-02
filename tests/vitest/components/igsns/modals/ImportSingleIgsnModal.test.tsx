@@ -275,6 +275,13 @@ describe('ImportSingleIgsnModal', () => {
                 failed_dois: [],
                 requested_igsn: 'ICDPPARENT001',
                 discovered_children: ['ICDPCHILD001', 'ICDPCHILD002'],
+                images_total: 1,
+                images_processed: 1,
+                images_stored: 0,
+                images_external: 0,
+                images_unavailable: 1,
+                images_failed: 0,
+                image_warnings: [{ doi: '10.60510/ssdprr02est3601', error: 'http_404' }],
             },
         });
 
@@ -284,6 +291,8 @@ describe('ImportSingleIgsnModal', () => {
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
         expect(await screen.findByText('Import complete')).toBeInTheDocument();
+        expect(screen.getByText(/1 unavailable, 0 failed/i)).toBeInTheDocument();
+        expect(screen.getByText(/10.60510\/ssdprr02est3601: http_404/i)).toBeInTheDocument();
         expect(screen.getByText('Related IGSNs included')).toBeInTheDocument();
         expect(screen.getByText(/2 related IGSNs included/i)).toBeInTheDocument();
         await waitFor(() => {

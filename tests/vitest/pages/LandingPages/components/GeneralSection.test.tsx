@@ -121,7 +121,7 @@ describe('GeneralSection', () => {
         );
 
         expect(screen.getByText('Request').nextElementSibling).toHaveTextContent('DFDP9999 A; DFDP9999 B');
-        expect(screen.getByText('Requested by').nextElementSibling).toHaveTextContent('Virginia Toy; Jane Doe');
+        expect(screen.getByText('Sampled by').nextElementSibling).toHaveTextContent('Virginia Toy; Jane Doe');
         expect(screen.getByText('Purpose').nextElementSibling).toHaveTextContent('Petrological analysis');
     });
 
