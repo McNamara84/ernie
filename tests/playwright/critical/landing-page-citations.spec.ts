@@ -76,6 +76,17 @@ test.describe('Landing Page - Citation Standards', () => {
       .allTextContents();
 
     expect(leftHeadings.slice(0, 4)).toEqual(['General', 'Acquisition', 'License & Rights', 'Cite this Resource']);
+
+    const acquisition = page.locator('section[aria-labelledby="heading-acquisition"]');
+    await expect(acquisition).toBeVisible();
+    const valueOffsets = await acquisition
+      .locator('dd')
+      .evaluateAll((values) => values.map((value) => Math.round(value.getBoundingClientRect().left)));
+    expect(new Set(valueOffsets).size).toBe(1);
+
+    await page.setViewportSize({ width: 390, height: 720 });
+    await expect(acquisition).toBeVisible();
+    expect(await acquisition.evaluate((section) => section.scrollWidth <= section.clientWidth)).toBe(true);
   });
 
   test('keeps the DOI-less note outside the copied GFZ citation', async ({ page }) => {

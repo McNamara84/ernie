@@ -43,6 +43,7 @@ final class IgsnSampleImageBackfillService
             'stored' => 0,
             'would_link_external' => 0,
             'linked_external' => 0,
+            'unavailable' => 0,
             'unchanged' => 0,
             'no_image' => 0,
             'invalid_placeholder' => 0,
@@ -206,19 +207,17 @@ final class IgsnSampleImageBackfillService
         ];
 
         $metadata->sample_image_source_url = $resolved['source_url'];
-        if ($resolved['status'] === IgsnSampleImageUrlService::STATUS_EXTERNAL) {
-            $metadata->sample_image_external_url = $resolved['external_url'];
-        }
         $metadata->save();
 
         $result = $this->storageService->sync($metadata, $force || $sourceChanged);
-        if (! in_array($result['status'], ['stored', 'external', 'unchanged'], true)) {
+        if (! in_array($result['status'], ['stored', 'external', 'unavailable', 'unchanged'], true)) {
             $metadata->forceFill($previousDescriptor)->save();
         }
 
         $status = match ($result['status']) {
             'stored' => 'stored',
             'external' => 'linked_external',
+            'unavailable' => 'unavailable',
             'unchanged' => 'unchanged',
             'unsupported' => 'unsupported_source',
             default => 'failed',

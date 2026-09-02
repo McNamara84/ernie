@@ -39,11 +39,11 @@ final class BackfillIgsnSampleImages extends Command
 
         $this->info($this->option('apply') ? 'IGSN sample image backfill applied.' : 'Dry run only; no data or files were changed.');
         $headers = [
-            'Scanned', 'Would store', 'Stored', 'Would link', 'Linked', 'Unchanged',
+            'Scanned', 'Would store', 'Stored', 'Would link', 'Linked', 'Unavailable', 'Unchanged',
             'No image', 'Placeholder', 'Missing DIF', 'Unsupported', 'Failed',
         ];
         $keys = [
-            'scanned', 'would_store', 'stored', 'would_link_external', 'linked_external', 'unchanged',
+            'scanned', 'would_store', 'stored', 'would_link_external', 'linked_external', 'unavailable', 'unchanged',
             'no_image', 'invalid_placeholder', 'missing_dif', 'unsupported_source', 'failed',
         ];
         $this->table($headers, [[...array_map(static fn (string $key): int => (int) $result[$key], $keys)]]);

@@ -54,8 +54,8 @@ it('stores a validated managed JPEG at a deterministic path and is idempotent', 
     Http::assertSentCount(1);
 });
 
-it('stores canonical ICDP URLs without downloading the external image', function (): void {
-    Http::preventStrayRequests();
+it('publishes canonical ICDP URLs only after validating the external image', function (): void {
+    Http::fake(['data.icdp-online.org/*' => Http::response(issue1168Jpeg(), 206, ['Content-Type' => 'image/jpeg'])]);
     $metadata = issue1168Metadata('http://www-icdp.icdp-online.org/sites/cosc/news/cores/CS_5054.jpg');
 
     expect(app(IgsnSampleImageStorageService::class)->sync($metadata)['status'])->toBe('external');
@@ -63,7 +63,48 @@ it('stores canonical ICDP URLs without downloading the external image', function
 
     expect($metadata->sample_image_external_url)->toBe('https://data.icdp-online.org/sites/cosc/news/cores/CS_5054.jpg')
         ->and($metadata->sample_image_storage_path)->toBeNull();
-    Http::assertNothingSent();
+    Http::assertSentCount(1);
+});
+
+it('clears every public image field for an unavailable external source while retaining its descriptor', function (): void {
+    Http::fake(['data.icdp-online.org/*' => Http::response('', 404)]);
+    $metadata = issue1168Metadata('http://www-icdp.icdp-online.org/sites/lusklint/news/cores/missing.jpg');
+    $oldPath = 'igsn-sample-images/gfso273n39/previous-managed.jpg';
+    $metadata->update([
+        'sample_image_external_url' => 'https://data.icdp-online.org/sites/lusklint/news/cores/missing.jpg',
+        'sample_image_storage_path' => $oldPath,
+        'sample_image_mime_type' => 'image/jpeg',
+        'sample_image_size' => strlen(issue1168Jpeg()),
+    ]);
+    Storage::disk('public')->put($oldPath, issue1168Jpeg());
+
+    expect(app(IgsnSampleImageStorageService::class)->sync($metadata))->toBe([
+        'status' => 'unavailable',
+        'message' => 'http_404',
+    ]);
+
+    expect($metadata->refresh()->sample_image_source_url)
+        ->toBe('http://www-icdp.icdp-online.org/sites/lusklint/news/cores/missing.jpg')
+        ->and($metadata->sample_image_external_url)->toBeNull()
+        ->and($metadata->sample_image_storage_path)->toBeNull()
+        ->and($metadata->sample_image_mime_type)->toBeNull()
+        ->and($metadata->sample_image_size)->toBeNull()
+        ->and($metadata->sampleImageUrl())->toBeNull();
+    Storage::disk('public')->assertMissing($oldPath);
+});
+
+it('keeps a previously published URL for a non-definitive client response', function (): void {
+    Http::fake(['data.icdp-online.org/*' => Http::response('', 408)]);
+    $metadata = issue1168Metadata('http://www-icdp.icdp-online.org/sites/cosc/news/cores/temporary.jpg');
+    $metadata->update(['sample_image_external_url' => 'https://data.icdp-online.org/sites/cosc/news/cores/temporary.jpg']);
+
+    expect(app(IgsnSampleImageStorageService::class)->sync($metadata))->toBe([
+        'status' => 'failed',
+        'message' => 'http_408',
+    ]);
+
+    expect($metadata->refresh()->sample_image_external_url)
+        ->toBe('https://data.icdp-online.org/sites/cosc/news/cores/temporary.jpg');
 });
 
 it('rejects invalid content without publishing a broken image path', function (string $body, array $headers, int $maxBytes): void {
@@ -183,6 +224,7 @@ it('deletes the old managed image only after the replacement transaction commits
 });
 
 it('restores a managed image descriptor when switching to an external image rolls back', function (): void {
+    Http::fake(['data.icdp-online.org/*' => Http::response(issue1168Jpeg(), 206, ['Content-Type' => 'image/jpeg'])]);
     $metadata = issue1168Metadata('http://www-icdp.icdp-online.org/sites/cosc/news/cores/CS_5054.jpg');
     $oldPath = 'igsn-sample-images/gfso273n39/existing.jpg';
     $metadata->forceFill([

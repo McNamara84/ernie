@@ -21,7 +21,10 @@ describe('IgsnDrillingSection', () => {
                 { start: '10.000', end: '20.0', unit: 'Ma', end_unit: 'Ma' },
                 { start: '5', end: '5000', unit: 'ka', end_unit: 'a' },
             ],
-            elevation_ranges: [{ start: '-10', end: '25', unit: 'm', end_unit: 'ft' }],
+            elevation_ranges: [
+                { start: '-10', end: '25', unit: 'm', end_unit: 'ft' },
+                { start: '30', end: '40', unit: 'm', end_unit: 'm' },
+            ],
             launch_platform_names: ['SO-273', ' SO-273 ', 'Meteor'],
             launch_type_names: ['Piston corer'],
             navigation_types: ['GPS', 'DVL'],
@@ -32,7 +35,8 @@ describe('IgsnDrillingSection', () => {
         expect(screen.getByRole('heading', { name: 'Drilling' })).toBeInTheDocument();
         expect(screen.getByText('Total Length').nextElementSibling).toHaveTextContent('2400.1 m; 12');
         expect(screen.getByText('Age Range').nextElementSibling).toHaveTextContent('10 – 20 Ma; 5 ka – 5000 a');
-        expect(screen.getByText('Elevation Range').nextElementSibling).toHaveTextContent('-10 m – 25 ft');
+        expect(screen.queryByText('Elevation Range')).not.toBeInTheDocument();
+        expect(screen.queryByText(/-10 m/)).not.toBeInTheDocument();
         expect(screen.getByText('Launch Platform').nextElementSibling).toHaveTextContent('SO-273; Meteor');
         expect(screen.getByText('Launch Type').nextElementSibling).toHaveTextContent('Piston corer');
         expect(screen.getByText('Navigation Type').nextElementSibling).toHaveTextContent('GPS; DVL');

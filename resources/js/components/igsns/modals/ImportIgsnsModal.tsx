@@ -32,6 +32,7 @@ interface ImportProgress extends ImportDataCiteSyncProgress {
     images_processed?: number;
     images_stored?: number;
     images_external?: number;
+    images_unavailable?: number;
     images_skipped?: number;
     images_failed?: number;
     image_warnings?: Array<{ doi: string; error: string }>;
@@ -485,7 +486,7 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'a
                             {(progress.images_processed ?? 0) > 0 && (
                                 <p className="text-sm text-muted-foreground">
                                     Sample images: {progress.images_stored ?? 0} stored locally, {progress.images_external ?? 0} linked externally,{' '}
-                                    {progress.images_failed ?? 0} failed.
+                                    {progress.images_unavailable ?? 0} unavailable, {progress.images_failed ?? 0} failed.
                                 </p>
                             )}
 

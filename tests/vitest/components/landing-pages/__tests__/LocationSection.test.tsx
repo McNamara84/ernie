@@ -439,22 +439,41 @@ describe('LocationSection', () => {
             expect(screen.getByText('Locality Description').nextElementSibling).toHaveTextContent('Detailed locality');
         });
 
-        it('renders an elevation range even when the legacy DIF has no mappable coordinates', () => {
+        it('renders only the first legacy elevation and final depth without requiring mappable coordinates', () => {
             render(
                 <LocationSection
                     samplingLocation
                     geoLocations={[]}
                     igsn={
                         {
-                            elevation_ranges: [{ start: '100', end: '125', unit: 'm', end_unit: 'm' }],
+                            elevation_ranges: [
+                                { start: '100', end: '125', unit: 'm', end_unit: 'm' },
+                                { start: '200', end: '225', unit: 'ft', end_unit: 'ft' },
+                            ],
                         } as never
                     }
                 />,
             );
 
             expect(screen.getByRole('heading', { name: 'Sampling Location' })).toBeInTheDocument();
-            expect(screen.getByText('Elevation Range').nextElementSibling).toHaveTextContent('100 m – 125 m');
+            expect(screen.getByText('Elevation').nextElementSibling).toHaveTextContent('100 m');
+            expect(screen.getByText('Final Depth').nextElementSibling).toHaveTextContent('125 m');
+            expect(screen.queryByText(/200/)).not.toBeInTheDocument();
+            expect(screen.queryByText(/225/)).not.toBeInTheDocument();
             expect(screen.queryByTestId('map-container')).not.toBeInTheDocument();
+        });
+
+        it('uses the start unit for final depth when the legacy end unit is missing', () => {
+            render(
+                <LocationSection
+                    samplingLocation
+                    geoLocations={[]}
+                    igsn={{ elevation_ranges: [{ start: '-1911.984', end: '-1912.937', unit: 'm', end_unit: null }] } as never}
+                />,
+            );
+
+            expect(screen.getByText('Elevation').nextElementSibling).toHaveTextContent('-1911.984 m');
+            expect(screen.getByText('Final Depth').nextElementSibling).toHaveTextContent('-1912.937 m');
         });
     });
 

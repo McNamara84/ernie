@@ -281,6 +281,7 @@ class IgsnImportController extends Controller
             'images_processed' => 0,
             'images_stored' => 0,
             'images_external' => 0,
+            'images_unavailable' => 0,
             'images_skipped' => 0,
             'images_failed' => 0,
             'image_warnings' => [],

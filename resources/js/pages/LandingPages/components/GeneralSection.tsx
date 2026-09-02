@@ -52,7 +52,7 @@ export function GeneralSection({ igsn, dates }: GeneralSectionProps): ReactNode 
         { label: 'IGSN', value: igsn?.igsn ?? null },
         { label: 'Parent IGSN', value: parentNode },
         { label: 'Request', value: requests },
-        { label: 'Requested by', value: requestedBy },
+        { label: 'Sampled by', value: requestedBy },
         { label: 'Purpose', value: purpose },
         { label: 'Release Date', value: releaseDate },
     ];

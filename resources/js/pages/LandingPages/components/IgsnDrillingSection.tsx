@@ -50,11 +50,6 @@ export function IgsnDrillingSection({ igsn }: IgsnDrillingSectionProps): ReactNo
         .filter((value): value is string => value !== null)
         .join('; ');
 
-    const elevationRanges = (igsn?.elevation_ranges ?? [])
-        .map(formatRange)
-        .filter((value): value is string => value !== null)
-        .join('; ');
-
     const joinValues = (values: string[] | undefined): string | null => {
         const unique = Array.from(new Set((values ?? []).map((value) => value.trim()).filter(Boolean)));
         return unique.length > 0 ? unique.join('; ') : null;
@@ -63,7 +58,6 @@ export function IgsnDrillingSection({ igsn }: IgsnDrillingSectionProps): ReactNo
     const rows: MetadataRow[] = [
         { label: 'Total Length', value: totalLengths || null },
         { label: 'Age Range', value: ageRanges || null },
-        { label: 'Elevation Range', value: elevationRanges || null },
         { label: 'Launch Platform', value: joinValues(igsn?.launch_platform_names) },
         { label: 'Launch Type', value: joinValues(igsn?.launch_type_names) },
         { label: 'Navigation Type', value: joinValues(igsn?.navigation_types) },
