@@ -29,6 +29,16 @@ test.describe('Spatial and Temporal Coverage', () => {
 
         await page.goto('/editor');
         await page.waitForLoadState('networkidle');
+
+        const coverageSection = page.locator('[data-accordion-value="spatial-temporal-coverage"]');
+        const coverageTrigger = coverageSection.locator('[data-slot="accordion-trigger"]');
+        await expect(coverageTrigger).toBeVisible();
+
+        if ((await coverageTrigger.getAttribute('data-state')) === 'closed') {
+            await coverageTrigger.click();
+        }
+
+        await expect(coverageTrigger).toHaveAttribute('data-state', 'open');
     });
 
     test.describe('Adding Coverage Entries', () => {
