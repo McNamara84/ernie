@@ -12,12 +12,13 @@ import { usePortalMapData } from '@/hooks/use-portal-map-data';
 import { formatAuthorsShort, getShapePathOptions } from '@/lib/portal-map-config';
 import { normalizeLongitude, unwrapLongitudeBounds, unwrapPathLongitudes } from '@/lib/portal-map-longitude';
 import { cn } from '@/lib/utils';
-import type { GeoBounds, PortalFilters, PortalMapFeature, PortalMapResourceFeature, PortalMapViewport } from '@/types/portal';
+import type { GeoBounds, PortalBasePath, PortalFilters, PortalMapFeature, PortalMapResourceFeature, PortalMapViewport } from '@/types/portal';
 
 import { ClusterLayer } from './PortalMapCluster';
 import { PortalMapLegend } from './PortalMapLegend';
 
 interface PortalMapProps {
+    basePath?: PortalBasePath;
     filters: PortalFilters;
     className?: string;
     hideHeader?: boolean;
@@ -261,6 +262,7 @@ function filterSignature(filters: PortalFilters): string {
 }
 
 export function PortalMap({
+    basePath = '/doi-search',
     filters,
     className,
     hideHeader = false,
@@ -296,7 +298,7 @@ export function PortalMap({
         [geoFilterEnabled],
     );
 
-    const mapQuery = usePortalMapData(filters, request?.viewport ?? null, request?.includeExtent ?? false);
+    const mapQuery = usePortalMapData(filters, request?.viewport ?? null, request?.includeExtent ?? false, basePath);
     const features = mapQuery.data?.features ?? [];
 
     useEffect(() => {

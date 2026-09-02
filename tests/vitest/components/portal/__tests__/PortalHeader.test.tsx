@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
+import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen, within } from '@tests/vitest/utils/render';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -11,8 +12,15 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 vi.mock('@/components/ui/button', () => ({
-    Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & Record<string, unknown>) => (
-        <button {...props}>{children}</button>
+    Button: ({
+        children,
+        variant = 'default',
+        size = 'default',
+        ...props
+    }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
+        <button data-slot="button" data-variant={variant} data-size={size} {...props}>
+            {children}
+        </button>
     ),
 }));
 
@@ -56,11 +64,17 @@ describe('PortalHeader', () => {
             expect(homeLink).not.toHaveAttribute('data-testid', 'inertia-link');
         });
 
-        it('uses Inertia Link for internal items', () => {
+        it('uses Inertia Link for internal items', async () => {
+            const user = userEvent.setup();
             render(<PortalHeader />);
-            const findLink = screen.getByText('Find').closest('a');
-            expect(findLink).toHaveAttribute('href', '/search');
-            expect(findLink).toHaveAttribute('data-testid', 'inertia-link');
+            await user.click(screen.getByRole('button', { name: /find/i }));
+
+            const dataPortalLink = await screen.findByRole('menuitem', { name: 'Data Portal' });
+            const igsnPortalLink = screen.getByRole('menuitem', { name: 'IGSN Portal' });
+            expect(dataPortalLink).toHaveAttribute('href', '/doi-search');
+            expect(dataPortalLink).toHaveAttribute('data-testid', 'inertia-link');
+            expect(igsnPortalLink).toHaveAttribute('href', '/igsn-search');
+            expect(igsnPortalLink).toHaveAttribute('data-testid', 'inertia-link');
 
             const legalLink = screen.getByText('Legal Notice').closest('a');
             expect(legalLink).toHaveAttribute('href', '/legal-notice');
@@ -69,10 +83,21 @@ describe('PortalHeader', () => {
 
         it('highlights the active Find item', () => {
             render(<PortalHeader />);
-            const findLink = screen.getByText('Find').closest('a');
-            expect(findLink?.className).toContain('bg-portal-nav-active');
-            expect(findLink?.className).toContain('font-semibold');
-            expect(findLink).toHaveAttribute('aria-current', 'page');
+            const findButton = screen.getByRole('button', { name: /find/i });
+            expect(findButton.className).toContain('bg-portal-nav-active');
+            expect(findButton.className).toContain('font-semibold');
+            expect(findButton).toHaveAttribute('aria-current', 'page');
+            expect(findButton).toHaveAttribute('data-slot', 'dropdown-menu-trigger');
+            expect(findButton).toHaveAttribute('data-variant', 'ghost');
+        });
+
+        it('marks the current portal submenu item', async () => {
+            const user = userEvent.setup();
+            render(<PortalHeader portalKind="igsn" />);
+            await user.click(screen.getByRole('button', { name: /find/i }));
+
+            expect(await screen.findByRole('menuitem', { name: 'IGSN Portal' })).toHaveAttribute('aria-current', 'page');
+            expect(screen.getByRole('menuitem', { name: 'Data Portal' })).not.toHaveAttribute('aria-current');
         });
 
         it('does not set aria-current on inactive items', () => {
@@ -111,6 +136,9 @@ describe('PortalHeader', () => {
 
             // After opening, button label changes
             expect(screen.getByLabelText('Close menu')).toBeInTheDocument();
+            const mobileMenu = screen.getByTestId('mobile-menu');
+            expect(within(mobileMenu).getByRole('link', { name: 'Data Portal' })).toHaveAttribute('href', '/doi-search');
+            expect(within(mobileMenu).getByRole('link', { name: 'IGSN Portal' })).toHaveAttribute('href', '/igsn-search');
         });
 
         it('closes mobile menu on item click', () => {

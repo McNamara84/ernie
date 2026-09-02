@@ -11,9 +11,13 @@ import type { PortalPageProps } from '@/types/portal';
 const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
 const isDesktopMock = vi.hoisted(() => vi.fn(() => true));
+const headTitleMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@inertiajs/react', () => ({
-    Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    Head: ({ title }: { title?: string }) => {
+        headTitleMock(title);
+        return null;
+    },
     router: routerMock,
 }));
 
@@ -79,6 +83,7 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         temporalFilterEnabled,
         onTemporalFilterToggle,
         onTemporalChange,
+        showResourceTypeFilter,
     }: {
         searchValue: string;
         onSearchValueChange: (s: string) => void;
@@ -92,6 +97,7 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         temporalFilterEnabled?: boolean;
         onTemporalFilterToggle?: (enabled: boolean) => void;
         onTemporalChange?: (temporal: { dateType: string; yearFrom: number; yearTo: number } | null) => void;
+        showResourceTypeFilter?: boolean;
     }) => (
         <div data-testid="portal-filters">
             <input data-testid="search-input" value={searchValue} onChange={(e) => onSearchValueChange(e.target.value)} />
@@ -112,6 +118,7 @@ vi.mock('@/components/portal/PortalFilters', () => ({
                 Clear
             </button>
             <span data-testid="geo-filter-enabled">{String(geoFilterEnabled ?? false)}</span>
+            <span data-testid="resource-type-filter-visible">{String(showResourceTypeFilter ?? true)}</span>
             {onGeoFilterToggle && (
                 <button data-testid="geo-toggle" onClick={() => onGeoFilterToggle(!geoFilterEnabled)}>
                     Toggle Geo
@@ -229,6 +236,12 @@ vi.mock('@/components/ui/resizable', () => ({
 }));
 
 const defaultProps: PortalPageProps = {
+    portal: {
+        kind: 'doi',
+        title: 'Data Portal',
+        basePath: '/doi-search',
+        showResourceTypeFilter: true,
+    },
     resources: [
         {
             id: 1,
@@ -289,8 +302,9 @@ describe('Portal', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         axiosGetMock.mockReset();
+        headTitleMock.mockReset();
         localStorage.clear();
-        window.history.replaceState(null, '', '/search');
+        window.history.replaceState(null, '', '/doi-search');
         useNavigationStatusMock.mockReturnValue({ isNavigating: false, statusText: 'Ready' });
         isDesktopMock.mockReturnValue(true);
     });
@@ -298,6 +312,18 @@ describe('Portal', () => {
     it('renders the portal layout', () => {
         render(<Portal {...defaultProps} />);
         expect(screen.getByTestId('portal-layout')).toBeInTheDocument();
+    });
+
+    it('uses the configured title and hides the IGSN resource type filter', () => {
+        render(
+            <Portal
+                {...defaultProps}
+                portal={{ kind: 'igsn', title: 'IGSN Portal', basePath: '/igsn-search', showResourceTypeFilter: false }}
+            />,
+        );
+
+        expect(headTitleMock).toHaveBeenCalledWith('IGSN Portal');
+        expect(screen.getByTestId('resource-type-filter-visible')).toHaveTextContent('false');
     });
 
     it('passes resources to result list', () => {
@@ -367,7 +393,7 @@ describe('Portal', () => {
         window.history.replaceState(
             null,
             '',
-            '/search?q=%20climate%20&north=53.123456789&south=50.987654321&east=15.000000009&west=11.000000001&page=4',
+            '/doi-search?q=%20climate%20&north=53.123456789&south=50.987654321&east=15.000000009&west=11.000000001&page=4',
         );
         axiosGetMock.mockResolvedValueOnce({
             data: {
@@ -399,7 +425,7 @@ describe('Portal', () => {
         await waitFor(() => expect(axiosGetMock).toHaveBeenCalledTimes(1));
         const countUrl = new URL(String(axiosGetMock.mock.calls[0][0]), 'https://ernie.test');
 
-        expect(countUrl.pathname).toBe('/search/count');
+        expect(countUrl.pathname).toBe('/doi-search/count');
         expect(countUrl.searchParams.get('q')).toBe(' climate ');
         expect(countUrl.searchParams.get('north')).toBe('53.123456789');
         expect(countUrl.searchParams.has('page')).toBe(false);
@@ -453,7 +479,7 @@ describe('Portal', () => {
         const nextButtons = screen.getAllByTestId('next-page');
         await user.click(nextButtons[0]);
 
-        expect(routerMock.get).toHaveBeenCalledWith('/search', { page: 2 }, expect.any(Object));
+        expect(routerMock.get).toHaveBeenCalledWith('/doi-search', { page: 2 }, expect.any(Object));
     });
 
     it('navigates with query param preserved on page change', async () => {
@@ -467,7 +493,7 @@ describe('Portal', () => {
         const nextButtons = screen.getAllByTestId('next-page');
         await user.click(nextButtons[0]);
 
-        expect(routerMock.get).toHaveBeenCalledWith('/search?q=climate', { page: 2 }, expect.any(Object));
+        expect(routerMock.get).toHaveBeenCalledWith('/doi-search?q=climate', { page: 2 }, expect.any(Object));
     });
 
     it('navigates with type param preserved on page change', async () => {

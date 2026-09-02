@@ -209,8 +209,8 @@ Stop immediately if:
 - [ ] The login page renders completely; logo, email, password, and `Log in` are
       visible.
 
-- [ ] `/search` opens publicly, shows results or a plausible empty state, and
-      responds to a search.
+- [ ] `/doi-search` and `/igsn-search` open publicly, show results or a
+      plausible empty state, and respond to a search.
 
 ### 2.4 Login and Navigation
 

@@ -2,24 +2,24 @@ import { useQuery } from '@tanstack/react-query';
 
 import { useDebounce } from '@/hooks/use-debounce';
 import { ApiError, apiRequest } from '@/lib/api-client';
-import { apiEndpoints, queryKeys } from '@/lib/query-keys';
-import type { KeywordSuggestion } from '@/types/portal';
+import { queryKeys } from '@/lib/query-keys';
+import type { KeywordSuggestion, PortalBasePath } from '@/types/portal';
 
 interface KeywordSuggestionResponse {
     data: KeywordSuggestion[];
 }
 
-export function usePortalKeywordSuggestions(input: string) {
+export function usePortalKeywordSuggestions(input: string, basePath: PortalBasePath = '/doi-search') {
     const normalizedInput = input.trim();
     const debouncedInput = useDebounce(normalizedInput, 300);
 
     return useQuery({
-        queryKey: queryKeys.portal.keywordSuggestions(debouncedInput.toLowerCase()),
-        queryFn: ({ signal }) =>
-            apiRequest<KeywordSuggestionResponse>(
-                `${apiEndpoints.portalKeywordSuggestions}?${new URLSearchParams({ q: debouncedInput }).toString()}`,
-                { signal },
-            ),
+        queryKey: queryKeys.portal.keywordSuggestions(basePath, debouncedInput.toLowerCase()),
+        queryFn: ({ signal }) => {
+            const query = new URLSearchParams({ q: debouncedInput }).toString();
+
+            return apiRequest<KeywordSuggestionResponse>(`${basePath}/free-keyword-suggestions?${query}`, { signal });
+        },
         enabled: debouncedInput.length >= 2,
         select: (response) => response.data,
         staleTime: 5 * 60_000,

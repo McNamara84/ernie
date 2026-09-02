@@ -18,7 +18,7 @@ describe('portal filter URL builders', () => {
     it('serializes all list filters without empty defaults', () => {
         const url = new URL(buildPortalFilterUrl(filters), 'https://ernie.test');
 
-        expect(url.pathname).toBe('/search');
+        expect(url.pathname).toBe('/doi-search');
         expect(url.searchParams.get('q')).toBe('seismic data');
         expect(url.searchParams.getAll('type[]')).toEqual(['dataset', 'physical-object']);
         expect(url.searchParams.getAll('free_keywords[]')).toEqual(['gravity']);
@@ -44,7 +44,7 @@ describe('portal filter URL builders', () => {
             'https://ernie.test',
         );
 
-        expect(url.pathname).toBe('/search/map');
+        expect(url.pathname).toBe('/doi-search/map');
         expect(url.searchParams.get('q')).toBe('seismic data');
         expect(url.searchParams.get('north')).toBe('54.000000');
         expect(url.searchParams.get('viewport[north]')).toBe('53.123457');
@@ -57,11 +57,32 @@ describe('portal filter URL builders', () => {
     it('preserves exact direct-URL filters for counts while dropping pagination', () => {
         const url = new URL(buildPortalCountUrl('?q=%20climate%20&north=53.123456789&type%5B%5D=dataset&page=4'), 'https://ernie.test');
 
-        expect(url.pathname).toBe('/search/count');
+        expect(url.pathname).toBe('/doi-search/count');
         expect(url.searchParams.get('q')).toBe(' climate ');
         expect(url.searchParams.get('north')).toBe('53.123456789');
         expect(url.searchParams.getAll('type[]')).toEqual(['dataset']);
         expect(url.searchParams.has('page')).toBe(false);
+    });
+
+    it('uses the IGSN route family without serializing a resource type filter', () => {
+        const listUrl = new URL(buildPortalFilterUrl(filters, '/igsn-search'), 'https://ernie.test');
+        const countUrl = new URL(buildPortalCountUrl('?q=sample&type%5B%5D=dataset&page=2', '/igsn-search'), 'https://ernie.test');
+        const mapUrl = new URL(
+            buildPortalMapUrl(
+                filters,
+                { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 8 },
+                false,
+                '/igsn-search',
+            ),
+            'https://ernie.test',
+        );
+
+        expect(listUrl.pathname).toBe('/igsn-search');
+        expect(listUrl.searchParams.has('type[]')).toBe(false);
+        expect(countUrl.pathname).toBe('/igsn-search/count');
+        expect(countUrl.searchParams.has('type[]')).toBe(false);
+        expect(mapUrl.pathname).toBe('/igsn-search/map');
+        expect(mapUrl.searchParams.has('type[]')).toBe(false);
     });
 
     it('preserves the legacy DOI exclusion filter for map requests', () => {

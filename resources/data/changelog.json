@@ -5,6 +5,10 @@
         "features": [],
         "improvements": [
             {
+                "title": "Dedicated Data and IGSN Portals",
+                "description": "Public discovery is now split into a Data Portal at /doi-search and an IGSN Portal at /igsn-search. The Data Portal excludes physical samples and their Resource Type option, while the IGSN Portal shows only physical samples and no redundant Resource Type filter. Both destinations are available from the Find navigation menu."
+            },
+            {
                 "title": "Focused Editor Settings",
                 "description": "Editor Settings are now organized as a full-width accordion that starts collapsed and keeps one section open at a time. Section headings show the summaries relevant to their controls, including live item and ERNIE/ELMO counts where available. Long license identifiers stay compact while their complete value remains accessible, and a sticky save bar clearly distinguishes unsaved form changes from Domains and Datacenters that save immediately."
             },

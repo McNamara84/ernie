@@ -99,6 +99,7 @@ export default function DefaultGfzIgsnTemplate() {
                 contributors={resource.contributors || []}
                 fundingReferences={resource.funding_references || []}
                 subjects={resource.subjects || []}
+                portalBasePath="/igsn-search"
                 resourceId={resource.id}
                 jsonLdExportUrl={jsonLdExportUrl}
                 metadataLinks={metadataLinks}

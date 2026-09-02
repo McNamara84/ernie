@@ -69,7 +69,7 @@ it('returns a lightweight resource feature for a published point in the viewport
     $resource = createPublishedPortalMapResource($this->datasetType, 'Berlin gravity data');
     GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $resource->id]);
 
-    $this->getJson(route('portal.map', portalMapRequestQuery(['include_extent' => 1])))
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery(['include_extent' => 1])))
         ->assertOk()
         ->assertJsonPath('schemaVersion', 1)
         ->assertJsonCount(1, 'features')
@@ -112,7 +112,7 @@ it('infers legacy geometry details when geo type is missing', function (): void 
         ],
     ]);
 
-    $response = $this->getJson(route('portal.map', portalMapRequestQuery(['zoom' => 12])))
+    $response = $this->getJson(route('portal.doi.map', portalMapRequestQuery(['zoom' => 12])))
         ->assertOk()
         ->assertJsonPath('meta.visibleLocations', 3)
         ->json();
@@ -144,7 +144,7 @@ it('uses the authoritative polygon geometry when other geometry fields contain a
         ],
     ]);
 
-    $feature = $this->getJson(route('portal.map', portalMapRequestQuery(['zoom' => 12, 'include_extent' => 1])))
+    $feature = $this->getJson(route('portal.doi.map', portalMapRequestQuery(['zoom' => 12, 'include_extent' => 1])))
         ->assertOk()
         ->assertJsonCount(1, 'features')
         ->assertJsonPath('features.0.kind', 'resource')
@@ -172,7 +172,7 @@ it('infers a polygon before rejecting an additional global box', function (): vo
         ],
     ]);
 
-    $this->getJson(route('portal.map', portalMapRequestQuery(['zoom' => 12])))
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery(['zoom' => 12])))
         ->assertOk()
         ->assertJsonCount(1, 'features')
         ->assertJsonPath('features.0.kind', 'resource')
@@ -189,26 +189,30 @@ it('excludes drafts, locations outside the viewport, and whole-world coverage bo
     LandingPage::factory()->draft()->create(['resource_id' => $draft->id]);
     GeoLocation::factory()->withPoint(13.5, 52.6)->create(['resource_id' => $draft->id]);
 
-    $this->getJson(route('portal.map', portalMapRequestQuery(['include_extent' => 1])))
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery(['include_extent' => 1])))
         ->assertOk()
         ->assertJsonPath('meta.visibleLocations', 1)
         ->assertJsonPath('meta.totalLocations', 2)
         ->assertJsonCount(1, 'features');
 });
 
-it('clusters nearby locations and reports their type distribution', function (): void {
+it('keeps DOI and IGSN map data in their respective portal scopes', function (): void {
     $dataset = createPublishedPortalMapResource($this->datasetType, 'Dataset');
     $sample = createPublishedPortalMapResource($this->physicalObjectType, 'Sample');
     GeoLocation::factory()->withPoint(13.4000, 52.5000)->create(['resource_id' => $dataset->id]);
     GeoLocation::factory()->withPoint(13.4001, 52.5001)->create(['resource_id' => $sample->id]);
 
-    $this->getJson(route('portal.map', portalMapRequestQuery()))
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery()))
         ->assertOk()
         ->assertJsonCount(1, 'features')
-        ->assertJsonPath('features.0.kind', 'cluster')
-        ->assertJsonPath('features.0.count', 2)
-        ->assertJsonPath('features.0.resourceTypeCounts.dataset', 1)
-        ->assertJsonPath('features.0.resourceTypeCounts.physical-object', 1);
+        ->assertJsonPath('meta.visibleLocations', 1)
+        ->assertJsonPath('features.0.resource.resourceType.slug', 'dataset');
+
+    $this->getJson(route('portal.igsn.map', portalMapRequestQuery()))
+        ->assertOk()
+        ->assertJsonCount(1, 'features')
+        ->assertJsonPath('meta.visibleLocations', 1)
+        ->assertJsonPath('features.0.resource.resourceType.slug', 'physical-object');
 });
 
 it('uses the same text and resource-type filters as the result list', function (): void {
@@ -219,27 +223,32 @@ it('uses the same text and resource-type filters as the result list', function (
 
     $query = portalMapRequestQuery([
         'q' => 'Wanted',
-        'type' => ['physical-object'],
+        'type' => ['dataset'],
     ]);
 
-    $this->getJson(route('portal.map', $query))
+    $this->getJson(route('portal.doi.map', $query))
         ->assertOk()
         ->assertJsonPath('meta.visibleLocations', 1)
-        ->assertJsonPath('features.0.resource.resourceType.slug', 'physical-object');
+        ->assertJsonPath('features.0.resource.resourceType.slug', 'dataset');
 });
 
-it('preserves legacy doi and igsn type links on the map endpoint', function (): void {
+it('does not allow legacy type shortcuts to override a map portal scope', function (): void {
     $dataset = createPublishedPortalMapResource($this->datasetType, 'Legacy DOI link');
     $sample = createPublishedPortalMapResource($this->physicalObjectType, 'Legacy IGSN link');
     GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $dataset->id]);
     GeoLocation::factory()->withPoint(13.6, 52.6)->create(['resource_id' => $sample->id]);
 
-    $this->getJson(route('portal.map', portalMapRequestQuery(['type' => 'doi'])))
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery(['type' => 'doi'])))
         ->assertOk()
         ->assertJsonPath('meta.visibleLocations', 1)
         ->assertJsonPath('features.0.resource.resourceType.slug', 'dataset');
 
-    $this->getJson(route('portal.map', portalMapRequestQuery(['type' => 'igsn'])))
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery(['type' => 'igsn'])))
+        ->assertOk()
+        ->assertJsonPath('meta.visibleLocations', 1)
+        ->assertJsonPath('features.0.resource.resourceType.slug', 'dataset');
+
+    $this->getJson(route('portal.igsn.map', portalMapRequestQuery(['type' => 'doi'])))
         ->assertOk()
         ->assertJsonPath('meta.visibleLocations', 1)
         ->assertJsonPath('features.0.resource.resourceType.slug', 'physical-object');
@@ -267,7 +276,7 @@ it('supports technical and filter viewports that cross the antimeridian', functi
         'zoom' => 6,
     ]);
 
-    $this->getJson(route('portal.map', $query))
+    $this->getJson(route('portal.doi.map', $query))
         ->assertOk()
         ->assertJsonPath('meta.visibleLocations', 2);
 });
@@ -298,7 +307,7 @@ it('anchors an antimeridian polygon near its vertices instead of Greenwich', fun
         'zoom' => 12,
     ]);
 
-    $feature = $this->getJson(route('portal.map', $query))
+    $feature = $this->getJson(route('portal.doi.map', $query))
         ->assertOk()
         ->assertJsonCount(1, 'features')
         ->assertJsonPath('features.0.geometry.type', 'polygon')
@@ -324,7 +333,7 @@ it('clusters an overlapping large box inside the visible viewport', function ():
         'zoom' => 4,
     ]);
 
-    $response = $this->getJson(route('portal.map', $query))
+    $response = $this->getJson(route('portal.doi.map', $query))
         ->assertOk()
         ->assertJsonCount(1, 'features')
         ->assertJsonPath('features.0.kind', 'cluster')
@@ -361,7 +370,7 @@ it('clusters an overlapping polygon inside the visible viewport even when its ce
         'zoom' => 4,
     ]);
 
-    $feature = $this->getJson(route('portal.map', $query))
+    $feature = $this->getJson(route('portal.doi.map', $query))
         ->assertOk()
         ->assertJsonCount(1, 'features')
         ->assertJsonPath('features.0.kind', 'cluster')
@@ -391,7 +400,7 @@ it('returns the minimum wrapped extent for locations on both sides of the dateli
         'include_extent' => 1,
     ]);
 
-    $this->getJson(route('portal.map', $query))
+    $this->getJson(route('portal.doi.map', $query))
         ->assertOk()
         ->assertJsonPath('meta.totalLocations', 2)
         ->assertJsonPath('meta.extent.west', 179)
@@ -409,7 +418,7 @@ it('returns full box and polygon geometry only at detail zoom', function (): voi
         ['longitude' => 14.5, 'latitude' => 52.0],
     ])->create(['resource_id' => $polygonResource->id]);
 
-    $response = $this->getJson(route('portal.map', portalMapRequestQuery()))
+    $response = $this->getJson(route('portal.doi.map', portalMapRequestQuery()))
         ->assertOk()
         ->json();
 
@@ -424,7 +433,7 @@ it('returns full box and polygon geometry only at detail zoom', function (): voi
 });
 
 it('validates viewport dimensions, coordinate ordering, and complete filter bounds', function (): void {
-    $this->getJson(route('portal.map', [
+    $this->getJson(route('portal.doi.map', [
         'viewport' => [
             'north' => 40,
             'south' => 50,
@@ -442,22 +451,22 @@ it('validates viewport dimensions, coordinate ordering, and complete filter boun
 
 it('accepts only documented legacy shortcuts for scalar type filters', function (): void {
     foreach (['doi', 'igsn'] as $type) {
-        $this->getJson(route('portal.map', portalMapRequestQuery(['type' => $type])))
+        $this->getJson(route('portal.doi.map', portalMapRequestQuery(['type' => $type])))
             ->assertOk();
     }
 
-    $this->getJson(route('portal.map', portalMapRequestQuery(['type' => 'dataset'])))
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery(['type' => 'dataset'])))
         ->assertUnprocessable()
         ->assertJsonValidationErrors('type');
 
-    $this->getJson(route('portal.map', portalMapRequestQuery(['type' => ['dataset']])))
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery(['type' => ['dataset']])))
         ->assertOk();
 });
 
 it('can be disabled independently during rollout', function (): void {
     config(['portal_map.enabled' => false]);
 
-    $this->getJson(route('portal.map', portalMapRequestQuery()))
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery()))
         ->assertStatus(503)
         ->assertJsonPath('message', 'The portal map is temporarily unavailable.');
 });
@@ -479,10 +488,10 @@ it('rate limits map requests independently from page loads', function (): void {
     ];
 
     $this->withServerVariables($server)
-        ->getJson(route('portal.map', portalMapRequestQuery()))
+        ->getJson(route('portal.doi.map', portalMapRequestQuery()))
         ->assertOk();
 
     $this->withServerVariables($server)
-        ->getJson(route('portal.map', portalMapRequestQuery()))
+        ->getJson(route('portal.doi.map', portalMapRequestQuery()))
         ->assertTooManyRequests();
 });

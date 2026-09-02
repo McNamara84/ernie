@@ -286,6 +286,18 @@ enum CacheKey: string
     }
 
     /**
+     * Forget the unscoped and both public-portal variants of this key.
+     */
+    public function forgetPortalVariants(): void
+    {
+        $this->forget();
+
+        foreach (PortalScope::cases() as $scope) {
+            $this->forget($scope->value);
+        }
+    }
+
+    /**
      * Get all vocabulary-related cache keys.
      *
      * @return array<int, self>

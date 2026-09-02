@@ -57,7 +57,7 @@ function statisticsResourceType(string $slug, string $name): ResourceType
 
 function statisticsRequest(string $userAgent = 'Mozilla/5.0', string $ipAddress = '203.0.113.50'): Request
 {
-    return Request::create('/search/search-analytics', 'POST', server: [
+    return Request::create('/doi-search/search-analytics', 'POST', server: [
         'REMOTE_ADDR' => $ipAddress,
         'HTTP_USER_AGENT' => $userAgent,
     ]);

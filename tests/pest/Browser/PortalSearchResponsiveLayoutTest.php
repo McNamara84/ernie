@@ -14,7 +14,7 @@ describe('Portal search responsive workspace', function (): void {
     });
 
     it('keeps desktop filters and results inside the viewport', function (int $width, int $height): void {
-        $page = visit('/search')
+        $page = visit('/doi-search')
             ->resize($width, $height)
             ->waitForText('Filters')
             ->assertNoSmoke();
@@ -76,7 +76,7 @@ describe('Portal search responsive workspace', function (): void {
     ]);
 
     it('uses a filter drawer and one switchable content view below desktop width', function (int $width, int $height, bool $wordmarkVisible): void {
-        $page = visit('/search')
+        $page = visit('/doi-search')
             ->resize($width, $height)
             ->waitForText('Results')
             ->assertNoSmoke()
@@ -126,5 +126,28 @@ describe('Portal search responsive workspace', function (): void {
     })->with([
         'tablet' => [1024, 768, true],
         'mobile' => [393, 852, false],
+    ]);
+
+    it('hides the resource type filter in the IGSN portal on desktop and mobile', function (int $width, int $height): void {
+        $page = visit('/igsn-search')
+            ->resize($width, $height)
+            ->waitForText('Filters')
+            ->assertNoSmoke();
+
+        if ($width < 1280) {
+            $page->click('[data-testid="portal-filter-drawer-trigger"]')
+                ->wait(0.2);
+        }
+
+        $resourceTypeTriggerCount = $page->script(<<<'JS'
+            () => Array.from(document.querySelectorAll('button'))
+                .filter((button) => button.textContent?.trim() === 'Resource Type')
+                .length
+            JS);
+
+        expect($resourceTypeTriggerCount)->toBe(0);
+    })->with([
+        'desktop' => [1440, 900],
+        'mobile' => [393, 852],
     ]);
 });

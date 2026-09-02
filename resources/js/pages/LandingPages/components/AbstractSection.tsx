@@ -9,6 +9,7 @@ import type {
     LandingPageMetadataLink,
     LandingPageSubject,
 } from '@/types/landing-page';
+import type { PortalBasePath } from '@/types/portal';
 
 import { mergeLandingPageCredits } from '../lib/mergeLandingPageCredits';
 import { expandMetadataOrder, filterDescriptionsBySection, isDescriptionSectionKey, type MetadataSectionKey } from '../lib/metadata-sections';
@@ -32,6 +33,7 @@ interface AbstractSectionProps {
     metadataLinks?: LandingPageMetadataLink[];
     sectionOrder?: MetadataSectionKey[];
     displayLimits?: LandingPageDisplayLimits;
+    portalBasePath?: PortalBasePath;
 }
 
 /**
@@ -51,6 +53,7 @@ export function AbstractSection({
     metadataLinks,
     sectionOrder = ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
     displayLimits = { creators: 50, contributors: 50, citationAuthors: 50 },
+    portalBasePath = '/doi-search',
 }: AbstractSectionProps) {
     const expandedSectionOrder = expandMetadataOrder(sectionOrder);
     const displayCredits = useMemo(() => mergeLandingPageCredits(creators, contributors), [creators, contributors]);
@@ -81,7 +84,9 @@ export function AbstractSection({
                 case 'funders':
                     return fundingReferences.length > 0 ? <FundersSection key="funders" fundingReferences={fundingReferences} /> : null;
                 case 'keywords':
-                    return hasVisibleKeywords(subjects) ? <KeywordsSection key="keywords" subjects={subjects} /> : null;
+                    return hasVisibleKeywords(subjects) ? (
+                        <KeywordsSection key="keywords" subjects={subjects} portalBasePath={portalBasePath} />
+                    ) : null;
                 case 'metadata_download':
                     return (
                         <DownloadMetadataSection

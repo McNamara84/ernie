@@ -166,7 +166,7 @@ services:
       - "traefik.http.routers.ernie-old-portal-router.middlewares=ernie-old-portal-redirect"
       - "traefik.http.routers.ernie-old-portal-router.priority=300"
       - "traefik.http.middlewares.ernie-old-portal-redirect.redirectregex.regex=^https://ernie[.]rz-vm499[.]gfz[.]de/portal(.*)"
-      - "traefik.http.middlewares.ernie-old-portal-redirect.redirectregex.replacement=https://dataservices.gfz.de/search$${1}"
+      - "traefik.http.middlewares.ernie-old-portal-redirect.redirectregex.replacement=https://dataservices.gfz.de/doi-search$${1}"
       - "traefik.http.middlewares.ernie-old-portal-redirect.redirectregex.permanent=true"
       # All remaining requests on the former ERNIE host retain their path and
       # query while moving to the canonical Data Services host.

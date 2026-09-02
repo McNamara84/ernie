@@ -161,7 +161,7 @@
                 You can continue in the public data portal or return to the application homepage.
             </p>
             <nav aria-label="Error page navigation">
-                <a class="primary" href="{{ route('portal') }}">Explore the data portal</a>
+                <a class="primary" href="{{ route('portal.doi') }}">Explore the data portal</a>
                 <a href="{{ url('/') }}">Return to the homepage</a>
             </nav>
         </main>

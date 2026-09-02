@@ -3,10 +3,15 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ApiError, apiRequest } from '@/lib/api-client';
 import { buildPortalMapUrl } from '@/lib/portal-filter-url';
 import { queryKeys } from '@/lib/query-keys';
-import type { PortalFilters, PortalMapResponse, PortalMapViewport } from '@/types/portal';
+import type { PortalBasePath, PortalFilters, PortalMapResponse, PortalMapViewport } from '@/types/portal';
 
-export function usePortalMapData(filters: PortalFilters, viewport: PortalMapViewport | null, includeExtent: boolean) {
-    const url = viewport ? buildPortalMapUrl(filters, viewport, includeExtent) : null;
+export function usePortalMapData(
+    filters: PortalFilters,
+    viewport: PortalMapViewport | null,
+    includeExtent: boolean,
+    basePath: PortalBasePath = '/doi-search',
+) {
+    const url = viewport ? buildPortalMapUrl(filters, viewport, includeExtent, basePath) : null;
 
     return useQuery({
         queryKey: queryKeys.portal.map(url ?? 'waiting-for-viewport'),

@@ -46,7 +46,7 @@ describe('usePortalMapData', () => {
     it('waits until a visible Leaflet viewport is available', () => {
         let requests = 0;
         server.use(
-            http.get('/search/map', () => {
+            http.get('/doi-search/map', () => {
                 requests++;
                 return HttpResponse.json(payload);
             }),
@@ -61,7 +61,7 @@ describe('usePortalMapData', () => {
     it('loads the bounded endpoint with filters and extent flag', async () => {
         let requestUrl = '';
         server.use(
-            http.get('/search/map', ({ request }) => {
+            http.get('/doi-search/map', ({ request }) => {
                 requestUrl = request.url;
                 return HttpResponse.json({ ...payload, meta: { ...payload.meta, totalLocations: 35_638 } });
             }),
@@ -78,12 +78,27 @@ describe('usePortalMapData', () => {
     });
 
     it('surfaces endpoint errors without replacing them with empty data', async () => {
-        server.use(http.get('/search/map', () => HttpResponse.json({ message: 'Map unavailable' }, { status: 500 })));
+        server.use(http.get('/doi-search/map', () => HttpResponse.json({ message: 'Map unavailable' }, { status: 500 })));
 
         const { result } = renderHookWithQueryClient(() => usePortalMapData(filters, viewport, false));
         await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5_000 });
 
         expect(result.current.data).toBeUndefined();
         expect(result.current.error).toBeInstanceOf(Error);
+    });
+
+    it('loads map data from the IGSN endpoint when requested', async () => {
+        let requests = 0;
+        server.use(
+            http.get('/igsn-search/map', () => {
+                requests++;
+                return HttpResponse.json(payload);
+            }),
+        );
+
+        const { result } = renderHookWithQueryClient(() => usePortalMapData(filters, viewport, false, '/igsn-search'));
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        expect(requests).toBe(1);
     });
 });

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Datacenter;
 use App\Models\DescriptionType;
 use App\Models\GeoLocation;
 use App\Models\LandingPage;
@@ -39,19 +40,26 @@ beforeEach(function () {
     );
 });
 
-it('publishes the portal endpoints under the search path tree', function () {
-    expect(route('portal', absolute: false))->toBe('/search')
-        ->and(route('portal.count', absolute: false))->toBe('/search/count')
-        ->and(route('portal.free-keyword-suggestions', absolute: false))->toBe('/search/free-keyword-suggestions')
-        ->and(route('portal.map', absolute: false))->toBe('/search/map')
-        ->and(route('portal.search-analytics', absolute: false))->toBe('/search/search-analytics');
+it('publishes separate DOI and IGSN portal endpoint families', function () {
+    expect(route('portal.doi', absolute: false))->toBe('/doi-search')
+        ->and(route('portal.doi.count', absolute: false))->toBe('/doi-search/count')
+        ->and(route('portal.doi.free-keyword-suggestions', absolute: false))->toBe('/doi-search/free-keyword-suggestions')
+        ->and(route('portal.doi.map', absolute: false))->toBe('/doi-search/map')
+        ->and(route('portal.doi.search-analytics', absolute: false))->toBe('/doi-search/search-analytics')
+        ->and(route('portal.igsn', absolute: false))->toBe('/igsn-search')
+        ->and(route('portal.igsn.count', absolute: false))->toBe('/igsn-search/count')
+        ->and(route('portal.igsn.free-keyword-suggestions', absolute: false))->toBe('/igsn-search/free-keyword-suggestions')
+        ->and(route('portal.igsn.map', absolute: false))->toBe('/igsn-search/map')
+        ->and(route('portal.igsn.search-analytics', absolute: false))->toBe('/igsn-search/search-analytics');
 
-    $this->get('/portal')->assertNotFound();
+    foreach (['/portal', '/search', '/search/count', '/search/free-keyword-suggestions', '/search/map', '/search/search-analytics'] as $oldPath) {
+        $this->get($oldPath)->assertNotFound();
+    }
 });
 
 describe('Portal Page Display', function () {
     it('displays the portal page', function () {
-        $response = $this->get(route('portal'))->assertOk();
+        $response = $this->get(route('portal.doi'))->assertOk();
 
         $response->assertInertia(fn (Assert $page) => $page
             ->component('portal')
@@ -64,7 +72,7 @@ describe('Portal Page Display', function () {
 
     it('is accessible without authentication', function () {
         // Portal should be a public page
-        $this->get(route('portal'))
+        $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('portal'));
     });
@@ -83,17 +91,17 @@ describe('Portal Page Display', function () {
         $this->withServerVariables([
             'REMOTE_ADDR' => '203.0.113.10',
             'HTTP_USER_AGENT' => 'GPTBot',
-        ])->get(route('portal'))->assertOk();
+        ])->get(route('portal.doi'))->assertOk();
 
         $this->withServerVariables([
             'REMOTE_ADDR' => '203.0.113.10',
             'HTTP_USER_AGENT' => 'GPTBot',
-        ])->get(route('portal'))->assertTooManyRequests();
+        ])->get(route('portal.doi'))->assertTooManyRequests();
 
         $this->withServerVariables([
             'REMOTE_ADDR' => '203.0.113.10',
             'HTTP_USER_AGENT' => 'Mozilla/5.0',
-        ])->get(route('portal'))->assertOk();
+        ])->get(route('portal.doi'))->assertOk();
     });
 
     it('bypasses public discovery limits for marked Playwright requests outside production', function () {
@@ -111,7 +119,7 @@ describe('Portal Page Display', function () {
                 'REMOTE_ADDR' => '203.0.113.11',
                 'HTTP_USER_AGENT' => 'Mozilla/5.0',
             ])
-            ->get(route('portal'));
+            ->get(route('portal.doi'));
 
         $playwrightRequest()->assertOk();
         $playwrightRequest()->assertOk();
@@ -125,7 +133,7 @@ describe('Portal Page Display', function () {
                 'REMOTE_ADDR' => '203.0.113.12',
                 'HTTP_USER_AGENT' => 'Mozilla/5.0',
             ])
-            ->get(route('portal'));
+            ->get(route('portal.doi'));
 
         $productionRequest()->assertOk();
         $productionRequest()->assertTooManyRequests();
@@ -137,7 +145,7 @@ describe('Portal Search', function () {
         $resource = createPublishedResource($this->datasetType, 'Earthquake Data Analysis');
         createPublishedResource($this->datasetType, 'Climate Change Study');
 
-        $this->get(route('portal', ['q' => 'Earthquake']))
+        $this->get(route('portal.doi', ['q' => 'Earthquake']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.query', 'Earthquake')
@@ -145,7 +153,7 @@ describe('Portal Search', function () {
                 ->where('pagination.count_status', 'pending')
             );
 
-        $this->getJson(route('portal.count', ['q' => 'Earthquake']))
+        $this->getJson(route('portal.doi.count', ['q' => 'Earthquake']))
             ->assertOk()
             ->assertJsonPath('total', 1)
             ->assertJsonPath('last_page', 1);
@@ -155,13 +163,13 @@ describe('Portal Search', function () {
         $resource = createPublishedResource($this->datasetType, 'Test Dataset');
         $resource->update(['doi' => '10.5880/test.2024.001']);
 
-        $this->get(route('portal', ['q' => '10.5880/test']))
+        $this->get(route('portal.doi', ['q' => '10.5880/test']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
             );
 
-        $this->getJson(route('portal.count', ['q' => '10.5880/test']))
+        $this->getJson(route('portal.doi.count', ['q' => '10.5880/test']))
             ->assertOk()
             ->assertJsonPath('total', 1);
     });
@@ -169,65 +177,122 @@ describe('Portal Search', function () {
     it('returns empty results for non-matching search', function () {
         createPublishedResource($this->datasetType, 'Real Dataset');
 
-        $this->get(route('portal', ['q' => 'NonExistentTerm12345']))
+        $this->get(route('portal.doi', ['q' => 'NonExistentTerm12345']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 0)
             );
 
-        $this->getJson(route('portal.count', ['q' => 'NonExistentTerm12345']))
+        $this->getJson(route('portal.doi.count', ['q' => 'NonExistentTerm12345']))
             ->assertOk()
             ->assertJsonPath('total', 0);
     });
 });
 
 describe('Portal Type Filter', function () {
-    it('shows all resources by default', function () {
+    it('shows only non-physical resources in the DOI portal by default', function () {
         createPublishedResource($this->datasetType, 'Dataset 1');
         createPublishedResource($this->physicalObjectType, 'IGSN Sample 1');
 
-        $this->get(route('portal'))
+        $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.type', [])
-                ->has('resources', 2)
+                ->where('filters.exclude_type', null)
+                ->where('portal.kind', 'doi')
+                ->where('portal.title', 'Data Portal')
+                ->where('portal.showResourceTypeFilter', true)
+                ->has('resources', 1)
+                ->where('resources.0.isIgsn', false)
+                ->where('resourceTypeFacets', fn ($facets) => collect($facets)->doesntContain('slug', 'physical-object'))
             );
 
-        $this->getJson(route('portal.count'))
+        $this->getJson(route('portal.doi.count'))
             ->assertOk()
-            ->assertJsonPath('total', 2);
+            ->assertJsonPath('total', 1);
     });
 
     it('can filter by dataset type only', function () {
         createPublishedResource($this->datasetType, 'Dataset 1');
         createPublishedResource($this->physicalObjectType, 'IGSN Sample 1');
 
-        $this->get(route('portal', ['type' => 'dataset']))
+        $this->get(route('portal.doi', ['type' => 'dataset']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.type', ['dataset'])
                 ->has('resources', 1)
             );
 
-        $this->getJson(route('portal.count', ['type' => 'dataset']))
+        $this->getJson(route('portal.doi.count', ['type' => 'dataset']))
             ->assertOk()
             ->assertJsonPath('total', 1);
     });
 
-    it('can filter by physical-object type only', function () {
+    it('does not allow a physical-object query parameter to escape the DOI scope', function () {
         createPublishedResource($this->datasetType, 'Dataset 1');
         createPublishedResource($this->physicalObjectType, 'IGSN Sample 1');
 
-        $this->get(route('portal', ['type' => 'physical-object']))
+        $this->get(route('portal.doi', ['type' => 'physical-object']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('filters.type', ['physical-object'])
+                ->where('filters.type', [])
                 ->has('resources', 1)
+                ->where('resources.0.isIgsn', false)
             );
 
-        $this->getJson(route('portal.count', ['type' => 'physical-object']))
+        $this->getJson(route('portal.doi.count', ['type' => 'physical-object']))
             ->assertOk()
             ->assertJsonPath('total', 1);
+    });
+
+    it('shows only physical samples in the IGSN portal and ignores type filters', function () {
+        createPublishedResource($this->datasetType, 'Dataset 1');
+        createPublishedResource($this->physicalObjectType, 'IGSN Sample 1');
+
+        $this->get(route('portal.igsn', ['type' => ['dataset']]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.type', [])
+                ->where('filters.exclude_type', null)
+                ->where('portal.kind', 'igsn')
+                ->where('portal.title', 'IGSN Portal')
+                ->where('portal.showResourceTypeFilter', false)
+                ->where('resourceTypeFacets', [])
+                ->has('resources', 1)
+                ->where('resources.0.isIgsn', true)
+            );
+
+        $doiCount = $this->getJson(route('portal.doi.count', ['type' => ['dataset']]))
+            ->assertOk()
+            ->assertJsonPath('total', 1);
+        $igsnCount = $this->getJson(route('portal.igsn.count', ['type' => ['dataset']]))
+            ->assertOk()
+            ->assertJsonPath('total', 1);
+
+        expect($doiCount->json('filter_fingerprint'))->not->toBe($igsnCount->json('filter_fingerprint'));
+    });
+
+    it('scopes datacenter facets and counts to each portal', function () {
+        $doiDatacenter = Datacenter::create(['name' => 'DOI Datacenter']);
+        $igsnDatacenter = Datacenter::create(['name' => 'IGSN Datacenter']);
+        createPublishedResource($this->datasetType, 'Dataset')->update(['datacenter_id' => $doiDatacenter->id]);
+        createPublishedResource($this->physicalObjectType, 'Sample')->update(['datacenter_id' => $igsnDatacenter->id]);
+
+        $this->get(route('portal.doi'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('datacenterFacets', 1)
+                ->where('datacenterFacets.0.name', 'DOI Datacenter')
+                ->where('datacenterFacets.0.count', 1)
+            );
+
+        $this->get(route('portal.igsn'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('datacenterFacets', 1)
+                ->where('datacenterFacets.0.name', 'IGSN Datacenter')
+                ->where('datacenterFacets.0.count', 1)
+            );
     });
 });
 
@@ -238,7 +303,7 @@ describe('Portal Pagination', function () {
             createPublishedResource($this->datasetType, "Dataset {$i}");
         }
 
-        $this->get(route('portal'))
+        $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 20)
@@ -249,7 +314,7 @@ describe('Portal Pagination', function () {
                 ->where('pagination.has_more', true)
             );
 
-        $this->getJson(route('portal.count'))
+        $this->getJson(route('portal.doi.count'))
             ->assertOk()
             ->assertJsonPath('total', 25)
             ->assertJsonPath('last_page', 2);
@@ -260,7 +325,7 @@ describe('Portal Pagination', function () {
             createPublishedResource($this->datasetType, "Dataset {$i}");
         }
 
-        $this->get(route('portal', ['page' => 2]))
+        $this->get(route('portal.doi', ['page' => 2]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('pagination.current_page', 2)
@@ -273,7 +338,7 @@ describe('Portal Map Bootstrap', function () {
         $resource = createPublishedResource($this->datasetType, 'Geo Dataset');
         GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $resource->id]);
 
-        $this->get(route('portal'))
+        $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -298,7 +363,7 @@ describe('Portal Only Shows Published Resources', function () {
             'value' => 'Unpublished Dataset',
         ]);
 
-        $this->get(route('portal'))
+        $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -324,7 +389,7 @@ describe('Portal Only Shows Published Resources', function () {
             'is_published' => false,
         ]);
 
-        $this->get(route('portal'))
+        $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -337,7 +402,7 @@ describe('Portal Resource Transformation', function () {
         $resource = createPublishedResource($this->datasetType, 'Test Dataset');
         $resource->update(['doi' => '10.5880/test.2024.001', 'publication_year' => 2024]);
 
-        $this->get(route('portal'))
+        $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources', 1)
@@ -368,7 +433,7 @@ describe('Portal Resource Transformation', function () {
             'point_longitude' => 13.4,
         ]);
 
-        $this->get(route('portal'))
+        $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('resources.0.abstract', 'A concise abstract for portal preview testing.')
@@ -378,7 +443,7 @@ describe('Portal Resource Transformation', function () {
     it('correctly identifies IGSN resources', function () {
         createPublishedResource($this->physicalObjectType, 'Sample');
 
-        $this->get(route('portal'))
+        $this->get(route('portal.igsn'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('resources.0.isIgsn', true)
@@ -401,7 +466,7 @@ describe('Portal Resource Transformation', function () {
             'position' => 1,
         ]);
 
-        $this->get(route('portal'))
+        $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('resources.0.creators', 1)

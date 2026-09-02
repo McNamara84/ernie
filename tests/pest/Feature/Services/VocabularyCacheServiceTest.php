@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\CacheKey;
+use App\Enums\PortalScope;
 use App\Services\VocabularyCacheService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -117,18 +118,29 @@ it('invalidates specific vocabulary cache', function () {
 });
 
 it('invalidates portal thesaurus facets when a thesaurus vocabulary cache is invalidated', function () {
-    Cache::tags(CacheKey::PORTAL_THESAURUS_FACETS->tags())->put(
+    $facetCache = Cache::tags(CacheKey::PORTAL_THESAURUS_FACETS->tags());
+    $facetKeys = [
         CacheKey::PORTAL_THESAURUS_FACETS->key(),
-        [['scheme' => 'Stale Scheme', 'roots' => []]],
-        3600,
-    );
+        ...array_map(
+            fn (PortalScope $scope): string => CacheKey::PORTAL_THESAURUS_FACETS->key($scope->value),
+            PortalScope::cases(),
+        ),
+    ];
+
+    foreach ($facetKeys as $facetKey) {
+        $facetCache->put($facetKey, [['scheme' => 'Stale Scheme', 'roots' => []]], 3600);
+    }
     Cache::tags(['vocabularies'])->put(CacheKey::ANALYTICAL_METHODS->key(), 'data', 3600);
 
-    expect(Cache::tags(CacheKey::PORTAL_THESAURUS_FACETS->tags())->has(CacheKey::PORTAL_THESAURUS_FACETS->key()))->toBeTrue();
+    foreach ($facetKeys as $facetKey) {
+        expect($facetCache->has($facetKey))->toBeTrue();
+    }
 
     $this->cacheService->invalidateVocabularyCache(CacheKey::ANALYTICAL_METHODS);
 
-    expect(Cache::tags(CacheKey::PORTAL_THESAURUS_FACETS->tags())->has(CacheKey::PORTAL_THESAURUS_FACETS->key()))->toBeFalse();
+    foreach ($facetKeys as $facetKey) {
+        expect($facetCache->has($facetKey))->toBeFalse();
+    }
 });
 
 it('returns cached data on subsequent calls', function () {
