@@ -115,14 +115,15 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind }
                         <li>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <button
+                                    <Button
                                         type="button"
-                                        className="flex items-center gap-1 rounded-sm bg-portal-nav-active px-3 py-2 text-sm font-semibold text-portal-nav-foreground transition-colors hover:bg-portal-nav-active"
+                                        variant="ghost"
+                                        className="h-auto gap-1 rounded-sm bg-portal-nav-active px-3 py-2 text-sm font-semibold text-portal-nav-foreground hover:bg-portal-nav-active hover:text-portal-nav-foreground"
                                         aria-current="page"
                                     >
                                         Find
-                                        <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-                                    </button>
+                                        <ChevronDown className="size-3.5" aria-hidden="true" />
+                                    </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start" className="min-w-44">
                                     {FIND_ITEMS.map((item) => (

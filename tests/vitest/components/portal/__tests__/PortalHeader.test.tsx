@@ -12,8 +12,15 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 vi.mock('@/components/ui/button', () => ({
-    Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & Record<string, unknown>) => (
-        <button {...props}>{children}</button>
+    Button: ({
+        children,
+        variant = 'default',
+        size = 'default',
+        ...props
+    }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
+        <button data-slot="button" data-variant={variant} data-size={size} {...props}>
+            {children}
+        </button>
     ),
 }));
 
@@ -80,6 +87,8 @@ describe('PortalHeader', () => {
             expect(findButton.className).toContain('bg-portal-nav-active');
             expect(findButton.className).toContain('font-semibold');
             expect(findButton).toHaveAttribute('aria-current', 'page');
+            expect(findButton).toHaveAttribute('data-slot', 'dropdown-menu-trigger');
+            expect(findButton).toHaveAttribute('data-variant', 'ghost');
         });
 
         it('marks the current portal submenu item', async () => {
