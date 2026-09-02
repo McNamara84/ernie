@@ -225,7 +225,7 @@ services:
       - "${REDIS_PORT:-6379}:6379"
 
   fuji:
-    image: ghcr.io/pangaea-data-publisher/fuji@sha256:3eca94076b2272a18dcd8cddd1adad7675c2ac98a390799dd60f62369688a6fa
+    image: ghcr.io/pangaea-data-publisher/fuji@sha256:a75a9c88fb46918afafb09593aa52aecc1adb12eb9f19a2fc2ebb8740be03d97
     container_name: ernie-fuji-dev
     restart: unless-stopped
     profiles:
