@@ -71,17 +71,20 @@ describe('Right scopes', function (): void {
         expect($rights->last()->name)->toBe('Zebra License');
     });
 
-    it('orders by usage count descending with name fallback', function (): void {
-        Right::factory()->create(['name' => 'Beta', 'usage_count' => 10]);
-        Right::factory()->create(['name' => 'Alpha', 'usage_count' => 10]);
-        Right::factory()->create(['name' => 'Gamma', 'usage_count' => 50]);
+    it('orders by usage count descending with stable alphabetical fallbacks', function (): void {
+        Right::factory()->create(['identifier' => 'BETA', 'name' => 'Beta', 'usage_count' => 10]);
+        Right::factory()->create(['identifier' => 'ALPHA-Z', 'name' => 'Alpha', 'usage_count' => 10]);
+        Right::factory()->create(['identifier' => 'ALPHA-A', 'name' => 'Alpha', 'usage_count' => 10]);
+        Right::factory()->create(['identifier' => 'GAMMA', 'name' => 'Gamma', 'usage_count' => 50]);
 
         $rights = Right::orderByUsageCount()->get();
 
-        expect($rights->first()->name)->toBe('Gamma');
-        // Same usage count → alphabetical
-        expect($rights[1]->name)->toBe('Alpha');
-        expect($rights[2]->name)->toBe('Beta');
+        expect($rights->pluck('identifier')->all())->toBe([
+            'GAMMA',
+            'ALPHA-A',
+            'ALPHA-Z',
+            'BETA',
+        ]);
     });
 });
 

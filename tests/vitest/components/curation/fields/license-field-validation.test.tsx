@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -262,6 +262,25 @@ describe('LicenseField Validation Integration', () => {
             expect(await screen.findByText('CC BY 4.0')).toBeInTheDocument();
             expect(await screen.findByText('CC0 1.0')).toBeInTheDocument();
             expect(await screen.findByText('MIT License')).toBeInTheDocument();
+        });
+
+        it('preserves the usage-ranked option order when no search is entered', async () => {
+            const user = userEvent.setup();
+            const usageRankedOptions = [
+                { value: 'mit', label: 'MIT License' },
+                { value: 'apache-2.0', label: 'Apache License 2.0' },
+                { value: 'cc-by-4.0', label: 'CC BY 4.0' },
+            ];
+
+            renderLicenseField({ options: usageRankedOptions });
+
+            await user.click(screen.getByRole('combobox'));
+
+            const renderedOptions = within(screen.getByRole('listbox'))
+                .getAllByRole('option')
+                .map((option) => option.textContent?.trim());
+
+            expect(renderedOptions).toEqual(['MIT License', 'Apache License 2.0', 'CC BY 4.0']);
         });
 
         it('displays selected catalog license value', () => {
