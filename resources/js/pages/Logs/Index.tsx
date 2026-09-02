@@ -1,5 +1,18 @@
 import { Head, router } from '@inertiajs/react';
-import { AlertTriangle, Database, FileX2, Info, RefreshCw, ScrollText, Search, ShieldAlert, Trash2, XCircle } from 'lucide-react';
+import {
+    AlertTriangle,
+    ChevronDown,
+    Database,
+    Download,
+    FileX2,
+    Info,
+    RefreshCw,
+    ScrollText,
+    Search,
+    ShieldAlert,
+    Trash2,
+    XCircle,
+} from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -19,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -221,6 +235,26 @@ export default function Index({ logs, pagination, filters, available_levels, can
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button type="button" variant="outline" size="sm">
+                                        <Download aria-hidden="true" className="mr-2 size-4" />
+                                        Download
+                                        <ChevronDown aria-hidden="true" className="ml-2 size-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem asChild>
+                                        <a href="/logs/download/day">Last 24 hours</a>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <a href="/logs/download/week">Last 7 days</a>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <a href="/logs/download/month">Last 30 days</a>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                             <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
                                 {isLoading ? <Spinner size="sm" className="mr-2" /> : <RefreshCw className="mr-2 size-4" />}
                                 Refresh

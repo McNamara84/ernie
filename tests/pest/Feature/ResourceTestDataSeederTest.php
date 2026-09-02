@@ -6,10 +6,21 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\ResourceTestDataSeeder;
+use Illuminate\Support\Facades\Http;
 
 uses()->group('seeders', 'test-data');
 
 beforeEach(function () {
+    Http::fake([
+        'https://spdx.org/licenses/licenses.json' => Http::response([
+            'licenses' => [[
+                'licenseId' => 'CC-BY-4.0',
+                'name' => 'Creative Commons Attribution 4.0 International',
+                'reference' => 'https://creativecommons.org/licenses/by/4.0/',
+            ]],
+        ]),
+    ]);
+
     // Run base seeders first (lookup tables like Rights, ResourceTypes, etc.)
     $this->seed(DatabaseSeeder::class);
     // Then run the test data seeder
