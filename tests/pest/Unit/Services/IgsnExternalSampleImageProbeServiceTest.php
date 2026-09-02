@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Services\Igsn\IgsnExternalSampleImageProbeService;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 
@@ -73,4 +74,20 @@ it('refuses to probe URLs outside the existing image allowlist', function (): vo
         'message' => 'unsupported_external_url',
     ]);
     Http::assertNothingSent();
+});
+
+it('normalizes unexpected probe exceptions without exposing their messages', function (): void {
+    Http::fake(static function (Request $request): never {
+        throw new RuntimeException('sensitive upstream failure details');
+    });
+
+    $result = app(IgsnExternalSampleImageProbeService::class)->probe(
+        'https://data.icdp-online.org/sites/cosc/news/cores/exception.jpg',
+    );
+
+    expect($result)->toBe([
+        'status' => 'failed',
+        'url' => 'https://data.icdp-online.org/sites/cosc/news/cores/exception.jpg',
+        'message' => 'probe_error',
+    ])->and(json_encode($result))->not->toContain('sensitive upstream failure details');
 });

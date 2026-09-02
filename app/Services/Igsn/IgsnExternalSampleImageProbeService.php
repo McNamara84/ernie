@@ -11,6 +11,8 @@ use Throwable;
 
 final class IgsnExternalSampleImageProbeService
 {
+    private const ERROR_PROBE_SIZE_LIMIT = 'probe_size_limit';
+
     public const STATUS_AVAILABLE = 'available';
 
     public const STATUS_UNAVAILABLE = 'unavailable';
@@ -46,7 +48,7 @@ final class IgsnExternalSampleImageProbeService
                     'allow_redirects' => false,
                     'progress' => static function (int $downloadTotal, int $downloaded) use ($maxBytes): void {
                         if ($downloadTotal > $maxBytes || $downloaded > $maxBytes) {
-                            throw new RuntimeException('probe_size_limit');
+                            throw new RuntimeException(self::ERROR_PROBE_SIZE_LIMIT);
                         }
                     },
                 ])
@@ -54,7 +56,12 @@ final class IgsnExternalSampleImageProbeService
         } catch (ConnectionException) {
             return $this->result(self::STATUS_FAILED, $url, 'transport_error');
         } catch (Throwable $exception) {
-            return $this->result(self::STATUS_FAILED, $url, $exception->getMessage() ?: 'probe_error');
+            $error = $exception instanceof RuntimeException
+                && $exception->getMessage() === self::ERROR_PROBE_SIZE_LIMIT
+                    ? self::ERROR_PROBE_SIZE_LIMIT
+                    : 'probe_error';
+
+            return $this->result(self::STATUS_FAILED, $url, $error);
         }
 
         if ($response->redirect()) {
@@ -77,7 +84,7 @@ final class IgsnExternalSampleImageProbeService
             return $this->result(self::STATUS_UNAVAILABLE, $url, 'empty_image');
         }
         if (strlen($body) > $maxBytes) {
-            return $this->result(self::STATUS_FAILED, $url, 'probe_size_limit');
+            return $this->result(self::STATUS_FAILED, $url, self::ERROR_PROBE_SIZE_LIMIT);
         }
 
         $mimeType = (new \finfo(FILEINFO_MIME_TYPE))->buffer($body);
