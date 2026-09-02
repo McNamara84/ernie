@@ -42,6 +42,8 @@ export interface ComboboxProps {
     disabled?: boolean;
     /** Show clear button */
     clearable?: boolean;
+    /** Accessible label for the clear button */
+    clearLabel?: string;
     /** Additional class names */
     className?: string;
     /** Popover width */
@@ -54,6 +56,14 @@ export interface ComboboxProps {
     required?: boolean;
     /** Error state */
     error?: boolean;
+    /** Accessible label when no visible label is associated */
+    ariaLabel?: string;
+    /** ID of the visible label */
+    ariaLabelledBy?: string;
+    /** IDs of help and validation messages */
+    ariaDescribedBy?: string;
+    /** Test selector for the trigger */
+    testId?: string;
     /** Custom render for options */
     renderOption?: (option: ComboboxOption) => React.ReactNode;
     /** Custom render for selected value display */
@@ -108,12 +118,17 @@ export function Combobox({
     emptyMessage = 'No results found.',
     disabled = false,
     clearable = true,
+    clearLabel = 'Clear selection',
     className,
     popoverWidth = 'w-full',
     id,
     name,
     required,
     error,
+    ariaLabel,
+    ariaLabelledBy,
+    ariaDescribedBy,
+    testId,
     renderOption,
     renderValue,
     maxDisplayItems = 3,
@@ -129,7 +144,11 @@ export function Combobox({
             const newValues = values.includes(selectedValue) ? values.filter((v) => v !== selectedValue) : [...values, selectedValue];
             onValuesChange?.(newValues);
         } else {
-            onChange?.(selectedValue === value ? undefined : selectedValue);
+            if (selectedValue !== value) {
+                onChange?.(selectedValue);
+            } else if (clearable) {
+                onChange?.(undefined);
+            }
             setOpen(false);
         }
     };
@@ -195,12 +214,17 @@ export function Combobox({
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button
+                    type="button"
                     id={id}
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
                     aria-required={required}
                     aria-invalid={error}
+                    aria-label={ariaLabel}
+                    aria-labelledby={ariaLabelledBy}
+                    aria-describedby={ariaDescribedBy}
+                    data-testid={testId}
                     disabled={disabled}
                     className={cn(
                         'w-full justify-between',
@@ -212,7 +236,7 @@ export function Combobox({
                     <span className="flex-1 text-left">{renderTriggerContent()}</span>
                     <div className="flex items-center gap-1">
                         {showClearButton && (
-                            <X className="h-4 w-4 shrink-0 opacity-50 hover:opacity-100" onClick={handleClear} aria-label="Clear selection" />
+                            <X className="h-4 w-4 shrink-0 opacity-50 hover:opacity-100" onClick={handleClear} aria-label={clearLabel} />
                         )}
                         <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
                     </div>

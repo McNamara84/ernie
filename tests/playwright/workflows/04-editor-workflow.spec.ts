@@ -55,6 +55,51 @@ test.describe('Editor Form', () => {
         await expect(page).toHaveURL(/\/editor/);
     });
 
+    test('a license near the end of a large catalog can be found and selected', async ({ page }) => {
+        const targetLicense = {
+            id: 600,
+            identifier: 'ZZZ-PLAYWRIGHT-600',
+            name: 'ZZZ Playwright License 600',
+            uri: 'https://example.test/licenses/zzz-playwright-600',
+            scheme_uri: 'https://spdx.org/licenses/',
+        };
+        const licenses = [
+            ...Array.from({ length: 599 }, (_, index) => ({
+                id: index + 1,
+                identifier: `PLAYWRIGHT-${String(index + 1).padStart(3, '0')}`,
+                name: `Playwright License ${String(index + 1).padStart(3, '0')}`,
+                uri: `https://example.test/licenses/${index + 1}`,
+                scheme_uri: 'https://spdx.org/licenses/',
+            })),
+            targetLicense,
+        ];
+
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+        await page.route('**/api/v1/licenses/ernie', async (route) => {
+            await route.fulfill({ json: licenses });
+        });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const licensesTrigger = page.locator('[data-slot="accordion-trigger"]', { hasText: /Licenses.*Rights/i });
+        await expect(page.getByTestId('resource-info-section')).toBeVisible({ timeout: 30_000 });
+
+        if ((await licensesTrigger.getAttribute('aria-expanded')) !== 'true') {
+            await licensesTrigger.click();
+        }
+
+        const licenseSelect = page.getByTestId('license-select-0');
+        await licenseSelect.click();
+        const searchInput = page.getByPlaceholder('Search licenses...');
+        await searchInput.fill(targetLicense.identifier);
+        await page.getByRole('option', { name: targetLicense.name, exact: true }).click();
+
+        await expect(licenseSelect).toContainText(targetLicense.name);
+    });
+
     test('collapsing a form group preserves unsaved editor state without reloading the editor', async ({ page, context }) => {
         await gotoWithLocalTlsRetry(page, '/login');
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);

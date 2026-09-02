@@ -7,6 +7,7 @@ use App\Enums\ResourceWorkflowStatus;
 use App\Models\Datacenter;
 use App\Models\Resource;
 use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\User;
 use App\Services\DoiSuggestionService;
 use App\Services\LegacyLandingPageImportService;
@@ -604,6 +605,9 @@ describe('SumarioPendingResourceImportService', function () {
         ]);
 
         $user = User::factory()->create();
+        $cc0 = $expectedDatacenter === LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER
+            ? Right::factory()->cc0()->create()
+            : null;
         $editorLoader = Mockery::mock(OldDatasetEditorLoader::class);
         $editorLoader
             ->shouldReceive('loadForEditor')
@@ -633,7 +637,7 @@ describe('SumarioPendingResourceImportService', function () {
         $resourceStorage
             ->shouldReceive('store')
             ->once()
-            ->andReturnUsing(function (array $payload, int $userId) use ($user, $expectedDoi, $expectedDatacenter): array {
+            ->andReturnUsing(function (array $payload, int $userId) use ($user, $expectedDoi, $expectedDatacenter, $cc0): array {
                 $datacenter = Datacenter::query()
                     ->whereKey($payload['datacenter_id'])
                     ->firstOrFail();
@@ -641,6 +645,21 @@ describe('SumarioPendingResourceImportService', function () {
                 expect($userId)->toBe($user->id)
                     ->and($payload['doi'])->toBe($expectedDoi)
                     ->and($datacenter->name)->toBe($expectedDatacenter);
+
+                if ($cc0 instanceof Right) {
+                    expect($payload['licenses'])->toBe(['CC0-1.0'])
+                        ->and($payload['rawRights'])->toBe([[
+                            'rights' => $cc0->name,
+                            'rightsUri' => $cc0->uri,
+                            'rightsIdentifier' => 'CC0-1.0',
+                            'rightsIdentifierScheme' => 'SPDX',
+                            'schemeUri' => 'https://spdx.org/licenses/',
+                            'source' => 'geofon-seismic-events-default',
+                        ]]);
+                } else {
+                    expect($payload['licenses'])->toBe([])
+                        ->and($payload['rawRights'])->toBe([]);
+                }
 
                 return [
                     Resource::factory()->create([

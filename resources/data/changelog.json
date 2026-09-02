@@ -23,6 +23,14 @@
         ],
         "fixes": [
             {
+                "title": "Searchable License Selection in the Editor",
+                "description": "The License field in the Data Editor is now searchable by license name and SPDX identifier, making licenses anywhere in the full catalog directly selectable without scrolling through a long dropdown."
+            },
+            {
+                "title": "CC0 License for GEOFON Seismic Events",
+                "description": "DataCite and pending SUMARIO resources imported for the GEOFON Seismic Events datacenter now receive the catalog-backed SPDX CC0-1.0 license with its canonical identifier, scheme, and URI instead of an unresolved or custom license."
+            },
+            {
                 "title": "Reliable Legacy IGSN Landing Page Details",
                 "description": "Legacy ICDP landing pages now label sample collectors as Sampled by, show the first legacy Elevation and Final Depth pair with its units, retain all additional segment measurements internally, and align every Acquisition value against one shared responsive label column. Existing method schemes, release dates, request details, and total drilling lengths are covered by the expanded regression suite."
             },

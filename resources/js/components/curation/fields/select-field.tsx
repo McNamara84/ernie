@@ -1,5 +1,6 @@
 import { type HTMLAttributes } from 'react';
 
+import { Combobox } from '@/components/ui/combobox';
 import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,6 +11,7 @@ import { cn } from '@/lib/utils';
 interface Option {
     value: string;
     label: string;
+    keywords?: string[];
 }
 
 interface SelectFieldProps {
@@ -24,6 +26,9 @@ interface SelectFieldProps {
     required?: boolean;
     clearable?: boolean;
     clearLabel?: string;
+    searchable?: boolean;
+    searchPlaceholder?: string;
+    emptyMessage?: string;
     containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     triggerClassName?: string;
     contentClassName?: string;
@@ -51,6 +56,9 @@ export function SelectField({
     required = false,
     clearable = false,
     clearLabel = 'Clear selection',
+    searchable = false,
+    searchPlaceholder = 'Search...',
+    emptyMessage = 'No results found.',
     containerProps,
     triggerClassName,
     contentClassName,
@@ -129,32 +137,57 @@ export function SelectField({
                 </p>
             )}
 
-            <Select value={value} onValueChange={handleValueChange} required={required}>
-                <SelectTrigger
+            {searchable ? (
+                <Combobox
                     id={id}
-                    aria-required={required || undefined}
-                    aria-invalid={isInvalid}
-                    aria-describedby={ariaDescribedBy}
+                    value={value || undefined}
+                    onChange={(newValue) => handleValueChange(newValue ?? '')}
+                    options={options.map((option) => ({
+                        ...option,
+                        keywords: [option.label, ...(option.keywords ?? [])],
+                    }))}
+                    placeholder={placeholder}
+                    searchPlaceholder={searchPlaceholder}
+                    emptyMessage={emptyMessage}
+                    clearable={clearable}
+                    clearLabel={clearLabel}
+                    required={required}
+                    error={isInvalid}
+                    ariaLabel={hideLabel ? label : undefined}
+                    ariaLabelledBy={hideLabel ? undefined : labelId}
+                    ariaDescribedBy={ariaDescribedBy}
+                    testId={dataTestId}
                     className={triggerClassName}
-                    data-testid={dataTestId}
-                    {...ariaProps}
-                >
-                    <SelectValue placeholder={placeholder} />
-                </SelectTrigger>
-                <SelectContent className={contentClassName} position={contentPosition}>
-                    {clearable && value && (
-                        <>
-                            <SelectItem value={clearValue}>{clearLabel}</SelectItem>
-                            <SelectSeparator />
-                        </>
-                    )}
-                    {options.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+                    popoverWidth={cn('w-[--radix-popover-trigger-width]', contentClassName)}
+                />
+            ) : (
+                <Select value={value} onValueChange={handleValueChange} required={required}>
+                    <SelectTrigger
+                        id={id}
+                        aria-required={required || undefined}
+                        aria-invalid={isInvalid}
+                        aria-describedby={ariaDescribedBy}
+                        className={triggerClassName}
+                        data-testid={dataTestId}
+                        {...ariaProps}
+                    >
+                        <SelectValue placeholder={placeholder} />
+                    </SelectTrigger>
+                    <SelectContent className={contentClassName} position={contentPosition}>
+                        {clearable && value && (
+                            <>
+                                <SelectItem value={clearValue}>{clearLabel}</SelectItem>
+                                <SelectSeparator />
+                            </>
+                        )}
+                        {options.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )}
 
             {touched && validationMessages.length > 0 && (
                 <FieldValidationFeedback id={feedbackId} messages={validationMessages} showSuccess={showSuccessFeedback} />

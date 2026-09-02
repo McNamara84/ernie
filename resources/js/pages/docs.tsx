@@ -1312,7 +1312,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>Select appropriate licenses for your dataset from the SPDX license list.</p>
 
                         <h4>Selecting a License</h4>
-                        <p>The license dropdown shows all active licenses. Common choices for research data include:</p>
+                        <p>
+                            The license dropdown shows all active licenses. Open it and use the search field to filter licenses by name or SPDX
+                            identifier, then select the matching result. Common choices for research data include:
+                        </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
                                 <strong>CC-BY-4.0:</strong> Attribution required, commercial use allowed

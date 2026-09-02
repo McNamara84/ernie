@@ -25,6 +25,7 @@ class SumarioPendingResourceImportService
         private readonly DoiSuggestionService $doiSuggestionService,
         private ?LegacyResourceTypeResolverService $resourceTypeResolver = null,
         private ?LegacyDescriptionBreakNormalizer $descriptionBreakNormalizer = null,
+        private ?GeofonSeismicEventsRightsService $geofonSeismicEventsRightsService = null,
     ) {}
 
     public function countImportablePending(): int
@@ -285,6 +286,21 @@ class SumarioPendingResourceImportService
      */
     private function mapEditorPayloadForStorage(array $editorData, OldDataset $oldDataset, ?string $doi): array
     {
+        $licenses = $this->normaliseStringList($editorData['initialRights'] ?? []);
+        $rawRights = is_array($editorData['initialRawRights'] ?? null)
+            ? array_values($editorData['initialRawRights'])
+            : [];
+        $geofonRights = $doi === null
+            ? null
+            : ($this->geofonSeismicEventsRightsService ??= app(GeofonSeismicEventsRightsService::class))
+                ->rightsStatementForImport($doi);
+
+        if ($geofonRights !== null) {
+            $licenses[] = $geofonRights['rightsIdentifier'];
+            $licenses = array_values(array_unique($licenses));
+            $rawRights[] = $geofonRights;
+        }
+
         return [
             'resourceId' => null,
             'doi' => $doi,
@@ -293,8 +309,8 @@ class SumarioPendingResourceImportService
             'language' => $this->filledString($editorData['language'] ?? null),
             'resourceType' => $this->resolveLegacyResourceTypeId($oldDataset->resourcetypegeneral),
             'titles' => $this->normaliseTitles($editorData['titles'] ?? [], $oldDataset, $doi),
-            'licenses' => $this->normaliseStringList($editorData['initialRights'] ?? []),
-            'rawRights' => is_array($editorData['initialRawRights'] ?? null) ? array_values($editorData['initialRawRights']) : [],
+            'licenses' => $licenses,
+            'rawRights' => $rawRights,
             'authors' => $this->normaliseContributors($editorData['authors'] ?? []),
             'contributors' => $this->normaliseContributors($editorData['contributors'] ?? [], true),
             'descriptions' => $this->normaliseDescriptions($editorData['descriptions'] ?? []),
