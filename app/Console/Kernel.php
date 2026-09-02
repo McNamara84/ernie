@@ -17,7 +17,10 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command(SyncSpdxLicenses::class)->monthly();
-        $schedule->command(UpdateLicenseUsageCount::class)->weekly();
+        $schedule->command(UpdateLicenseUsageCount::class)
+            ->weeklyOn(0, '00:00')
+            ->name('update-rights-usage-count')
+            ->withoutOverlapping(2);
     }
 
     /**

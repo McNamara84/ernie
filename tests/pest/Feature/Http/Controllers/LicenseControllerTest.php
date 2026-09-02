@@ -96,10 +96,43 @@ describe('ernie', function () {
             ->assertJsonCount(2);
     });
 
-    it('returns licenses ordered by usage count', function () {
+    it('returns active licenses in a stable usage, name, and identifier order', function () {
+        Right::factory()->create([
+            'identifier' => 'ALPHA-Z',
+            'name' => 'Alpha License',
+            'is_active' => true,
+            'usage_count' => 5,
+        ]);
+        Right::factory()->create([
+            'identifier' => 'ALPHA-A',
+            'name' => 'Alpha License',
+            'is_active' => true,
+            'usage_count' => 5,
+        ]);
+        Right::factory()->create([
+            'identifier' => 'ZULU',
+            'name' => 'Zulu License',
+            'is_active' => true,
+            'usage_count' => 5,
+        ]);
+        Right::factory()->create([
+            'identifier' => 'UNUSED',
+            'name' => 'Unused License',
+            'is_active' => true,
+            'usage_count' => 0,
+        ]);
+        Right::query()->where('identifier', 'MIT')->update(['usage_count' => 999]);
+
         $response = $this->getJson('/api/v1/licenses/ernie');
 
         $identifiers = collect($response->json())->pluck('identifier')->all();
-        expect($identifiers[0])->toBe('CC-BY-4.0');
+        expect($identifiers)->toBe([
+            'CC-BY-4.0',
+            'ALPHA-A',
+            'ALPHA-Z',
+            'CC0-1.0',
+            'ZULU',
+            'UNUSED',
+        ])->not->toContain('MIT');
     });
 });

@@ -287,6 +287,48 @@ services:
       - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@gfz-potsdam.de}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-ERNIE}
 
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
+    pull_policy: build
+    container_name: dockerized-laravel-scheduler
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        php artisan rights:update-usage-count --no-interaction
+        exec php artisan schedule:work --no-interaction
+    volumes:
+      - storage-data:/var/www/html/storage
+      - bootstrap-cache:/var/www/html/bootstrap/cache
+    networks:
+      - dockerized-laravel-network
+    depends_on:
+      app:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - APP_KEY=${APP_KEY}
+      - APP_URL=https://ernie.rz-vm182.gfz.de
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - INERTIA_SSR_ENABLED=false
+      - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - DB_HOST=db
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - CACHE_STORE=redis
+      - QUEUE_CONNECTION=database
+
 networks:
   dockerized-laravel-network:
     driver: bridge

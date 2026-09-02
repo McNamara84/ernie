@@ -1,5 +1,17 @@
 [
     {
+        "version": "1.0.7",
+        "date": "2026-09-02",
+        "features": [],
+        "improvements": [
+            {
+                "title": "Frequently Used Licenses First",
+                "description": "The License dropdown in the Data Editor now places licenses used most often across stored resources first, with alphabetical ordering for equally frequent choices. Rankings are refreshed during deployment and weekly thereafter, keeping long license catalogs practical without slowing editor loads."
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.0.6",
         "date": "2026-09-02",
         "features": [],

@@ -305,6 +305,50 @@ services:
       - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
     command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,database-dumps,default,imports --sleep=3 --tries=3
 
+  # Laravel Scheduler
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: app
+    container_name: ernie-scheduler-dev
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        php artisan rights:update-usage-count --no-interaction
+        exec php artisan schedule:work --no-interaction
+    volumes:
+      - .:/var/www/html
+      - ernie-vendor:/var/www/html/vendor
+      - ernie-node-modules:/var/www/html/node_modules
+    networks:
+      - ernie-dev-network
+    depends_on:
+      app:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_URL=https://${ERNIE_DEV_HOST:-ernie.localhost}:${ERNIE_DEV_HTTPS_PORT:-3333}
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=ernie
+      - DB_USERNAME=ernie
+      - DB_PASSWORD=secret
+      - REDIS_HOST=redis
+      - CACHE_STORE=redis
+      - QUEUE_CONNECTION=database
+      - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+
 networks:
   ernie-dev-network:
     driver: bridge

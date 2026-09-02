@@ -21,23 +21,47 @@ class UpdateLicenseUsageCount extends Command
     {
         $this->info('Calculating rights usage counts...');
 
-        // Get usage counts from the resource_rights pivot table
-        $usageCounts = DB::table('resource_rights')
-            ->join('rights', 'resource_rights.rights_id', '=', 'rights.id')
-            ->select('rights.id', DB::raw('COUNT(DISTINCT resource_rights.resource_id) as count'))
-            ->groupBy('rights.id')
-            ->pluck('count', 'id');
+        $startedAt = hrtime(true);
 
-        // Reset all usage counts to 0
-        Right::query()->update(['usage_count' => 0]);
+        /** @var array{resource_count: int, total_rights: int, used_rights: int} $statistics */
+        $statistics = DB::transaction(function (): array {
+            // Count every stored resource association, regardless of workflow status.
+            $usageCounts = DB::table('resource_rights')
+                ->join('rights', 'resource_rights.rights_id', '=', 'rights.id')
+                ->select('rights.id', DB::raw('COUNT(DISTINCT resource_rights.resource_id) as count'))
+                ->groupBy('rights.id')
+                ->pluck('count', 'id');
 
-        // Update usage counts for rights that have associations
-        foreach ($usageCounts as $rightId => $count) {
-            Right::where('id', $rightId)->update(['usage_count' => $count]);
-        }
+            $resourceCount = DB::table('resource_rights')
+                ->distinct()
+                ->count('resource_id');
 
-        $totalRights = Right::count();
-        $this->info('Successfully calculated usage counts for '.$totalRights.' rights.');
+            // Keep the reset and all replacements atomic so readers see either
+            // the previous complete snapshot or the newly calculated one.
+            DB::table('rights')->update(['usage_count' => 0]);
+
+            foreach ($usageCounts as $rightId => $count) {
+                DB::table('rights')
+                    ->where('id', (int) $rightId)
+                    ->update(['usage_count' => (int) $count]);
+            }
+
+            return [
+                'resource_count' => $resourceCount,
+                'total_rights' => Right::query()->count(),
+                'used_rights' => $usageCounts->count(),
+            ];
+        });
+
+        $elapsedMilliseconds = (int) round((hrtime(true) - $startedAt) / 1_000_000);
+
+        $this->info(sprintf(
+            'Successfully calculated usage counts for %d rights (%d used) across %d resources in %d ms.',
+            $statistics['total_rights'],
+            $statistics['used_rights'],
+            $statistics['resource_count'],
+            $elapsedMilliseconds,
+        ));
 
         return Command::SUCCESS;
     }
