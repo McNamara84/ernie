@@ -704,6 +704,16 @@ entity "landing_page_templates" as landing_page_templates {
     updated_at : TIMESTAMP
 }
 
+entity "landing_page_template_date_type_exclusions" as landing_page_template_date_type_exclusions {
+    * **landing_page_template_id** : BIGINT <<PK, FK>>
+    * **date_type_id** : BIGINT <<PK, FK>>
+}
+
+entity "landing_page_template_relation_type_exclusions" as landing_page_template_relation_type_exclusions {
+    * **landing_page_template_id** : BIGINT <<PK, FK>>
+    * **relation_type_id** : BIGINT <<PK, FK>>
+}
+
 entity "landing_pages" as landing_pages {
     * **id** : BIGINT <<PK>>
     --
@@ -1409,6 +1419,10 @@ landing_page_links }o--o| sizes : "content size"
 landing_pages ||--o{ landing_page_daily_statistics
 landing_pages }o--o| landing_page_templates
 landing_page_templates }o--o| users
+landing_page_template_date_type_exclusions }o--|| landing_page_templates
+landing_page_template_date_type_exclusions }o--|| date_types
+landing_page_template_relation_type_exclusions }o--|| landing_page_templates
+landing_page_template_relation_type_exclusions }o--|| relation_types
 
 ' IGSN relationships
 igsn_metadata ||--|| resources
