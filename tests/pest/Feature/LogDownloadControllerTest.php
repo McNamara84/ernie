@@ -102,6 +102,20 @@ it('streams each supported period with stable headers and metadata', function (
     'month' => ['month', 'Last 30 days', 'last-30-days', '2026-08-03T12:00:00Z'],
 ]);
 
+it('normalizes the request time to seconds before calculating inclusive boundaries', function (): void {
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-09-02 12:00:00.500000', 'UTC'));
+    File::put($this->logDirectory.'/laravel.log', "[2026-09-01 12:00:00] production.INFO: Exact displayed start\n");
+    $admin = User::factory()->admin()->create();
+
+    $response = $this->actingAs($admin)
+        ->get(route('logs.download', ['period' => 'day']));
+
+    $response->assertOk();
+    expect($response->streamedContent())
+        ->toContain('# From (UTC): 2026-09-01T12:00:00Z')
+        ->toContain('[2026-09-01 12:00:00] production.INFO: Exact displayed start');
+});
+
 it('ignores level and search query parameters', function (): void {
     File::put($this->logDirectory.'/laravel.log', <<<'LOG'
 [2026-09-02 10:00:00] production.INFO: Included despite level

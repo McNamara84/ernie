@@ -613,6 +613,55 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
+                id: 'application-logs',
+                title: 'Application Logs',
+                icon: FileText,
+                minRole: 'admin',
+                content: (
+                    <>
+                        <h3>Viewing and Downloading Application Logs</h3>
+                        <p>
+                            Administrators can open <strong>Logs</strong> from the <strong>Administration</strong> workspace or go directly to{' '}
+                            <code>/logs</code>. The page shows recent application events and provides level and text filters for investigating the
+                            visible table.
+                        </p>
+
+                        <h4>Download a rolling log period</h4>
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Open the download menu">
+                                <p>
+                                    Select <strong>Download</strong> beside the Refresh action.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Choose the period">
+                                <p>
+                                    Select <strong>Last 24 hours</strong>, <strong>Last 7 days</strong>, or <strong>Last 30 days</strong>. Each period
+                                    is calculated from the download time in UTC.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Save the text file">
+                                <p>
+                                    The browser downloads a TXT file containing the available entries in chronological order, including multiline
+                                    context and stack traces.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+
+                        <p className="mt-4">
+                            Downloads always include every available application-log entry in the selected period. The current table's level and
+                            search filters do not limit the file. A 30-day export can only include logs that are still retained on the server.
+                        </p>
+
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Sensitive data:</strong> Application logs can contain internal details. Store downloaded files securely and
+                                share them only with authorized recipients.
+                            </p>
+                        </div>
+                    </>
+                ),
+            },
+            {
                 id: 'statistics-dashboard',
                 title: 'Statistics',
                 icon: BarChart3,

@@ -94,7 +94,7 @@ class LogController extends Controller
      */
     public function download(LogDownloadPeriod $period): StreamedResponse
     {
-        $endsAt = CarbonImmutable::now('UTC');
+        $endsAt = CarbonImmutable::now('UTC')->startOfSecond();
         $startsAt = $period->startsAt($endsAt);
         $filename = sprintf(
             'ernie-logs-%s-%s.txt',
