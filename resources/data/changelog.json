@@ -31,6 +31,10 @@
         ],
         "fixes": [
             {
+                "title": "Reliable Legacy DataCite Metadata Updates",
+                "description": "Existing DOIs now use the DataCite metadata-update workflow regardless of their local publication status and explicitly migrate historical records to Kernel 4. A dry-run-first, resumable administration command can audit and safely normalize already imported repository records with per-record validation, private snapshots, minimal update payloads, verification, and CSV reporting."
+            },
+            {
                 "title": "Searchable License Selection in the Editor",
                 "description": "The License field in the Data Editor is now searchable by license name and SPDX identifier, making licenses anywhere in the full catalog directly selectable without scrolling through a long dropdown."
             },

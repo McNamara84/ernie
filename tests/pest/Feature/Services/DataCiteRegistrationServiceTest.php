@@ -7,6 +7,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteRegistrationService;
+use App\Support\DataCiteSchemaVersion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 
@@ -188,7 +189,28 @@ test('updateMetadata sends put request to correct endpoint', function () {
 
         return str_contains($request->url(), $expectedEncodedDoi)
             && $request->method() === 'PUT'
+            && $body['data']['attributes']['schemaVersion'] === DataCiteSchemaVersion::KERNEL_4
+            && $body['data']['attributes']['event'] === 'publish'
+            && $body['data']['attributes']['url'] === $this->resource->landingPage->public_url
             && $body['data']['attributes']['descriptions'][0]['description'] === 'First line.<br><br>Second line.';
+    });
+});
+
+test('registerDoi leaves schema negotiation to DataCite for new records', function () {
+    Http::fake([
+        '*datacite.org/*' => Http::response([
+            'data' => ['id' => '10.83279/new-record', 'type' => 'dois'],
+        ], 201),
+    ]);
+
+    $response = app(DataCiteRegistrationService::class)->registerDoi($this->resource, '10.83279');
+    expect($response['data']['id'])->toBe('10.83279/new-record');
+
+    Http::assertSent(function ($request): bool {
+        $body = $request->data();
+
+        return $request->method() === 'POST'
+            && ! array_key_exists('schemaVersion', $body['data']['attributes']);
     });
 });
 

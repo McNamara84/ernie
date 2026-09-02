@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Resource;
+use App\Support\DataCiteSchemaVersion;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
@@ -373,6 +374,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
                     [
                         'url' => $resource->landingPage->public_url,
                         'event' => 'publish', // Ensure DOI remains published
+                        'schemaVersion' => DataCiteSchemaVersion::KERNEL_4,
                     ]
                 ),
             ],

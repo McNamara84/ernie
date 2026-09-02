@@ -2382,7 +2382,7 @@ export default function DataCiteForm({
         titles,
     ]);
 
-    const [dataCiteAction, setDataCiteAction] = useState<EditorDataCiteAction>('register');
+    const [dataCiteAction, setDataCiteAction] = useState<EditorDataCiteAction>(() => (initialDoi?.trim() ? 'update' : 'register'));
     const [isDataCiteConfirmationOpen, setIsDataCiteConfirmationOpen] = useState(false);
     const [isSubmittingDataCite, setIsSubmittingDataCite] = useState(false);
     const [dataCiteSubmittingAction, setDataCiteSubmittingAction] = useState<EditorDataCiteSubmittingAction>(null);
@@ -2729,7 +2729,7 @@ export default function DataCiteForm({
             const payload = await prepareValidatedPayload();
             if (!payload) return;
 
-            setDataCiteAction(currentPublicStatus === 'published' ? 'update' : 'register');
+            setDataCiteAction(form.doi?.trim() ? 'update' : 'register');
             setPendingDataCitePayload(payload);
             setPendingDataCiteResourceId(null);
             setDataCiteError(null);
@@ -3151,6 +3151,7 @@ export default function DataCiteForm({
     const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
     const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview || isSubmittingDataCite;
     const isPublishedResource = currentPublicStatus === 'published';
+    const hasExistingDoi = Boolean(form.doi?.trim());
     const canRegisterDoi = auth?.user?.can_register_doi ?? false;
     const showSaveDraftDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
     const showLandingPagePreviewDisabledTooltip = !isPublishedResource && !isDraftSaveable && !isEditorActionInFlight;
@@ -3222,7 +3223,7 @@ export default function DataCiteForm({
                                 onClick={() => void handleRequestDataCiteAction()}
                             >
                                 <CloudUpload className="mr-2 h-4 w-4" />
-                                {isPublishedResource ? 'Update Metadata' : 'Register'}
+                                {hasExistingDoi ? 'Update Metadata' : 'Register'}
                             </Button>
                         </span>
                     </TooltipTrigger>

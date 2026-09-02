@@ -191,7 +191,43 @@ GEOFON Seismic Events keep the external landing-page target supplied by DataCite
 
 With `DATACITE_TEST_MODE=false` on Production, the same local landing pages are created and the newly imported, published records enter a separate DataCite synchronization phase. That phase exports the complete ERNIE metadata and changes the DOI target URL to the new landing page. Failed updates do not roll back the import or landing page and can be retried from the completed import dialog.
 
-Production uses separate DataCite Repository accounts for ordinary GFZ DOIs and legacy IGSNs. Configure `DATACITE_USERNAME` / `DATACITE_PASSWORD` for the ordinary DOI repository and `DATACITE_IGSN_USERNAME` / `DATACITE_IGSN_PASSWORD` for the `GFZ.IGSN` repository that owns prefix `10.60510`. ERNIE selects the IGSN credentials automatically for that prefix; using the ordinary DOI credentials results in a DataCite HTTP 403 response.
+Production uses separate DataCite Repository accounts for ordinary GFZ DOIs and legacy IGSNs. Configure `DATACITE_USERNAME` / `DATACITE_PASSWORD` and `DATACITE_CLIENT_ID` for the ordinary DOI repository and `DATACITE_IGSN_USERNAME` / `DATACITE_IGSN_PASSWORD` for the `GFZ.IGSN` repository that owns prefix `10.60510`. ERNIE selects the IGSN credentials automatically for that prefix; using the ordinary DOI credentials results in a DataCite HTTP 403 response. Audits against the test API additionally require `DATACITE_TEST_CLIENT_ID`.
+
+### DataCite Kernel 4 upgrade for imported resources
+
+Every metadata update for an existing DOI now asks DataCite to store the record with Kernel 4. In the Data Editor, any non-empty DOI therefore produces the **Update Metadata** action regardless of the local draft, curation, review, or published status. This is an update of the existing DOI, not another registration.
+
+Use the authenticated, dry-run-first upgrade command to normalize already imported repository records. It lists every state visible to the configured Repository account, intersects the result with local ERNIE resources by normalized DOI, and excludes IGSNs and unconfigured prefixes. No database migration is involved.
+
+Start with an audit and inspect all `manual_review`, `not_imported`, and `error` rows:
+
+```bash
+npm run artisan -- resources:upgrade-datacite-schema \
+    --report=storage/app/datacite-schema-upgrade-dry-run.csv
+```
+
+The dry run never sends a PUT. Kernel 3, Kernel 2.x, and records without a schema version are automatically eligible only when `types.resourceTypeGeneral` is valid for Kernel 4 and no legacy `contributorType: Funder` remains. Unknown schema versions and incompatible metadata stay unchanged for manual review.
+
+Apply one representative DOI from each legacy group first:
+
+```bash
+npm run artisan -- resources:upgrade-datacite-schema \
+    --apply --force-production \
+    --doi=10.5880/example \
+    --report=storage/app/datacite-schema-upgrade-pilot.csv
+```
+
+`--force-production` is mandatory only when `--apply` targets the production API. It is an explicit safety acknowledgement; the command remains non-interactive and still performs every per-record preflight. Confirm that the pilot retained its DOI state, landing-page URL, and resource type before running the complete upgrade:
+
+```bash
+npm run artisan -- resources:upgrade-datacite-schema \
+    --apply --force-production \
+    --report=storage/app/datacite-schema-upgrade-applied.csv
+```
+
+Apply runs send only `doi`, `schemaVersion`, and the existing `types` object. Before each PUT, the complete DataCite source record is saved below `storage/app/private/datacite-schema-upgrades/`; this location is not publicly served. API or verification failures are isolated in the CSV, except that HTTP 401 or 403 stops subsequent writes. Resume a bounded run with `--after-id=<resource-id>` and `--limit=<count>`, or retry individual records with repeatable `--doi` options.
+
+After applying, repeat the dry run. Successfully upgraded records appear as `already_current` and do not cause another write, making the process idempotent. Archive the apply report and private snapshots according to the operating retention policy.
 
 ### Legacy line coverage enrichment
 

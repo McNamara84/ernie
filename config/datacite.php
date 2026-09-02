@@ -154,11 +154,17 @@ return [
         'endpoint' => env('DATACITE_TEST_ENDPOINT', 'https://api.test.datacite.org'),
         'username' => env('DATACITE_TEST_USERNAME'),
         'password' => env('DATACITE_TEST_PASSWORD'),
+        'client_id' => env('DATACITE_TEST_CLIENT_ID'),
         'prefixes' => [
             '10.83279',
             '10.83186',
             '10.83114',
         ],
+    ],
+
+    'schema_upgrade' => [
+        'page_size' => (int) env('DATACITE_SCHEMA_UPGRADE_PAGE_SIZE', 1000),
+        'snapshot_directory' => 'datacite-schema-upgrades',
     ],
 
     /*

@@ -7469,6 +7469,53 @@ describe('DataCiteForm', () => {
             expect(screen.queryByTestId('save-resource-button')).not.toBeInTheDocument();
         });
 
+        it.each(['draft', 'curation', 'review'] as const)('shows Update Metadata for an existing DOI in %s status', (publicStatus) => {
+            renderDataCiteForm({
+                initialDoi: ' 10.5880/legacy-resource ',
+                initialPublicStatus: publicStatus,
+                initialTitles: [{ title: 'Imported legacy dataset', titleType: 'main-title' }],
+            });
+
+            expect(screen.getByRole('button', { name: 'Update Metadata' })).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Register' })).not.toBeInTheDocument();
+            expect(screen.getByTestId('save-draft-button')).toBeInTheDocument();
+            expect(screen.getByTestId('save-resource-button')).toBeInTheDocument();
+        });
+
+        it('opens the update confirmation without requiring a prefix for an imported review resource', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialDoi: '10.5880/legacy-resource',
+                initialPublicStatus: 'review',
+                initialYear: '2024',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Imported legacy dataset', titleType: 'main-title' }],
+                initialLicenses: ['MIT'],
+                availableDatacenters,
+                initialDatacenterId: 1,
+                initialLandingPage: {
+                    id: 7,
+                    is_published: false,
+                    status: 'draft',
+                    public_url: 'https://example.test/landing-page',
+                    preview_url: 'https://example.test/landing-page/preview',
+                    external_url: null,
+                },
+            });
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+            await user.click(screen.getByRole('button', { name: 'Update Metadata' }));
+
+            expect(await screen.findByRole('heading', { name: 'Confirm DataCite update' })).toBeInTheDocument();
+            expect(screen.getByText('Existing DOI')).toBeInTheDocument();
+            expect(screen.queryByLabelText(/DOI prefix/)).not.toBeInTheDocument();
+            await waitFor(() => expect(screen.getByRole('button', { name: 'Update metadata' })).toBeEnabled());
+        });
+
         it('opens a published landing page without saving invalid editor changes', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);

@@ -45,6 +45,40 @@ class DataCiteMemberApiClient
         return $this->endpoint;
     }
 
+    public function repositoryClientId(): string
+    {
+        $clientId = trim((string) ($this->environmentConfig['client_id'] ?? ''));
+
+        if ($clientId === '') {
+            throw new \RuntimeException(
+                $this->testMode
+                    ? 'DataCite test repository client ID is not configured. Please set DATACITE_TEST_CLIENT_ID.'
+                    : 'DataCite production repository client ID is not configured. Please set DATACITE_CLIENT_ID.'
+            );
+        }
+
+        return strtolower($clientId);
+    }
+
+    /** @return list<string> */
+    public function prefixes(): array
+    {
+        $prefixes = $this->environmentConfig['prefixes'] ?? [];
+        if (! is_array($prefixes)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn (mixed $prefix): string => strtolower(trim((string) $prefix)),
+            $prefixes,
+        )));
+    }
+
+    public function igsnPrefix(): string
+    {
+        return strtolower(trim((string) config('datacite.production.igsn_prefix', '')));
+    }
+
     public function getDoi(string $identifier, bool $deferWhenLimited = false): Response
     {
         return $this->send(
@@ -55,6 +89,30 @@ class DataCiteMemberApiClient
         );
     }
 
+    public function listDois(int $pageNumber = 1, int $pageSize = 1000): Response
+    {
+        if ($pageNumber < 1) {
+            throw new \InvalidArgumentException('The DataCite DOI page number must be at least 1.');
+        }
+        if ($pageSize < 1 || $pageSize > 1000) {
+            throw new \InvalidArgumentException('The DataCite DOI page size must be between 1 and 1000.');
+        }
+
+        $query = http_build_query([
+            'client-id' => $this->repositoryClientId(),
+            'page' => [
+                'number' => $pageNumber,
+                'size' => $pageSize,
+            ],
+        ], encoding_type: PHP_QUERY_RFC3986);
+
+        return $this->send(
+            'GET',
+            "{$this->endpoint}/dois?{$query}",
+            maxAttempts: $this->transientAttempts(),
+        );
+    }
+
     /** @param array<string, mixed> $payload */
     public function createDoi(array $payload): Response
     {
@@ -62,7 +120,7 @@ class DataCiteMemberApiClient
             'POST',
             "{$this->endpoint}/dois",
             $payload,
-            $this->writeAttempts(),
+            $this->transientAttempts(),
             credentialIdentifier: $this->payloadIdentifier($payload),
         );
     }
@@ -74,7 +132,7 @@ class DataCiteMemberApiClient
             'PUT',
             $this->doiUrl($identifier),
             $payload,
-            $this->writeAttempts(),
+            $this->transientAttempts(),
             credentialIdentifier: $identifier,
         );
     }
@@ -135,7 +193,7 @@ class DataCiteMemberApiClient
         throw new \LogicException('The DataCite request loop ended without a response.');
     }
 
-    private function writeAttempts(): int
+    private function transientAttempts(): int
     {
         return max(1, (int) config('datacite.transport_transient_attempts', 3));
     }
