@@ -20,7 +20,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(UpdateLicenseUsageCount::class)
             ->weeklyOn(0, '00:00')
             ->name('update-rights-usage-count')
-            ->withoutOverlapping(120);
+            ->withoutOverlapping(2);
     }
 
     /**

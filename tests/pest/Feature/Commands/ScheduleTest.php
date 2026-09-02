@@ -33,7 +33,7 @@ it('schedules license usage count update weekly', function () {
         ->and($event->expression)->toBe('0 0 * * 0')
         ->and($event->description)->toBe('update-rights-usage-count')
         ->and($event->withoutOverlapping)->toBeTrue()
-        ->and($event->expiresAt)->toBe(120);
+        ->and($event->expiresAt)->toBe(2);
 });
 
 it('schedules vocabulary cache touch twice daily', function () {
