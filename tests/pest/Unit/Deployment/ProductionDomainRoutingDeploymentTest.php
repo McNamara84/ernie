@@ -77,13 +77,13 @@ it('uses one canonical production URL without changing persistent OAI identifier
         ->and(productionEnvironmentValue($appEnvironment, 'SANCTUM_STATEFUL_DOMAINS'))->toBe('dataservices.gfz.de');
 });
 
-it('leaves the ELMO path to its separate Docker stack', function (): void {
+it('leaves the ELMO paths to their separate Docker stacks', function (): void {
     $compose = productionDomainCompose();
     $labels = productionTraefikLabels($compose['services']['webserver']['labels'] ?? []);
 
     $ernieRule = $labels['traefik.http.routers.ernie-router.rule'] ?? '';
     expect($ernieRule)
-        ->toBe('Host(`dataservices.gfz.de`) && !PathRegexp(`^/elmo(/|$$)`)');
+        ->toBe('Host(`dataservices.gfz.de`) && !PathRegexp(`^/(elmo|elmo-msl)(/|$$)`)');
 
     preg_match('/!PathRegexp\(`(.+)`\)/', $ernieRule, $matches);
     $externalPattern = productionComposeLiteral($matches[1] ?? '');
@@ -91,7 +91,11 @@ it('leaves the ELMO path to its separate Docker stack', function (): void {
         ->and(preg_match('~'.$externalPattern.'~', '/elmo'))->toBe(1)
         ->and(preg_match('~'.$externalPattern.'~', '/elmo/'))->toBe(1)
         ->and(preg_match('~'.$externalPattern.'~', '/elmo/subpath'))->toBe(1)
+        ->and(preg_match('~'.$externalPattern.'~', '/elmo-msl'))->toBe(1)
+        ->and(preg_match('~'.$externalPattern.'~', '/elmo-msl/'))->toBe(1)
+        ->and(preg_match('~'.$externalPattern.'~', '/elmo-msl/subpath'))->toBe(1)
         ->and(preg_match('~'.$externalPattern.'~', '/elmos'))->toBe(0)
+        ->and(preg_match('~'.$externalPattern.'~', '/elmo-msls'))->toBe(0)
         ->and(preg_match('~'.$externalPattern.'~', '/api/v1/elmo/vocabularies'))->toBe(0);
 });
 
