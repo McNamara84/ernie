@@ -171,6 +171,16 @@ npm run docker:dev:parity
   Windows/macOS bind-mount reads while leaving the development source mount and
   focused test workflow unchanged.
 
+### Log retention and downloads
+
+The administration log viewer can download the application log for the last
+24 hours, 7 days, or 30 days. It reads both `storage/logs/laravel.log` and
+Laravel's daily files named `laravel-YYYY-MM-DD.log`. A download can only
+contain history that is still present on disk. Deployments using the `daily`
+log channel must therefore keep `LOG_DAILY_DAYS` at 31 or more for complete
+30-day downloads. The repository environment templates and Laravel's default
+use 31 days; an environment-specific override takes precedence.
+
 ### DataCite import mode
 
 Keep `DATACITE_TEST_MODE=true` for local development and Stage. Eligible imported resources and every newly imported IGSN receive their local landing page, but the import never writes metadata to either DataCite API in this mode.

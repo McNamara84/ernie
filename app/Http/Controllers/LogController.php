@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\LogDownloadPeriod;
+use App\Services\LogDownloadService;
 use App\Services\LogService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Controller for viewing and managing Laravel log files.
@@ -19,7 +24,8 @@ use Inertia\Response;
 class LogController extends Controller
 {
     public function __construct(
-        private readonly LogService $logService
+        private readonly LogService $logService,
+        private readonly LogDownloadService $logDownloadService,
     ) {}
 
     /**
@@ -81,6 +87,37 @@ class LogController extends Controller
         );
 
         return response()->json($logs);
+    }
+
+    /**
+     * Download all available application logs for a rolling UTC period.
+     */
+    public function download(LogDownloadPeriod $period): StreamedResponse
+    {
+        $endsAt = CarbonImmutable::now('UTC');
+        $startsAt = $period->startsAt($endsAt);
+        $filename = sprintf(
+            'ernie-logs-%s-%s.txt',
+            $period->filenameSegment(),
+            $endsAt->format('Ymd\THis\Z'),
+        );
+
+        return response()->streamDownload(function () use ($endsAt, $period, $startsAt): void {
+            $stream = fopen('php://output', 'wb');
+            if ($stream === false) {
+                throw new RuntimeException('Failed to open the log download output stream.');
+            }
+
+            try {
+                $this->logDownloadService->writeTextExport($stream, $period, $startsAt, $endsAt);
+            } finally {
+                fclose($stream);
+            }
+        }, $filename, [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     /**

@@ -133,6 +133,29 @@ describe('Logs/Index', () => {
         expect(screen.getByRole('button', { name: /Refresh/i })).toBeInTheDocument();
     });
 
+    it('renders all rolling log download options with filter-independent URLs', async () => {
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} filters={{ ...defaultFilters, level: 'error', search: 'database' }} />);
+
+        await user.click(screen.getByRole('button', { name: /^Download$/i }));
+
+        expect(await screen.findByRole('menuitem', { name: 'Last 24 hours' })).toHaveAttribute('href', '/logs/download/day');
+        expect(screen.getByRole('menuitem', { name: 'Last 7 days' })).toHaveAttribute('href', '/logs/download/week');
+        expect(screen.getByRole('menuitem', { name: 'Last 30 days' })).toHaveAttribute('href', '/logs/download/month');
+    });
+
+    it('keeps log downloads available when the current table is empty', async () => {
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} logs={[]} pagination={{ ...defaultPagination, total: 0 }} />);
+
+        const downloadButton = screen.getByRole('button', { name: /^Download$/i });
+        expect(downloadButton).toBeEnabled();
+
+        await user.click(downloadButton);
+
+        expect(await screen.findByRole('menuitem', { name: 'Last 30 days' })).toBeInTheDocument();
+    });
+
     it('renders Clear All button when can_delete is true', () => {
         render(<Index {...defaultProps} />);
 
@@ -347,9 +370,9 @@ describe('Logs/Index', () => {
         // Find all buttons in table
         const table = screen.getByRole('table');
         const deleteButtons = table.querySelectorAll('button');
-        
+
         // Click the first delete button (skip row clicks)
-        const firstDeleteBtn = Array.from(deleteButtons).find(btn => btn.querySelector('svg'));
+        const firstDeleteBtn = Array.from(deleteButtons).find((btn) => btn.querySelector('svg'));
         if (firstDeleteBtn) {
             await user.click(firstDeleteBtn);
         }
@@ -367,7 +390,7 @@ describe('Logs/Index', () => {
         // Open dialog - find delete button in table
         const table = screen.getByRole('table');
         const deleteButtons = table.querySelectorAll('button');
-        const firstDeleteBtn = Array.from(deleteButtons).find(btn => btn.querySelector('svg'));
+        const firstDeleteBtn = Array.from(deleteButtons).find((btn) => btn.querySelector('svg'));
         if (firstDeleteBtn) {
             await user.click(firstDeleteBtn);
         }
@@ -381,11 +404,14 @@ describe('Logs/Index', () => {
         await user.click(confirmButton);
 
         await waitFor(() => {
-            expect(router.delete).toHaveBeenCalledWith('/logs/entry', expect.objectContaining({
-                data: expect.objectContaining({
-                    line_number: 1,
+            expect(router.delete).toHaveBeenCalledWith(
+                '/logs/entry',
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        line_number: 1,
+                    }),
                 }),
-            }));
+            );
         });
     });
 
@@ -397,7 +423,7 @@ describe('Logs/Index', () => {
         // Open dialog
         const table = screen.getByRole('table');
         const deleteButtons = table.querySelectorAll('button');
-        const firstDeleteBtn = Array.from(deleteButtons).find(btn => btn.querySelector('svg'));
+        const firstDeleteBtn = Array.from(deleteButtons).find((btn) => btn.querySelector('svg'));
         if (firstDeleteBtn) {
             await user.click(firstDeleteBtn);
         }

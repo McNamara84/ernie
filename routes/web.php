@@ -348,6 +348,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('logs/data', [LogController::class, 'getLogsJson'])
             ->name('logs.data');
 
+        Route::get('logs/download/{period}', [LogController::class, 'download'])
+            ->name('logs.download');
+
         Route::delete('logs/entry', [LogController::class, 'destroy'])
             ->middleware('can:delete-logs')
             ->name('logs.destroy');
