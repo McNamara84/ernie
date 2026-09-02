@@ -80,6 +80,10 @@ class LegacyMetaworksDatacenterLookupService
             'pattern' => '/^10\.1594\/gfz\.geofon\..+$/i',
             'datacenters' => [self::GEOFON_EVENTS_DATACENTER],
         ],
+        [
+            'pattern' => '/^10\.5880\/geofon\..+$/i',
+            'datacenters' => [self::GEOFON_EVENTS_DATACENTER],
+        ],
     ];
 
     /**

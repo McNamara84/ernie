@@ -31,6 +31,14 @@ it('uses the datacenter assignment when the DOI does not identify the collection
     ))->not->toBeNull();
 });
 
+it('recognizes current 10.5880 GEOFON seismic-event DOIs', function (): void {
+    Right::factory()->cc0()->create();
+    $service = new GeofonSeismicEventsRightsService;
+
+    expect($service->rightsStatementForImport('10.5880/GEOFON.GFZ2015ICRA'))
+        ->not->toBeNull();
+});
+
 it('does not add CC0 to other GEOFON collections', function (): void {
     $service = new GeofonSeismicEventsRightsService;
 

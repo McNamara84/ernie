@@ -45,9 +45,13 @@ class LegacyLandingPageDecisionService
      * external landing pages. Old GFZ Data Services runtime URLs must be ignored.
      *
      * @param  array<string, mixed>  $attributes
+     * @param  list<string>  $datacenterNames
      */
-    public function shouldImportDataCiteUrlAsExternal(string $doi, array $attributes): bool
-    {
+    public function shouldImportDataCiteUrlAsExternal(
+        string $doi,
+        array $attributes,
+        array $datacenterNames = [],
+    ): bool {
         $url = isset($attributes['url']) ? trim((string) $attributes['url']) : '';
 
         if ($url === '' || $this->isLegacyDataServicesUrl($url)) {
@@ -67,7 +71,7 @@ class LegacyLandingPageDecisionService
             return false;
         }
 
-        return $this->isGeofonExternalLandingPage($doi, $host);
+        return $this->isGeofonExternalLandingPage($doi, $host, $datacenterNames);
     }
 
     public function isLegacyDataServicesUrl(string $url): bool
@@ -85,9 +89,29 @@ class LegacyLandingPageDecisionService
             && in_array($host, ['dataservices.gfz.de', 'dataservices.gfz-potsdam.de'], true);
     }
 
-    private function isGeofonExternalLandingPage(string $doi, string $host): bool
+    /** @param list<string> $datacenterNames */
+    private function isGeofonExternalLandingPage(string $doi, string $host, array $datacenterNames): bool
     {
-        return str_starts_with(strtolower(trim($doi)), '10.14470/')
-            && in_array($host, ['geofon.gfz.de', 'geofon.gfz-potsdam.de'], true);
+        if (! in_array($host, ['geofon.gfz.de', 'geofon.gfz-potsdam.de'], true)) {
+            return false;
+        }
+
+        $normalizedDoi = strtolower(trim($doi));
+
+        if (str_starts_with($normalizedDoi, '10.14470/')
+            || preg_match('/^(?:10\.1594\/gfz\.geofon|10\.5880\/geofon)\..+$/', $normalizedDoi) === 1) {
+            return true;
+        }
+
+        foreach ($datacenterNames as $datacenterName) {
+            if (strcasecmp(
+                trim($datacenterName),
+                LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+            ) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

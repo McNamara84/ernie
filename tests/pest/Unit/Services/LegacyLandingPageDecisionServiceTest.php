@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Services\LegacyLandingPageDecisionService;
+use App\Services\LegacyMetaworksDatacenterLookupService;
 
 it('derives internal landing page publication solely from legacy and DataCite status', function (
     ?string $publicStatus,
@@ -90,6 +91,16 @@ it('allows GEOFON 10.14470 DataCite URLs as external landing pages', function ()
     ]))->toBeTrue();
 });
 
+it('allows GEOFON seismic-event DataCite URLs based on the datacenter', function (): void {
+    $service = new LegacyLandingPageDecisionService;
+
+    expect($service->shouldImportDataCiteUrlAsExternal(
+        '10.1234/event-record',
+        ['url' => 'https://geofon.gfz.de/eqinfo/event.php?id=gfz2015icra'],
+        [' geofon seismic events '],
+    ))->toBeTrue();
+});
+
 it('rejects non-GEOFON and old Data Services DataCite URLs as external landing pages', function (string $doi, string $url): void {
     $service = new LegacyLandingPageDecisionService;
 
@@ -108,3 +119,13 @@ it('rejects non-GEOFON and old Data Services DataCite URLs as external landing p
         'https://example.org/dataset',
     ],
 ]);
+
+it('rejects a non-GEOFON host for the GEOFON seismic-events datacenter', function (): void {
+    $service = new LegacyLandingPageDecisionService;
+
+    expect($service->shouldImportDataCiteUrlAsExternal(
+        '10.5880/GEOFON.GFZ2015ICRA',
+        ['url' => 'https://example.org/event/gfz2015icra'],
+        [LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER],
+    ))->toBeFalse();
+});

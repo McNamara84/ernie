@@ -21,6 +21,17 @@ it('parses external DataCite URLs into domain and path', function (): void {
     ]);
 });
 
+it('upgrades legacy GEOFON HTTP landing page URLs to HTTPS', function (): void {
+    $parts = (new DataCiteLandingPageImportService)->parseExternalUrl(
+        'http://geofon.gfz.de/eqinfo/event.php?id=gfz2015icra'
+    );
+
+    expect($parts)->toBe([
+        'domain' => 'https://geofon.gfz.de/',
+        'path' => 'eqinfo/event.php?id=gfz2015icra',
+    ]);
+});
+
 it('creates a published external landing page for findable DataCite records', function (): void {
     $resource = Resource::factory()->create(['doi' => '10.14470/rv968923']);
 

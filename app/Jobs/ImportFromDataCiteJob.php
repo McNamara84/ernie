@@ -980,6 +980,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                     doiRecord: $doiRecord,
                     metaworksService: $metaworksService,
                     shouldLookupMetaworks: $shouldLookupMetaworks,
+                    datacenterNames: $portalDatacenterNames ?? [],
                 );
             }
 
@@ -1098,6 +1099,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                     doiRecord: $preparedDoiRecord,
                     metaworksService: $metaworksService,
                     shouldLookupMetaworks: $shouldLookupMetaworks && ! $metaworksUnavailable,
+                    datacenterNames: $portalDatacenterNames ?? [],
                 );
                 $repairResult['metaworks_unavailable'] = $repairResult['metaworks_unavailable'] || $metaworksUnavailable;
 
@@ -1113,7 +1115,12 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $portalDatacenterNames,
             );
 
-            $dataCiteLandingPageSync = $this->syncDataCiteLandingPageIfAllowed($importedResource, $doi, $preparedDoiRecord);
+            $dataCiteLandingPageSync = $this->syncDataCiteLandingPageIfAllowed(
+                $importedResource,
+                $doi,
+                $preparedDoiRecord,
+                $portalDatacenterNames ?? [],
+            );
 
             $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
@@ -1167,6 +1174,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                     doiRecord: $doiRecord,
                     metaworksService: $metaworksService,
                     shouldLookupMetaworks: $shouldLookupMetaworks && ! $metaworksUnavailable,
+                    datacenterNames: $portalDatacenterNames ?? [],
                 );
                 $repairResult['metaworks_unavailable'] = $repairResult['metaworks_unavailable'] || $metaworksUnavailable;
 
@@ -1182,6 +1190,7 @@ class ImportFromDataCiteJob implements ShouldQueue
      * still reporting the DOI as skipped for import-count compatibility.
      *
      * @param  array<string, mixed>  $doiRecord
+     * @param  list<string>  $datacenterNames
      * @return array{status: 'skipped', metaworks_unavailable: bool, enriched: bool}
      */
     private function repairExistingResource(
@@ -1190,10 +1199,16 @@ class ImportFromDataCiteJob implements ShouldQueue
         array $doiRecord,
         MetaworksDownloadUrlService $metaworksService,
         bool $shouldLookupMetaworks,
+        array $datacenterNames = [],
     ): array {
         Log::debug('Repairing existing DOI import enrichment', ['doi' => $doi]);
 
-        $dataCiteLandingPageSync = $this->syncDataCiteLandingPageIfAllowed($resource, $doi, $doiRecord);
+        $dataCiteLandingPageSync = $this->syncDataCiteLandingPageIfAllowed(
+            $resource,
+            $doi,
+            $doiRecord,
+            $datacenterNames,
+        );
         $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
         $resource->unsetRelation('landingPage');
         $resource->load('landingPage');
@@ -1361,16 +1376,41 @@ class ImportFromDataCiteJob implements ShouldQueue
 
     /**
      * @param  array<string, mixed>  $doiRecord
+     * @param  list<string>  $datacenterNames
      * @return array{changed: bool, sync_eligible: bool}
      */
-    private function syncDataCiteLandingPageIfAllowed(Resource $resource, string $doi, array $doiRecord): array
-    {
+    private function syncDataCiteLandingPageIfAllowed(
+        Resource $resource,
+        string $doi,
+        array $doiRecord,
+        array $datacenterNames = [],
+    ): array {
         $attributes = is_array($doiRecord['attributes'] ?? null)
             ? $doiRecord['attributes']
             : $doiRecord;
+        $decisionService = app(LegacyLandingPageDecisionService::class);
 
-        if (! app(LegacyLandingPageDecisionService::class)->shouldImportDataCiteUrlAsExternal($doi, $attributes)) {
-            return $this->emptyDataCiteLandingPageSyncResult();
+        if (! $decisionService->shouldImportDataCiteUrlAsExternal($doi, $attributes, $datacenterNames)) {
+            $couldBeAssignedGeofonEvent = $decisionService->shouldImportDataCiteUrlAsExternal(
+                $doi,
+                $attributes,
+                [LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER],
+            );
+
+            if (! $couldBeAssignedGeofonEvent) {
+                return $this->emptyDataCiteLandingPageSyncResult();
+            }
+
+            $assignedDatacenterName = $resource->datacenter()->value('name');
+
+            if (! is_string($assignedDatacenterName)
+                || ! $decisionService->shouldImportDataCiteUrlAsExternal(
+                    $doi,
+                    $attributes,
+                    [$assignedDatacenterName],
+                )) {
+                return $this->emptyDataCiteLandingPageSyncResult();
+            }
         }
 
         try {
