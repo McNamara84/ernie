@@ -1,5 +1,17 @@
 [
     {
+        "version": "1.0.7",
+        "date": "2026-09-04",
+        "features": [],
+        "improvements": [],
+        "fixes": [
+            {
+                "title": "Responsive Related Work Cards",
+                "description": "Long DOI, URL, IGSN, citation, and inline related-item text now wraps within Landing Page Related Work cards at narrow column and mobile widths. Complete identifiers remain readable, selectable, and clickable without shrinking the surrounding citation text or creating horizontal overflow."
+            }
+        ]
+    },
+    {
         "version": "1.0.6",
         "date": "2026-09-02",
         "features": [],

@@ -56,6 +56,10 @@ function getRelatedIdentifierLabel(relatedIdentifier: LandingPageRelatedIdentifi
     return relatedIdentifier.identifier;
 }
 
+function RelatedIdentifierLabel({ relatedIdentifier, useIgsnHandles }: { relatedIdentifier: LandingPageRelatedIdentifier; useIgsnHandles: boolean }) {
+    return <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{getRelatedIdentifierLabel(relatedIdentifier, useIgsnHandles)}</span>;
+}
+
 /** Number of renderable relations before collapsing on mobile */
 const COLLAPSE_THRESHOLD = 9;
 
@@ -255,14 +259,14 @@ export function RelatedWorkSection({
                                                         className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"
                                                         aria-hidden="true"
                                                     />
-                                                    <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
+                                                    <RelatedIdentifierLabel relatedIdentifier={rel} useIgsnHandles={useIgsnHandles} />
                                                 </a>
                                             ) : (
                                                 <div
                                                     className={getRelatedIdentifierPlainClassName(rel)}
                                                     data-testid={`unresolved-related-identifier-${rel.id}`}
                                                 >
-                                                    <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
+                                                    <RelatedIdentifierLabel relatedIdentifier={rel} useIgsnHandles={useIgsnHandles} />
                                                 </div>
                                             )}
                                         </li>
@@ -315,14 +319,14 @@ export function RelatedWorkSection({
                                                                     className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500 transition-colors group-hover:text-cyan-700 dark:text-cyan-300 dark:group-hover:text-cyan-100"
                                                                     aria-hidden="true"
                                                                 />
-                                                                <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
+                                                                <RelatedIdentifierLabel relatedIdentifier={rel} useIgsnHandles={useIgsnHandles} />
                                                             </a>
                                                         ) : (
                                                             <div
                                                                 className={getRelatedIdentifierPlainClassName(rel)}
                                                                 data-testid={`unresolved-related-identifier-${rel.id}`}
                                                             >
-                                                                <span className="flex-1">{getRelatedIdentifierLabel(rel, useIgsnHandles)}</span>
+                                                                <RelatedIdentifierLabel relatedIdentifier={rel} useIgsnHandles={useIgsnHandles} />
                                                             </div>
                                                         )}
                                                     </li>
@@ -377,7 +381,7 @@ export function RelatedWorkSection({
                                                 className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"
                                                 aria-hidden="true"
                                             />
-                                            <div className="flex-1">
+                                            <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                                                 <div className="font-medium">{mainTitle}</div>
                                                 {descriptor && <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{descriptor}</div>}
                                             </div>

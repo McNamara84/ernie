@@ -427,6 +427,89 @@ describe('RelatedWorkSection', () => {
         expect(screen.getByText('https://docs.example.com/manual')).toBeInTheDocument();
     });
 
+    it('keeps long linked, unresolved, and repository-curated identifier labels wrappable', () => {
+        const linkedCitation =
+            'König, R., Michalak, G., Neumayer, K. H., Reigber, C., Rothacher, M., & Schwintzer, P. (2022). GFZ CHAMP Rapid Science Orbits (version 1) [Data set]. GFZ Data Services. https://doi.org/10.5880/GFZ_ORBIT/RSO/L06_G_V01';
+        const unresolvedIdentifier = '10273/BROKEN/AN_EXTREMELY_LONG_UNRESOLVED_IGSN_WITHOUT_NATURAL_BREAKS';
+        const curatedCitation = 'https://doi.org/10.5880/AN_EXTREMELY_LONG_REPOSITORY_CURATED_RELATED_IDENTIFIER_WITHOUT_NATURAL_BREAKS';
+        const curatedUnresolvedIdentifier = '10273/BROKEN/AN_EXTREMELY_LONG_CURATED_IGSN_WITHOUT_NATURAL_BREAKS';
+
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[
+                    makeRelatedIdentifier({ id: 1, citation_label: linkedCitation }),
+                    makeRelatedIdentifier({
+                        id: 2,
+                        identifier: unresolvedIdentifier,
+                        identifier_type: 'IGSN',
+                        relation_type: 'IsIdenticalTo',
+                    }),
+                    makeRelatedIdentifier({
+                        id: 3,
+                        identifier: '10.5880/curated-long-label',
+                        relation_type: 'IsCitedBy',
+                        citation_label: curatedCitation,
+                        source: 'relation_suggestion_assistant',
+                        is_repository_curation: true,
+                    }),
+                    makeRelatedIdentifier({
+                        id: 4,
+                        identifier: curatedUnresolvedIdentifier,
+                        identifier_type: 'IGSN',
+                        relation_type: 'IsIdenticalTo',
+                        source: 'relation_suggestion_assistant',
+                        is_repository_curation: true,
+                    }),
+                ]}
+            />,
+        );
+
+        const linkedLabel = screen.getByText(linkedCitation);
+        const unresolvedLabel = screen.getByText(unresolvedIdentifier);
+        const curatedLabel = screen.getByText(curatedCitation);
+        const curatedUnresolvedLabel = screen.getByText(curatedUnresolvedIdentifier);
+
+        for (const label of [linkedLabel, unresolvedLabel, curatedLabel, curatedUnresolvedLabel]) {
+            expect(label).toHaveClass('min-w-0', 'flex-1', '[overflow-wrap:anywhere]');
+        }
+
+        expect(linkedLabel.closest('a')).toHaveAttribute('href', 'https://doi.org/10.5880/test');
+        expect(linkedLabel.closest('a')).toHaveAttribute('target', '_blank');
+        expect(linkedLabel.closest('a')).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(unresolvedLabel.closest('a')).toBeNull();
+        expect(screen.getByTestId('unresolved-related-identifier-2')).toContainElement(unresolvedLabel);
+        expect(screen.getByTestId('repository-curation-related-identifiers')).toContainElement(curatedLabel);
+        expect(curatedUnresolvedLabel.closest('a')).toBeNull();
+        expect(screen.getByTestId('unresolved-related-identifier-4')).toContainElement(curatedUnresolvedLabel);
+        expect(screen.getByTestId('repository-curation-related-identifiers')).toContainElement(curatedUnresolvedLabel);
+    });
+
+    it('keeps long inline related-item titles wrappable without changing their link', () => {
+        const longTitle = 'AnExtremelyLongInlineRelatedItemTitleWithoutAnyNaturalWordBreakOpportunities0123456789';
+
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[]}
+                relatedItems={[
+                    makeRelatedItem({
+                        titles: [{ id: 1, title: longTitle, title_type: 'MainTitle', language: 'en' }],
+                    }),
+                ]}
+            />,
+        );
+
+        const title = screen.getByText(longTitle);
+        const textContainer = title.parentElement;
+        const link = title.closest('a');
+
+        expect(textContainer).toHaveClass('min-w-0', 'flex-1', '[overflow-wrap:anywhere]');
+        expect(link).toHaveAttribute('href', 'https://doi.org/10.1234/reference');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
     it('shows the mobile collapse button when more than nine entries exist and toggles it', () => {
         render(
             <RelatedWorkSection
