@@ -1558,6 +1558,11 @@ describe('ImportFromDataCiteJob', function () {
             LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
             true,
         ],
+        'current GEOFON seismic event' => [
+            '10.5880/geofon.gfz2015icra',
+            LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+            true,
+        ],
     ]);
 
     it('persists the GEOFON seismic-event default as a resolved SPDX CC0 license', function (): void {

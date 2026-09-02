@@ -13,6 +13,12 @@ use Illuminate\Support\Facades\Log;
 
 class DataCiteLandingPageImportService
 {
+    /** @var list<string> */
+    private const HTTPS_ONLY_HOSTS = [
+        'geofon.gfz.de',
+        'geofon.gfz-potsdam.de',
+    ];
+
     /**
      * @param  array<string, mixed>  $attributes
      * @return array{changed: bool, created: bool, landing_page: LandingPage|null}
@@ -102,6 +108,10 @@ class DataCiteLandingPageImportService
 
         if (! in_array($scheme, ['http', 'https'], true) || $host === '') {
             return null;
+        }
+
+        if ($scheme === 'http' && in_array($host, self::HTTPS_ONLY_HOSTS, true)) {
+            $scheme = 'https';
         }
 
         $port = isset($parts['port']) ? ':'.(int) $parts['port'] : '';

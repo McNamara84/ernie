@@ -73,6 +73,6 @@ final class GeofonSeismicEventsRightsService
             trim($doi),
         ) ?? trim($doi);
 
-        return preg_match('/^10\.1594\/gfz\.geofon\..+$/i', $normalizedDoi) === 1;
+        return preg_match('/^(?:10\.1594\/gfz\.geofon|10\.5880\/geofon)\..+$/i', $normalizedDoi) === 1;
     }
 }

@@ -9,6 +9,7 @@ use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Datacenter;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Models\Right;
 use App\Models\User;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteToResourceTransformer;
@@ -98,6 +99,82 @@ function datacenterDoiRecord(string $doi): array
 }
 
 describe('datacenter-scoped DataCite import job', function () {
+    it('imports GEOFON seismic events as published external landing pages', function (): void {
+        $datacenterName = LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER;
+        $doi = '10.5880/geofon.gfz2015icra';
+        $landingPageUrl = 'https://geofon.gfz.de/eqinfo/event.php?id=gfz2015icra';
+        $dataCiteLandingPageUrl = 'http://geofon.gfz.de/eqinfo/event.php?id=gfz2015icra';
+
+        Right::factory()->cc0()->create();
+
+        $this->portalService
+            ->shouldReceive('resourcesForDatacenter')
+            ->once()
+            ->with('DOIDB.GEOFON_EVENTS')
+            ->andReturn([
+                'datacenter' => [
+                    'id' => 'DOIDB.GEOFON_EVENTS',
+                    'name' => $datacenterName,
+                    'resource_count' => 1,
+                ],
+                'resources' => [$doi => [$datacenterName]],
+            ]);
+        $this->pendingImportService
+            ->shouldReceive('importablePendingDoisForDatacenter')
+            ->once()
+            ->with($datacenterName)
+            ->andReturn([]);
+
+        $legacyLookup = Mockery::mock(LegacyResourceLookupService::class);
+        $legacyLookup
+            ->shouldReceive('importMetadataByDoi')
+            ->once()
+            ->with($doi)
+            ->andReturn(['relatedIdentifiers' => [], 'subjects' => []]);
+        $this->app->instance(LegacyResourceLookupService::class, $legacyLookup);
+
+        $doiRecord = datacenterDoiRecord($doi);
+        $doiRecord['attributes']['url'] = $dataCiteLandingPageUrl;
+        $doiRecord['attributes']['state'] = 'findable';
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () use ($doiRecord) {
+                yield $doiRecord;
+            })());
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create([
+                'doi' => $doi,
+                'access_level' => null,
+            ]));
+        $this->metaworksService->shouldNotReceive('lookupFileEntries');
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, null, 'DOIDB.GEOFON_EVENTS'))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $resource = Resource::query()
+            ->where('doi', $doi)
+            ->with('landingPage.externalDomain')
+            ->firstOrFail();
+
+        expect(Cache::get("datacite_import:{$importId}"))->toMatchArray([
+            'status' => 'completed',
+            'imported' => 1,
+            'failed' => 0,
+            'sync_total' => 1,
+        ])
+            ->and($resource->datacenter?->name)->toBe($datacenterName)
+            ->and($resource->publicStatus())->toBe('published')
+            ->and($resource->landingPage)->not->toBeNull()
+            ->and($resource->landingPage->template)->toBe('external')
+            ->and($resource->landingPage->is_published)->toBeTrue()
+            ->and($resource->landingPage->external_url)->toBe($landingPageUrl);
+    });
+
     it('imports the complete DOME manifest as eight published and three review resources', function () {
         $datacenterName = 'SPP 2238 - Dynamics of Ore Metals Enrichment - DOME';
         $publishedDois = [

@@ -157,6 +157,10 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
             '10.1594/GFZ.GEOFON.GFZ2009GIBB',
             [LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER],
         ],
+        'current GEOFON seismic event DOI' => [
+            '10.5880/GEOFON.GFZ2015ICRA',
+            [LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER],
+        ],
         'non-GEOFON 10.1594 DOI with a similar suffix' => [
             '10.1594/GFZ.GEOFONIC.GFZ2009GIBB',
             [LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER],
@@ -441,6 +445,10 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
         ],
         'seismic event' => [
             '10.1594/GFZ.GEOFON.GFZ2009GIBB',
+            LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+        ],
+        'current seismic event' => [
+            '10.5880/GEOFON.GFZ2015ICRA',
             LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
         ],
     ]);
