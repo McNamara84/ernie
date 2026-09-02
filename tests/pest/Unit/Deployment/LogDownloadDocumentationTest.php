@@ -16,23 +16,11 @@ it('documents the administrator log download workflow', function (): void {
         ->toContain('search filters do not limit the file');
 });
 
-it('announces log downloads in the changelog', function (): void {
-    $contents = file_get_contents(resource_path('data/changelog.json'));
-    expect($contents)->toBeString();
-    assert(is_string($contents));
+it('enables 31-day daily log retention in the production environment template', function (): void {
+    $productionEnvironment = file_get_contents(base_path('.env.production'));
 
-    $releases = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
-    expect($releases)->toBeArray();
-    assert(is_array($releases));
-
-    $entry = collect($releases)
-        ->flatMap(static fn (array $release): array => $release['features'] ?? [])
-        ->firstWhere('title', 'Downloadable Application Logs');
-
-    expect($entry)
-        ->toBeArray()
-        ->and($entry['description'] ?? null)
+    expect($productionEnvironment)
         ->toBeString()
-        ->toContain('last 24 hours, 7 days, or 30 days')
-        ->toContain('administrator-only access controls');
+        ->toContain("LOG_CHANNEL=stack\nLOG_STACK=daily")
+        ->toContain('LOG_DAILY_DAYS=31');
 });

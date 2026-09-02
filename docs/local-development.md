@@ -178,8 +178,10 @@ The administration log viewer can download the application log for the last
 Laravel's daily files named `laravel-YYYY-MM-DD.log`. A download can only
 contain history that is still present on disk. Deployments using the `daily`
 log channel must therefore keep `LOG_DAILY_DAYS` at 31 or more for complete
-30-day downloads. The repository environment templates and Laravel's default
-use 31 days; an environment-specific override takes precedence.
+30-day downloads. The production template selects that channel with
+`LOG_STACK=daily`; the development templates continue to use `single`. The
+repository environment templates and Laravel's default use 31 days, while an
+environment-specific override takes precedence.
 
 ### DataCite import mode
 
