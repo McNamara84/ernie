@@ -66,10 +66,17 @@ it('publishes canonical ICDP URLs only after validating the external image', fun
     Http::assertSentCount(1);
 });
 
-it('removes a definitively unavailable external URL while retaining its source descriptor', function (): void {
+it('clears every public image field for an unavailable external source while retaining its descriptor', function (): void {
     Http::fake(['data.icdp-online.org/*' => Http::response('', 404)]);
     $metadata = issue1168Metadata('http://www-icdp.icdp-online.org/sites/lusklint/news/cores/missing.jpg');
-    $metadata->update(['sample_image_external_url' => 'https://data.icdp-online.org/sites/lusklint/news/cores/missing.jpg']);
+    $oldPath = 'igsn-sample-images/gfso273n39/previous-managed.jpg';
+    $metadata->update([
+        'sample_image_external_url' => 'https://data.icdp-online.org/sites/lusklint/news/cores/missing.jpg',
+        'sample_image_storage_path' => $oldPath,
+        'sample_image_mime_type' => 'image/jpeg',
+        'sample_image_size' => strlen(issue1168Jpeg()),
+    ]);
+    Storage::disk('public')->put($oldPath, issue1168Jpeg());
 
     expect(app(IgsnSampleImageStorageService::class)->sync($metadata))->toBe([
         'status' => 'unavailable',
@@ -79,17 +86,21 @@ it('removes a definitively unavailable external URL while retaining its source d
     expect($metadata->refresh()->sample_image_source_url)
         ->toBe('http://www-icdp.icdp-online.org/sites/lusklint/news/cores/missing.jpg')
         ->and($metadata->sample_image_external_url)->toBeNull()
+        ->and($metadata->sample_image_storage_path)->toBeNull()
+        ->and($metadata->sample_image_mime_type)->toBeNull()
+        ->and($metadata->sample_image_size)->toBeNull()
         ->and($metadata->sampleImageUrl())->toBeNull();
+    Storage::disk('public')->assertMissing($oldPath);
 });
 
-it('keeps a previously published URL when the external probe fails temporarily', function (): void {
-    Http::fake(['data.icdp-online.org/*' => Http::response('', 503)]);
+it('keeps a previously published URL for a non-definitive client response', function (): void {
+    Http::fake(['data.icdp-online.org/*' => Http::response('', 408)]);
     $metadata = issue1168Metadata('http://www-icdp.icdp-online.org/sites/cosc/news/cores/temporary.jpg');
     $metadata->update(['sample_image_external_url' => 'https://data.icdp-online.org/sites/cosc/news/cores/temporary.jpg']);
 
     expect(app(IgsnSampleImageStorageService::class)->sync($metadata))->toBe([
         'status' => 'failed',
-        'message' => 'http_503',
+        'message' => 'http_408',
     ]);
 
     expect($metadata->refresh()->sample_image_external_url)

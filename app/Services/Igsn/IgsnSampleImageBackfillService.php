@@ -207,9 +207,6 @@ final class IgsnSampleImageBackfillService
         ];
 
         $metadata->sample_image_source_url = $resolved['source_url'];
-        if ($resolved['status'] === IgsnSampleImageUrlService::STATUS_EXTERNAL) {
-            $metadata->sample_image_external_url = $resolved['external_url'];
-        }
         $metadata->save();
 
         $result = $this->storageService->sync($metadata, $force || $sourceChanged);

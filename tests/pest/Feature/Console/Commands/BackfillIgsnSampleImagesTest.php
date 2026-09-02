@@ -99,6 +99,63 @@ it('is dry-run first then stores managed GFZ images and links ICDP images idempo
     expect($second)->toMatchArray(['unchanged' => 2, 'invalid_placeholder' => 1, 'failed' => 0]);
 });
 
+it('publishes an external replacement only after probing and clears a stale managed image when unavailable', function (): void {
+    $resource = issue1168BackfillResource('ICDPIMAGEATOMIC1');
+    $metadata = $resource->igsnMetadata()->firstOrFail();
+    $oldPath = 'igsn-sample-images/icdpimageatomic1/old.jpg';
+    $metadata->update([
+        'sample_image_source_url' => 'https://dataservices.gfz-potsdam.de/extern/IGSN/ICDP/old.jpg',
+        'sample_image_storage_path' => $oldPath,
+        'sample_image_mime_type' => 'image/jpeg',
+        'sample_image_size' => strlen(issue1168BackfillJpeg()),
+    ]);
+    Storage::disk('public')->put($oldPath, issue1168BackfillJpeg());
+    $dif = '<resource><sample><sample_image>missing.jpg</sample_image><sample_image_path>http://www-icdp.icdp-online.org/sites/lusklint/news/cores/</sample_image_path></sample></resource>';
+    $descriptorDuringProbe = null;
+
+    Http::fake(function (Request $request) use ($dif, $metadata, &$descriptorDuringProbe) {
+        if (str_contains($request->url(), 'igsn-portal.example.test')) {
+            return Http::response([
+                'response' => [
+                    'numFound' => 1,
+                    'docs' => [[
+                        'igsn' => 'ICDPIMAGEATOMIC1',
+                        'has_dif' => true,
+                        'dif' => base64_encode($dif),
+                    ]],
+                ],
+            ]);
+        }
+
+        $current = $metadata->fresh();
+        $descriptorDuringProbe = [
+            'source_url' => $current?->sample_image_source_url,
+            'external_url' => $current?->sample_image_external_url,
+            'storage_path' => $current?->sample_image_storage_path,
+        ];
+
+        return Http::response('', 404);
+    });
+
+    $result = app(IgsnSampleImageBackfillService::class)->run(apply: true, dois: ['ICDPIMAGEATOMIC1']);
+    $metadata->refresh();
+
+    expect($result)->toMatchArray(['unavailable' => 1, 'failed' => 0])
+        ->and($descriptorDuringProbe)->toBe([
+            'source_url' => 'http://www-icdp.icdp-online.org/sites/lusklint/news/cores/missing.jpg',
+            'external_url' => null,
+            'storage_path' => $oldPath,
+        ])
+        ->and($metadata->sample_image_source_url)
+        ->toBe('http://www-icdp.icdp-online.org/sites/lusklint/news/cores/missing.jpg')
+        ->and($metadata->sample_image_external_url)->toBeNull()
+        ->and($metadata->sample_image_storage_path)->toBeNull()
+        ->and($metadata->sample_image_mime_type)->toBeNull()
+        ->and($metadata->sample_image_size)->toBeNull()
+        ->and($metadata->sampleImageUrl())->toBeNull();
+    Storage::disk('public')->assertMissing($oldPath);
+});
+
 it('isolates download failures and supports filters resume limit force and CSV reports', function (): void {
     $first = issue1168BackfillResource('GFSO273FAIL1');
     $second = issue1168BackfillResource('GFSO273FAIL2');

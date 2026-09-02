@@ -18,6 +18,7 @@ use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\Igsn\IgsnLegacyDifBackfillService;
 use Illuminate\Bus\PendingBatch;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -305,6 +306,59 @@ it('reports transient image probe failures without removing a published URL', fu
         'sample_image_status' => 'failed',
         'sample_image_message' => 'http_503',
     ])->and($resource->igsnMetadata->fresh()->sample_image_external_url)->toBe($externalUrl);
+});
+
+it('probes the stored external descriptor instead of a different additive DIF candidate', function (): void {
+    $resource = legacyDifBackfillResource('ICDPIMAGEEXIST1');
+    $storedSource = 'http://www-icdp.icdp-online.org/sites/cosc/news/cores/existing.jpg';
+    $storedExternal = 'https://data.icdp-online.org/sites/cosc/news/cores/existing.jpg';
+    $candidateExternal = 'https://data.icdp-online.org/sites/lusklint/news/cores/candidate.jpg';
+    $resource->igsnMetadata->update([
+        'sample_image_source_url' => $storedSource,
+        'sample_image_external_url' => $storedExternal,
+    ]);
+    fakeLegacyDifDocuments([
+        'ICDPIMAGEEXIST1' => '<resource><sample><sample_image>candidate.jpg</sample_image><sample_image_path>http://www-icdp.icdp-online.org/sites/lusklint/news/cores/</sample_image_path></sample></resource>',
+    ]);
+
+    $result = app(IgsnLegacyDifBackfillService::class)->run(apply: true);
+
+    expect($result)->toMatchArray([
+        'changed' => 0,
+        'unchanged' => 1,
+        'image_unavailable' => 0,
+        'image_probe_errors' => 0,
+        'errors' => 0,
+    ])->and($result['records'][0])->toMatchArray([
+        'sample_image_status' => 'available',
+        'sample_image_url' => $storedExternal,
+    ])->and($resource->igsnMetadata->fresh()->sample_image_source_url)->toBe($storedSource)
+        ->and($resource->igsnMetadata->fresh()->sample_image_external_url)->toBe($storedExternal);
+    Http::assertSent(fn (Request $request): bool => $request->url() === $storedExternal);
+    Http::assertNotSent(fn (Request $request): bool => $request->url() === $candidateExternal);
+});
+
+it('does not probe a DIF external candidate when additive mode preserves a managed descriptor', function (): void {
+    $resource = legacyDifBackfillResource('ICDPIMAGEMANAGED1');
+    $resource->igsnMetadata->update([
+        'sample_image_source_url' => 'https://dataservices.gfz-potsdam.de/extern/IGSN/ICDP/existing.jpg',
+        'sample_image_storage_path' => 'igsn-sample-images/icdpimagemanaged1/existing.jpg',
+        'sample_image_mime_type' => 'image/jpeg',
+        'sample_image_size' => 123,
+    ]);
+    fakeLegacyDifDocuments([
+        'ICDPIMAGEMANAGED1' => '<resource><sample><sample_image>candidate.jpg</sample_image><sample_image_path>http://www-icdp.icdp-online.org/sites/lusklint/news/cores/</sample_image_path></sample></resource>',
+    ]);
+
+    $result = app(IgsnLegacyDifBackfillService::class)->run(apply: true);
+
+    expect($result)->toMatchArray(['changed' => 0, 'unchanged' => 1, 'errors' => 0])
+        ->and($result['records'][0]['sample_image_status'])->toBe('not_applicable')
+        ->and($resource->igsnMetadata->fresh()->sample_image_source_url)
+        ->toBe('https://dataservices.gfz-potsdam.de/extern/IGSN/ICDP/existing.jpg')
+        ->and($resource->igsnMetadata->fresh()->sample_image_storage_path)
+        ->toBe('igsn-sample-images/icdpimagemanaged1/existing.jpg');
+    Http::assertSentCount(1);
 });
 
 it('writes a complete CSV audit and marks test mode synchronization as skipped', function (): void {

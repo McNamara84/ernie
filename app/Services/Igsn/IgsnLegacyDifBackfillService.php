@@ -588,13 +588,9 @@ final class IgsnLegacyDifBackfillService
             $changedFields[] = 'igsn_metadata.sample_image';
         }
 
-        $externalImage = $resolvedImage;
-        if ($externalImage['status'] !== IgsnSampleImageUrlService::STATUS_EXTERNAL) {
-            $storedImage = $this->sampleImageUrlService->classifySourceUrl($igsn->sample_image_source_url);
-            if ($storedImage['status'] === IgsnSampleImageUrlService::STATUS_EXTERNAL) {
-                $externalImage = $storedImage;
-            }
-        }
+        $externalImage = $igsn->sample_image_source_url === null
+            ? $resolvedImage
+            : $this->sampleImageUrlService->classifySourceUrl($igsn->sample_image_source_url);
 
         if ($externalImage['status'] === IgsnSampleImageUrlService::STATUS_EXTERNAL
             && is_string($externalImage['external_url'])
@@ -615,9 +611,23 @@ final class IgsnLegacyDifBackfillService
                 && $igsn->sample_image_external_url !== $probe['url']) {
                 $changedFields[] = 'igsn_metadata.sample_image_external_url';
             }
-            if ($probe['status'] === IgsnExternalSampleImageProbeService::STATUS_UNAVAILABLE
-                && $igsn->sample_image_external_url !== null) {
-                $changedFields[] = 'igsn_metadata.sample_image_external_url';
+            if (in_array($probe['status'], [
+                IgsnExternalSampleImageProbeService::STATUS_AVAILABLE,
+                IgsnExternalSampleImageProbeService::STATUS_UNAVAILABLE,
+            ], true)) {
+                $publicFieldsToClear = [
+                    'sample_image_storage_path',
+                    'sample_image_mime_type',
+                    'sample_image_size',
+                ];
+                if ($probe['status'] === IgsnExternalSampleImageProbeService::STATUS_UNAVAILABLE) {
+                    array_unshift($publicFieldsToClear, 'sample_image_external_url');
+                }
+                foreach ($publicFieldsToClear as $field) {
+                    if ($igsn->{$field} !== null) {
+                        $changedFields[] = 'igsn_metadata.'.$field;
+                    }
+                }
             }
         }
 

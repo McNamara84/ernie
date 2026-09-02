@@ -67,8 +67,16 @@ final class IgsnSampleImageStorageService
         }
 
         if ($probeResult['status'] === IgsnExternalSampleImageProbeService::STATUS_UNAVAILABLE) {
-            if ($metadata->sample_image_external_url !== null) {
-                $metadata->forceFill(['sample_image_external_url' => null])->save();
+            if ($metadata->sample_image_external_url !== null
+                || $metadata->sample_image_storage_path !== null
+                || $metadata->sample_image_mime_type !== null
+                || $metadata->sample_image_size !== null) {
+                $metadata->forceFill([
+                    'sample_image_external_url' => null,
+                    'sample_image_storage_path' => null,
+                    'sample_image_mime_type' => null,
+                    'sample_image_size' => null,
+                ])->save();
             }
 
             return ['status' => 'unavailable', 'message' => $probeResult['message']];

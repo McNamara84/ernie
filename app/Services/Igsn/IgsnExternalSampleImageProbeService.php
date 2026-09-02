@@ -69,7 +69,7 @@ final class IgsnExternalSampleImageProbeService
             return $this->result(self::STATUS_FAILED, $url, 'http_'.$status);
         }
         if (! $response->successful()) {
-            return $this->result(self::STATUS_UNAVAILABLE, $url, 'http_'.$status);
+            return $this->result(self::STATUS_FAILED, $url, 'http_'.$status);
         }
 
         $body = $response->body();

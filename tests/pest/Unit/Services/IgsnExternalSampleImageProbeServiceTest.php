@@ -48,16 +48,21 @@ it('classifies definitive missing responses and invalid content as unavailable',
     'HTML instead of an image' => [200, '<html>missing</html>', 'unsupported_mime_type'],
 ]);
 
-it('keeps transient server failures separate from unavailable images', function (): void {
-    Http::fake(['data.icdp-online.org/*' => Http::response('', 503)]);
+it('keeps non-definitive HTTP failures separate from unavailable images', function (int $status): void {
+    Http::fake(['data.icdp-online.org/*' => Http::response('', $status)]);
 
     $result = app(IgsnExternalSampleImageProbeService::class)->probe(
         'https://data.icdp-online.org/sites/cosc/news/cores/temporary.jpg',
     );
 
     expect($result['status'])->toBe('failed')
-        ->and($result['message'])->toBe('http_503');
-});
+        ->and($result['message'])->toBe('http_'.$status);
+})->with([
+    'request timeout' => 408,
+    'too early' => 425,
+    'rate limited' => 429,
+    'server unavailable' => 503,
+]);
 
 it('refuses to probe URLs outside the existing image allowlist', function (): void {
     Http::preventStrayRequests();
