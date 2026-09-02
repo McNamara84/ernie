@@ -376,6 +376,33 @@ describe('SelectField with Validation', () => {
                 expect(onValidationBlur).toHaveBeenCalledTimes(1);
             });
         });
+
+        it('should find and select an option near the end of a large searchable list', async () => {
+            const user = userEvent.setup();
+            const onValueChange = vi.fn();
+            const options = Array.from({ length: 600 }, (_, index) => ({
+                value: `SPDX-${index + 1}`,
+                label: `License ${index + 1}`,
+            }));
+
+            render(
+                <SelectField
+                    id="license-select"
+                    label="License"
+                    value=""
+                    onValueChange={onValueChange}
+                    options={options}
+                    searchable
+                    searchPlaceholder="Search licenses..."
+                />,
+            );
+
+            await user.click(screen.getByRole('combobox', { name: 'License' }));
+            await user.type(screen.getByPlaceholderText('Search licenses...'), 'SPDX-600');
+            await user.click(await screen.findByRole('option', { name: 'License 600' }));
+
+            expect(onValueChange).toHaveBeenCalledWith('SPDX-600');
+        });
     });
 
     describe('Styling', () => {

@@ -106,6 +106,9 @@ export function LicenseField({
                         validationMessages={validationMessages}
                         touched={touched}
                         options={options}
+                        searchable
+                        searchPlaceholder="Search licenses..."
+                        emptyMessage="No license found."
                         hideLabel={!isFirst}
                         required={required}
                         data-testid={dataTestId}

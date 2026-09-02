@@ -15,6 +15,7 @@ use App\Services\DataCiteLandingPageImportService;
 use App\Services\DataCiteSubjectMergeService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\DoiSuggestionService;
+use App\Services\GeofonSeismicEventsRightsService;
 use App\Services\GfzDataServicesPortalService;
 use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
@@ -72,6 +73,8 @@ class ImportFromDataCiteJob implements ShouldQueue
     private array $resourceIdsForFullDataCiteSync = [];
 
     private ?Crc806LegacyRightsService $crc806LegacyRightsService = null;
+
+    private ?GeofonSeismicEventsRightsService $geofonSeismicEventsRightsService = null;
 
     /**
      * Create a new job instance.
@@ -1039,6 +1042,11 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $legacyMetadata['relatedIdentifiers'],
                 $citationLabelResolutionMode,
             );
+            $preparedDoiRecord = $this->withGeofonSeismicEventsRights(
+                $preparedDoiRecord,
+                $doi,
+                $portalDatacenterNames ?? [],
+            );
             $preparedDoiRecord = $this->withCrc806LegacyRightsFallback(
                 $preparedDoiRecord,
                 $doi,
@@ -1246,6 +1254,42 @@ class ImportFromDataCiteJob implements ShouldQueue
             ...$this->coarAccessRightStatements($attributes['rightsList'] ?? null),
             $rights,
         ];
+
+        if ($hasAttributesWrapper) {
+            $preparedDoiRecord['attributes'] = $attributes;
+
+            return $preparedDoiRecord;
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * @param  array<string, mixed>  $preparedDoiRecord
+     * @param  list<string>  $datacenterNames
+     * @return array<string, mixed>
+     */
+    private function withGeofonSeismicEventsRights(
+        array $preparedDoiRecord,
+        string $doi,
+        array $datacenterNames,
+    ): array {
+        $rights = ($this->geofonSeismicEventsRightsService ??= app(GeofonSeismicEventsRightsService::class))
+            ->rightsStatementForImport($doi, $datacenterNames);
+
+        if ($rights === null) {
+            return $preparedDoiRecord;
+        }
+
+        $hasAttributesWrapper = is_array($preparedDoiRecord['attributes'] ?? null);
+        $attributes = $hasAttributesWrapper
+            ? $preparedDoiRecord['attributes']
+            : $preparedDoiRecord;
+        $rightsList = is_array($attributes['rightsList'] ?? null)
+            ? array_values($attributes['rightsList'])
+            : [];
+
+        $attributes['rightsList'] = [...$rightsList, $rights];
 
         if ($hasAttributesWrapper) {
             $preparedDoiRecord['attributes'] = $attributes;

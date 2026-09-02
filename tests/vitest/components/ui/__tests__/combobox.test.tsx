@@ -68,6 +68,16 @@ describe('Combobox', () => {
                 expect(onChange).toHaveBeenCalledWith(undefined);
             });
 
+            it('keeps the same option selected when clearing is disabled', async () => {
+                const onChange = vi.fn();
+                render(<Combobox options={options} value="apple" onChange={onChange} clearable={false} />);
+
+                await userEvent.click(screen.getByRole('combobox'));
+                await userEvent.click(screen.getByRole('option', { name: 'Apple' }));
+
+                expect(onChange).not.toHaveBeenCalled();
+            });
+
             it('searches optional keywords without changing the stable option value', async () => {
                 const onChange = vi.fn();
                 render(

@@ -1473,7 +1473,11 @@ describe('ImportFromDataCiteJob', function () {
             ->toBe($existingDatacenter->id);
     });
 
-    it('assigns canonical GEOFON datacenters during single DataCite imports', function (string $doi, string $expectedDatacenter): void {
+    it('assigns canonical GEOFON datacenters during single DataCite imports', function (
+        string $doi,
+        string $expectedDatacenter,
+        bool $expectsCc0,
+    ): void {
         Config::set('database.connections.legacy_metaworks', [
             'driver' => 'sqlite',
             'database' => ':memory:',
@@ -1505,6 +1509,19 @@ describe('ImportFromDataCiteJob', function () {
                 'types' => ['resourceTypeGeneral' => 'Dataset'],
             ],
         ];
+        $expectedDoiRecord = $doiRecord;
+
+        if ($expectsCc0) {
+            Right::factory()->cc0()->create();
+            $expectedDoiRecord['attributes']['rightsList'] = [[
+                'rights' => 'Creative Commons Zero v1.0 Universal',
+                'rightsUri' => 'https://creativecommons.org/publicdomain/zero/1.0/',
+                'rightsIdentifier' => 'CC0-1.0',
+                'rightsIdentifierScheme' => 'SPDX',
+                'schemeUri' => 'https://spdx.org/licenses/',
+                'source' => 'geofon-seismic-events-default',
+            ]];
+        }
 
         $this->importService
             ->shouldReceive('fetchSingleDoi')
@@ -1515,7 +1532,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($doiRecord, $this->user->id)
+            ->with($expectedDoiRecord, $this->user->id)
             ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
 
         $importId = Str::uuid()->toString();
@@ -1534,12 +1551,74 @@ describe('ImportFromDataCiteJob', function () {
         'GEOFON seismic network' => [
             '10.14470/rv968923',
             LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER,
+            false,
         ],
         'GEOFON seismic event' => [
             '10.1594/gfz.geofon.gfz2009gibb',
             LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+            true,
         ],
     ]);
+
+    it('persists the GEOFON seismic-event default as a resolved SPDX CC0 license', function (): void {
+        $this->seed([
+            ResourceTypeSeeder::class,
+            TitleTypeSeeder::class,
+            DescriptionTypeSeeder::class,
+            ContributorTypeSeeder::class,
+            IdentifierTypeSeeder::class,
+            LanguageSeeder::class,
+            PublisherSeeder::class,
+            RelationTypeSeeder::class,
+            FunderIdentifierTypeSeeder::class,
+        ]);
+        $cc0 = Right::factory()->cc0()->create();
+        $doi = '10.1594/gfz.geofon.gfz2026abcd';
+        $doiRecord = [
+            'id' => $doi,
+            'attributes' => [
+                'doi' => $doi,
+                'titles' => [['title' => 'GEOFON seismic event']],
+                'publicationYear' => 2026,
+                'types' => ['resourceTypeGeneral' => 'Dataset'],
+            ],
+        ];
+
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with($doi)
+            ->andReturn($doiRecord);
+        $this->portalService
+            ->shouldReceive('datacenterNamesForDoi')
+            ->once()
+            ->with($doi)
+            ->andReturn([LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER]);
+
+        $transformer = new DataCiteToResourceTransformer;
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, $doi))
+            ->handle($this->importService, $transformer, $this->metaworksService);
+
+        $resource = Resource::query()->where('doi', $doi)->firstOrFail();
+        $resourceRight = ResourceRight::query()
+            ->where('resource_id', $resource->id)
+            ->sole();
+
+        expect($resource->fresh()->datacenter?->name)
+            ->toBe(LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER)
+            ->and($resourceRight->rights_id)->toBe($cc0->id)
+            ->and($resourceRight->rights_text)->toBe($cc0->name)
+            ->and($resourceRight->rights_uri)->toBe($cc0->uri)
+            ->and($resourceRight->rights_identifier)->toBe('CC0-1.0')
+            ->and($resourceRight->rights_identifier_scheme)->toBe('SPDX')
+            ->and($resourceRight->scheme_uri)->toBe('https://spdx.org/licenses/')
+            ->and($resourceRight->source)->toBe('geofon-seismic-events-default')
+            ->and(ResourceRight::query()
+                ->where('resource_id', $resource->id)
+                ->whereNull('rights_id')
+                ->count())->toBe(0);
+    });
 
     it('completes a single import when an exhaustive citation label lookup remains unresolved', function () {
         $doiRecord = [
