@@ -142,9 +142,10 @@ services:
       - app
     labels:
       - "traefik.enable=true"
-      # Canonical ERNIE router. More specific legacy paths are handled by the
-      # higher-priority router below.
-      - "traefik.http.routers.ernie-router.rule=Host(`dataservices.gfz.de`)"
+      # Canonical ERNIE router. /elmo belongs to a separate Docker stack;
+      # more specific legacy paths are handled by the higher-priority router
+      # below.
+      - "traefik.http.routers.ernie-router.rule=Host(`dataservices.gfz.de`) && !PathRegexp(`^/elmo(/|$$)`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
       - "traefik.http.routers.ernie-router.service=ernie-service"
       # Redirect the exact root and confirmed first path segments to the retired
