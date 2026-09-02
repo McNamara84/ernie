@@ -2100,14 +2100,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Custom Landing Page Templates</h3>
                         <p>
-                            Admins and Group Leaders can create custom landing page templates to control the layout and branding of landing pages.
-                            Custom templates are cloned from the built-in <strong>Templates Resources</strong> or <strong>Templates IGSN</strong> copy
-                            template and allow customization of section order and header logo. Both template types can be assigned to any number of
-                            datacenters through independent assignment slots. The GFZ datacenter remains reserved for Templates Resources in the
-                            Resource slot, but can be moved to a custom IGSN template in the independent IGSN slot. A landing page in automatic mode
-                            inherits the compatible template assigned to its datacenter; without such an assignment, ERNIE uses the matching built-in
-                            copy template as its technical fallback. An explicit landing-page selection always overrides datacenter inheritance. The
-                            two copy templates stay pinned at the top of template management.
+                            Admins and Group Leaders can create custom landing page templates to control the layout, branding, and type visibility of
+                            landing pages. Custom templates are cloned from the built-in <strong>Templates Resources</strong> or{' '}
+                            <strong>Templates IGSN</strong> copy template and allow customization of section order, header logo, displayed Date Types,
+                            and displayed Relation Types. Both template types can be assigned to any number of datacenters through independent
+                            assignment slots. The GFZ datacenter remains reserved for Templates Resources in the Resource slot, but can be moved to a
+                            custom IGSN template in the independent IGSN slot. A landing page in automatic mode inherits the compatible template
+                            assigned to its datacenter; without such an assignment, ERNIE uses the matching built-in copy template as its technical
+                            fallback. An explicit landing-page selection always overrides datacenter inheritance. The two copy templates stay pinned
+                            at the top of template management.
                         </p>
 
                         <WorkflowSteps>
@@ -2157,13 +2158,31 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     point, two pairs as a box, and three or more pairs as a polygon.
                                 </p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={4} title="Upload Custom Logo (Optional)">
+                            <WorkflowSteps.Step number={4} title="Configure Type Visibility (Optional)">
+                                <p>
+                                    In the custom template editor, use <strong>Dates visibility</strong> and <strong>Related Work visibility</strong>{' '}
+                                    to choose which metadata types appear. A checked type is shown on landing pages using this template; clear its
+                                    checkbox to hide it. New templates show every type by default, and <strong>Show all</strong> or{' '}
+                                    <strong>Hide all</strong> updates a complete group at once.
+                                </p>
+                                <p>
+                                    ERNIE lists active and globally inactive vocabulary types. Inactive types are marked{' '}
+                                    <strong>Globally inactive</strong>, but remain configurable and are not hidden automatically by that status.
+                                </p>
+                                <p>
+                                    Date Type selections affect only the <strong>Dates</strong> module. IGSN dates in <strong>General</strong> and{' '}
+                                    <strong>Acquisition</strong>, such as Release Date and Start/End Date, remain independent. Relation Type
+                                    selections affect the complete <strong>Related Work</strong> module, including inline citations and the Relation
+                                    Browser, but do not change <strong>Model Description</strong> or its supplement relations.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={5} title="Upload Custom Logo (Optional)">
                                 <p>
                                     Click the image icon on a template card to upload a custom header logo (PNG, JPG, SVG, or WebP, max 2 MB). The
                                     logo replaces the default GFZ logo on landing pages using this template.
                                 </p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={5} title="Use in Landing Pages">
+                            <WorkflowSteps.Step number={6} title="Use in Landing Pages">
                                 <p>
                                     Assign Resource or IGSN templates to datacenters in template management. In the landing-page setup modal, choose{' '}
                                     <strong>Use automatic template</strong> to inherit the assignment from the matching slot, or select an explicit

@@ -637,6 +637,16 @@ erDiagram
         timestamp updated_at
     }
 
+    landing_page_template_date_type_exclusions {
+        bigint landing_page_template_id PK, FK
+        bigint date_type_id PK, FK
+    }
+
+    landing_page_template_relation_type_exclusions {
+        bigint landing_page_template_id PK, FK
+        bigint relation_type_id PK, FK
+    }
+
     landing_pages {
         bigint id PK
         bigint resource_id FK "UK, 1:1 with resources"
@@ -1319,6 +1329,10 @@ erDiagram
     landing_pages ||--o{ landing_page_daily_statistics : "tracks daily analytics"
     landing_pages }o--o| landing_page_templates : "uses template"
     landing_page_templates }o--o| users : "created by"
+    landing_page_template_date_type_exclusions }o--|| landing_page_templates : "configures template"
+    landing_page_template_date_type_exclusions }o--|| date_types : "excludes date type"
+    landing_page_template_relation_type_exclusions }o--|| landing_page_templates : "configures template"
+    landing_page_template_relation_type_exclusions }o--|| relation_types : "excludes relation type"
 
     %% IGSN relationships
     igsn_metadata ||--|| resources : "extends"

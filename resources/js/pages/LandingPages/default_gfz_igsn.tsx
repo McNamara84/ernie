@@ -8,6 +8,7 @@ import type {
     LandingPageDisplayLimits,
     LandingPageMetadataLink,
     LandingPageResource,
+    LandingPageTypeVisibility,
     SectionOrder,
 } from '@/types/landing-page';
 
@@ -47,6 +48,7 @@ interface DefaultGfzIgsnTemplatePageProps {
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
+    typeVisibility?: LandingPageTypeVisibility;
     citationStyles?: LandingPageCitationStyle[];
     metadataLinks?: LandingPageMetadataLink[];
     /** Inertia PageProps requires index signature for dynamic SSR props */
@@ -67,8 +69,18 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
  * with IGSN-specific General and Acquisition modules in the left column.
  */
 export default function DefaultGfzIgsnTemplate() {
-    const { resource, documentTitle, landingPage, isPreview, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
-        usePage<DefaultGfzIgsnTemplatePageProps>().props;
+    const {
+        resource,
+        documentTitle,
+        landingPage,
+        isPreview,
+        metadataLinks,
+        sectionOrder,
+        customLogoUrl,
+        displayLimits,
+        citationStyles,
+        typeVisibility,
+    } = usePage<DefaultGfzIgsnTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
 
@@ -135,7 +147,7 @@ export default function DefaultGfzIgsnTemplate() {
                     displayIdentifier={resource.igsn_metadata?.igsn}
                 />
             ),
-            dates: <DatesSection key="dates" dates={resource.dates || []} />,
+            dates: <DatesSection key="dates" dates={resource.dates || []} excludedDateTypes={typeVisibility?.excludedDateTypes} />,
             contact: <ContactSection key="contact" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />,
             model_description: (
                 <ModelDescriptionSection
@@ -151,6 +163,7 @@ export default function DefaultGfzIgsnTemplate() {
                     relatedItems={resource.related_items || []}
                     resource={resource}
                     useIgsnHandles
+                    excludedRelationTypes={typeVisibility?.excludedRelationTypes}
                 />
             ),
             abstract: metadataSection('abstract'),
@@ -175,7 +188,7 @@ export default function DefaultGfzIgsnTemplate() {
                 />
             ),
         };
-    }, [resource, landingPage, isDark, peopleDisplayLimits, metadataLinks, mainTitle, citationStyles]);
+    }, [resource, landingPage, isDark, peopleDisplayLimits, metadataLinks, mainTitle, citationStyles, typeVisibility]);
 
     return (
         <>

@@ -8,7 +8,9 @@ use App\Http\Requests\LandingPageTemplate\UploadLandingPageTemplateLogoRequest;
 use App\Http\Requests\StoreLandingPageTemplateRequest;
 use App\Http\Requests\UpdateLandingPageTemplateRequest;
 use App\Models\Datacenter;
+use App\Models\DateType;
 use App\Models\LandingPageTemplate;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\BotProtection\PortalPageCacheService;
@@ -42,6 +44,8 @@ class LandingPageTemplateController extends Controller
                 'creator:id,name',
                 'datacenters:id,name,landing_page_template_id',
                 'igsnDatacenters:id,name,igsn_landing_page_template_id',
+                'excludedDateTypes:id,name,slug',
+                'excludedRelationTypes:id,name,slug',
             ])
             ->withCount(['landingPages', 'datacenters', 'igsnDatacenters'])
             ->get();
@@ -64,6 +68,12 @@ class LandingPageTemplateController extends Controller
                     'igsn_landing_page_template_id' => $datacenter->igsn_landing_page_template_id,
                     'igsn_landing_page_template_name' => $datacenter->igsnLandingPageTemplate?->name,
                 ]),
+            'dateTypes' => DateType::query()
+                ->orderByName()
+                ->get(['id', 'name', 'slug', 'is_active']),
+            'relationTypes' => RelationType::query()
+                ->orderByName()
+                ->get(['id', 'name', 'slug', 'is_active']),
         ]);
     }
 
@@ -156,22 +166,46 @@ class LandingPageTemplateController extends Controller
         }
 
         DB::transaction(function () use ($landingPageTemplate, $updateData, $validated): void {
+            $renderConfigurationChanged = false;
+            $citationAuthorLimitChanged = false;
             $landingPageTemplate->fill($updateData);
 
             if ($landingPageTemplate->isDirty()) {
                 $citationAuthorLimitChanged = $landingPageTemplate->isDirty('citation_author_display_limit');
                 $landingPageTemplate->save();
-                DB::afterCommit(function () use ($landingPageTemplate, $citationAuthorLimitChanged): void {
-                    app(LandingPageRenderDataCacheService::class)->forgetForTemplate($landingPageTemplate);
+                $renderConfigurationChanged = true;
+            }
+
+            if (! $landingPageTemplate->isDefault() && array_key_exists('excluded_date_type_ids', $validated)) {
+                $changes = $landingPageTemplate->excludedDateTypes()->sync($validated['excluded_date_type_ids']);
+                $renderConfigurationChanged = $renderConfigurationChanged
+                    || $changes['attached'] !== []
+                    || $changes['detached'] !== []
+                    || $changes['updated'] !== [];
+            }
+
+            if (! $landingPageTemplate->isDefault() && array_key_exists('excluded_relation_type_ids', $validated)) {
+                $changes = $landingPageTemplate->excludedRelationTypes()->sync($validated['excluded_relation_type_ids']);
+                $renderConfigurationChanged = $renderConfigurationChanged
+                    || $changes['attached'] !== []
+                    || $changes['detached'] !== []
+                    || $changes['updated'] !== [];
+            }
+
+            if (array_key_exists('datacenter_ids', $validated)) {
+                $this->syncDatacenters($landingPageTemplate, $validated['datacenter_ids']);
+            }
+
+            if ($renderConfigurationChanged || $citationAuthorLimitChanged) {
+                DB::afterCommit(function () use ($landingPageTemplate, $renderConfigurationChanged, $citationAuthorLimitChanged): void {
+                    if ($renderConfigurationChanged) {
+                        app(LandingPageRenderDataCacheService::class)->forgetForTemplate($landingPageTemplate);
+                    }
 
                     if ($citationAuthorLimitChanged) {
                         app(PortalPageCacheService::class)->flush();
                     }
                 });
-            }
-
-            if (array_key_exists('datacenter_ids', $validated)) {
-                $this->syncDatacenters($landingPageTemplate, $validated['datacenter_ids']);
             }
         });
 
@@ -321,6 +355,8 @@ class LandingPageTemplateController extends Controller
             ->with([
                 'datacenters:id,name,landing_page_template_id',
                 'igsnDatacenters:id,name,igsn_landing_page_template_id',
+                'excludedDateTypes:id,name,slug',
+                'excludedRelationTypes:id,name,slug',
             ])
             ->get([
                 'id',
@@ -439,6 +475,12 @@ class LandingPageTemplateController extends Controller
         }
         $payload['left_column_order'] = $orders['left'];
         $payload['right_column_order'] = $orders['right'];
+        $payload['excluded_date_type_ids'] = $template->relationLoaded('excludedDateTypes')
+            ? $template->excludedDateTypes->pluck('id')->map(static fn (mixed $id): int => (int) $id)->sort()->values()->all()
+            : [];
+        $payload['excluded_relation_type_ids'] = $template->relationLoaded('excludedRelationTypes')
+            ? $template->excludedRelationTypes->pluck('id')->map(static fn (mixed $id): int => (int) $id)->sort()->values()->all()
+            : [];
 
         return $payload;
     }
@@ -511,6 +553,8 @@ class LandingPageTemplateController extends Controller
         $template->load([
             'datacenters:id,name,landing_page_template_id',
             'igsnDatacenters:id,name,igsn_landing_page_template_id',
+            'excludedDateTypes:id,name,slug',
+            'excludedRelationTypes:id,name,slug',
         ])->loadCount([
             'landingPages',
             'datacenters',

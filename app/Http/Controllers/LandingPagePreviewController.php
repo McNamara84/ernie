@@ -251,6 +251,10 @@ class LandingPagePreviewController extends Controller
                 'contributors' => $templateConfig->contributor_display_limit,
                 'citationAuthors' => $templateConfig->citation_author_display_limit,
             ],
+            'typeVisibility' => [
+                'excludedDateTypes' => $templateConfig->excludedDateTypeSlugs(),
+                'excludedRelationTypes' => $templateConfig->excludedRelationTypeSlugs(),
+            ],
         ])->withViewData([
             'landingPageDocumentMetadata' => $documentMetadata,
         ]);

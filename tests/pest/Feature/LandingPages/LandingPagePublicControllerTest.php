@@ -5,11 +5,13 @@ declare(strict_types=1);
 use App\Enums\CacheKey;
 use App\Http\Controllers\LandingPagePublicController;
 use App\Models\Datacenter;
+use App\Models\DateType;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\LandingPageDailyStatistic;
 use App\Models\LandingPageDomain;
 use App\Models\LandingPageTemplate;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceRight;
 use App\Models\ResourceType;
@@ -1082,6 +1084,15 @@ describe('Landing Page with Custom Template', function () {
     });
 
     test('renders landing page with custom template section order and logo', function () {
+        $dateType = DateType::factory()->create([
+            'name' => 'Hidden Public Date',
+            'slug' => 'HiddenPublicDate',
+        ]);
+        $relationType = RelationType::query()->create([
+            'name' => 'Hidden Public Relation',
+            'slug' => 'HiddenPublicRelation',
+            'is_active' => false,
+        ]);
         $template = LandingPageTemplate::factory()->create([
             'created_by' => User::factory()->admin()->create()->id,
             'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
@@ -1091,6 +1102,8 @@ describe('Landing Page with Custom Template', function () {
             'contributor_display_limit' => 34,
             'citation_author_display_limit' => 8,
         ]);
+        $template->excludedDateTypes()->attach($dateType->id);
+        $template->excludedRelationTypes()->attach($relationType->id);
 
         $landingPage = LandingPage::factory()
             ->published()
@@ -1123,6 +1136,8 @@ describe('Landing Page with Custom Template', function () {
                 ->where('displayLimits.creators', 12)
                 ->where('displayLimits.contributors', 34)
                 ->where('displayLimits.citationAuthors', 8)
+                ->where('typeVisibility.excludedDateTypes', ['HiddenPublicDate'])
+                ->where('typeVisibility.excludedRelationTypes', ['HiddenPublicRelation'])
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/custom-logo.png'))
             );
     });
@@ -1155,6 +1170,8 @@ describe('Landing Page with Custom Template', function () {
                 ->where('displayLimits.creators', 22)
                 ->where('displayLimits.contributors', 44)
                 ->where('displayLimits.citationAuthors', 66)
+                ->where('typeVisibility.excludedDateTypes', [])
+                ->where('typeVisibility.excludedRelationTypes', [])
             );
     });
 

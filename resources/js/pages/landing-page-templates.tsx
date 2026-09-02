@@ -31,7 +31,14 @@ import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import { normalizeIgsnColumnOrders, normalizeResourceColumnOrders, SECTION_LABELS } from '@/pages/LandingPages/lib/section-catalog';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import type { IgsnSection, LandingPageTemplateConfig, LandingPageTemplateDatacenter, ResourceSection, TemplateSection } from '@/types/landing-page';
+import type {
+    IgsnSection,
+    LandingPageTemplateConfig,
+    LandingPageTemplateDatacenter,
+    LandingPageTypeOption,
+    ResourceSection,
+    TemplateSection,
+} from '@/types/landing-page';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Pages', href: '/landing-pages' }];
 const DISPLAY_LIMIT_MIN = 1;
@@ -54,6 +61,8 @@ interface LogoUploadConstraints {
 interface PageProps extends SharedData {
     templates: LandingPageTemplateConfig[];
     datacenters: LandingPageTemplateDatacenter[];
+    dateTypes: LandingPageTypeOption[];
+    relationTypes: LandingPageTypeOption[];
     logoUploadConstraints: LogoUploadConstraints;
     [key: string]: unknown;
 }
@@ -336,8 +345,89 @@ function DatacenterAssignmentField({
     );
 }
 
+function TypeVisibilityField({
+    title,
+    description,
+    options,
+    excludedIds,
+    onChange,
+    idPrefix,
+}: {
+    title: string;
+    description: string;
+    options: LandingPageTypeOption[];
+    excludedIds: number[];
+    onChange: (ids: number[]) => void;
+    idPrefix: string;
+}) {
+    const excluded = useMemo(() => new Set(excludedIds), [excludedIds]);
+    const visibleCount = options.length - options.filter((option) => excluded.has(option.id)).length;
+
+    const setVisible = (id: number, visible: boolean) => {
+        const next = new Set(excludedIds);
+        if (visible) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
+        onChange(Array.from(next).sort((a, b) => a - b));
+    };
+
+    return (
+        <fieldset className="space-y-3">
+            <legend className="text-sm font-medium">{title}</legend>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <p className="text-xs text-muted-foreground">{description}</p>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                        {visibleCount} of {options.length} shown
+                    </span>
+                    <Button type="button" variant="outline" size="sm" onClick={() => onChange([])} disabled={excludedIds.length === 0}>
+                        Show all
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onChange(options.map((option) => option.id))}
+                        disabled={options.length === 0 || visibleCount === 0}
+                    >
+                        Hide all
+                    </Button>
+                </div>
+            </div>
+            <div className="max-h-52 space-y-1 overflow-y-auto rounded-md border p-2">
+                {options.map((option) => {
+                    const checkboxId = `${idPrefix}-${option.id}`;
+                    return (
+                        <div key={option.id} className="flex items-start gap-2 rounded px-2 py-1.5 hover:bg-muted/50">
+                            <Checkbox
+                                id={checkboxId}
+                                checked={!excluded.has(option.id)}
+                                onCheckedChange={(checked) => setVisible(option.id, checked === true)}
+                            />
+                            <Label htmlFor={checkboxId} className="flex flex-1 cursor-pointer items-start justify-between gap-2 font-normal">
+                                <span>
+                                    <span className="block">{option.name}</span>
+                                    <span className="block text-xs text-muted-foreground">{option.slug}</span>
+                                </span>
+                                {!option.is_active && (
+                                    <Badge variant="outline" className="shrink-0 text-xs">
+                                        Globally inactive
+                                    </Badge>
+                                )}
+                            </Label>
+                        </div>
+                    );
+                })}
+                {options.length === 0 && <p className="p-2 text-sm text-muted-foreground">No types available.</p>}
+            </div>
+        </fieldset>
+    );
+}
+
 export default function LandingPageTemplatesPage() {
-    const { templates, datacenters, logoUploadConstraints } = usePage<PageProps>().props;
+    const { templates, datacenters, logoUploadConstraints, dateTypes = [], relationTypes = [] } = usePage<PageProps>().props;
     const maxLogoSizeMb = logoFileSizeFormatter.format(logoUploadConstraints.maxSizeKb / 1024);
 
     // Clone dialog
@@ -357,6 +447,8 @@ export default function LandingPageTemplatesPage() {
     const [editContributorDisplayLimit, setEditContributorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [editCitationAuthorDisplayLimit, setEditCitationAuthorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [editDatacenterIds, setEditDatacenterIds] = useState<number[]>([]);
+    const [editExcludedDateTypeIds, setEditExcludedDateTypeIds] = useState<number[]>([]);
+    const [editExcludedRelationTypeIds, setEditExcludedRelationTypeIds] = useState<number[]>([]);
     const [saving, setSaving] = useState(false);
 
     // Delete dialog
@@ -418,6 +510,8 @@ export default function LandingPageTemplatesPage() {
         setEditContributorDisplayLimit(String(tmpl.contributor_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditCitationAuthorDisplayLimit(String(tmpl.citation_author_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditDatacenterIds(tmpl.datacenters?.map((datacenter) => datacenter.id) ?? []);
+        setEditExcludedDateTypeIds(tmpl.excluded_date_type_ids ?? []);
+        setEditExcludedRelationTypeIds(tmpl.excluded_relation_type_ids ?? []);
         setEditOpen(true);
     };
 
@@ -456,6 +550,8 @@ export default function LandingPageTemplatesPage() {
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
                       citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
+                      excluded_date_type_ids: editExcludedDateTypeIds,
+                      excluded_relation_type_ids: editExcludedRelationTypeIds,
                       datacenter_ids: editDatacenterIds,
                   };
 
@@ -874,6 +970,28 @@ export default function LandingPageTemplatesPage() {
                                     currentTemplateId={editTemplate.id}
                                     isCopyTemplate={editTemplate.is_default}
                                     templateType={editTemplate.template_type}
+                                />
+                            </>
+                        )}
+
+                        {!editTemplate?.is_default && (
+                            <>
+                                <Separator />
+                                <TypeVisibilityField
+                                    title="Dates visibility"
+                                    description="Choose the date types displayed in the Dates module. Other IGSN modules remain unchanged."
+                                    options={dateTypes}
+                                    excludedIds={editExcludedDateTypeIds}
+                                    onChange={setEditExcludedDateTypeIds}
+                                    idPrefix="edit-date-type"
+                                />
+                                <TypeVisibilityField
+                                    title="Related Work visibility"
+                                    description="Choose the relation types displayed in Related Work, including citations and the Relation Browser."
+                                    options={relationTypes}
+                                    excludedIds={editExcludedRelationTypeIds}
+                                    onChange={setEditExcludedRelationTypeIds}
+                                    idPrefix="edit-relation-type"
                                 />
                             </>
                         )}

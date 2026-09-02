@@ -44,6 +44,10 @@ class UpdateLandingPageTemplateRequest extends FormRequest
             'creator_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'contributor_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'citation_author_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
+            'excluded_date_type_ids' => ['sometimes', 'array'],
+            'excluded_date_type_ids.*' => ['required', 'integer', 'distinct', Rule::exists('date_types', 'id')],
+            'excluded_relation_type_ids' => ['sometimes', 'array'],
+            'excluded_relation_type_ids.*' => ['required', 'integer', 'distinct', Rule::exists('relation_types', 'id')],
             'datacenter_ids' => ['sometimes', 'array'],
             'datacenter_ids.*' => ['integer', 'distinct', Rule::exists('datacenters', 'id')],
         ];
