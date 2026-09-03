@@ -160,6 +160,9 @@ vi.mock('@/components/nav-section', () => ({ NavSection: NavSectionMock }));
 vi.mock('@/components/nav-footer', () => ({ NavFooter: NavFooterMock }));
 vi.mock('@/components/nav-user', () => ({ NavUser: NavUserMock }));
 vi.mock('@/components/app-sidebar-workspace-switcher', () => ({ AppSidebarWorkspaceSwitcher: AppSidebarWorkspaceSwitcherMock }));
+vi.mock('@/components/user-feedback-dialog', () => ({
+    UserFeedbackDialog: () => <button type="button">Give feedback</button>,
+}));
 vi.mock('@/components/ui/sidebar', () => ({
     Sidebar: ({ children }: { children?: React.ReactNode }) => <aside>{children}</aside>,
     SidebarHeader: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -231,6 +234,7 @@ describe('AppSidebar', () => {
         expect(sectionCalls[2][0].items[0].openInNewTab).toBe(true);
 
         const footer = screen.getByTestId('nav-footer');
+        expect(screen.getByRole('button', { name: /give feedback/i })).toBeInTheDocument();
         expect(within(footer).getByRole('link', { name: /changelog/i })).toHaveAttribute('href', '/changelog');
         expect(within(footer).getByRole('link', { name: /documentation/i })).toHaveAttribute('href', '/docs');
     });

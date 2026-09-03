@@ -26,6 +26,7 @@ import { NavFooter } from '@/components/nav-footer';
 import { NavSection } from '@/components/nav-section';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { UserFeedbackDialog } from '@/components/user-feedback-dialog';
 import { useEditorPrefetch } from '@/hooks/use-editor-prefetch';
 import { pathMatchesSidebarItem, useSidebarWorkspace } from '@/hooks/use-sidebar-workspace';
 import { dashboard, settings } from '@/routes';
@@ -358,6 +359,7 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
+                <UserFeedbackDialog />
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
