@@ -1096,7 +1096,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $repairResult = $this->repairExistingResource(
                     resource: $existingResource,
                     doi: $doi,
-                    doiRecord: $preparedDoiRecord,
+                    doiRecord: $doiRecord,
                     metaworksService: $metaworksService,
                     shouldLookupMetaworks: $shouldLookupMetaworks && ! $metaworksUnavailable,
                     datacenterNames: $portalDatacenterNames ?? [],
@@ -1115,10 +1115,13 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $portalDatacenterNames,
             );
 
+            // URL and state are read-only DataCite fields and are intentionally
+            // removed by prepareDoiData(), so landing-page decisions must use
+            // the original API record instead of the persistence payload.
             $dataCiteLandingPageSync = $this->syncDataCiteLandingPageIfAllowed(
                 $importedResource,
                 $doi,
-                $preparedDoiRecord,
+                $doiRecord,
                 $portalDatacenterNames ?? [],
             );
 

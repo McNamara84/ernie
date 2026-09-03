@@ -2677,6 +2677,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             import starts. Resources that already exist in ERNIE are detected and skipped without overwriting the current record.
                         </p>
                         <p>
+                            GEOFON seismic-event records retain a published external landing page when their findable DataCite record points to a
+                            trusted GEOFON event URL. ERNIE upgrades legacy <code>http://</code> targets on those hosts to <code>https://</code>; this
+                            applies to both single-resource and datacenter imports.
+                        </p>
+                        <p>
                             ERNIE preserves existing Related Work citation labels, then imports missing DOI labels from the legacy citation cache
                             before contacting the DOI metadata provider. Invalid DOI placeholders are discarded. If neither lookup resolves a label,
                             the valid related DOI is still imported without one instead of failing the complete resource import; its label can be

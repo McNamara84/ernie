@@ -1565,7 +1565,7 @@ describe('ImportFromDataCiteJob', function () {
         ],
     ]);
 
-    it('persists the GEOFON seismic-event default as a resolved SPDX CC0 license', function (): void {
+    it('imports a current single GEOFON event with CC0 and its published external landing page', function (): void {
         $this->seed([
             ResourceTypeSeeder::class,
             TitleTypeSeeder::class,
@@ -1578,14 +1578,17 @@ describe('ImportFromDataCiteJob', function () {
             FunderIdentifierTypeSeeder::class,
         ]);
         $cc0 = Right::factory()->cc0()->create();
-        $doi = '10.1594/gfz.geofon.gfz2026abcd';
+        $doi = '10.5880/geofon.gfz2015ibuz';
+        $externalUrl = 'https://geofon.gfz.de/eqinfo/event.php?id=gfz2015ibuz';
         $doiRecord = [
             'id' => $doi,
             'attributes' => [
                 'doi' => $doi,
-                'titles' => [['title' => 'GEOFON seismic event']],
-                'publicationYear' => 2026,
+                'titles' => [['title' => 'GEOFON event gfz2015ibuz (Taiwan Region; Magnitude 5.3)']],
+                'publicationYear' => 2012,
                 'types' => ['resourceTypeGeneral' => 'Dataset'],
+                'url' => 'http://geofon.gfz.de/eqinfo/event.php?id=gfz2015ibuz',
+                'state' => 'findable',
             ],
         ];
 
@@ -1605,13 +1608,21 @@ describe('ImportFromDataCiteJob', function () {
         (new ImportFromDataCiteJob($this->user->id, $importId, $doi))
             ->handle($this->importService, $transformer, $this->metaworksService);
 
-        $resource = Resource::query()->where('doi', $doi)->firstOrFail();
+        $resource = Resource::query()
+            ->where('doi', $doi)
+            ->with('landingPage.externalDomain')
+            ->firstOrFail();
         $resourceRight = ResourceRight::query()
             ->where('resource_id', $resource->id)
             ->sole();
 
         expect($resource->fresh()->datacenter?->name)
             ->toBe(LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER)
+            ->and($resource->publicStatus())->toBe('published')
+            ->and($resource->landingPage)->not->toBeNull()
+            ->and($resource->landingPage->template)->toBe('external')
+            ->and($resource->landingPage->is_published)->toBeTrue()
+            ->and($resource->landingPage->external_url)->toBe($externalUrl)
             ->and($resourceRight->rights_id)->toBe($cc0->id)
             ->and($resourceRight->rights_text)->toBe($cc0->name)
             ->and($resourceRight->rights_uri)->toBe($cc0->uri)
