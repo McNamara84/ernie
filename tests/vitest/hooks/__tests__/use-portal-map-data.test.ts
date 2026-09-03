@@ -13,6 +13,11 @@ const filters: PortalFilters = {
     keywords: [],
     freeKeywords: [],
     thesaurusKeywords: [],
+    sampleTypes: [],
+    materials: [],
+    classifications: [],
+    geologicalAges: [],
+    geologicalUnits: [],
     datacenter: [],
     bounds: null,
     temporal: null,
@@ -88,17 +93,36 @@ describe('usePortalMapData', () => {
     });
 
     it('loads map data from the IGSN endpoint when requested', async () => {
-        let requests = 0;
+        let requestUrl = '';
         server.use(
-            http.get('/igsn-search/map', () => {
-                requests++;
+            http.get('/igsn-search/map', ({ request }) => {
+                requestUrl = request.url;
                 return HttpResponse.json(payload);
             }),
         );
 
-        const { result } = renderHookWithQueryClient(() => usePortalMapData(filters, viewport, false, '/igsn-search'));
+        const { result } = renderHookWithQueryClient(() =>
+            usePortalMapData(
+                {
+                    ...filters,
+                    sampleTypes: ['Core'],
+                    materials: ['Rock'],
+                    classifications: ['Igneous'],
+                    geologicalAges: ['Jurassic'],
+                    geologicalUnits: ['Unit A'],
+                },
+                viewport,
+                false,
+                '/igsn-search',
+            ),
+        );
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-        expect(requests).toBe(1);
+        const url = new URL(requestUrl);
+        expect(url.searchParams.getAll('sample_types[]')).toEqual(['Core']);
+        expect(url.searchParams.getAll('materials[]')).toEqual(['Rock']);
+        expect(url.searchParams.getAll('classifications[]')).toEqual(['Igneous']);
+        expect(url.searchParams.getAll('geological_ages[]')).toEqual(['Jurassic']);
+        expect(url.searchParams.getAll('geological_units[]')).toEqual(['Unit A']);
     });
 });

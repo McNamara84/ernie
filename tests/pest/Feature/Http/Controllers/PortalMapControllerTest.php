@@ -449,6 +449,26 @@ it('validates viewport dimensions, coordinate ordering, and complete filter boun
         ->assertJsonValidationErrors(['viewport.north', 'viewport.width', 'zoom', 'north']);
 });
 
+it('limits every IGSN metadata filter accepted by the map endpoint', function (): void {
+    $tooManyValues = array_map(static fn (int $number): string => "Value {$number}", range(1, 21));
+
+    $this->getJson(route('portal.igsn.map', portalMapRequestQuery([
+        'sample_types' => $tooManyValues,
+        'materials' => $tooManyValues,
+        'classifications' => $tooManyValues,
+        'geological_ages' => $tooManyValues,
+        'geological_units' => $tooManyValues,
+    ])))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors([
+            'sample_types',
+            'materials',
+            'classifications',
+            'geological_ages',
+            'geological_units',
+        ]);
+});
+
 it('accepts only documented legacy shortcuts for scalar type filters', function (): void {
     foreach (['doi', 'igsn'] as $type) {
         $this->getJson(route('portal.doi.map', portalMapRequestQuery(['type' => $type])))

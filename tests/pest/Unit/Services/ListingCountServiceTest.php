@@ -38,6 +38,27 @@ it('creates stable fingerprints from count-relevant filters only', function (): 
         ->and($service->fingerprint(['type' => ['dataset']]))->not->toBe($first);
 });
 
+it('binds count fingerprints to every IGSN metadata filter', function (string $key): void {
+    $service = app(ListingCountService::class);
+    $base = [
+        'portal_scope' => 'igsn',
+        'sample_types' => [],
+        'materials' => [],
+        'classifications' => [],
+        'geological_ages' => [],
+        'geological_units' => [],
+    ];
+
+    expect($service->fingerprint($base))
+        ->not->toBe($service->fingerprint([...$base, $key => ['Selected value']]));
+})->with([
+    'sample type' => 'sample_types',
+    'material' => 'materials',
+    'classification' => 'classifications',
+    'geological age' => 'geological_ages',
+    'geological unit' => 'geological_units',
+]);
+
 it('reuses a cached exact count for the same fingerprint', function (): void {
     $service = app(ListingCountService::class);
     $resolverCalls = 0;

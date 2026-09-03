@@ -21,6 +21,11 @@ interface UsePortalFiltersReturn {
     setFreeKeywords: (keywords: string[]) => void;
     setSearchAndKeywords: (query: string, keywords: string[], useLegacyKeywords?: boolean) => void;
     setThesaurusKeywords: (nodeIds: string[]) => void;
+    setSampleTypes: (values: string[]) => void;
+    setMaterials: (values: string[]) => void;
+    setClassifications: (values: string[]) => void;
+    setGeologicalAges: (values: string[]) => void;
+    setGeologicalUnits: (values: string[]) => void;
     setBounds: (bounds: GeoBounds | null) => void;
     clearBounds: () => void;
     setTemporal: (temporal: TemporalFilterValue | null) => void;
@@ -112,6 +117,16 @@ export function usePortalFilters({ filters, currentPage, basePath = '/doi-search
         [updateFilters],
     );
 
+    const setSampleTypes = useCallback((sampleTypes: string[]) => updateFilters({ sampleTypes }, true), [updateFilters]);
+
+    const setMaterials = useCallback((materials: string[]) => updateFilters({ materials }, true), [updateFilters]);
+
+    const setClassifications = useCallback((classifications: string[]) => updateFilters({ classifications }, true), [updateFilters]);
+
+    const setGeologicalAges = useCallback((geologicalAges: string[]) => updateFilters({ geologicalAges }, true), [updateFilters]);
+
+    const setGeologicalUnits = useCallback((geologicalUnits: string[]) => updateFilters({ geologicalUnits }, true), [updateFilters]);
+
     const setBounds = useCallback(
         (bounds: GeoBounds | null) => {
             updateFilters({ bounds }, true);
@@ -143,6 +158,11 @@ export function usePortalFilters({ filters, currentPage, basePath = '/doi-search
             (filters.keywords !== undefined && filters.keywords.length > 0) ||
             (filters.freeKeywords !== undefined && filters.freeKeywords.length > 0) ||
             (filters.thesaurusKeywords !== undefined && filters.thesaurusKeywords.length > 0) ||
+            (filters.sampleTypes?.length ?? 0) > 0 ||
+            (filters.materials?.length ?? 0) > 0 ||
+            (filters.classifications?.length ?? 0) > 0 ||
+            (filters.geologicalAges?.length ?? 0) > 0 ||
+            (filters.geologicalUnits?.length ?? 0) > 0 ||
             filters.bounds !== null ||
             filters.temporal !== null
         );
@@ -159,6 +179,11 @@ export function usePortalFilters({ filters, currentPage, basePath = '/doi-search
         setFreeKeywords,
         setSearchAndKeywords,
         setThesaurusKeywords,
+        setSampleTypes,
+        setMaterials,
+        setClassifications,
+        setGeologicalAges,
+        setGeologicalUnits,
         setBounds,
         clearBounds,
         setTemporal,

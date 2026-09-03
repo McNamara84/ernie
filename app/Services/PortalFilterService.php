@@ -25,6 +25,11 @@ final class PortalFilterService
      *     keywords: list<string>,
      *     free_keywords: list<string>,
      *     thesaurus_keywords: list<string>,
+     *     sample_types: list<string>,
+     *     materials: list<string>,
+     *     classifications: list<string>,
+     *     geological_ages: list<string>,
+     *     geological_units: list<string>,
      *     datacenter: list<string>,
      *     bounds: array{north: float, south: float, east: float, west: float}|null,
      *     temporal: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -53,7 +58,9 @@ final class PortalFilterService
 
         $legacyKeywords = $this->normalizeStringFilters($request->query('keywords', []));
         $freeKeywords = $this->normalizeStringFilters($request->query('free_keywords', []));
-        $thesaurusKeywords = $this->normalizeStringFilters($request->query('thesaurus_keywords', []));
+        $thesaurusKeywords = $scope === PortalScope::IGSN
+            ? []
+            : $this->normalizeStringFilters($request->query('thesaurus_keywords', []));
 
         if ($freeKeywords !== [] || $thesaurusKeywords !== []) {
             $legacyKeywords = [];
@@ -69,6 +76,21 @@ final class PortalFilterService
             'keywords' => $legacyKeywords,
             'free_keywords' => $freeKeywords,
             'thesaurus_keywords' => $thesaurusKeywords,
+            'sample_types' => $scope === PortalScope::IGSN
+                ? $this->normalizeStringFilters($request->query('sample_types', []))
+                : [],
+            'materials' => $scope === PortalScope::IGSN
+                ? $this->normalizeStringFilters($request->query('materials', []))
+                : [],
+            'classifications' => $scope === PortalScope::IGSN
+                ? $this->normalizeStringFilters($request->query('classifications', []))
+                : [],
+            'geological_ages' => $scope === PortalScope::IGSN
+                ? $this->normalizeStringFilters($request->query('geological_ages', []))
+                : [],
+            'geological_units' => $scope === PortalScope::IGSN
+                ? $this->normalizeStringFilters($request->query('geological_units', []))
+                : [],
             'datacenter' => $this->normalizeStringFilters($request->query('datacenter', [])),
             'bounds' => $this->parseBounds($request),
             'temporal' => $this->parseTemporal($request, $temporalRange),
@@ -92,6 +114,11 @@ final class PortalFilterService
             'keywords' => array_values($filters['keywords']),
             'freeKeywords' => array_values($filters['free_keywords']),
             'thesaurusKeywords' => array_values($filters['thesaurus_keywords']),
+            'sampleTypes' => array_values($filters['sample_types']),
+            'materials' => array_values($filters['materials']),
+            'classifications' => array_values($filters['classifications']),
+            'geologicalAges' => array_values($filters['geological_ages']),
+            'geologicalUnits' => array_values($filters['geological_units']),
             'datacenter' => array_values($filters['datacenter']),
             'bounds' => $filters['bounds'],
             'temporal' => $filters['temporal'],

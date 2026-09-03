@@ -1,12 +1,15 @@
-import { Calendar, ChevronLeft, ChevronRight, Database, Filter, Globe, Network, Shapes, X } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Database, Filter, FlaskConical, Gem, Globe, Layers3, Network, Shapes, Tag, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { PortalClassificationFilter } from '@/components/portal/PortalClassificationFilter';
 import { PortalDatacenterFilter } from '@/components/portal/PortalDatacenterFilter';
 import { PortalGeoFilter } from '@/components/portal/PortalGeoFilter';
+import { PortalMaterialFilter } from '@/components/portal/PortalMaterialFilter';
 import { PortalResourceTypeFilter } from '@/components/portal/PortalResourceTypeFilter';
 import { PortalSearchInput } from '@/components/portal/PortalSearchInput';
 import { PortalTemporalFilter } from '@/components/portal/PortalTemporalFilter';
 import { PortalThesaurusFilter } from '@/components/portal/PortalThesaurusFilter';
+import { PortalValueFacetFilter } from '@/components/portal/PortalValueFacetFilter';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +20,7 @@ import type {
     GeoBounds,
     PortalBasePath,
     PortalFilters as PortalFilterValues,
+    PortalIgsnFacets,
     PortalThesaurusFacet,
     ResourceTypeFacet,
     TemporalFilterValue,
@@ -34,6 +38,11 @@ interface PortalFiltersProps {
     onDatacenterChange: (datacenter: string[]) => void;
     onKeywordsChange: (keywords: string[]) => void;
     onThesaurusKeywordsChange?: (nodeIds: string[]) => void;
+    onSampleTypesChange?: (values: string[]) => void;
+    onMaterialsChange?: (values: string[]) => void;
+    onClassificationsChange?: (values: string[]) => void;
+    onGeologicalAgesChange?: (values: string[]) => void;
+    onGeologicalUnitsChange?: (values: string[]) => void;
     onClearFilters: () => void;
     hasActiveFilters: boolean;
     isCollapsed: boolean;
@@ -41,6 +50,7 @@ interface PortalFiltersProps {
     showCollapseButton?: boolean;
     className?: string;
     thesaurusFacets?: PortalThesaurusFacet[];
+    igsnFacets?: PortalIgsnFacets | null;
     geoFilterEnabled: boolean;
     onGeoFilterToggle: (enabled: boolean) => void;
     onBoundsChange: (bounds: GeoBounds | null) => void;
@@ -53,7 +63,17 @@ interface PortalFiltersProps {
     showResourceTypeFilter?: boolean;
 }
 
-type FilterSection = 'thesaurus' | 'temporal' | 'geographic' | 'resource-type' | 'datacenter';
+type FilterSection =
+    | 'thesaurus'
+    | 'sample-type'
+    | 'material'
+    | 'classification'
+    | 'geological-age'
+    | 'geological-unit'
+    | 'temporal'
+    | 'geographic'
+    | 'resource-type'
+    | 'datacenter';
 
 function CountBadge({ count }: { count: number }) {
     return count > 0 ? (
@@ -74,6 +94,11 @@ export function PortalFilters({
     onDatacenterChange,
     onKeywordsChange,
     onThesaurusKeywordsChange = () => undefined,
+    onSampleTypesChange = () => undefined,
+    onMaterialsChange = () => undefined,
+    onClassificationsChange = () => undefined,
+    onGeologicalAgesChange = () => undefined,
+    onGeologicalUnitsChange = () => undefined,
     onClearFilters,
     hasActiveFilters,
     isCollapsed,
@@ -81,6 +106,7 @@ export function PortalFilters({
     showCollapseButton = true,
     className,
     thesaurusFacets = [],
+    igsnFacets = null,
     geoFilterEnabled,
     onGeoFilterToggle,
     onBoundsChange,
@@ -92,17 +118,38 @@ export function PortalFilters({
     datacenterFacets,
     showResourceTypeFilter = true,
 }: PortalFiltersProps) {
+    const isIgsnPortal = basePath === '/igsn-search';
     const selectedKeywordValues = (filters.freeKeywords?.length ?? 0) > 0 ? (filters.freeKeywords ?? []) : filters.keywords;
     const activeSections = useMemo<FilterSection[]>(() => {
         const active: FilterSection[] = [];
-        if ((filters.thesaurusKeywords?.length ?? 0) > 0) active.push('thesaurus');
+        if (!isIgsnPortal && (filters.thesaurusKeywords?.length ?? 0) > 0) active.push('thesaurus');
+        if (isIgsnPortal && (filters.sampleTypes?.length ?? 0) > 0) active.push('sample-type');
+        if (isIgsnPortal && (filters.materials?.length ?? 0) > 0) active.push('material');
+        if (isIgsnPortal && (filters.classifications?.length ?? 0) > 0) active.push('classification');
+        if (isIgsnPortal && (filters.geologicalAges?.length ?? 0) > 0) active.push('geological-age');
+        if (isIgsnPortal && (filters.geologicalUnits?.length ?? 0) > 0) active.push('geological-unit');
         if (temporalFilterEnabled) active.push('temporal');
         if (geoFilterEnabled) active.push('geographic');
-        if (filters.type.length > 0 || filters.exclude_type) active.push('resource-type');
+        if (!isIgsnPortal && (filters.type.length > 0 || filters.exclude_type)) active.push('resource-type');
         if (filters.datacenter.length > 0) active.push('datacenter');
         return active;
-    }, [filters.datacenter.length, filters.exclude_type, filters.thesaurusKeywords, filters.type.length, geoFilterEnabled, temporalFilterEnabled]);
-    const [openSections, setOpenSections] = useState<FilterSection[]>(() => Array.from(new Set<FilterSection>(['thesaurus', ...activeSections])));
+    }, [
+        filters.classifications?.length,
+        filters.datacenter.length,
+        filters.exclude_type,
+        filters.geologicalAges?.length,
+        filters.geologicalUnits?.length,
+        filters.materials?.length,
+        filters.sampleTypes?.length,
+        filters.thesaurusKeywords,
+        filters.type.length,
+        geoFilterEnabled,
+        isIgsnPortal,
+        temporalFilterEnabled,
+    ]);
+    const [openSections, setOpenSections] = useState<FilterSection[]>(() =>
+        Array.from(new Set<FilterSection>([isIgsnPortal ? 'sample-type' : 'thesaurus', ...activeSections])),
+    );
 
     useEffect(() => {
         if (activeSections.length === 0) return;
@@ -172,23 +219,127 @@ export function PortalFilters({
                     onValueChange={(values) => setOpenSections(values as FilterSection[])}
                     className="px-3"
                 >
-                    <AccordionItem value="thesaurus">
-                        <AccordionTrigger className="items-center py-3 hover:no-underline">
-                            <span className="flex min-w-0 items-center gap-2">
-                                <Network className="h-4 w-4" />
-                                Thesaurus Keywords
-                            </span>
-                            <CountBadge count={filters.thesaurusKeywords?.length ?? 0} />
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <PortalThesaurusFilter
-                                hideTitle
-                                facets={thesaurusFacets}
-                                selectedNodeIds={filters.thesaurusKeywords ?? []}
-                                onSelectionChange={onThesaurusKeywordsChange}
-                            />
-                        </AccordionContent>
-                    </AccordionItem>
+                    {!isIgsnPortal && (
+                        <AccordionItem value="thesaurus">
+                            <AccordionTrigger className="items-center py-3 hover:no-underline">
+                                <span className="flex min-w-0 items-center gap-2">
+                                    <Network className="h-4 w-4" />
+                                    Thesaurus Keywords
+                                </span>
+                                <CountBadge count={filters.thesaurusKeywords?.length ?? 0} />
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <PortalThesaurusFilter
+                                    hideTitle
+                                    facets={thesaurusFacets}
+                                    selectedNodeIds={filters.thesaurusKeywords ?? []}
+                                    onSelectionChange={onThesaurusKeywordsChange}
+                                />
+                            </AccordionContent>
+                        </AccordionItem>
+                    )}
+
+                    {isIgsnPortal && (
+                        <>
+                            <AccordionItem value="sample-type">
+                                <AccordionTrigger className="items-center py-3 hover:no-underline">
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <Tag className="h-4 w-4" />
+                                        Sample Type
+                                    </span>
+                                    <CountBadge count={filters.sampleTypes?.length ?? 0} />
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <PortalValueFacetFilter
+                                        options={igsnFacets?.sampleTypes ?? []}
+                                        selectedValues={filters.sampleTypes ?? []}
+                                        onSelectionChange={onSampleTypesChange}
+                                        ariaLabel="Sample types"
+                                        emptyMessage="No sample types available."
+                                        helperText="A sample may match any selected sample type."
+                                    />
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value="material">
+                                <AccordionTrigger className="items-center py-3 hover:no-underline">
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <FlaskConical className="h-4 w-4" />
+                                        Material
+                                    </span>
+                                    <CountBadge count={filters.materials?.length ?? 0} />
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <PortalMaterialFilter
+                                        facets={igsnFacets?.materials ?? []}
+                                        selectedValues={filters.materials ?? []}
+                                        onSelectionChange={onMaterialsChange}
+                                    />
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value="classification">
+                                <AccordionTrigger className="items-center py-3 hover:no-underline">
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <Gem className="h-4 w-4" />
+                                        Classification
+                                    </span>
+                                    <CountBadge count={filters.classifications?.length ?? 0} />
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <PortalClassificationFilter
+                                        groups={igsnFacets?.classifications ?? []}
+                                        selectedValues={filters.classifications ?? []}
+                                        onSelectionChange={onClassificationsChange}
+                                    />
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value="geological-age">
+                                <AccordionTrigger className="items-center py-3 hover:no-underline">
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <Calendar className="h-4 w-4" />
+                                        Geological Age
+                                    </span>
+                                    <CountBadge count={filters.geologicalAges?.length ?? 0} />
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <PortalValueFacetFilter
+                                        options={igsnFacets?.geologicalAges ?? []}
+                                        selectedValues={filters.geologicalAges ?? []}
+                                        onSelectionChange={onGeologicalAgesChange}
+                                        ariaLabel="Geological ages"
+                                        emptyMessage="No geological ages available."
+                                        helperText="Every selected geological age must be present."
+                                        searchable
+                                        searchPlaceholder="Search geological ages..."
+                                    />
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value="geological-unit">
+                                <AccordionTrigger className="items-center py-3 hover:no-underline">
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <Layers3 className="h-4 w-4" />
+                                        Geological Unit
+                                    </span>
+                                    <CountBadge count={filters.geologicalUnits?.length ?? 0} />
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <PortalValueFacetFilter
+                                        options={igsnFacets?.geologicalUnits ?? []}
+                                        selectedValues={filters.geologicalUnits ?? []}
+                                        onSelectionChange={onGeologicalUnitsChange}
+                                        ariaLabel="Geological units"
+                                        emptyMessage="No geological units available."
+                                        helperText="Every selected geological unit must be present."
+                                        searchable
+                                        searchPlaceholder="Search geological units..."
+                                    />
+                                </AccordionContent>
+                            </AccordionItem>
+                        </>
+                    )}
 
                     <AccordionItem value="temporal">
                         <AccordionTrigger className="items-center py-3 hover:no-underline">
@@ -229,7 +380,7 @@ export function PortalFilters({
                         </AccordionContent>
                     </AccordionItem>
 
-                    {showResourceTypeFilter && (
+                    {showResourceTypeFilter && !isIgsnPortal && (
                         <AccordionItem value="resource-type">
                             <AccordionTrigger className="items-center py-3 hover:no-underline">
                                 <span className="flex items-center gap-2">

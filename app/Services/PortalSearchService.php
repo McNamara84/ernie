@@ -18,6 +18,7 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
+use App\Services\Igsn\IgsnMaterialHierarchyService;
 use App\Support\LanguageTag;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
@@ -40,6 +41,7 @@ class PortalSearchService
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
         private readonly LandingPageTemplateResolverService $templateResolver,
+        private readonly IgsnMaterialHierarchyService $materialHierarchyService,
     ) {}
 
     private const DEFAULT_PER_PAGE = 20;
@@ -85,6 +87,11 @@ class PortalSearchService
      *     keywords?: string[]|null,
      *     free_keywords?: string[]|null,
      *     thesaurus_keywords?: string[]|null,
+     *     sample_types?: string[]|null,
+     *     materials?: string[]|null,
+     *     classifications?: string[]|null,
+     *     geological_ages?: string[]|null,
+     *     geological_units?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -155,6 +162,11 @@ class PortalSearchService
      *     keywords?: string[]|null,
      *     free_keywords?: string[]|null,
      *     thesaurus_keywords?: string[]|null,
+     *     sample_types?: string[]|null,
+     *     materials?: string[]|null,
+     *     classifications?: string[]|null,
+     *     geological_ages?: string[]|null,
+     *     geological_units?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -205,6 +217,11 @@ class PortalSearchService
      *     keywords?: string[]|null,
      *     free_keywords?: string[]|null,
      *     thesaurus_keywords?: string[]|null,
+     *     sample_types?: string[]|null,
+     *     materials?: string[]|null,
+     *     classifications?: string[]|null,
+     *     geological_ages?: string[]|null,
+     *     geological_units?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -258,6 +275,14 @@ class PortalSearchService
         // Apply thesaurus keyword filter
         $this->applyThesaurusKeywordFilter($query, $filters['thesaurus_keywords'] ?? null, $scope);
 
+        if ($scope === PortalScope::IGSN) {
+            $this->applyIgsnSampleTypeFilter($query, $filters['sample_types'] ?? null);
+            $this->applyIgsnMaterialFilter($query, $filters['materials'] ?? null);
+            $this->applyIgsnClassificationFilter($query, $filters['classifications'] ?? null);
+            $this->applyIgsnGeologicalAgeFilter($query, $filters['geological_ages'] ?? null);
+            $this->applyIgsnGeologicalUnitFilter($query, $filters['geological_units'] ?? null);
+        }
+
         // Apply datacenter filter
         $this->applyDatacenterFilter($query, $filters['datacenter'] ?? null);
 
@@ -270,6 +295,80 @@ class PortalSearchService
         }
 
         return $query;
+    }
+
+    /**
+     * @param  Builder<Resource>  $query
+     * @param  array<string>|null  $sampleTypes
+     */
+    private function applyIgsnSampleTypeFilter(Builder $query, ?array $sampleTypes): void
+    {
+        if ($sampleTypes === null || $sampleTypes === []) {
+            return;
+        }
+
+        $query->whereHas('igsnMetadata', fn (Builder $metadata): Builder => $metadata->whereIn('sample_type', $sampleTypes));
+    }
+
+    /**
+     * @param  Builder<Resource>  $query
+     * @param  array<string>|null  $materials
+     */
+    private function applyIgsnMaterialFilter(Builder $query, ?array $materials): void
+    {
+        if ($materials === null || $materials === []) {
+            return;
+        }
+
+        $resolvedMaterials = $this->materialHierarchyService->resolve(array_values($materials));
+        if ($resolvedMaterials === null) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereHas('igsnMetadata', fn (Builder $metadata): Builder => $metadata->whereIn('material', $resolvedMaterials));
+    }
+
+    /**
+     * @param  Builder<Resource>  $query
+     * @param  array<string>|null  $classifications
+     */
+    private function applyIgsnClassificationFilter(Builder $query, ?array $classifications): void
+    {
+        $this->applyIgsnRelationValueFilter($query, 'igsnClassifications', $classifications);
+    }
+
+    /**
+     * @param  Builder<Resource>  $query
+     * @param  array<string>|null  $geologicalAges
+     */
+    private function applyIgsnGeologicalAgeFilter(Builder $query, ?array $geologicalAges): void
+    {
+        $this->applyIgsnRelationValueFilter($query, 'igsnGeologicalAges', $geologicalAges);
+    }
+
+    /**
+     * @param  Builder<Resource>  $query
+     * @param  array<string>|null  $geologicalUnits
+     */
+    private function applyIgsnGeologicalUnitFilter(Builder $query, ?array $geologicalUnits): void
+    {
+        $this->applyIgsnRelationValueFilter($query, 'igsnGeologicalUnits', $geologicalUnits);
+    }
+
+    /**
+     * Apply AND semantics to a multi-valued IGSN relation.
+     *
+     * @param  Builder<Resource>  $query
+     * @param  'igsnClassifications'|'igsnGeologicalAges'|'igsnGeologicalUnits'  $relation
+     * @param  array<string>|null  $values
+     */
+    private function applyIgsnRelationValueFilter(Builder $query, string $relation, ?array $values): void
+    {
+        foreach ($values ?? [] as $value) {
+            $query->whereHas($relation, fn (Builder $related): Builder => $related->where('value', $value));
+        }
     }
 
     /**

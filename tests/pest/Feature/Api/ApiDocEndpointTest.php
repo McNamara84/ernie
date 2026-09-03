@@ -145,7 +145,7 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./{portal}-search/count.get.parameters.0.name', 'portal')
         ->assertJsonPath('paths./{portal}-search/count.get.parameters.1.name', 'q')
         ->assertJsonPath('paths./{portal}-search/count.get.parameters.7.name', 'thesaurus_keywords[]')
-        ->assertJsonPath('paths./{portal}-search/count.get.parameters.14.name', 'year_to')
+        ->assertJsonPath('paths./{portal}-search/count.get.parameters.19.name', 'year_to')
         ->assertJsonPath('paths./{portal}-search/count.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/PortalCountResponse')
         ->assertJsonPath('paths./{portal}-search/count.get.responses.429.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('paths./{portal}-search/count.get.responses.500.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
@@ -267,8 +267,18 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->toBeArray()
         ->toContain('string', 'null');
 
-    expect(collect(data_get($spec, 'paths./{portal}-search/map.get.parameters'))->pluck('name')->all())
-        ->toContain('portal', 'viewport[north]', 'viewport[width]', 'zoom', 'include_extent', 'type[]', 'north', 'date_type');
+    $igsnFilterParameters = [
+        'sample_types[]',
+        'materials[]',
+        'classifications[]',
+        'geological_ages[]',
+        'geological_units[]',
+    ];
+
+    expect(collect(data_get($spec, 'paths./{portal}-search/count.get.parameters'))->pluck('name')->all())
+        ->toContain(...$igsnFilterParameters)
+        ->and(collect(data_get($spec, 'paths./{portal}-search/map.get.parameters'))->pluck('name')->all())
+        ->toContain('portal', 'viewport[north]', 'viewport[width]', 'zoom', 'include_extent', 'type[]', 'north', 'date_type', ...$igsnFilterParameters);
 });
 
 it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {

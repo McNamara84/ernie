@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\PortalScope;
 use App\Services\BotProtection\PortalPageCacheService;
+use App\Services\IgsnPortalFacetService;
 use App\Services\KeywordSuggestionService;
 use App\Services\ListingCountService;
 use App\Services\PortalFilterService;
@@ -29,6 +30,7 @@ class PortalController extends Controller
         private readonly PortalPageCacheService $pageCache,
         private readonly PortalFilterService $filterService,
         private readonly ListingCountService $listingCountService,
+        private readonly IgsnPortalFacetService $igsnFacetService,
     ) {}
 
     public function index(Request $request, string $portalScope): Response
@@ -50,6 +52,9 @@ class PortalController extends Controller
         $filters = $this->filterService->fromRequest($request, $temporalRange, $scope);
         $paginator = $this->searchService->simpleSearch($filters);
         $filterFingerprint = $this->listingCountService->fingerprint($filters);
+        $igsnFacets = $scope === PortalScope::IGSN
+            ? $this->igsnFacetService->getFacets($filters)
+            : null;
 
         $resources = collect($paginator->items())
             ->map(fn ($resource) => $this->searchService->transformForPortal($resource))
@@ -70,12 +75,22 @@ class PortalController extends Controller
                 'filter_fingerprint' => $filterFingerprint,
             ],
             'filters' => $this->filterService->forFrontend($filters),
-            'thesaurusFacets' => $this->keywordService->getThesaurusFacets($scope),
+            'thesaurusFacets' => $scope === PortalScope::DOI
+                ? $this->keywordService->getThesaurusFacets($scope)
+                : [],
+            'igsnFacets' => $igsnFacets === null ? null : [
+                'sampleTypes' => $igsnFacets['sampleTypes'],
+                'materials' => $igsnFacets['materials'],
+                'classifications' => $igsnFacets['classifications'],
+                'geologicalAges' => $igsnFacets['geologicalAges'],
+                'geologicalUnits' => $igsnFacets['geologicalUnits'],
+            ],
             'temporalRange' => $temporalRange,
             'resourceTypeFacets' => $scope->showsResourceTypeFilter()
                 ? $this->searchService->getResourceTypeFacets($scope)
                 : [],
-            'datacenterFacets' => $this->searchService->getDatacenterFacets($scope),
+            'datacenterFacets' => $igsnFacets['datacenters']
+                ?? $this->searchService->getDatacenterFacets($scope),
         ];
     }
 }

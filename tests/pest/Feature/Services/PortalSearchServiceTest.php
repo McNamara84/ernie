@@ -21,6 +21,7 @@ use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
+use App\Services\Igsn\IgsnMaterialHierarchyService;
 use App\Services\KeywordSuggestionService;
 use App\Services\LandingPageTemplateResolverService;
 use App\Services\PortalSearchService;
@@ -84,7 +85,7 @@ function createPortalSearchServiceWithResolvedThesaurusNodes(array $resolvedNode
                 $this->resolvedNodes,
             );
         }
-    }, app(LandingPageTemplateResolverService::class));
+    }, app(LandingPageTemplateResolverService::class), app(IgsnMaterialHierarchyService::class));
 }
 
 // =========================================================================
