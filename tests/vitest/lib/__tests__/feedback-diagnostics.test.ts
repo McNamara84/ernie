@@ -60,9 +60,9 @@ describe('feedback diagnostics', () => {
         expect(feedbackPathFromUrl('https://external.example/resources?token=secret')).toBeNull();
         expect(
             sanitizeFeedbackDiagnosticMessage(
-                'GET https://ernie.test/resources?email=jane@example.org Bearer abc.def.ghi jane@example.org aabbccddeeff00112233445566778899',
+                'GET https://ernie.test/resources?email=jane@example.org then /resources?token=secret#private Bearer abc.def.ghi jane@example.org aabbccddeeff00112233445566778899',
             ),
-        ).toBe('GET https://ernie.test/resources Bearer [redacted-token] [redacted-email] [redacted-token]');
+        ).toBe('GET https://ernie.test/resources then /resources Bearer [redacted-token] [redacted-email] [redacted-token]');
     });
 
     it('rejects malformed stored events and unknown fields', () => {

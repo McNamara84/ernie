@@ -27,6 +27,7 @@ export function sanitizeFeedbackDiagnosticMessage(value: string): string {
             // eslint-disable-next-line no-control-regex
             .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, '')
             .replace(/(https?:\/\/[^\s?#]+)[?#][^\s]*/giu, '$1')
+            .replace(/(^|[^\w:/])(\/[^\s?#]*)[?#][^\s]*/gu, '$1$2')
             .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/giu, 'Bearer [redacted-token]')
             .replace(/\b[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\b/gu, '[redacted-token]')
             .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/giu, '[redacted-email]')

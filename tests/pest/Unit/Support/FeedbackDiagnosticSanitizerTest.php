@@ -16,13 +16,15 @@ it('redacts sensitive diagnostic message fragments and strips URL queries', func
         str_repeat('b', 12),
         str_repeat('c', 12),
     ]);
-    $message = "Failed https://example.test/path?token=secret#part for jane@example.test Bearer abc.def-123_xyz and {$jwtLikeToken}";
+    $message = "Failed https://example.test/path?token=secret#part and /api?token=relative-secret#part for jane@example.test Bearer abc.def-123_xyz and {$jwtLikeToken}";
 
     $sanitized = $this->sanitizer->message($message);
 
     expect($sanitized)
         ->toContain('https://example.test/path')
+        ->toContain('/api')
         ->not->toContain('token=secret')
+        ->not->toContain('relative-secret')
         ->not->toContain('jane@example.test')
         ->not->toContain('abc.def-123_xyz')
         ->not->toContain($jwtLikeToken)
@@ -35,11 +37,18 @@ it('handles null and bounds diagnostic messages', function (): void {
         ->and(mb_strlen((string) $this->sanitizer->message(str_repeat('x', 700))))->toBe(500);
 });
 
-it('removes control characters and bounds user agents', function (): void {
-    $userAgent = "Browser\0".str_repeat('x', 700);
+it('redacts sensitive user-agent values, removes controls, and applies its own bound', function (): void {
+    $userAgent = "Browser\0 jane@example.test https://example.test/path?token=absolute /api?token=relative Bearer abc.def-123_xyz ".str_repeat('x', 700);
+    $sanitized = $this->sanitizer->userAgent($userAgent);
 
     expect($this->sanitizer->userAgent(null))->toBe('Unknown')
         ->and($this->sanitizer->userAgent("\0\n"))->toBe('Unknown')
-        ->and($this->sanitizer->userAgent($userAgent))->not->toContain("\0")
-        ->and(mb_strlen($this->sanitizer->userAgent($userAgent)))->toBe(512);
+        ->and($sanitized)->not->toContain("\0")
+        ->and($sanitized)->not->toContain('jane@example.test')
+        ->and($sanitized)->not->toContain('token=absolute')
+        ->and($sanitized)->not->toContain('token=relative')
+        ->and($sanitized)->not->toContain('abc.def-123_xyz')
+        ->and($sanitized)->toContain('[redacted-email]')
+        ->and($sanitized)->toContain('Bearer [redacted-token]')
+        ->and(mb_strlen($sanitized))->toBe(512);
 });

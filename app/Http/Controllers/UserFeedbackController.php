@@ -6,13 +6,12 @@ namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
 use App\Http\Requests\StoreUserFeedbackRequest;
-use App\Mail\UserFeedbackMail;
+use App\Jobs\DispatchUserFeedbackEmails;
 use App\Models\User;
 use App\Support\FeedbackDiagnosticSanitizer;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -49,6 +48,11 @@ final class UserFeedbackController extends Controller
         $feedbackId = (string) Str::uuid();
         $submittedAt = CarbonImmutable::now('UTC')->toIso8601String();
         $data = $request->feedbackData();
+        $recipients = array_values($admins->map(static fn (User $admin): array => [
+            'id' => $admin->id,
+            'name' => $admin->name,
+            'email' => $admin->email,
+        ])->all());
         $diagnostics = array_map(function (array $event): array {
             if (array_key_exists('message', $event)) {
                 $event['message'] = $this->sanitizer->message(is_string($event['message']) ? $event['message'] : null);
@@ -58,23 +62,21 @@ final class UserFeedbackController extends Controller
         }, $data['diagnostics']);
 
         try {
-            foreach ($admins as $admin) {
-                Mail::to($admin->email, $admin->name)->queue(new UserFeedbackMail(
-                    feedbackId: $feedbackId,
-                    category: $data['category'],
-                    feedbackMessage: $data['message'],
-                    submittedByName: $user->name,
-                    submittedByEmail: $user->email,
-                    submittedByRole: $user->role->label(),
-                    submittedAt: $submittedAt,
-                    userAgent: $this->sanitizer->userAgent($request->userAgent()),
-                    page: $data['page'],
-                    environment: $data['environment'],
-                    diagnostics: $diagnostics,
-                    recipientAdminId: $admin->id,
-                    recipientName: $admin->name,
-                ));
-            }
+            DispatchUserFeedbackEmails::dispatch(
+                feedbackId: $feedbackId,
+                category: $data['category'],
+                feedbackMessage: $data['message'],
+                submittedByUserId: $user->id,
+                submittedByName: $user->name,
+                submittedByEmail: $user->email,
+                submittedByRole: $user->role->label(),
+                submittedAt: $submittedAt,
+                userAgent: $this->sanitizer->userAgent($request->userAgent()),
+                page: $data['page'],
+                environment: $data['environment'],
+                diagnostics: $diagnostics,
+                recipients: $recipients,
+            );
         } catch (Throwable $exception) {
             Log::error('User feedback queue dispatch failed', [
                 'feedback_id' => $feedbackId,

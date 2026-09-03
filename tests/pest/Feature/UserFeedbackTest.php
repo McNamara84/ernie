@@ -6,10 +6,10 @@ use App\Enums\FeedbackCategory;
 use App\Enums\UserRole;
 use App\Http\Controllers\UserFeedbackController;
 use App\Http\Requests\StoreUserFeedbackRequest;
-use App\Mail\UserFeedbackMail;
+use App\Jobs\DispatchUserFeedbackEmails;
 use App\Models\User;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 covers(UserFeedbackController::class, StoreUserFeedbackRequest::class);
 
@@ -76,8 +76,8 @@ it('rejects inactive submitters', function (): void {
         ->assertForbidden();
 });
 
-it('queues separate encrypted feedback mail for every active admin', function (UserRole $role): void {
-    Mail::fake();
+it('queues one sanitized fan-out job containing every active admin', function (UserRole $role): void {
+    Bus::fake();
 
     $submitter = User::factory()->create([
         'name' => 'Feedback Sender',
@@ -101,21 +101,25 @@ it('queues separate encrypted feedback mail for every active admin', function (U
     expect($feedbackId)->toBeUuid();
 
     $expectedAdmins = $role === UserRole::ADMIN ? [$submitter, $firstAdmin, $secondAdmin] : [$firstAdmin, $secondAdmin];
-    Mail::assertQueued(UserFeedbackMail::class, count($expectedAdmins));
-    foreach ($expectedAdmins as $admin) {
-        Mail::assertQueued(UserFeedbackMail::class, function (UserFeedbackMail $mail) use ($admin, $feedbackId): bool {
-            return $mail->hasTo($admin->email)
-                && $mail->feedbackId === $feedbackId
-                && $mail->submittedByName === 'Feedback Sender'
-                && $mail->submittedByEmail === 'sender@example.test'
-                && $mail->submittedByRole !== ''
-                && $mail->userAgent === 'Test Browser 12.3'
-                && str_contains((string) $mail->diagnostics[1]['message'], '[redacted-email]')
-                && ! str_contains((string) $mail->diagnostics[1]['message'], 'token=secret');
-        });
-    }
-    Mail::assertNotQueued(UserFeedbackMail::class, fn (UserFeedbackMail $mail): bool => $mail->hasTo('inactive-admin@example.test'));
-    Mail::assertNotQueued(UserFeedbackMail::class, fn (UserFeedbackMail $mail): bool => $mail->hasTo('curator@example.test'));
+    $expectedRecipientIds = array_map(static fn (User $admin): int => $admin->id, $expectedAdmins);
+    sort($expectedRecipientIds);
+
+    Bus::assertDispatched(DispatchUserFeedbackEmails::class, function (DispatchUserFeedbackEmails $job) use ($expectedRecipientIds, $feedbackId): bool {
+        $actualRecipientIds = array_column($job->recipients, 'id');
+        sort($actualRecipientIds);
+
+        return $job->feedbackId === $feedbackId
+            && $job->submittedByName === 'Feedback Sender'
+            && $job->submittedByEmail === 'sender@example.test'
+            && $job->submittedByRole !== ''
+            && $job->userAgent === 'Test Browser 12.3'
+            && $actualRecipientIds === $expectedRecipientIds
+            && ! in_array('inactive-admin@example.test', array_column($job->recipients, 'email'), true)
+            && ! in_array('curator@example.test', array_column($job->recipients, 'email'), true)
+            && str_contains((string) $job->diagnostics[1]['message'], '[redacted-email]')
+            && ! str_contains((string) $job->diagnostics[1]['message'], 'token=secret');
+    });
+    Bus::assertDispatchedTimes(DispatchUserFeedbackEmails::class, 1);
 })->with([
     'admin' => UserRole::ADMIN,
     'group leader' => UserRole::GROUP_LEADER,
@@ -123,20 +127,21 @@ it('queues separate encrypted feedback mail for every active admin', function (U
     'beginner' => UserRole::BEGINNER,
 ]);
 
-it('sends one message to an administrator who submits feedback', function (): void {
-    Mail::fake();
+it('includes an administrator who submits feedback once in the fan-out', function (): void {
+    Bus::fake();
     $admin = User::factory()->admin()->create(['email' => 'submitting-admin@example.test']);
 
     $this->actingAs($admin)
         ->postJson('/feedback', validUserFeedbackPayload())
         ->assertAccepted();
 
-    Mail::assertQueued(UserFeedbackMail::class, 1);
-    Mail::assertQueued(UserFeedbackMail::class, fn (UserFeedbackMail $mail): bool => $mail->hasTo($admin->email));
+    Bus::assertDispatched(DispatchUserFeedbackEmails::class, fn (DispatchUserFeedbackEmails $job): bool => count($job->recipients) === 1
+        && $job->recipients[0]['id'] === $admin->id
+        && $job->recipients[0]['email'] === $admin->email);
 });
 
 it('returns a service error when no active administrator exists', function (): void {
-    Mail::fake();
+    Bus::fake();
     Log::spy();
     $submitter = User::factory()->create(['role' => UserRole::CURATOR]);
     User::factory()->admin()->create(['is_active' => false]);
@@ -146,7 +151,7 @@ it('returns a service error when no active administrator exists', function (): v
         ->assertServiceUnavailable()
         ->assertJsonPath('message', 'Feedback cannot be submitted right now because no administrator is available.');
 
-    Mail::assertNothingQueued();
+    Bus::assertNotDispatched(DispatchUserFeedbackEmails::class);
     Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message, array $context): bool => $message === 'User feedback could not be queued because no active administrators exist'
         && $context === ['submitted_by_user_id' => $submitter->id]);
 });
@@ -156,7 +161,7 @@ it('returns a safe service error when queue dispatch fails', function (): void {
     $submitter = User::factory()->create(['role' => UserRole::CURATOR]);
     User::factory()->admin()->create();
 
-    Mail::shouldReceive('to')->once()->andThrow(new RuntimeException('SMTP secret detail'));
+    Bus::shouldReceive('dispatch')->once()->andThrow(new RuntimeException('Queue secret detail'));
 
     $this->actingAs($submitter)
         ->postJson('/feedback', validUserFeedbackPayload())
@@ -172,7 +177,7 @@ it('returns a safe service error when queue dispatch fails', function (): void {
 });
 
 it('validates the closed feedback payload and diagnostic event variants', function (array $payload, array $errors): void {
-    Mail::fake();
+    Bus::fake();
     $submitter = User::factory()->create();
     User::factory()->admin()->create();
 
@@ -181,7 +186,7 @@ it('validates the closed feedback payload and diagnostic event variants', functi
         ->assertUnprocessable()
         ->assertJsonValidationErrors($errors);
 
-    Mail::assertNothingQueued();
+    Bus::assertNotDispatched(DispatchUserFeedbackEmails::class);
 })->with([
     'unknown category' => [validUserFeedbackPayload(['category' => 'angry']), ['category']],
     'short message' => [validUserFeedbackPayload(['message' => 'Too short']), ['message']],
@@ -212,7 +217,7 @@ it('validates the closed feedback payload and diagnostic event variants', functi
 ]);
 
 it('trims feedback and accepts an empty diagnostic history', function (): void {
-    Mail::fake();
+    Bus::fake();
     $submitter = User::factory()->create();
     User::factory()->admin()->create();
 
@@ -223,12 +228,12 @@ it('trims feedback and accepts an empty diagnostic history', function (): void {
         ]))
         ->assertAccepted();
 
-    Mail::assertQueued(UserFeedbackMail::class, fn (UserFeedbackMail $mail): bool => $mail->feedbackMessage === 'Useful feedback with surrounding space.'
-        && $mail->diagnostics === []);
+    Bus::assertDispatched(DispatchUserFeedbackEmails::class, fn (DispatchUserFeedbackEmails $job): bool => $job->feedbackMessage === 'Useful feedback with surrounding space.'
+        && $job->diagnostics === []);
 });
 
 it('rate limits repeated submissions independently per user', function (): void {
-    Mail::fake();
+    Bus::fake();
     $firstUser = User::factory()->create();
     $secondUser = User::factory()->create();
     User::factory()->admin()->create();
