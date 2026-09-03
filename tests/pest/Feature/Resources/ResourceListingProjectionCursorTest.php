@@ -13,6 +13,7 @@ use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\ResourceListingProjection;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Title;
@@ -164,6 +165,32 @@ it('projects incomplete resources without an assigned type or curator', function
         ->and($projection->resource_type_sort)->toBe('')
         ->and($projection->curator_user_id)->toBeNull()
         ->and($projection->curator_name)->toBe('');
+});
+
+it('projects only linked SPDX catalog rights as SPDX licenses', function (): void {
+    $resource = Resource::factory()->create(['doi' => '10.5880/projected-spdx-state']);
+    ResourceRight::query()->create([
+        'resource_id' => $resource->id,
+        'rights_text' => 'Imported permission statement',
+        'source' => 'datacite-import',
+    ]);
+    $customRight = Right::factory()->create([
+        'identifier' => 'CUSTOM-PROJECTION-LICENSE',
+        'scheme_uri' => null,
+    ]);
+    $resource->rights()->attach($customRight);
+
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    expect(ResourceListingProjection::query()->findOrFail($resource->id)->has_spdx_license)->toBeFalse();
+
+    $spdxRight = Right::factory()->create(['identifier' => 'MIT-PROJECTION']);
+    $resource->rights()->attach($spdxRight);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    expect(ResourceListingProjection::query()->findOrFail($resource->id)->has_spdx_license)->toBeTrue();
+
+    $resource->rights()->detach($spdxRight);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    expect(ResourceListingProjection::query()->findOrFail($resource->id)->has_spdx_license)->toBeFalse();
 });
 
 it('orders cursor queries by indexed projection keys and the projection resource id', function (string $sortKey, string $sortColumn): void {
@@ -351,6 +378,43 @@ it('paginates in descending order with the same deterministic tie breaker', func
         ->and(array_unique($ids))->toHaveCount(5);
 });
 
+it('keeps the without SPDX license filter stable across cursor pages and counts', function (): void {
+    $matchingResources = collect(range(1, 3))->map(
+        fn (int $number): Resource => Resource::factory()->create([
+            'doi' => "10.5880/cursor-without-spdx.{$number}",
+        ]),
+    );
+    $excluded = Resource::factory()->create(['doi' => '10.5880/cursor-with-spdx']);
+    $excluded->rights()->attach(Right::factory()->create(['identifier' => 'CC0-CURSOR']));
+    Resource::factory()->create(['doi' => null]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    $first = $this->getJson('/resources/load-more?without_spdx_license=1&per_page=2&sort_key=id&sort_direction=asc')
+        ->assertOk();
+    $cursor = (string) $first->json('pagination.next_cursor');
+    $second = $this->getJson(
+        '/resources/load-more?without_spdx_license=1&per_page=2&sort_key=id&sort_direction=asc&cursor='.urlencode($cursor),
+    )->assertOk();
+
+    $ids = collect($first->json('resources'))
+        ->concat($second->json('resources'))
+        ->pluck('id')
+        ->all();
+
+    expect($ids)->toBe($matchingResources->pluck('id')->all())
+        ->and($ids)->not->toContain($excluded->id);
+
+    $this->getJson('/resources/count?without_spdx_license=1')
+        ->assertOk()
+        ->assertJsonPath('total', 3);
+
+    $this->getJson(
+        '/resources/load-more?per_page=2&sort_key=id&sort_direction=asc&cursor='.urlencode($cursor),
+    )
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['cursor']);
+});
+
 it('uses resource id as tie breaker and supports missing source sort values', function (): void {
     $sameTimestamp = now()->startOfSecond();
     $resources = collect([
@@ -421,9 +485,11 @@ it('keeps count fingerprints independent from sort and page size but binds them 
     $first = $this->getJson('/resources/count?per_page=1&sort_key=title&sort_direction=asc')->assertOk();
     $sameFilters = $this->getJson('/resources/count?per_page=100&sort_key=updated_at&sort_direction=desc')->assertOk();
     $differentFilters = $this->getJson('/resources/count?search=unlikely-search-term')->assertOk();
+    $withoutSpdxLicense = $this->getJson('/resources/count?without_spdx_license=1')->assertOk();
 
     expect($first->json('filter_fingerprint'))->toBe($sameFilters->json('filter_fingerprint'))
-        ->and($differentFilters->json('filter_fingerprint'))->not->toBe($first->json('filter_fingerprint'));
+        ->and($differentFilters->json('filter_fingerprint'))->not->toBe($first->json('filter_fingerprint'))
+        ->and($withoutSpdxLicense->json('filter_fingerprint'))->not->toBe($first->json('filter_fingerprint'));
 });
 
 it('returns a recoverable failed count response when the count lock times out', function (): void {

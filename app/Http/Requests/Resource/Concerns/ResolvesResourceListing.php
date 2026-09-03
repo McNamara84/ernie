@@ -92,6 +92,7 @@ trait ResolvesResourceListing
 
             'datacenter_id' => ['nullable', 'integer', 'exists:datacenters,id', 'prohibited_if:without_datacenter,1'],
             'without_datacenter' => ['nullable', 'boolean'],
+            'without_spdx_license' => ['nullable', 'boolean'],
 
             'year_from' => ['nullable', 'integer', 'between:1000,9999'],
             'year_to' => ['nullable', 'integer', 'between:1000,9999'],
@@ -158,6 +159,10 @@ trait ResolvesResourceListing
             if ($datacenterId !== null && $datacenterId !== '' && is_numeric($datacenterId)) {
                 $filters['datacenter_id'] = (int) $datacenterId;
             }
+        }
+
+        if ($this->boolean('without_spdx_license')) {
+            $filters['without_spdx_license'] = true;
         }
 
         $yearFrom = $this->input('year_from');

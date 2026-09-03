@@ -181,6 +181,13 @@ final readonly class ResourceQueryBuilder
             $query->whereIn('listing.workflow_status', $filters['status']);
         }
 
+        if (! empty($filters['without_spdx_license'])) {
+            $query
+                ->where('listing.has_spdx_license', false)
+                ->whereNotNull('resources.doi')
+                ->where('resources.doi', '!=', '');
+        }
+
         if (isset($filters['year_from'])) {
             $query->where('listing.publication_year', '>=', $filters['year_from']);
         }

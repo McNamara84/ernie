@@ -163,6 +163,10 @@ export function parseResourceFiltersFromUrl(search: string): ResourceFilterState
         delete filters.datacenter_id;
     }
 
+    if (params.get('without_spdx_license') === '1') {
+        filters.without_spdx_license = true;
+    }
+
     return filters;
 }
 

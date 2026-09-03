@@ -45,12 +45,14 @@ it('includes the resource listing projection and its resource relationship in bo
         ->toBeString()
         ->toContain('resource_listing_projections {')
         ->toContain('bigint resource_id PK,FK')
+        ->toContain('boolean has_spdx_license "indexed"')
         ->toContain('varchar main_title_sort "512, indexed prefix"')
         ->toContain('resources ||--o| resource_listing_projections')
         ->and($plantUml)
         ->toBeString()
         ->toContain('entity "resource_listing_projections" as resource_listing_projections')
         ->toContain('* **resource_id** : BIGINT <<PK, FK>>')
+        ->toContain('* has_spdx_license : BOOLEAN = false //indexed//')
         ->toContain('main_title_sort : VARCHAR(512) //indexed prefix//')
         ->toContain('resources ||--o| resource_listing_projections');
 });

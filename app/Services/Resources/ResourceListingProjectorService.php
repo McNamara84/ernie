@@ -9,8 +9,10 @@ use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceListingProjection;
+use App\Models\Right;
 use App\Models\Title;
 use App\Services\DashboardMetricsCacheInvalidationService;
+use App\Services\Rights\CustomRightCatalogService;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -108,7 +110,7 @@ final class ResourceListingProjectorService
                 ->select(['id', 'resource_id', 'value', 'title_type_id'])
                 ->with('titleType:id,slug')
                 ->orderBy('id'),
-            'rights:id',
+            'rights:id,scheme_uri',
             'descriptions' => fn ($query) => $query
                 ->select(['id', 'resource_id', 'value', 'description_type_id'])
                 ->with('descriptionType:id,slug'),
@@ -174,6 +176,9 @@ final class ResourceListingProjectorService
 
         return [
             'is_igsn' => $resourceType?->slug === 'physical-object',
+            'has_spdx_license' => $resource->rights->contains(
+                static fn (Right $right): bool => CustomRightCatalogService::isSpdxRight($right),
+            ),
             'workflow_status' => $status,
             'workflow_status_rank' => match ($status) {
                 ResourceWorkflowStatus::DRAFT->value => 0,

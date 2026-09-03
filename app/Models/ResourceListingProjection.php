@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $resource_id
  * @property bool $is_igsn
+ * @property bool $has_spdx_license
  * @property string $workflow_status
  * @property int $workflow_status_rank
  * @property bool $is_dashboard_draft
@@ -42,6 +43,7 @@ final class ResourceListingProjection extends Model
     protected $casts = [
         'resource_id' => 'integer',
         'is_igsn' => 'boolean',
+        'has_spdx_license' => 'boolean',
         'workflow_status_rank' => 'integer',
         'is_dashboard_draft' => 'boolean',
         'resource_type_id' => 'integer',

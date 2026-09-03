@@ -150,6 +150,32 @@ it('extracts the without datacenter filter', function (): void {
         ->assertJsonPath('filters.without_datacenter', true);
 });
 
+it('extracts the without SPDX license filter for both listing requests', function (string $endpoint): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->getJson($endpoint.'?without_spdx_license=1')
+        ->assertOk()
+        ->assertJsonPath('filters.without_spdx_license', true);
+})->with([
+    'index' => '/_test/index-resources',
+    'load more' => '/_test/load-more-resources',
+]);
+
+it('drops a disabled without SPDX license filter and rejects invalid boolean values', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->getJson('/_test/index-resources?without_spdx_license=0')
+        ->assertOk()
+        ->assertJsonMissingPath('filters.without_spdx_license');
+
+    $this->actingAs($user)
+        ->getJson('/_test/index-resources?without_spdx_license=invalid')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['without_spdx_license']);
+});
+
 it('rejects unknown datacenters and mutually exclusive datacenter filters', function (): void {
     $user = User::factory()->create();
     $datacenter = Datacenter::factory()->create();

@@ -71,6 +71,18 @@ describe('parseResourceFiltersFromUrl', () => {
         });
     });
 
+    it('should parse the without SPDX license option', () => {
+        const result = parseResourceFiltersFromUrl('?without_spdx_license=1');
+        expect(result).toEqual({
+            without_spdx_license: true,
+        });
+    });
+
+    it.each(['0', 'true', 'invalid', ''])('should ignore an inactive or invalid without SPDX license value %s', (value) => {
+        const result = parseResourceFiltersFromUrl(`?without_spdx_license=${value}`);
+        expect(result).toEqual({});
+    });
+
     it('should parse year_from as number', () => {
         const result = parseResourceFiltersFromUrl('?year_from=2020');
         expect(result).toEqual({

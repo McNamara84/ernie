@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useBufferedYearRangeFilter } from '@/hooks/use-buffered-year-range-filter';
 import type { ResourceFilterOptions, ResourceFilterState } from '@/types/resources';
 
@@ -222,6 +223,19 @@ export function ResourcesFilters({
         [filters, onFilterChange],
     );
 
+    const handleWithoutSpdxLicenseChange = useCallback(
+        (checked: boolean) => {
+            const newFilters = { ...filters };
+            if (checked) {
+                newFilters.without_spdx_license = true;
+            } else {
+                delete newFilters.without_spdx_license;
+            }
+            onFilterChange(newFilters);
+        },
+        [filters, onFilterChange],
+    );
+
     const handleCreatedFromChange = useCallback(
         (value: string) => {
             const newFilters = { ...filters };
@@ -311,6 +325,10 @@ export function ResourcesFilters({
 
             if (key === 'without_datacenter') {
                 return 'Datacenter: Without Datacenter';
+            }
+
+            if (key === 'without_spdx_license') {
+                return 'Without SPDX License';
             }
 
             return `${label}: ${String(value)}`;
@@ -516,6 +534,20 @@ export function ResourcesFilters({
                     disabled={isLoading}
                     ariaLabel="Filter by last update date range"
                 />
+
+                <div className="flex h-9 items-center gap-2 rounded-md border border-input px-3 shadow-xs">
+                    <Switch
+                        id="without-spdx-license-filter"
+                        size="sm"
+                        checked={filters.without_spdx_license === true}
+                        onCheckedChange={handleWithoutSpdxLicenseChange}
+                        disabled={isLoading}
+                        aria-label="Without SPDX License"
+                    />
+                    <Label htmlFor="without-spdx-license-filter" className="cursor-pointer text-sm font-normal whitespace-nowrap">
+                        Without SPDX License
+                    </Label>
+                </div>
 
                 {/* Clear All Filters Button */}
                 {hasActiveFilters && (

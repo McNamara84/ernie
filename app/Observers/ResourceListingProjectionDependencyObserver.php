@@ -84,10 +84,7 @@ final class ResourceListingProjectionDependencyObserver
             $model instanceof TitleType,
             $model instanceof DescriptionType,
             $model instanceof DateType => $model->wasChanged('slug'),
-            // Catalog Right attributes are not denormalized into this projection,
-            // so their saves require no work. Datacenters are handled above because
-            // only their cached filter label changes when they are renamed.
-            $model instanceof Right => false,
+            $model instanceof Right => $model->wasChanged('scheme_uri'),
             default => false,
         };
     }

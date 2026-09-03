@@ -20,6 +20,7 @@ use App\Services\ListingCountService;
 use App\Services\ResourceCacheService;
 use App\Services\Resources\ResourceFilterOptionsCacheInvalidationService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
+use App\Services\Spdx\SpdxLicenseLookup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -95,6 +96,37 @@ it('queues only projection-relevant lookup saves after commit without loading de
         static fn (string $sql): bool => str_starts_with($sql, 'select')
             && (str_contains($sql, ' from "resources"') || str_contains($sql, ' from "resource_rights"')),
     ))->toBeEmpty();
+});
+
+it('queues and refreshes affected projections when a right changes SPDX scheme', function (): void {
+    $right = Right::factory()->create([
+        'identifier' => 'CUSTOM-SCHEME-CHANGE',
+        'scheme_uri' => null,
+    ]);
+    $resource = Resource::factory()->create(['doi' => '10.5880/spdx-scheme-change']);
+    $resource->rights()->attach($right);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    expect(ResourceListingProjection::query()->findOrFail($resource->id)->has_spdx_license)->toBeFalse();
+
+    Queue::fake();
+    $right->update(['scheme_uri' => SpdxLicenseLookup::SCHEME_URI]);
+
+    Queue::assertPushed(
+        RefreshResourceListingProjectionsForDependencyJob::class,
+        fn (RefreshResourceListingProjectionsForDependencyJob $job): bool => $job->dependencyType === Right::class
+            && $job->dependencyId === $right->id
+            && $job->event === RefreshResourceListingProjectionsForDependencyJob::EVENT_UPDATED
+            && $job->afterCommit === true,
+    );
+
+    /** @var RefreshResourceListingProjectionsForDependencyJob $job */
+    $job = Queue::pushed(RefreshResourceListingProjectionsForDependencyJob::class)
+        ->first(fn (RefreshResourceListingProjectionsForDependencyJob $queuedJob): bool => $queuedJob->dependencyType === Right::class);
+    runResourceListingProjectionDependencyJob($job);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    expect(ResourceListingProjection::query()->findOrFail($resource->id)->has_spdx_license)->toBeTrue();
 });
 
 it('updates curator and resource type projection values with targeted set-based writes', function (): void {
