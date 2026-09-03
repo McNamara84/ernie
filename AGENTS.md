@@ -1,5 +1,11 @@
 # ERNIE project instructions
 
+## Database version
+
+- Local development and every MySQL-backed test must use the MySQL 9.7 server pinned in `docker-compose.dev.yml`. Do not downgrade that service to MySQL 8 to make an older local volume boot.
+- The development data volume is versioned for MySQL 9.7. Preserve an older volume and use the documented dump/restore or reset path when its data is needed; never solve an incompatible data directory by changing the server image.
+- The MySQL 8.4 build stage in `Dockerfile` and `Dockerfile.dev` supplies only the target-specific `mysql-legacy-mysqldump` binary for exporting the external legacy MySQL 5.6 IGSN database. It is not the ERNIE database server and must never be substituted for the MySQL 9.7 development or test server.
+
 ## Test execution
 
 - Use the repository npm wrappers. Do not invoke Pest or PHPStan directly from the host.

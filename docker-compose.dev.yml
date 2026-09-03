@@ -201,14 +201,16 @@ services:
       MYSQL_USER: ernie
       MYSQL_PASSWORD: secret
     volumes:
-      - ernie-db-data:/var/lib/mysql
+      # Keep the data directory tied to the server series. MySQL 9.7 cannot
+      # start a data directory created by a non-LTS MySQL 8.0 release.
+      - ernie-db-data-mysql-9-7:/var/lib/mysql
       - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
     networks:
       - ernie-dev-network
     ports:
       - "${DB_PORT:-3306}:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootsecret"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -prootsecret --silent && mysql -h localhost -u root -prootsecret -Nse 'SELECT VERSION()' | grep -Eq '^9\\.7\\.'"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -354,7 +356,7 @@ networks:
     driver: bridge
 
 volumes:
-  ernie-db-data:
+  ernie-db-data-mysql-9-7:
     driver: local
   ernie-vendor:
     driver: local

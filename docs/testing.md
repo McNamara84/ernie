@@ -48,6 +48,11 @@ The default PHP suite is intentionally optimized for speed.
 - The same bootstrap defaults `DB_CONNECTION=sqlite` and `DB_DATABASE=:memory:`.
 - Setting `ERNIE_TEST_DB_CONNECTION` switches the dedicated MySQL-sensitive slice to its isolated Docker test schema instead.
 
+Whenever a test opts into MySQL, the repository wrapper starts the pinned
+MySQL 9.7 service and waits for a healthcheck that also verifies the `9.7.x`
+server series. The separate MySQL 8.4 `mysqldump` build stage is only a legacy
+export client and is not a test database.
+
 Use the SQLite path for the routine local loop.
 
 Use a MySQL-backed slice only when one of the following is true:
