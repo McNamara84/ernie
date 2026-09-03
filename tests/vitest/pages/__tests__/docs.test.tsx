@@ -910,6 +910,40 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('documents the DOI and SPDX semantics of the resource filter for beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Finding Resources Without an SPDX License', level: 4 })).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('regular Resources that have a non-empty DOI but no linked SPDX catalog license') &&
+                    text.includes('Imported or unresolved Rights statements and custom licenses do not count') &&
+                    text.includes('Physical-sample IGSNs and Resources without a DOI are never shown')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('active-filter badge and combines with the current search') &&
+                    text.includes('remove its badge to clear only this filter while keeping the others') &&
+                    text.includes('remains applied when you change sorting or load more results')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('documents both review-link workflows, their recipients, and partial results for curators', async () => {
         const { user } = renderDocsPage('curator');
 
