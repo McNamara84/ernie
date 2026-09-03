@@ -74,7 +74,7 @@ vi.mock('@/components/resources-filters', () => ({
         countStatus,
         isLoading,
     }: {
-        filters: { datacenter_id?: number; without_datacenter?: boolean; search?: string };
+        filters: { datacenter_id?: number; without_datacenter?: boolean; without_spdx_license?: boolean; search?: string };
         onFilterChange: (filters: Record<string, unknown>) => void;
         totalCount: number | null;
         countStatus?: string;
@@ -90,6 +90,13 @@ vi.mock('@/components/resources-filters', () => ({
             </button>
             <button type="button" data-testid="select-without-datacenter" onClick={() => onFilterChange({ without_datacenter: true })}>
                 Select without datacenter
+            </button>
+            <button
+                type="button"
+                data-testid="select-without-spdx-license"
+                onClick={() => onFilterChange({ ...filters, without_spdx_license: true })}
+            >
+                Select without SPDX license
             </button>
             <button type="button" data-testid="clear-datacenter" onClick={() => onFilterChange({ search: filters.search })}>
                 Clear datacenter
@@ -354,6 +361,70 @@ describe('ResourcesPage', () => {
         expect(screen.getByTestId('resource-total-count')).toHaveTextContent('pending');
         await waitFor(() => expect(screen.getByTestId('resource-total-count')).toHaveTextContent('42'));
         expect(screen.getByTestId('resource-count-status')).toHaveTextContent('ready');
+    });
+
+    it('serializes the without SPDX license filter for navigation, counts, and cursor requests', async () => {
+        axiosGetMock.mockImplementation((url: string) => {
+            if (url === '/resources/filter-options') {
+                return Promise.resolve({ data: { datacenters: [] } });
+            }
+
+            if (url === '/resources/count') {
+                return Promise.resolve({ data: { filter_fingerprint: 'spdx-filter', total: 2, count_status: 'ready' } });
+            }
+
+            if (url === '/resources/load-more') {
+                return Promise.resolve({ data: { resources: [], pagination: { has_more: false, next_cursor: null } } });
+            }
+
+            return Promise.resolve({ data: {} });
+        });
+
+        const props = {
+            resources: [{ id: 1, title: 'First resource', publicstatus: 'draft' } as never],
+            pagination: {
+                per_page: 25,
+                total: null,
+                from: 1,
+                to: 1,
+                has_more: true,
+                next_cursor: 'spdx-cursor',
+                count_status: 'pending' as const,
+                filter_fingerprint: 'spdx-filter',
+            },
+            sort: { key: 'id' as const, direction: 'asc' as const },
+            filters: { without_spdx_license: true },
+        };
+
+        render(<ResourcesPage {...props} />);
+
+        await waitFor(() => {
+            const countCall = axiosGetMock.mock.calls.find(([url]) => url === '/resources/count');
+            expect(countCall?.[1].params.get('without_spdx_license')).toBe('1');
+        });
+
+        await waitFor(() => expect(intersectionCallback).not.toBeNull());
+        act(() => {
+            intersectionCallback?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+        });
+        await waitFor(() => {
+            const loadMoreCall = axiosGetMock.mock.calls.find(([url]) => url === '/resources/load-more');
+            expect(loadMoreCall?.[1].params.get('without_spdx_license')).toBe('1');
+            expect(loadMoreCall?.[1].params.get('cursor')).toBe('spdx-cursor');
+        });
+
+        fireEvent.click(screen.getByTestId('select-without-spdx-license'));
+        expect(routerMock.visit).toHaveBeenCalledWith('/resources?sort_key=id&sort_direction=asc&without_spdx_license=1', {
+            preserveState: false,
+            replace: true,
+        });
+
+        routerMock.visit.mockClear();
+        fireEvent.click(screen.getByRole('button', { name: /sort by the resource title/i }));
+        expect(routerMock.visit).toHaveBeenCalledWith('/resources?sort_key=title&sort_direction=asc&without_spdx_license=1', {
+            preserveState: false,
+            replace: true,
+        });
     });
 
     it('ignores a stale asynchronous count response', async () => {

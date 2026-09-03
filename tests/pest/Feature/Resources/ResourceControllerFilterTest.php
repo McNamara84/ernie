@@ -12,6 +12,7 @@ use App\Models\Language;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
+use function Pest\Laravel\getJson;
 
 uses(RefreshDatabase::class);
 
@@ -490,6 +492,167 @@ describe('Datacenter Filter', function (): void {
                 ['id' => $alphaDatacenter->id, 'name' => 'Alpha Datacenter'],
                 ['id' => $betaDatacenter->id, 'name' => 'Beta Datacenter'],
             ]);
+    });
+});
+
+describe('Without SPDX License Filter', function (): void {
+    it('includes only DOI resources without a linked SPDX catalog license', function (): void {
+        $datasetType = ResourceType::factory()->create(['name' => 'Dataset', 'slug' => 'dataset']);
+        $physicalObjectType = ResourceType::factory()->create(['name' => 'Physical Object', 'slug' => 'physical-object']);
+
+        $withoutRights = Resource::factory()->create([
+            'doi' => '10.5880/without-spdx.none',
+            'resource_type_id' => $datasetType->id,
+        ]);
+        $withRawRights = Resource::factory()->create([
+            'doi' => '10.5880/without-spdx.raw',
+            'resource_type_id' => $datasetType->id,
+        ]);
+        ResourceRight::query()->create([
+            'resource_id' => $withRawRights->id,
+            'rights_text' => 'Use requires individual permission.',
+            'rights_identifier' => 'UNRESOLVED-SPDX-LIKE-RIGHT',
+            'rights_identifier_scheme' => 'SPDX',
+            'source' => 'datacite-import',
+        ]);
+
+        $withCustomRight = Resource::factory()->create([
+            'doi' => '10.5880/without-spdx.custom',
+            'resource_type_id' => $datasetType->id,
+        ]);
+        $customRight = Right::factory()->create([
+            'identifier' => 'CUSTOM-COMMUNITY-LICENSE',
+            'scheme_uri' => 'https://example.test/licenses/',
+            'is_elmo_active' => false,
+        ]);
+        $withCustomRight->rights()->attach($customRight);
+
+        $spdxRight = Right::factory()->create([
+            'identifier' => 'CC-BY-4.0',
+            'is_active' => false,
+        ]);
+        $withSpdxRight = Resource::factory()->create([
+            'doi' => '10.5880/without-spdx.linked',
+            'resource_type_id' => $datasetType->id,
+        ]);
+        $withSpdxRight->rights()->attach($spdxRight);
+
+        $withMixedRights = Resource::factory()->create([
+            'doi' => '10.5880/without-spdx.mixed',
+            'resource_type_id' => $datasetType->id,
+        ]);
+        $withMixedRights->rights()->attach($spdxRight);
+        ResourceRight::query()->create([
+            'resource_id' => $withMixedRights->id,
+            'rights_text' => 'Additional imported terms.',
+            'source' => 'datacite-import',
+        ]);
+
+        Resource::factory()->create([
+            'doi' => null,
+            'resource_type_id' => $datasetType->id,
+        ]);
+        Resource::factory()->create([
+            'doi' => '10.60510/without-spdx-igsn',
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+        $response = get(route('resources', [
+            'without_spdx_license' => 1,
+            'sort_key' => 'id',
+            'sort_direction' => 'asc',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->has('resources', 3)
+                ->where('filters.without_spdx_license', true)
+            );
+
+        $resourceIds = collect($response->inertiaProps('resources'))->pluck('id')->all();
+        expect($resourceIds)
+            ->toBe([$withoutRights->id, $withRawRights->id, $withCustomRight->id])
+            ->not->toContain($withSpdxRight->id, $withMixedRights->id);
+
+        getJson(route('resources.count', ['without_spdx_license' => 1]))
+            ->assertOk()
+            ->assertJsonPath('total', 3);
+    });
+
+    it('combines the SPDX filter with existing resource filters', function (): void {
+        $datasetType = ResourceType::factory()->create(['name' => 'Dataset', 'slug' => 'dataset']);
+        $selectedDatacenter = Datacenter::factory()->create(['name' => 'Selected SPDX Datacenter']);
+        $otherDatacenter = Datacenter::factory()->create(['name' => 'Other SPDX Datacenter']);
+        $matching = Resource::factory()->create([
+            'doi' => '10.5880/without-spdx.search-match',
+            'resource_type_id' => $datasetType->id,
+            'datacenter_id' => $selectedDatacenter->id,
+            'publication_year' => 2024,
+            'workflow_status_override' => ResourceWorkflowStatus::DRAFT,
+        ]);
+        Resource::factory()->create([
+            'doi' => '10.5880/without-spdx.search-match-other-datacenter',
+            'resource_type_id' => $datasetType->id,
+            'datacenter_id' => $otherDatacenter->id,
+            'publication_year' => 2024,
+            'workflow_status_override' => ResourceWorkflowStatus::DRAFT,
+        ]);
+        Resource::factory()->create([
+            'doi' => '10.5880/without-spdx.search-match-review',
+            'resource_type_id' => $datasetType->id,
+            'datacenter_id' => $selectedDatacenter->id,
+            'publication_year' => 2024,
+            'workflow_status_override' => ResourceWorkflowStatus::REVIEW,
+        ]);
+
+        get(route('resources', [
+            'without_spdx_license' => 1,
+            'search' => 'search-match',
+            'year_from' => 2024,
+            'datacenter_id' => $selectedDatacenter->id,
+            'status' => ['draft'],
+        ]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('resources', 1)
+                ->where('resources.0.id', $matching->id)
+                ->where('filters.without_spdx_license', true)
+                ->where('filters.search', 'search-match')
+                ->where('filters.year_from', 2024)
+                ->where('filters.datacenter_id', $selectedDatacenter->id)
+                ->where('filters.status', ['draft'])
+            );
+    });
+
+    it('uses the listing projection without per-resource Rights queries', function (): void {
+        collect(range(1, 10))->each(
+            fn (int $number) => Resource::factory()->create(['doi' => "10.5880/without-spdx.performance-{$number}"]),
+        );
+        app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = mb_strtolower($query->sql);
+        });
+
+        get(route('resources', ['without_spdx_license' => 1]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('resources', 10));
+
+        $listingQuery = collect($queries)->first(
+            static fn (string $query): bool => str_contains($query, 'resource_listing_projections')
+                && str_contains($query, 'has_spdx_license'),
+        );
+        $rightsQueries = collect($queries)->filter(
+            static fn (string $query): bool => str_starts_with($query, 'select')
+                && str_contains($query, 'resource_rights'),
+        );
+
+        expect($listingQuery)->toBeString()
+            ->and($listingQuery)->not->toContain('resource_rights')
+            ->and($rightsQueries)->toHaveCount(1);
     });
 });
 

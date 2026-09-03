@@ -193,7 +193,7 @@ describe('ResourcesFilters', () => {
 
         render(
             <ResourcesFilters
-                filters={{ search: 'test' }}
+                filters={{ search: 'test', without_spdx_license: true }}
                 onFilterChange={onFilterChange}
                 filterOptions={defaultFilterOptions}
                 resultCount={5}
@@ -219,9 +219,57 @@ describe('ResourcesFilters', () => {
             />,
         );
 
-        const removeButton = screen.getByLabelText('Remove search filter');
+        const removeButton = screen.getByLabelText('Remove Search: test filter');
         await user.click(removeButton);
         expect(onFilterChange).toHaveBeenCalledWith({});
+    });
+
+    it('toggles the Without SPDX License filter while preserving other filters', async () => {
+        const user = userEvent.setup();
+        const onFilterChange = vi.fn();
+
+        render(
+            <ResourcesFilters
+                filters={{ search: 'climate' }}
+                onFilterChange={onFilterChange}
+                filterOptions={defaultFilterOptions}
+                resultCount={5}
+                totalCount={10}
+            />,
+        );
+
+        const toggle = screen.getByRole('switch', { name: 'Without SPDX License' });
+        expect(toggle).not.toBeChecked();
+
+        await user.click(toggle);
+        expect(onFilterChange).toHaveBeenCalledWith({ search: 'climate', without_spdx_license: true });
+    });
+
+    it('restores and removes the active Without SPDX License filter', async () => {
+        const user = userEvent.setup();
+        const onFilterChange = vi.fn();
+
+        render(
+            <ResourcesFilters
+                filters={{ status: ['draft'], without_spdx_license: true }}
+                onFilterChange={onFilterChange}
+                filterOptions={defaultFilterOptions}
+                resultCount={2}
+                totalCount={10}
+            />,
+        );
+
+        const toggle = screen.getByRole('switch', { name: 'Without SPDX License' });
+        expect(toggle).toBeChecked();
+        expect(screen.getAllByText('Without SPDX License')).toHaveLength(2);
+
+        await user.click(toggle);
+        expect(onFilterChange).toHaveBeenCalledWith({ status: ['draft'] });
+
+        onFilterChange.mockClear();
+        expect(screen.queryByLabelText('Remove without_spdx_license filter')).not.toBeInTheDocument();
+        await user.click(screen.getByLabelText('Remove Without SPDX License filter'));
+        expect(onFilterChange).toHaveBeenCalledWith({ status: ['draft'] });
     });
 
     it('disables inputs when loading', () => {
@@ -237,6 +285,7 @@ describe('ResourcesFilters', () => {
         );
 
         expect(screen.getByLabelText('Search resources by title or DOI')).toBeDisabled();
+        expect(screen.getByRole('switch', { name: 'Without SPDX License' })).toBeDisabled();
     });
 
     it('shows year range button', () => {

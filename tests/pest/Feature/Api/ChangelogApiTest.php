@@ -9,7 +9,10 @@ it('returns changelog data grouped by release', function () {
         ->assertOk()
         ->assertJsonFragment([
             'version' => '1.0.7',
-            'date' => '2026-09-02',
+            'date' => '2026-09-04',
+        ])
+        ->assertJsonFragment([
+            'title' => 'SPDX License Gap Filter for Resources',
         ])
         ->assertJsonFragment([
             'title' => 'Frequently Used Licenses First',

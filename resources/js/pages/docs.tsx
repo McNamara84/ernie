@@ -2561,6 +2561,22 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             stored as this browser preference.
                         </p>
 
+                        <h4>Finding Resources Without an SPDX License</h4>
+                        <p>
+                            Turn on <strong>Without SPDX License</strong> to show only regular Resources that have a non-empty DOI but no linked SPDX
+                            catalog license. ERNIE recognizes a linked license as SPDX when its catalog entry uses the canonical{' '}
+                            <code>https://spdx.org/licenses/</code> scheme. Imported or unresolved Rights statements and custom licenses do not count
+                            as linked SPDX licenses, so Resources containing only those entries remain visible. A linked SPDX catalog license excludes
+                            the Resource even when that catalog entry is inactive. Physical-sample IGSNs and Resources without a DOI are never shown
+                            by this filter.
+                        </p>
+                        <p>
+                            The selection appears as a <strong>Without SPDX License</strong> active-filter badge and combines with the current search,
+                            Resource Type, Datacenter, Status, Curator, year, and date filters. Turn off the toggle or remove its badge to clear only
+                            this filter while keeping the others; <strong>Clear All</strong> removes every active filter. The selection remains
+                            applied when you change sorting or load more results, and the displayed exact total uses the same criteria.
+                        </p>
+
                         <p>
                             Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab. Existing row controls
                             keep their own behavior: the checkbox selects the row, and a clickable published status badge opens and copies the DOI.

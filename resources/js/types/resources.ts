@@ -25,6 +25,7 @@ export interface ResourceFilterState {
     status?: string[];
     datacenter_id?: number;
     without_datacenter?: boolean;
+    without_spdx_license?: boolean;
     created_from?: string;
     created_to?: string;
     updated_from?: string;

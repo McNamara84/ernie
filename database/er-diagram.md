@@ -254,6 +254,7 @@ erDiagram
     resource_listing_projections {
         bigint resource_id PK,FK
         boolean is_igsn
+        boolean has_spdx_license "indexed"
         varchar workflow_status "16"
         tinyint workflow_status_rank "indexed sort"
         boolean is_dashboard_draft

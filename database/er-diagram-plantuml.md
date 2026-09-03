@@ -285,6 +285,7 @@ entity "resource_listing_projections" as resource_listing_projections {
     * **resource_id** : BIGINT <<PK, FK>>
     --
     * is_igsn : BOOLEAN = false
+    * has_spdx_license : BOOLEAN = false //indexed//
     * workflow_status : VARCHAR(16)
     * workflow_status_rank : TINYINT //indexed sort//
     * is_dashboard_draft : BOOLEAN
