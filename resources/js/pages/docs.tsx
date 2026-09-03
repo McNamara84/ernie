@@ -2679,7 +2679,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             GEOFON seismic-event records retain a published external landing page when their findable DataCite record points to a
                             trusted GEOFON event URL. ERNIE upgrades legacy <code>http://</code> targets on those hosts to <code>https://</code>; this
-                            applies to both single-resource and datacenter imports.
+                            applies to both single-resource and datacenter imports. Because the target remains externally hosted, the import does not
+                            write that normalized URL back to DataCite; automatic post-import DataCite URL updates are reserved for published landing
+                            pages hosted by ERNIE.
                         </p>
                         <p>
                             ERNIE preserves existing Related Work citation labels, then imports missing DOI labels from the legacy citation cache

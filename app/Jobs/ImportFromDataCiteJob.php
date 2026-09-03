@@ -1421,8 +1421,11 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             return [
                 'changed' => $result['changed'],
-                'sync_eligible' => $result['created']
-                    && $result['landing_page']?->is_published === true,
+                // The external target already comes from DataCite. It may be
+                // normalized locally (for example from HTTP to HTTPS), but
+                // import-triggered DataCite writes are intentionally limited
+                // to published landing pages hosted by ERNIE.
+                'sync_eligible' => false,
             ];
         } catch (\Throwable $exception) {
             Log::warning('Failed to import external DataCite landing page URL', [

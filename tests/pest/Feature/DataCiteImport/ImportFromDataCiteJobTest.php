@@ -1566,6 +1566,9 @@ describe('ImportFromDataCiteJob', function () {
     ]);
 
     it('imports a current single GEOFON event with CC0 and its published external landing page', function (): void {
+        Config::set('datacite.test_mode', false);
+        Bus::fake();
+
         $this->seed([
             ResourceTypeSeeder::class,
             TitleTypeSeeder::class,
@@ -1615,6 +1618,7 @@ describe('ImportFromDataCiteJob', function () {
         $resourceRight = ResourceRight::query()
             ->where('resource_id', $resource->id)
             ->sole();
+        $status = Cache::get("datacite_import:{$importId}");
 
         expect($resource->fresh()->datacenter?->name)
             ->toBe(LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER)
@@ -1633,7 +1637,11 @@ describe('ImportFromDataCiteJob', function () {
             ->and(ResourceRight::query()
                 ->where('resource_id', $resource->id)
                 ->whereNull('rights_id')
-                ->count())->toBe(0);
+                ->count())->toBe(0)
+            ->and($status['sync_total'])->toBe(0)
+            ->and($status['sync_failed'])->toBe(0);
+
+        Bus::assertNothingBatched();
     });
 
     it('completes a single import when an exhaustive citation label lookup remains unresolved', function () {

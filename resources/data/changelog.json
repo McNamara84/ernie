@@ -11,6 +11,10 @@
         ],
         "fixes": [
             {
+                "title": "Clean GEOFON Import Completion",
+                "description": "GEOFON records with imported external landing pages no longer trigger an ineligible DataCite write after a successful import. Their trusted external target remains published in ERNIE, including local HTTPS normalization, without producing a misleading retryable synchronization failure."
+            },
+            {
                 "title": "Published External Pages for Single GEOFON Imports",
                 "description": "Newly imported individual GEOFON seismic events now retain their DataCite event URL as a published external landing page. Legacy HTTP targets on trusted GEOFON hosts are upgraded to HTTPS instead of being discarded while read-only DataCite metadata is normalized."
             },
