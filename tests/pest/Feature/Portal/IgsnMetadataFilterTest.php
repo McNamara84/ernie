@@ -178,6 +178,41 @@ it('rejects overlong IGSN filter values consistently on page and count endpoints
     'count' => 'portal.igsn.count',
 ]);
 
+it('ignores invalid IGSN-only filter values on the DOI page', function (): void {
+    $ignoredFilters = [
+        'sample_types' => 'not-an-array',
+        'materials' => array_fill(0, 21, 'Rock'),
+        'classifications' => [str_repeat('x', 256)],
+        'geological_ages' => [42],
+        'geological_units' => 'not-an-array',
+    ];
+
+    $this->get(route('portal.doi', $ignoredFilters))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->where('filters.sampleTypes', [])
+            ->where('filters.materials', [])
+            ->where('filters.classifications', [])
+            ->where('filters.geologicalAges', [])
+            ->where('filters.geologicalUnits', []));
+});
+
+it('ignores invalid IGSN-only filter values on the DOI count endpoint', function (): void {
+    $ignoredFilters = [
+        'sample_types' => 'not-an-array',
+        'materials' => array_fill(0, 21, 'Rock'),
+        'classifications' => [str_repeat('x', 256)],
+        'geological_ages' => [42],
+        'geological_units' => 'not-an-array',
+    ];
+
+    $baseline = $this->getJson(route('portal.doi.count'))->assertOk()->json();
+    $withIgnoredFilters = $this->getJson(route('portal.doi.count', $ignoredFilters))->assertOk()->json();
+
+    expect($withIgnoredFilters['filter_fingerprint'])->toBe($baseline['filter_fingerprint'])
+        ->and($withIgnoredFilters['total'])->toBe($baseline['total']);
+});
+
 it('uses OR for sample types and materials and AND across those facets', function (): void {
     $coreRock = createPublishedIgsnForPortalFilters($this->physicalObjectType, 'Core', 'Rock');
     $sampleSediment = createPublishedIgsnForPortalFilters($this->physicalObjectType, 'Core Sample', 'Sediment');

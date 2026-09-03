@@ -489,6 +489,17 @@ it('rejects overlong values for every IGSN metadata filter accepted by the map e
         ]);
 });
 
+it('ignores invalid IGSN-only filter values on the DOI map endpoint', function (): void {
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery([
+        'sample_types' => 'not-an-array',
+        'materials' => array_fill(0, 21, 'Rock'),
+        'classifications' => [str_repeat('x', 256)],
+        'geological_ages' => [42],
+        'geological_units' => 'not-an-array',
+    ])))
+        ->assertOk();
+});
+
 it('accepts only documented legacy shortcuts for scalar type filters', function (): void {
     foreach (['doi', 'igsn'] as $type) {
         $this->getJson(route('portal.doi.map', portalMapRequestQuery(['type' => $type])))
