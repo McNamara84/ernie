@@ -42,6 +42,11 @@ const defaultFilters: PortalFilterValues = {
     keywords: [],
     freeKeywords: [],
     thesaurusKeywords: [],
+    sampleTypes: [],
+    materials: [],
+    classifications: [],
+    geologicalAges: [],
+    geologicalUnits: [],
     datacenter: [],
     bounds: null,
     temporal: null,
@@ -64,6 +69,23 @@ const thesaurusFacets = [
     },
 ];
 
+const igsnFacets = {
+    sampleTypes: [
+        { value: 'Core', label: 'Core', count: 12 },
+        { value: 'Specimen', label: 'Specimen', count: 7 },
+    ],
+    materials: [{ value: 'Rock', label: 'Rock', count: 9, children: [] }],
+    classifications: [
+        {
+            type: 'rock' as const,
+            label: 'Rock',
+            options: [{ value: 'Igneous', label: 'Igneous', count: 5 }],
+        },
+    ],
+    geologicalAges: [{ value: 'Jurassic', label: 'Jurassic', count: 4 }],
+    geologicalUnits: [{ value: 'Upper Rhine Graben', label: 'Upper Rhine Graben', count: 3 }],
+};
+
 const defaultProps = {
     filters: defaultFilters,
     searchValue: '',
@@ -74,6 +96,11 @@ const defaultProps = {
     onDatacenterChange: vi.fn(),
     onKeywordsChange: vi.fn(),
     onThesaurusKeywordsChange: vi.fn(),
+    onSampleTypesChange: vi.fn(),
+    onMaterialsChange: vi.fn(),
+    onClassificationsChange: vi.fn(),
+    onGeologicalAgesChange: vi.fn(),
+    onGeologicalUnitsChange: vi.fn(),
     onClearFilters: vi.fn(),
     hasActiveFilters: false,
     isCollapsed: false,
@@ -109,6 +136,11 @@ describe('PortalFilters', () => {
         render(<PortalFilters {...defaultProps} />);
 
         expect(screen.getByText('Science Keywords')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /sample type/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^material/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^classification/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /geological age/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /geological unit/i })).not.toBeInTheDocument();
         expect(screen.queryByText('All Resource Types')).not.toBeInTheDocument();
         expect(screen.queryByText('All Datacenters')).not.toBeInTheDocument();
     });
@@ -123,10 +155,53 @@ describe('PortalFilters', () => {
     });
 
     it('removes the complete resource type section in the IGSN portal', () => {
-        render(<PortalFilters {...defaultProps} basePath="/igsn-search" showResourceTypeFilter={false} resourceTypeFacets={[]} />);
+        render(
+            <PortalFilters
+                {...defaultProps}
+                basePath="/igsn-search"
+                showResourceTypeFilter={false}
+                resourceTypeFacets={[]}
+                igsnFacets={igsnFacets}
+            />,
+        );
 
         expect(screen.queryByRole('button', { name: /resource type/i })).not.toBeInTheDocument();
         expect(screen.queryByText('All Resource Types')).not.toBeInTheDocument();
+    });
+
+    it('replaces the IGSN thesaurus with all five counted metadata filters', async () => {
+        const user = userEvent.setup();
+        render(<PortalFilters {...defaultProps} basePath="/igsn-search" igsnFacets={igsnFacets} showResourceTypeFilter={false} />);
+
+        expect(screen.queryByRole('button', { name: /thesaurus keywords/i })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /sample type/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^material/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /classification/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /geological age/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /geological unit/i })).toBeInTheDocument();
+        expect(screen.getByText('Core')).toBeInTheDocument();
+        expect(screen.getByText('12')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('checkbox', { name: 'Select Core' }));
+
+        expect(defaultProps.onSampleTypesChange).toHaveBeenCalledWith(['Core']);
+    });
+
+    it('opens an active IGSN group and shows its selected-value badge', () => {
+        render(
+            <PortalFilters
+                {...defaultProps}
+                basePath="/igsn-search"
+                igsnFacets={igsnFacets}
+                filters={{ ...defaultFilters, materials: ['Rock'] }}
+                hasActiveFilters
+            />,
+        );
+
+        expect(screen.getByRole('list', { name: 'Materials' })).toBeInTheDocument();
+        expect(screen.queryByRole('tree')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^material1$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Remove Rock' })).toBeInTheDocument();
     });
 
     it('automatically opens groups that contain active filters and displays a count', () => {

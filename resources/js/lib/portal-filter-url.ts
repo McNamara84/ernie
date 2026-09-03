@@ -9,6 +9,11 @@ function appendArrayParams(params: URLSearchParams, key: string, values: string[
 export function mergePortalFilters(filters: PortalFilters, nextFilters: Partial<PortalFilters>): PortalFilters {
     const freeKeywords = nextFilters.freeKeywords !== undefined ? nextFilters.freeKeywords : (filters.freeKeywords ?? []);
     const thesaurusKeywords = nextFilters.thesaurusKeywords !== undefined ? nextFilters.thesaurusKeywords : (filters.thesaurusKeywords ?? []);
+    const sampleTypes = nextFilters.sampleTypes !== undefined ? nextFilters.sampleTypes : (filters.sampleTypes ?? []);
+    const materials = nextFilters.materials !== undefined ? nextFilters.materials : (filters.materials ?? []);
+    const classifications = nextFilters.classifications !== undefined ? nextFilters.classifications : (filters.classifications ?? []);
+    const geologicalAges = nextFilters.geologicalAges !== undefined ? nextFilters.geologicalAges : (filters.geologicalAges ?? []);
+    const geologicalUnits = nextFilters.geologicalUnits !== undefined ? nextFilters.geologicalUnits : (filters.geologicalUnits ?? []);
     const keywords =
         nextFilters.keywords !== undefined ? nextFilters.keywords : freeKeywords.length > 0 || thesaurusKeywords.length > 0 ? [] : filters.keywords;
 
@@ -19,6 +24,11 @@ export function mergePortalFilters(filters: PortalFilters, nextFilters: Partial<
         keywords,
         freeKeywords,
         thesaurusKeywords,
+        sampleTypes,
+        materials,
+        classifications,
+        geologicalAges,
+        geologicalUnits,
     };
 }
 
@@ -48,8 +58,16 @@ export function buildPortalFilterUrl(filters: PortalFilters, basePath: PortalBas
         appendArrayParams(params, 'free_keywords', filters.freeKeywords ?? []);
     }
 
-    if ((filters.thesaurusKeywords?.length ?? 0) > 0) {
+    if (basePath !== '/igsn-search' && (filters.thesaurusKeywords?.length ?? 0) > 0) {
         appendArrayParams(params, 'thesaurus_keywords', filters.thesaurusKeywords ?? []);
+    }
+
+    if (basePath === '/igsn-search') {
+        appendArrayParams(params, 'sample_types', filters.sampleTypes ?? []);
+        appendArrayParams(params, 'materials', filters.materials ?? []);
+        appendArrayParams(params, 'classifications', filters.classifications ?? []);
+        appendArrayParams(params, 'geological_ages', filters.geologicalAges ?? []);
+        appendArrayParams(params, 'geological_units', filters.geologicalUnits ?? []);
     }
 
     if (filters.bounds) {
@@ -82,6 +100,8 @@ export function buildPortalCountUrl(currentSearch: string, basePath: PortalBaseP
     if (basePath === '/igsn-search') {
         params.delete('type');
         params.delete('type[]');
+        params.delete('thesaurus_keywords');
+        params.delete('thesaurus_keywords[]');
     }
 
     const queryString = params.toString();

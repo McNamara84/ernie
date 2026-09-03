@@ -20,6 +20,13 @@ describe('usePortalFilters', () => {
         query: null,
         type: [],
         keywords: [],
+        freeKeywords: [],
+        thesaurusKeywords: [],
+        sampleTypes: [],
+        materials: [],
+        classifications: [],
+        geologicalAges: [],
+        geologicalUnits: [],
         datacenter: [],
         bounds: null,
         temporal: null,
@@ -31,24 +38,19 @@ describe('usePortalFilters', () => {
 
     describe('initial state', () => {
         it('returns the provided filters', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
             expect(result.current.filters).toEqual(defaultFilters);
         });
 
         it('reports no active filters when defaults are used', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
             expect(result.current.hasActiveFilters).toBe(false);
         });
 
         it('reports active filters when query is set', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: [], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: 'test', type: [], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -58,8 +60,7 @@ describe('usePortalFilters', () => {
         it('reports active filters when type is not "all"', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: ['doi'], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: ['doi'], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -69,8 +70,7 @@ describe('usePortalFilters', () => {
         it('does not report active filters for empty/whitespace query', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: '   ', type: [], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: '   ', type: [], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -80,57 +80,37 @@ describe('usePortalFilters', () => {
 
     describe('setSearch', () => {
         it('navigates to portal with query param', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
 
             act(() => {
                 result.current.setSearch('earthquake');
             });
 
-            expect(routerMock.get).toHaveBeenCalledWith(
-                '/doi-search?q=earthquake',
-                {},
-                { preserveState: true, preserveScroll: true },
-            );
+            expect(routerMock.get).toHaveBeenCalledWith('/doi-search?q=earthquake', {}, { preserveState: true, preserveScroll: true });
         });
 
         it('trims whitespace from query', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
 
             act(() => {
                 result.current.setSearch('  test  ');
             });
 
-            expect(routerMock.get).toHaveBeenCalledWith(
-                '/doi-search?q=test',
-                {},
-                expect.objectContaining({ preserveState: true }),
-            );
+            expect(routerMock.get).toHaveBeenCalledWith('/doi-search?q=test', {}, expect.objectContaining({ preserveState: true }));
         });
 
         it('navigates without query param when search is empty', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
 
             act(() => {
                 result.current.setSearch('');
             });
 
-            expect(routerMock.get).toHaveBeenCalledWith(
-                '/doi-search',
-                {},
-                expect.objectContaining({ preserveState: true }),
-            );
+            expect(routerMock.get).toHaveBeenCalledWith('/doi-search', {}, expect.objectContaining({ preserveState: true }));
         });
 
         it('resets page to 1 when searching', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 3 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 3 }));
 
             act(() => {
                 result.current.setSearch('search term');
@@ -144,9 +124,7 @@ describe('usePortalFilters', () => {
 
     describe('setType', () => {
         it('navigates with type[] params', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
 
             act(() => {
                 result.current.setType(['doi']);
@@ -159,8 +137,7 @@ describe('usePortalFilters', () => {
         it('navigates without type param when set to empty array', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: ['doi'], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: ['doi'], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -169,18 +146,13 @@ describe('usePortalFilters', () => {
                 result.current.setType([]);
             });
 
-            expect(routerMock.get).toHaveBeenCalledWith(
-                '/doi-search',
-                {},
-                expect.objectContaining({ preserveState: true }),
-            );
+            expect(routerMock.get).toHaveBeenCalledWith('/doi-search', {}, expect.objectContaining({ preserveState: true }));
         });
 
         it('navigates with multiple type[] params', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: [], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -197,8 +169,7 @@ describe('usePortalFilters', () => {
         it('preserves existing query when changing type', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'existing', type: [], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: 'existing', type: [], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -215,9 +186,7 @@ describe('usePortalFilters', () => {
 
     describe('setDatacenter', () => {
         it('resets the page and scroll position when applying a datacenter filter', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 3 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 3 }));
 
             act(() => {
                 result.current.setDatacenter(['INTERMAGNET']);
@@ -232,12 +201,47 @@ describe('usePortalFilters', () => {
         });
     });
 
+    describe('IGSN metadata setters', () => {
+        it.each([
+            ['sample type', (hook: ReturnType<typeof usePortalFilters>) => hook.setSampleTypes(['Core']), 'sample_types%5B%5D=Core'],
+            ['material', (hook: ReturnType<typeof usePortalFilters>) => hook.setMaterials(['Liquid']), 'materials%5B%5D=Liquid'],
+            ['classification', (hook: ReturnType<typeof usePortalFilters>) => hook.setClassifications(['Igneous']), 'classifications%5B%5D=Igneous'],
+            ['geological age', (hook: ReturnType<typeof usePortalFilters>) => hook.setGeologicalAges(['Jurassic']), 'geological_ages%5B%5D=Jurassic'],
+            ['geological unit', (hook: ReturnType<typeof usePortalFilters>) => hook.setGeologicalUnits(['Unit A']), 'geological_units%5B%5D=Unit+A'],
+        ])('serializes the %s filter and resets pagination', (_label, invoke, expectedParameter) => {
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 4, basePath: '/igsn-search' }));
+
+            act(() => invoke(result.current));
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain(expectedParameter);
+            expect(calledUrl).not.toContain('page=');
+        });
+
+        it.each([
+            ['sampleTypes', ['Core']],
+            ['materials', ['Rock']],
+            ['classifications', ['Igneous']],
+            ['geologicalAges', ['Jurassic']],
+            ['geologicalUnits', ['Unit A']],
+        ] as const)('treats %s as an active filter', (key, values) => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { ...defaultFilters, [key]: [...values] },
+                    currentPage: 1,
+                    basePath: '/igsn-search',
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(true);
+        });
+    });
+
     describe('clearFilters', () => {
         it('navigates to /doi-search without any params', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: ['doi'], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: 'test', type: ['doi'], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 2,
                 }),
             );
@@ -246,19 +250,34 @@ describe('usePortalFilters', () => {
                 result.current.clearFilters();
             });
 
-            expect(routerMock.get).toHaveBeenCalledWith(
-                '/doi-search',
-                {},
-                { preserveState: true, preserveScroll: true },
+            expect(routerMock.get).toHaveBeenCalledWith('/doi-search', {}, { preserveState: true, preserveScroll: true });
+        });
+
+        it('clears every IGSN metadata filter by returning to the IGSN base path', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: {
+                        ...defaultFilters,
+                        sampleTypes: ['Core'],
+                        materials: ['Rock'],
+                        classifications: ['Igneous'],
+                        geologicalAges: ['Jurassic'],
+                        geologicalUnits: ['Unit A'],
+                    },
+                    currentPage: 2,
+                    basePath: '/igsn-search',
+                }),
             );
+
+            act(() => result.current.clearFilters());
+
+            expect(routerMock.get).toHaveBeenCalledWith('/igsn-search', {}, { preserveState: true, preserveScroll: true });
         });
     });
 
     describe('setKeywords', () => {
         it('navigates with keywords[] URL params', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
 
             act(() => {
                 result.current.setKeywords(['Seismology', 'Geology']);
@@ -272,8 +291,7 @@ describe('usePortalFilters', () => {
         it('navigates without keywords param when empty array is passed', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: ['Seismology'],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: [], keywords: ['Seismology'], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -282,18 +300,13 @@ describe('usePortalFilters', () => {
                 result.current.setKeywords([]);
             });
 
-            expect(routerMock.get).toHaveBeenCalledWith(
-                '/doi-search',
-                {},
-                expect.objectContaining({ preserveState: true }),
-            );
+            expect(routerMock.get).toHaveBeenCalledWith('/doi-search', {}, expect.objectContaining({ preserveState: true }));
         });
 
         it('preserves existing query and type when setting keywords', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: ['doi'], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: 'test', type: ['doi'], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -309,9 +322,7 @@ describe('usePortalFilters', () => {
         });
 
         it('resets page to 1 when setting keywords', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 3 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 3 }));
 
             act(() => {
                 result.current.setKeywords(['Seismology']);
@@ -326,8 +337,7 @@ describe('usePortalFilters', () => {
         it('adds a keyword to the existing list', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: ['Seismology'],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: [], keywords: ['Seismology'], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -344,8 +354,7 @@ describe('usePortalFilters', () => {
         it('does not add duplicate keywords', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: ['Seismology'],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: [], keywords: ['Seismology'], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -358,9 +367,7 @@ describe('usePortalFilters', () => {
         });
 
         it('adds a keyword when list is initially empty', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
 
             act(() => {
                 result.current.addKeyword('Geology');
@@ -375,8 +382,15 @@ describe('usePortalFilters', () => {
         it('removes a specific keyword from the list', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: ['Seismology', 'Geology'],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: {
+                        ...defaultFilters,
+                        query: null,
+                        type: [],
+                        keywords: ['Seismology', 'Geology'],
+                        datacenter: [],
+                        bounds: null,
+                        temporal: null,
+                    },
                     currentPage: 1,
                 }),
             );
@@ -393,8 +407,7 @@ describe('usePortalFilters', () => {
         it('navigates without keywords param when removing the last keyword', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: ['Seismology'],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: [], keywords: ['Seismology'], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -403,11 +416,7 @@ describe('usePortalFilters', () => {
                 result.current.removeKeyword('Seismology');
             });
 
-            expect(routerMock.get).toHaveBeenCalledWith(
-                '/doi-search',
-                {},
-                expect.objectContaining({ preserveState: true }),
-            );
+            expect(routerMock.get).toHaveBeenCalledWith('/doi-search', {}, expect.objectContaining({ preserveState: true }));
         });
     });
 
@@ -415,8 +424,7 @@ describe('usePortalFilters', () => {
         it('reports active filters when keywords are non-empty', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: ['Seismology'],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: [], keywords: ['Seismology'], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -427,8 +435,7 @@ describe('usePortalFilters', () => {
         it('does not report active filters when keywords are empty', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: [], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -441,8 +448,16 @@ describe('usePortalFilters', () => {
         it('reports active filters when exclude_type is set', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], exclude_type: 'physical-object',
-                        keywords: [], datacenter: [], bounds: null, temporal: null, },
+                    filters: {
+                        ...defaultFilters,
+                        query: null,
+                        type: [],
+                        exclude_type: 'physical-object',
+                        keywords: [],
+                        datacenter: [],
+                        bounds: null,
+                        temporal: null,
+                    },
                     currentPage: 1,
                 }),
             );
@@ -453,8 +468,16 @@ describe('usePortalFilters', () => {
         it('does not report active filters when exclude_type is null', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], exclude_type: null,
-                        keywords: [], datacenter: [], bounds: null, temporal: null, },
+                    filters: {
+                        ...defaultFilters,
+                        query: null,
+                        type: [],
+                        exclude_type: null,
+                        keywords: [],
+                        datacenter: [],
+                        bounds: null,
+                        temporal: null,
+                    },
                     currentPage: 1,
                 }),
             );
@@ -465,8 +488,7 @@ describe('usePortalFilters', () => {
         it('does not report active filters when exclude_type is undefined', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: [], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -479,8 +501,16 @@ describe('usePortalFilters', () => {
         it('preserves type=doi when exclude_type is set and type is empty', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], exclude_type: 'physical-object',
-                        keywords: [], datacenter: [], bounds: null, temporal: null, },
+                    filters: {
+                        ...defaultFilters,
+                        query: null,
+                        type: [],
+                        exclude_type: 'physical-object',
+                        keywords: [],
+                        datacenter: [],
+                        bounds: null,
+                        temporal: null,
+                    },
                     currentPage: 1,
                 }),
             );
@@ -497,8 +527,7 @@ describe('usePortalFilters', () => {
         it('does not emit type=doi when exclude_type is absent', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: [], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -514,8 +543,16 @@ describe('usePortalFilters', () => {
         it('does not emit type=doi when type slugs are explicitly set', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: ['dataset'], exclude_type: 'physical-object',
-                        keywords: [], datacenter: [], bounds: null, temporal: null, },
+                    filters: {
+                        ...defaultFilters,
+                        query: null,
+                        type: ['dataset'],
+                        exclude_type: 'physical-object',
+                        keywords: [],
+                        datacenter: [],
+                        bounds: null,
+                        temporal: null,
+                    },
                     currentPage: 1,
                 }),
             );
@@ -532,8 +569,16 @@ describe('usePortalFilters', () => {
         it('drops exclude_type when setType is called with empty array', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], exclude_type: 'physical-object',
-                        keywords: [], datacenter: [], bounds: null, temporal: null, },
+                    filters: {
+                        ...defaultFilters,
+                        query: null,
+                        type: [],
+                        exclude_type: 'physical-object',
+                        keywords: [],
+                        datacenter: [],
+                        bounds: null,
+                        temporal: null,
+                    },
                     currentPage: 1,
                 }),
             );
@@ -550,9 +595,7 @@ describe('usePortalFilters', () => {
 
     describe('setBounds', () => {
         it('navigates with bounds URL params', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
 
             act(() => {
                 result.current.setBounds({ north: 53, south: 51, east: 14, west: 12 });
@@ -569,6 +612,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: {
+                        ...defaultFilters,
                         query: null,
                         type: [],
                         keywords: [],
@@ -584,18 +628,13 @@ describe('usePortalFilters', () => {
                 result.current.setBounds(null);
             });
 
-            expect(routerMock.get).toHaveBeenCalledWith(
-                '/doi-search',
-                {},
-                expect.objectContaining({ preserveState: true }),
-            );
+            expect(routerMock.get).toHaveBeenCalledWith('/doi-search', {}, expect.objectContaining({ preserveState: true }));
         });
 
         it('preserves existing query and type when setting bounds', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: ['doi'], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: 'test', type: ['doi'], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -611,9 +650,7 @@ describe('usePortalFilters', () => {
         });
 
         it('resets page to 1 when setting bounds', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 3 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 3 }));
 
             act(() => {
                 result.current.setBounds({ north: 53, south: 51, east: 14, west: 12 });
@@ -629,6 +666,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: {
+                        ...defaultFilters,
                         query: null,
                         type: [],
                         keywords: [],
@@ -655,6 +693,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: {
+                        ...defaultFilters,
                         query: null,
                         type: [],
                         keywords: [],
@@ -672,8 +711,7 @@ describe('usePortalFilters', () => {
         it('does not report active filters when bounds are null', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: [], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -684,9 +722,7 @@ describe('usePortalFilters', () => {
 
     describe('setTemporal', () => {
         it('navigates with temporal URL params', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
 
             act(() => {
                 result.current.setTemporal({ dateType: 'Created', yearFrom: 2010, yearTo: 2020 });
@@ -702,6 +738,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: {
+                        ...defaultFilters,
                         query: null,
                         type: [],
                         keywords: [],
@@ -727,6 +764,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: {
+                        ...defaultFilters,
                         query: 'test',
                         type: ['doi'],
                         keywords: [],
@@ -752,9 +790,7 @@ describe('usePortalFilters', () => {
         });
 
         it('resets page to 1 when setting temporal', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 3 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 3 }));
 
             act(() => {
                 result.current.setTemporal({ dateType: 'Created', yearFrom: 2010, yearTo: 2020 });
@@ -770,6 +806,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: {
+                        ...defaultFilters,
                         query: null,
                         type: [],
                         keywords: [],
@@ -787,8 +824,7 @@ describe('usePortalFilters', () => {
         it('does not report active filters when temporal is null', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: [], keywords: [],
-                        datacenter: [], bounds: null, temporal: null, },
+                    filters: { ...defaultFilters, query: null, type: [], keywords: [], datacenter: [], bounds: null, temporal: null },
                     currentPage: 1,
                 }),
             );
@@ -799,9 +835,7 @@ describe('usePortalFilters', () => {
 
     describe('setFreeKeywords', () => {
         it('navigates with free_keywords[] URL params', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
 
             act(() => {
                 result.current.setFreeKeywords(['Seismology', 'Geology']);
@@ -843,9 +877,7 @@ describe('usePortalFilters', () => {
 
     describe('setSearchAndKeywords', () => {
         it('atomically clears text and applies an exact free keyword', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: { ...defaultFilters, query: 'seis' }, currentPage: 2 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: { ...defaultFilters, query: 'seis' }, currentPage: 2 }));
 
             act(() => result.current.setSearchAndKeywords('', ['Seismology']));
 
@@ -872,9 +904,7 @@ describe('usePortalFilters', () => {
 
     describe('setThesaurusKeywords', () => {
         it('navigates with thesaurus_keywords[] URL params', () => {
-            const { result } = renderHook(() =>
-                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
-            );
+            const { result } = renderHook(() => usePortalFilters({ filters: defaultFilters, currentPage: 1 }));
 
             act(() => {
                 result.current.setThesaurusKeywords(['earth-science', 'solid-earth']);

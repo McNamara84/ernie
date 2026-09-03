@@ -92,6 +92,11 @@ export interface PortalFilters {
     keywords: string[];
     freeKeywords?: string[];
     thesaurusKeywords?: string[];
+    sampleTypes: string[];
+    materials: string[];
+    classifications: string[];
+    geologicalAges: string[];
+    geologicalUnits: string[];
     datacenter: string[];
     bounds: GeoBounds | null;
     temporal: TemporalFilterValue | null;
@@ -150,9 +155,38 @@ export interface PortalPageProps {
     pagination: PortalPagination;
     filters: PortalFilters;
     thesaurusFacets?: PortalThesaurusFacet[];
+    igsnFacets?: PortalIgsnFacets | null;
     temporalRange: TemporalRange;
     resourceTypeFacets: ResourceTypeFacet[];
     datacenterFacets: DatacenterFacet[];
+}
+
+/** A counted exact-value option for an IGSN metadata facet. */
+export interface PortalValueFacet {
+    value: string;
+    label: string;
+    count: number;
+}
+
+/** A counted node in the controlled IGSN material hierarchy. */
+export interface PortalTreeFacet extends PortalValueFacet {
+    children: PortalTreeFacet[];
+}
+
+export type PortalClassificationFacetType = 'rock' | 'mineral' | 'biology' | 'unclassified';
+
+export interface PortalClassificationFacetGroup {
+    type: PortalClassificationFacetType;
+    label: string;
+    options: PortalValueFacet[];
+}
+
+export interface PortalIgsnFacets {
+    sampleTypes: PortalValueFacet[];
+    materials: PortalTreeFacet[];
+    classifications: PortalClassificationFacetGroup[];
+    geologicalAges: PortalValueFacet[];
+    geologicalUnits: PortalValueFacet[];
 }
 
 /** Technical map viewport used by the asynchronous map endpoint. */

@@ -5,6 +5,26 @@
         "features": [],
         "improvements": [
             {
+                "title": "IGSN Sample Type Filter",
+                "description": "The public IGSN Portal can now narrow published samples by one or more exact Sample Types. Multiple selections are combined as alternatives, and contextual result counts show useful choices alongside the current search and other filters."
+            },
+            {
+                "title": "IGSN Material Filter",
+                "description": "The public IGSN Portal now offers a counted Material hierarchy based on the controlled IGSN vocabulary. Multiple materials act as alternatives, while selecting a parent such as Liquid also includes its aqueous, porewater, and organic descendants."
+            },
+            {
+                "title": "IGSN Classification Filter",
+                "description": "Published samples can now be filtered by searchable Classifications grouped into Rock, Mineral, Biology, and Unclassified sections. Selecting several values finds samples that contain every chosen classification, with contextual counts for further refinement."
+            },
+            {
+                "title": "IGSN Geological Age Filter",
+                "description": "The public IGSN Portal now includes a searchable Geological Age filter with contextual counts. Multiple selected ages use precise all-values matching and remain visible as removable choices even when a bookmarked combination has no results."
+            },
+            {
+                "title": "IGSN Geological Unit Filter",
+                "description": "The public IGSN Portal now supports searchable Geological Unit filtering with contextual counts. Multiple selected units must all be present, and the filter stays synchronized across result pages, exact counts, shareable URLs, and the map."
+            },
+            {
                 "title": "SPDX License Gap Filter for Resources",
                 "description": "The Resources workspace now offers a Without SPDX License toggle for finding DOI-bearing resources that still lack a linked SPDX catalog license. Imported rights statements and custom licenses remain included so curators can focus specifically on SPDX enrichment, while existing search, filters, sorting, result counts, and continuous loading continue to work together."
             },

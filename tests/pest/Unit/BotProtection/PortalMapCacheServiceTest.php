@@ -98,6 +98,27 @@ it('separates extent cache entries when a semantic filter changes', function ():
     expect($service->extentKeyForFilters($unfiltered))->not->toBe($service->extentKeyForFilters($filtered));
 });
 
+it('separates extent cache entries for every IGSN metadata filter', function (string $key): void {
+    $service = new PortalMapCacheService;
+    $unfiltered = [
+        'portal_scope' => 'igsn',
+        'sample_types' => [],
+        'materials' => [],
+        'classifications' => [],
+        'geological_ages' => [],
+        'geological_units' => [],
+    ];
+    $filtered = [...$unfiltered, $key => ['Selected value']];
+
+    expect($service->extentKeyForFilters($unfiltered))->not->toBe($service->extentKeyForFilters($filtered));
+})->with([
+    'sample type' => 'sample_types',
+    'material' => 'materials',
+    'classification' => 'classifications',
+    'geological age' => 'geological_ages',
+    'geological unit' => 'geological_units',
+]);
+
 it('separates extent cache entries for DOI and IGSN portal scopes', function (): void {
     $service = new PortalMapCacheService;
     $doiFilters = ['portal_scope' => 'doi', 'query' => null, 'type' => [], 'bounds' => null];

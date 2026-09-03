@@ -69,6 +69,16 @@ it('loads all versioned material-specific classification values', function (): v
         ->and($vocabulary->contains(IgsnClassificationType::BIOLOGY, 'vegetation:other plant litter'))->toBeTrue();
 });
 
+it('resolves only uniquely typed classification vocabulary values', function (): void {
+    $vocabulary = new IgsnClassificationVocabularyService;
+
+    expect($vocabulary->uniqueTypeFor('Igneous'))->toBe(IgsnClassificationType::ROCK)
+        ->and($vocabulary->uniqueTypeFor('Quartz'))->toBe(IgsnClassificationType::MINERAL)
+        ->and($vocabulary->uniqueTypeFor('whole plant'))->toBe(IgsnClassificationType::BIOLOGY)
+        ->and($vocabulary->uniqueTypeFor('Other'))->toBeNull()
+        ->and($vocabulary->uniqueTypeFor('Not in a vocabulary'))->toBeNull();
+});
+
 it('marks every issue 1210 ICDP classification as legacy', function (): void {
     $contents = file_get_contents(resource_path('data/igsn/classification-rock.json'));
     if ($contents === false) {

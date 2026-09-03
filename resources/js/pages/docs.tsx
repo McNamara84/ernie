@@ -1941,8 +1941,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Searching Published Records in the Portal</h3>
                         <p>
                             The public Data Portal at <code>/doi-search</code> lets you explore published DOI resources, while the IGSN Portal at{' '}
-                            <code>/igsn-search</code> is dedicated to published physical samples. Both support text, spatial, temporal, datacenter,
-                            and keyword filters. Every filter state is stored in the URL, so filtered views can be bookmarked and shared.
+                            <code>/igsn-search</code> is dedicated to published physical samples. Both support text, free-keyword, spatial, temporal,
+                            and datacenter filters. Each portal also offers filters tailored to its records. Every filter state is stored in the URL,
+                            so filtered views can be bookmarked and shared.
                         </p>
 
                         <h4>Exploring Results on the Map</h4>
@@ -1965,16 +1966,30 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             combined, and each chip can be removed independently.
                         </p>
 
-                        <h4>Thesaurus Keywords</h4>
+                        <h4>DOI Thesaurus Keywords</h4>
                         <p>
-                            All controlled vocabularies share one hierarchy in the <strong>Thesaurus Keywords</strong> card. It initially shows only
-                            the available root categories, such as Science Keywords, Platforms, and Instruments. Expand a root and then only the
-                            branches you need to browse terms used by published records.
+                            In the DOI Portal, all controlled vocabularies share one hierarchy in the <strong>Thesaurus Keywords</strong> card. It
+                            initially shows only the available root categories, such as Science Keywords, Platforms, and Instruments. Expand a root
+                            and then only the branches you need to browse terms used by published records.
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Select a parent node to include matching descendant terms automatically</li>
                             <li>Select multiple thesaurus nodes to combine them with AND logic</li>
                             <li>Remove individual selections from the chips above the tree without resetting the other filters</li>
+                        </ul>
+
+                        <h4>IGSN Sample Metadata</h4>
+                        <p>
+                            The IGSN Portal replaces the DOI thesaurus and resource-type controls with filters for <strong>Sample Type</strong>,{' '}
+                            <strong>Material</strong>, <strong>Classification</strong>, <strong>Geological Age</strong>, and{' '}
+                            <strong>Geological Unit</strong>. Counts next to the available values reflect the current search and the other active
+                            filters.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Multiple Sample Types or Materials are alternatives and use OR logic</li>
+                            <li>Selecting a Material parent also includes all of its descendants</li>
+                            <li>Multiple Classifications, Geological Ages, or Geological Units use AND logic within their filter</li>
+                            <li>Selected values remain visible as removable chips even when their combination has no results</li>
                         </ul>
 
                         <h4>Responsive Filters and Views</h4>
@@ -1986,8 +2001,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Other Portal Filters</h4>
                         <p>
-                            Resource type, datacenter, temporal range, and spatial map filters continue to work together with the unified search and
-                            thesaurus filters. When the result set refreshes, the current results stay visible until the new response arrives.
+                            Datacenter, temporal range, and spatial map filters work in both portals. Resource Type and Thesaurus Keywords are
+                            DOI-specific; the IGSN scope is fixed to physical samples and uses the five sample-metadata filters instead. All controls
+                            work together with the unified search. When the result set refreshes, the current results stay visible until the new
+                            response arrives.
                         </p>
 
                         <h4>Result Preview</h4>

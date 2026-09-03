@@ -35,6 +35,16 @@ class IgsnClassificationVocabularyService
         return isset($this->lookup($type)[self::key($value)]);
     }
 
+    public function uniqueTypeFor(string $value): ?IgsnClassificationType
+    {
+        $matches = array_values(array_filter(
+            IgsnClassificationType::cases(),
+            fn (IgsnClassificationType $type): bool => $this->contains($type, $value),
+        ));
+
+        return count($matches) === 1 ? $matches[0] : null;
+    }
+
     /** @return list<string> */
     public function values(IgsnClassificationType $type): array
     {

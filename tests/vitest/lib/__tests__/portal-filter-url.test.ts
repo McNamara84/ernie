@@ -9,6 +9,11 @@ const filters: PortalFilters = {
     keywords: [],
     freeKeywords: ['gravity'],
     thesaurusKeywords: ['https://example.test/tectonics'],
+    sampleTypes: ['Core', 'Core Sample'],
+    materials: ['Liquid'],
+    classifications: ['Igneous', 'Metamorphic'],
+    geologicalAges: ['Jurassic'],
+    geologicalUnits: ['Upper Rhine Graben'],
     datacenter: ['GFZ Data Services'],
     bounds: { north: 54, south: 50, east: 15, west: 11 },
     temporal: { dateType: 'Created', yearFrom: 2020, yearTo: 2025 },
@@ -22,6 +27,11 @@ describe('portal filter URL builders', () => {
         expect(url.searchParams.get('q')).toBe('seismic data');
         expect(url.searchParams.getAll('type[]')).toEqual(['dataset', 'physical-object']);
         expect(url.searchParams.getAll('free_keywords[]')).toEqual(['gravity']);
+        expect(url.searchParams.has('sample_types[]')).toBe(false);
+        expect(url.searchParams.has('materials[]')).toBe(false);
+        expect(url.searchParams.has('classifications[]')).toBe(false);
+        expect(url.searchParams.has('geological_ages[]')).toBe(false);
+        expect(url.searchParams.has('geological_units[]')).toBe(false);
         expect(url.searchParams.get('north')).toBe('54.000000');
         expect(url.searchParams.get('date_type')).toBe('Created');
     });
@@ -66,23 +76,34 @@ describe('portal filter URL builders', () => {
 
     it('uses the IGSN route family without serializing a resource type filter', () => {
         const listUrl = new URL(buildPortalFilterUrl(filters, '/igsn-search'), 'https://ernie.test');
-        const countUrl = new URL(buildPortalCountUrl('?q=sample&type%5B%5D=dataset&page=2', '/igsn-search'), 'https://ernie.test');
+        const countUrl = new URL(
+            buildPortalCountUrl('?q=sample&type%5B%5D=dataset&thesaurus_keywords%5B%5D=legacy&sample_types%5B%5D=Core&page=2', '/igsn-search'),
+            'https://ernie.test',
+        );
         const mapUrl = new URL(
-            buildPortalMapUrl(
-                filters,
-                { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 8 },
-                false,
-                '/igsn-search',
-            ),
+            buildPortalMapUrl(filters, { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 8 }, false, '/igsn-search'),
             'https://ernie.test',
         );
 
         expect(listUrl.pathname).toBe('/igsn-search');
         expect(listUrl.searchParams.has('type[]')).toBe(false);
+        expect(listUrl.searchParams.has('thesaurus_keywords[]')).toBe(false);
+        expect(listUrl.searchParams.getAll('sample_types[]')).toEqual(['Core', 'Core Sample']);
+        expect(listUrl.searchParams.getAll('materials[]')).toEqual(['Liquid']);
+        expect(listUrl.searchParams.getAll('classifications[]')).toEqual(['Igneous', 'Metamorphic']);
+        expect(listUrl.searchParams.getAll('geological_ages[]')).toEqual(['Jurassic']);
+        expect(listUrl.searchParams.getAll('geological_units[]')).toEqual(['Upper Rhine Graben']);
         expect(countUrl.pathname).toBe('/igsn-search/count');
         expect(countUrl.searchParams.has('type[]')).toBe(false);
+        expect(countUrl.searchParams.has('thesaurus_keywords[]')).toBe(false);
+        expect(countUrl.searchParams.getAll('sample_types[]')).toEqual(['Core']);
         expect(mapUrl.pathname).toBe('/igsn-search/map');
         expect(mapUrl.searchParams.has('type[]')).toBe(false);
+        expect(mapUrl.searchParams.getAll('sample_types[]')).toEqual(['Core', 'Core Sample']);
+        expect(mapUrl.searchParams.getAll('materials[]')).toEqual(['Liquid']);
+        expect(mapUrl.searchParams.getAll('classifications[]')).toEqual(['Igneous', 'Metamorphic']);
+        expect(mapUrl.searchParams.getAll('geological_ages[]')).toEqual(['Jurassic']);
+        expect(mapUrl.searchParams.getAll('geological_units[]')).toEqual(['Upper Rhine Graben']);
     });
 
     it('preserves the legacy DOI exclusion filter for map requests', () => {

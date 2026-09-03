@@ -86,6 +86,11 @@ const filters: PortalFilters = {
     keywords: [],
     freeKeywords: [],
     thesaurusKeywords: [],
+    sampleTypes: [],
+    materials: [],
+    classifications: [],
+    geologicalAges: [],
+    geologicalUnits: [],
     datacenter: [],
     bounds: null,
     temporal: null,
@@ -275,12 +280,7 @@ describe('PortalMap', () => {
         act(() => mapEvents.get('moveend')?.());
 
         expect(onViewportChange).toHaveBeenCalledWith({ north: 53, south: 51, east: 14, west: 12 });
-        expect(usePortalMapDataMock).toHaveBeenLastCalledWith(
-            filters,
-            expect.objectContaining({ width: 800, height: 600 }),
-            false,
-            '/doi-search',
-        );
+        expect(usePortalMapDataMock).toHaveBeenLastCalledWith(filters, expect.objectContaining({ width: 800, height: 600 }), false, '/doi-search');
     });
 
     it('debounces resize-driven technical viewport requests', () => {

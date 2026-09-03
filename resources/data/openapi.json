@@ -1901,8 +1901,53 @@
                         "name": "thesaurus_keywords[]",
                         "in": "query",
                         "required": false,
-                        "description": "Selected controlled-vocabulary term identifiers.",
+                        "description": "Selected controlled-vocabulary term identifiers for the DOI portal. The IGSN portal ignores this parameter.",
                         "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 2048 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "sample_types[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact sample types for the IGSN portal, combined with OR. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "materials[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Controlled material nodes for the IGSN portal, combined with OR. Selecting a parent includes its descendants. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "classifications[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact classification values for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "geological_ages[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact geological ages for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "geological_units[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact geological units for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
                         "style": "form",
                         "explode": true
                     },
@@ -1962,6 +2007,14 @@
                         "content": {
                             "application/json": {
                                 "schema": { "$ref": "#/components/schemas/PortalCountResponse" }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "One or more IGSN metadata filter parameters are invalid.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
                             }
                         }
                     },
@@ -2123,8 +2176,53 @@
                         "name": "thesaurus_keywords[]",
                         "in": "query",
                         "required": false,
-                        "description": "Selected controlled-vocabulary term identifiers.",
+                        "description": "Selected controlled-vocabulary term identifiers for the DOI portal. The IGSN portal ignores this parameter.",
                         "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 2048 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "sample_types[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact sample types for the IGSN portal, combined with OR. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "materials[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Controlled material nodes for the IGSN portal, combined with OR. Selecting a parent includes its descendants. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "classifications[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact classification values for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "geological_ages[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact geological ages for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "geological_units[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact geological units for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
                         "style": "form",
                         "explode": true
                     },

@@ -40,6 +40,11 @@ const setKeywordsMock = vi.fn();
 const setFreeKeywordsMock = vi.fn();
 const setSearchAndKeywordsMock = vi.fn();
 const setThesaurusKeywordsMock = vi.fn();
+const setSampleTypesMock = vi.fn();
+const setMaterialsMock = vi.fn();
+const setClassificationsMock = vi.fn();
+const setGeologicalAgesMock = vi.fn();
+const setGeologicalUnitsMock = vi.fn();
 const clearFiltersMock = vi.fn();
 const setBoundsMock = vi.fn();
 const clearBoundsMock = vi.fn();
@@ -57,6 +62,11 @@ vi.mock('@/hooks/use-portal-filters', () => ({
         setFreeKeywords: setFreeKeywordsMock,
         setSearchAndKeywords: setSearchAndKeywordsMock,
         setThesaurusKeywords: setThesaurusKeywordsMock,
+        setSampleTypes: setSampleTypesMock,
+        setMaterials: setMaterialsMock,
+        setClassifications: setClassificationsMock,
+        setGeologicalAges: setGeologicalAgesMock,
+        setGeologicalUnits: setGeologicalUnitsMock,
         setBounds: setBoundsMock,
         clearBounds: clearBoundsMock,
         setTemporal: setTemporalMock,
@@ -84,6 +94,12 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         onTemporalFilterToggle,
         onTemporalChange,
         showResourceTypeFilter,
+        igsnFacets,
+        onSampleTypesChange,
+        onMaterialsChange,
+        onClassificationsChange,
+        onGeologicalAgesChange,
+        onGeologicalUnitsChange,
     }: {
         searchValue: string;
         onSearchValueChange: (s: string) => void;
@@ -98,6 +114,12 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         onTemporalFilterToggle?: (enabled: boolean) => void;
         onTemporalChange?: (temporal: { dateType: string; yearFrom: number; yearTo: number } | null) => void;
         showResourceTypeFilter?: boolean;
+        igsnFacets?: { sampleTypes: unknown[] } | null;
+        onSampleTypesChange?: (values: string[]) => void;
+        onMaterialsChange?: (values: string[]) => void;
+        onClassificationsChange?: (values: string[]) => void;
+        onGeologicalAgesChange?: (values: string[]) => void;
+        onGeologicalUnitsChange?: (values: string[]) => void;
     }) => (
         <div data-testid="portal-filters">
             <input data-testid="search-input" value={searchValue} onChange={(e) => onSearchValueChange(e.target.value)} />
@@ -119,6 +141,12 @@ vi.mock('@/components/portal/PortalFilters', () => ({
             </button>
             <span data-testid="geo-filter-enabled">{String(geoFilterEnabled ?? false)}</span>
             <span data-testid="resource-type-filter-visible">{String(showResourceTypeFilter ?? true)}</span>
+            <span data-testid="igsn-sample-facet-count">{igsnFacets?.sampleTypes.length ?? 0}</span>
+            <button data-testid="set-sample-types" onClick={() => onSampleTypesChange?.(['Core'])} />
+            <button data-testid="set-materials" onClick={() => onMaterialsChange?.(['Rock'])} />
+            <button data-testid="set-classifications" onClick={() => onClassificationsChange?.(['Igneous'])} />
+            <button data-testid="set-geological-ages" onClick={() => onGeologicalAgesChange?.(['Jurassic'])} />
+            <button data-testid="set-geological-units" onClick={() => onGeologicalUnitsChange?.(['Unit A'])} />
             {onGeoFilterToggle && (
                 <button data-testid="geo-toggle" onClick={() => onGeoFilterToggle(!geoFilterEnabled)}>
                     Toggle Geo
@@ -285,6 +313,13 @@ const defaultProps: PortalPageProps = {
         query: '',
         type: [],
         keywords: [],
+        freeKeywords: [],
+        thesaurusKeywords: [],
+        sampleTypes: [],
+        materials: [],
+        classifications: [],
+        geologicalAges: [],
+        geologicalUnits: [],
         datacenter: [],
         bounds: null,
         temporal: null,
@@ -315,15 +350,41 @@ describe('Portal', () => {
     });
 
     it('uses the configured title and hides the IGSN resource type filter', () => {
+        render(<Portal {...defaultProps} portal={{ kind: 'igsn', title: 'IGSN Portal', basePath: '/igsn-search', showResourceTypeFilter: false }} />);
+
+        expect(headTitleMock).toHaveBeenCalledWith('IGSN Portal');
+        expect(screen.getByTestId('resource-type-filter-visible')).toHaveTextContent('false');
+    });
+
+    it('forwards IGSN facets and all five filter actions to desktop and mobile controls', async () => {
+        const user = userEvent.setup();
         render(
             <Portal
                 {...defaultProps}
                 portal={{ kind: 'igsn', title: 'IGSN Portal', basePath: '/igsn-search', showResourceTypeFilter: false }}
+                igsnFacets={{
+                    sampleTypes: [{ value: 'Core', label: 'Core', count: 1 }],
+                    materials: [],
+                    classifications: [],
+                    geologicalAges: [],
+                    geologicalUnits: [],
+                }}
             />,
         );
 
-        expect(headTitleMock).toHaveBeenCalledWith('IGSN Portal');
-        expect(screen.getByTestId('resource-type-filter-visible')).toHaveTextContent('false');
+        expect(screen.getAllByTestId('igsn-sample-facet-count').every((element) => element.textContent === '1')).toBe(true);
+
+        await user.click(screen.getAllByTestId('set-sample-types')[0]);
+        await user.click(screen.getAllByTestId('set-materials')[0]);
+        await user.click(screen.getAllByTestId('set-classifications')[0]);
+        await user.click(screen.getAllByTestId('set-geological-ages')[0]);
+        await user.click(screen.getAllByTestId('set-geological-units')[0]);
+
+        expect(setSampleTypesMock).toHaveBeenCalledWith(['Core']);
+        expect(setMaterialsMock).toHaveBeenCalledWith(['Rock']);
+        expect(setClassificationsMock).toHaveBeenCalledWith(['Igneous']);
+        expect(setGeologicalAgesMock).toHaveBeenCalledWith(['Jurassic']);
+        expect(setGeologicalUnitsMock).toHaveBeenCalledWith(['Unit A']);
     });
 
     it('passes resources to result list', () => {
@@ -486,7 +547,7 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithQuery = {
             ...defaultProps,
-            filters: { query: 'climate', type: [] as string[], keywords: [], datacenter: [], bounds: null, temporal: null },
+            filters: { ...defaultProps.filters, query: 'climate', type: [] as string[], keywords: [], datacenter: [], bounds: null, temporal: null },
         };
         render(<Portal {...propsWithQuery} />);
 
@@ -500,7 +561,7 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithType = {
             ...defaultProps,
-            filters: { query: '', type: ['dataset'], keywords: [], datacenter: [], bounds: null, temporal: null },
+            filters: { ...defaultProps.filters, query: '', type: ['dataset'], keywords: [], datacenter: [], bounds: null, temporal: null },
         };
         render(<Portal {...propsWithType} />);
 
@@ -515,6 +576,7 @@ describe('Portal', () => {
         const propsWithSplitKeywords = {
             ...defaultProps,
             filters: {
+                ...defaultProps.filters,
                 query: '',
                 type: [] as string[],
                 keywords: [],
@@ -540,6 +602,7 @@ describe('Portal', () => {
         const propsWithMixedKeywordFilters = {
             ...defaultProps,
             filters: {
+                ...defaultProps.filters,
                 query: '',
                 type: [] as string[],
                 keywords: ['Legacy Keyword'],
@@ -714,6 +777,7 @@ describe('Portal', () => {
             const propsWithBounds = {
                 ...defaultProps,
                 filters: {
+                    ...defaultProps.filters,
                     query: '',
                     type: [] as string[],
                     keywords: [],
@@ -912,6 +976,7 @@ describe('Portal', () => {
             const propsWithKeywords = {
                 ...defaultProps,
                 filters: {
+                    ...defaultProps.filters,
                     query: '',
                     type: [] as string[],
                     keywords: ['Seismology', 'Geology'],
@@ -1015,6 +1080,7 @@ describe('Portal', () => {
             const propsWithTemporal = {
                 ...defaultProps,
                 filters: {
+                    ...defaultProps.filters,
                     query: '',
                     type: [] as string[],
                     keywords: [],

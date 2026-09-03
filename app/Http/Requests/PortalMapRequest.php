@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\HasIgsnPortalFilterRules;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 final class PortalMapRequest extends FormRequest
 {
+    use HasIgsnPortalFilterRules;
+
     public function authorize(): bool
     {
         return true;
@@ -57,6 +60,7 @@ final class PortalMapRequest extends FormRequest
             'free_keywords.*' => ['string', 'max:255'],
             'thesaurus_keywords' => ['sometimes', 'array', 'max:20'],
             'thesaurus_keywords.*' => ['string', 'max:2048'],
+            ...$this->igsnPortalFilterRules(),
             'datacenter' => ['sometimes', 'array', 'max:20'],
             'datacenter.*' => ['string', 'max:255'],
             'date_type' => ['nullable', 'string', 'in:Created,Collected,Coverage'],
