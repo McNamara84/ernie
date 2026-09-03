@@ -54,6 +54,7 @@ use App\Http\Controllers\UploadIgsnCsvController;
 use App\Http\Controllers\UploadJsonController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserFeedbackController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Resource;
 use App\Models\User;
@@ -264,6 +265,10 @@ if (in_array(config('app.env'), ['local', 'testing'], true)) {
 Route::middleware(['auth', 'verified'])->group(function () {
     // Assistance routes are registered dynamically by AssistantServiceProvider.
     // @see \App\Providers\AssistantServiceProvider::registerRoutes()
+
+    Route::post('feedback', UserFeedbackController::class)
+        ->middleware('throttle:user-feedback')
+        ->name('user-feedback.store');
 
     Route::middleware(['can:access-assessment'])->group(function () {
         Route::get('assessment', [AssessmentController::class, 'index'])

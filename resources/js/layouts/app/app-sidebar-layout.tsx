@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { PageTransition } from '@/components/page-transition';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useFeedbackDiagnostics } from '@/hooks/use-feedback-diagnostics';
 import { useNProgress } from '@/hooks/use-nprogress';
 import { useSessionWarmup } from '@/hooks/use-session-warmup';
 import { type BreadcrumbItem } from '@/types';
@@ -17,6 +18,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWi
     // Ensure session/CSRF token is initialized on first mount
     useSessionWarmup();
     useNProgress();
+    useFeedbackDiagnostics();
 
     return (
         <TooltipProvider delayDuration={0}>

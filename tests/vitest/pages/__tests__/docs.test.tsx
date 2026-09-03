@@ -116,7 +116,20 @@ describe('Docs page', () => {
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Check for sections visible in Getting Started tab (default)
         expect(screen.getAllByText('Welcome').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Giving Feedback').length).toBeGreaterThan(0);
         expect(screen.getAllByText('API Documentation').length).toBeGreaterThan(0);
+    });
+
+    it('documents the complete feedback workflow for beginner users', () => {
+        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        const heading = screen.getByRole('heading', { name: 'Share Feedback from Any Internal Page' });
+        const sectionContent = heading.parentElement;
+
+        expect(sectionContent).toHaveTextContent(/Give feedback near the bottom/i);
+        expect(sectionContent).toHaveTextContent(/Expand Technical details to review the context/i);
+        expect(sectionContent).toHaveTextContent(/up to the last 10 navigation or error events/i);
+        expect(sectionContent).toHaveTextContent(/Screenshots, form contents, IP addresses, and global server logs are not collected/i);
     });
 
     it('hides user management section for beginners', () => {

@@ -123,6 +123,18 @@ export default function LegalNotice() {
                 free of illegal content at the time of linking.
             </p>
             <p className="mb-4">If you detect errors in content or technology, please let us know.</p>
+            <h2 className="mt-6 mb-3 text-xl font-semibold">Feedback submissions</h2>
+            <p className="mb-4">
+                Authenticated ERNIE users can voluntarily submit feedback from the internal application. The submitted message, the user&apos;s name
+                and email address, the current page, browser and theme information, viewport and locale information, and up to ten explicitly listed
+                diagnostic events from the current browser session are emailed separately to every active ERNIE administrator. ERNIE does not create a
+                separate feedback database record. The mail delivery infrastructure and recipients&apos; mailboxes process and may retain these
+                messages according to the applicable GFZ policies.
+            </p>
+            <p className="mb-4">
+                Feedback diagnostics do not include screenshots, IP addresses, form values, request or response bodies, global application logs, or
+                activity from other users. Please do not enter confidential information or personal data about other people in the feedback message.
+            </p>
             <hr className="my-6" />
             <p>
                 <a

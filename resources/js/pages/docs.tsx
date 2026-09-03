@@ -16,6 +16,7 @@ import {
     LayoutTemplate,
     Link2,
     MapPin,
+    MessageSquarePlus,
     Palette,
     Quote,
     Rocket,
@@ -155,6 +156,48 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                                 quickly from internal curation to published-record discovery without losing your current ERNIE workspace.
                             </p>
                         </div>
+                    </>
+                ),
+            },
+            {
+                id: 'in-app-feedback',
+                title: 'Giving Feedback',
+                icon: MessageSquarePlus,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Share Feedback from Any Internal Page</h3>
+                        <p>
+                            Positive feedback, problems, and improvement ideas are all useful. While signed in, open the main sidebar and select{' '}
+                            <strong>Give feedback</strong> near the bottom. On a small screen, first use the menu button in the sticky page header to
+                            open the sidebar.
+                        </p>
+
+                        <h4>Review and Submit</h4>
+                        <ol className="list-inside list-decimal space-y-1">
+                            <li>Choose the category that best describes your feedback.</li>
+                            <li>Describe what worked well or what should change using at least 10 characters.</li>
+                            <li>
+                                Expand <strong>Technical details</strong> to review the context that will be included.
+                            </li>
+                            <li>
+                                Select <strong>Send feedback</strong>. ERNIE queues the message for every active administrator.
+                            </li>
+                        </ol>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Included diagnostics:</strong> ERNIE shows the current page, browser, color mode, viewport, locale, timezone,
+                                and up to the last 10 navigation or error events from this browser session before you submit. Queries, fragments,
+                                email addresses, and token-like values are removed from diagnostics. Screenshots, form contents, IP addresses, and
+                                global server logs are not collected.
+                            </p>
+                        </div>
+
+                        <p className="mt-4">
+                            Closing the dialog or encountering a submission error keeps your draft in memory so you can try again. A successful
+                            submission clears the draft and displays a confirmation.
+                        </p>
                     </>
                 ),
             },
