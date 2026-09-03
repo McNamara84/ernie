@@ -24,7 +24,7 @@ function MaterialNode({ node, level, selected, expandedAncestors, onToggle }: Ma
     }, [shouldExpand]);
 
     return (
-        <li role="treeitem" aria-expanded={hasChildren ? expanded : undefined} aria-selected={selected.has(node.value)}>
+        <li>
             <div
                 className="flex min-h-8 items-center gap-2 rounded-md px-2 py-1 hover:bg-muted/60"
                 style={{ paddingLeft: `${level * 1.25 + 0.5}rem` }}
@@ -37,6 +37,7 @@ function MaterialNode({ node, level, selected, expandedAncestors, onToggle }: Ma
                         className="h-5 w-5 shrink-0"
                         onClick={() => setExpanded((value) => !value)}
                         aria-label={expanded ? `Collapse ${node.label}` : `Expand ${node.label}`}
+                        aria-expanded={expanded}
                     >
                         {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                     </Button>
@@ -44,13 +45,18 @@ function MaterialNode({ node, level, selected, expandedAncestors, onToggle }: Ma
                     <span className="w-5 shrink-0" />
                 )}
                 <Checkbox checked={selected.has(node.value)} onCheckedChange={() => onToggle(node.value)} aria-label={`Select ${node.label}`} />
-                <button type="button" onClick={() => onToggle(node.value)} className="min-w-0 flex-1 truncate text-left text-sm">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => onToggle(node.value)}
+                    className="h-auto min-w-0 flex-1 justify-start truncate rounded-none px-0 py-0 font-normal hover:bg-transparent"
+                >
                     {node.label}
-                </button>
+                </Button>
                 <span className="text-xs text-muted-foreground tabular-nums">{node.count.toLocaleString('en-US')}</span>
             </div>
             {hasChildren && expanded && (
-                <ul role="group">
+                <ul>
                     {node.children.map((child) => (
                         <MaterialNode
                             key={child.value}
@@ -125,7 +131,7 @@ export function PortalMaterialFilter({ facets, selectedValues, onSelectionChange
                 <p className="text-sm text-muted-foreground">No materials available.</p>
             ) : (
                 <div className="rounded-lg border bg-background/80">
-                    <ul role="tree" aria-label="Materials" aria-multiselectable="true" className="py-1">
+                    <ul aria-label="Materials" className="py-1">
                         {facets.map((node) => (
                             <MaterialNode
                                 key={node.value}

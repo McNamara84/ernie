@@ -6,11 +6,11 @@ namespace App\Http\Controllers;
 
 use App\Enums\CacheKey;
 use App\Enums\PortalScope;
+use App\Http\Requests\PortalSearchRequest;
 use App\Services\ListingCountService;
 use App\Services\PortalFilterService;
 use App\Services\PortalSearchService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 final class PortalCountController extends Controller
 {
@@ -20,7 +20,7 @@ final class PortalCountController extends Controller
         private readonly ListingCountService $listingCountService,
     ) {}
 
-    public function __invoke(Request $request, string $portalScope): JsonResponse
+    public function __invoke(PortalSearchRequest $request, string $portalScope): JsonResponse
     {
         $scope = PortalScope::from($portalScope);
         $temporalRange = $this->searchService->getTemporalRange($scope);

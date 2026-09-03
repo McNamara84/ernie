@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\Igsn\IgsnClassificationType;
+use App\Services\Igsn\IgsnClassificationVocabularyService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,7 @@ final class IgsnPortalFacetService
     public function __construct(
         private readonly PortalSearchService $searchService,
         private readonly IgsnMaterialHierarchyService $materialHierarchyService,
+        private readonly IgsnClassificationVocabularyService $classificationVocabularyService,
     ) {}
 
     /**
@@ -149,7 +151,11 @@ final class IgsnPortalFacetService
             );
 
             if (! $alreadyPresent) {
-                $grouped['unclassified'][$selectedValue] = [
+                $classificationType = $this->classificationVocabularyService->uniqueTypeFor($selectedValue);
+                $type = $classificationType instanceof IgsnClassificationType
+                    ? $classificationType->value
+                    : 'unclassified';
+                $grouped[$type][$selectedValue] = [
                     'value' => $selectedValue,
                     'label' => str_replace('>', ' › ', $selectedValue),
                     'count' => 0,

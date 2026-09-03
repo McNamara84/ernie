@@ -154,6 +154,30 @@ it('trims, deduplicates, preserves case, and limits direct URL values', function
         ]);
 });
 
+it('rejects overlong IGSN filter values consistently on page and count endpoints', function (string $routeName): void {
+    $overlongValue = str_repeat('x', 256);
+    $invalidFilters = [
+        'sample_types' => [$overlongValue],
+        'materials' => [$overlongValue],
+        'classifications' => [$overlongValue],
+        'geological_ages' => [$overlongValue],
+        'geological_units' => [$overlongValue],
+    ];
+
+    $this->getJson(route($routeName, $invalidFilters))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors([
+            'sample_types.0',
+            'materials.0',
+            'classifications.0',
+            'geological_ages.0',
+            'geological_units.0',
+        ]);
+})->with([
+    'page' => 'portal.igsn',
+    'count' => 'portal.igsn.count',
+]);
+
 it('uses OR for sample types and materials and AND across those facets', function (): void {
     $coreRock = createPublishedIgsnForPortalFilters($this->physicalObjectType, 'Core', 'Rock');
     $sampleSediment = createPublishedIgsnForPortalFilters($this->physicalObjectType, 'Core Sample', 'Sediment');
@@ -311,6 +335,30 @@ it('returns contextual distinct counts and retains selected zero-count values', 
         ->and($zeroFacets['geologicalAges'][0]['count'])->toBe(0)
         ->and($zeroFacets['geologicalUnits'][0]['count'])->toBe(0)
         ->and($zeroFacets['datacenters'][0])->toBe(['name' => 'Missing datacenter', 'count' => 0]);
+});
+
+it('retains a selected classification vocabulary type when other filters produce no rows', function (): void {
+    createPublishedIgsnForPortalFilters(
+        $this->physicalObjectType,
+        'Core',
+        'Rock',
+        [['value' => 'Igneous', 'type' => IgsnClassificationType::ROCK]],
+    );
+
+    $facets = $this->facetService->getFacets(igsnPortalFilters([
+        'materials' => ['Biology'],
+        'classifications' => ['Igneous'],
+    ]));
+
+    expect($facets['classifications'])->toBe([[
+        'type' => 'rock',
+        'label' => 'Rock',
+        'options' => [[
+            'value' => 'Igneous',
+            'label' => 'Igneous',
+            'count' => 0,
+        ]],
+    ]]);
 });
 
 it('uses a constant six queries for all IGSN facets regardless of option count', function (): void {

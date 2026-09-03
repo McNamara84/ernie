@@ -147,6 +147,7 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./{portal}-search/count.get.parameters.7.name', 'thesaurus_keywords[]')
         ->assertJsonPath('paths./{portal}-search/count.get.parameters.19.name', 'year_to')
         ->assertJsonPath('paths./{portal}-search/count.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/PortalCountResponse')
+        ->assertJsonPath('paths./{portal}-search/count.get.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
         ->assertJsonPath('paths./{portal}-search/count.get.responses.429.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('paths./{portal}-search/count.get.responses.500.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('components.schemas.PortalCountResponse.properties.filter_fingerprint.pattern', '^[a-f0-9]{64}$')

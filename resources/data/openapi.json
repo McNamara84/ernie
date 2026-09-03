@@ -2010,6 +2010,14 @@
                             }
                         }
                     },
+                    "422": {
+                        "description": "One or more IGSN metadata filter parameters are invalid.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                            }
+                        }
+                    },
                     "429": {
                         "description": "Public portal rate limit exceeded.",
                         "headers": {

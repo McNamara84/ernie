@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\PortalScope;
+use App\Http\Requests\PortalSearchRequest;
 use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\IgsnPortalFacetService;
 use App\Services\KeywordSuggestionService;
 use App\Services\ListingCountService;
 use App\Services\PortalFilterService;
 use App\Services\PortalSearchService;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -33,7 +33,7 @@ class PortalController extends Controller
         private readonly IgsnPortalFacetService $igsnFacetService,
     ) {}
 
-    public function index(Request $request, string $portalScope): Response
+    public function index(PortalSearchRequest $request, string $portalScope): Response
     {
         $scope = PortalScope::from($portalScope);
 
@@ -46,7 +46,7 @@ class PortalController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function buildPortalPayload(Request $request, PortalScope $scope): array
+    private function buildPortalPayload(PortalSearchRequest $request, PortalScope $scope): array
     {
         $temporalRange = $this->searchService->getTemporalRange($scope);
         $filters = $this->filterService->fromRequest($request, $temporalRange, $scope);

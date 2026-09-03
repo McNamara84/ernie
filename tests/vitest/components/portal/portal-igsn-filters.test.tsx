@@ -44,6 +44,9 @@ describe('IGSN portal facet controls', () => {
 
         expect(screen.getByRole('checkbox', { name: 'Select porewater' })).toBeChecked();
         expect(screen.getByRole('button', { name: 'Remove porewater' })).toBeInTheDocument();
+        expect(screen.getByRole('list', { name: 'Materials' })).toBeInTheDocument();
+        expect(screen.queryByRole('tree')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Liquid' })).toHaveAttribute('data-slot', 'button');
 
         await user.click(screen.getByRole('checkbox', { name: 'Select Liquid' }));
         expect(onSelectionChange).toHaveBeenLastCalledWith(['Liquid>aqueous>porewater', 'Liquid']);

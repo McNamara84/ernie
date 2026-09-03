@@ -198,7 +198,8 @@ describe('PortalFilters', () => {
             />,
         );
 
-        expect(screen.getByRole('tree', { name: 'Materials' })).toBeInTheDocument();
+        expect(screen.getByRole('list', { name: 'Materials' })).toBeInTheDocument();
+        expect(screen.queryByRole('tree')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: /^material1$/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Remove Rock' })).toBeInTheDocument();
     });

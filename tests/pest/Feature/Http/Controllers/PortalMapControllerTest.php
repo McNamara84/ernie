@@ -469,6 +469,26 @@ it('limits every IGSN metadata filter accepted by the map endpoint', function ()
         ]);
 });
 
+it('rejects overlong values for every IGSN metadata filter accepted by the map endpoint', function (): void {
+    $overlongValue = str_repeat('x', 256);
+
+    $this->getJson(route('portal.igsn.map', portalMapRequestQuery([
+        'sample_types' => [$overlongValue],
+        'materials' => [$overlongValue],
+        'classifications' => [$overlongValue],
+        'geological_ages' => [$overlongValue],
+        'geological_units' => [$overlongValue],
+    ])))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors([
+            'sample_types.0',
+            'materials.0',
+            'classifications.0',
+            'geological_ages.0',
+            'geological_units.0',
+        ]);
+});
+
 it('accepts only documented legacy shortcuts for scalar type filters', function (): void {
     foreach (['doi', 'igsn'] as $type) {
         $this->getJson(route('portal.doi.map', portalMapRequestQuery(['type' => $type])))
