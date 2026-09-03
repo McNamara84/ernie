@@ -258,7 +258,6 @@ describe('usePortalFilters', () => {
                 usePortalFilters({
                     filters: {
                         ...defaultFilters,
-                        ...defaultFilters,
                         sampleTypes: ['Core'],
                         materials: ['Rock'],
                         classifications: ['Igneous'],
