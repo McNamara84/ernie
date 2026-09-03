@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Services\Resources\ResourceListingProjectorService;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -17,7 +16,6 @@ return new class extends Migration
                 ->constrained('resources')
                 ->cascadeOnDelete();
             $table->boolean('is_igsn')->default(false);
-            $table->boolean('has_spdx_license')->default(false);
             $table->string('workflow_status', 16);
             $table->unsignedTinyInteger('workflow_status_rank');
             $table->boolean('is_dashboard_draft');
@@ -56,12 +54,10 @@ return new class extends Migration
             $table->index(['is_igsn', 'datacenter_id', 'updated_sort', 'resource_id'], 'rlp_datacenter_idx');
             $table->index(['is_igsn', 'curator_user_id', 'updated_sort', 'resource_id'], 'rlp_curator_idx');
             $table->index(['is_igsn', 'publication_year', 'updated_sort', 'resource_id'], 'rlp_year_idx');
-            $table->index(['is_igsn', 'has_spdx_license', 'updated_sort', 'resource_id'], 'rlp_spdx_license_idx');
         });
 
-        // This is an integrated rollout: all existing rows are projected before
-        // the new list query becomes available to application requests.
-        app(ResourceListingProjectorService::class)->rebuildAll();
+        // The additive SPDX-license migration owns the final projection field
+        // and rebuilds every row only after that field exists.
     }
 
     public function down(): void
