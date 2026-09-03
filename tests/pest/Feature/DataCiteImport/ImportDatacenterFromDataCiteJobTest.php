@@ -165,7 +165,8 @@ describe('datacenter-scoped DataCite import job', function () {
             'status' => 'completed',
             'imported' => 1,
             'failed' => 0,
-            'sync_total' => 1,
+            'sync_total' => 0,
+            'sync_failed' => 0,
         ])
             ->and($resource->datacenter?->name)->toBe($datacenterName)
             ->and($resource->publicStatus())->toBe('published')
