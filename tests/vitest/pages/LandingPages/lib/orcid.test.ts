@@ -23,6 +23,8 @@ describe('resolveOrcidUrl', () => {
         ['an empty string', ''],
         ['whitespace', '   '],
         ['an incomplete ORCID URL', 'https://orcid.org/'],
+        ['a checksum-invalid bare identifier', '0000-0002-1825-0098'],
+        ['a checksum-invalid canonical URL', 'https://orcid.org/0000-0002-1825-0098'],
         ['an invalid identifier', 'not-an-orcid'],
         ['a foreign URL', 'https://example.com/0000-0002-1825-0097'],
         ['an identifier with extra path segments', '0000-0002-1825-0097/profile'],

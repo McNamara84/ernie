@@ -165,6 +165,7 @@ describe('ContactSection', () => {
             ['no identifier', null],
             ['a blank identifier', '   '],
             ['an invalid identifier', 'https://example.com/not-an-orcid'],
+            ['a checksum-invalid identifier', '0000-0002-1825-0098'],
         ])('does not render an ORCID link with %s', (_description, orcid) => {
             render(<ContactSection {...defaultProps} contactPersons={[createContactPerson({ orcid })]} />);
 

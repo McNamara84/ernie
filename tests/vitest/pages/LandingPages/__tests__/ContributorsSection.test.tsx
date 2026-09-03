@@ -70,7 +70,7 @@ describe('ContributorsSection', () => {
                 name: 'Cinzano, Pierantonio',
                 given_name: 'Pierantonio',
                 family_name: 'Cinzano',
-                name_identifier: '0000-0003-1111-2222',
+                name_identifier: '0000-0002-1694-233X',
                 name_identifier_scheme: 'ORCID',
             },
             contributor_types: ['DataCollector', 'ProjectLeader'],
@@ -100,7 +100,7 @@ describe('ContributorsSection', () => {
         expect(screen.getByText("ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso")).toBeInTheDocument();
         expect(screen.getByText('Light Pollution Science and Technology Institute, Thiene, Italy')).toBeInTheDocument();
         const orcidLink = screen.getByLabelText('ORCID profile of Cinzano, Pierantonio');
-        expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0003-1111-2222');
+        expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0002-1694-233X');
         expect(orcidLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
         const rorLink = screen.getByLabelText("ROR profile of ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso");
         expect(rorLink).toHaveAttribute('href', 'https://ror.org/01abcde23');
