@@ -219,7 +219,7 @@ describe('ResourcesFilters', () => {
             />,
         );
 
-        const removeButton = screen.getByLabelText('Remove search filter');
+        const removeButton = screen.getByLabelText('Remove Search: test filter');
         await user.click(removeButton);
         expect(onFilterChange).toHaveBeenCalledWith({});
     });
@@ -267,7 +267,8 @@ describe('ResourcesFilters', () => {
         expect(onFilterChange).toHaveBeenCalledWith({ status: ['draft'] });
 
         onFilterChange.mockClear();
-        await user.click(screen.getByLabelText('Remove without_spdx_license filter'));
+        expect(screen.queryByLabelText('Remove without_spdx_license filter')).not.toBeInTheDocument();
+        await user.click(screen.getByLabelText('Remove Without SPDX License filter'));
         expect(onFilterChange).toHaveBeenCalledWith({ status: ['draft'] });
     });
 

@@ -577,15 +577,17 @@ export function ResourcesFilters({
                                 return null;
                             }
 
+                            const filterLabel = formatFilterLabel(key as keyof ResourceFilterState, value);
+
                             return (
                                 <Badge key={key} variant="secondary" className="gap-1 pr-1">
-                                    <span>{formatFilterLabel(key as keyof ResourceFilterState, value)}</span>
+                                    <span>{filterLabel}</span>
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         className="h-auto p-0.5 hover:bg-transparent"
                                         onClick={() => removeFilter(key as keyof ResourceFilterState)}
-                                        aria-label={`Remove ${key} filter`}
+                                        aria-label={`Remove ${filterLabel} filter`}
                                     >
                                         <X className="h-3 w-3" />
                                     </Button>
