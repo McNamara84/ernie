@@ -85,6 +85,32 @@ it('provides html and plain-text views with the complete context', function (): 
         ]);
 });
 
+it('separates every field in plain-text diagnostic summaries', function (): void {
+    $content = makeUserFeedbackMail([
+        'diagnostics' => [
+            [
+                'type' => 'navigation',
+                'occurred_at' => '2026-09-02T12:29:00.000Z',
+                'path' => '/resources',
+            ],
+            [
+                'type' => 'http_error',
+                'occurred_at' => '2026-09-02T12:29:30.000Z',
+                'method' => 'GET',
+                'path' => '/resource-inventory',
+                'status' => 503,
+            ],
+        ],
+    ])->content();
+
+    $rendered = view($content->text, $content->with)->render();
+
+    expect($rendered)
+        ->toContain('- 2026-09-02T12:29:00.000Z navigation | /resources')
+        ->toContain('- 2026-09-02T12:29:30.000Z http_error | GET | /resource-inventory | HTTP 503')
+        ->not->toContain('navigation/resources');
+});
+
 it('escapes feedback and diagnostic html in the rendered message', function (): void {
     $mail = makeUserFeedbackMail([
         'feedbackMessage' => '<script>alert("feedback")</script>',

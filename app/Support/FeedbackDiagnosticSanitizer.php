@@ -37,7 +37,7 @@ final class FeedbackDiagnosticSanitizer
         $sanitized = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $value) ?? '';
         $sanitized = preg_replace('~(https?://[^\s?#]+)[?#][^\s]*~iu', '$1', $sanitized) ?? $sanitized;
         $sanitized = preg_replace('~(^|[^\w:/])(/[^\s?#]*)[?#][^\s]*~u', '$1$2', $sanitized) ?? $sanitized;
-        $sanitized = preg_replace('/\bBearer\s+[A-Za-z0-9._~+\/-]+=*/iu', 'Bearer [redacted-token]', $sanitized) ?? $sanitized;
+        $sanitized = preg_replace('/\bBearer\s+[A-Za-z0-9.~+\/_=-]+/iu', 'Bearer [redacted-token]', $sanitized) ?? $sanitized;
         $sanitized = preg_replace('/\b[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\b/u', '[redacted-token]', $sanitized) ?? $sanitized;
         $sanitized = preg_replace('/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu', '[redacted-email]', $sanitized) ?? $sanitized;
 

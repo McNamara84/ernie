@@ -56,11 +56,13 @@ describe('feedback diagnostics', () => {
     });
 
     it('removes queries, fragments and sensitive token-like content', () => {
+        const bearerToken = `${'test_'.repeat(3)}token-${'padding'.repeat(2)}==`;
+
         expect(feedbackPathFromUrl('/resources?email=jane@example.org#private')).toBe('/resources');
         expect(feedbackPathFromUrl('https://external.example/resources?token=secret')).toBeNull();
         expect(
             sanitizeFeedbackDiagnosticMessage(
-                'GET https://ernie.test/resources?email=jane@example.org then /resources?token=secret#private Bearer abc.def.ghi jane@example.org aabbccddeeff00112233445566778899',
+                `GET https://ernie.test/resources?email=jane@example.org then /resources?token=secret#private Bearer ${bearerToken} jane@example.org aabbccddeeff00112233445566778899`,
             ),
         ).toBe('GET https://ernie.test/resources then /resources Bearer [redacted-token] [redacted-email] [redacted-token]');
     });

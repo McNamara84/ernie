@@ -125,6 +125,7 @@ describe('UserFeedbackDialog', () => {
         expect(screen.queryByText('/resource-inventory')).not.toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: /technical details included/i }));
 
+        expect(screen.getByText('Resources — ERNIE')).toBeInTheDocument();
         expect(screen.getByText('/resources')).toBeInTheDocument();
         expect(screen.getByText('system (resolved: dark)')).toBeInTheDocument();
         expect(screen.getByText(/1440 × 900 CSS px · DPR 2/)).toBeInTheDocument();

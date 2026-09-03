@@ -24,7 +24,19 @@ Browser / User-Agent: {{ $userAgent }}
 
 RECENT SESSION DIAGNOSTICS ({{ count($diagnostics) }})
 @forelse($diagnostics as $event)
-- {{ $event['occurred_at'] }} {{ $event['type'] }}@if(isset($event['method'])) {{ $event['method'] }}@endif @if(isset($event['path'])){{ $event['path'] }}@endif @if(isset($event['status']))HTTP {{ $event['status'] }}@endif
+@php
+    $summary = [$event['type']];
+    if (isset($event['method'])) {
+        $summary[] = $event['method'];
+    }
+    if (isset($event['path'])) {
+        $summary[] = $event['path'];
+    }
+    if (isset($event['status'])) {
+        $summary[] = 'HTTP '.$event['status'];
+    }
+@endphp
+- {{ $event['occurred_at'] }} {{ implode(' | ', $summary) }}
 @if(isset($event['message']))  {{ $event['message'] }}
 @endif
 @empty

@@ -297,7 +297,9 @@ export function UserFeedbackDialog() {
                             </CollapsibleTrigger>
                             <CollapsibleContent className="border-t px-3 py-3 text-xs">
                                 <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                                    <dt className="font-medium">Page</dt>
+                                    <dt className="font-medium">Page title</dt>
+                                    <dd className="min-w-0 break-words text-muted-foreground">{snapshot.page.title}</dd>
+                                    <dt className="font-medium">Path</dt>
                                     <dd className="min-w-0 break-all text-muted-foreground">{snapshot.page.path}</dd>
                                     <dt className="font-medium">Theme</dt>
                                     <dd className="text-muted-foreground">
