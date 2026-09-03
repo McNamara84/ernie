@@ -175,6 +175,24 @@ npm run docker:dev:parity
   Windows/macOS bind-mount reads while leaving the development source mount and
   focused test workflow unchanged.
 
+### MySQL version and existing local data
+
+The local database service is pinned to MySQL 9.7, and its healthcheck verifies
+the `9.7.x` server series. MySQL-backed tests use this same service. Do not
+downgrade the service to MySQL 8 when an existing data directory fails to start.
+
+The Compose volume is named `ernie-db-data-mysql-9-7` so an older
+`ernie-db-data` volume cannot accidentally be mounted into MySQL 9.7. This is
+necessary because MySQL 9.7 rejects a direct in-place upgrade from a data
+directory created by a non-LTS MySQL 8.0 release. Compose creates and seeds the
+new 9.7 volume on first startup; the old volume is retained and can be migrated
+separately with a logical dump and restore if its local data is still needed.
+
+`Dockerfile` and `Dockerfile.dev` also contain a MySQL 8.4 build stage. That
+stage contributes only the separately named `mysql-legacy-mysqldump` client
+needed to export the external MySQL 5.6 IGSN database. It never runs as ERNIE's
+database server.
+
 ### Log retention and downloads
 
 The administration log viewer can download the application log for the last
@@ -497,7 +515,8 @@ npm run test:php:mysql-sensitive
 This command:
 
 - starts the backend containers if needed
-- creates an isolated `ernie_test` schema inside the local MySQL container
+- verifies and uses the MySQL 9.7 service from `docker-compose.dev.yml`
+- creates an isolated `ernie_test` schema inside that local MySQL container
 - runs the current explicit MySQL-sensitive migration file slice with a schema reset before each file
 
 It does not reuse the regular development schema. For broader testing guidance, see [testing.md](testing.md).

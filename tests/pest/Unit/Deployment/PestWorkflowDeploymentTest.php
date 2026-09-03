@@ -136,3 +136,21 @@ it('keeps local backend validation parallel, Linux-native, and on the two gigaby
         ->toBeString()
         ->toContain('php -d memory_limit=2G');
 });
+
+it('pins local MySQL-backed development and tests to the 9.7 server series', function (): void {
+    $compose = Yaml::parseFile(base_path('docker-compose.dev.yml'));
+
+    expect($compose)->toBeArray();
+
+    $database = $compose['services']['db'] ?? null;
+    expect($database)
+        ->toBeArray()
+        ->and($database['image'] ?? null)
+        ->toBeString()
+        ->toStartWith('mysql:9.7.')
+        ->and($database['volumes'] ?? null)
+        ->toContain('ernie-db-data-mysql-9-7:/var/lib/mysql')
+        ->and($database['healthcheck']['test'] ?? null)
+        ->toBeArray()
+        ->toContain("mysqladmin ping -h localhost -u root -prootsecret --silent && mysql -h localhost -u root -prootsecret -Nse 'SELECT VERSION()' | grep -Eq '^9\\.7\\.'");
+});
