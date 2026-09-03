@@ -739,7 +739,7 @@ export interface LandingPageContactPerson {
         identifier: string | null;
         scheme: string | null;
     }>;
-    /** ORCID identifier */
+    /** ORCID identifier as a bare ID or full ORCID URL */
     orcid: string | null;
     /** Personal/institutional website */
     website: string | null;

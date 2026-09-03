@@ -39,6 +39,10 @@
         ],
         "fixes": [
             {
+                "title": "Reliable ORCID Contact Links",
+                "description": "Landing page contact cards now open ORCID profiles correctly whether metadata stores a bare identifier or a complete ORCID URL. Imported DataCite contacts no longer produce duplicated orcid.org prefixes or server errors."
+            },
+            {
                 "title": "Clean GEOFON Import Completion",
                 "description": "GEOFON records with imported external landing pages no longer trigger an ineligible DataCite write after a successful import. Their trusted external target remains published in ERNIE, including local HTTPS normalization, without producing a misleading retryable synchronization failure."
             },

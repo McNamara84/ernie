@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 
+import { resolveOrcidUrl } from '@/pages/LandingPages/lib/orcid';
 import type { LandingPageAffiliation } from '@/types/landing-page';
 
 import { OrcidIcon, RorIcon } from './PidIcons';
@@ -14,12 +15,6 @@ interface PersonMetadataLineProps {
 const PID_ICON_LINK_CLASS =
     '-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3 align-text-bottom transition-opacity hover:opacity-80';
 const ROR_ID_PATTERN = /^0[a-z0-9]{6}\d{2}$/;
-
-function resolveOrcidUrl(identifier: string): string {
-    const normalized = identifier.trim().replace(/^(?:https?:\/\/)?(?:www\.)?orcid\.org\//i, '');
-
-    return `https://orcid.org/${normalized}`;
-}
 
 function resolveRorUrl(affiliation: LandingPageAffiliation): string | null {
     const identifier = affiliation.affiliation_identifier?.trim() ?? '';
@@ -44,19 +39,18 @@ function resolveRorUrl(affiliation: LandingPageAffiliation): string | null {
 }
 
 export function PersonMetadataLine({ name, orcid, affiliations = [], roleLabel }: PersonMetadataLineProps) {
-    const normalizedOrcid = orcid?.trim() ?? '';
-    const hasOrcid = normalizedOrcid !== '';
+    const orcidUrl = resolveOrcidUrl(orcid);
     const visibleAffiliations = affiliations.filter((affiliation) => affiliation.name.trim() !== '');
 
     return (
         <span className="break-words">
             <span>{name}</span>
 
-            {hasOrcid && (
+            {orcidUrl && (
                 <>
                     <span aria-hidden="true"> </span>
                     <a
-                        href={resolveOrcidUrl(normalizedOrcid)}
+                        href={orcidUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={PID_ICON_LINK_CLASS}
