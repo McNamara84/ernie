@@ -2,7 +2,12 @@
     {
         "version": "1.0.7",
         "date": "2026-09-04",
-        "features": [],
+        "features": [
+            {
+                "title": "In-App Feedback for ERNIE Users",
+                "description": "Authenticated users can now send problems, ideas, praise, or other feedback from every internal page through a quiet sidebar action. The accessible dialog clearly previews the identity and limited session diagnostics included with the message, while encrypted queued emails deliver the feedback separately to every active administrator without creating a feedback database or collecting screenshots, form contents, IP addresses, or global logs."
+            }
+        ],
         "improvements": [
             {
                 "title": "Frequently Used Licenses First",

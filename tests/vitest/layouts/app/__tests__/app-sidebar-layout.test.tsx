@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { useFeedbackDiagnostics } from '@/hooks/use-feedback-diagnostics';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 
 const AppShellMock = vi.hoisted(() =>
@@ -44,5 +45,6 @@ describe('AppSidebarLayout', () => {
         expect(content).not.toHaveClass('overflow-x-hidden');
         expect(screen.getByTestId('app-sidebar-header')).toHaveTextContent('Settings');
         expect(screen.getByText('Child')).toBeInTheDocument();
+        expect(useFeedbackDiagnostics).toHaveBeenCalledOnce();
     });
 });

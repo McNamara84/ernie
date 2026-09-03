@@ -261,6 +261,10 @@ vi.mock('@/hooks/use-nprogress', () => ({
     useNProgress: () => {},
 }));
 
+vi.mock('@/hooks/use-feedback-diagnostics', () => ({
+    useFeedbackDiagnostics: vi.fn(),
+}));
+
 vi.mock('@/hooks/use-session-warmup', () => ({
     useSessionWarmup: () => {},
 }));
