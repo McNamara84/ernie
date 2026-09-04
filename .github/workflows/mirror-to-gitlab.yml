@@ -93,8 +93,12 @@ jobs:
             refs/remotes/origin/main
 
           git remote add gitlab \
-            "https://oauth2:${GITLAB_TOKEN}@git.gfz-potsdam.de/data_services/ernie.git"
+            "https://git.gfz-potsdam.de/data_services/ernie.git"
 
-          git push --atomic gitlab \
+          AUTH_HEADER="$(printf 'oauth2:%s' "$GITLAB_TOKEN" | base64 --wrap=0)"
+          echo "::add-mask::$AUTH_HEADER"
+
+          git -c http.extraHeader="Authorization: Basic ${AUTH_HEADER}" \
+            push --atomic gitlab \
             "refs/tags/${TAG}:refs/tags/${TAG}" \
             "refs/remotes/origin/main:refs/heads/main"
