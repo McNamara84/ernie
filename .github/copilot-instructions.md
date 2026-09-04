@@ -109,7 +109,7 @@ npm run check:parity
   - `register-production-doi` – All except Beginner
   - `delete-logs` – Admin only
   - `manage-thesauri` – Admin, Group Leader
-  - `delete-all-resources` – Admin only
+  - `delete-all-resources` – Admin only, and only when `DATACITE_TEST_MODE=true`
   - `manage-landing-pages` – Admin, Group Leader, Curator
 
 #### Jobs (`app/Jobs/`)
