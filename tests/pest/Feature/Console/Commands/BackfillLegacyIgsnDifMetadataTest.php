@@ -131,6 +131,65 @@ it('is dry-run first then applies all datacenter metadata additively and idempot
         ->and(RelatedIdentifier::query()->whereBelongsTo($resource)->count())->toBe(1);
 });
 
+it('atomically applies a production-shaped funding agency longer than the legacy database limit', function (): void {
+    $resource = legacyDifBackfillResource('ICDP5052EX0G601');
+    $funderName = 'International Continental Scientific Drilling Program (ICDP), the NZ Marsden Fund, '
+        .'GNS Science, Victoria University of Wellington, University of Otago, the NZ Ministry '
+        .'for Business Innovation and Employment, NERC grants NE/J022128/1 and NE/J024449/1, '
+        .'the Netherlands Organization for Scientific Research VIDI grant 854.12.011 and the '
+        .'ERC starting grant SEISMIC 335915';
+    fakeLegacyDifDocuments([
+        'ICDP5052EX0G601' => '<resource><sample><operators><operator>ICDP operator</operator></operators>'
+            .'<funding_agency>'.$funderName.'</funding_agency>'
+            .'<field_name>Whanganui Basin core</field_name></sample></resource>',
+    ]);
+
+    $dryRun = app(IgsnLegacyDifBackfillService::class)->run(datacenters: ['IGSNDB.ICDP']);
+
+    expect(mb_strlen($funderName))->toBe(367)
+        ->and($dryRun)->toMatchArray([
+            'scanned' => 1,
+            'changed' => 1,
+            'database_errors' => 0,
+            'errors' => 0,
+        ])->and($dryRun['records'][0]['status'])->toBe('would_update')
+        ->and($resource->fundingReferences()->count())->toBe(0)
+        ->and($resource->igsnOperators()->count())->toBe(0)
+        ->and($resource->igsnMetadataValues()->count())->toBe(0);
+
+    $applied = app(IgsnLegacyDifBackfillService::class)->run(
+        apply: true,
+        datacenters: ['IGSNDB.ICDP']
+    );
+
+    expect($applied)->toMatchArray([
+        'scanned' => 1,
+        'changed' => 1,
+        'unchanged' => 0,
+        'database_errors' => 0,
+        'errors' => 0,
+        'sync_resource_ids' => [$resource->id],
+    ])->and($resource->fundingReferences()->sole()->funder_name)->toBe($funderName)
+        ->and($resource->igsnOperators()->sole()->value)->toBe('ICDP operator')
+        ->and($resource->igsnMetadataValues()->sole()->value)->toBe('Whanganui Basin core');
+
+    $second = app(IgsnLegacyDifBackfillService::class)->run(
+        apply: true,
+        datacenters: ['IGSNDB.ICDP']
+    );
+
+    expect($second)->toMatchArray([
+        'scanned' => 1,
+        'changed' => 0,
+        'unchanged' => 1,
+        'database_errors' => 0,
+        'errors' => 0,
+        'sync_resource_ids' => [],
+    ])->and($resource->fundingReferences()->count())->toBe(1)
+        ->and($resource->igsnOperators()->count())->toBe(1)
+        ->and($resource->igsnMetadataValues()->count())->toBe(1);
+});
+
 it('preserves curated scalar values and reports a privacy conflict for manual review', function (): void {
     $resource = legacyDifBackfillResource('ICDPPRIVACY001');
     $resource->igsnMetadata->update(['operator' => 'Curated operator', 'is_private' => false]);

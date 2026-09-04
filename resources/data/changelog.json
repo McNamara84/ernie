@@ -39,6 +39,10 @@
         ],
         "fixes": [
             {
+                "title": "Complete Legacy IGSN Metadata Backfills",
+                "description": "Legacy ICDP samples with long free-form funding acknowledgements can now complete DIF metadata backfills without truncation or database rollbacks. Acquisition details, project contributors, related identifiers, dates, and other metadata from the same records can consequently reach their landing pages and DataCite metadata."
+            },
+            {
                 "title": "Reliable ORCID Contact Links",
                 "description": "Landing page contact cards now open ORCID profiles correctly whether metadata stores a bare identifier or a complete ORCID URL. Imported DataCite contacts no longer produce duplicated orcid.org prefixes or server errors."
             },
