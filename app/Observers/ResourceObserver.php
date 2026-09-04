@@ -307,6 +307,10 @@ class ResourceObserver
             $areas[] = PortalCacheArea::DATACENTER_FACETS;
         }
 
+        if ($currentScope === PortalScope::IGSN && $resource->wasChanged(['doi', 'datacenter_id'])) {
+            $areas[] = PortalCacheArea::IGSN_FACETS;
+        }
+
         if ($resource->wasChanged('resource_type_id')) {
             $originalScope = $this->portalCacheInvalidationService->scopeForResourceTypeId(
                 $resource->getOriginal('resource_type_id'),

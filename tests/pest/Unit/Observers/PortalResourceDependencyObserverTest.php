@@ -35,6 +35,7 @@ it('invalidates map caches for geolocation changes', function (): void {
     $this->invalidation->shouldReceive('scheduleForResourceId')->once()->with(42, [
         PortalCacheArea::PAGE,
         PortalCacheArea::COUNT,
+        PortalCacheArea::IGSN_FACETS,
         PortalCacheArea::MAP_PAYLOAD,
         PortalCacheArea::MAP_EXTENT,
     ]);

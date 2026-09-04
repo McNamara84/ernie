@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\CacheKey;
 use App\Enums\PortalCacheArea;
 use App\Enums\PortalScope;
+use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
@@ -184,6 +185,51 @@ describe('updated', function () {
         $this->cacheInvalidationService->shouldReceive('schedule')
             ->once()
             ->with([PortalScope::IGSN, PortalScope::DOI], PortalCacheArea::all());
+
+        $this->observer->updated($resource);
+    });
+
+    it('invalidates query-filtered IGSN facets when a published sample DOI changes', function () {
+        $resource = Resource::factory()->create(['doi' => '10.60510/old-sample']);
+        Resource::withoutEvents(function () use ($resource): void {
+            $resource->doi = '10.60510/new-sample';
+            $resource->save();
+        });
+
+        $this->cacheService->shouldReceive('invalidateResourceCache')->once()->with($resource->id);
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->with($resource)->andReturn(true);
+        $this->cacheInvalidationService->shouldReceive('scopeForResource')->once()->andReturn(PortalScope::IGSN);
+        $this->cacheInvalidationService->shouldReceive('schedule')->once()->with([PortalScope::IGSN], [
+            PortalCacheArea::PAGE,
+            PortalCacheArea::COUNT,
+            PortalCacheArea::MAP_PAYLOAD,
+            PortalCacheArea::MAP_EXTENT,
+            PortalCacheArea::IGSN_FACETS,
+        ]);
+
+        $this->observer->updated($resource);
+    });
+
+    it('invalidates query-filtered IGSN facets when a published sample datacenter changes', function () {
+        $oldDatacenter = Datacenter::factory()->create();
+        $newDatacenter = Datacenter::factory()->create();
+        $resource = Resource::factory()->create(['datacenter_id' => $oldDatacenter->id]);
+        Resource::withoutEvents(function () use ($newDatacenter, $resource): void {
+            $resource->datacenter_id = $newDatacenter->id;
+            $resource->save();
+        });
+
+        $this->cacheService->shouldReceive('invalidateResourceCache')->once()->with($resource->id);
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->with($resource)->andReturn(true);
+        $this->cacheInvalidationService->shouldReceive('scopeForResource')->once()->andReturn(PortalScope::IGSN);
+        $this->cacheInvalidationService->shouldReceive('schedule')->once()->with([PortalScope::IGSN], [
+            PortalCacheArea::PAGE,
+            PortalCacheArea::COUNT,
+            PortalCacheArea::MAP_PAYLOAD,
+            PortalCacheArea::MAP_EXTENT,
+            PortalCacheArea::DATACENTER_FACETS,
+            PortalCacheArea::IGSN_FACETS,
+        ]);
 
         $this->observer->updated($resource);
     });

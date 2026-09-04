@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\CitationLabelResolutionMode;
+use App\Enums\PortalCacheArea;
 use App\Models\DateType;
 use App\Models\DescriptionType;
 use App\Models\FunderIdentifierType;
@@ -19,6 +20,7 @@ use App\Models\TitleType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\KeywordSuggestionService;
+use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -100,6 +102,39 @@ describe('ResourceStorageService', function () {
         expect($resource->descriptions()->count())->toBe(1);
         $description = $resource->descriptions->first();
         expect($description->value)->toBe('Test abstract description.');
+    });
+
+    it('includes IGSN facets in the manual relation-replacement invalidation', function () {
+        $invalidation = Mockery::mock(PortalCacheInvalidationService::class)->shouldIgnoreMissing();
+        $invalidation->shouldReceive('scheduleForResourceId')
+            ->once()
+            ->withArgs(fn (int $resourceId, iterable $areas): bool => $resourceId > 0 && [...$areas] === [
+                PortalCacheArea::PAGE,
+                PortalCacheArea::COUNT,
+                PortalCacheArea::TEMPORAL_RANGE,
+                PortalCacheArea::KEYWORDS,
+                PortalCacheArea::IGSN_FACETS,
+                PortalCacheArea::MAP_PAYLOAD,
+                PortalCacheArea::MAP_EXTENT,
+            ]);
+        app()->instance(PortalCacheInvalidationService::class, $invalidation);
+        app()->forgetInstance(ResourceStorageService::class);
+        $service = app(ResourceStorageService::class);
+        $resourceType = ResourceType::firstOrFail();
+
+        [$resource] = $service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Manual invalidation', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'firstName' => 'Ada',
+                'lastName' => 'Lovelace',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        expect($resource->exists)->toBeTrue();
     });
 
     it('stores repeated description types independently with their languages', function () {

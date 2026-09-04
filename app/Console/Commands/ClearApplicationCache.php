@@ -69,13 +69,15 @@ class ClearApplicationCache extends Command
             foreach ($tags as $tag) {
                 Cache::tags([$tag])->flush();
             }
-
-            $this->clearScopedPortalCaches();
         } else {
             // WARNING: This clears the ENTIRE cache store (sessions, rate limiting, etc.)
             Cache::flush();
             $this->warn('⚠️  Cache tagging not supported. Cleared entire cache store.');
         }
+
+        // Advance every generation after the physical flush so an in-flight
+        // stale-while-revalidate callback cannot repopulate a reachable key.
+        $this->clearScopedPortalCaches();
     }
 
     /**
@@ -108,12 +110,26 @@ class ClearApplicationCache extends Command
             Cache::flush();
             $this->warn("⚠️  Cache tagging not supported. Cleared entire cache store instead of just '{$tag}'.");
         }
+
+        if ($tag === 'vocabularies') {
+            $this->clearScopedPortalVocabularyCaches();
+        }
     }
 
     private function clearScopedPortalCaches(): void
     {
         $service = app(PortalCacheInvalidationService::class);
         $service->schedule(PortalScope::cases(), PortalCacheArea::all());
+        $service->flushPending();
+    }
+
+    private function clearScopedPortalVocabularyCaches(): void
+    {
+        $service = app(PortalCacheInvalidationService::class);
+        $service->schedule(PortalScope::cases(), [
+            PortalCacheArea::KEYWORDS,
+            PortalCacheArea::PAGE,
+        ]);
         $service->flushPending();
     }
 }

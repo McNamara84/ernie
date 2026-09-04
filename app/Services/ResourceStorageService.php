@@ -142,6 +142,7 @@ class ResourceStorageService
                 PortalCacheArea::COUNT,
                 PortalCacheArea::TEMPORAL_RANGE,
                 PortalCacheArea::KEYWORDS,
+                PortalCacheArea::IGSN_FACETS,
                 PortalCacheArea::MAP_PAYLOAD,
                 PortalCacheArea::MAP_EXTENT,
             ]);

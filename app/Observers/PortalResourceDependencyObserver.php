@@ -57,6 +57,7 @@ final class PortalResourceDependencyObserver
             $model instanceof GeoLocation => [
                 PortalCacheArea::PAGE,
                 PortalCacheArea::COUNT,
+                PortalCacheArea::IGSN_FACETS,
                 PortalCacheArea::MAP_PAYLOAD,
                 PortalCacheArea::MAP_EXTENT,
             ],
