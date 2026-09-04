@@ -153,6 +153,7 @@ npm run docker:dev:parity
 | MySQL-sensitive Pest slice                       | Host shell via npm wrapper     | `npm run test:php:mysql-sensitive`                  |
 | PHPStan                                          | Host shell via npm wrapper     | `npm run phpstan:check`                             |
 | Vitest                                           | Host shell                     | `npm run test:run`                                  |
+| Vitest performance diagnosis                     | Host shell                     | `npm run test:doctor`                               |
 | ESLint check                                     | Host shell                     | `npm run lint:check`                                |
 | ESLint auto-fix                                  | Host shell                     | `npm run lint`                                      |
 | TypeScript                                       | Host shell                     | `npm run types`                                     |

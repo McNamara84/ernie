@@ -303,7 +303,7 @@ describe('OldDatasets page', () => {
         expect(createdUpdatedContainer).toHaveAttribute('aria-label', 'Created on 01/01/2024. Updated on 01/02/2024');
         expect(createdUpdatedContainer).toHaveClass('text-gray-600');
         expect(createdUpdatedContainer).toHaveClass('dark:text-gray-300');
-        expect(createdUpdatedContainer).not.toHaveTextContent(/Created|Updated/);
+        expect(createdUpdatedContainer?.textContent).not.toMatch(/Created|Updated/);
         const displayedDateValues = Array.from(
             createdUpdatedContainer?.querySelectorAll('time, span') ?? [],
         ).map((node) => node.textContent?.trim());
@@ -787,7 +787,7 @@ describe('OldDatasets page', () => {
             labelledContainer?.querySelectorAll('time, span') ?? [],
         ).map((node) => node.textContent?.trim());
         expect(fallbackValues).toEqual(['Not available', 'Invalid date']);
-        expect(labelledContainer).not.toHaveTextContent(/Created|Updated/);
+        expect(labelledContainer?.textContent).not.toMatch(/Created|Updated/);
     });
 
     it('falls back to N/A when a dataset field is missing', () => {

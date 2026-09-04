@@ -6907,7 +6907,7 @@ describe('DataCiteForm', () => {
                 expect(mockRouterVisit).not.toHaveBeenCalled();
 
                 const autosaveStatus = screen.getByTestId('draft-autosave-status');
-                expect(autosaveStatus).toHaveTextContent(/Draft autosaved/);
+                expect(autosaveStatus.textContent).toMatch(/Draft autosaved/);
                 expect(autosaveStatus).toHaveClass('group-focus-within:opacity-100');
                 expect(autosaveStatus).not.toHaveClass('focus-within:opacity-100');
             } finally {

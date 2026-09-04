@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 
 import { server } from './tests/vitest/helpers/msw-server';
 
@@ -194,48 +194,6 @@ afterAll(() => {
 // Set environment variables for consistent URL generation in tests
 process.env.VITE_APP_URL = '';
 process.env.APP_URL = '';
-
-function bindJsdomStorageGlobals() {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    const descriptors: PropertyDescriptorMap = {};
-
-    try {
-        descriptors.localStorage = {
-            configurable: true,
-            value: window.localStorage,
-            writable: true,
-        };
-    } catch {
-        // jsdom storage can be intentionally made unavailable in focused tests.
-    }
-
-    try {
-        descriptors.sessionStorage = {
-            configurable: true,
-            value: window.sessionStorage,
-            writable: true,
-        };
-    } catch {
-        // jsdom storage can be intentionally made unavailable in focused tests.
-    }
-
-    if (Object.keys(descriptors).length > 0) {
-        Object.defineProperties(globalThis, descriptors);
-    }
-}
-
-bindJsdomStorageGlobals();
-
-beforeEach(() => {
-    bindJsdomStorageGlobals();
-});
-
-afterEach(() => {
-    bindJsdomStorageGlobals();
-});
 
 // Mock Clipboard API for tests
 if (typeof navigator !== 'undefined') {

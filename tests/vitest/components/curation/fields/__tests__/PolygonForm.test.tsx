@@ -209,13 +209,13 @@ describe('PolygonForm', () => {
         });
 
         // Initially not in drawing mode
-        expect(drawButton).toHaveTextContent(/start drawing/i);
+        expect(drawButton.textContent).toMatch(/start drawing/i);
 
         // Click to enter drawing mode
         await user.click(drawButton);
 
         // Should show active state
-        expect(drawButton).toHaveTextContent(/drawing mode active/i);
+        expect(drawButton.textContent).toMatch(/drawing mode active/i);
     });
 
     test('shows drawing instruction when in drawing mode', async () => {

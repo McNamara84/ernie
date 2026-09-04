@@ -28,7 +28,7 @@ describe('ResourceImpactFilters', () => {
         await user.type(screen.getByLabelText('DOI'), 'not-a-doi');
         await user.keyboard('{Enter}');
 
-        expect(await screen.findByRole('alert')).toHaveTextContent(/Invalid DOI format/i);
+        expect((await screen.findByRole('alert')).textContent).toMatch(/Invalid DOI format/i);
         expect(onChange).not.toHaveBeenCalled();
     });
 

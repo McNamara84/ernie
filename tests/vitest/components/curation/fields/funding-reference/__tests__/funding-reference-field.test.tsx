@@ -192,7 +192,7 @@ describe('FundingReferenceField', () => {
 
             const addButton = screen.getByRole('button', { name: /add funding reference/i });
             expect(addButton).toBeEnabled();
-            expect(addButton).not.toHaveTextContent(/maximum reached/i);
+            expect(addButton.textContent).not.toMatch(/maximum reached/i);
         });
 
         it('removes a funding reference', async () => {

@@ -52,7 +52,7 @@ describe('DescriptionField', () => {
     it('renders the formatting notice and a type-grouped Abstract', () => {
         render(<DescriptionHarness initialDescriptions={[abstract('abstract-1')]} />);
 
-        expect(screen.getByRole('alert')).toHaveTextContent(/Landing pages support a limited HTML subset/i);
+        expect(screen.getByRole('alert').textContent).toMatch(/Landing pages support a limited HTML subset/i);
         expect(groupFor('Abstract')).toContainElement(screen.getByPlaceholderText(/Enter a brief summary/i));
         expect(screen.getByText('(Required)')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Add Description Type' })).toBeEnabled();

@@ -126,10 +126,10 @@ describe('Docs page', () => {
         const heading = screen.getByRole('heading', { name: 'Share Feedback from Any Internal Page' });
         const sectionContent = heading.parentElement;
 
-        expect(sectionContent).toHaveTextContent(/Give feedback near the bottom/i);
-        expect(sectionContent).toHaveTextContent(/Expand Technical details to review the context/i);
-        expect(sectionContent).toHaveTextContent(/up to the last 10 navigation or error events/i);
-        expect(sectionContent).toHaveTextContent(/Screenshots, form contents, IP addresses, and global server logs are not collected/i);
+        expect(sectionContent?.textContent).toMatch(/Give feedback near the bottom/i);
+        expect(sectionContent?.textContent).toMatch(/Expand Technical details to review the context/i);
+        expect(sectionContent?.textContent).toMatch(/up to the last 10 navigation or error events/i);
+        expect(sectionContent?.textContent).toMatch(/Screenshots, form contents, IP addresses, and global server logs are not collected/i);
     });
 
     it('hides user management section for beginners', () => {

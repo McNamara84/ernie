@@ -118,16 +118,11 @@ describe('Resources JSON-LD Export Action', () => {
     beforeEach(() => {
         buildCurationQueryFromResourceMock.mockResolvedValue({});
         axiosGetMock.mockReset();
-        axiosGetMock.mockImplementation((url: string) => {
-            if (url === '/resources/filter-options') {
-                return Promise.resolve({ data: {} });
-            }
-
-            return Promise.resolve({
-                data: new Blob(['{}'], { type: 'application/ld+json' }),
-                headers: { 'content-disposition': 'attachment; filename="resource.jsonld"' },
-            });
+        axiosGetMock.mockResolvedValue({
+            data: new Blob(['{}'], { type: 'application/ld+json' }),
+            headers: { 'content-disposition': 'attachment; filename="resource.jsonld"' },
         });
+        vi.when(axiosGetMock).calledWith('/resources/filter-options').thenResolve({ data: {} });
 
         originalCreateObjectURL = Object.getOwnPropertyDescriptor(URL, 'createObjectURL') ? URL.createObjectURL : undefined;
         originalRevokeObjectURL = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL') ? URL.revokeObjectURL : undefined;

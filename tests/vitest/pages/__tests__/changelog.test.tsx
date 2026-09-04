@@ -258,7 +258,7 @@ describe('Changelog', () => {
         (global.fetch as unknown as Mock).mockRejectedValueOnce(new Error('fail'));
         render(<Changelog />);
         const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent(/unable to load changelog/i);
+        expect(alert.textContent).toMatch(/unable to load changelog/i);
     });
 
     it('shows an error message when the changelog request returns a non-ok response', async () => {
@@ -273,7 +273,7 @@ describe('Changelog', () => {
         render(<Changelog />);
 
         const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent(/unable to load changelog/i);
+        expect(alert.textContent).toMatch(/unable to load changelog/i);
 
         await user.click(screen.getByRole('button', { name: /reload page/i }));
 

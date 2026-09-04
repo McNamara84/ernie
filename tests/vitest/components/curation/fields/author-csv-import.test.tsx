@@ -256,7 +256,7 @@ person,Max,Mustermann,invalid-orcid`;
         const buttons = screen.getAllByRole('button');
         const importButton = buttons[buttons.length - 1];
 
-        expect(importButton).toHaveTextContent(/Import/i);
+        expect(importButton.textContent).toMatch(/Import/i);
         expect(importButton).toBeDisabled();
     });
 
