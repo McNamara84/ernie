@@ -168,6 +168,18 @@ describe('Logs/Index', () => {
         expect(screen.queryByRole('button', { name: /Clear All/i })).not.toBeInTheDocument();
     });
 
+    it('renders Delete all Test Datasets when bulk resource deletion is allowed', () => {
+        render(<Index {...defaultProps} can_delete_all_resources />);
+
+        expect(screen.getByRole('button', { name: 'Delete all Test Datasets' })).toBeInTheDocument();
+    });
+
+    it('does not render Delete all Test Datasets when bulk resource deletion is forbidden', () => {
+        render(<Index {...defaultProps} can_delete_all_resources={false} />);
+
+        expect(screen.queryByRole('button', { name: 'Delete all Test Datasets' })).not.toBeInTheDocument();
+    });
+
     it('renders level filter dropdown', () => {
         render(<Index {...defaultProps} />);
 

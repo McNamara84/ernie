@@ -30,6 +30,10 @@ use function Pest\Laravel\actingAs;
  * Tests the admin-only endpoint that deletes all resources (datasets + IGSNs)
  * while preserving settings, lookup tables, and user accounts.
  */
+beforeEach(function (): void {
+    Config::set('datacite.test_mode', true);
+});
+
 it('allows admin to delete all resources', function () {
     $admin = User::factory()->create(['role' => UserRole::ADMIN]);
     Resource::factory()->count(3)->create();
@@ -175,7 +179,7 @@ it('cleans up orphaned publishers after deleting all resources', function () {
     expect(Publisher::whereDoesntHave('resources')->count())->toBe(0);
 });
 
-it('passes can_delete_all_resources flag to logs page for admin', function () {
+it('passes can_delete_all_resources flag to logs page for admin in test mode', function () {
     $admin = User::factory()->create(['role' => UserRole::ADMIN]);
 
     actingAs($admin)
@@ -185,6 +189,31 @@ it('passes can_delete_all_resources flag to logs page for admin', function () {
             ->component('Logs/Index')
             ->where('can_delete_all_resources', true)
         );
+});
+
+it('does not pass can_delete_all_resources flag to logs page for admin in production mode', function () {
+    Config::set('datacite.test_mode', false);
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+
+    actingAs($admin)
+        ->get(route('logs.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Logs/Index')
+            ->where('can_delete_all_resources', false)
+        );
+});
+
+it('forbids admin from deleting all resources in production mode', function () {
+    Config::set('datacite.test_mode', false);
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $resources = Resource::factory()->count(2)->create();
+
+    actingAs($admin)
+        ->delete(route('resources.destroy-all'), ['confirmation' => 'delete'])
+        ->assertForbidden();
+
+    expect(Resource::query()->whereKey($resources->modelKeys())->count())->toBe(2);
 });
 
 it('does not pass can_delete_all_resources flag for non-admin', function () {

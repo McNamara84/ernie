@@ -5,6 +5,10 @@
         "features": [],
         "improvements": [
             {
+                "title": "Production-Safe Test Dataset Cleanup",
+                "description": "The destructive Delete all Test Datasets action on the Logs page is now available to administrators only while DataCite test mode is enabled. Production mode hides the control and rejects direct deletion requests, protecting live resources even when the endpoint is called manually."
+            },
+            {
                 "title": "Clickable Assessment DOIs",
                 "description": "DOIs in the Resource and IGSN assessment results now open their registered landing pages through the canonical DOI resolver in a new browser tab. The behavior is available in both desktop and mobile layouts, while assessment entries without a DOI remain clearly marked as unavailable."
             }
