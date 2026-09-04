@@ -36,7 +36,7 @@ final class GeofonFailingCsvStreamWrapper
     public function stream_write(string $data): int
     {
         if ($this->writes >= self::$successfulWrites) {
-            return -1;
+            return 0;
         }
 
         $this->writes++;

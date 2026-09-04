@@ -184,7 +184,8 @@ final class RepairGeofonEventLandingPageUrls extends Command
         }
 
         try {
-            if (fputcsv($stream, self::REPORT_COLUMNS, escape: '') === false) {
+            $written = fputcsv($stream, self::REPORT_COLUMNS, escape: '');
+            if ($written === false || $written === 0) {
                 throw new RuntimeException('Unable to write report header: '.$path);
             }
 
@@ -193,7 +194,7 @@ final class RepairGeofonEventLandingPageUrls extends Command
                     fn (string $column): int|string|null => $this->spreadsheetSafeCell($row[$column] ?? null),
                     self::REPORT_COLUMNS,
                 ), escape: '');
-                if ($written === false) {
+                if ($written === false || $written === 0) {
                     throw new RuntimeException('Unable to write report row '.($index + 1).': '.$path);
                 }
             }
