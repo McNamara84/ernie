@@ -11,7 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 it('parses external DataCite URLs into domain and path', function (): void {
-    $parts = (new DataCiteLandingPageImportService)->parseExternalUrl(
+    $parts = app(DataCiteLandingPageImportService::class)->parseExternalUrl(
         'https://geofon.gfz.de/waveform/archive/network.php?ncode=_EIFELLNX'
     );
 
@@ -22,7 +22,7 @@ it('parses external DataCite URLs into domain and path', function (): void {
 });
 
 it('upgrades legacy GEOFON HTTP landing page URLs to HTTPS', function (): void {
-    $parts = (new DataCiteLandingPageImportService)->parseExternalUrl(
+    $parts = app(DataCiteLandingPageImportService::class)->parseExternalUrl(
         'http://geofon.gfz.de/eqinfo/event.php?id=gfz2015icra'
     );
 
@@ -32,10 +32,26 @@ it('upgrades legacy GEOFON HTTP landing page URLs to HTTPS', function (): void {
     ]);
 });
 
+it('canonicalizes the retired GEOFON event path during import', function (): void {
+    $resource = Resource::factory()->create(['doi' => '10.1594/gfz.geofon.gfz2011axdw']);
+
+    app(DataCiteLandingPageImportService::class)->createExternalForResource($resource, [
+        'url' => 'http://geofon.gfz-potsdam.de/db/eqpage.php?id=GFZ2011AXDW',
+        'state' => 'findable',
+    ]);
+
+    $landingPage = $resource->fresh(['landingPage.externalDomain'])->landingPage;
+
+    expect($landingPage)->not->toBeNull()
+        ->and($landingPage->externalDomain->domain)->toBe('https://geofon.gfz.de/')
+        ->and($landingPage->external_path)->toBe('eqinfo/event.php?id=gfz2011axdw')
+        ->and($landingPage->public_url)->toBe('https://geofon.gfz.de/eqinfo/event.php?id=gfz2011axdw');
+});
+
 it('creates a published external landing page for findable DataCite records', function (): void {
     $resource = Resource::factory()->create(['doi' => '10.14470/rv968923']);
 
-    $result = (new DataCiteLandingPageImportService)->createExternalForResource($resource, [
+    $result = app(DataCiteLandingPageImportService::class)->createExternalForResource($resource, [
         'url' => 'https://geofon.gfz.de/waveform/archive/network.php?ncode=_EIFELLNX',
         'state' => 'findable',
     ]);
@@ -57,7 +73,7 @@ it('creates a published external landing page for findable DataCite records', fu
 it('creates a draft external landing page for non-findable DataCite records', function (): void {
     $resource = Resource::factory()->create(['doi' => '10.14470/draft']);
 
-    (new DataCiteLandingPageImportService)->createExternalForResource($resource, [
+    app(DataCiteLandingPageImportService::class)->createExternalForResource($resource, [
         'url' => 'https://geofon.gfz.de/waveform/archive/network.php?ncode=DRAFT',
         'state' => 'draft',
     ]);
@@ -77,7 +93,7 @@ it('does not overwrite an existing landing page', function (): void {
         'ftp_url' => 'https://datapub.gfz.de/existing.zip',
     ]);
 
-    $result = (new DataCiteLandingPageImportService)->createExternalForResource($resource, [
+    $result = app(DataCiteLandingPageImportService::class)->createExternalForResource($resource, [
         'url' => 'https://geofon.gfz.de/waveform/archive/network.php?ncode=EXISTING',
         'state' => 'findable',
     ]);
@@ -91,7 +107,7 @@ it('does not overwrite an existing landing page', function (): void {
 it('ignores empty and non-http DataCite URLs', function (?string $url): void {
     $resource = Resource::factory()->create();
 
-    $result = (new DataCiteLandingPageImportService)->createExternalForResource($resource, [
+    $result = app(DataCiteLandingPageImportService::class)->createExternalForResource($resource, [
         'url' => $url,
         'state' => 'findable',
     ]);

@@ -209,11 +209,48 @@ environment-specific override takes precedence.
 
 Keep `DATACITE_TEST_MODE=true` for local development and Stage. Eligible imported resources and every newly imported IGSN receive their local landing page, but the import never writes metadata to either DataCite API in this mode.
 
-GEOFON Seismic Events keep the external landing-page target supplied by DataCite when it points to a GEOFON host. Legacy `http://` GEOFON URLs are stored as `https://`. Findable records receive a published external landing page, so their ERNIE workflow status is `published`; this applies based on the selected or assigned datacenter and is not limited to one DOI prefix.
+GEOFON Seismic Events keep the external landing-page target supplied by DataCite when it points to a GEOFON host. Legacy `http://` GEOFON URLs are stored as `https://`, and retired `/db/eqpage.php?id=...` event targets are stored directly under the canonical `https://geofon.gfz.de/eqinfo/event.php?id=...` URL. Findable records receive a published external landing page, so their ERNIE workflow status is `published`; this applies based on the selected or assigned datacenter and is not limited to one DOI prefix.
 
 With `DATACITE_TEST_MODE=false` on Production, the same local landing pages are created and the newly imported, published records enter a separate DataCite synchronization phase. That phase exports the complete ERNIE metadata and changes the DOI target URL to the new landing page. Failed updates do not roll back the import or landing page and can be retried from the completed import dialog.
 
 Production uses separate DataCite Repository accounts for ordinary GFZ DOIs and legacy IGSNs. Configure `DATACITE_USERNAME` / `DATACITE_PASSWORD` and `DATACITE_CLIENT_ID` for the ordinary DOI repository and `DATACITE_IGSN_USERNAME` / `DATACITE_IGSN_PASSWORD` for the `GFZ.IGSN` repository that owns prefix `10.60510`. ERNIE selects the IGSN credentials automatically for that prefix; using the ordinary DOI credentials results in a DataCite HTTP 403 response. Audits against the test API additionally require `DATACITE_TEST_CLIENT_ID`.
+
+### GEOFON seismic-event landing-page repair
+
+Use the authenticated, dry-run-first repair command for existing `GEOFON Seismic Events` Resources whose external landing page still uses the retired `db/eqpage.php` route. It checks the local and DataCite URLs independently, requires the event ID in both URLs to match the DOI suffix, and accepts only the known GEOFON event DOI namespaces and hosts. It also reports a matching retired local URL assigned to any other datacenter as manual review and never updates that Resource.
+
+Start with a complete audit:
+
+```bash
+npm run artisan -- resources:repair-geofon-event-landing-page-urls \
+    --report=storage/app/geofon-event-url-audit.csv
+```
+
+The dry run performs authenticated DataCite GETs and bounded reachability checks against the canonical `https://geofon.gfz.de/eqinfo/event.php?id=...` target, but it sends no PUT and changes no local row. Review every wrong-datacenter, unknown URL, event-ID mismatch, unreachable target, and API error before applying anything.
+
+Apply and verify one representative DOI first:
+
+```bash
+npm run artisan -- resources:repair-geofon-event-landing-page-urls \
+    --apply --force-production \
+    --doi=10.1594/gfz.geofon.gfz2011axdw \
+    --report=storage/app/geofon-event-url-pilot.csv
+```
+
+For each required DataCite update, ERNIE saves the complete source record below `storage/app/private/geofon-event-url-updates/`, sends only the new `url`, and confirms it with another authenticated GET. The local domain and path are updated transactionally only after DataCite is confirmed; an independently stale local URL is still repairable when DataCite is already current. Authentication failures stop subsequent records, while per-record validation, reachability, verification, and concurrency failures remain visible in the CSV without overwriting local data.
+
+After the pilot resolves directly to the canonical GEOFON page, run the complete apply and then repeat the dry run:
+
+```bash
+npm run artisan -- resources:repair-geofon-event-landing-page-urls \
+    --apply --force-production \
+    --report=storage/app/geofon-event-url-applied.csv
+
+npm run artisan -- resources:repair-geofon-event-landing-page-urls \
+    --report=storage/app/geofon-event-url-verification.csv
+```
+
+The final dry run must report every eligible Resource as `already_current`. Use repeatable `--doi` filters for targeted retries, `--after-id=<resource-id>` to resume after the last processed Resource, and `--limit=<count>` for bounded batches. Production writes always require both `--apply` and `--force-production`; test mode never reaches the production API.
 
 ### DataCite Kernel 4 upgrade for imported resources
 

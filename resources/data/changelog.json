@@ -39,6 +39,10 @@
         ],
         "fixes": [
             {
+                "title": "Canonical GEOFON Event Landing Pages",
+                "description": "A dry-run-first Artisan command can now audit and repair retired GEOFON seismic-event landing-page URLs in both ERNIE and DataCite. Strict datacenter, DOI, event-ID, host, reachability, snapshot, verification, concurrency, reporting, and production-confirmation safeguards keep the repair targeted and repeatable, while new imports immediately normalize the known legacy event route."
+            },
+            {
                 "title": "Clean GEOFON Import Completion",
                 "description": "GEOFON records with imported external landing pages no longer trigger an ineligible DataCite write after a successful import. Their trusted external target remains published in ERNIE, including local HTTPS normalization, without producing a misleading retryable synchronization failure."
             },
