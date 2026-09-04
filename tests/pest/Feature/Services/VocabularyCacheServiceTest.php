@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\CacheKey;
 use App\Enums\PortalScope;
+use App\Services\PortalCacheVersionService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -118,6 +119,12 @@ it('invalidates specific vocabulary cache', function () {
 });
 
 it('invalidates portal thesaurus facets when a thesaurus vocabulary cache is invalidated', function () {
+    $versions = app(PortalCacheVersionService::class);
+    $pageVersions = collect(PortalScope::cases())->mapWithKeys(
+        fn (PortalScope $scope): array => [
+            $scope->value => $versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, $scope),
+        ],
+    );
     $facetCache = Cache::tags(CacheKey::PORTAL_THESAURUS_FACETS->tags());
     $facetKeys = [
         CacheKey::PORTAL_THESAURUS_FACETS->key(),
@@ -141,7 +148,32 @@ it('invalidates portal thesaurus facets when a thesaurus vocabulary cache is inv
     foreach ($facetKeys as $facetKey) {
         expect($facetCache->has($facetKey))->toBeFalse();
     }
+
+    foreach (PortalScope::cases() as $scope) {
+        expect($versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, $scope))
+            ->toBeGreaterThan($pageVersions->get($scope->value));
+    }
 });
+
+it('invalidates portal page payloads for every thesaurus vocabulary source', function (CacheKey $cacheKey) {
+    $versions = app(PortalCacheVersionService::class);
+    $pageVersion = $versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI);
+
+    $this->cacheService->invalidateVocabularyCache($cacheKey);
+
+    expect($versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI))
+        ->toBeGreaterThan($pageVersion);
+})->with([
+    CacheKey::GCMD_SCIENCE_KEYWORDS,
+    CacheKey::GCMD_PLATFORMS,
+    CacheKey::GCMD_INSTRUMENTS,
+    CacheKey::MSL_KEYWORDS,
+    CacheKey::CHRONOSTRAT_TIMESCALE,
+    CacheKey::GEMET_THESAURUS,
+    CacheKey::ANALYTICAL_METHODS,
+    CacheKey::EUROSCIVOC,
+    CacheKey::CGI_SIMPLE_LITHOLOGY,
+]);
 
 it('returns cached data on subsequent calls', function () {
     $callCount = 0;

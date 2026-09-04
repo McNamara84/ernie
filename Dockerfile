@@ -59,6 +59,8 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
+COPY docker/php/opcache-production.ini /usr/local/etc/php/conf.d/opcache-production.ini
+RUN php --ri "Zend OPcache"
 
 # PHP-FPM pool configuration for optimized worker management
 # This prevents 502 errors on pages with large Inertia payloads

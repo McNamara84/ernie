@@ -4,18 +4,26 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CacheKey;
 use App\Enums\Igsn\IgsnClassificationType;
+use App\Enums\PortalScope;
 use App\Services\Igsn\IgsnClassificationVocabularyService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
+use App\Support\PortalCacheNamespace;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 
 final class IgsnPortalFacetService
 {
+    use ChecksCacheTagging;
+
     public function __construct(
         private readonly PortalSearchService $searchService,
         private readonly IgsnMaterialHierarchyService $materialHierarchyService,
         private readonly IgsnClassificationVocabularyService $classificationVocabularyService,
+        private readonly FlexibleCacheService $flexibleCache,
+        private readonly PortalCacheVersionService $versionService,
     ) {}
 
     /**
@@ -30,6 +38,39 @@ final class IgsnPortalFacetService
      * }
      */
     public function getFacets(array $filters): array
+    {
+        $cacheKey = CacheKey::PORTAL_IGSN_FACETS;
+        $scope = PortalScope::IGSN;
+
+        /** @var array{sampleTypes: list<array{value: string, label: string, count: int}>, materials: list<array{value: string, label: string, count: int, children: list<mixed>}>, classifications: list<array{type: string, label: string, options: list<array{value: string, label: string, count: int}>}>, geologicalAges: list<array{value: string, label: string, count: int}>, geologicalUnits: list<array{value: string, label: string, count: int}>, datacenters: list<array{name: string, count: int}>} */
+        return $this->flexibleCache->remember(
+            $this->getCacheInstance(PortalCacheNamespace::tags($cacheKey, $scope)),
+            PortalCacheNamespace::versionedKey(
+                $cacheKey,
+                $scope,
+                $this->versionService->current($cacheKey, $scope),
+                $this->fingerprint($filters),
+            ),
+            intdiv($cacheKey->ttl(), 2),
+            $cacheKey->ttl(),
+            fn (): array => $this->buildFacets($filters),
+            (int) config('bot_protection.portal_cache_lock_seconds', 15),
+            (int) config('bot_protection.portal_cache_lock_wait_seconds', 10),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{
+     *     sampleTypes: list<array{value: string, label: string, count: int}>,
+     *     materials: list<array{value: string, label: string, count: int, children: list<mixed>}>,
+     *     classifications: list<array{type: string, label: string, options: list<array{value: string, label: string, count: int}>}>,
+     *     geologicalAges: list<array{value: string, label: string, count: int}>,
+     *     geologicalUnits: list<array{value: string, label: string, count: int}>,
+     *     datacenters: list<array{name: string, count: int}>
+     * }
+     */
+    private function buildFacets(array $filters): array
     {
         $sampleTypes = $this->valueFacets(
             $this->without($filters, 'sample_types'),
@@ -64,6 +105,62 @@ final class IgsnPortalFacetService
             ),
             'datacenters' => $this->datacenterFacets($this->without($filters, 'datacenter'), $filters['datacenter'] ?? []),
         ];
+    }
+
+    /** @param array<string, mixed> $filters */
+    public function cacheKeyForFilters(array $filters): string
+    {
+        $cacheKey = CacheKey::PORTAL_IGSN_FACETS;
+        $scope = PortalScope::IGSN;
+
+        return PortalCacheNamespace::versionedKey(
+            $cacheKey,
+            $scope,
+            $this->versionService->current($cacheKey, $scope),
+            $this->fingerprint($filters),
+        );
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function fingerprint(array $filters): string
+    {
+        unset($filters['page'], $filters['per_page']);
+
+        return hash('sha256', json_encode(
+            $this->normalize($filters),
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+        ));
+    }
+
+    private function normalize(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if (array_is_list($value)) {
+            $normalized = array_map(fn (mixed $item): mixed => $this->normalize($item), $value);
+
+            if (array_all($normalized, static fn (mixed $item): bool => is_scalar($item) || $item === null)) {
+                usort($normalized, static fn (mixed $left, mixed $right): int => strcmp((string) $left, (string) $right));
+            }
+
+            return $normalized;
+        }
+
+        ksort($value);
+
+        foreach ($value as $key => $item) {
+            if ($item === null || $item === '' || $item === []) {
+                unset($value[$key]);
+
+                continue;
+            }
+
+            $value[$key] = $this->normalize($item);
+        }
+
+        return $value;
     }
 
     /**

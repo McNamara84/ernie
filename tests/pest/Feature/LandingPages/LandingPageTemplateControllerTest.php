@@ -14,7 +14,7 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\User;
 use App\Policies\LandingPageTemplatePolicy;
-use App\Services\BotProtection\PortalPageCacheService;
+use App\Services\PortalCacheInvalidationService;
 use Database\Factories\LandingPageTemplateFactory;
 use Database\Seeders\LandingPageTemplateSeeder;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -839,9 +839,9 @@ describe('Update', function (): void {
             'created_by' => $this->admin->id,
             'citation_author_display_limit' => 50,
         ]);
-        $portalCache = Mockery::mock(PortalPageCacheService::class);
-        $portalCache->shouldReceive('flush')->once();
-        app()->instance(PortalPageCacheService::class, $portalCache);
+        $portalCache = Mockery::mock(PortalCacheInvalidationService::class);
+        $portalCache->shouldReceive('schedule')->once();
+        app()->instance(PortalCacheInvalidationService::class, $portalCache);
 
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", ['citation_author_display_limit' => 12])
@@ -854,9 +854,9 @@ describe('Update', function (): void {
             'creator_display_limit' => 40,
             'citation_author_display_limit' => 50,
         ]);
-        $portalCache = Mockery::mock(PortalPageCacheService::class);
-        $portalCache->shouldNotReceive('flush');
-        app()->instance(PortalPageCacheService::class, $portalCache);
+        $portalCache = Mockery::mock(PortalCacheInvalidationService::class);
+        $portalCache->shouldNotReceive('schedule');
+        app()->instance(PortalCacheInvalidationService::class, $portalCache);
 
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [

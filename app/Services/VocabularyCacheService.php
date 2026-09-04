@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CacheKey;
+use App\Enums\PortalCacheArea;
+use App\Enums\PortalScope;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -134,6 +136,8 @@ class VocabularyCacheService
             Log::warning('Cache tagging not supported. Clearing entire cache store for vocabulary invalidation.');
             Cache::flush();
         }
+
+        $this->invalidatePortalVocabularyDependencies();
     }
 
     /**
@@ -150,7 +154,7 @@ class VocabularyCacheService
         }
 
         if ($this->shouldInvalidatePortalThesaurusFacets($key)) {
-            CacheKey::PORTAL_THESAURUS_FACETS->forgetPortalVariants();
+            $this->invalidatePortalVocabularyDependencies();
         }
     }
 
@@ -195,6 +199,15 @@ class VocabularyCacheService
             CacheKey::GEMET_THESAURUS,
             CacheKey::ANALYTICAL_METHODS,
             CacheKey::EUROSCIVOC,
+            CacheKey::CGI_SIMPLE_LITHOLOGY,
         ], true);
+    }
+
+    private function invalidatePortalVocabularyDependencies(): void
+    {
+        app(PortalCacheInvalidationService::class)->schedule(
+            PortalScope::cases(),
+            [PortalCacheArea::KEYWORDS, PortalCacheArea::PAGE],
+        );
     }
 }

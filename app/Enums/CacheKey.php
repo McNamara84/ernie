@@ -55,6 +55,7 @@ enum CacheKey: string
     case PORTAL_TEMPORAL_RANGE = 'portal:temporal_range';
     case PORTAL_RESOURCE_TYPE_FACETS = 'portal:resource_type_facets';
     case PORTAL_DATACENTER_FACETS = 'portal:datacenter_facets';
+    case PORTAL_IGSN_FACETS = 'portal:igsn_facets';
     case PORTAL_PAGE_PAYLOAD = 'portal:page_payload';
     case PORTAL_LISTING_COUNT = 'portal:listing_count';
     case PORTAL_MAP_PAYLOAD = 'portal:map_payload';
@@ -157,7 +158,8 @@ enum CacheKey: string
 
             // Portal resource type facets - 10 minutes
             self::PORTAL_RESOURCE_TYPE_FACETS,
-            self::PORTAL_DATACENTER_FACETS => 600,
+            self::PORTAL_DATACENTER_FACETS,
+            self::PORTAL_IGSN_FACETS => 600,
 
             // Portal Inertia payloads - very short-lived to absorb crawler bursts
             self::PORTAL_PAGE_PAYLOAD => max(0, (int) config('bot_protection.portal_cache_ttl', 120)),
@@ -238,11 +240,13 @@ enum CacheKey: string
 
             self::PORTAL_DATACENTER_FACETS => ['portal', 'datacenters'],
 
-            self::PORTAL_LISTING_COUNT => ['resources', 'portal_page_payloads'],
+            self::PORTAL_IGSN_FACETS => ['portal', 'igsn_facets'],
 
-            self::PORTAL_PAGE_PAYLOAD,
-            self::PORTAL_MAP_PAYLOAD,
-            self::PORTAL_MAP_EXTENT => ['portal_page_payloads'],
+            self::PORTAL_LISTING_COUNT => ['portal_listing_counts'],
+
+            self::PORTAL_PAGE_PAYLOAD => ['portal_page_payloads'],
+            self::PORTAL_MAP_PAYLOAD => ['portal_map_payloads'],
+            self::PORTAL_MAP_EXTENT => ['portal_map_extents'],
 
             self::DOI_CITATION => ['doi', 'citations'],
 

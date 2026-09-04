@@ -9,7 +9,6 @@ services:
     restart: unless-stopped
     volumes:
       - storage-data:/var/www/html/storage
-      - bootstrap-cache:/var/www/html/bootstrap/cache
     networks:
       - dockerized-laravel-network
     depends_on:
@@ -30,6 +29,13 @@ services:
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
+      - ERNIE_CONTAINER_ROLE=app
+      - ERNIE_RUN_MIGRATIONS=1
+      - PHP_FPM_MAX_CHILDREN=${PHP_FPM_MAX_CHILDREN:-6}
+      - PHP_FPM_START_SERVERS=${PHP_FPM_START_SERVERS:-2}
+      - PHP_FPM_MIN_SPARE_SERVERS=${PHP_FPM_MIN_SPARE_SERVERS:-2}
+      - PHP_FPM_MAX_SPARE_SERVERS=${PHP_FPM_MAX_SPARE_SERVERS:-4}
+      - PHP_FPM_MAX_REQUESTS=${PHP_FPM_MAX_REQUESTS:-500}
       - INERTIA_SSR_ENABLED=false
       - ERNIE_API_KEY=${ERNIE_API_KEY}
       - DATACITE_ENDPOINT=${DATACITE_ENDPOINT:-https://api.datacite.org}
@@ -66,6 +72,9 @@ services:
       - BOT_PROTECTION_PUBLIC_PORTAL_MAP_PER_MINUTE=${BOT_PROTECTION_PUBLIC_PORTAL_MAP_PER_MINUTE:-120}
       - BOT_PROTECTION_LANDING_CACHE_TTL=${BOT_PROTECTION_LANDING_CACHE_TTL:-600}
       - BOT_PROTECTION_PORTAL_CACHE_TTL=${BOT_PROTECTION_PORTAL_CACHE_TTL:-120}
+      - BOT_PROTECTION_PORTAL_CACHE_FRESH_TTL=${BOT_PROTECTION_PORTAL_CACHE_FRESH_TTL:-60}
+      - BOT_PROTECTION_PORTAL_CACHE_LOCK_SECONDS=${BOT_PROTECTION_PORTAL_CACHE_LOCK_SECONDS:-15}
+      - BOT_PROTECTION_PORTAL_CACHE_LOCK_WAIT_SECONDS=${BOT_PROTECTION_PORTAL_CACHE_LOCK_WAIT_SECONDS:-10}
       - PORTAL_MAP_ENABLED=${PORTAL_MAP_ENABLED:-true}
       - PORTAL_MAP_MAX_FEATURES=${PORTAL_MAP_MAX_FEATURES:-1000}
       - PORTAL_MAP_CLUSTER_RADIUS=${PORTAL_MAP_CLUSTER_RADIUS:-60}
@@ -192,6 +201,9 @@ services:
       - MYSQL_DATABASE=${MARIADB_DATABASE}
       - MYSQL_USER=${MARIADB_USER}
       - MYSQL_PASSWORD=${MARIADB_PASSWORD}
+    command:
+      - --innodb-buffer-pool-size=${MYSQL_INNODB_BUFFER_POOL_SIZE:-3G}
+      - --max-connections=${MYSQL_MAX_CONNECTIONS:-60}
     volumes:
       - dockerized-laravel-data:/var/lib/mysql
     networks:
@@ -220,6 +232,8 @@ services:
     image: ghcr.io/pangaea-data-publisher/fuji@sha256:a75a9c88fb46918afafb09593aa52aecc1adb12eb9f19a2fc2ebb8740be03d97
     container_name: ernie-fuji-prod
     restart: unless-stopped
+    profiles:
+      - assessment
     entrypoint:
       - "/bin/sh"
       - "-c"
@@ -258,10 +272,11 @@ services:
     command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,database-dumps,default,imports --verbose --tries=3 --timeout=7200
     volumes:
       - storage-data:/var/www/html/storage
-      - bootstrap-cache:/var/www/html/bootstrap/cache
     networks:
       - dockerized-laravel-network
     depends_on:
+      app:
+        condition: service_healthy
       db:
         condition: service_healthy
       redis:
@@ -273,6 +288,8 @@ services:
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
+      - ERNIE_CONTAINER_ROLE=queue
+      - ERNIE_RUN_MIGRATIONS=0
       - INERTIA_SSR_ENABLED=false
       - DATACITE_ENDPOINT=${DATACITE_ENDPOINT:-https://api.datacite.org}
       - DATACITE_CLIENT_ID=${DATACITE_CLIENT_ID:-tib.gfz}
@@ -358,7 +375,6 @@ services:
         exec php artisan schedule:work --no-interaction
     volumes:
       - storage-data:/var/www/html/storage
-      - bootstrap-cache:/var/www/html/bootstrap/cache
     networks:
       - dockerized-laravel-network
     depends_on:
@@ -374,6 +390,8 @@ services:
       - OAI_IDENTIFIER_PREFIX=${OAI_IDENTIFIER_PREFIX:-oai:ernie.rz-vm499.gfz.de}
       - APP_ENV=production
       - APP_DEBUG=false
+      - ERNIE_CONTAINER_ROLE=scheduler
+      - ERNIE_RUN_MIGRATIONS=0
       - INERTIA_SSR_ENABLED=false
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
       - DB_HOST=db
@@ -394,6 +412,4 @@ volumes:
   dockerized-laravel-data:
     driver: local
   storage-data:
-    driver: local
-  bootstrap-cache:
     driver: local

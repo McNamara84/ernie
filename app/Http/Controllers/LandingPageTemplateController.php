@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\PortalCacheArea;
+use App\Enums\PortalScope;
 use App\Http\Requests\LandingPageTemplate\UploadLandingPageTemplateLogoRequest;
 use App\Http\Requests\StoreLandingPageTemplateRequest;
 use App\Http\Requests\UpdateLandingPageTemplateRequest;
@@ -13,9 +15,9 @@ use App\Models\LandingPageTemplate;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
-use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\LandingPageContentDescriptorOptionsService;
 use App\Services\LandingPageTemplateResolverService;
+use App\Services\PortalCacheInvalidationService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -167,11 +169,9 @@ class LandingPageTemplateController extends Controller
 
         DB::transaction(function () use ($landingPageTemplate, $updateData, $validated): void {
             $renderConfigurationChanged = false;
-            $citationAuthorLimitChanged = false;
             $landingPageTemplate->fill($updateData);
 
             if ($landingPageTemplate->isDirty()) {
-                $citationAuthorLimitChanged = $landingPageTemplate->isDirty('citation_author_display_limit');
                 $landingPageTemplate->save();
                 $renderConfigurationChanged = true;
             }
@@ -196,15 +196,9 @@ class LandingPageTemplateController extends Controller
                 $this->syncDatacenters($landingPageTemplate, $validated['datacenter_ids']);
             }
 
-            if ($renderConfigurationChanged || $citationAuthorLimitChanged) {
-                DB::afterCommit(function () use ($landingPageTemplate, $renderConfigurationChanged, $citationAuthorLimitChanged): void {
-                    if ($renderConfigurationChanged) {
-                        app(LandingPageRenderDataCacheService::class)->forgetForTemplate($landingPageTemplate);
-                    }
-
-                    if ($citationAuthorLimitChanged) {
-                        app(PortalPageCacheService::class)->flush();
-                    }
+            if ($renderConfigurationChanged) {
+                DB::afterCommit(function () use ($landingPageTemplate): void {
+                    app(LandingPageRenderDataCacheService::class)->forgetForTemplate($landingPageTemplate);
                 });
             }
         });
@@ -544,7 +538,10 @@ class LandingPageTemplateController extends Controller
 
         DB::afterCommit(function () use ($affectedIds): void {
             app(LandingPageRenderDataCacheService::class)->forgetForDatacenters($affectedIds);
-            app(PortalPageCacheService::class)->flush();
+            app(PortalCacheInvalidationService::class)->schedule(
+                PortalScope::cases(),
+                [PortalCacheArea::PAGE],
+            );
         });
     }
 

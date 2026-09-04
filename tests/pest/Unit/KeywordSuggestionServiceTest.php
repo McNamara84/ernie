@@ -3,13 +3,17 @@
 declare(strict_types=1);
 
 use App\Enums\CacheKey;
+use App\Enums\PortalScope;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\ThesaurusSetting;
 use App\Services\KeywordSuggestionService;
+use App\Services\PortalCacheVersionService;
 use App\Support\GemetVocabularyParser;
+use App\Support\PortalCacheNamespace;
+use Illuminate\Cache\Repository as CacheRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -24,12 +28,18 @@ uses(RefreshDatabase::class);
 function putCacheValue(array $tags, string $key, mixed $value): void
 {
     if (method_exists(Cache::getStore(), 'tags')) {
-        Cache::tags($tags)->put($key, $value);
+        Cache::tags($tags)->putMany([
+            $key => $value,
+            CacheRepository::FLEXIBLE_CREATED_KEY_PREFIX.$key => now()->getTimestamp(),
+        ]);
 
         return;
     }
 
-    Cache::put($key, $value);
+    Cache::putMany([
+        $key => $value,
+        CacheRepository::FLEXIBLE_CREATED_KEY_PREFIX.$key => now()->getTimestamp(),
+    ]);
 }
 
 beforeEach(function () {
@@ -566,7 +576,19 @@ it('invalidates cached free keyword suggestions and thesaurus facets', function 
         ['value' => 'ATMOSPHERE', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-atmosphere'],
     ]);
 
-    putCacheValue(CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->tags(), CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->key(), [[
+    $versionService = app(PortalCacheVersionService::class);
+    $freeKeywordKey = PortalCacheNamespace::versionedKey(
+        CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS,
+        null,
+        $versionService->current(CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS, null),
+    );
+    $thesaurusFacetKey = PortalCacheNamespace::versionedKey(
+        CacheKey::PORTAL_THESAURUS_FACETS,
+        null,
+        $versionService->current(CacheKey::PORTAL_THESAURUS_FACETS, null),
+    );
+
+    putCacheValue(PortalCacheNamespace::tags(CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS, null), $freeKeywordKey, [[
         'value' => 'Stale Keyword',
         'scheme' => null,
         'count' => 99,
@@ -576,8 +598,7 @@ it('invalidates cached free keyword suggestions and thesaurus facets', function 
         'scheme' => 'Science Keywords',
         'count' => 77,
     ]]);
-    CacheKey::PORTAL_THESAURUS_FACETS->forget();
-    putCacheValue(CacheKey::PORTAL_THESAURUS_FACETS->tags(), CacheKey::PORTAL_THESAURUS_FACETS->key(), [[
+    putCacheValue(PortalCacheNamespace::tags(CacheKey::PORTAL_THESAURUS_FACETS, null), $thesaurusFacetKey, [[
         'scheme' => 'Stale Scheme',
         'roots' => [],
     ]]);
@@ -593,6 +614,34 @@ it('invalidates cached free keyword suggestions and thesaurus facets', function 
     expect(array_column($updatedSuggestions, 'value'))->toEqualCanonicalizing(['Free A', 'Free B'])
         ->and(Cache::tags(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->tags())->has(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key()))->toBeFalse()
         ->and($updatedFacets[0]['roots'][0]['children'][0]['children'])->toHaveCount(2);
+});
+
+it('makes a late stale scoped keyword refresh unreachable after invalidation', function (): void {
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'Current Keyword'],
+    ]);
+    Cache::flush();
+
+    $cacheKey = CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS;
+    $scope = PortalScope::DOI;
+    $versions = app(PortalCacheVersionService::class);
+    $oldKey = PortalCacheNamespace::versionedKey($cacheKey, $scope, $versions->current($cacheKey, $scope));
+
+    $this->service->invalidateCache($scope);
+
+    // Simulate a deferred refresh that finishes after the invalidation.
+    putCacheValue(PortalCacheNamespace::tags($cacheKey, $scope), $oldKey, [[
+        'value' => 'Late Stale Keyword',
+        'scheme' => null,
+        'count' => 99,
+    ]]);
+
+    expect($versions->current($cacheKey, $scope))->toBe(2)
+        ->and($this->service->getFreeKeywordSuggestions($scope))->toBe([[
+            'value' => 'Current Keyword',
+            'scheme' => null,
+            'count' => 1,
+        ]]);
 });
 
 it('normalizes additional thesaurus schemes and preserves notation values', function () {
@@ -837,8 +886,12 @@ it('invalidates the cached controlled subject index together with thesaurus face
         ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
     ]);
 
-    CacheKey::PORTAL_THESAURUS_FACETS->forget();
-    putCacheValue(CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->tags(), CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->key(), [
+    $subjectIndexKey = PortalCacheNamespace::versionedKey(
+        CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX,
+        null,
+        app(PortalCacheVersionService::class)->current(CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX, null),
+    );
+    putCacheValue(PortalCacheNamespace::tags(CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX, null), $subjectIndexKey, [
         'Science Keywords' => [
             'ids' => ['science-missing' => true],
             'values' => [],

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Enums\PortalCacheArea;
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
-use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\OaiPmh\OaiPmhSetService;
+use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceCacheService;
 
 /**
@@ -20,15 +21,23 @@ class LandingPageObserver
     public function __construct(
         private readonly OaiPmhSetService $oaiPmhSetService,
         private readonly LandingPageRenderDataCacheService $renderDataCache,
-        private readonly PortalPageCacheService $portalPageCache,
         private readonly ResourceCacheService $resourceCacheService,
+        private readonly PortalCacheInvalidationService $portalCacheInvalidationService,
     ) {}
 
     public function created(LandingPage $landingPage): void
     {
-        $this->resourceCacheService->invalidatePublishedResourceCounts();
         $this->invalidateIgsnFamily($landingPage);
-        $this->portalPageCache->flush();
+
+        if ($landingPage->is_published) {
+            $this->resourceCacheService->invalidatePublishedResourceCounts();
+            $this->schedulePortalInvalidation($landingPage, PortalCacheArea::all());
+        }
+    }
+
+    public function deleting(LandingPage $landingPage): void
+    {
+        $landingPage->loadMissing('resource.resourceType');
     }
 
     /**
@@ -41,13 +50,27 @@ class LandingPageObserver
     {
         $this->renderDataCache->forget($landingPage);
         $this->invalidateIgsnFamily($landingPage);
-        $this->portalPageCache->flush();
 
         if (! $landingPage->wasChanged('is_published')) {
+            if ($landingPage->is_published && $landingPage->wasChanged([
+                'doi_prefix',
+                'template',
+                'landing_page_template_id',
+                'external_domain_id',
+                'external_path',
+                'published_at',
+            ])) {
+                $this->schedulePortalInvalidation($landingPage, [
+                    PortalCacheArea::PAGE,
+                    PortalCacheArea::MAP_PAYLOAD,
+                ]);
+            }
+
             return;
         }
 
         $this->resourceCacheService->invalidatePublishedResourceCounts();
+        $this->schedulePortalInvalidation($landingPage, PortalCacheArea::all());
 
         $resource = $landingPage->resource;
 
@@ -78,10 +101,13 @@ class LandingPageObserver
 
     public function deleted(LandingPage $landingPage): void
     {
-        $this->resourceCacheService->invalidatePublishedResourceCounts();
         $this->renderDataCache->forget($landingPage);
         $this->invalidateIgsnFamily($landingPage);
-        $this->portalPageCache->flush();
+
+        if ((bool) $landingPage->getOriginal('is_published')) {
+            $this->resourceCacheService->invalidatePublishedResourceCounts();
+            $this->schedulePortalInvalidation($landingPage, PortalCacheArea::all());
+        }
     }
 
     private function invalidateIgsnFamily(LandingPage $landingPage): void
@@ -89,5 +115,16 @@ class LandingPageObserver
         if ($landingPage->resource()->whereHas('igsnMetadata')->exists()) {
             $this->renderDataCache->forgetForIgsnFamilies([(int) $landingPage->resource_id]);
         }
+    }
+
+    /** @param iterable<PortalCacheArea> $areas */
+    private function schedulePortalInvalidation(LandingPage $landingPage, iterable $areas): void
+    {
+        $landingPage->loadMissing('resource.resourceType');
+
+        $this->portalCacheInvalidationService->schedule(
+            [$this->portalCacheInvalidationService->scopeForResource($landingPage->resource)],
+            $areas,
+        );
     }
 }

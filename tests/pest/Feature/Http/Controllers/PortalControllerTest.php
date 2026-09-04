@@ -13,6 +13,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\BotProtection\PortalPageCacheService;
+use App\Support\PortalCacheNamespace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -199,11 +200,11 @@ describe('index', function () {
             ->assertOk()
             ->assertInertia(fn ($page) => $page->has('resources', 1));
 
-        expect(Cache::tags(CacheKey::PORTAL_PAGE_PAYLOAD->tags())->has($cacheKey))->toBeTrue();
+        expect(Cache::tags(PortalCacheNamespace::tags(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI))->has($cacheKey))->toBeTrue();
 
         ($this->createPublishedPortalResource)('New Dataset');
 
-        expect(Cache::tags(CacheKey::PORTAL_PAGE_PAYLOAD->tags())->has($cacheKey))->toBeFalse();
+        expect(Cache::tags(PortalCacheNamespace::tags(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI))->has($cacheKey))->toBeFalse();
 
         $this->get('/doi-search')
             ->assertOk()

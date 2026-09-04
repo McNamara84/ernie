@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\CacheKey;
+use App\Enums\PortalCacheArea;
+use App\Enums\PortalScope;
 use App\Jobs\SyncImportedResourcesWithDataCiteJob;
 use Illuminate\Bus\Batch;
 use Illuminate\Support\Facades\Bus;
@@ -46,10 +47,10 @@ class ImportedResourceDataCiteSyncDispatcherService
         }
 
         if ($resourceIds !== [] && ! $retry) {
-            app(PortalKeywordCacheInvalidationService::class)->scheduleAfterCommit();
-            CacheKey::PORTAL_RESOURCE_TYPE_FACETS->forgetPortalVariants();
-            CacheKey::PORTAL_DATACENTER_FACETS->forgetPortalVariants();
-            CacheKey::PORTAL_TEMPORAL_RANGE->forgetPortalVariants();
+            app(PortalCacheInvalidationService::class)->schedule(
+                PortalScope::cases(),
+                PortalCacheArea::all(),
+            );
         }
 
         if (config('datacite.test_mode') !== false) {

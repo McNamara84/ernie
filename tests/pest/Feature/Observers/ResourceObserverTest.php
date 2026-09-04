@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use App\Enums\CacheKey;
+use App\Enums\PortalCacheArea;
+use App\Enums\PortalScope;
+use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
@@ -11,9 +14,8 @@ use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
 use App\Observers\ResourceObserver;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
-use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\OaiPmh\OaiPmhSetService;
-use App\Services\PortalKeywordCacheInvalidationService;
+use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -24,16 +26,14 @@ covers(ResourceObserver::class);
 
 beforeEach(function () {
     $this->cacheService = Mockery::mock(ResourceCacheService::class); // @phpstan-ignore variable.undefined
-    $this->cacheInvalidationService = Mockery::mock(PortalKeywordCacheInvalidationService::class); // @phpstan-ignore variable.undefined
+    $this->cacheInvalidationService = Mockery::mock(PortalCacheInvalidationService::class); // @phpstan-ignore variable.undefined
     $this->oaiPmhSetService = Mockery::mock(OaiPmhSetService::class); // @phpstan-ignore variable.undefined
     $this->landingPageRenderDataCache = Mockery::mock(LandingPageRenderDataCacheService::class); // @phpstan-ignore variable.undefined
-    $this->portalPageCache = Mockery::mock(PortalPageCacheService::class); // @phpstan-ignore variable.undefined
     $this->observer = new ResourceObserver(
         $this->cacheService,
-        $this->cacheInvalidationService,
         $this->oaiPmhSetService,
         $this->landingPageRenderDataCache,
-        $this->portalPageCache,
+        $this->cacheInvalidationService,
     );
 });
 
@@ -47,10 +47,7 @@ describe('created', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
-        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
-            ->once();
-        $this->portalPageCache->shouldReceive('flush')
-            ->once();
+        $this->cacheInvalidationService->shouldNotReceive('schedule');
 
         $this->observer->created($resource);
     });
@@ -67,10 +64,7 @@ describe('updated', function () {
         $this->cacheService->shouldReceive('invalidateResourceCache')
             ->once()
             ->with($resource->id);
-        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
-            ->once();
-        $this->portalPageCache->shouldReceive('flush')
-            ->once();
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
 
         $this->observer->updated($resource);
     });
@@ -85,14 +79,11 @@ describe('updated', function () {
         $this->cacheService->shouldReceive('invalidateResourceCache')
             ->once()
             ->with($resource->id);
-        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
-            ->once();
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
         $this->landingPageRenderDataCache->shouldReceive('forget')
             ->once()
             ->with(Mockery::on(fn (LandingPage $actual): bool => $actual->is($landingPage)))
             ->andReturn(true);
-        $this->portalPageCache->shouldReceive('flush')
-            ->once();
 
         $this->observer->updated($resource);
     });
@@ -110,14 +101,11 @@ describe('updated', function () {
         $this->cacheService->shouldReceive('invalidateResourceCache')
             ->once()
             ->with($resource->id);
-        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
-            ->once();
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
         $this->landingPageRenderDataCache->shouldReceive('forgetForIgsnFamilies')
             ->once()
             ->with([$resource->id]);
         $this->landingPageRenderDataCache->shouldNotReceive('forget');
-        $this->portalPageCache->shouldReceive('flush')
-            ->once();
 
         $this->observer->updated($resource);
     });
@@ -146,14 +134,104 @@ describe('updated', function () {
         $this->cacheService->shouldReceive('invalidateResourceCache')
             ->once()
             ->with($resource->id);
-        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
-            ->once();
-        $this->portalPageCache->shouldReceive('flush')
-            ->once();
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
 
         $this->observer->updated($resource);
 
         expect((int) Cache::get(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version')))->toBe(5);
+    });
+
+    it('invalidates the DOI temporal caches when a published year changes', function () {
+        $resource = Resource::factory()->create(['publication_year' => 2024]);
+        Resource::withoutEvents(function () use ($resource): void {
+            $resource->publication_year = 2025;
+            $resource->save();
+        });
+
+        $this->cacheService->shouldReceive('invalidateResourceCache')->once()->with($resource->id);
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->with($resource)->andReturn(true);
+        $this->cacheInvalidationService->shouldReceive('scopeForResource')->once()->andReturn(PortalScope::DOI);
+        $this->cacheInvalidationService->shouldReceive('schedule')
+            ->once()
+            ->with(
+                [PortalScope::DOI],
+                [
+                    PortalCacheArea::PAGE,
+                    PortalCacheArea::COUNT,
+                    PortalCacheArea::MAP_PAYLOAD,
+                    PortalCacheArea::MAP_EXTENT,
+                    PortalCacheArea::TEMPORAL_RANGE,
+                ],
+            );
+
+        $this->observer->updated($resource);
+    });
+
+    it('invalidates both portal scopes when a published resource changes type', function () {
+        $resource = Resource::factory()->create(['resource_type_id' => null]);
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'Physical Object',
+            'slug' => PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE,
+        ]);
+        Resource::withoutEvents(function () use ($resource, $physicalObjectType): void {
+            $resource->resource_type_id = $physicalObjectType->id;
+            $resource->save();
+        });
+
+        $this->cacheService->shouldReceive('invalidateResourceCache')->once()->with($resource->id);
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(true);
+        $this->cacheInvalidationService->shouldReceive('scopeForResource')->once()->andReturn(PortalScope::IGSN);
+        $this->cacheInvalidationService->shouldReceive('scopeForResourceTypeId')->once()->andReturn(PortalScope::DOI);
+        $this->cacheInvalidationService->shouldReceive('schedule')
+            ->once()
+            ->with([PortalScope::IGSN, PortalScope::DOI], PortalCacheArea::all());
+
+        $this->observer->updated($resource);
+    });
+
+    it('invalidates query-filtered IGSN facets when a published sample DOI changes', function () {
+        $resource = Resource::factory()->create(['doi' => '10.60510/old-sample']);
+        Resource::withoutEvents(function () use ($resource): void {
+            $resource->doi = '10.60510/new-sample';
+            $resource->save();
+        });
+
+        $this->cacheService->shouldReceive('invalidateResourceCache')->once()->with($resource->id);
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->with($resource)->andReturn(true);
+        $this->cacheInvalidationService->shouldReceive('scopeForResource')->once()->andReturn(PortalScope::IGSN);
+        $this->cacheInvalidationService->shouldReceive('schedule')->once()->with([PortalScope::IGSN], [
+            PortalCacheArea::PAGE,
+            PortalCacheArea::COUNT,
+            PortalCacheArea::MAP_PAYLOAD,
+            PortalCacheArea::MAP_EXTENT,
+            PortalCacheArea::IGSN_FACETS,
+        ]);
+
+        $this->observer->updated($resource);
+    });
+
+    it('invalidates query-filtered IGSN facets when a published sample datacenter changes', function () {
+        $oldDatacenter = Datacenter::factory()->create();
+        $newDatacenter = Datacenter::factory()->create();
+        $resource = Resource::factory()->create(['datacenter_id' => $oldDatacenter->id]);
+        Resource::withoutEvents(function () use ($newDatacenter, $resource): void {
+            $resource->datacenter_id = $newDatacenter->id;
+            $resource->save();
+        });
+
+        $this->cacheService->shouldReceive('invalidateResourceCache')->once()->with($resource->id);
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->with($resource)->andReturn(true);
+        $this->cacheInvalidationService->shouldReceive('scopeForResource')->once()->andReturn(PortalScope::IGSN);
+        $this->cacheInvalidationService->shouldReceive('schedule')->once()->with([PortalScope::IGSN], [
+            PortalCacheArea::PAGE,
+            PortalCacheArea::COUNT,
+            PortalCacheArea::MAP_PAYLOAD,
+            PortalCacheArea::MAP_EXTENT,
+            PortalCacheArea::DATACENTER_FACETS,
+            PortalCacheArea::IGSN_FACETS,
+        ]);
+
+        $this->observer->updated($resource);
     });
 
     it('syncs DOI to landing page when DOI changes', function () {
@@ -262,12 +340,9 @@ describe('deleted', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
-        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
-            ->once();
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
         $this->oaiPmhSetService->shouldReceive('getSetsForResource')
             ->andReturn([]);
-        $this->portalPageCache->shouldReceive('flush')
-            ->once();
 
         $this->observer->deleted($resource);
     });
@@ -288,11 +363,8 @@ describe('deleted', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
-        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
-            ->once();
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
         $this->oaiPmhSetService->shouldNotReceive('getSetsForResource');
-        $this->portalPageCache->shouldReceive('flush')
-            ->once();
 
         $this->observer->deleted($resource);
 
@@ -304,11 +376,8 @@ describe('deleted', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
-        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
-            ->once();
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
         $this->oaiPmhSetService->shouldNotReceive('getSetsForResource');
-        $this->portalPageCache->shouldReceive('flush')
-            ->once();
 
         $this->observer->deleted($resource);
 
@@ -326,10 +395,7 @@ describe('forceDeleted', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
-        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
-            ->once();
-        $this->portalPageCache->shouldReceive('flush')
-            ->once();
+        $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
 
         $this->observer->forceDeleted($resource);
     });

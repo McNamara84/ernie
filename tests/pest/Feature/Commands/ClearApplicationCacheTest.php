@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 use App\Console\Commands\ClearApplicationCache;
+use App\Enums\CacheKey;
+use App\Enums\PortalScope;
+use App\Services\PortalCacheVersionService;
+use App\Support\PortalCacheNamespace;
 use Illuminate\Support\Facades\Cache;
 
 covers(ClearApplicationCache::class);
@@ -50,11 +54,29 @@ it('clears only vocabularies cache', function () {
     Cache::tags(['resources'])->put('resource-key', 'value', 3600);
     Cache::tags(['vocabularies'])->put('vocab-key', 'value', 3600);
 
+    $versions = app(PortalCacheVersionService::class);
+    $facetVersion = $versions->current(CacheKey::PORTAL_THESAURUS_FACETS, PortalScope::DOI);
+    $pageVersion = $versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI);
+    $facetKey = PortalCacheNamespace::versionedKey(
+        CacheKey::PORTAL_THESAURUS_FACETS,
+        PortalScope::DOI,
+        $facetVersion,
+        'review-regression',
+    );
+    $facetCache = Cache::tags(PortalCacheNamespace::tags(
+        CacheKey::PORTAL_THESAURUS_FACETS,
+        PortalScope::DOI,
+    ));
+    $facetCache->put($facetKey, ['stale'], 3600);
+
     $this->artisan('cache:clear-app', ['category' => 'vocabularies'])
         ->assertSuccessful();
 
     expect(Cache::tags(['resources'])->has('resource-key'))->toBeTrue();
-    expect(Cache::tags(['vocabularies'])->has('vocab-key'))->toBeFalse();
+    expect(Cache::tags(['vocabularies'])->has('vocab-key'))->toBeFalse()
+        ->and($facetCache->has($facetKey))->toBeFalse()
+        ->and($versions->current(CacheKey::PORTAL_THESAURUS_FACETS, PortalScope::DOI))->toBeGreaterThan($facetVersion)
+        ->and($versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI))->toBeGreaterThan($pageVersion);
 });
 
 it('clears only ROR cache', function () {

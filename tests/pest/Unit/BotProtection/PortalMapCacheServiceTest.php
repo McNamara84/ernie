@@ -18,7 +18,7 @@ beforeEach(function (): void {
 });
 
 it('reuses a short-lived response for the same canonical map request', function (): void {
-    $service = new PortalMapCacheService;
+    $service = app(PortalMapCacheService::class);
     $request = Request::create('/doi-search/map', 'GET', [
         'type' => ['physical-object', 'dataset'],
         'viewport' => ['west' => 11, 'east' => 15, 'south' => 50, 'north' => 54, 'height' => 700, 'width' => 1000],
@@ -40,7 +40,7 @@ it('reuses a short-lived response for the same canonical map request', function 
 });
 
 it('generates the same key for semantically identical nested query ordering', function (): void {
-    $service = new PortalMapCacheService;
+    $service = app(PortalMapCacheService::class);
     $first = Request::create('/doi-search/map', 'GET', [
         'type' => ['dataset', 'physical-object'],
         'viewport' => ['north' => 54, 'south' => 50, 'east' => 15, 'west' => 11, 'width' => 1000, 'height' => 700],
@@ -56,7 +56,7 @@ it('generates the same key for semantically identical nested query ordering', fu
 });
 
 it('shares extent scans across technical viewports with the same semantic filters', function (): void {
-    $service = new PortalMapCacheService;
+    $service = app(PortalMapCacheService::class);
     $calls = 0;
     $resolver = function () use (&$calls): array {
         $calls++;
@@ -91,7 +91,7 @@ it('shares extent scans across technical viewports with the same semantic filter
 });
 
 it('separates extent cache entries when a semantic filter changes', function (): void {
-    $service = new PortalMapCacheService;
+    $service = app(PortalMapCacheService::class);
     $unfiltered = ['query' => null, 'type' => [], 'bounds' => null, 'page' => 1];
     $filtered = [...$unfiltered, 'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0]];
 
@@ -99,7 +99,7 @@ it('separates extent cache entries when a semantic filter changes', function ():
 });
 
 it('separates extent cache entries for every IGSN metadata filter', function (string $key): void {
-    $service = new PortalMapCacheService;
+    $service = app(PortalMapCacheService::class);
     $unfiltered = [
         'portal_scope' => 'igsn',
         'sample_types' => [],
@@ -120,7 +120,7 @@ it('separates extent cache entries for every IGSN metadata filter', function (st
 ]);
 
 it('separates extent cache entries for DOI and IGSN portal scopes', function (): void {
-    $service = new PortalMapCacheService;
+    $service = app(PortalMapCacheService::class);
     $doiFilters = ['portal_scope' => 'doi', 'query' => null, 'type' => [], 'bounds' => null];
     $igsnFilters = [...$doiFilters, 'portal_scope' => 'igsn'];
 
@@ -133,7 +133,7 @@ it('bypasses the map cache when bot protection is disabled', function (): void {
     $resolver = function () use (&$calls): array {
         return ['calls' => ++$calls];
     };
-    $service = new PortalMapCacheService;
+    $service = app(PortalMapCacheService::class);
     $request = Request::create('/doi-search/map', 'GET', ['zoom' => 2]);
 
     expect($service->remember($request, $resolver))->toBe(['calls' => 1])

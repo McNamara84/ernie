@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CitationLabelResolutionMode;
+use App\Enums\PortalCacheArea;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\DescriptionType;
@@ -48,7 +49,7 @@ class ResourceStorageService
         protected PersonService $personService,
         protected InstitutionService $institutionService,
         protected AffiliationService $affiliationService,
-        protected PortalKeywordCacheInvalidationService $portalKeywordCacheInvalidationService,
+        protected PortalCacheInvalidationService $portalCacheInvalidationService,
         protected RorLookupService $rorLookupService,
         protected RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
         protected RelatedItemStorageService $relatedItemStorage,
@@ -133,10 +134,18 @@ class ResourceStorageService
             $this->storeDescriptions($resource, $data, $isUpdate);
             $this->storeDates($resource, $data, $isUpdate);
             $this->storeSubjects($resource, $data, $isUpdate);
-            // Subject updates can happen without a dirty Resource model update,
-            // and relation->delete() bypasses Subject model events. Schedule
-            // one shared portal keyword/thesaurus cache invalidation after commit.
-            $this->portalKeywordCacheInvalidationService->scheduleAfterCommit();
+            // Relation query deletes bypass model events. Schedule the union of
+            // resource-owned portal dependencies once after commit; draft
+            // resources are ignored by the invalidation service.
+            $this->portalCacheInvalidationService->scheduleForResourceId($resource->id, [
+                PortalCacheArea::PAGE,
+                PortalCacheArea::COUNT,
+                PortalCacheArea::TEMPORAL_RANGE,
+                PortalCacheArea::KEYWORDS,
+                PortalCacheArea::IGSN_FACETS,
+                PortalCacheArea::MAP_PAYLOAD,
+                PortalCacheArea::MAP_EXTENT,
+            ]);
             $this->storeGeoLocations($resource, $data, $isUpdate);
             $this->storeRelatedIdentifiers($resource, $data, $isUpdate);
             $this->storeRelatedItems($resource, $data, $isUpdate);

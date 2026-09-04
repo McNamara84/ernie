@@ -38,6 +38,7 @@ final class PortalMapController extends Controller
                 ? $this->cacheService->rememberExtent(
                     $filters,
                     fn (): array => $this->portalMapService->calculateExtent($filters),
+                    $scope,
                 )
                 : null;
 
@@ -47,7 +48,7 @@ final class PortalMapController extends Controller
                 $request->zoom(),
                 $extentSummary,
             );
-        });
+        }, $scope);
 
         return response()->json($payload);
     }

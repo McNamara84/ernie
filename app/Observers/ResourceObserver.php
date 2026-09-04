@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
-use App\Enums\CacheKey;
+use App\Enums\PortalCacheArea;
+use App\Enums\PortalScope;
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
 use App\Services\Assessment\AssessmentAverageSummaryVersionService;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
-use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\OaiPmh\OaiPmhSetService;
-use App\Services\PortalKeywordCacheInvalidationService;
+use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceCacheService;
-use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -28,17 +27,14 @@ use Illuminate\Support\Facades\Storage;
  */
 class ResourceObserver
 {
-    use ChecksCacheTagging;
-
     /**
      * Create a new observer instance.
      */
     public function __construct(
         private readonly ResourceCacheService $cacheService,
-        private readonly PortalKeywordCacheInvalidationService $cacheInvalidationService,
         private readonly OaiPmhSetService $oaiPmhSetService,
         private readonly LandingPageRenderDataCacheService $landingPageRenderDataCache,
-        private readonly PortalPageCacheService $portalPageCache,
+        private readonly PortalCacheInvalidationService $portalCacheInvalidationService,
     ) {}
 
     /**
@@ -50,9 +46,6 @@ class ResourceObserver
     public function created(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
-        $this->cacheInvalidationService->scheduleAfterCommit();
-        $this->invalidatePortalFacets();
-        $this->portalPageCache->flush();
     }
 
     /**
@@ -79,10 +72,8 @@ class ResourceObserver
     public function updated(Resource $resource): void
     {
         $this->cacheService->invalidateResourceCache($resource->id);
-        $this->cacheInvalidationService->scheduleAfterCommit();
-        $this->invalidatePortalFacets();
+        $this->schedulePortalUpdateInvalidation($resource);
         $this->invalidateLandingPageRenderCache($resource);
-        $this->portalPageCache->flush();
 
         if ($resource->wasChanged('resource_type_id') && $resource->resourceAssessment()->exists()) {
             app(AssessmentAverageSummaryVersionService::class)->bump();
@@ -198,7 +189,7 @@ class ResourceObserver
      */
     public function deleting(Resource $resource): void
     {
-        $resource->loadMissing(['igsnMetadata', 'landingPage', 'resourceAssessment']);
+        $resource->loadMissing(['igsnMetadata', 'landingPage', 'resourceAssessment', 'resourceType']);
 
         if ($resource->igsnMetadata !== null) {
             $this->landingPageRenderDataCache->forgetForIgsnFamilies([(int) $resource->id]);
@@ -229,10 +220,8 @@ class ResourceObserver
     public function deleted(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
-        $this->cacheInvalidationService->scheduleAfterCommit();
-        $this->invalidatePortalFacets();
+        $this->schedulePortalRemovalInvalidation($resource);
         $this->invalidateLandingPageRenderCache($resource);
-        $this->portalPageCache->flush();
 
         if ($resource->relationLoaded('resourceAssessment') && $resource->resourceAssessment !== null) {
             app(AssessmentAverageSummaryVersionService::class)->bump();
@@ -250,10 +239,8 @@ class ResourceObserver
     public function forceDeleted(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
-        $this->cacheInvalidationService->scheduleAfterCommit();
-        $this->invalidatePortalFacets();
+        $this->schedulePortalRemovalInvalidation($resource);
         $this->invalidateLandingPageRenderCache($resource);
-        $this->portalPageCache->flush();
     }
 
     /**
@@ -288,24 +275,80 @@ class ResourceObserver
         );
     }
 
-    /**
-     * Invalidate all portal facet caches (datacenter + resource type).
-     */
-    private function invalidatePortalFacets(): void
+    private function schedulePortalUpdateInvalidation(Resource $resource): void
     {
-        $cacheKeys = [
-            CacheKey::PORTAL_DATACENTER_FACETS,
-            CacheKey::PORTAL_RESOURCE_TYPE_FACETS,
-            CacheKey::PORTAL_TEMPORAL_RANGE,
-        ];
-
-        foreach ($cacheKeys as $cacheKey) {
-            if ($this->supportsTagging()) {
-                Cache::tags($cacheKey->tags())->flush();
-            } else {
-                $cacheKey->forgetPortalVariants();
-            }
+        if (! $this->portalCacheInvalidationService->isPublished($resource)) {
+            return;
         }
+
+        $visibleFields = ['doi', 'publication_year', 'resource_type_id', 'language_id', 'datacenter_id'];
+        if (! $resource->wasChanged($visibleFields)) {
+            return;
+        }
+
+        $currentScope = $this->portalCacheInvalidationService->scopeForResource($resource);
+        $scopes = [$currentScope];
+        $areas = [PortalCacheArea::PAGE];
+
+        if ($resource->wasChanged(['doi', 'publication_year', 'resource_type_id', 'datacenter_id'])) {
+            $areas = [
+                ...$areas,
+                PortalCacheArea::COUNT,
+                PortalCacheArea::MAP_PAYLOAD,
+                PortalCacheArea::MAP_EXTENT,
+            ];
+        }
+
+        if ($resource->wasChanged('publication_year')) {
+            $areas[] = PortalCacheArea::TEMPORAL_RANGE;
+        }
+
+        if ($resource->wasChanged('datacenter_id')) {
+            $areas[] = PortalCacheArea::DATACENTER_FACETS;
+        }
+
+        if ($currentScope === PortalScope::IGSN && $resource->wasChanged(['doi', 'datacenter_id'])) {
+            $areas[] = PortalCacheArea::IGSN_FACETS;
+        }
+
+        if ($resource->wasChanged('resource_type_id')) {
+            $originalScope = $this->portalCacheInvalidationService->scopeForResourceTypeId(
+                $resource->getOriginal('resource_type_id'),
+            );
+            $scopes[] = $originalScope;
+            $areas = PortalCacheArea::all();
+        }
+
+        $this->portalCacheInvalidationService->schedule(
+            $this->uniqueScopes($scopes),
+            array_values(array_unique($areas, SORT_REGULAR)),
+        );
+    }
+
+    private function schedulePortalRemovalInvalidation(Resource $resource): void
+    {
+        if (! $this->portalCacheInvalidationService->isPublished($resource)) {
+            return;
+        }
+
+        $this->portalCacheInvalidationService->schedule(
+            [$this->portalCacheInvalidationService->scopeForResource($resource)],
+            PortalCacheArea::all(),
+        );
+    }
+
+    /**
+     * @param  list<PortalScope>  $scopes
+     * @return list<PortalScope>
+     */
+    private function uniqueScopes(array $scopes): array
+    {
+        $unique = [];
+        foreach ($scopes as $scope) {
+            $unique[$scope->value] = $scope;
+        }
+
+        return array_values($unique);
     }
 
     private function invalidateLandingPageRenderCache(Resource $resource): void

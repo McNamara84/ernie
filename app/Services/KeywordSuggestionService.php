@@ -10,10 +10,11 @@ use App\Models\Resource;
 use App\Models\Subject;
 use App\Models\ThesaurusSetting;
 use App\Support\GemetVocabularyParser;
+use App\Support\PortalCacheNamespace;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -64,13 +65,14 @@ class KeywordSuggestionService
      */
     public function getFreeKeywordSuggestions(?PortalScope $scope = null): array
     {
+        $cacheKey = CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS;
+
         /** @var array<int, array{value: string, scheme: null, count: int}> */
-        return $this->getCacheInstance(CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->tags())
-            ->remember(
-                CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->key($scope?->value),
-                CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->ttl(),
-                fn (): array => $this->fetchFreeKeywordSuggestions($scope),
-            );
+        return $this->rememberSuggestion(
+            $cacheKey,
+            $scope,
+            fn (): array => $this->fetchFreeKeywordSuggestions($scope),
+        );
     }
 
     /**
@@ -122,13 +124,14 @@ class KeywordSuggestionService
      */
     public function getThesaurusFacets(?PortalScope $scope = null): array
     {
+        $cacheKey = CacheKey::PORTAL_THESAURUS_FACETS;
+
         /** @var array<int, array{scheme: string, roots: array<int, array<string, mixed>>}> */
-        return $this->getCacheInstance(CacheKey::PORTAL_THESAURUS_FACETS->tags())
-            ->remember(
-                CacheKey::PORTAL_THESAURUS_FACETS->key($scope?->value),
-                CacheKey::PORTAL_THESAURUS_FACETS->ttl(),
-                fn (): array => $this->fetchThesaurusFacets($scope),
-            );
+        return $this->rememberSuggestion(
+            $cacheKey,
+            $scope,
+            fn (): array => $this->fetchThesaurusFacets($scope),
+        );
     }
 
     /**
@@ -187,7 +190,7 @@ class KeywordSuggestionService
      * keyword suggestions cache key, the pruned thesaurus facets, and the
      * controlled-subject index used to resolve selected thesaurus nodes.
      */
-    public function invalidateCache(): void
+    public function invalidateCache(?PortalScope $scope = null): void
     {
         foreach ([
             CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS,
@@ -195,6 +198,15 @@ class KeywordSuggestionService
             CacheKey::PORTAL_THESAURUS_FACETS,
             CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX,
         ] as $cacheKey) {
+            $scopes = $scope instanceof PortalScope
+                ? [$scope, null]
+                : [...PortalScope::cases(), null];
+
+            foreach ($scopes as $cacheScope) {
+                app(PortalCacheVersionService::class)->invalidate($cacheKey, $cacheScope);
+            }
+
+            // Remove pre-generation keys left by older deployments.
             $cacheKey->forgetPortalVariants();
         }
     }
@@ -299,13 +311,39 @@ class KeywordSuggestionService
      */
     private function getUsedControlledSubjectIndex(?PortalScope $scope = null): array
     {
+        $cacheKey = CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX;
+
         /** @var array<string, array{ids: array<string, true>, values: array<string, true>, schemes: array<string, true>}> */
-        return $this->getCacheInstance(CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->tags())
-            ->remember(
-                CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->key($scope?->value),
-                CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->ttl(),
-                fn (): array => $this->buildUsedControlledSubjectIndex($scope),
-            );
+        return $this->rememberSuggestion(
+            $cacheKey,
+            $scope,
+            fn (): array => $this->buildUsedControlledSubjectIndex($scope),
+        );
+    }
+
+    /**
+     * @template TValue
+     *
+     * @param  Closure(): TValue  $resolver
+     * @return TValue
+     */
+    private function rememberSuggestion(CacheKey $cacheKey, ?PortalScope $scope, Closure $resolver): mixed
+    {
+        $versionService = app(PortalCacheVersionService::class);
+
+        return app(FlexibleCacheService::class)->remember(
+            $this->getCacheInstance(PortalCacheNamespace::tags($cacheKey, $scope)),
+            PortalCacheNamespace::versionedKey(
+                $cacheKey,
+                $scope,
+                $versionService->current($cacheKey, $scope),
+            ),
+            intdiv($cacheKey->ttl(), 2),
+            $cacheKey->ttl(),
+            $resolver,
+            (int) config('bot_protection.portal_cache_lock_seconds', 15),
+            (int) config('bot_protection.portal_cache_lock_wait_seconds', 10),
+        );
     }
 
     /**

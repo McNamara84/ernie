@@ -8,17 +8,20 @@ use App\Http\Controllers\BatchIgsnRegistrationController;
 use App\Http\Controllers\BatchResourceExportController;
 use App\Http\Controllers\BatchResourceRegistrationController;
 use App\Http\Controllers\ContactMessageController;
+use App\Http\Controllers\CsrfCookieController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardMetricsController;
 use App\Http\Controllers\DatabaseDumpController;
 use App\Http\Controllers\DatacenterController;
 use App\Http\Controllers\DataCiteImportController;
 use App\Http\Controllers\DataCiteUrlUpdateController;
+use App\Http\Controllers\DebugController;
 use App\Http\Controllers\DocsController;
 use App\Http\Controllers\DoiValidationController;
 use App\Http\Controllers\EditorController;
 use App\Http\Controllers\EditorLoadProgressController;
 use App\Http\Controllers\GuidedTourAssignmentController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\IgsnController;
 use App\Http\Controllers\IgsnImportController;
 use App\Http\Controllers\IgsnMapController;
@@ -48,6 +51,7 @@ use App\Http\Controllers\ResourceInventoryController;
 use App\Http\Controllers\ResourceReviewLinkController;
 use App\Http\Controllers\Settings\PidSettingsController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
+use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\TestHelperController;
 use App\Http\Controllers\UploadIgsnCsvController;
@@ -58,15 +62,9 @@ use App\Http\Controllers\UserFeedbackController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Resource;
 use App\Models\User;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/health', function () {
-    return response()->json([
-        'status' => 'ok',
-    ]);
-})->name('health');
+Route::get('/health', HealthController::class)->name('health');
 
 // Sanctum-compatible CSRF cookie endpoint (/sanctum/csrf-cookie).
 // Sanctum itself is not installed – this lightweight route provides the
@@ -74,36 +72,21 @@ Route::get('/health', function () {
 // XSRF-TOKEN cookie on every response, so this endpoint only needs to
 // return 204 No Content.
 // Used by the session warmup hook and the 419 CSRF retry handler.
-Route::get('/sanctum/csrf-cookie', fn () => response()->noContent())
+Route::get('/sanctum/csrf-cookie', CsrfCookieController::class)
     ->name('csrf-cookie');
 
 // Debug route - only available in local/testing environments
 if (app()->environment('local', 'testing')) {
-    Route::get('/debug', function () {
-        return response()->json([
-            'message' => 'Laravel is working!',
-            'database' => 'Connected',
-            'redis' => Cache::get('test') !== null ? 'Available' : 'Testing...',
-            'app_key' => config('app.key') ? 'Set' : 'Missing',
-            'app_url' => config('app.url'),
-            'environment' => app()->environment(),
-        ]);
-    })->name('debug');
+    Route::get('/debug', DebugController::class)->name('debug');
 }
 
 Route::redirect('/', 'https://dataservices.gfz-potsdam.de')->name('home');
 
-Route::get('/about', function () {
-    return Inertia::render('about');
-})->name('about');
+Route::get('/about', [StaticPageController::class, 'about'])->name('about');
 
-Route::get('/legal-notice', function () {
-    return Inertia::render('legal-notice');
-})->name('legal-notice');
+Route::get('/legal-notice', [StaticPageController::class, 'legalNotice'])->name('legal-notice');
 
-Route::get('/changelog', function () {
-    return Inertia::render('changelog');
-})->name('changelog');
+Route::get('/changelog', [StaticPageController::class, 'changelog'])->name('changelog');
 
 // Public Portals (DOI and IGSN discovery)
 // ===========================================================

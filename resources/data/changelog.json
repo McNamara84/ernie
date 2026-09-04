@@ -5,6 +5,10 @@
         "features": [],
         "improvements": [
             {
+                "title": "Faster Production Runtime and Portal Caches",
+                "description": "Production now uses tuned PHP-FPM and MySQL resource budgets, OPcache, deterministic Laravel bootstrap caches, and an optional F-UJI service profile. Scope-aware stale-while-revalidate caches, precise transaction-safe invalidation, stampede protection, and an operator-facing portal cache warm-up command reduce load times while keeping search facets, maps, and published links current."
+            },
+            {
                 "title": "Production-Safe Test Dataset Cleanup",
                 "description": "The destructive Delete all Test Datasets action on the Logs page is now available to administrators only while DataCite test mode is enabled. Production mode hides the control and rejects direct deletion requests, protecting live resources even when the endpoint is called manually."
             },

@@ -98,7 +98,7 @@ it('returns correct tags for resources', function () {
     expect(CacheKey::RESOURCE_COUNT->tags())->toBe(['resources']);
     expect(CacheKey::RESOURCE_LISTING_COUNT->tags())->toBe(['resources', 'internal_listing_counts']);
     expect(CacheKey::IGSN_LISTING_COUNT->tags())->toBe(['resources', 'internal_listing_counts']);
-    expect(CacheKey::PORTAL_LISTING_COUNT->tags())->toBe(['resources', 'portal_page_payloads']);
+    expect(CacheKey::PORTAL_LISTING_COUNT->tags())->toBe(['portal_listing_counts']);
 });
 
 it('returns correct tags for vocabularies', function () {
@@ -122,8 +122,8 @@ it('returns correct tags for system', function () {
 
 it('returns correct tags for public page payload caches', function () {
     expect(CacheKey::PORTAL_PAGE_PAYLOAD->tags())->toBe(['portal_page_payloads'])
-        ->and(CacheKey::PORTAL_MAP_PAYLOAD->tags())->toBe(['portal_page_payloads'])
-        ->and(CacheKey::PORTAL_MAP_EXTENT->tags())->toBe(['portal_page_payloads'])
+        ->and(CacheKey::PORTAL_MAP_PAYLOAD->tags())->toBe(['portal_map_payloads'])
+        ->and(CacheKey::PORTAL_MAP_EXTENT->tags())->toBe(['portal_map_extents'])
         ->and(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->toBe(['resources', 'landing_pages']);
 });
 
