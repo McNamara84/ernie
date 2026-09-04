@@ -60,7 +60,10 @@ class LandingPageObserver
                 'external_path',
                 'published_at',
             ])) {
-                $this->schedulePortalInvalidation($landingPage, [PortalCacheArea::PAGE]);
+                $this->schedulePortalInvalidation($landingPage, [
+                    PortalCacheArea::PAGE,
+                    PortalCacheArea::MAP_PAYLOAD,
+                ]);
             }
 
             return;

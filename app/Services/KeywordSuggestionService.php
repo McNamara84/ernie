@@ -10,6 +10,7 @@ use App\Models\Resource;
 use App\Models\Subject;
 use App\Models\ThesaurusSetting;
 use App\Support\GemetVocabularyParser;
+use App\Support\PortalCacheNamespace;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
 use Closure;
@@ -197,13 +198,15 @@ class KeywordSuggestionService
             CacheKey::PORTAL_THESAURUS_FACETS,
             CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX,
         ] as $cacheKey) {
-            if ($scope instanceof PortalScope) {
-                $cacheKey->forget($scope->value);
-                $cacheKey->forget();
+            $scopes = $scope instanceof PortalScope
+                ? [$scope, null]
+                : [...PortalScope::cases(), null];
 
-                continue;
+            foreach ($scopes as $cacheScope) {
+                app(PortalCacheVersionService::class)->invalidate($cacheKey, $cacheScope);
             }
 
+            // Remove pre-generation keys left by older deployments.
             $cacheKey->forgetPortalVariants();
         }
     }
@@ -326,9 +329,15 @@ class KeywordSuggestionService
      */
     private function rememberSuggestion(CacheKey $cacheKey, ?PortalScope $scope, Closure $resolver): mixed
     {
+        $versionService = app(PortalCacheVersionService::class);
+
         return app(FlexibleCacheService::class)->remember(
-            $this->getCacheInstance($cacheKey->tags()),
-            $cacheKey->key($scope?->value),
+            $this->getCacheInstance(PortalCacheNamespace::tags($cacheKey, $scope)),
+            PortalCacheNamespace::versionedKey(
+                $cacheKey,
+                $scope,
+                $versionService->current($cacheKey, $scope),
+            ),
             intdiv($cacheKey->ttl(), 2),
             $cacheKey->ttl(),
             $resolver,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CacheKey;
+use App\Enums\PortalScope;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -150,6 +151,12 @@ class VocabularyCacheService
         }
 
         if ($this->shouldInvalidatePortalThesaurusFacets($key)) {
+            $versionService = app(PortalCacheVersionService::class);
+            foreach ([...PortalScope::cases(), null] as $scope) {
+                $versionService->invalidate(CacheKey::PORTAL_THESAURUS_FACETS, $scope);
+            }
+
+            // Remove pre-generation keys left by older deployments.
             CacheKey::PORTAL_THESAURUS_FACETS->forgetPortalVariants();
         }
     }

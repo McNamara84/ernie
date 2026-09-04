@@ -124,9 +124,9 @@ if [ -f "$ARTISAN_BIN" ]; then
                     echo "Migration failed, retrying in 10 seconds..."
                     sleep 10
                 else
-                    echo "WARNING: Migration failed after ${MAX_MIGRATION_ATTEMPTS} attempts"
-                    echo "Container will continue to start"
-                    echo "Check database connection and run 'docker exec <container> php artisan migrate' manually"
+                    echo "ERROR: Migration failed after ${MAX_MIGRATION_ATTEMPTS} attempts" >&2
+                    echo "Refusing to start the application against an outdated schema" >&2
+                    exit 1
                 fi
             fi
         done

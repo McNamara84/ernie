@@ -91,5 +91,8 @@ it('builds Laravel production caches without swallowing optimization errors', fu
         ->toContain('php artisan optimize --no-interaction')
         ->not->toMatch('/php artisan optimize --no-interaction[^\n]*(?:\|\| true|2>\/dev\/null)/')
         ->toContain('ERNIE_RUN_MIGRATIONS')
+        ->toContain('ERROR: Migration failed after ${MAX_MIGRATION_ATTEMPTS} attempts')
+        ->toContain('Refusing to start the application against an outdated schema')
+        ->not->toContain('Container will continue to start')
         ->toContain('php-fpm -tt');
 });

@@ -23,6 +23,7 @@ it('invalidates result and count caches for result-card dependencies', function 
     $this->invalidation->shouldReceive('scheduleForResourceId')->once()->with(42, [
         PortalCacheArea::PAGE,
         PortalCacheArea::COUNT,
+        PortalCacheArea::IGSN_FACETS,
     ]);
 
     $this->observer->saved($title);
@@ -48,6 +49,9 @@ it('invalidates the temporal range for resource-date changes', function (): void
         PortalCacheArea::PAGE,
         PortalCacheArea::COUNT,
         PortalCacheArea::TEMPORAL_RANGE,
+        PortalCacheArea::IGSN_FACETS,
+        PortalCacheArea::MAP_PAYLOAD,
+        PortalCacheArea::MAP_EXTENT,
     ]);
 
     $this->observer->saved($date);
@@ -59,6 +63,7 @@ it('invalidates IGSN result, count and map caches for filter metadata', function
     $this->invalidation->shouldReceive('scheduleForResourceId')->once()->with(42, [
         PortalCacheArea::PAGE,
         PortalCacheArea::COUNT,
+        PortalCacheArea::IGSN_FACETS,
         PortalCacheArea::MAP_PAYLOAD,
         PortalCacheArea::MAP_EXTENT,
     ]);

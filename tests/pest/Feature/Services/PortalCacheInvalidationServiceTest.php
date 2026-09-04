@@ -10,6 +10,8 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\PortalCacheVersionService;
+use App\Services\PortalSearchService;
+use App\Support\PortalCacheNamespace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -91,4 +93,86 @@ it('discards a pending invalidation when its transaction rolls back', function (
     $service->flushPending();
 
     expect($versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI))->toBe(1);
+});
+
+it('makes a late stale facet refresh unreachable after invalidation', function (): void {
+    $resourceType = ResourceType::withoutEvents(fn (): ResourceType => ResourceType::factory()->create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]));
+    $resource = Resource::withoutEvents(fn (): Resource => Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+    ]));
+    LandingPage::withoutEvents(fn (): LandingPage => LandingPage::factory()->published()->create([
+        'resource_id' => $resource->id,
+    ]));
+    Cache::flush();
+
+    $cacheKey = CacheKey::PORTAL_RESOURCE_TYPE_FACETS;
+    $scope = PortalScope::DOI;
+    $versions = app(PortalCacheVersionService::class);
+    $oldKey = PortalCacheNamespace::versionedKey($cacheKey, $scope, $versions->current($cacheKey, $scope));
+    $repository = method_exists(Cache::getStore(), 'tags')
+        ? Cache::tags(PortalCacheNamespace::tags($cacheKey, $scope))
+        : Cache::store();
+
+    app(PortalCacheInvalidationService::class)->schedule([$scope], [PortalCacheArea::RESOURCE_TYPE_FACETS]);
+
+    // Simulate a deferred refresh that finishes after the invalidation.
+    $repository->put($oldKey, [['slug' => 'stale', 'name' => 'Stale', 'count' => 99]], $cacheKey->ttl());
+
+    expect($versions->current($cacheKey, $scope))->toBe(2)
+        ->and(app(PortalSearchService::class)->getResourceTypeFacets($scope))->toBe([[
+            'slug' => 'dataset',
+            'name' => 'Dataset',
+            'count' => 1,
+        ]]);
+});
+
+it('memoizes publication and scope lookups while invalidations are pending', function (): void {
+    $resource = Resource::withoutEvents(fn (): Resource => Resource::factory()->create());
+    LandingPage::withoutEvents(fn (): LandingPage => LandingPage::factory()->published()->create([
+        'resource_id' => $resource->id,
+    ]));
+    $service = app(PortalCacheInvalidationService::class);
+
+    DB::beginTransaction();
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    try {
+        $service->scheduleForResourceId($resource->id, [PortalCacheArea::PAGE]);
+        $queriesAfterFirstLookup = count(DB::getQueryLog());
+
+        foreach (range(1, 20) as $_) {
+            $service->scheduleForResourceId($resource->id, [PortalCacheArea::COUNT]);
+        }
+
+        expect($queriesAfterFirstLookup)->toBeGreaterThan(0)
+            ->and(DB::getQueryLog())->toHaveCount($queriesAfterFirstLookup);
+    } finally {
+        DB::rollBack();
+        DB::disableQueryLog();
+    }
+});
+
+it('invalidates map links when a published landing page URL changes', function (): void {
+    $resource = Resource::withoutEvents(fn (): Resource => Resource::factory()->create());
+    $landingPage = LandingPage::withoutEvents(fn (): LandingPage => LandingPage::factory()->published()->create([
+        'resource_id' => $resource->id,
+        'external_path' => 'old-path',
+    ]));
+    Cache::flush();
+    app()->forgetInstance(PortalCacheInvalidationService::class);
+
+    $versions = app(PortalCacheVersionService::class);
+    expect($versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI))->toBe(1)
+        ->and($versions->current(CacheKey::PORTAL_MAP_PAYLOAD, PortalScope::DOI))->toBe(1)
+        ->and($versions->current(CacheKey::PORTAL_MAP_EXTENT, PortalScope::DOI))->toBe(1);
+
+    $landingPage->update(['external_path' => 'new-path']);
+
+    expect($versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI))->toBe(2)
+        ->and($versions->current(CacheKey::PORTAL_MAP_PAYLOAD, PortalScope::DOI))->toBe(2)
+        ->and($versions->current(CacheKey::PORTAL_MAP_EXTENT, PortalScope::DOI))->toBe(1);
 });

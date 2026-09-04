@@ -74,8 +74,12 @@ final class PortalSharedDependencyObserver
      */
     private function impact(Model $model): array
     {
-        if ($model instanceof LandingPageTemplate || $model instanceof LandingPageDomain) {
+        if ($model instanceof LandingPageTemplate) {
             return [PortalScope::cases(), [PortalCacheArea::PAGE]];
+        }
+
+        if ($model instanceof LandingPageDomain) {
+            return [PortalScope::cases(), [PortalCacheArea::PAGE, PortalCacheArea::MAP_PAYLOAD]];
         }
 
         if ($model instanceof ResourceType) {
@@ -87,7 +91,12 @@ final class PortalSharedDependencyObserver
                     : [$model->slug === PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE ? PortalScope::IGSN : PortalScope::DOI],
                 $slugChanged
                     ? PortalCacheArea::all()
-                    : [PortalCacheArea::PAGE, PortalCacheArea::RESOURCE_TYPE_FACETS],
+                    : [
+                        PortalCacheArea::PAGE,
+                        PortalCacheArea::RESOURCE_TYPE_FACETS,
+                        PortalCacheArea::IGSN_FACETS,
+                        PortalCacheArea::MAP_PAYLOAD,
+                    ],
             ];
         }
 
@@ -105,6 +114,7 @@ final class PortalSharedDependencyObserver
                     PortalCacheArea::PAGE,
                     PortalCacheArea::COUNT,
                     PortalCacheArea::DATACENTER_FACETS,
+                    PortalCacheArea::IGSN_FACETS,
                     PortalCacheArea::MAP_PAYLOAD,
                     PortalCacheArea::MAP_EXTENT,
                 ],
@@ -129,7 +139,15 @@ final class PortalSharedDependencyObserver
             ];
         }
 
-        if ($model instanceof TitleType || $model instanceof DescriptionType) {
+        if ($model instanceof TitleType) {
+            return [PortalScope::cases(), [
+                PortalCacheArea::PAGE,
+                PortalCacheArea::COUNT,
+                PortalCacheArea::MAP_PAYLOAD,
+            ]];
+        }
+
+        if ($model instanceof DescriptionType) {
             return [PortalScope::cases(), [PortalCacheArea::PAGE, PortalCacheArea::COUNT]];
         }
 

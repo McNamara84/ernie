@@ -10,6 +10,7 @@ enum PortalCacheArea: string
     case COUNT = 'count';
     case RESOURCE_TYPE_FACETS = 'resource-type-facets';
     case DATACENTER_FACETS = 'datacenter-facets';
+    case IGSN_FACETS = 'igsn-facets';
     case TEMPORAL_RANGE = 'temporal-range';
     case KEYWORDS = 'keywords';
     case MAP_PAYLOAD = 'map-payload';

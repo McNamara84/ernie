@@ -64,6 +64,9 @@ final class PortalResourceDependencyObserver
                 PortalCacheArea::PAGE,
                 PortalCacheArea::COUNT,
                 PortalCacheArea::TEMPORAL_RANGE,
+                PortalCacheArea::IGSN_FACETS,
+                PortalCacheArea::MAP_PAYLOAD,
+                PortalCacheArea::MAP_EXTENT,
             ],
             $model instanceof IgsnMetadata,
             $model instanceof IgsnClassification,
@@ -71,10 +74,15 @@ final class PortalResourceDependencyObserver
             $model instanceof IgsnGeologicalUnit => [
                 PortalCacheArea::PAGE,
                 PortalCacheArea::COUNT,
+                PortalCacheArea::IGSN_FACETS,
                 PortalCacheArea::MAP_PAYLOAD,
                 PortalCacheArea::MAP_EXTENT,
             ],
-            default => [PortalCacheArea::PAGE, PortalCacheArea::COUNT],
+            default => [
+                PortalCacheArea::PAGE,
+                PortalCacheArea::COUNT,
+                PortalCacheArea::IGSN_FACETS,
+            ],
         };
     }
 }

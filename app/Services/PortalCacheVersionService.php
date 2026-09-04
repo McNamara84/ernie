@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Cache;
 
 final class PortalCacheVersionService
 {
-    public function current(CacheKey $cacheKey, PortalScope $scope): int
+    public function current(CacheKey $cacheKey, ?PortalScope $scope): int
     {
         return (int) Cache::rememberForever(
             PortalCacheNamespace::versionKey($cacheKey, $scope),
@@ -19,7 +19,7 @@ final class PortalCacheVersionService
         );
     }
 
-    public function invalidate(CacheKey $cacheKey, PortalScope $scope): int
+    public function invalidate(CacheKey $cacheKey, ?PortalScope $scope): int
     {
         $versionKey = PortalCacheNamespace::versionKey($cacheKey, $scope);
         Cache::add($versionKey, 1);

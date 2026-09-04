@@ -22,6 +22,9 @@ describe('saved', function () {
             PortalCacheArea::PAGE,
             PortalCacheArea::COUNT,
             PortalCacheArea::KEYWORDS,
+            PortalCacheArea::IGSN_FACETS,
+            PortalCacheArea::MAP_PAYLOAD,
+            PortalCacheArea::MAP_EXTENT,
         ]);
 
         $this->observer->saved($subject);
@@ -36,6 +39,9 @@ describe('deleted', function () {
             PortalCacheArea::PAGE,
             PortalCacheArea::COUNT,
             PortalCacheArea::KEYWORDS,
+            PortalCacheArea::IGSN_FACETS,
+            PortalCacheArea::MAP_PAYLOAD,
+            PortalCacheArea::MAP_EXTENT,
         ]);
 
         $this->observer->deleted($subject);

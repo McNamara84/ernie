@@ -6,6 +6,7 @@ use App\Enums\CacheKey;
 use App\Enums\PortalScope;
 use App\Services\BotProtection\PortalMapCacheService;
 use App\Services\BotProtection\PortalPageCacheService;
+use App\Services\IgsnPortalFacetService;
 use App\Services\ListingCountService;
 use App\Services\PortalCacheVersionService;
 use App\Services\PortalFilterService;
@@ -55,9 +56,13 @@ it('warms count, facet and map extent caches for both portal scopes', function (
     foreach (PortalScope::cases() as $scope) {
         foreach ([CacheKey::PORTAL_TEMPORAL_RANGE, CacheKey::PORTAL_DATACENTER_FACETS] as $cacheKey) {
             $repository = method_exists(Cache::getStore(), 'tags')
-                ? Cache::tags($cacheKey->tags())
+                ? Cache::tags(PortalCacheNamespace::tags($cacheKey, $scope))
                 : Cache::store();
-            expect($repository->has($cacheKey->key($scope->value)))->toBeTrue();
+            expect($repository->has(PortalCacheNamespace::versionedKey(
+                $cacheKey,
+                $scope,
+                $versionService->current($cacheKey, $scope),
+            )))->toBeTrue();
         }
 
         $filters = $filterService->fromRequest(
@@ -78,6 +83,15 @@ it('warms count, facet and map extent caches for both portal scopes', function (
             ? Cache::tags(PortalCacheNamespace::tags(CacheKey::PORTAL_MAP_EXTENT, $scope))
             : Cache::store();
         expect($mapRepository->has($mapCache->extentKeyForFilters($filters, $scope)))->toBeTrue();
+
+        if ($scope === PortalScope::IGSN) {
+            $igsnFacetService = app(IgsnPortalFacetService::class);
+            $igsnFacetRepository = method_exists(Cache::getStore(), 'tags')
+                ? Cache::tags(PortalCacheNamespace::tags(CacheKey::PORTAL_IGSN_FACETS, $scope))
+                : Cache::store();
+
+            expect($igsnFacetRepository->has($igsnFacetService->cacheKeyForFilters($filters)))->toBeTrue();
+        }
     }
 });
 

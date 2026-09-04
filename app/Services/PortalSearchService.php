@@ -20,6 +20,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
 use App\Support\LanguageTag;
+use App\Support\PortalCacheNamespace;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
 use Closure;
@@ -967,9 +968,15 @@ class PortalSearchService
      */
     private function rememberFacet(CacheKey $cacheKey, ?PortalScope $scope, Closure $resolver): mixed
     {
+        $versionService = app(PortalCacheVersionService::class);
+
         return app(FlexibleCacheService::class)->remember(
-            $this->getCacheInstance($cacheKey->tags()),
-            $cacheKey->key($scope?->value),
+            $this->getCacheInstance(PortalCacheNamespace::tags($cacheKey, $scope)),
+            PortalCacheNamespace::versionedKey(
+                $cacheKey,
+                $scope,
+                $versionService->current($cacheKey, $scope),
+            ),
             intdiv($cacheKey->ttl(), 2),
             $cacheKey->ttl(),
             $resolver,

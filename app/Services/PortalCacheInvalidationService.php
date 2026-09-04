@@ -24,6 +24,9 @@ class PortalCacheInvalidationService
 
     private bool $scheduled = false;
 
+    /** @var array<int, PortalScope|false> */
+    private array $resourceScopes = [];
+
     public function __construct(
         private readonly PortalPageCacheService $pageCache,
         private readonly PortalMapCacheService $mapCache,
@@ -89,19 +92,26 @@ class PortalCacheInvalidationService
             return;
         }
 
-        $resource = Resource::query()
-            ->select(['id', 'resource_type_id'])
-            ->with([
-                'landingPage:id,resource_id,is_published',
-                'resourceType:id,slug',
-            ])
-            ->find($resourceId);
+        if (! array_key_exists($resourceId, $this->resourceScopes)) {
+            $resource = Resource::query()
+                ->select(['id', 'resource_type_id'])
+                ->whereHas(
+                    'landingPage',
+                    static fn ($query) => $query->where('is_published', true),
+                )
+                ->find($resourceId);
 
-        if (! $resource instanceof Resource || ! $this->isPublished($resource)) {
+            $this->resourceScopes[$resourceId] = $resource instanceof Resource
+                ? $this->scopeForResourceTypeId($resource->resource_type_id)
+                : false;
+        }
+
+        $scope = $this->resourceScopes[$resourceId];
+        if (! $scope instanceof PortalScope) {
             return;
         }
 
-        $this->schedule([$this->scopeForResource($resource)], $areas);
+        $this->schedule([$scope], $areas);
     }
 
     public function isPublished(Resource $resource): bool
@@ -152,17 +162,22 @@ class PortalCacheInvalidationService
         match ($area) {
             PortalCacheArea::PAGE => $this->pageCache->flush($scope),
             PortalCacheArea::COUNT => $this->versionService->invalidate(CacheKey::PORTAL_LISTING_COUNT, $scope),
-            PortalCacheArea::RESOURCE_TYPE_FACETS => $this->forgetScopedAndLegacyVariant(CacheKey::PORTAL_RESOURCE_TYPE_FACETS, $scope),
-            PortalCacheArea::DATACENTER_FACETS => $this->forgetScopedAndLegacyVariant(CacheKey::PORTAL_DATACENTER_FACETS, $scope),
-            PortalCacheArea::TEMPORAL_RANGE => $this->forgetScopedAndLegacyVariant(CacheKey::PORTAL_TEMPORAL_RANGE, $scope),
+            PortalCacheArea::RESOURCE_TYPE_FACETS => $this->invalidateFacet(CacheKey::PORTAL_RESOURCE_TYPE_FACETS, $scope),
+            PortalCacheArea::DATACENTER_FACETS => $this->invalidateFacet(CacheKey::PORTAL_DATACENTER_FACETS, $scope),
+            PortalCacheArea::IGSN_FACETS => $this->versionService->invalidate(CacheKey::PORTAL_IGSN_FACETS, $scope),
+            PortalCacheArea::TEMPORAL_RANGE => $this->invalidateFacet(CacheKey::PORTAL_TEMPORAL_RANGE, $scope),
             PortalCacheArea::KEYWORDS => $this->keywordSuggestionService->invalidateCache($scope),
             PortalCacheArea::MAP_PAYLOAD => $this->mapCache->flushPayload($scope),
             PortalCacheArea::MAP_EXTENT => $this->mapCache->flushExtent($scope),
         };
     }
 
-    private function forgetScopedAndLegacyVariant(CacheKey $cacheKey, PortalScope $scope): void
+    private function invalidateFacet(CacheKey $cacheKey, PortalScope $scope): void
     {
+        $this->versionService->invalidate($cacheKey, $scope);
+        $this->versionService->invalidate($cacheKey, null);
+
+        // Remove pre-generation keys left by older deployments.
         $cacheKey->forget($scope->value);
         $cacheKey->forget();
     }
@@ -171,5 +186,6 @@ class PortalCacheInvalidationService
     {
         $this->pending = [];
         $this->scheduled = false;
+        $this->resourceScopes = [];
     }
 }
