@@ -177,8 +177,10 @@ final class GeofonEventLandingPageUrlService
 
     public function urlsEqual(string $left, string $right): bool
     {
-        return $this->normalizeUrl($left) !== null
-            && $this->normalizeUrl($left) === $this->normalizeUrl($right);
+        $normalizedLeft = $this->normalizeUrl($left);
+        $normalizedRight = $this->normalizeUrl($right);
+
+        return $normalizedLeft !== null && $normalizedLeft === $normalizedRight;
     }
 
     /**

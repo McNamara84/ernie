@@ -44,13 +44,19 @@ it('distinguishes canonical and non-canonical current event URLs', function (): 
         ]);
 });
 
-it('does not ignore user information when comparing URLs', function (): void {
+it('compares normalized URLs without treating invalid URLs or user information as equivalent', function (): void {
     $target = 'https://geofon.gfz.de/eqinfo/event.php?id=gfz2010gtdx';
+    $service = app(GeofonEventLandingPageUrlService::class);
 
-    expect(app(GeofonEventLandingPageUrlService::class)->urlsEqual(
-        'https://user@geofon.gfz.de/eqinfo/event.php?id=gfz2010gtdx',
+    expect($service->urlsEqual(
+        ' HTTPS://GEOFON.GFZ.DE:443/eqinfo/event.php?id=gfz2010gtdx ',
         $target,
-    ))->toBeFalse();
+    ))->toBeTrue()
+        ->and($service->urlsEqual('not a URL', 'also not a URL'))->toBeFalse()
+        ->and($service->urlsEqual(
+            'https://user@geofon.gfz.de/eqinfo/event.php?id=gfz2010gtdx',
+            $target,
+        ))->toBeFalse();
 });
 
 it('rejects unsafe or unsupported GEOFON event URLs', function (string $url, string $status, bool $recognizedHost): void {
