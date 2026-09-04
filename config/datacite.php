@@ -41,6 +41,13 @@ return [
         'support_email' => env('DATACITE_USER_AGENT_EMAIL'),
     ],
 
+    'geofon_event_url_repair' => [
+        'snapshot_directory' => env(
+            'DATACITE_GEOFON_EVENT_URL_SNAPSHOT_DIRECTORY',
+            'geofon-event-url-updates',
+        ),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Exhaustive Citation Label Resolution

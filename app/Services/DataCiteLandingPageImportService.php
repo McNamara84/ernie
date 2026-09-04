@@ -19,6 +19,10 @@ class DataCiteLandingPageImportService
         'geofon.gfz-potsdam.de',
     ];
 
+    public function __construct(
+        private readonly GeofonEventLandingPageUrlService $geofonEventUrls,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $attributes
      * @return array{changed: bool, created: bool, landing_page: LandingPage|null}
@@ -95,6 +99,12 @@ class DataCiteLandingPageImportService
 
         if ($trimmed === '') {
             return null;
+        }
+
+        $geofonEventUrl = $this->geofonEventUrls->inspect($trimmed);
+        if (in_array($geofonEventUrl['status'], ['legacy', 'current'], true)
+            && $geofonEventUrl['target_url'] !== null) {
+            $trimmed = $geofonEventUrl['target_url'];
         }
 
         $parts = parse_url($trimmed);

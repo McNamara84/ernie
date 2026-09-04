@@ -1016,3 +1016,46 @@ count.
       not delete them after completion.
 - [ ] Keep the old-host redirect until the agreed cache and reference migration
       period ends.
+
+---
+
+## 5. GEOFON Event Landing-Page URL Repair Runbook
+
+This is a one-time controlled production repair for external landing pages of
+the `GEOFON Seismic Events` datacenter. It is independent of the APP_URL domain
+migration above and must not include GEOFON Seismic Networks or another
+datacenter.
+
+### 5.1 Audit and Pilot
+
+- [ ] Confirm `DATACITE_TEST_MODE=false`, the `tib.gfz` Repository client, and
+      valid production credentials without recording secrets.
+- [ ] Run `resources:repair-geofon-event-landing-page-urls` without `--apply`
+      and preserve its CSV report.
+- [ ] Confirm that every candidate belongs to `GEOFON Seismic Events`, uses a
+      supported GEOFON event DOI, and has the same event ID in its DOI, local
+      URL, DataCite URL, and proposed target.
+- [ ] Stop for every wrong-datacenter, unknown-URL, ID-mismatch, unreachable,
+      remote-missing, authentication, or API result.
+- [ ] Confirm every target uses exactly
+      `https://geofon.gfz.de/eqinfo/event.php?id=<event-id>` and is reachable.
+- [ ] Apply one representative DOI with `--apply --force-production --doi=...`
+      and preserve its private source snapshot and CSV report.
+- [ ] Verify the local external landing page, the DataCite API record, and the
+      public `doi.org` resolution before continuing.
+
+### 5.2 Complete Repair and Close-Out
+
+- [ ] Run the complete apply with `--apply --force-production` and a new CSV
+      report. Use `--limit` and `--after-id` only when a bounded rollout is
+      operationally necessary.
+- [ ] Confirm that DataCite updates contain only the `url` attribute and retain
+      the existing DOI state and metadata.
+- [ ] Review every partial or failed record. Retry only understood failures by
+      repeating its `--doi`; never manually broaden the accepted host or path.
+- [ ] Run the complete dry run again and confirm all eligible records are
+      `already_current`, with no manual reviews or errors.
+- [ ] Resolve every repaired DOI publicly and verify that no retired
+      `db/eqpage.php` intermediate page remains.
+- [ ] Archive the dry-run, apply, and verification reports together with the
+      private pre-update snapshots under the agreed retention policy.
