@@ -2,6 +2,7 @@ import { ExternalLink, Mail, User } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { resolveOrcidUrl } from '@/pages/LandingPages/lib/orcid';
 import type { LandingPageContactPerson } from '@/types/landing-page';
 
 import { ContactModal } from './ContactModal';
@@ -51,6 +52,7 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                 <div className="space-y-4">
                     {contactPersons.map((person) => {
                         const displayName = person.family_name && person.given_name ? `${person.family_name}, ${person.given_name}` : person.name;
+                        const orcidUrl = resolveOrcidUrl(person.orcid);
 
                         return (
                             <div
@@ -73,9 +75,9 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                                     )}
 
                                     {/* ORCID icon */}
-                                    {person.orcid && (
+                                    {orcidUrl && (
                                         <a
-                                            href={`https://orcid.org/${person.orcid}`}
+                                            href={orcidUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             aria-label={`ORCID profile of ${displayName}`}
