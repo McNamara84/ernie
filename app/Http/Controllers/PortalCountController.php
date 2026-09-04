@@ -8,6 +8,7 @@ use App\Enums\CacheKey;
 use App\Enums\PortalScope;
 use App\Http\Requests\PortalSearchRequest;
 use App\Services\ListingCountService;
+use App\Services\PortalCacheVersionService;
 use App\Services\PortalFilterService;
 use App\Services\PortalSearchService;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +19,7 @@ final class PortalCountController extends Controller
         private readonly PortalSearchService $searchService,
         private readonly PortalFilterService $filterService,
         private readonly ListingCountService $listingCountService,
+        private readonly PortalCacheVersionService $cacheVersionService,
     ) {}
 
     public function __invoke(PortalSearchRequest $request, string $portalScope): JsonResponse
@@ -26,9 +28,13 @@ final class PortalCountController extends Controller
         $temporalRange = $this->searchService->getTemporalRange($scope);
         $filters = $this->filterService->fromRequest($request, $temporalRange, $scope);
         $fingerprint = $this->listingCountService->fingerprint($filters);
+        $cacheCriteria = [
+            ...$filters,
+            '_portal_cache_version' => $this->cacheVersionService->current(CacheKey::PORTAL_LISTING_COUNT, $scope),
+        ];
         $total = $this->listingCountService->remember(
             CacheKey::PORTAL_LISTING_COUNT,
-            $filters,
+            $cacheCriteria,
             fn (): int => $this->searchService->count($filters),
         );
 

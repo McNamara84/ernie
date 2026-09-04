@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Enums\PortalCacheArea;
+use App\Enums\PortalScope;
 use App\Models\Datacenter;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
-use App\Services\BotProtection\PortalPageCacheService;
+use App\Services\PortalCacheInvalidationService;
 
 beforeEach(function (): void {
     $this->admin = User::factory()->admin()->create();
@@ -50,9 +52,9 @@ it('atomically moves a datacenter from one regular template to another', functio
 it('flushes the portal payload cache when a datacenter template assignment changes', function (): void {
     $template = LandingPageTemplate::factory()->create();
     $datacenter = Datacenter::factory()->create();
-    $portalCache = Mockery::mock(PortalPageCacheService::class);
-    $portalCache->shouldReceive('flush')->once();
-    app()->instance(PortalPageCacheService::class, $portalCache);
+    $portalCache = Mockery::mock(PortalCacheInvalidationService::class);
+    $portalCache->shouldReceive('schedule')->once()->with(PortalScope::cases(), [PortalCacheArea::PAGE]);
+    app()->instance(PortalCacheInvalidationService::class, $portalCache);
 
     $this->actingAs($this->admin)
         ->putJson("/landing-pages/{$template->id}", ['datacenter_ids' => [$datacenter->id]])
@@ -62,9 +64,9 @@ it('flushes the portal payload cache when a datacenter template assignment chang
 it('does not flush the portal payload cache when datacenter assignments are unchanged', function (): void {
     $template = LandingPageTemplate::factory()->create();
     $datacenter = Datacenter::factory()->create(['landing_page_template_id' => $template->id]);
-    $portalCache = Mockery::mock(PortalPageCacheService::class);
-    $portalCache->shouldNotReceive('flush');
-    app()->instance(PortalPageCacheService::class, $portalCache);
+    $portalCache = Mockery::mock(PortalCacheInvalidationService::class);
+    $portalCache->shouldNotReceive('schedule');
+    app()->instance(PortalCacheInvalidationService::class, $portalCache);
 
     $this->actingAs($this->admin)
         ->putJson("/landing-pages/{$template->id}", ['datacenter_ids' => [$datacenter->id]])

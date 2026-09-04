@@ -238,11 +238,11 @@ enum CacheKey: string
 
             self::PORTAL_DATACENTER_FACETS => ['portal', 'datacenters'],
 
-            self::PORTAL_LISTING_COUNT => ['resources', 'portal_page_payloads'],
+            self::PORTAL_LISTING_COUNT => ['portal_listing_counts'],
 
-            self::PORTAL_PAGE_PAYLOAD,
-            self::PORTAL_MAP_PAYLOAD,
-            self::PORTAL_MAP_EXTENT => ['portal_page_payloads'],
+            self::PORTAL_PAGE_PAYLOAD => ['portal_page_payloads'],
+            self::PORTAL_MAP_PAYLOAD => ['portal_map_payloads'],
+            self::PORTAL_MAP_EXTENT => ['portal_map_extents'],
 
             self::DOI_CITATION => ['doi', 'citations'],
 

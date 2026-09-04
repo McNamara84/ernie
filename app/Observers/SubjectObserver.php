@@ -4,22 +4,32 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Enums\PortalCacheArea;
 use App\Models\Subject;
-use App\Services\PortalKeywordCacheInvalidationService;
+use App\Services\PortalCacheInvalidationService;
 
 class SubjectObserver
 {
     public function __construct(
-        private readonly PortalKeywordCacheInvalidationService $cacheInvalidationService,
+        private readonly PortalCacheInvalidationService $cacheInvalidationService,
     ) {}
 
     public function saved(Subject $subject): void
     {
-        $this->cacheInvalidationService->scheduleAfterCommit();
+        $this->schedule($subject);
     }
 
     public function deleted(Subject $subject): void
     {
-        $this->cacheInvalidationService->scheduleAfterCommit();
+        $this->schedule($subject);
+    }
+
+    private function schedule(Subject $subject): void
+    {
+        $this->cacheInvalidationService->scheduleForResourceId((int) $subject->resource_id, [
+            PortalCacheArea::PAGE,
+            PortalCacheArea::COUNT,
+            PortalCacheArea::KEYWORDS,
+        ]);
     }
 }

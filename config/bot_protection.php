@@ -42,7 +42,13 @@ return [
 
     'landing_cache_ttl' => (int) env('BOT_PROTECTION_LANDING_CACHE_TTL', 600),
 
-    'portal_cache_ttl' => (int) env('BOT_PROTECTION_PORTAL_CACHE_TTL', 120),
+    'portal_cache_ttl' => max(0, (int) env('BOT_PROTECTION_PORTAL_CACHE_TTL', 120)),
+
+    'portal_cache_fresh_ttl' => max(0, (int) env('BOT_PROTECTION_PORTAL_CACHE_FRESH_TTL', 60)),
+
+    'portal_cache_lock_seconds' => max(1, (int) env('BOT_PROTECTION_PORTAL_CACHE_LOCK_SECONDS', 15)),
+
+    'portal_cache_lock_wait_seconds' => max(1, (int) env('BOT_PROTECTION_PORTAL_CACHE_LOCK_WAIT_SECONDS', 10)),
 
     'view_count_debounce_seconds' => (int) env('BOT_PROTECTION_VIEW_COUNT_DEBOUNCE_SECONDS', 3600),
 ];

@@ -10,6 +10,7 @@ use App\Models\Subject;
 use App\Models\ThesaurusSetting;
 use App\Services\KeywordSuggestionService;
 use App\Support\GemetVocabularyParser;
+use Illuminate\Cache\Repository as CacheRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -24,12 +25,18 @@ uses(RefreshDatabase::class);
 function putCacheValue(array $tags, string $key, mixed $value): void
 {
     if (method_exists(Cache::getStore(), 'tags')) {
-        Cache::tags($tags)->put($key, $value);
+        Cache::tags($tags)->putMany([
+            $key => $value,
+            CacheRepository::FLEXIBLE_CREATED_KEY_PREFIX.$key => now()->getTimestamp(),
+        ]);
 
         return;
     }
 
-    Cache::put($key, $value);
+    Cache::putMany([
+        $key => $value,
+        CacheRepository::FLEXIBLE_CREATED_KEY_PREFIX.$key => now()->getTimestamp(),
+    ]);
 }
 
 beforeEach(function () {

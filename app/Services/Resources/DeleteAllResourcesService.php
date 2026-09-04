@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Resources;
 
-use App\Enums\CacheKey;
+use App\Enums\PortalCacheArea;
+use App\Enums\PortalScope;
 use App\Models\Affiliation;
 use App\Models\Institution;
 use App\Models\Person;
@@ -14,22 +15,16 @@ use App\Models\ResourceAssessment;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Services\Assessment\AssessmentAverageSummaryVersionService;
-use App\Services\BotProtection\PortalPageCacheService;
-use App\Services\PortalKeywordCacheInvalidationService;
+use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceCacheService;
-use App\Support\Traits\ChecksCacheTagging;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 final class DeleteAllResourcesService
 {
-    use ChecksCacheTagging;
-
     public function __construct(
         private readonly ResourceCacheService $resourceCacheService,
-        private readonly PortalKeywordCacheInvalidationService $keywordCacheInvalidationService,
-        private readonly PortalPageCacheService $portalPageCache,
+        private readonly PortalCacheInvalidationService $portalCacheInvalidationService,
         private readonly AssessmentAverageSummaryVersionService $assessmentSummaryVersionService,
     ) {}
 
@@ -186,19 +181,9 @@ final class DeleteAllResourcesService
     private function invalidateCaches(): void
     {
         $this->resourceCacheService->invalidateAllResourceCaches();
-        $this->keywordCacheInvalidationService->scheduleAfterCommit();
-        $this->invalidatePortalFacets();
-        $this->portalPageCache->flush();
-    }
-
-    private function invalidatePortalFacets(): void
-    {
-        foreach ([CacheKey::PORTAL_DATACENTER_FACETS, CacheKey::PORTAL_RESOURCE_TYPE_FACETS, CacheKey::PORTAL_TEMPORAL_RANGE] as $cacheKey) {
-            if ($this->supportsTagging()) {
-                Cache::tags($cacheKey->tags())->flush();
-            } else {
-                $cacheKey->forgetPortalVariants();
-            }
-        }
+        $this->portalCacheInvalidationService->schedule(
+            PortalScope::cases(),
+            PortalCacheArea::all(),
+        );
     }
 }

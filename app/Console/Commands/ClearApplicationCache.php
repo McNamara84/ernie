@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\PortalCacheArea;
+use App\Enums\PortalScope;
+use App\Services\PortalCacheInvalidationService;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -66,6 +69,8 @@ class ClearApplicationCache extends Command
             foreach ($tags as $tag) {
                 Cache::tags([$tag])->flush();
             }
+
+            $this->clearScopedPortalCaches();
         } else {
             // WARNING: This clears the ENTIRE cache store (sessions, rate limiting, etc.)
             Cache::flush();
@@ -95,6 +100,7 @@ class ClearApplicationCache extends Command
 
             if ($tag === 'portal') {
                 Cache::tags(['portal_page_payloads'])->flush();
+                $this->clearScopedPortalCaches();
             }
         } else {
             // WARNING: Cannot clear specific category without tagging support.
@@ -102,5 +108,12 @@ class ClearApplicationCache extends Command
             Cache::flush();
             $this->warn("⚠️  Cache tagging not supported. Cleared entire cache store instead of just '{$tag}'.");
         }
+    }
+
+    private function clearScopedPortalCaches(): void
+    {
+        $service = app(PortalCacheInvalidationService::class);
+        $service->schedule(PortalScope::cases(), PortalCacheArea::all());
+        $service->flushPending();
     }
 }

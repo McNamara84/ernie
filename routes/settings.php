@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DatacenterController;
 use App\Http\Controllers\LandingPageDomainController;
+use App\Http\Controllers\Settings\AppearanceController;
 use App\Http\Controllers\Settings\AssistanceAccordionController;
 use App\Http\Controllers\Settings\CurationAccordionController;
 use App\Http\Controllers\Settings\EditorSettingsController;
@@ -9,7 +10,6 @@ use App\Http\Controllers\Settings\FontSizeController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware('auth')->group(function () {
     // Editor Settings (Admin, Group Leader only - Issue #379)
@@ -42,7 +42,5 @@ Route::middleware('auth')->group(function () {
     Route::put('settings/curation-accordion', [CurationAccordionController::class, 'update'])->name('curation-accordion.update');
     Route::put('settings/assistance-accordion', [AssistanceAccordionController::class, 'update'])->name('assistance-accordion.update');
 
-    Route::get('settings/appearance', function () {
-        return Inertia::render('settings/appearance');
-    })->name('appearance');
+    Route::get('settings/appearance', AppearanceController::class)->name('appearance');
 });
