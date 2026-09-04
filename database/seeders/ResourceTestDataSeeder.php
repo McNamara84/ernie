@@ -306,11 +306,11 @@ class ResourceTestDataSeeder extends Seeder
         // Note: Default contact person is already added by createBaseResource at position 1
 
         // Main creator with ORCID and affiliation (position 2)
-        $creator = $this->addCreator($resource, 'Alice', 'Wonderland', '0000-0001-1234-5678', 2);
+        $creator = $this->addCreator($resource, 'Alice', 'Wonderland', '0000-0001-1234-567X', 2);
         $this->addAffiliation($creator, 'GFZ German Research Centre for Geosciences', 'https://ror.org/04z8jg394', 'ROR');
 
         // Second creator (position 3)
-        $creator2 = $this->addCreator($resource, 'Bob', 'Builder', '0000-0002-2345-6789', 3);
+        $creator2 = $this->addCreator($resource, 'Bob', 'Builder', '0000-0002-2345-6786', 3);
         $this->addAffiliation($creator2, 'University of Potsdam', 'https://ror.org/03bnmw459', 'ROR');
 
         // Contributor
@@ -397,14 +397,14 @@ class ResourceTestDataSeeder extends Seeder
 
         // Note: Default contact person is already at position 1
         $creators = [
-            ['Anna', 'Schmidt', '0000-0001-1111-1111'],
-            ['Bruno', 'Meyer', '0000-0001-2222-2222'],
-            ['Clara', 'Weber', '0000-0001-3333-3333'],
-            ['David', 'Fischer', '0000-0001-4444-4444'],
-            ['Emma', 'Wagner', '0000-0001-5555-5555'],
-            ['Felix', 'Becker', '0000-0001-6666-6666'],
-            ['Greta', 'Hoffmann', '0000-0001-7777-7777'],
-            ['Hans', 'Schäfer', '0000-0001-8888-8888'],
+            ['Anna', 'Schmidt', '0000-0001-1111-1118'],
+            ['Bruno', 'Meyer', '0000-0001-2222-2227'],
+            ['Clara', 'Weber', '0000-0001-3333-3336'],
+            ['David', 'Fischer', '0000-0001-4444-4445'],
+            ['Emma', 'Wagner', '0000-0001-5555-5554'],
+            ['Felix', 'Becker', '0000-0001-6666-6663'],
+            ['Greta', 'Hoffmann', '0000-0001-7777-7772'],
+            ['Hans', 'Schäfer', '0000-0001-8888-8881'],
         ];
 
         foreach ($creators as $index => $data) {
@@ -442,9 +442,9 @@ class ResourceTestDataSeeder extends Seeder
         $resource = $this->createBaseResource('TEST: Mixed Creators With and Without ORCID');
 
         // Note: Default contact person is already at position 1
-        $this->addCreator($resource, 'Alice', 'With-Orcid', '0000-0002-1111-1111', 2);
+        $this->addCreator($resource, 'Alice', 'With-Orcid', '0000-0002-1111-1115', 2);
         $this->addCreator($resource, 'Bob', 'Without-Orcid', null, 3);
-        $this->addCreator($resource, 'Charlie', 'With-Orcid', '0000-0002-2222-2222', 4);
+        $this->addCreator($resource, 'Charlie', 'With-Orcid', '0000-0002-2222-2224', 4);
         $this->addCreator($resource, 'Diana', 'Without-Orcid', null, 5);
         $this->addCreator($resource, 'Eve', 'With-Orcid', '0000-0002-3333-3333', 6);
 
@@ -488,11 +488,11 @@ class ResourceTestDataSeeder extends Seeder
         // Note: Default contact person is already at position 1
         $this->addCreator($resource, 'Main', 'Author', null, 2);
 
-        $contributor1 = $this->addContributor($resource, 'Peter', 'Schmidt', $this->dataCollectorType, '0000-0003-1111-1111', 1);
+        $contributor1 = $this->addContributor($resource, 'Peter', 'Schmidt', $this->dataCollectorType, '0000-0003-1111-1112', 1);
         $this->addAffiliation($contributor1, 'GFZ German Research Centre for Geosciences', 'https://ror.org/04z8jg394', 'ROR');
         $this->addAffiliation($contributor1, 'University of Potsdam', 'https://ror.org/03bnmw459', 'ROR');
 
-        $contributor2 = $this->addContributor($resource, 'Maria', 'Müller', $this->projectLeaderType, '0000-0003-2222-2222', 2);
+        $contributor2 = $this->addContributor($resource, 'Maria', 'Müller', $this->projectLeaderType, '0000-0003-2222-2221', 2);
         $this->addAffiliation($contributor2, 'Helmholtz Association', 'https://ror.org/0281dp749', 'ROR');
 
         $this->createLandingPage($resource, 'contributors-with-ror');
@@ -1079,14 +1079,14 @@ class ResourceTestDataSeeder extends Seeder
         );
 
         // Main author (not contact) at position 1
-        $this->addCreator($resource, 'Main', 'Author', '0000-0004-1111-1111', 1);
+        $this->addCreator($resource, 'Main', 'Author', '0000-0004-1111-111X', 1);
 
         // Contact persons with email and website - using addCreator parameters directly
         $creator1 = $this->addCreator(
             $resource,
             'Anna',
             'Contact',
-            '0000-0004-2222-2222',
+            '0000-0004-2222-2229',
             2,
             true,  // isContact
             'anna.contact@gfz-potsdam.de',
@@ -1098,7 +1098,7 @@ class ResourceTestDataSeeder extends Seeder
             $resource,
             'Bruno',
             'Kontakt',
-            '0000-0004-3333-3333',
+            '0000-0004-3333-3338',
             3,
             true,  // isContact
             'bruno.kontakt@uni-potsdam.de'

@@ -8,7 +8,13 @@ import { ContactSection } from '@/pages/LandingPages/components/ContactSection';
 
 // Mock ContactModal to avoid complex dependencies
 vi.mock('@/pages/LandingPages/components/ContactModal', () => ({
-    ContactModal: ({ isOpen, onClose, selectedPerson, contactPersons, datasetTitle }: {
+    ContactModal: ({
+        isOpen,
+        onClose,
+        selectedPerson,
+        contactPersons,
+        datasetTitle,
+    }: {
         isOpen: boolean;
         onClose: () => void;
         selectedPerson: { name: string } | null;
@@ -35,18 +41,20 @@ const createAffiliation = (overrides: Partial<{ name: string; identifier: string
     ...overrides,
 });
 
-const createContactPerson = (overrides: Partial<{
-    id: number;
-    name: string;
-    given_name: string | null;
-    family_name: string | null;
-    type: string;
-    source: 'creator' | 'contributor';
-    affiliations: Array<{ name: string; identifier: string | null; scheme: string | null }>;
-    orcid: string | null;
-    website: string | null;
-    has_email: boolean;
-}> = {}): {
+const createContactPerson = (
+    overrides: Partial<{
+        id: number;
+        name: string;
+        given_name: string | null;
+        family_name: string | null;
+        type: string;
+        source: 'creator' | 'contributor';
+        affiliations: Array<{ name: string; identifier: string | null; scheme: string | null }>;
+        orcid: string | null;
+        website: string | null;
+        has_email: boolean;
+    }> = {},
+): {
     id: number;
     name: string;
     given_name: string | null;
@@ -80,15 +88,13 @@ describe('ContactSection', () => {
     describe('rendering conditions', () => {
         it('renders when contact persons exist', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             expect(screen.getByText('Contact Information')).toBeInTheDocument();
         });
 
         it('returns null when contact persons array is empty', () => {
-            const { container } = render(
-                <ContactSection contactPersons={[]} datasetTitle="Test Dataset" />
-            );
-            
+            const { container } = render(<ContactSection contactPersons={[]} datasetTitle="Test Dataset" />);
+
             expect(container).toBeEmptyDOMElement();
         });
     });
@@ -96,19 +102,14 @@ describe('ContactSection', () => {
     describe('contact person display', () => {
         it('displays contact person name as button when has_email is true', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             const contactButton = screen.getByRole('button', { name: /Doe, John/i });
             expect(contactButton).toBeInTheDocument();
         });
 
         it('does not display contact button when has_email is false', () => {
-            render(
-                <ContactSection
-                    {...defaultProps}
-                    contactPersons={[createContactPerson({ has_email: false })]}
-                />
-            );
-            
+            render(<ContactSection {...defaultProps} contactPersons={[createContactPerson({ has_email: false })]} />);
+
             expect(screen.queryByRole('button', { name: /Doe, John/i })).not.toBeInTheDocument();
         });
 
@@ -120,45 +121,62 @@ describe('ContactSection', () => {
                         createContactPerson({ id: 1, name: 'John Doe', given_name: 'John', family_name: 'Doe' }),
                         createContactPerson({ id: 2, name: 'Jane Smith', given_name: 'Jane', family_name: 'Smith' }),
                     ]}
-                />
+                />,
             );
-            
+
             expect(screen.getByRole('button', { name: /Doe, John/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /Smith, Jane/i })).toBeInTheDocument();
+        });
+
+        it('falls back to the supplied name when structured person names are unavailable', () => {
+            render(
+                <ContactSection
+                    {...defaultProps}
+                    contactPersons={[
+                        createContactPerson({
+                            name: 'GFZ Data Services',
+                            given_name: null,
+                            family_name: null,
+                            type: 'Institution',
+                        }),
+                    ]}
+                />,
+            );
+
+            expect(screen.getByRole('button', { name: /GFZ Data Services/i })).toBeInTheDocument();
         });
     });
 
     describe('ORCID link', () => {
-        it('renders ORCID link when person has ORCID', () => {
-            render(
-                <ContactSection
-                    {...defaultProps}
-                    contactPersons={[createContactPerson({ orcid: '0000-0002-1825-0097' })]}
-                />
-            );
-            
+        it.each([
+            ['a bare identifier', '0000-0002-1825-0097', 'https://orcid.org/0000-0002-1825-0097'],
+            ['the canonical URL from issue 1254', 'https://orcid.org/0000-0002-9988-965X', 'https://orcid.org/0000-0002-9988-965X'],
+        ])('renders a canonical ORCID link from %s', (_description, orcid, expectedUrl) => {
+            render(<ContactSection {...defaultProps} contactPersons={[createContactPerson({ orcid })]} />);
+
             // accessible name comes from aria-label
             const orcidLink = screen.getByRole('link', { name: /ORCID profile of/i });
-            expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0002-1825-0097');
+            expect(orcidLink).toHaveAttribute('href', expectedUrl);
             expect(orcidLink).toHaveAttribute('target', '_blank');
+            expect(orcidLink).toHaveAttribute('rel', 'noopener noreferrer');
         });
 
-        it('does not render ORCID link when person has no ORCID', () => {
-            render(<ContactSection {...defaultProps} />);
-            
-            expect(screen.queryByRole('link', { name: /^ORCID$/i })).not.toBeInTheDocument();
+        it.each([
+            ['no identifier', null],
+            ['a blank identifier', '   '],
+            ['an invalid identifier', 'https://example.com/not-an-orcid'],
+            ['a checksum-invalid identifier', '0000-0002-1825-0098'],
+        ])('does not render an ORCID link with %s', (_description, orcid) => {
+            render(<ContactSection {...defaultProps} contactPersons={[createContactPerson({ orcid })]} />);
+
+            expect(screen.queryByRole('link', { name: /ORCID profile of/i })).not.toBeInTheDocument();
         });
     });
 
     describe('website link', () => {
         it('renders website link when person has website', () => {
-            render(
-                <ContactSection
-                    {...defaultProps}
-                    contactPersons={[createContactPerson({ website: 'https://example.com/john' })]}
-                />
-            );
-            
+            render(<ContactSection {...defaultProps} contactPersons={[createContactPerson({ website: 'https://example.com/john' })]} />);
+
             const websiteLink = screen.getByRole('link', { name: /Website/i });
             expect(websiteLink).toHaveAttribute('href', 'https://example.com/john');
             expect(websiteLink).toHaveAttribute('target', '_blank');
@@ -166,7 +184,7 @@ describe('ContactSection', () => {
 
         it('does not render website link when person has no website', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             expect(screen.queryByRole('link', { name: /Website/i })).not.toBeInTheDocument();
         });
     });
@@ -176,12 +194,14 @@ describe('ContactSection', () => {
             render(
                 <ContactSection
                     {...defaultProps}
-                    contactPersons={[createContactPerson({
-                        affiliations: [createAffiliation()],
-                    })]}
-                />
+                    contactPersons={[
+                        createContactPerson({
+                            affiliations: [createAffiliation()],
+                        }),
+                    ]}
+                />,
             );
-            
+
             expect(screen.getByText('GFZ Potsdam')).toBeInTheDocument();
         });
 
@@ -189,15 +209,14 @@ describe('ContactSection', () => {
             render(
                 <ContactSection
                     {...defaultProps}
-                    contactPersons={[createContactPerson({
-                        affiliations: [
-                            createAffiliation({ name: 'GFZ Potsdam' }),
-                            createAffiliation({ name: 'TU Berlin' }),
-                        ],
-                    })]}
-                />
+                    contactPersons={[
+                        createContactPerson({
+                            affiliations: [createAffiliation({ name: 'GFZ Potsdam' }), createAffiliation({ name: 'TU Berlin' })],
+                        }),
+                    ]}
+                />,
             );
-            
+
             expect(screen.getByText(/GFZ Potsdam/)).toBeInTheDocument();
             expect(screen.getByText(/TU Berlin/)).toBeInTheDocument();
         });
@@ -206,15 +225,19 @@ describe('ContactSection', () => {
             render(
                 <ContactSection
                     {...defaultProps}
-                    contactPersons={[createContactPerson({
-                        affiliations: [createAffiliation({
-                            identifier: 'https://ror.org/04z8jg394',
-                            scheme: 'ROR',
-                        })],
-                    })]}
-                />
+                    contactPersons={[
+                        createContactPerson({
+                            affiliations: [
+                                createAffiliation({
+                                    identifier: 'https://ror.org/04z8jg394',
+                                    scheme: 'ROR',
+                                }),
+                            ],
+                        }),
+                    ]}
+                />,
             );
-            
+
             // accessible name comes from aria-label
             const rorLink = screen.getByRole('link', { name: /ROR profile of/i });
             expect(rorLink).toHaveAttribute('href', 'https://ror.org/04z8jg394');
@@ -224,15 +247,19 @@ describe('ContactSection', () => {
             render(
                 <ContactSection
                     {...defaultProps}
-                    contactPersons={[createContactPerson({
-                        affiliations: [createAffiliation({
-                            identifier: 'some-id',
-                            scheme: 'ISNI',
-                        })],
-                    })]}
-                />
+                    contactPersons={[
+                        createContactPerson({
+                            affiliations: [
+                                createAffiliation({
+                                    identifier: 'some-id',
+                                    scheme: 'ISNI',
+                                }),
+                            ],
+                        }),
+                    ]}
+                />,
             );
-            
+
             expect(screen.queryByRole('link', { name: /^ROR$/i })).not.toBeInTheDocument();
         });
     });
@@ -240,21 +267,21 @@ describe('ContactSection', () => {
     describe('contact modal interaction', () => {
         it('opens modal when clicking on contact person', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             const contactButton = screen.getByRole('button', { name: /Doe, John/i });
             fireEvent.click(contactButton);
-            
+
             expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
             expect(screen.getByTestId('selected-person')).toHaveTextContent('John Doe');
         });
 
         it('closes modal when clicking close button', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             // Open modal
             fireEvent.click(screen.getByRole('button', { name: /Doe, John/i }));
             expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
-            
+
             // Close modal
             fireEvent.click(screen.getByRole('button', { name: /Close/i }));
             expect(screen.queryByTestId('contact-modal')).not.toBeInTheDocument();
@@ -262,9 +289,9 @@ describe('ContactSection', () => {
 
         it('passes correct dataset title to modal', () => {
             render(<ContactSection {...defaultProps} datasetTitle="My Research Data" />);
-            
+
             fireEvent.click(screen.getByRole('button', { name: /Doe, John/i }));
-            
+
             expect(screen.getByTestId('dataset-title')).toHaveTextContent('My Research Data');
         });
     });
@@ -278,23 +305,23 @@ describe('ContactSection', () => {
                         createContactPerson({ id: 1, name: 'John Doe', given_name: 'John', family_name: 'Doe' }),
                         createContactPerson({ id: 2, name: 'Jane Smith', given_name: 'Jane', family_name: 'Smith' }),
                     ]}
-                />
+                />,
             );
-            
+
             expect(screen.getByRole('button', { name: /Send Request/i })).toBeInTheDocument();
         });
 
         it('renders "Send Request" button when only one contact person', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             expect(screen.getByRole('button', { name: /Send Request/i })).toBeInTheDocument();
         });
 
         it('opens modal with selected person when clicking "Send Request" with one contact', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             fireEvent.click(screen.getByRole('button', { name: /Send Request/i }));
-            
+
             expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
             expect(screen.getByTestId('selected-person')).toHaveTextContent('John Doe');
         });
@@ -307,11 +334,11 @@ describe('ContactSection', () => {
                         createContactPerson({ id: 1, name: 'John Doe', given_name: 'John', family_name: 'Doe' }),
                         createContactPerson({ id: 2, name: 'Jane Smith', given_name: 'Jane', family_name: 'Smith' }),
                     ]}
-                />
+                />,
             );
-            
+
             fireEvent.click(screen.getByRole('button', { name: /Send Request/i }));
-            
+
             expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
             expect(screen.getByTestId('selected-person')).toHaveTextContent('All');
             expect(screen.getByTestId('contact-count')).toHaveTextContent('2');
@@ -321,46 +348,36 @@ describe('ContactSection', () => {
     describe('accessibility', () => {
         it('renders as a section element with aria-labelledby', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             const section = screen.getByRole('region', { name: 'Contact Information' });
             expect(section).toBeInTheDocument();
         });
 
         it('renders heading as h2', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             const heading = screen.getByRole('heading', { level: 2, name: 'Contact Information' });
             expect(heading).toBeInTheDocument();
             expect(heading).toHaveAttribute('id', 'heading-contact');
         });
 
         it('renders ORCID link with descriptive aria-label including person name', () => {
-            render(
-                <ContactSection
-                    {...defaultProps}
-                    contactPersons={[createContactPerson({ orcid: '0000-0002-1825-0097' })]}
-                />
-            );
-            
+            render(<ContactSection {...defaultProps} contactPersons={[createContactPerson({ orcid: '0000-0002-1825-0097' })]} />);
+
             const orcidLink = screen.getByRole('link', { name: /ORCID profile of Doe, John/i });
             expect(orcidLink).toBeInTheDocument();
         });
 
         it('renders ORCID link with minimum touch target size', () => {
-            render(
-                <ContactSection
-                    {...defaultProps}
-                    contactPersons={[createContactPerson({ orcid: '0000-0002-1825-0097' })]}
-                />
-            );
-            
+            render(<ContactSection {...defaultProps} contactPersons={[createContactPerson({ orcid: '0000-0002-1825-0097' })]} />);
+
             const orcidLink = screen.getByRole('link', { name: /ORCID profile of/i });
             expect(orcidLink).toHaveClass('min-h-11', 'min-w-11');
         });
 
         it('includes dark mode classes on the section', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             const section = screen.getByRole('region', { name: 'Contact Information' });
             expect(section.className).toContain('dark:');
         });
