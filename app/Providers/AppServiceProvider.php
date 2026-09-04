@@ -354,9 +354,10 @@ class AppServiceProvider extends ServiceProvider
             return in_array($user->role, [UserRole::ADMIN, UserRole::GROUP_LEADER], true);
         });
 
-        // Delete all resources (bulk cleanup) - Admin only
+        // Delete all resources (bulk cleanup) - Admin only in DataCite test mode
         Gate::define('delete-all-resources', function (User $user): bool {
-            return $user->role === UserRole::ADMIN;
+            return $user->role === UserRole::ADMIN
+                && config('datacite.test_mode') === true;
         });
 
         // Delete published resources from the Resources page (Admin, Group Leader)
