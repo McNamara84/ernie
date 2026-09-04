@@ -61,7 +61,7 @@ jobs:
             refs/remotes/origin/main
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Release ${TAG} liegt auf main."
+          echo "Release ${TAG} is on main."
 
   mirror:
     needs: verify
