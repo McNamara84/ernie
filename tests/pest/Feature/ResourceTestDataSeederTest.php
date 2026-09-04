@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Models\LandingPage;
+use App\Models\Person;
 use App\Models\Resource;
+use App\Support\OrcidNormalizer;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\ResourceTestDataSeeder;
 use Illuminate\Support\Facades\Http;
@@ -58,6 +60,25 @@ describe('ResourceTestDataSeeder', function () {
             ->count();
 
         expect($resourcesWithoutCreator)->toBe(0);
+    });
+
+    test('all ORCID identifiers have valid checksums', function () {
+        $orcidIdentifiers = Person::query()
+            ->where('name_identifier_scheme', 'ORCID')
+            ->where(function ($query) {
+                $query
+                    ->whereHas('resourceCreators.resource', fn ($resourceQuery) => $resourceQuery->where('doi', 'LIKE', '10.5880/testdata.%'))
+                    ->orWhereHas('resourceContributors.resource', fn ($resourceQuery) => $resourceQuery->where('doi', 'LIKE', '10.5880/testdata.%'));
+            })
+            ->pluck('name_identifier');
+
+        $invalidIdentifiers = $orcidIdentifiers
+            ->reject(fn (string $orcid): bool => OrcidNormalizer::isValid($orcid))
+            ->values()
+            ->all();
+
+        expect($orcidIdentifiers)->not->toBeEmpty()
+            ->and($invalidIdentifiers)->toBe([]);
     });
 
     test('creates published landing pages for all resources', function () {
