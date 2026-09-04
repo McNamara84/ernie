@@ -81,7 +81,7 @@ describe('Editor page', () => {
         vi.mocked(fetch).mockImplementation(() => new Promise(() => {}));
         render(<Editor googleMapsApiKey="test-api-key" />);
         expect(screen.getByTestId('editor-loading-state')).toBeInTheDocument();
-        expect(screen.getByRole('status')).toHaveTextContent(
+        expect(screen.getByRole('status').textContent).toMatch(
             /loading resource types, title types, description types, date types, licenses, languages, and role options/i,
         );
     });
@@ -94,7 +94,7 @@ describe('Editor page', () => {
                 : unresolved,
         );
         render(<Editor googleMapsApiKey="test-api-key" />);
-        expect(screen.getByRole('status')).toHaveTextContent(
+        expect(screen.getByRole('status').textContent).toMatch(
             /loading resource types, title types, description types, date types, licenses, languages, and role options/i,
         );
     });
@@ -197,7 +197,7 @@ describe('Editor page', () => {
             />,
         );
 
-        expect(await screen.findByTestId('editor-loading-error')).toHaveTextContent(/unable to load the editor workspace/i);
+        expect((await screen.findByTestId('editor-loading-error')).textContent).toMatch(/unable to load the editor workspace/i);
         expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
         expect(screen.queryByTestId('editor-error-state')).not.toBeInTheDocument();
     });

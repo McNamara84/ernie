@@ -20,7 +20,6 @@ tar \
     --exclude='./.git' \
     --exclude='./.tmp' \
     --exclude='./.vitest' \
-    --exclude='./.vitest-reports' \
     --exclude='./coverage' \
     --exclude='./node_modules' \
     --exclude='./playwright-report' \

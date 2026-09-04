@@ -3224,7 +3224,7 @@ describe('SetupLandingPageModal', () => {
             render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const scrollArea = screen.getByTestId('setup-lp-modal-scroll-area');
-            expect(scrollArea).toHaveTextContent(/Loading configuration/i);
+            expect(scrollArea.textContent).toMatch(/Loading configuration/i);
 
             // Footer (and its Cancel button) must stay reachable during loading.
             expect(screen.getByTestId('setup-lp-modal-footer')).toBeInTheDocument();

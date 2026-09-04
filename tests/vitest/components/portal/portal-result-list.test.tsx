@@ -143,7 +143,7 @@ describe('PortalResultList', () => {
             render(<PortalResultList {...defaultProps} isLoading={true} />);
 
             expect(screen.getByText('Resource 1')).toBeInTheDocument();
-            expect(screen.getByTestId('portal-results-refreshing')).toHaveTextContent(/refreshing results/i);
+            expect(screen.getByTestId('portal-results-refreshing').textContent).toMatch(/refreshing results/i);
         });
     });
 

@@ -164,7 +164,7 @@ describe('UnifiedDropzone', () => {
                 expect(screen.getByTestId('dropzone-error-state')).toBeInTheDocument();
             });
 
-            expect(screen.getByTestId('dropzone-error-alert')).toHaveTextContent(/no editor target was returned/i);
+            expect(screen.getByTestId('dropzone-error-alert').textContent).toMatch(/no editor target was returned/i);
             expect(screen.queryByText('Row Errors:')).not.toBeInTheDocument();
             expect(screen.queryByTestId('dropzone-success-state')).not.toBeInTheDocument();
             expect(mockVisit).not.toHaveBeenCalled();
@@ -237,7 +237,7 @@ describe('UnifiedDropzone', () => {
                 expect(screen.getByTestId('dropzone-error-state')).toBeInTheDocument();
             });
 
-            expect(screen.getByTestId('dropzone-error-alert')).toHaveTextContent(/no editor target was returned/i);
+            expect(screen.getByTestId('dropzone-error-alert').textContent).toMatch(/no editor target was returned/i);
             expect(screen.queryByText('Row Errors:')).not.toBeInTheDocument();
             expect(screen.queryByTestId('dropzone-success-state')).not.toBeInTheDocument();
             expect(mockVisit).not.toHaveBeenCalled();
@@ -279,7 +279,7 @@ describe('UnifiedDropzone', () => {
             });
 
             expect(screen.getByText('IGSN import complete')).toBeInTheDocument();
-            expect(screen.getByTestId('dropzone-success-alert')).toHaveTextContent(/test\.csv imported 3 IGSN resource/i);
+            expect(screen.getByTestId('dropzone-success-alert').textContent).toMatch(/test\.csv imported 3 IGSN resource/i);
             expect(screen.getByRole('button', { name: /view igsns/i })).toBeInTheDocument();
             expect(mockVisit).not.toHaveBeenCalled();
 

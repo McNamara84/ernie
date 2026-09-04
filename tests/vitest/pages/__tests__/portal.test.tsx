@@ -518,7 +518,7 @@ describe('Portal', () => {
 
         render(<Portal {...defaultProps} />);
 
-        expect(screen.getByTestId('portal-results-refreshing')).toHaveTextContent(/refreshing results/i);
+        expect(screen.getByTestId('portal-results-refreshing').textContent).toMatch(/refreshing results/i);
         expect(screen.getAllByTestId('result-loading')[0]).toHaveTextContent('true');
     });
 

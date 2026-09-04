@@ -31,6 +31,7 @@ Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm in
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive`          | Uses isolated `ernie_test` schema                              |
 | Vitest one-shot            | Host shell                 | `npm run test:run`                          | Preferred for focused frontend validation                      |
 | Vitest coverage            | Host shell                 | `npm run test:coverage`                     | Use only when coverage detail is needed                        |
+| Vitest performance doctor  | Host shell                 | `npm run test:doctor`                       | Runs the suite repeatedly; use for measured tuning only        |
 | ESLint check               | Host shell                 | `npm run lint:check`                        | Non-mutating validation                                        |
 | ESLint auto-fix            | Host shell                 | `npm run lint`                              | Applies ESLint fixes                                           |
 | TypeScript                 | Host shell                 | `npm run types`                             | Runs app and test TS checks                                    |
@@ -180,13 +181,26 @@ Vitest can repeat a focused test file to expose flaky behavior without multiplyi
 npm run test:run -- tests/vitest/path/to/file.test.tsx --repeats=5
 ```
 
+Vitest 5 reports performance hints when its timing data indicates a likely
+configuration improvement. For a measured comparison of pools, isolation,
+DOM environments, worker counts, and the filesystem module cache, run:
+
+```bash
+npm run test:doctor
+```
+
+Doctor executes the complete suite several times. Use it for deliberate
+performance work, not as part of the normal validation loop. Adopt a suggested
+setting only after its result is reproducible and the complete suite remains
+green with shuffled file order and normal project isolation requirements.
+
 For slow startup or import-heavy tests, print the import-duration breakdown before changing optimizer settings:
 
 ```bash
 npm run test:run -- tests/vitest/path/to/file.test.tsx --experimental.importDurations.print
 ```
 
-The persistent filesystem module cache remains an opt-in experiment because Wayfinder and other plugin inputs must be invalidated correctly. It can be compared on focused repeated runs and cleared explicitly:
+The persistent filesystem module cache is stable in Vitest 5 but remains opt-in because Wayfinder and other plugin inputs must be invalidated correctly. It can be compared on focused repeated runs and cleared explicitly:
 
 ```bash
 npm run test:run -- tests/vitest/path/to/file.test.tsx --fsModuleCache
@@ -267,7 +281,7 @@ npm run test:e2e:stage
 - Run local coverage only when targeted feedback is needed.
 - Keep day-to-day backend runs on `--no-coverage`.
 - Let CI remain the primary source of complete coverage reporting.
-- CI runs the Vitest coverage suite on three machines with `--shard=1/3`, `--shard=2/3`, and `--shard=3/3`. Each machine uploads a Vitest blob report; the final `vitest` job merges all test and V8 coverage results before uploading the single complete `coverage/lcov.info` to Codecov.
+- CI runs the Vitest coverage suite on three machines with `--shard=1/3`, `--shard=2/3`, and `--shard=3/3`. Each machine uploads its Vitest 5 blob report from `.vitest/blob`; the final `vitest` job merges all test and V8 coverage results before uploading the single complete `coverage/lcov.info` to Codecov.
 - Keep the blob upload and merge job together when changing the workflow. Uploading either shard's partial LCOV report would make the Codecov result incomplete.
 - CI runs the serial and architecture Pest slices alongside two disjoint shards of the remaining test suite. Serial and parallel tests collect the configured line coverage with PCOV into separate Clover reports; the final `Pest PHP Tests` job uploads all three reports together. PCOV remains rooted at the repository so `routes/`, `config/`, and `database/` can contribute coverage, while `vendor/` and `tests/` are excluded before instrumentation. Each parallel shard gives the coverage-merging parent process 4 GB of memory while its ParaTest workers retain the configured 1 GB limit. Architecture tests remain coverage-free because their structural assertions do not produce meaningful runtime coverage.
 

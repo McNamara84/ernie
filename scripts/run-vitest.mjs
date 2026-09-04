@@ -3,28 +3,6 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const disableWebStorageFlag = '--no-experimental-webstorage';
-const configuredNodeOptions = process.env.NODE_OPTIONS?.trim() ?? '';
-
-// Node 26 exposes a host localStorage implementation that throws unless a
-// persistence file is configured. Disable it before Vitest starts so jsdom can
-// provide the isolated localStorage implementation expected by the test suite.
-if (!configuredNodeOptions.split(/\s+/u).includes(disableWebStorageFlag)) {
-    const result = spawnSync(process.execPath, process.argv.slice(1), {
-        env: {
-            ...process.env,
-            NODE_OPTIONS: [configuredNodeOptions, disableWebStorageFlag].filter(Boolean).join(' '),
-        },
-        stdio: 'inherit',
-    });
-
-    if (result.error) {
-        throw result.error;
-    }
-
-    process.exit(result.status ?? 1);
-}
-
 const hostWayfinderProbeTimeoutMs = 20_000;
 const dockerWayfinderCommand =
     'docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app php artisan ernie:wayfinder-generate';

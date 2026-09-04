@@ -207,25 +207,16 @@ describe('ResourcesPage - bulk selection', () => {
         extractErrorMessageFromBlobMock.mockResolvedValue('Failed to export');
         parseValidationErrorFromBlobMock.mockReset();
         parseValidationErrorFromBlobMock.mockResolvedValue(null);
-        axiosGetMock.mockImplementation((url: string) => {
-            if (url === '/resources/filter-options') {
-                return Promise.resolve({ data: {} });
-            }
-
-            if (url.includes('export-datacite-json')) {
-                return Promise.resolve(exportResponse('{"ok":true}', 'resource.json'));
-            }
-
-            if (url.includes('export-datacite-xml')) {
-                return Promise.resolve(exportResponse('<resource />', 'resource.xml'));
-            }
-
-            if (url.includes('export-jsonld')) {
-                return Promise.resolve(exportResponse('{"@context":"https://schema.org"}', 'resource.jsonld'));
-            }
-
-            return Promise.resolve({ data: {}, headers: {} });
-        });
+        axiosGetMock.mockResolvedValue({ data: {}, headers: {} });
+        vi.when(axiosGetMock)
+            .calledWith('/resources/filter-options')
+            .thenResolve({ data: {} })
+            .calledWith(expect.stringContaining('export-datacite-json'), { responseType: 'blob' })
+            .thenResolve(exportResponse('{"ok":true}', 'resource.json'))
+            .calledWith(expect.stringContaining('export-datacite-xml'), { responseType: 'blob' })
+            .thenResolve(exportResponse('<resource />', 'resource.xml'))
+            .calledWith(expect.stringContaining('export-jsonld'), { responseType: 'blob' })
+            .thenResolve(exportResponse('{"@context":"https://schema.org"}', 'resource.jsonld'));
         axiosPostMock.mockImplementation((url: string) => {
             if (url === '/resources/batch-export') {
                 return Promise.resolve(exportResponse('zip', 'resources-export.zip'));

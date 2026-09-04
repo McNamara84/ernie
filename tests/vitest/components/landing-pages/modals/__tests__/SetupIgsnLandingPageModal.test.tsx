@@ -1231,7 +1231,7 @@ describe('SetupIgsnLandingPageModal', () => {
             render(<SetupIgsnLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const scrollArea = screen.getByTestId('setup-igsn-lp-modal-scroll-area');
-            expect(scrollArea).toHaveTextContent(/Loading configuration/i);
+            expect(scrollArea.textContent).toMatch(/Loading configuration/i);
 
             expect(screen.getByTestId('setup-igsn-lp-modal-footer')).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /^Cancel$/i })).toBeInTheDocument();

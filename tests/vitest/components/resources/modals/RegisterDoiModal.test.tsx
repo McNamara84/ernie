@@ -486,7 +486,7 @@ describe('RegisterDoiModal', () => {
             expect(alert).toBeInTheDocument();
             expect(alert).toHaveTextContent('Jane Doe');
             expect(alert).toHaveTextContent('0000-0001-2345-6789');
-            expect(alert).toHaveTextContent(/not found in orcid registry/i);
+            expect(alert.textContent).toMatch(/not found in orcid registry/i);
 
             // No warnings alert rendered alongside blockers.
             expect(screen.queryByTestId('orcid-preflight-warnings')).not.toBeInTheDocument();
@@ -542,14 +542,14 @@ describe('RegisterDoiModal', () => {
 
             const warningAlert = await screen.findByTestId('orcid-preflight-warnings');
             expect(warningAlert).toHaveTextContent('Alex Contributor');
-            expect(warningAlert).toHaveTextContent(/orcid service timed out/i);
+            expect(warningAlert.textContent).toMatch(/orcid service timed out/i);
 
             // Blockers alert not rendered alongside warnings.
             expect(screen.queryByTestId('orcid-preflight-blockers')).not.toBeInTheDocument();
 
             // Override button replaces the regular submit button.
             const overrideButton = await screen.findByTestId('orcid-preflight-override');
-            expect(overrideButton).toHaveTextContent(/register anyway/i);
+            expect(overrideButton.textContent).toMatch(/register anyway/i);
 
             await user.click(overrideButton);
 
@@ -595,8 +595,8 @@ describe('RegisterDoiModal', () => {
             await user.click(screen.getByRole('button', { name: /update metadata/i }));
 
             const overrideButton = await screen.findByTestId('orcid-preflight-override');
-            expect(overrideButton).toHaveTextContent(/update anyway/i);
-            expect(overrideButton).not.toHaveTextContent(/register anyway/i);
+            expect(overrideButton.textContent).toMatch(/update anyway/i);
+            expect(overrideButton.textContent).not.toMatch(/register anyway/i);
         });
 
         it('keeps the override button as "Register anyway" for review DOI records', async () => {
@@ -629,8 +629,8 @@ describe('RegisterDoiModal', () => {
             await user.click(screen.getByRole('button', { name: /register doi/i }));
 
             const overrideButton = await screen.findByTestId('orcid-preflight-override');
-            expect(overrideButton).toHaveTextContent(/register anyway/i);
-            expect(overrideButton).not.toHaveTextContent(/update anyway/i);
+            expect(overrideButton.textContent).toMatch(/register anyway/i);
+            expect(overrideButton.textContent).not.toMatch(/update anyway/i);
         });
 
         it('renders plural identifier count when multiple ORCIDs are invalid', async () => {
@@ -669,7 +669,7 @@ describe('RegisterDoiModal', () => {
             await user.click(screen.getByRole('button', { name: /register doi/i }));
 
             const alert = await screen.findByTestId('orcid-preflight-blockers');
-            expect(alert).toHaveTextContent(/2 identifiers/i);
+            expect(alert.textContent).toMatch(/2 identifiers/i);
             expect(alert).toHaveTextContent('Jane Doe');
             expect(alert).toHaveTextContent('Bob Smith');
         });
@@ -775,7 +775,7 @@ describe('RegisterDoiModal', () => {
             await user.click(screen.getByRole('button', { name: /register doi/i }));
 
             const retryButton = await screen.findByTestId('orcid-preflight-retry');
-            expect(retryButton).toHaveTextContent(/retry verification/i);
+            expect(retryButton.textContent).toMatch(/retry verification/i);
 
             await user.click(retryButton);
 

@@ -4,7 +4,6 @@
 /bootstrap/ssr
 /coverage
 /.vitest/
-/.vitest-reports/
 clover.xml
 coverage-serial.xml
 coverage-parallel.xml
