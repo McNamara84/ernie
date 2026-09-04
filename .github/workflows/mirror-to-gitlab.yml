@@ -1,0 +1,104 @@
+name: Mirror release to GitLab
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/mirror-to-gitlab.yml'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag; empty means latest'
+        required: false
+        type: string
+      dry_run:
+        description: 'Validate without pushing'
+        required: true
+        default: true
+        type: boolean
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitlab-mirror
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          TAG="${EVENT_TAG:-${INPUT_TAG:-}}"
+
+          if [[ -z "$TAG" ]]; then
+            TAG="$(gh release view --json tagName --jq .tagName)"
+          fi
+
+          git check-ref-format "refs/tags/${TAG}"
+          git fetch --force origin \
+            "refs/heads/main:refs/remotes/origin/main" \
+            "refs/tags/${TAG}:refs/tags/${TAG}"
+
+          git merge-base --is-ancestor \
+            "refs/tags/${TAG}^{commit}" \
+            refs/remotes/origin/main
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release ${TAG} is on main."
+
+  mirror:
+    needs: verify
+    if: >-
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
+    runs-on: ubuntu-latest
+    environment: gfz-gitlab
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Push main and release tag to GitLab
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          set -euo pipefail
+          : "${GITLAB_TOKEN:?GITLAB_TOKEN is not configured}"
+
+          git fetch --force origin \
+            "refs/heads/main:refs/remotes/origin/main" \
+            "refs/tags/${TAG}:refs/tags/${TAG}"
+
+          git merge-base --is-ancestor \
+            "refs/tags/${TAG}^{commit}" \
+            refs/remotes/origin/main
+
+          git remote add gitlab \
+            "https://git.gfz-potsdam.de/data_services/ernie.git"
+
+          AUTH_HEADER="$(printf 'oauth2:%s' "$GITLAB_TOKEN" | base64 --wrap=0)"
+          echo "::add-mask::$AUTH_HEADER"
+
+          git -c http.extraHeader="Authorization: Basic ${AUTH_HEADER}" \
+            push --atomic gitlab \
+            "refs/tags/${TAG}:refs/tags/${TAG}" \
+            "refs/remotes/origin/main:refs/heads/main"
