@@ -184,12 +184,18 @@ final class RepairGeofonEventLandingPageUrls extends Command
         }
 
         try {
-            fputcsv($stream, self::REPORT_COLUMNS, escape: '');
-            foreach ($rows as $row) {
-                fputcsv($stream, array_map(
+            if (fputcsv($stream, self::REPORT_COLUMNS, escape: '') === false) {
+                throw new RuntimeException('Unable to write report header: '.$path);
+            }
+
+            foreach ($rows as $index => $row) {
+                $written = fputcsv($stream, array_map(
                     fn (string $column): int|string|null => $this->spreadsheetSafeCell($row[$column] ?? null),
                     self::REPORT_COLUMNS,
                 ), escape: '');
+                if ($written === false) {
+                    throw new RuntimeException('Unable to write report row '.($index + 1).': '.$path);
+                }
             }
         } finally {
             fclose($stream);
@@ -203,7 +209,7 @@ final class RepairGeofonEventLandingPageUrls extends Command
         }
 
         $value = is_string($value) ? $value : (string) $value;
-        if ($value === '' || ! str_contains('=+-@', $value[0])) {
+        if ($value === '' || preg_match('/\A\s*(?:[=+\-@]|\t|\r|\n)/u', $value) !== 1) {
             return $value;
         }
 

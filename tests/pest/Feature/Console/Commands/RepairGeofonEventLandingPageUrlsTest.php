@@ -18,6 +18,39 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
+final class GeofonFailingCsvStreamWrapper
+{
+    public mixed $context;
+
+    public static int $successfulWrites = 0;
+
+    private int $writes = 0;
+
+    public function stream_open(string $path, string $mode, int $options, ?string &$openedPath): bool
+    {
+        $this->writes = 0;
+
+        return true;
+    }
+
+    public function stream_write(string $data): int
+    {
+        if ($this->writes >= self::$successfulWrites) {
+            return -1;
+        }
+
+        $this->writes++;
+
+        return strlen($data);
+    }
+
+    /** @return array<string, int> */
+    public function stream_stat(): array
+    {
+        return [];
+    }
+}
+
 covers(
     RepairGeofonEventLandingPageUrls::class,
     GeofonEventLandingPageUrlRepairService::class,
@@ -571,11 +604,21 @@ it('supports DOI, after ID, limit, and requested DOI diagnostics', function (): 
 it('runs through Artisan, writes a spreadsheet-safe report, and returns failure for manual review', function (): void {
     $reportPath = storage_path('app/geofon-event-url-command-test.csv');
     File::delete($reportPath);
-    geofonRepairResource(
-        '10.1594/gfz.geofon.gfz2009groy',
-        'db/eqpage.php?id=gfz2009groy',
-        datacenter: '=FORMULA',
-    );
+    $datacenters = [
+        '10.1594/gfz.geofon.gfz2009groy' => '=FORMULA',
+        '10.1594/gfz.geofon.gfz2009kciu' => "\tTabbed value",
+        '10.1594/gfz.geofon.gfz2010dzva' => "\nNewline value",
+        '10.1594/gfz.geofon.gfz2011ewla' => '  +FORMULA',
+        '10.1594/gfz.geofon.gfz2008ewsv' => "\u{00A0}@FORMULA",
+        '10.1594/gfz.geofon.gfz2009gibb' => '  Harmless value',
+    ];
+    foreach ($datacenters as $doi => $datacenter) {
+        geofonRepairResource(
+            $doi,
+            'db/eqpage.php?id='.str($doi)->afterLast('.'),
+            datacenter: $datacenter,
+        );
+    }
     Http::fake();
 
     $this->artisan('resources:repair-geofon-event-landing-page-urls', ['--report' => $reportPath])
@@ -583,9 +626,88 @@ it('runs through Artisan, writes a spreadsheet-safe report, and returns failure 
         ->expectsOutput('Some records need manual review and were not changed; inspect the CSV report.')
         ->assertExitCode(Command::FAILURE);
 
-    expect(File::get($reportPath))->toContain("'=FORMULA")
-        ->toContain('manual_review_wrong_datacenter');
+    $stream = fopen($reportPath, 'rb');
+    expect($stream)->not->toBeFalse();
+    $header = fgetcsv($stream, escape: '');
+    $rows = [];
+    while (($row = fgetcsv($stream, escape: '')) !== false) {
+        $rows[] = $row;
+    }
+    fclose($stream);
+
+    expect($header)->toBeArray();
+    $datacenterColumn = array_search('datacenter', $header, true);
+    $statusColumn = array_search('overall_status', $header, true);
+    expect($datacenterColumn)->toBeInt()
+        ->and($statusColumn)->toBeInt()
+        ->and(array_column($rows, $datacenterColumn))->toBe([
+            "'=FORMULA",
+            "'\tTabbed value",
+            "'\nNewline value",
+            "'  +FORMULA",
+            "'\u{00A0}@FORMULA",
+            '  Harmless value',
+        ])->and(array_unique(array_column($rows, $statusColumn)))
+        ->toBe(['manual_review_wrong_datacenter']);
     File::delete($reportPath);
+});
+
+it('neutralizes whitespace-prefixed DataCite errors in the CSV report', function (): void {
+    $reportPath = storage_path('app/geofon-event-url-datacite-error-test.csv');
+    File::delete($reportPath);
+    geofonRepairResource(
+        '10.1594/gfz.geofon.gfz2009givj',
+        'db/eqpage.php?id=gfz2009givj',
+    );
+    Http::fake(fn (): never => throw new ConnectionException(" \t=REMOTE_ERROR"));
+
+    $this->artisan('resources:repair-geofon-event-landing-page-urls', ['--report' => $reportPath])
+        ->assertExitCode(Command::FAILURE);
+
+    $stream = fopen($reportPath, 'rb');
+    expect($stream)->not->toBeFalse();
+    $header = fgetcsv($stream, escape: '');
+    $row = fgetcsv($stream, escape: '');
+    fclose($stream);
+
+    expect($header)->toBeArray()
+        ->and($row)->toBeArray();
+    $messageColumn = array_search('message', $header, true);
+    expect($messageColumn)->toBeInt()
+        ->and($row[$messageColumn])->toBe("' \t=REMOTE_ERROR");
+    File::delete($reportPath);
+});
+
+it('fails the command when the CSV header or a data row cannot be written', function (): void {
+    $scheme = 'geofon-failing-csv';
+    $wrapperDirectory = (string) getcwd().DIRECTORY_SEPARATOR.$scheme.':';
+    File::makeDirectory($wrapperDirectory);
+    expect(stream_wrapper_register($scheme, GeofonFailingCsvStreamWrapper::class))->toBeTrue();
+
+    geofonRepairResource(
+        '10.1594/gfz.geofon.gfz2009groy',
+        'db/eqpage.php?id=gfz2009groy',
+        datacenter: 'Unexpected Datacenter',
+    );
+
+    try {
+        GeofonFailingCsvStreamWrapper::$successfulWrites = 0;
+        $this->artisan('resources:repair-geofon-event-landing-page-urls', [
+            '--report' => $scheme.'://header.csv',
+        ])->expectsOutputToContain('Unable to write GEOFON event URL report: Unable to write report header:')
+            ->doesntExpectOutputToContain('GEOFON event URL report written to')
+            ->assertExitCode(Command::FAILURE);
+
+        GeofonFailingCsvStreamWrapper::$successfulWrites = 1;
+        $this->artisan('resources:repair-geofon-event-landing-page-urls', [
+            '--report' => $scheme.'://row.csv',
+        ])->expectsOutputToContain('Unable to write GEOFON event URL report: Unable to write report row 1:')
+            ->doesntExpectOutputToContain('GEOFON event URL report written to')
+            ->assertExitCode(Command::FAILURE);
+    } finally {
+        stream_wrapper_unregister($scheme);
+        File::deleteDirectory($wrapperDirectory);
+    }
 });
 
 it('rejects production writes without explicit confirmation and invalid options', function (): void {
