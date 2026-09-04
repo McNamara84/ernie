@@ -194,6 +194,13 @@ performance work, not as part of the normal validation loop. Adopt a suggested
 setting only after its result is reproducible and the complete suite remains
 green with shuffled file order and normal project isolation requirements.
 
+The Vitest 5 migration measurement on the standard Node 26.8.1 workstation
+confirmed the existing defaults: the isolated thread-pool baseline took
+320.57 seconds, while four workers took 533.83 seconds (+67%). The VM pools
+failed because the MSW setup needs a global `WritableStream`, and the
+non-isolated run exceeded four times the baseline while exposing shared-state
+failures. Keep the local eight-worker thread pool and per-file isolation.
+
 For slow startup or import-heavy tests, print the import-duration breakdown before changing optimizer settings:
 
 ```bash
@@ -207,7 +214,14 @@ npm run test:run -- tests/vitest/path/to/file.test.tsx --fsModuleCache
 npx vitest --clearCache
 ```
 
-The cache is intentionally not enabled by default. A representative DataCite run took 2:24 without it, 2:29 with a cold cache, and 2:44 with a warm cache; this suite is dominated by DOM interactions rather than module transformation.
+The cache is intentionally not enabled by default. The full Vitest 5 Doctor run
+measured 319.29 seconds with a warm cache versus 320.57 seconds without it,
+which is not a meaningful improvement. The suite is dominated by DOM
+interactions rather than module transformation.
+
+Vitest 5 reserves `toMatchTextContent` for Browser Mode. In the host-side jsdom
+suite, use `toHaveTextContent` for string assertions and Vitest's regular
+`toMatch` against `element.textContent` when a regular expression is needed.
 
 The large DataCite form suite is registered through six `datacite-form.part-*.test.tsx` entrypoints. They distribute direct tests while keeping nested `describe` groups intact, allowing Vitest to schedule the formerly serial suite across isolated workers. Keep shared tests and setup in `datacite-form.test-suite.tsx`; do not add that support file to the Vitest include pattern.
 
