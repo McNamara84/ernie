@@ -104,6 +104,12 @@ function assistanceUrl(doi: string): string {
     return '/assistance?' + new URLSearchParams({ doi }).toString();
 }
 
+function doiResolverUrl(doi: string): string {
+    const encodedDoi = encodeURI(doi).replaceAll('?', '%3F').replaceAll('#', '%23');
+
+    return `https://doi.org/${encodedDoi}`;
+}
+
 function AssessmentDoi({ doi }: { doi: string | null }) {
     if (doi === null) {
         return <span className="block truncate">N/A</span>;
@@ -111,7 +117,7 @@ function AssessmentDoi({ doi }: { doi: string | null }) {
 
     return (
         <a
-            href={`https://doi.org/${encodeURI(doi)}`}
+            href={doiResolverUrl(doi)}
             target="_blank"
             rel="noopener noreferrer"
             className="block truncate text-primary underline decoration-dotted underline-offset-2 hover:text-primary/80"

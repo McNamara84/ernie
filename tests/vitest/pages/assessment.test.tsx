@@ -110,6 +110,28 @@ describe('Assessment FAIR opportunity integration', () => {
         }
     });
 
+    it('keeps question marks and hashes inside the DOI resolver path', () => {
+        const doi = '10.1234/test?query=value#section';
+
+        render(
+            <AssessmentTable
+                entries={[{ ...resourceEntry, doi }]}
+                summary={summary}
+                scope="resource"
+                canRunAssessments
+                canAccessAssistance
+                showImprovementActorLabels
+            />,
+        );
+
+        const doiLinks = screen.getAllByRole('link', { name: doi });
+
+        expect(doiLinks).toHaveLength(2);
+        for (const link of doiLinks) {
+            expect(link).toHaveAttribute('href', 'https://doi.org/10.1234/test%3Fquery=value%23section');
+        }
+    });
+
     it('keeps missing desktop and mobile DOIs as unlinked N/A text', () => {
         render(
             <AssessmentTable
