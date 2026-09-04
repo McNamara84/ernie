@@ -303,6 +303,49 @@ it('reports a legacy GEOFON event URL outside the event datacenter without any r
     Http::assertNothingSent();
 });
 
+it('requires manual review for invalid or non-GEOFON URLs in the event datacenter', function (): void {
+    $foreignHost = geofonRepairResource(
+        '10.1594/gfz.geofon.gfz2009groy',
+        'db/eqpage.php?id=gfz2009groy',
+        domain: 'https://example.org/',
+    );
+    $emptyUrl = geofonRepairResource(
+        '10.1594/gfz.geofon.gfz2009kciu',
+        'db/eqpage.php?id=gfz2009kciu',
+    );
+    $emptyUrl->landingPage->update([
+        'external_domain_id' => null,
+        'external_path' => null,
+    ]);
+    Http::fake();
+
+    $result = app(GeofonEventLandingPageUrlRepairService::class)->run(apply: true);
+    $records = collect($result['records'])->keyBy('doi');
+
+    expect($result)->toMatchArray([
+        'resources_scanned' => 2,
+        'candidates' => 0,
+        'manual_review' => 2,
+        'skipped' => 0,
+        'errors' => 0,
+    ])->and($records[$foreignHost->doi])->toMatchArray([
+        'local_status' => 'manual_review',
+        'overall_status' => 'manual_review_local_url',
+        'message' => 'The landing-page host example.org is not an allowed GEOFON host.',
+    ])->and($records[$emptyUrl->doi])->toMatchArray([
+        'local_before_url' => '',
+        'local_status' => 'manual_review',
+        'overall_status' => 'manual_review_local_url',
+        'message' => 'The landing-page URL is empty.',
+    ]);
+
+    $this->artisan('resources:repair-geofon-event-landing-page-urls', [
+        '--doi' => [$foreignHost->doi],
+    ])->expectsOutput('Some records need manual review and were not changed; inspect the CSV report.')
+        ->assertExitCode(Command::FAILURE);
+    Http::assertNothingSent();
+});
+
 it('leaves local and remote URLs unchanged for event ID and URL conflicts', function (): void {
     $localMismatchDoi = '10.1594/gfz.geofon.gfz2009groy';
     $remoteMismatchDoi = '10.1594/gfz.geofon.gfz2009kciu';

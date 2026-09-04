@@ -100,8 +100,8 @@ final class GeofonEventLandingPageUrlRepairService
                         $this->appendRecord($result, $this->record(
                             resource: $resource,
                             localUrl: $localUrl,
-                            localStatus: 'excluded_non_geofon',
-                            overallStatus: 'skipped_non_geofon_host',
+                            localStatus: 'manual_review',
+                            overallStatus: 'manual_review_local_url',
                             message: $localInspection['message'] ?? 'The external landing page does not use an allowed GEOFON host.',
                         ));
 
@@ -875,7 +875,7 @@ final class GeofonEventLandingPageUrlRepairService
         } elseif ($status === 'concurrent_change') {
             $result['concurrent_changes']++;
             $result['errors']++;
-        } elseif (in_array($status, ['skipped_non_geofon_host', 'skipped_limit', 'not_processed_authentication'], true)) {
+        } elseif (in_array($status, ['skipped_limit', 'not_processed_authentication'], true)) {
             $result['skipped']++;
         } else {
             $result['errors']++;
