@@ -344,5 +344,17 @@ describe('ChangelogTimelineNav', () => {
                 expect(nav).toHaveAttribute('aria-label', 'Version timeline navigation');
             });
         });
+
+        it('keeps long desktop timelines inside a scrollable viewport region', async () => {
+            render(
+                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
+            );
+
+            await waitFor(() => {
+                const nav = screen.getByRole('navigation', { name: 'Version timeline navigation' });
+
+                expect(nav).toHaveClass('max-h-[calc(100vh-2rem)]', 'overflow-y-auto');
+            });
+        });
     });
 });

@@ -1,5 +1,17 @@
 [
     {
+        "version": "1.0.8",
+        "date": "2026-09-09",
+        "features": [],
+        "improvements": [
+            {
+                "title": "Clickable Assessment DOIs",
+                "description": "DOIs in the Resource and IGSN assessment results now open their registered landing pages through the canonical DOI resolver in a new browser tab. The behavior is available in both desktop and mobile layouts, while assessment entries without a DOI remain clearly marked as unavailable."
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.0.7",
         "date": "2026-09-04",
         "features": [],

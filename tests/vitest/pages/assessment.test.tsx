@@ -85,6 +85,69 @@ const igsnEntry: AssessmentEntry = {
 };
 
 describe('Assessment FAIR opportunity integration', () => {
+    it.each([
+        ['Resource', 'resource', resourceEntry],
+        ['IGSN', 'igsn', igsnEntry],
+    ] as const)('links the %s DOI to its resolver in a new tab on desktop and mobile', (_label, scope, entry) => {
+        render(
+            <AssessmentTable entries={[entry]} summary={summary} scope={scope} canRunAssessments canAccessAssistance showImprovementActorLabels />,
+        );
+
+        const doi = entry.doi;
+
+        if (doi === null) {
+            throw new Error('The DOI link test requires an entry with a DOI.');
+        }
+
+        const doiLinks = screen.getAllByRole('link', { name: doi });
+
+        expect(doiLinks).toHaveLength(2);
+        for (const link of doiLinks) {
+            expect(link).toHaveAttribute('href', `https://doi.org/${doi}`);
+            expect(link).toHaveAttribute('target', '_blank');
+            expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+            expect(link).toHaveAttribute('title', doi);
+        }
+    });
+
+    it('keeps question marks and hashes inside the DOI resolver path', () => {
+        const doi = '10.1234/test?query=value#section';
+
+        render(
+            <AssessmentTable
+                entries={[{ ...resourceEntry, doi }]}
+                summary={summary}
+                scope="resource"
+                canRunAssessments
+                canAccessAssistance
+                showImprovementActorLabels
+            />,
+        );
+
+        const doiLinks = screen.getAllByRole('link', { name: doi });
+
+        expect(doiLinks).toHaveLength(2);
+        for (const link of doiLinks) {
+            expect(link).toHaveAttribute('href', 'https://doi.org/10.1234/test%3Fquery=value%23section');
+        }
+    });
+
+    it('keeps missing desktop and mobile DOIs as unlinked N/A text', () => {
+        render(
+            <AssessmentTable
+                entries={[{ ...resourceEntry, doi: null }]}
+                summary={summary}
+                scope="resource"
+                canRunAssessments
+                canAccessAssistance
+                showImprovementActorLabels
+            />,
+        );
+
+        expect(screen.getAllByText('N/A')).toHaveLength(2);
+        expect(screen.queryByRole('link', { name: 'N/A' })).not.toBeInTheDocument();
+    });
+
     it('places the FAIR opportunity column between title and score', () => {
         render(
             <AssessmentTable

@@ -126,7 +126,10 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
 
     // Desktop: Fixed Right Navigation
     return (
-        <nav className="fixed top-1/2 right-8 z-40 hidden -translate-y-1/2 md:block" aria-label="Version timeline navigation">
+        <nav
+            className="fixed top-1/2 right-8 z-40 hidden max-h-[calc(100vh-2rem)] -translate-y-1/2 overflow-y-auto md:block"
+            aria-label="Version timeline navigation"
+        >
             <div className="flex flex-col items-center gap-3">
                 {releases.map((release, index) => {
                     const isActive = activeIndex === index;

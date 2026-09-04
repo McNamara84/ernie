@@ -104,6 +104,30 @@ function assistanceUrl(doi: string): string {
     return '/assistance?' + new URLSearchParams({ doi }).toString();
 }
 
+function doiResolverUrl(doi: string): string {
+    const encodedDoi = encodeURI(doi).replaceAll('?', '%3F').replaceAll('#', '%23');
+
+    return `https://doi.org/${encodedDoi}`;
+}
+
+function AssessmentDoi({ doi }: { doi: string | null }) {
+    if (doi === null) {
+        return <span className="block truncate">N/A</span>;
+    }
+
+    return (
+        <a
+            href={doiResolverUrl(doi)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block truncate text-primary underline decoration-dotted underline-offset-2 hover:text-primary/80"
+            title={doi}
+        >
+            {doi}
+        </a>
+    );
+}
+
 function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope, canRunAssessments: boolean, hasActiveFilters = false): string {
     if (hasActiveFilters && summary.total === 0) {
         return `No ${scopeNoun(scope)} match the active DOI and Datacenter filters.`;
@@ -161,16 +185,14 @@ export function AssessmentTable({
                 {entries.map((entry) => (
                     <TableRow key={entry.id}>
                         <TableCell className="hidden overflow-hidden font-mono text-xs text-muted-foreground sm:table-cell">
-                            <span className="block truncate" title={entry.doi ?? undefined}>
-                                {entry.doi ?? 'N/A'}
-                            </span>
+                            <AssessmentDoi doi={entry.doi} />
                         </TableCell>
                         <TableCell className="min-w-0 overflow-hidden font-medium">
                             <span className="block truncate" title={entry.mainTitle}>
                                 {entry.mainTitle}
                             </span>
                             <span className="block truncate font-mono text-[11px] font-normal text-muted-foreground sm:hidden">
-                                {entry.doi ?? 'N/A'}
+                                <AssessmentDoi doi={entry.doi} />
                             </span>
                             {scope === 'resource' && hasCuratorAction(entry) && (
                                 <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs font-normal">
