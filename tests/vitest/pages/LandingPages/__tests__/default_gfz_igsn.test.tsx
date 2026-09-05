@@ -540,6 +540,7 @@ describe('DefaultGfzIgsnTemplate', () => {
                 props: {
                     resource: {
                         ...mockResource,
+                        datacenter: { id: 7, name: 'ICDP' },
                         igsn_metadata: {
                             igsn: 'ICDP5052ECZI101',
                             name: '5052_2_B_23_Z',
@@ -596,8 +597,80 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(screen.getByRole('heading', { name: 'Methods' })).toBeInTheDocument();
             expect(screen.getByText('Lithological Description')).toBeInTheDocument();
             expect(screen.getByText('yes')).toBeInTheDocument();
-            expect(screen.getByRole('heading', { name: 'Drilling' })).toBeInTheDocument();
-            expect(screen.getByText('2400.1 m')).toBeInTheDocument();
+            const drilling = within(screen.getByRole('heading', { name: 'Drilling' }).closest('section') as HTMLElement);
+            expect(drilling.getByText('GNS; Webster Drilling')).toBeInTheDocument();
+            expect(drilling.getByText('2400.1 m')).toBeInTheDocument();
+
+            const acquisition = within(screen.getByRole('heading', { name: 'Acquisition' }).closest('section') as HTMLElement);
+            expect(acquisition.queryByText('Total Length')).not.toBeInTheDocument();
+            expect(acquisition.queryByText('Operator')).not.toBeInTheDocument();
+        });
+
+        it('hides the ICDP Drilling module when the template setting is disabled', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        datacenter: { id: 7, name: 'ICDP' },
+                        igsn_metadata: {
+                            igsn: 'ICDP-HIDDEN-DRILLING',
+                            sample_type: 'Core',
+                            total_lengths: [{ numeric_value: '987.6', unit: 'm' }],
+                            parent: null,
+                        },
+                        igsn_classifications: [],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionVisibility: { igsnDrilling: false },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.queryByRole('heading', { name: 'Drilling' })).not.toBeInTheDocument();
+            expect(screen.queryByText('987.6 m')).not.toBeInTheDocument();
+            const acquisition = within(screen.getByRole('heading', { name: 'Acquisition' }).closest('section') as HTMLElement);
+            expect(acquisition.queryByText('Total Length')).not.toBeInTheDocument();
+        });
+
+        it('keeps drilling metadata in Acquisition for non-ICDP IGSNs', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        datacenter: { id: 8, name: 'Marine Samples' },
+                        igsn_metadata: {
+                            igsn: 'MARINE-DRILLING',
+                            sample_type: 'Core',
+                            collection_method: 'Piston corer',
+                            collection_date_precision: 'day',
+                            total_lengths: [{ numeric_value: '12.500', unit: 'm' }],
+                            age_ranges: [{ start: '10', end: '20', unit: 'Ma', end_unit: 'Ma' }],
+                            launch_platform_names: ['RV Sonne'],
+                            launch_type_names: ['Research Vessel'],
+                            navigation_types: ['GPS'],
+                            parent: null,
+                        },
+                        igsn_classifications: [],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionVisibility: { igsnDrilling: true },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.queryByRole('heading', { name: 'Drilling' })).not.toBeInTheDocument();
+            const acquisition = within(screen.getByRole('heading', { name: 'Acquisition' }).closest('section') as HTMLElement);
+            expect(acquisition.getByText('Piston corer')).toBeInTheDocument();
+            expect(acquisition.getByText('12.5 m')).toBeInTheDocument();
+            expect(acquisition.getByText('10 – 20 Ma')).toBeInTheDocument();
+            expect(acquisition.getByText('RV Sonne')).toBeInTheDocument();
+            expect(acquisition.getByText('Research Vessel')).toBeInTheDocument();
+            expect(acquisition.getByText('GPS')).toBeInTheDocument();
+            expect(acquisition.queryByText('Collection Date Precision')).not.toBeInTheDocument();
         });
 
         it('hides General and Acquisition modules when no IGSN data is provided', () => {

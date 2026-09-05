@@ -390,6 +390,9 @@ class LandingPagePublicController extends Controller
                         'excludedDateTypes' => $templateConfig->excludedDateTypeSlugs(),
                         'excludedRelationTypes' => $templateConfig->excludedRelationTypeSlugs(),
                     ],
+                    'sectionVisibility' => [
+                        'igsnDrilling' => $templateConfig->show_igsn_drilling,
+                    ],
                 ],
                 'viewData' => array_filter([
                     'landingPageDocumentMetadata' => $documentMetadata,

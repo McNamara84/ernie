@@ -1053,6 +1053,7 @@ describe('Landing Page with Custom Template', function () {
         );
         $template = LandingPageTemplate::factory()->igsn()->create([
             'logo_path' => 'landing-page-logos/gfz-igsn/header.png',
+            'show_igsn_drilling' => false,
         ]);
         $gfz = Datacenter::factory()->create([
             'name' => Datacenter::GFZ_NAME,
@@ -1079,6 +1080,7 @@ describe('Landing Page with Custom Template', function () {
                 ->component('LandingPages/default_gfz_igsn')
                 ->where('landingPageTemplateSource', 'datacenter')
                 ->where('effectiveLandingPageTemplate.id', $template->id)
+                ->where('sectionVisibility.igsnDrilling', false)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/gfz-igsn/header.png'))
             );
     });
@@ -1236,6 +1238,7 @@ describe('Landing Page with Custom Template', function () {
             'creator_display_limit' => 21,
             'contributor_display_limit' => 31,
             'citation_author_display_limit' => 41,
+            'show_igsn_drilling' => false,
         ]);
         $domain = LandingPageDomain::factory()->withDomain('https://legacy.example.org/')->create();
 
@@ -1277,6 +1280,7 @@ describe('Landing Page with Custom Template', function () {
                 ->where('displayLimits.creators', 21)
                 ->where('displayLimits.contributors', 31)
                 ->where('displayLimits.citationAuthors', 41)
+                ->where('sectionVisibility.igsnDrilling', false)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/igsn-logo.png'))
             );
     });

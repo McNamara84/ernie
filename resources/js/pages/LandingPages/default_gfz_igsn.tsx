@@ -8,6 +8,7 @@ import type {
     LandingPageDisplayLimits,
     LandingPageMetadataLink,
     LandingPageResource,
+    LandingPageSectionVisibility,
     LandingPageTypeVisibility,
     SectionOrder,
 } from '@/types/landing-page';
@@ -49,6 +50,7 @@ interface DefaultGfzIgsnTemplatePageProps {
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
     typeVisibility?: LandingPageTypeVisibility;
+    sectionVisibility?: LandingPageSectionVisibility;
     citationStyles?: LandingPageCitationStyle[];
     metadataLinks?: LandingPageMetadataLink[];
     /** Inertia PageProps requires index signature for dynamic SSR props */
@@ -80,6 +82,7 @@ export default function DefaultGfzIgsnTemplate() {
         displayLimits,
         citationStyles,
         typeVisibility,
+        sectionVisibility,
     } = usePage<DefaultGfzIgsnTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
@@ -96,6 +99,8 @@ export default function DefaultGfzIgsnTemplate() {
         compactSuffix: replaceIgsnIdentifierText(templateData.citationPresentation.compactSuffix, resource.doi, resource.igsn_metadata?.igsn),
     };
     const { status, subtitle } = templateData;
+    const isIcdp = resource.datacenter?.name === 'ICDP';
+    const showIgsnDrilling = sectionVisibility?.igsnDrilling ?? true;
 
     const orders = sectionOrder
         ? normalizeIgsnColumnOrders(sectionOrder.leftColumn, sectionOrder.rightColumn)
@@ -133,10 +138,20 @@ export default function DefaultGfzIgsnTemplate() {
                     contributors={resource.contributors || []}
                     fundingReferences={resource.funding_references || []}
                     dates={resource.dates || []}
+                    separateDrillingMetadata={isIcdp}
                 />
             ),
             igsn_methods: <IgsnMethodsSection key="igsn_methods" igsn={resource.igsn_metadata} />,
-            igsn_drilling: <IgsnDrillingSection key="igsn_drilling" igsn={resource.igsn_metadata} />,
+            igsn_drilling:
+                isIcdp && showIgsnDrilling ? (
+                    <IgsnDrillingSection
+                        key="igsn_drilling"
+                        igsn={resource.igsn_metadata}
+                        contributors={resource.contributors || []}
+                        fundingReferences={resource.funding_references || []}
+                        dates={resource.dates || []}
+                    />
+                ) : null,
             repositories: <RepositoriesSection key="repositories" igsn={resource.igsn_metadata} datasetTitle={mainTitle} />,
             citation: (
                 <CiteThisResourceSection
@@ -188,7 +203,18 @@ export default function DefaultGfzIgsnTemplate() {
                 />
             ),
         };
-    }, [resource, landingPage, isDark, peopleDisplayLimits, metadataLinks, mainTitle, citationStyles, typeVisibility]);
+    }, [
+        resource,
+        landingPage,
+        isDark,
+        peopleDisplayLimits,
+        metadataLinks,
+        mainTitle,
+        citationStyles,
+        typeVisibility,
+        isIcdp,
+        showIgsnDrilling,
+    ]);
 
     return (
         <>

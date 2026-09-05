@@ -478,6 +478,7 @@ describe('Session Preview Display', function () {
             'creator_display_limit' => 13,
             'contributor_display_limit' => 14,
             'citation_author_display_limit' => 15,
+            'show_igsn_drilling' => false,
         ]);
         $template->excludedDateTypes()->attach($dateType->id);
         $template->excludedRelationTypes()->attach($relationType->id);
@@ -516,6 +517,7 @@ describe('Session Preview Display', function () {
                 ->where('displayLimits.creators', 13)
                 ->where('displayLimits.contributors', 14)
                 ->where('displayLimits.citationAuthors', 15)
+                ->where('sectionVisibility.igsnDrilling', false)
                 ->where('typeVisibility.excludedDateTypes', ['HiddenPreviewDate'])
                 ->where('typeVisibility.excludedRelationTypes', ['HiddenPreviewRelation'])
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/custom-igsn-logo.png'))
@@ -600,6 +602,7 @@ describe('Session Preview Display', function () {
             'creator_display_limit' => 31,
             'contributor_display_limit' => 41,
             'citation_author_display_limit' => 61,
+            'show_igsn_drilling' => false,
         ]);
 
         Session::put("landing_page_preview.{$resource->id}", [
@@ -622,6 +625,7 @@ describe('Session Preview Display', function () {
                 ->where('displayLimits.creators', 31)
                 ->where('displayLimits.contributors', 41)
                 ->where('displayLimits.citationAuthors', 61)
+                ->where('sectionVisibility.igsnDrilling', false)
             );
     });
 

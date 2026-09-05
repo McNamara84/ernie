@@ -314,14 +314,19 @@ describe('AcquisitionSection', () => {
             'Rock Type',
             'Classification Comments',
             'Geological Age',
+            'Age Range',
             'Geological Unit',
-            'Comments',
             'Minimum Depth',
             'Maximum Depth',
             'Depth Scale',
             'Sizes',
+            'Launch Platform',
+            'Launch Type',
+            'Navigation Type',
             'Collection Method',
             'Collection Method Description',
+            'Total Length',
+            'Comments',
             'Platform Type',
             'Platform Name',
             'Platform Description',
@@ -329,12 +334,12 @@ describe('AcquisitionSection', () => {
             'Funding Agency',
             'Chief Scientist',
             'Sampling Date',
-            'Collection Date Precision',
             'Start Date',
             'End Date',
         ].forEach((label) => {
             expect(screen.getByText(label).nextElementSibling).toHaveTextContent('N/A');
         });
+        expect(screen.queryByText('Collection Date Precision')).not.toBeInTheDocument();
     });
 
     it('renders the NotApplicable storage value with its public label', () => {
@@ -389,7 +394,7 @@ describe('AcquisitionSection', () => {
         expect(screen.getAllByText('2023-06-01')).toHaveLength(2);
     });
 
-    it('keeps sampling date and collection period distinct and shows their precision', () => {
+    it('keeps sampling date and collection period distinct without showing their precision', () => {
         const dates: LandingPageResourceDate[] = [
             makeDate({
                 id: 1,
@@ -416,9 +421,53 @@ describe('AcquisitionSection', () => {
         );
 
         expect(screen.getByText('Sampling Date').nextElementSibling).toHaveTextContent('2023-06-15T10:30:00Z');
-        expect(screen.getByText('Collection Date Precision').nextElementSibling).toHaveTextContent('day');
+        expect(screen.queryByText('Collection Date Precision')).not.toBeInTheDocument();
         expect(screen.getByText('Start Date').nextElementSibling).toHaveTextContent('2023-06-01');
         expect(screen.getByText('End Date').nextElementSibling).toHaveTextContent('2023-06-30');
+    });
+
+    it('separates ICDP drilling rows while retaining age and launch metadata', () => {
+        render(
+            <AcquisitionSection
+                igsn={baseIgsn({
+                    material: 'Rock',
+                    collection_method: 'Coring',
+                    total_lengths: [{ numeric_value: '2400.1', unit: 'm' }],
+                    comments: ['Drilling comment'],
+                    platform_name: 'Atlas Copco',
+                    operators: ['Drilling Operator'],
+                    age_ranges: [{ start: '10', end: '20', unit: 'Ma', end_unit: 'Ma' }],
+                    launch_platform_names: ['Research Vessel'],
+                    launch_type_names: ['Piston corer'],
+                    navigation_types: ['GPS'],
+                })}
+                classifications={[]}
+                descriptions={[]}
+                contributors={[makeContributor(personEntity('Chief', 'Scientist'), ['DataCollector'])]}
+                fundingReferences={[
+                    {
+                        id: 1,
+                        funder_name: 'Funding Agency',
+                        funder_identifier: null,
+                        funder_identifier_type: null,
+                        award_number: null,
+                        award_uri: null,
+                        award_title: null,
+                        position: 1,
+                    },
+                ]}
+                dates={[makeDate({ start_date: '2023-01-01', end_date: '2023-02-01' })]}
+                separateDrillingMetadata
+            />,
+        );
+
+        for (const hidden of ['Collection Method', 'Total Length', 'Comments', 'Platform Name', 'Operator', 'Funding Agency', 'Chief Scientist']) {
+            expect(screen.queryByText(hidden)).not.toBeInTheDocument();
+        }
+        expect(screen.getByText('Age Range').nextElementSibling).toHaveTextContent('10 – 20 Ma');
+        expect(screen.getByText('Launch Platform').nextElementSibling).toHaveTextContent('Research Vessel');
+        expect(screen.getByText('Launch Type').nextElementSibling).toHaveTextContent('Piston corer');
+        expect(screen.getByText('Navigation Type').nextElementSibling).toHaveTextContent('GPS');
     });
 
     it('renders the imported geological operator and classification details additively', () => {

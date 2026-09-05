@@ -104,6 +104,7 @@ class LandingPageTemplateController extends Controller
                 'creator_display_limit' => $defaultTemplate->creator_display_limit,
                 'contributor_display_limit' => $defaultTemplate->contributor_display_limit,
                 'citation_author_display_limit' => $defaultTemplate->citation_author_display_limit,
+                'show_igsn_drilling' => $defaultTemplate->show_igsn_drilling,
                 'created_by' => $request->user()?->id,
             ]);
 
@@ -130,12 +131,12 @@ class LandingPageTemplateController extends Controller
         $validated = $request->validated();
 
         if ($landingPageTemplate->isDefault()) {
-            $editableDefaultFields = ['creator_display_limit', 'contributor_display_limit', 'citation_author_display_limit', 'datacenter_ids'];
+            $editableDefaultFields = ['creator_display_limit', 'contributor_display_limit', 'citation_author_display_limit', 'show_igsn_drilling', 'datacenter_ids'];
             $unsupportedFields = array_diff(array_keys($validated), $editableDefaultFields);
 
             if ($unsupportedFields !== []) {
                 return response()->json([
-                    'message' => 'Only display limits and datacenter assignments can be updated on built-in copy templates.',
+                    'message' => 'Only display settings and datacenter assignments can be updated on built-in copy templates.',
                     'error' => 'default_template_immutable',
                 ], 403);
             }
@@ -165,6 +166,10 @@ class LandingPageTemplateController extends Controller
 
         if (isset($validated['citation_author_display_limit'])) {
             $updateData['citation_author_display_limit'] = $validated['citation_author_display_limit'];
+        }
+
+        if (array_key_exists('show_igsn_drilling', $validated)) {
+            $updateData['show_igsn_drilling'] = $validated['show_igsn_drilling'];
         }
 
         DB::transaction(function () use ($landingPageTemplate, $updateData, $validated): void {
@@ -364,6 +369,7 @@ class LandingPageTemplateController extends Controller
                 'creator_display_limit',
                 'contributor_display_limit',
                 'citation_author_display_limit',
+                'show_igsn_drilling',
             ]);
 
         return response()->json([

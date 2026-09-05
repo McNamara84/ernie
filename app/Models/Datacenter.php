@@ -32,6 +32,8 @@ class Datacenter extends Model
 {
     public const GFZ_NAME = 'GFZ German Research Centre for Geosciences';
 
+    public const ICDP_NAME = 'ICDP';
+
     /** @use HasFactory<DatacenterFactory> */
     use HasFactory;
 

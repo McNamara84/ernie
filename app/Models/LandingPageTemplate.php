@@ -39,6 +39,7 @@ use Illuminate\Support\Str;
  * @property int $creator_display_limit Number of creators shown initially on landing pages
  * @property int $contributor_display_limit Number of contributors shown initially on landing pages
  * @property int $citation_author_display_limit Number of creators shown before et al. in citations
+ * @property bool $show_igsn_drilling Whether the ICDP-only Drilling card is enabled
  * @property int|null $created_by FK to users table
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -222,6 +223,7 @@ class LandingPageTemplate extends Model
         'creator_display_limit',
         'contributor_display_limit',
         'citation_author_display_limit',
+        'show_igsn_drilling',
         'created_by',
     ];
 
@@ -237,6 +239,7 @@ class LandingPageTemplate extends Model
         'creator_display_limit' => 'integer',
         'contributor_display_limit' => 'integer',
         'citation_author_display_limit' => 'integer',
+        'show_igsn_drilling' => 'boolean',
     ];
 
     /**
@@ -958,6 +961,7 @@ class LandingPageTemplate extends Model
                             'creator_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
                             'contributor_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
                             'citation_author_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
+                            'show_igsn_drilling' => true,
                             'created_by' => null,
                         ]
                     );

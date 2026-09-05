@@ -144,6 +144,9 @@ export interface LandingPageTemplateConfig {
     /** Number of citation authors shown before et al. */
     citation_author_display_limit: number;
 
+    /** Whether the ICDP-only Drilling card is enabled */
+    show_igsn_drilling: boolean;
+
     /** Date types hidden from the Dates module */
     excluded_date_type_ids: number[];
 
@@ -218,6 +221,10 @@ export interface LandingPageDisplayLimits {
 export interface LandingPageTypeVisibility {
     excludedDateTypes: string[];
     excludedRelationTypes: string[];
+}
+
+export interface LandingPageSectionVisibility {
+    igsnDrilling: boolean;
 }
 
 /**
@@ -911,6 +918,7 @@ export interface LandingPageResource {
     version: string | null;
     language: string | null;
     resource_type?: LandingPageResourceType | null;
+    datacenter?: { id: number; name: string } | null;
     titles?: LandingPageTitle[];
     descriptions?: LandingPageDescription[];
     creators?: LandingPageCreator[];

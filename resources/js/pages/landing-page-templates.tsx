@@ -449,6 +449,7 @@ export default function LandingPageTemplatesPage() {
     const [editDatacenterIds, setEditDatacenterIds] = useState<number[]>([]);
     const [editExcludedDateTypeIds, setEditExcludedDateTypeIds] = useState<number[]>([]);
     const [editExcludedRelationTypeIds, setEditExcludedRelationTypeIds] = useState<number[]>([]);
+    const [editShowIgsnDrilling, setEditShowIgsnDrilling] = useState(true);
     const [saving, setSaving] = useState(false);
 
     // Delete dialog
@@ -512,6 +513,7 @@ export default function LandingPageTemplatesPage() {
         setEditDatacenterIds(tmpl.datacenters?.map((datacenter) => datacenter.id) ?? []);
         setEditExcludedDateTypeIds(tmpl.excluded_date_type_ids ?? []);
         setEditExcludedRelationTypeIds(tmpl.excluded_relation_type_ids ?? []);
+        setEditShowIgsnDrilling(tmpl.show_igsn_drilling ?? true);
         setEditOpen(true);
     };
 
@@ -536,12 +538,14 @@ export default function LandingPageTemplatesPage() {
                 editTemplate.template_type === 'igsn'
                     ? normalizeIgsnColumnOrders(editLeftOrder, editRightOrder)
                     : normalizeResourceColumnOrders(editLeftOrder, editRightOrder);
+            const igsnVisibility = editTemplate.template_type === 'igsn' ? { show_igsn_drilling: editShowIgsnDrilling } : {};
             const payload = editTemplate.is_default
                 ? {
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
                       citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
                       datacenter_ids: editDatacenterIds,
+                      ...igsnVisibility,
                   }
                 : {
                       name: editName.trim(),
@@ -553,6 +557,7 @@ export default function LandingPageTemplatesPage() {
                       excluded_date_type_ids: editExcludedDateTypeIds,
                       excluded_relation_type_ids: editExcludedRelationTypeIds,
                       datacenter_ids: editDatacenterIds,
+                      ...igsnVisibility,
                   };
 
             await axios.put(`/landing-pages/${editTemplate.id}`, payload);
@@ -901,7 +906,7 @@ export default function LandingPageTemplatesPage() {
                         </DialogTitle>
                         <DialogDescription>
                             {editTemplate?.is_default
-                                ? 'Customize how many creators, contributors, and citation authors are shown for this built-in copy template.'
+                                ? 'Customize display settings and datacenter assignments for this built-in copy template.'
                                 : 'Customize the template name, section order, and creator/contributor/citation display limits.'}
                         </DialogDescription>
                     </DialogHeader>
@@ -971,6 +976,27 @@ export default function LandingPageTemplatesPage() {
                                     isCopyTemplate={editTemplate.is_default}
                                     templateType={editTemplate.template_type}
                                 />
+                            </>
+                        )}
+
+                        {editTemplate?.template_type === 'igsn' && (
+                            <>
+                                <Separator />
+                                <div className="flex items-start gap-3">
+                                    <Checkbox
+                                        id="edit-show-igsn-drilling"
+                                        checked={editShowIgsnDrilling}
+                                        onCheckedChange={(checked) => setEditShowIgsnDrilling(checked === true)}
+                                    />
+                                    <div className="space-y-1">
+                                        <Label htmlFor="edit-show-igsn-drilling" className="cursor-pointer">
+                                            Show Drilling card
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            Display the card on ICDP IGSN landing pages when at least one drilling value is available.
+                                        </p>
+                                    </div>
+                                </div>
                             </>
                         )}
 
