@@ -24,11 +24,30 @@ it('exposes only a safe display name for a named email contact', function (): vo
     ])->and(json_encode($descriptor))->not->toContain('@');
 });
 
-it('uses a repository label instead of exposing a plain email address', function (): void {
-    expect($this->service->publicDescriptor('original', 'archive@example.org', 'Core Archive'))
+it('uses the repository name without a redundant contact suffix for a plain email address', function (
+    string $type,
+    string $repository,
+): void {
+    $descriptor = $this->service->publicDescriptor($type, 'archive@example.org', $repository);
+
+    expect($descriptor)->toBe([
+        'type' => $type,
+        'label' => $repository,
+        'has_email' => true,
+    ])->and(json_encode($descriptor))->not->toContain('@')
+        ->and($this->service->recipients($type, 'archive@example.org', $repository))->toBe([
+            ['email' => 'archive@example.org', 'name' => $repository],
+        ]);
+})->with([
+    'current repository' => [IgsnRepositoryContactService::TYPE_CURRENT, "Sawyer's Bay Repository"],
+    'original repository' => [IgsnRepositoryContactService::TYPE_ORIGINAL, 'Core Archive'],
+]);
+
+it('uses a generic repository contact label when a plain email has no repository name', function (): void {
+    expect($this->service->publicDescriptor('current', 'archive@example.org', null))
         ->toBe([
-            'type' => 'original',
-            'label' => 'Core Archive contact',
+            'type' => 'current',
+            'label' => 'Current repository contact',
             'has_email' => true,
         ]);
 });
