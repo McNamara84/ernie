@@ -88,6 +88,7 @@ final class LandingPageResourceTransformer
             'resourceType',
             'language',
             'publisher',
+            'datacenter',
             'igsnMetadata.parentResource.landingPage.externalDomain',
             'igsnClassifications',
             'igsnGeologicalAges',
@@ -107,6 +108,11 @@ final class LandingPageResourceTransformer
     public function transform(Resource $resource): array
     {
         $resourceData = $resource->toArray();
+
+        $resourceData['datacenter'] = $resource->datacenter === null ? null : [
+            'id' => $resource->datacenter->id,
+            'name' => $resource->datacenter->name,
+        ];
 
         // Publisher metadata is used server-side for CSL formatting. Keep the
         // relation object out of the stable, scalar frontend resource contract.

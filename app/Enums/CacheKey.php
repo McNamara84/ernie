@@ -83,7 +83,7 @@ enum CacheKey: string
     case FUJI_HEALTH_STATUS = 'assessment:fuji_health_status';
 
     // Published landing page render payloads
-    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v5';
+    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v6';
 
     // Landing page setup modal download URL suggestions
     case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions';

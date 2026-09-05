@@ -39,6 +39,7 @@ class LandingPageTemplateFactory extends Factory
             'creator_display_limit' => LandingPageTemplate::DEFAULT_DISPLAY_LIMIT,
             'contributor_display_limit' => LandingPageTemplate::DEFAULT_DISPLAY_LIMIT,
             'citation_author_display_limit' => LandingPageTemplate::DEFAULT_DISPLAY_LIMIT,
+            'show_igsn_drilling' => true,
             'created_by' => User::factory(),
         ];
     }

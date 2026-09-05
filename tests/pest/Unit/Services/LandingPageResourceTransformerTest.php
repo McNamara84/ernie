@@ -7,6 +7,7 @@ use App\Enums\Igsn\IgsnMeasurementType;
 use App\Enums\Igsn\IgsnMetadataValueType;
 use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
+use App\Models\Datacenter;
 use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
@@ -270,6 +271,26 @@ test('transformation is null-safe for optional relationships', function () {
     expect($data['contributors'][0])
         ->toHaveKey('contributor_types')
         ->and($data['contributors'][0]['contributor_types'])->toBeArray();
+});
+
+test('exposes the canonical resource datacenter without leaking the full relation', function () {
+    $transformer = new LandingPageResourceTransformer;
+    $datacenter = Datacenter::factory()->create(['name' => Datacenter::ICDP_NAME]);
+    $resource = Resource::factory()->create(['datacenter_id' => $datacenter->id]);
+    $resource->load($transformer->requiredRelations());
+
+    $data = $transformer->transform($resource);
+
+    expect($transformer->requiredRelations())->toContain('datacenter')
+        ->and($data['datacenter'])->toBe([
+            'id' => $datacenter->id,
+            'name' => Datacenter::ICDP_NAME,
+        ]);
+
+    $resourceWithoutDatacenter = Resource::factory()->create(['datacenter_id' => null]);
+    $resourceWithoutDatacenter->load($transformer->requiredRelations());
+
+    expect($transformer->transform($resourceWithoutDatacenter)['datacenter'])->toBeNull();
 });
 
 test('transforms landing page html alongside plain text descriptions', function () {

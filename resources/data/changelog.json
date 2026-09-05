@@ -15,6 +15,10 @@
             {
                 "title": "Clickable Assessment DOIs",
                 "description": "DOIs in the Resource and IGSN assessment results now open their registered landing pages through the canonical DOI resolver in a new browser tab. The behavior is available in both desktop and mobile layouts, while assessment entries without a DOI remain clearly marked as unavailable."
+            },
+            {
+                "title": "Configurable ICDP Drilling Details",
+                "description": "ICDP IGSN landing pages now group collection methods, total lengths, comments, platforms, operators, funding agencies, chief scientists, and collection dates in a dedicated Drilling card. Admins and Group Leaders can enable or disable the card per IGSN template; empty and N/A values stay hidden, Collection Date Precision remains undisplayed, and non-ICDP drilling details remain available in Acquisition."
             }
         ],
         "fixes": []

@@ -255,6 +255,9 @@ class LandingPagePreviewController extends Controller
                 'excludedDateTypes' => $templateConfig->excludedDateTypeSlugs(),
                 'excludedRelationTypes' => $templateConfig->excludedRelationTypeSlugs(),
             ],
+            'sectionVisibility' => [
+                'igsnDrilling' => $templateConfig->show_igsn_drilling,
+            ],
         ])->withViewData([
             'landingPageDocumentMetadata' => $documentMetadata,
         ]);

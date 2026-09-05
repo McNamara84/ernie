@@ -286,6 +286,8 @@ describe('Index', function (): void {
             ->assertInertia(fn ($page) => $page
                 ->component('landing-page-templates')
                 ->has('templates', 4) // resource default + IGSN default + 2 custom
+                ->where('templates.0.show_igsn_drilling', true)
+                ->where('templates.1.show_igsn_drilling', true)
                 ->where('logoUploadConstraints', [
                     'minWidth' => 960,
                     'minHeight' => 192,
@@ -529,6 +531,8 @@ describe('Clone', function (): void {
     });
 
     it('clones the IGSN default template when template_type=igsn is provided', function (): void {
+        $this->igsnDefaultTemplate->update(['show_igsn_drilling' => false]);
+
         $response = $this->actingAs($this->admin)
             ->postJson('/landing-pages', [
                 'name' => 'My IGSN Template',
@@ -542,7 +546,8 @@ describe('Clone', function (): void {
         expect($template)->not->toBeNull()
             ->and($template?->is_default)->toBeFalse()
             ->and($template?->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN)
-            ->and($template?->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS);
+            ->and($template?->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS)
+            ->and($template?->show_igsn_drilling)->toBeFalse();
     });
 
     it('rejects invalid template_type values', function (): void {
@@ -669,6 +674,50 @@ describe('Update', function (): void {
             ->and($template->citation_author_display_limit)->toBe(70);
     });
 
+    it('allows a group leader to update Drilling visibility on a custom IGSN template', function (): void {
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->admin->id,
+            'show_igsn_drilling' => true,
+        ]);
+
+        $this->actingAs($this->groupLeader)
+            ->putJson("/landing-pages/{$template->id}", ['show_igsn_drilling' => false])
+            ->assertOk()
+            ->assertJsonPath('template.show_igsn_drilling', false);
+
+        expect($template->fresh()?->show_igsn_drilling)->toBeFalse();
+    });
+
+    it('allows an admin to update Drilling visibility on the built-in IGSN template', function (): void {
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$this->igsnDefaultTemplate->id}", ['show_igsn_drilling' => false])
+            ->assertOk()
+            ->assertJsonPath('template.show_igsn_drilling', false);
+
+        expect($this->igsnDefaultTemplate->fresh()?->show_igsn_drilling)->toBeFalse();
+    });
+
+    it('rejects the IGSN-only Drilling setting for Resource templates', function (): void {
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", ['show_igsn_drilling' => false])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('show_igsn_drilling')
+            ->assertJsonPath(
+                'errors.show_igsn_drilling.0',
+                'The Drilling card setting is only available for IGSN templates.',
+            );
+    });
+
+    it('requires Drilling visibility to be boolean', function (mixed $value): void {
+        $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $this->admin->id]);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", ['show_igsn_drilling' => $value])
+            ->assertJsonValidationErrors('show_igsn_drilling');
+    })->with(['false', 2, null, [[]]]);
+
     it('rejects a standalone module that splits the shared Resource metadata block', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
@@ -701,7 +750,7 @@ describe('Update', function (): void {
             ->putJson("/landing-pages/{$this->defaultTemplate->id}", ['name' => 'Hacked'])
             ->assertForbidden()
             ->assertJson([
-                'message' => 'Only display limits and datacenter assignments can be updated on built-in copy templates.',
+                'message' => 'Only display settings and datacenter assignments can be updated on built-in copy templates.',
                 'error' => 'default_template_immutable',
             ]);
     });
@@ -760,6 +809,29 @@ describe('Update', function (): void {
                 )),
                 'right_column_order' => ['files', ...LandingPageTemplate::RIGHT_COLUMN_SECTIONS],
             ])
+            ->assertOk();
+
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
+    });
+
+    it('forgets affected cached public landing page render data after Drilling visibility changes', function (): void {
+        Cache::flush();
+
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->admin->id,
+            'show_igsn_drilling' => true,
+        ]);
+        $landingPage = LandingPage::factory()->published()->create([
+            'resource_id' => Resource::factory()->create()->id,
+            'landing_page_template_id' => $template->id,
+        ]);
+        $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
+        Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($cacheKey, ['template' => 'default_gfz_igsn', 'props' => []], 600);
+
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue();
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", ['show_igsn_drilling' => false])
             ->assertOk();
 
         expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
@@ -1119,6 +1191,7 @@ describe('API List', function (): void {
                         'logo_path',
                         'right_column_order',
                         'left_column_order',
+                        'show_igsn_drilling',
                     ],
                 ],
             ]);
@@ -1364,13 +1437,15 @@ describe('Model', function (): void {
             'creator_display_limit' => 33,
             'contributor_display_limit' => 44,
             'citation_author_display_limit' => 55,
+            'show_igsn_drilling' => false,
         ]);
 
         $template = LandingPageTemplate::ensureDefaultTemplateExists();
 
         expect($template->creator_display_limit)->toBe(33)
             ->and($template->contributor_display_limit)->toBe(44)
-            ->and($template->citation_author_display_limit)->toBe(55);
+            ->and($template->citation_author_display_limit)->toBe(55)
+            ->and($template->show_igsn_drilling)->toBeFalse();
     });
 
     it('returns null logo_url when no logo is set', function (): void {
@@ -1511,7 +1586,8 @@ describe('Model', function (): void {
     it('casts is_default as boolean', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        expect($template->is_default)->toBeBool();
+        expect($template->is_default)->toBeBool()
+            ->and($template->show_igsn_drilling)->toBeBool();
     });
 
     it('appends logo_url attribute', function (): void {
@@ -1537,7 +1613,8 @@ describe('Factory', function (): void {
             ->and($template->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS)
             ->and($template->creator_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
             ->and($template->contributor_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
-            ->and($template->citation_author_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT);
+            ->and($template->citation_author_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
+            ->and($template->show_igsn_drilling)->toBeTrue();
     });
 
     it('creates an igsn template with igsn left-column defaults', function (): void {
@@ -1610,7 +1687,8 @@ describe('Seeder', function (): void {
             ->and($igsn?->name)->toBe(LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_NAME)
             ->and($igsn?->is_default)->toBeTrue()
             ->and($igsn?->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN)
-            ->and($igsn?->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS);
+            ->and($igsn?->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS)
+            ->and($igsn?->show_igsn_drilling)->toBeTrue();
     });
 
     it('does not duplicate the IGSN default when seeder runs again', function (): void {

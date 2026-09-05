@@ -172,6 +172,7 @@ const defaultTemplate: LandingPageTemplateConfig = {
     creator_display_limit: 50,
     contributor_display_limit: 50,
     citation_author_display_limit: 50,
+    show_igsn_drilling: true,
     excluded_date_type_ids: [],
     excluded_relation_type_ids: [],
     created_by: null,
@@ -195,6 +196,7 @@ const customTemplate: LandingPageTemplateConfig = {
     creator_display_limit: 25,
     contributor_display_limit: 75,
     citation_author_display_limit: 10,
+    show_igsn_drilling: true,
     excluded_date_type_ids: [2],
     excluded_relation_type_ids: [12],
     created_by: 1,
@@ -218,6 +220,7 @@ const customTemplateNoLogo: LandingPageTemplateConfig = {
     creator_display_limit: 50,
     contributor_display_limit: 50,
     citation_author_display_limit: 50,
+    show_igsn_drilling: true,
     excluded_date_type_ids: [],
     excluded_relation_type_ids: [],
     created_by: 1,
@@ -649,6 +652,38 @@ describe('LandingPageTemplatesPage', () => {
             expect((screen.getByLabelText('Creators shown initially') as HTMLInputElement).value).toBe('25');
             expect((screen.getByLabelText('Contributors shown initially') as HTMLInputElement).value).toBe('75');
             expect((screen.getByLabelText('Citation authors before et al.') as HTMLInputElement).value).toBe('10');
+            expect(screen.queryByRole('checkbox', { name: 'Show Drilling card' })).not.toBeInTheDocument();
+        });
+
+        it('edits the Drilling visibility setting for a custom IGSN template', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [
+                {
+                    ...defaultIgsnTemplate,
+                    id: 5,
+                    is_default: false,
+                    name: 'Custom IGSN Template',
+                    created_by: 1,
+                    creator: { id: 1, name: 'Admin User' },
+                    landing_pages_count: 0,
+                    show_igsn_drilling: false,
+                },
+            ];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /Edit/i }));
+            const checkbox = screen.getByRole('checkbox', { name: 'Show Drilling card' });
+            expect(checkbox).not.toBeChecked();
+            await user.click(checkbox);
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    '/landing-pages/5',
+                    expect.objectContaining({ show_igsn_drilling: true }),
+                );
+            });
         });
 
         it('saves template changes', async () => {
@@ -784,6 +819,29 @@ describe('LandingPageTemplatesPage', () => {
                     creator_display_limit: 35,
                     contributor_display_limit: 45,
                     citation_author_display_limit: 15,
+                    datacenter_ids: [],
+                });
+            });
+        });
+
+        it('allows the Drilling setting to be changed on the default IGSN template', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [defaultIgsnTemplate];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /Limits/i }));
+            const checkbox = screen.getByRole('checkbox', { name: 'Show Drilling card' });
+            expect(checkbox).toBeChecked();
+            await user.click(checkbox);
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(`/landing-pages/${defaultIgsnTemplate.id}`, {
+                    creator_display_limit: 50,
+                    contributor_display_limit: 50,
+                    citation_author_display_limit: 50,
+                    show_igsn_drilling: false,
                     datacenter_ids: [],
                 });
             });

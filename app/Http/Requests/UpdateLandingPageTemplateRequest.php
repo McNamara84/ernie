@@ -44,6 +44,7 @@ class UpdateLandingPageTemplateRequest extends FormRequest
             'creator_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'contributor_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'citation_author_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
+            'show_igsn_drilling' => ['sometimes', 'required', 'boolean'],
             'excluded_date_type_ids' => ['sometimes', 'array'],
             'excluded_date_type_ids.*' => ['required', 'integer', 'distinct', Rule::exists('date_types', 'id')],
             'excluded_relation_type_ids' => ['sometimes', 'array'],
@@ -62,6 +63,14 @@ class UpdateLandingPageTemplateRequest extends FormRequest
             /** @var LandingPageTemplate $template */
             $template = $this->route('landingPageTemplate');
             $datacenterIds = $this->input('datacenter_ids', []);
+
+            if ($this->has('show_igsn_drilling')
+                && $template->template_type !== LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
+                $validator->errors()->add(
+                    'show_igsn_drilling',
+                    'The Drilling card setting is only available for IGSN templates.'
+                );
+            }
 
             if ($this->has('datacenter_ids') && is_array($datacenterIds) && $datacenterIds !== []) {
                 $gfz = Datacenter::query()

@@ -104,12 +104,16 @@ class LandingPageRenderDataCacheService
                 });
             }
         } else {
-            $query->where(function (Builder $query) use ($template): void {
+            $datacenterTemplateColumn = $template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
+                ? 'igsn_landing_page_template_id'
+                : 'landing_page_template_id';
+
+            $query->where(function (Builder $query) use ($template, $datacenterTemplateColumn): void {
                 $query->where('landing_page_template_id', $template->id)
-                    ->orWhere(function (Builder $query) use ($template): void {
+                    ->orWhere(function (Builder $query) use ($template, $datacenterTemplateColumn): void {
                         $query->whereNull('landing_page_template_id')
-                            ->whereHas('resource.datacenter', function (Builder $query) use ($template): void {
-                                $query->where('landing_page_template_id', $template->id);
+                            ->whereHas('resource.datacenter', function (Builder $query) use ($template, $datacenterTemplateColumn): void {
+                                $query->where($datacenterTemplateColumn, $template->id);
                             });
                     });
             });

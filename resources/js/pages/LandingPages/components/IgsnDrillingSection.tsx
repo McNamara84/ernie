@@ -1,66 +1,35 @@
 import type { ReactNode } from 'react';
 
-import type { LandingPageIgsnMetadata } from '@/types/landing-page';
+import type { LandingPageContributor, LandingPageFundingReference, LandingPageIgsnMetadata, LandingPageResourceDate } from '@/types/landing-page';
 
+import { buildIgsnDrillingMetadata } from '../lib/igsn-drilling';
 import { LandingPageCard } from './LandingPageCard';
 import { MetadataList, type MetadataRow } from './MetadataList';
 
 interface IgsnDrillingSectionProps {
     igsn: LandingPageIgsnMetadata | null | undefined;
+    contributors: LandingPageContributor[];
+    fundingReferences: LandingPageFundingReference[];
+    dates: LandingPageResourceDate[];
 }
 
-interface MeasurementRange {
-    start: string | null;
-    end: string | null;
-    unit: string | null;
-    end_unit: string | null;
-}
-
-const trimNumber = (value: string): string => (value.includes('.') ? value.replace(/0+$/, '').replace(/\.$/, '') : value);
-
-const formatRange = (range: MeasurementRange): string | null => {
-    const start = range.start?.trim();
-    const end = range.end?.trim();
-    if (!start && !end) return null;
-
-    const startValue = start ? trimNumber(start) : null;
-    const endValue = end ? trimNumber(end) : null;
-    const endUnit = range.end_unit ?? range.unit;
-    if (startValue && endValue && range.unit === endUnit) {
-        return `${startValue} – ${endValue}${range.unit ? ` ${range.unit}` : ''}`;
-    }
-
-    const startLabel = startValue ? `${startValue}${range.unit ? ` ${range.unit}` : ''}` : null;
-    const endLabel = endValue ? `${endValue}${endUnit ? ` ${endUnit}` : ''}` : null;
-    return startLabel && endLabel ? `${startLabel} – ${endLabel}` : (startLabel ?? endLabel);
-};
-
-export function IgsnDrillingSection({ igsn }: IgsnDrillingSectionProps): ReactNode {
-    const totalLengths = (igsn?.total_lengths ?? [])
-        .map((length) => {
-            const value = length.numeric_value?.trim();
-            if (!value) return null;
-            return `${trimNumber(value)}${length.unit ? ` ${length.unit}` : ''}`;
-        })
-        .filter((value): value is string => value !== null)
-        .join('; ');
-
-    const ageRanges = (igsn?.age_ranges ?? [])
-        .map(formatRange)
-        .filter((value): value is string => value !== null)
-        .join('; ');
-
-    const joinValues = (values: string[] | undefined): string | null => {
-        const unique = Array.from(new Set((values ?? []).map((value) => value.trim()).filter(Boolean)));
-        return unique.length > 0 ? unique.join('; ') : null;
-    };
+export function IgsnDrillingSection({ igsn, contributors, fundingReferences, dates }: IgsnDrillingSectionProps): ReactNode {
+    const drilling = buildIgsnDrillingMetadata(igsn, contributors, fundingReferences, dates);
 
     const rows: MetadataRow[] = [
-        { label: 'Total Length', value: totalLengths || null },
-        { label: 'Age Range', value: ageRanges || null },
-        { label: 'Launch Platform', value: joinValues(igsn?.launch_platform_names) },
-        { label: 'Launch Type', value: joinValues(igsn?.launch_type_names) },
-        { label: 'Navigation Type', value: joinValues(igsn?.navigation_types) },
+        { label: 'Collection Method', value: drilling.collectionMethod },
+        { label: 'Collection Method Description', value: drilling.collectionMethodDescription },
+        { label: 'Total Length', value: drilling.totalLength },
+        { label: 'Comments', value: drilling.comments ? <span className="whitespace-pre-line">{drilling.comments}</span> : null },
+        { label: 'Platform Type', value: drilling.platformType },
+        { label: 'Platform Name', value: drilling.platformName },
+        { label: 'Platform Description', value: drilling.platformDescription },
+        { label: 'Operator', value: drilling.operators },
+        { label: 'Funding Agency', value: drilling.fundingAgencies },
+        { label: 'Chief Scientist', value: drilling.chiefScientists },
+        { label: 'Sampling Date', value: drilling.samplingDate },
+        { label: 'Start Date', value: drilling.startDate },
+        { label: 'End Date', value: drilling.endDate },
     ];
 
     if (!rows.some((row) => row.value)) return null;
