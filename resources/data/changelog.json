@@ -21,7 +21,12 @@
                 "description": "ICDP IGSN landing pages now group collection methods, total lengths, comments, platforms, operators, funding agencies, chief scientists, and collection dates in a dedicated Drilling card. Admins and Group Leaders can enable or disable the card per IGSN template; empty and N/A values stay hidden, Collection Date Precision remains undisplayed, and non-ICDP drilling details remain available in Acquisition."
             }
         ],
-        "fixes": []
+        "fixes": [
+            {
+                "title": "Clean IGSN Repository Contact Labels",
+                "description": "IGSN landing pages now show the current or original repository name without appending a redundant contact suffix when the protected recipient is stored as an email address. Addresses remain hidden, and the contact buttons continue to use secure server-side delivery."
+            }
+        ]
     },
     {
         "version": "1.0.7",

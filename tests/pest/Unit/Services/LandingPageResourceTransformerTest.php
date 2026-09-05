@@ -1433,10 +1433,10 @@ test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources',
             'total_lengths' => [['numeric_value' => '2400.1', 'unit' => 'm']],
             'geological_ages' => [['id' => 1, 'value' => 'Quaternary']],
             'current_archive_contact' => 'Tina Kollaske',
-            'original_archive_contact' => 'Legacy Core Archive contact',
+            'original_archive_contact' => 'Legacy Core Archive',
             'repository_contacts' => [
                 ['type' => 'current', 'label' => 'Tina Kollaske', 'has_email' => true],
-                ['type' => 'original', 'label' => 'Legacy Core Archive contact', 'has_email' => true],
+                ['type' => 'original', 'label' => 'Legacy Core Archive', 'has_email' => true],
             ],
         ])
         ->and($data['igsn_metadata']['parent'])->toMatchArray([

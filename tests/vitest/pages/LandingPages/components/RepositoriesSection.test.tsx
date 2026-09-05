@@ -68,10 +68,10 @@ describe('RepositoriesSection', () => {
                     current_archive: 'BGR Berlin',
                     current_archive_contact: 'Tina Kollaske',
                     original_archive: 'Legacy Archive',
-                    original_archive_contact: 'Legacy Archive contact',
+                    original_archive_contact: 'Legacy Archive',
                     repository_contacts: [
                         { type: 'current', label: 'Tina Kollaske', has_email: true },
-                        { type: 'original', label: 'Legacy Archive contact', has_email: true },
+                        { type: 'original', label: 'Legacy Archive', has_email: true },
                     ],
                 })}
             />,
@@ -86,6 +86,25 @@ describe('RepositoriesSection', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(screen.getByText('Sensitive sample')).toBeInTheDocument();
         expect(screen.getAllByText('Tina Kollaske')).toHaveLength(2);
+    });
+
+    it('renders a repository-name fallback without a redundant contact suffix', () => {
+        const repositoryName = "Sawyer's Bay Repository, University of Otago, Dunedin, New Zealand";
+
+        render(
+            <RepositoriesSection
+                datasetTitle="Sample"
+                igsn={metadata({
+                    current_archive: repositoryName,
+                    current_archive_contact: repositoryName,
+                    repository_contacts: [{ type: 'current', label: repositoryName, has_email: true }],
+                })}
+            />,
+        );
+
+        expect(screen.getAllByText(repositoryName)).toHaveLength(2);
+        expect(screen.queryByText(`${repositoryName} contact`)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Contact current repository' })).toBeInTheDocument();
     });
 
     it('enables a protected legacy contact only for a complete email address', () => {

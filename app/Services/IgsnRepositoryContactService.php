@@ -92,6 +92,6 @@ final class IgsnRepositoryContactService
         $role = $type === self::TYPE_ORIGINAL ? 'Original' : 'Current';
         $archiveName = trim((string) $archive);
 
-        return $archiveName !== '' ? $archiveName.' contact' : $role.' repository contact';
+        return $archiveName !== '' ? $archiveName : $role.' repository contact';
     }
 }
