@@ -466,7 +466,7 @@ describe('Landing Page Caching', function () {
             ->assertInertia(fn ($page) => $page->where('landingPage.ftp_url', 'https://data.gfz.de/new.zip'));
     });
 
-    test('ignores a legacy unversioned render payload and caches complete head data under the v5 key', function () {
+    test('ignores a legacy unversioned render payload and caches complete head data under the versioned key', function () {
         config([
             'bot_protection.enabled' => true,
             'bot_protection.landing_cache_ttl' => 600,

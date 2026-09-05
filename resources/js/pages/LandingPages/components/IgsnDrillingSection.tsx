@@ -1,14 +1,8 @@
 import type { ReactNode } from 'react';
 
-import type {
-    LandingPageContributor,
-    LandingPageFundingReference,
-    LandingPageIgsnMetadata,
-    LandingPageResourceDate,
-} from '@/types/landing-page';
+import type { LandingPageContributor, LandingPageFundingReference, LandingPageIgsnMetadata, LandingPageResourceDate } from '@/types/landing-page';
 
 import { buildIgsnDrillingMetadata } from '../lib/igsn-drilling';
-
 import { LandingPageCard } from './LandingPageCard';
 import { MetadataList, type MetadataRow } from './MetadataList';
 

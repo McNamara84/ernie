@@ -9,12 +9,7 @@ import type {
     LandingPageResourceDate,
 } from '@/types/landing-page';
 
-import {
-    buildIgsnDrillingMetadata,
-    normalizeIgsnDisplayValue,
-    trimIgsnNumber,
-    uniqueIgsnDisplayValues,
-} from '../lib/igsn-drilling';
+import { buildIgsnDrillingMetadata, normalizeIgsnDisplayValue, trimIgsnNumber, uniqueIgsnDisplayValues } from '../lib/igsn-drilling';
 import { IgsnDescriptionGroups } from './IgsnDescriptionGroups';
 import { LandingPageCard } from './LandingPageCard';
 import { hasVisibleMetadataRows, MetadataList, type MetadataRow } from './MetadataList';

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\CacheKey;
+use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
@@ -224,6 +225,33 @@ it('forgets cached render data only for landing pages using a custom template', 
 
     expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($affectedRenderKey))->toBeFalse()
         ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($unaffectedRenderKey))->toBeTrue();
+});
+
+it('forgets inherited IGSN render data through the datacenter IGSN template slot', function (): void {
+    $service = new LandingPageRenderDataCacheService;
+    $template = LandingPageTemplate::factory()->igsn()->create();
+    $otherTemplate = LandingPageTemplate::factory()->igsn()->create();
+    $affectedDatacenter = Datacenter::factory()->create(['igsn_landing_page_template_id' => $template->id]);
+    $unaffectedDatacenter = Datacenter::factory()->create(['igsn_landing_page_template_id' => $otherTemplate->id]);
+    $affectedLandingPage = LandingPage::factory()->published()->create([
+        'resource_id' => Resource::factory()->create(['datacenter_id' => $affectedDatacenter->id])->id,
+        'landing_page_template_id' => null,
+    ]);
+    $unaffectedLandingPage = LandingPage::factory()->published()->create([
+        'resource_id' => Resource::factory()->create(['datacenter_id' => $unaffectedDatacenter->id])->id,
+        'landing_page_template_id' => null,
+    ]);
+    $cache = Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags());
+    $affectedRenderKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($affectedLandingPage->id);
+    $unaffectedRenderKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($unaffectedLandingPage->id);
+
+    $cache->put($affectedRenderKey, ['template' => 'default_gfz_igsn', 'props' => []], 600);
+    $cache->put($unaffectedRenderKey, ['template' => 'default_gfz_igsn', 'props' => []], 600);
+
+    $service->forgetForTemplate($template);
+
+    expect($cache->has($affectedRenderKey))->toBeFalse()
+        ->and($cache->has($unaffectedRenderKey))->toBeTrue();
 });
 
 it('forgets cached render data for default-template pages without clearing matching custom-template pages', function (): void {

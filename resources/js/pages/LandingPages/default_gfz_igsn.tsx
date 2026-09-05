@@ -203,18 +203,7 @@ export default function DefaultGfzIgsnTemplate() {
                 />
             ),
         };
-    }, [
-        resource,
-        landingPage,
-        isDark,
-        peopleDisplayLimits,
-        metadataLinks,
-        mainTitle,
-        citationStyles,
-        typeVisibility,
-        isIcdp,
-        showIgsnDrilling,
-    ]);
+    }, [resource, landingPage, isDark, peopleDisplayLimits, metadataLinks, mainTitle, citationStyles, typeVisibility, isIcdp, showIgsnDrilling]);
 
     return (
         <>

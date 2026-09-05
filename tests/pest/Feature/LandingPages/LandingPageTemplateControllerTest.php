@@ -1586,7 +1586,8 @@ describe('Model', function (): void {
     it('casts is_default as boolean', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        expect($template->is_default)->toBeBool();
+        expect($template->is_default)->toBeBool()
+            ->and($template->show_igsn_drilling)->toBeBool();
     });
 
     it('appends logo_url attribute', function (): void {
@@ -1612,7 +1613,8 @@ describe('Factory', function (): void {
             ->and($template->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS)
             ->and($template->creator_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
             ->and($template->contributor_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
-            ->and($template->citation_author_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT);
+            ->and($template->citation_author_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
+            ->and($template->show_igsn_drilling)->toBeTrue();
     });
 
     it('creates an igsn template with igsn left-column defaults', function (): void {
@@ -1685,7 +1687,8 @@ describe('Seeder', function (): void {
             ->and($igsn?->name)->toBe(LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_NAME)
             ->and($igsn?->is_default)->toBeTrue()
             ->and($igsn?->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN)
-            ->and($igsn?->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS);
+            ->and($igsn?->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS)
+            ->and($igsn?->show_igsn_drilling)->toBeTrue();
     });
 
     it('does not duplicate the IGSN default when seeder runs again', function (): void {
