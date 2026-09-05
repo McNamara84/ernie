@@ -1033,7 +1033,7 @@ describe('Docs page', () => {
         const groupLeaderPage = renderDocsPage('group_leader');
         await openDatasetsTab(groupLeaderPage.user);
         const heading = screen.getByText('Custom Landing Page Templates');
-        const sectionContent = heading.parentElement?.textContent;
+        const sectionContent = heading.parentElement?.textContent ?? '';
 
         expect(heading).toBeInTheDocument();
         expect(screen.getByText('Additional Information')).toBeInTheDocument();
