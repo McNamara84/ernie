@@ -2252,13 +2252,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     include <strong>General</strong> (Project, Campaign, Type, Name, IGSN, Parent IGSN, Purpose, Release Date),{' '}
                                     <strong>Sample Family</strong> (the complete locally known hierarchy from the highest ancestor to all descendants,
                                     with links to published family members), <strong>Acquisition</strong> (Material, material-specific Classification,
-                                    structured Description fields labelled by their scheme, Geological Unit, Comments, Minimum/Maximum Depth, Depth
-                                    Scale, Sizes, Collection Method and Collection Method Description, Platform Type, Platform Name, Platform
-                                    Description, Funding Agency, Chief Scientist, Start/End Date), and <strong>Repositories</strong> (current and
-                                    original repository, their protected contact actions, and sample access), plus <strong>Sample Image</strong>.
-                                    Sample Image displays the locally managed or approved external legacy photo and may be positioned like any other
-                                    IGSN module. Draft family members remain visible without a link, while empty fields and empty modules, including a
-                                    missing image, are hidden automatically.
+                                    structured Description fields labelled by their scheme, Geological Age and Age Range, Geological Unit,
+                                    Minimum/Maximum Depth, Depth Scale, Sizes, Launch Platform, Launch Type, and Navigation Type), and{' '}
+                                    <strong>Repositories</strong> (current and original repository, their protected contact actions, and sample
+                                    access), plus <strong>Sample Image</strong>. On ICDP IGSN landing pages, a dedicated <strong>Drilling</strong>{' '}
+                                    card can additionally show Collection Method and Description, Total Length, Comments, Platform Type, Platform Name
+                                    and Description, Operator, Funding Agency, Chief Scientist, Sampling Date, and Start/End Date. Collection Date
+                                    Precision is not displayed. Sample Image displays the locally managed or approved external legacy photo and may be
+                                    positioned like any other IGSN module. Draft family members remain visible without a link, while empty fields and
+                                    empty modules, including a missing image or a Drilling card without meaningful values, are hidden automatically.
                                 </p>
                                 <p>
                                     The <strong>Location / Map</strong> module becomes <strong>Sampling Location</strong> for IGSNs. It can display
@@ -2267,7 +2269,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     point, two pairs as a box, and three or more pairs as a polygon.
                                 </p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={4} title="Configure Type Visibility (Optional)">
+                            <WorkflowSteps.Step number={4} title="Configure Visibility (Optional)">
+                                <p>
+                                    For every IGSN template, use <strong>Show Drilling card</strong> to control the dedicated card on ICDP IGSN
+                                    landing pages. The setting is enabled by default and is also available when editing the built-in{' '}
+                                    <strong>Templates IGSN</strong> copy template. It has no effect on non-ICDP IGSNs, where the corresponding
+                                    drilling details remain in <strong>Acquisition</strong>.
+                                </p>
                                 <p>
                                     In the custom template editor, use <strong>Dates visibility</strong> and <strong>Related Work visibility</strong>{' '}
                                     to choose which metadata types appear. A checked type is shown on landing pages using this template; clear its
@@ -2302,7 +2310,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Note:</strong> Default templates only allow display-limit and datacenter-assignment changes and cannot be
+                                <strong>Note:</strong> Built-in copy templates only allow display-limit and datacenter-assignment changes; the
+                                built-in IGSN copy template additionally allows the <strong>Show Drilling card</strong> setting. They cannot be
                                 deleted. A custom template cannot be deleted while a landing page uses it explicitly or a datacenter inherits it.
                             </p>
                         </div>

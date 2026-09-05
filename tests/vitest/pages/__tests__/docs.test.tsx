@@ -1032,12 +1032,18 @@ describe('Docs page', () => {
     it('shows landing page templates for group leaders', async () => {
         const groupLeaderPage = renderDocsPage('group_leader');
         await openDatasetsTab(groupLeaderPage.user);
-        expect(screen.getByText('Custom Landing Page Templates')).toBeInTheDocument();
+        const heading = screen.getByText('Custom Landing Page Templates');
+        const sectionContent = heading.parentElement?.textContent;
+
+        expect(heading).toBeInTheDocument();
         expect(screen.getByText('Additional Information')).toBeInTheDocument();
         expect(screen.getByText(/For Resource and IGSN templates.*move them between the left and right columns/i)).toBeInTheDocument();
         expect(screen.getByText(/Every Resource module can be placed in either column/i)).toBeInTheDocument();
         expect(screen.getByText(/Each template type only offers the modules intended for its landing pages/i)).toBeInTheDocument();
         expect(screen.getByText(/Sample Image displays the locally managed or approved external legacy photo/i)).toBeInTheDocument();
+        expect(sectionContent).toMatch(/On ICDP IGSN landing pages, a dedicated Drilling card/i);
+        expect(sectionContent).toMatch(/Show Drilling card.*enabled by default.*built-in Templates IGSN copy template/i);
+        expect(sectionContent).toMatch(/built-in IGSN copy template additionally allows the Show Drilling card setting/i);
     });
 
     it('hides landing page templates for curators', async () => {

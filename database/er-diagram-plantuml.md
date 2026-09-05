@@ -700,6 +700,7 @@ entity "landing_page_templates" as landing_page_templates {
     * creator_display_limit : SMALLINT = 50
     * contributor_display_limit : SMALLINT = 50
     * citation_author_display_limit : SMALLINT = 50
+    * show_igsn_drilling : BOOLEAN = true
     created_by : BIGINT <<FK>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
