@@ -158,17 +158,17 @@ function MetricChartCard({
     } satisfies ChartConfig;
 
     return (
-        <Card>
-            <CardHeader className="space-y-2 pb-2">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                        <Icon aria-hidden="true" className="size-5 text-muted-foreground" />
-                        <div>
+        <Card className="min-w-0 overflow-hidden">
+            <CardHeader className="space-y-2 px-4 pb-2 sm:px-6">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-2">
+                        <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0">
                             <CardTitle className="text-base">{title}</CardTitle>
                             <CardDescription>{description}</CardDescription>
                         </div>
                     </div>
-                    <div className="text-right">
+                    <div className="w-full shrink-0 text-right sm:w-auto">
                         <p
                             className="text-2xl font-semibold tabular-nums"
                             aria-label={`${title}: ${currentValue?.toFixed(1) ?? 'unavailable'} percent`}
@@ -179,7 +179,7 @@ function MetricChartCard({
                     </div>
                 </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0 px-3 sm:px-6">
                 {hasData ? (
                     <ChartContainer config={chartConfig} className="h-64 w-full">
                         <AreaChart data={samples} accessibilityLayer margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
@@ -228,9 +228,9 @@ function MetricChartCard({
 
 function MetricsSkeleton() {
     return (
-        <div className="grid gap-4 lg:grid-cols-2" aria-label="Loading server utilization">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-2" aria-label="Loading server utilization">
             {[0, 1].map((item) => (
-                <Card key={item}>
+                <Card key={item} className="min-w-0 overflow-hidden">
                     <CardHeader>
                         <Skeleton className="h-5 w-40" />
                         <Skeleton className="h-4 w-64 max-w-full" />
@@ -292,9 +292,9 @@ export default function SystemMetricsPanel({ refreshKey = 0 }: SystemMetricsPane
     const statusDescription = metrics ? statusCopy.description : error ? 'Host VM metrics are currently unavailable.' : 'Loading host VM metrics.';
 
     return (
-        <section className="space-y-4" aria-labelledby="server-utilization-title">
+        <section className="min-w-0 space-y-4" aria-labelledby="server-utilization-title">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                <div>
+                <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                         <Server aria-hidden="true" className="size-6" />
                         <h2 id="server-utilization-title" className="text-xl font-semibold">
@@ -320,6 +320,7 @@ export default function SystemMetricsPanel({ refreshKey = 0 }: SystemMetricsPane
                     type="single"
                     value={period}
                     variant="outline"
+                    className="self-start"
                     aria-label="Server utilization period"
                     onValueChange={(value) => value && setPeriod(value as MetricsPeriod)}
                 >
@@ -349,7 +350,7 @@ export default function SystemMetricsPanel({ refreshKey = 0 }: SystemMetricsPane
             {!error && isLoading && !metrics && <MetricsSkeleton />}
 
             {!error && metrics && (
-                <div className={cn('grid gap-4 lg:grid-cols-2', isLoading && 'opacity-60')} aria-busy={isLoading}>
+                <div className={cn('grid min-w-0 gap-4 lg:grid-cols-2', isLoading && 'opacity-60')} aria-busy={isLoading}>
                     <MetricChartCard
                         title="CPU utilization"
                         description="Average across all logical CPUs"

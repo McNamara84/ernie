@@ -2,13 +2,12 @@
     {
         "version": "1.0.8",
         "date": "2026-09-09",
-        "features": [
-            {
-                "title": "Production VM Resource History",
-                "description": "Administrators can now review CPU and memory utilization for the entire production VM directly above the application logs. Minute-level host samples provide responsive charts for the last 24 hours and 7 days, while clear collecting, stale, disabled, gap, and retry states keep the history honest across deployments and scheduler interruptions. Only the scheduler receives read-only access to the two required Linux proc files; no Docker socket or privileged container is exposed."
-            }
-        ],
+        "features": [],
         "improvements": [
+            {
+                "title": "Logs with VM Resource History",
+                "description": "Administrators can now review CPU and memory utilization for the entire production VM directly above the application logs. Minute-level host samples provide responsive charts for the last 24 hours and 7 days, while clear collecting, stale, disabled, gap, and retry states keep the history honest across deployments and scheduler interruptions. Only the scheduler receives read-only access to the two required Linux proc files; no Docker socket or privileged container is exposed."
+            },
             {
                 "title": "Faster Production Runtime and Portal Caches",
                 "description": "Production now uses tuned PHP-FPM and MySQL resource budgets, OPcache, deterministic Laravel bootstrap caches, and an optional F-UJI service profile. Scope-aware stale-while-revalidate caches, precise transaction-safe invalidation, stampede protection, and an operator-facing portal cache warm-up command reduce load times while keeping search facets, maps, and published links current."
@@ -30,6 +29,10 @@
             {
                 "title": "Clean IGSN Repository Contact Labels",
                 "description": "IGSN landing pages now show the current or original repository name without appending a redundant contact suffix when the protected recipient is stored as an email address. Addresses remain hidden, and the contact buttons continue to use secure server-side delivery."
+            },
+            {
+                "title": "Mobile Server Resource Monitoring",
+                "description": "The Logs workspace now keeps VM utilization cards, current CPU and memory readings, charts, log actions, filters, and tables within narrow smartphone viewports. Administrative controls wrap cleanly and wide log tables scroll inside their card instead of clipping the hardware monitoring view."
             }
         ]
     },
