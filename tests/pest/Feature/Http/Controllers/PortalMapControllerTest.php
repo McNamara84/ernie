@@ -73,7 +73,7 @@ it('returns a lightweight resource feature for a published point in the viewport
 
     $this->getJson(route('portal.doi.map', portalMapRequestQuery(['include_extent' => 1])))
         ->assertOk()
-        ->assertJsonPath('schemaVersion', 2)
+        ->assertJsonPath('schemaVersion', 3)
         ->assertJsonCount(1, 'features')
         ->assertJsonPath('features.0.kind', 'resource')
         ->assertJsonPath('features.0.geometry.type', 'point')
@@ -234,7 +234,7 @@ it('returns exact IGSN details and top-level material presentation for a point',
 
     $this->getJson(route('portal.igsn.map', portalMapRequestQuery(['zoom' => 12])))
         ->assertOk()
-        ->assertJsonPath('schemaVersion', 2)
+        ->assertJsonPath('schemaVersion', 3)
         ->assertJsonPath('meta.visualizationDimension', 'material')
         ->assertJsonPath('features.0.kind', 'resource')
         ->assertJsonPath('features.0.resource.presentation.dimension', 'material')
@@ -277,6 +277,119 @@ it('aggregates controlled, missing, not-applicable, and unrecognized IGSN materi
         ->assertJsonPath('features.0.composition.counts.unrecognized', 1);
 
     expect(array_sum($response->json('features.0.composition.counts')))->toBe(5);
+});
+
+it('returns paginated and hydrated members for a terminal DOI cluster', function (): void {
+    config(['portal_map.cluster_members_per_page' => 1]);
+    $first = createPublishedPortalMapResource($this->datasetType, 'First colocated dataset');
+    $second = createPublishedPortalMapResource($this->datasetType, 'Second colocated dataset');
+    $draft = Resource::factory()->create(['resource_type_id' => $this->datasetType->id]);
+    LandingPage::factory()->draft()->create(['resource_id' => $draft->id]);
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $first->id]);
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $second->id]);
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $draft->id]);
+    $query = portalMapRequestQuery(['zoom' => 18, 'q' => 'colocated dataset']);
+
+    $cluster = $this->getJson(route('portal.doi.map', $query))
+        ->assertOk()
+        ->assertJsonPath('schemaVersion', 3)
+        ->assertJsonPath('features.0.kind', 'cluster')
+        ->assertJsonPath('features.0.count', 2)
+        ->assertJsonStructure(['features' => [['navigationBounds']]])
+        ->json('features.0');
+
+    $firstPage = $this->getJson(route('portal.doi.map-cluster-members', [
+        'clusterId' => $cluster['id'],
+        ...$query,
+    ]))
+        ->assertOk()
+        ->assertJsonPath('schemaVersion', 1)
+        ->assertJsonPath('clusterId', $cluster['id'])
+        ->assertJsonPath('total', 2)
+        ->assertJsonPath('pagination.currentPage', 1)
+        ->assertJsonPath('pagination.lastPage', 2)
+        ->assertJsonPath('pagination.perPage', 1)
+        ->assertJsonCount(1, 'members');
+
+    $secondPage = $this->getJson(route('portal.doi.map-cluster-members', [
+        'clusterId' => $cluster['id'],
+        ...$query,
+        'page' => 2,
+    ]))
+        ->assertOk()
+        ->assertJsonPath('pagination.currentPage', 2)
+        ->assertJsonCount(1, 'members');
+
+    expect($firstPage->json('members.0.resource.title'))->toBe('First colocated dataset')
+        ->and($secondPage->json('members.0.resource.title'))->toBe('Second colocated dataset');
+});
+
+it('preserves IGSN material details when resolving terminal cluster members', function (): void {
+    foreach (['First rock core', 'Second rock core'] as $index => $title) {
+        $sample = createPublishedPortalMapResource($this->physicalObjectType, $title);
+        IgsnMetadata::query()->create([
+            'resource_id' => $sample->id,
+            'sample_type' => $index === 0 ? 'Core' : 'Individual Sample',
+            'material' => 'Rock',
+        ]);
+        GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $sample->id]);
+    }
+    $query = portalMapRequestQuery(['zoom' => 18, 'materials' => ['Rock']]);
+    $clusterId = $this->getJson(route('portal.igsn.map', $query))
+        ->assertOk()
+        ->assertJsonPath('features.0.composition.dimension', 'material')
+        ->assertJsonPath('features.0.composition.counts.rock', 2)
+        ->json('features.0.id');
+
+    $this->getJson(route('portal.igsn.map-cluster-members', ['clusterId' => $clusterId, ...$query]))
+        ->assertOk()
+        ->assertJsonPath('total', 2)
+        ->assertJsonPath('members.0.resource.presentation.dimension', 'material')
+        ->assertJsonPath('members.0.resource.presentation.key', 'rock')
+        ->assertJsonPath('members.0.resource.igsn.sampleType', 'Core')
+        ->assertJsonPath('members.0.resource.igsn.material', 'Rock')
+        ->assertJsonPath('members.1.resource.igsn.sampleType', 'Individual Sample');
+});
+
+it('keeps terminal cluster members in the portal scope and current viewport', function (): void {
+    $dataset = createPublishedPortalMapResource($this->datasetType, 'Scoped dataset');
+    $secondDataset = createPublishedPortalMapResource($this->datasetType, 'Second scoped dataset');
+    $sample = createPublishedPortalMapResource($this->physicalObjectType, 'Scoped sample');
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $dataset->id]);
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $secondDataset->id]);
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $sample->id]);
+    $query = portalMapRequestQuery(['zoom' => 18]);
+    $clusterId = $this->getJson(route('portal.doi.map', $query))->json('features.0.id');
+
+    $this->getJson(route('portal.doi.map-cluster-members', ['clusterId' => $clusterId, ...$query]))
+        ->assertOk()
+        ->assertJsonPath('total', 2)
+        ->assertJsonMissing(['title' => 'Scoped sample']);
+
+    $outsideViewport = portalMapRequestQuery([
+        'zoom' => 18,
+        'viewport' => ['north' => 10, 'south' => -10, 'east' => 10, 'west' => -10, 'width' => 1000, 'height' => 700],
+    ]);
+    $this->getJson(route('portal.doi.map-cluster-members', ['clusterId' => $clusterId, ...$outsideViewport]))
+        ->assertNotFound()
+        ->assertJsonPath('message', 'The requested map cluster was not found.');
+});
+
+it('validates cluster member requests and respects the map feature flag', function (): void {
+    $this->getJson(route('portal.doi.map-cluster-members', [
+        'clusterId' => 'invalid-cluster',
+        ...portalMapRequestQuery(['zoom' => 19]),
+    ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['cluster_id', 'zoom']);
+
+    config(['portal_map.enabled' => false]);
+    $this->getJson(route('portal.doi.map-cluster-members', [
+        'clusterId' => 'z18:1:1',
+        ...portalMapRequestQuery(['zoom' => 18]),
+    ]))
+        ->assertServiceUnavailable()
+        ->assertJsonPath('message', 'The portal map is temporarily unavailable.');
 });
 
 it('can roll the IGSN map back to the resource-type presentation', function (): void {
@@ -448,7 +561,11 @@ it('clusters an overlapping large box inside the visible viewport', function ():
         ->assertOk()
         ->assertJsonCount(1, 'features')
         ->assertJsonPath('features.0.kind', 'cluster')
-        ->assertJsonPath('features.0.position.lat', 0);
+        ->assertJsonPath('features.0.position.lat', 0)
+        ->assertJsonPath('features.0.bounds.west', 0)
+        ->assertJsonPath('features.0.bounds.east', 100)
+        ->assertJsonPath('features.0.navigationBounds.west', 92.5)
+        ->assertJsonPath('features.0.navigationBounds.east', 92.5);
 
     $this->assertEqualsWithDelta(92.5, (float) $response->json('features.0.position.lng'), 1.0E-9);
 });

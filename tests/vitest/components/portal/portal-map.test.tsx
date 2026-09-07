@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { act, fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PortalFilters, PortalMapResponse } from '@/types/portal';
+import type { PortalFilters, PortalMapClusterMembersResponse, PortalMapFeature, PortalMapResponse } from '@/types/portal';
 
 const mapEvents = vi.hoisted(() => new Map<string, () => void>());
 const mapQueryState = vi.hoisted(() => ({
@@ -16,7 +16,40 @@ const mapQueryState = vi.hoisted(() => ({
     },
 }));
 const usePortalMapDataMock = vi.hoisted(() => vi.fn(() => mapQueryState.result));
-const clusterLayerMock = vi.hoisted(() => vi.fn(({ features }: { features: unknown[] }) => <div data-testid="cluster-layer">{features.length}</div>));
+const clusterMembersQueryState = vi.hoisted(() => ({
+    result: {
+        data: undefined as PortalMapClusterMembersResponse | undefined,
+        isLoading: false,
+        isError: false,
+    },
+}));
+const usePortalMapClusterMembersMock = vi.hoisted(() => vi.fn(() => clusterMembersQueryState.result));
+const clusterLayerMock = vi.hoisted(() =>
+    vi.fn(
+        ({
+            features,
+            interactive,
+            onExpandCluster,
+        }: {
+            features: PortalMapFeature[];
+            interactive?: boolean;
+            onExpandCluster?: (feature: Extract<PortalMapFeature, { kind: 'cluster' }>) => void;
+        }) => {
+            const cluster = features.find((feature) => feature.kind === 'cluster');
+
+            return (
+                <button
+                    type="button"
+                    data-testid="cluster-layer"
+                    data-interactive={String(interactive)}
+                    onClick={() => cluster?.kind === 'cluster' && onExpandCluster?.(cluster)}
+                >
+                    {features.length}
+                </button>
+            );
+        },
+    ),
+);
 
 const mockMap = vi.hoisted(() => ({
     fitBounds: vi.fn(),
@@ -41,7 +74,36 @@ const mockMap = vi.hoisted(() => ({
 }));
 
 vi.mock('@/hooks/use-portal-map-data', () => ({ usePortalMapData: usePortalMapDataMock }));
-vi.mock('@/components/portal/PortalMapCluster', () => ({ ClusterLayer: clusterLayerMock }));
+vi.mock('@/hooks/use-portal-map-cluster-members', () => ({ usePortalMapClusterMembers: usePortalMapClusterMembersMock }));
+vi.mock('@/components/portal/PortalMapCluster', () => ({ ClusterLayer: clusterLayerMock, PORTAL_MAP_MAX_ZOOM: 18 }));
+vi.mock('@/components/portal/PortalMapClusterMembers', () => ({
+    ClusterMembersLayer: ({ members, total }: { members: unknown[]; total: number }) => (
+        <div data-testid="cluster-members-layer">{`${members.length}/${total}`}</div>
+    ),
+    ClusterMembersPanel: ({
+        result,
+        isLoading,
+        isError,
+        onClose,
+        onPageChange,
+    }: {
+        result: PortalMapClusterMembersResponse | undefined;
+        isLoading: boolean;
+        isError: boolean;
+        onClose: () => void;
+        onPageChange: (page: number) => void;
+    }) => (
+        <div data-testid="cluster-members-panel">
+            {isLoading ? 'loading' : isError ? 'error' : result?.clusterId}
+            <button type="button" onClick={() => onPageChange(2)}>
+                page 2
+            </button>
+            <button type="button" onClick={onClose}>
+                close
+            </button>
+        </div>
+    ),
+}));
 vi.mock('@/components/portal/PortalMapLegend', () => ({
     PortalMapLegend: ({ features }: { features: unknown[] }) => <div data-testid="map-legend">{features.length}</div>,
 }));
@@ -97,7 +159,7 @@ const filters: PortalFilters = {
 };
 
 const response = (overrides: Partial<PortalMapResponse> = {}): PortalMapResponse => ({
-    schemaVersion: 1,
+    schemaVersion: 3,
     features: [],
     meta: {
         requestedZoom: 4,
@@ -122,6 +184,11 @@ describe('PortalMap', () => {
             isFetching: false,
             isError: false,
             refetch: vi.fn(),
+        };
+        clusterMembersQueryState.result = {
+            data: undefined,
+            isLoading: false,
+            isError: false,
         };
     });
 
@@ -372,6 +439,8 @@ describe('PortalMap', () => {
         mapQueryState.result.isFetching = true;
         const { rerender } = render(<PortalMap filters={filters} />);
         expect(screen.getAllByRole('status')[0]).toHaveTextContent('Updating map');
+        expect(screen.getAllByTestId('leaflet-map')[0].parentElement).toHaveAttribute('aria-busy', 'true');
+        expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-interactive', 'false');
         expect(screen.getAllByText(/No geographic data/)[0]).toBeInTheDocument();
 
         mapQueryState.result.isFetching = false;
@@ -381,6 +450,52 @@ describe('PortalMap', () => {
         expect(retryButton).toHaveAttribute('data-slot', 'button');
         fireEvent.click(retryButton);
         expect(mapQueryState.result.refetch).toHaveBeenCalled();
+    });
+
+    it('loads terminal cluster members for the viewport and supports paging and closing the result panel', async () => {
+        const cluster: Extract<PortalMapFeature, { kind: 'cluster' }> = {
+            kind: 'cluster',
+            id: 'z18:73900:43000',
+            position: { lat: 52, lng: 13 },
+            bounds: { north: 52, south: 52, east: 13, west: 13 },
+            navigationBounds: { north: 52, south: 52, east: 13, west: 13 },
+            count: 2,
+            resourceTypeCounts: { dataset: 2 },
+        };
+        mapQueryState.result.data = response({ features: [cluster] });
+        clusterMembersQueryState.result.data = {
+            schemaVersion: 1,
+            clusterId: cluster.id,
+            total: 2,
+            members: [],
+            pagination: { currentPage: 1, lastPage: 1, perPage: 50 },
+        };
+
+        render(<PortalMap filters={filters} hideHeader />);
+        await waitFor(() =>
+            expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), true, '/doi-search'),
+        );
+
+        fireEvent.click(screen.getByTestId('cluster-layer'));
+
+        await waitFor(() =>
+            expect(usePortalMapClusterMembersMock).toHaveBeenLastCalledWith(
+                filters,
+                expect.objectContaining({ north: 53, south: 51, east: 14, west: 12, zoom: 4 }),
+                cluster.id,
+                1,
+                '/doi-search',
+            ),
+        );
+        expect(screen.getByTestId('cluster-members-panel')).toHaveTextContent(cluster.id);
+        expect(screen.getByTestId('cluster-members-layer')).toHaveTextContent('0/2');
+
+        fireEvent.click(screen.getByRole('button', { name: 'page 2' }));
+        expect(usePortalMapClusterMembersMock).toHaveBeenLastCalledWith(filters, expect.anything(), cluster.id, 2, '/doi-search');
+
+        fireEvent.click(screen.getByRole('button', { name: 'close' }));
+        expect(screen.queryByTestId('cluster-members-panel')).not.toBeInTheDocument();
+        expect(usePortalMapClusterMembersMock).toHaveBeenLastCalledWith(filters, null, null, 1, '/doi-search');
     });
 
     it('reports the total location count returned with an extent request', () => {

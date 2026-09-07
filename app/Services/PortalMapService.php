@@ -48,7 +48,7 @@ class PortalMapService
         [$totalLocations, $extent] = $extentSummary ?? [null, null];
 
         return [
-            'schemaVersion' => 2,
+            'schemaVersion' => 3,
             'features' => $features,
             'meta' => [
                 ...$clustered['meta'],
@@ -56,6 +56,49 @@ class PortalMapService
                 'returnedFeatures' => count($features),
                 'totalLocations' => $totalLocations,
                 'extent' => $extent,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @param  array{north: float, south: float, east: float, west: float, width: int, height: int}  $viewport
+     * @return array<string, mixed>|null
+     */
+    public function getClusterMembers(
+        array $filters,
+        array $viewport,
+        string $clusterId,
+        int $page,
+        PortalScope $scope,
+    ): ?array {
+        $dimension = $this->visualizationDimension($scope);
+        $perPage = (int) config('portal_map.cluster_members_per_page', 50);
+        $resolved = $this->clusterService->members(
+            $this->visibleLocations($filters, $viewport, $dimension),
+            $clusterId,
+            $page,
+            $perPage,
+        );
+
+        if ($resolved === null || $resolved['total'] === 0) {
+            return null;
+        }
+
+        $members = array_values(array_filter(
+            $this->hydrateResourceCandidates($resolved['features'], $dimension),
+            static fn (array $feature): bool => $feature['kind'] === 'resource',
+        ));
+
+        return [
+            'schemaVersion' => 1,
+            'clusterId' => $clusterId,
+            'total' => $resolved['total'],
+            'members' => $members,
+            'pagination' => [
+                'currentPage' => $resolved['page'],
+                'lastPage' => max(1, (int) ceil($resolved['total'] / $resolved['perPage'])),
+                'perPage' => $resolved['perPage'],
             ],
         ];
     }

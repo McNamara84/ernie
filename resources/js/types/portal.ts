@@ -241,6 +241,8 @@ export interface PortalMapClusterFeature {
     id: string;
     position: GeoPoint;
     bounds: GeoBounds;
+    /** Bounds of the viewport-adjusted clustering anchors used for navigation. */
+    navigationBounds?: GeoBounds;
     count: number;
     /** @deprecated Version 1 compatibility; prefer composition. */
     resourceTypeCounts: Record<string, number>;
@@ -259,7 +261,7 @@ export interface PortalMapResourceFeature {
 export type PortalMapFeature = PortalMapClusterFeature | PortalMapResourceFeature;
 
 export interface PortalMapResponse {
-    schemaVersion: 1 | 2;
+    schemaVersion: 1 | 2 | 3;
     features: PortalMapFeature[];
     meta: {
         requestedZoom: number;
@@ -270,6 +272,18 @@ export interface PortalMapResponse {
         extent: GeoBounds | null;
         coarsened: boolean;
         visualizationDimension?: PortalMapVisualizationDimension;
+    };
+}
+
+export interface PortalMapClusterMembersResponse {
+    schemaVersion: 1;
+    clusterId: string;
+    total: number;
+    members: PortalMapResourceFeature[];
+    pagination: {
+        currentPage: number;
+        lastPage: number;
+        perPage: number;
     };
 }
 

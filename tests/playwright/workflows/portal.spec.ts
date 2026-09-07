@@ -340,6 +340,149 @@ test.describe('IGSN Portal Page', () => {
     });
 });
 
+for (const portal of [
+    { path: '/doi-search', typeSlug: 'dataset', typeName: 'Dataset' },
+    { path: '/igsn-search', typeSlug: 'physical-object', typeName: 'Physical Object' },
+] as const) {
+    test(`${portal.path} cluster navigation stays monotone and exposes colocated records`, async ({ page }) => {
+        const requestedZooms: number[] = [];
+        let releaseDelayedResponse: (() => void) | null = null;
+        let delayedResponseReleased = false;
+
+        await page.route(`**${portal.path}/map**`, async (route) => {
+            const url = new URL(route.request().url());
+
+            if (url.pathname.includes('/map/clusters/')) {
+                await route.fulfill({
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        schemaVersion: 1,
+                        clusterId: 'z18:140812:37114',
+                        total: 39,
+                        members: Array.from({ length: 39 }, (_, index) => ({
+                                kind: 'resource',
+                                id: String(1263 + index),
+                                position: { lat: 78.3901, lng: 14.976 },
+                                bounds: { north: 78.3901, south: 78.3901, east: 14.976, west: 14.976 },
+                                geometry: { type: 'point', latitude: 78.3901, longitude: 14.976 },
+                                resource: {
+                                    id: 1263 + index,
+                                    identifier: `10.5880/issue-1263-${index + 1}`,
+                                    title: index === 0 ? 'Issue 1263 colocated record' : `Colocated record ${index + 1}`,
+                                    creators: [],
+                                    resourceType: { slug: portal.typeSlug, name: portal.typeName },
+                                    presentation:
+                                        portal.typeSlug === 'physical-object'
+                                            ? { dimension: 'material', key: 'rock', label: 'Rock', status: 'value' }
+                                            : { dimension: 'resource-type', key: 'dataset', label: 'Dataset', status: 'value' },
+                                    igsn:
+                                        portal.typeSlug === 'physical-object'
+                                            ? { sampleType: 'Core', material: 'Rock', materialLabel: 'Rock' }
+                                            : null,
+                                    landingPageUrl: '/landing/issue-1263',
+                                },
+                            })),
+                        pagination: { currentPage: 1, lastPage: 1, perPage: 50 },
+                    }),
+                });
+                return;
+            }
+
+            const zoom = Number(url.searchParams.get('zoom'));
+            requestedZooms.push(zoom);
+            if (zoom === 8 && !delayedResponseReleased) {
+                await new Promise<void>((resolve) => {
+                    releaseDelayedResponse = resolve;
+                });
+            }
+
+            await route.fulfill({
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    schemaVersion: 3,
+                    features: [
+                        {
+                            kind: 'cluster',
+                            id: `z${zoom}:140812:37114`,
+                            position: { lat: 78.3901, lng: 14.976 },
+                            bounds: { north: 90, south: -90, east: 180, west: -180 },
+                            navigationBounds: { north: 78.391, south: 78.389, east: 14.977, west: 14.975 },
+                            count: 39,
+                            resourceTypeCounts: { [portal.typeSlug]: 39 },
+                            composition: {
+                                dimension: portal.typeSlug === 'physical-object' ? 'material' : 'resource-type',
+                                counts: { [portal.typeSlug === 'physical-object' ? 'rock' : 'dataset']: 39 },
+                            },
+                        },
+                    ],
+                    meta: {
+                        requestedZoom: zoom,
+                        effectiveZoom: zoom,
+                        visibleLocations: 39,
+                        returnedFeatures: 1,
+                        totalLocations: 39,
+                        extent:
+                            url.searchParams.get('include_extent') === '1'
+                                ? { north: 82, south: 73, east: 30, west: 0 }
+                                : null,
+                        coarsened: false,
+                        visualizationDimension: portal.typeSlug === 'physical-object' ? 'material' : 'resource-type',
+                    },
+                }),
+            });
+        });
+
+        await openPortal(page, portal.path);
+        const map = page.locator('.leaflet-container').first();
+        const cluster = () => map.locator('.portal-pie-cluster').first();
+        const zoomIn = map.locator('.leaflet-control-zoom-in');
+        const zoomOut = map.locator('.leaflet-control-zoom-out');
+
+        await expect(cluster()).toBeVisible();
+
+        let currentZoom = requestedZooms.at(-1)!;
+        for (let adjustment = 0; currentZoom !== 4 && adjustment < 18; adjustment++) {
+            const targetZoom = currentZoom < 4 ? currentZoom + 1 : currentZoom - 1;
+            await (currentZoom < 4 ? zoomIn : zoomOut).click();
+            await expect.poll(() => requestedZooms.at(-1)).toBe(targetZoom);
+            currentZoom = targetZoom;
+        }
+        expect(currentZoom).toBe(4);
+
+        await cluster().dispatchEvent('click');
+        await expect.poll(() => requestedZooms.at(-1)).toBe(8);
+        await expect(cluster()).not.toHaveClass(/leaflet-interactive/);
+        const requestsWhileStale = requestedZooms.length;
+        await cluster().dispatchEvent('click');
+        expect(requestedZooms).toHaveLength(requestsWhileStale);
+
+        delayedResponseReleased = true;
+        releaseDelayedResponse?.();
+        await expect(cluster()).toHaveClass(/leaflet-interactive/);
+
+        const navigationZooms = [4, 8];
+        currentZoom = 8;
+        for (let click = 0; currentZoom < 18 && click < 8; click++) {
+            const previousZoom = currentZoom;
+            await cluster().click();
+            await expect.poll(() => requestedZooms.at(-1)).toBeGreaterThan(previousZoom);
+            currentZoom = requestedZooms.at(-1)!;
+            expect(currentZoom).toBeLessThanOrEqual(Math.min(18, previousZoom + 4));
+            navigationZooms.push(currentZoom);
+            await expect(cluster()).toHaveClass(/leaflet-interactive/);
+        }
+
+        expect(currentZoom).toBe(18);
+        expect(navigationZooms.slice(0, 4)).toEqual([4, 8, 12, 16]);
+
+        await cluster().click();
+        const members = page.getByRole('region', { name: 'Records at this map location' });
+        await expect(members).toBeVisible();
+        await expect(members.getByText('Issue 1263 colocated record')).toBeVisible();
+        await expect(members.getByRole('link', { name: /view details/i }).first()).toHaveAttribute('href', '/landing/issue-1263');
+    });
+}
+
 test('the former shared search route is no longer available', async ({ page }) => {
     const response = await page.goto('/search', { waitUntil: 'domcontentloaded' });
 

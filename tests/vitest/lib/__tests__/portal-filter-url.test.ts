@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildPortalCountUrl, buildPortalFilterUrl, buildPortalMapUrl, mergePortalFilters } from '@/lib/portal-filter-url';
+import {
+    buildPortalCountUrl,
+    buildPortalFilterUrl,
+    buildPortalMapClusterMembersUrl,
+    buildPortalMapUrl,
+    mergePortalFilters,
+} from '@/lib/portal-filter-url';
 import type { PortalFilters } from '@/types/portal';
 
 const filters: PortalFilters = {
@@ -62,6 +68,26 @@ describe('portal filter URL builders', () => {
         expect(url.searchParams.get('viewport[height]')).toBe('699');
         expect(url.searchParams.get('zoom')).toBe('12');
         expect(url.searchParams.get('include_extent')).toBe('1');
+    });
+
+    it('builds a paginated member URL for an encoded server-issued cluster ID', () => {
+        const url = new URL(
+            buildPortalMapClusterMembersUrl(
+                filters,
+                { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 18 },
+                'z18-t2:140812:-37114',
+                3,
+                '/igsn-search',
+            ),
+            'https://ernie.test',
+        );
+
+        expect(url.pathname).toBe('/igsn-search/map/clusters/z18-t2%3A140812%3A-37114');
+        expect(url.searchParams.get('viewport[north]')).toBe('54.000000');
+        expect(url.searchParams.get('zoom')).toBe('18');
+        expect(url.searchParams.get('page')).toBe('3');
+        expect(url.searchParams.getAll('sample_types[]')).toEqual(['Core', 'Core Sample']);
+        expect(url.searchParams.has('include_extent')).toBe(false);
     });
 
     it('preserves exact direct-URL filters for counts while dropping pagination', () => {

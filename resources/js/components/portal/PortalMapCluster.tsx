@@ -8,9 +8,34 @@ import type { PortalMapFeature, PortalMapResourceFeature, PortalResource } from 
 
 interface ClusterLayerProps {
     features: PortalMapFeature[];
+    interactive?: boolean;
+    onExpandCluster?: (feature: Extract<PortalMapFeature, { kind: 'cluster' }>) => void;
 }
 
-function popupResource(feature: PortalMapResourceFeature): PortalResource {
+export const PORTAL_MAP_MAX_ZOOM = 18;
+
+export function navigateIntoCluster(map: L.Map, feature: Extract<PortalMapFeature, { kind: 'cluster' }>): boolean {
+    const currentZoom = map.getZoom();
+    if (currentZoom >= PORTAL_MAP_MAX_ZOOM) return false;
+
+    const referenceLongitude = map.getCenter().lng;
+    const navigationBounds = feature.navigationBounds ?? feature.bounds;
+    const displayBounds = unwrapLongitudeBounds(navigationBounds, referenceLongitude);
+    const bounds = L.latLngBounds([navigationBounds.south, displayBounds.west], [navigationBounds.north, displayBounds.east]);
+    const isPoint = bounds.isValid() && bounds.getNorthEast().equals(bounds.getSouthWest());
+    const fittedZoom = bounds.isValid() && !isPoint ? map.getBoundsZoom(bounds, false, L.point(30, 30)) : currentZoom + 2;
+    const minimumZoom = Math.min(PORTAL_MAP_MAX_ZOOM, currentZoom + 1);
+    const maximumZoom = Math.min(PORTAL_MAP_MAX_ZOOM, currentZoom + 4);
+    const finiteFittedZoom = Number.isFinite(fittedZoom) ? fittedZoom : maximumZoom;
+    const targetZoom = Math.max(minimumZoom, Math.min(maximumZoom, finiteFittedZoom));
+    const displayLongitude = rebaseLongitude(feature.position.lng, referenceLongitude);
+
+    map.setView([feature.position.lat, displayLongitude], targetZoom, { animate: true });
+
+    return true;
+}
+
+export function portalMapPopupResource(feature: PortalMapResourceFeature): PortalResource {
     const type = feature.resource.resourceType;
 
     return {
@@ -31,7 +56,7 @@ function popupResource(feature: PortalMapResourceFeature): PortalResource {
 }
 
 /** Render the bounded server clusters and individual point markers. */
-export function ClusterLayer({ features }: ClusterLayerProps) {
+export function ClusterLayer({ features, interactive = true, onExpandCluster }: ClusterLayerProps) {
     const map = useMap();
 
     useEffect(() => {
@@ -47,6 +72,7 @@ export function ClusterLayer({ features }: ClusterLayerProps) {
                 };
                 const displayLongitude = rebaseLongitude(feature.position.lng, referenceLongitude);
                 const marker = L.marker([feature.position.lat, displayLongitude], {
+                    interactive,
                     icon: L.divIcon({
                         html: createPieChartSvg(composition.counts, feature.count, size, composition.dimension),
                         className: 'portal-pie-cluster',
@@ -55,16 +81,11 @@ export function ClusterLayer({ features }: ClusterLayerProps) {
                     }),
                 });
 
-                marker.on('click', () => {
-                    const displayBounds = unwrapLongitudeBounds(feature.bounds, referenceLongitude);
-                    const bounds = L.latLngBounds([feature.bounds.south, displayBounds.west], [feature.bounds.north, displayBounds.east]);
-
-                    if (bounds.isValid() && !bounds.getNorthEast().equals(bounds.getSouthWest())) {
-                        map.fitBounds(bounds, { padding: [30, 30], maxZoom: Math.min(18, map.getZoom() + 4) });
-                    } else {
-                        map.setView([feature.position.lat, displayLongitude], Math.min(18, map.getZoom() + 2), { animate: true });
-                    }
-                });
+                if (interactive) {
+                    marker.on('click', () => {
+                        if (!navigateIntoCluster(map, feature)) onExpandCluster?.(feature);
+                    });
+                }
 
                 layer.addLayer(marker);
                 return;
@@ -82,7 +103,7 @@ export function ClusterLayer({ features }: ClusterLayerProps) {
                         : createCircleMarkerIcon(typeSlug),
             });
 
-            marker.bindPopup(renderPopupHtml(popupResource(feature)), { minWidth: 200, maxWidth: 280 });
+            marker.bindPopup(renderPopupHtml(portalMapPopupResource(feature)), { minWidth: 200, maxWidth: 280 });
             layer.addLayer(marker);
         });
 
@@ -91,7 +112,7 @@ export function ClusterLayer({ features }: ClusterLayerProps) {
         return () => {
             map.removeLayer(layer);
         };
-    }, [features, map]);
+    }, [features, interactive, map, onExpandCluster]);
 
     return null;
 }

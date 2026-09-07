@@ -134,3 +134,19 @@ export function buildPortalMapUrl(
 
     return `${basePath}/map?${params.toString()}`;
 }
+
+/** Build a bounded request for the individually hydrated members of a map cluster. */
+export function buildPortalMapClusterMembersUrl(
+    filters: PortalFilters,
+    viewport: PortalMapViewport,
+    clusterId: string,
+    page = 1,
+    basePath: PortalBasePath = '/doi-search',
+): string {
+    const mapUrl = buildPortalMapUrl(filters, viewport, false, basePath);
+    const queryString = mapUrl.slice(mapUrl.indexOf('?') + 1);
+    const params = new URLSearchParams(queryString);
+    params.set('page', String(Math.max(1, Math.round(page))));
+
+    return `${basePath}/map/clusters/${encodeURIComponent(clusterId)}?${params.toString()}`;
+}

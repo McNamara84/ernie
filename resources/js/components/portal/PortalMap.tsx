@@ -8,13 +8,23 @@ import { MapContainer, Polygon, Polyline, Popup, Rectangle, TileLayer, useMap } 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { usePortalMapClusterMembers } from '@/hooks/use-portal-map-cluster-members';
 import { usePortalMapData } from '@/hooks/use-portal-map-data';
 import { formatAuthorsShort, getMaterialCategoryStyle, getMaterialDisplayLabel, getPresentationShapePathOptions } from '@/lib/portal-map-config';
 import { normalizeLongitude, unwrapLongitudeBounds, unwrapPathLongitudes } from '@/lib/portal-map-longitude';
 import { cn } from '@/lib/utils';
-import type { GeoBounds, PortalBasePath, PortalFilters, PortalMapFeature, PortalMapResourceFeature, PortalMapViewport } from '@/types/portal';
+import type {
+    GeoBounds,
+    PortalBasePath,
+    PortalFilters,
+    PortalMapClusterFeature,
+    PortalMapFeature,
+    PortalMapResourceFeature,
+    PortalMapViewport,
+} from '@/types/portal';
 
-import { ClusterLayer } from './PortalMapCluster';
+import { ClusterLayer, PORTAL_MAP_MAX_ZOOM } from './PortalMapCluster';
+import { ClusterMembersLayer, ClusterMembersPanel } from './PortalMapClusterMembers';
 import { PortalMapLegend } from './PortalMapLegend';
 
 interface PortalMapProps {
@@ -288,6 +298,11 @@ export function PortalMap({
 }: PortalMapProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [request, setRequest] = useState<{ viewport: PortalMapViewport; includeExtent: boolean } | null>(null);
+    const [expandedCluster, setExpandedCluster] = useState<{
+        feature: PortalMapClusterFeature;
+        viewport: PortalMapViewport;
+        page: number;
+    } | null>(null);
     const [locationCount, setLocationCount] = useState(0);
     const skipFilterUpdate = useRef(false);
     const requestExtent = useRef(!geoFilterEnabled);
@@ -300,6 +315,7 @@ export function PortalMap({
         previousSignature.current = signature;
         requestExtent.current = !geoFilterEnabled;
         knownTotalLocations.current = null;
+        setExpandedCluster(null);
         setLocationCount(0);
         setRequest((current) => (current ? { ...current, includeExtent: !geoFilterEnabled } : current));
     }, [geoFilterEnabled, signature]);
@@ -308,6 +324,7 @@ export function PortalMap({
         (viewport: PortalMapViewport) => {
             const includeExtent = requestExtent.current && !geoFilterEnabled;
             requestExtent.current = false;
+            setExpandedCluster(null);
             setRequest({ viewport, includeExtent });
         },
         [geoFilterEnabled],
@@ -315,6 +332,20 @@ export function PortalMap({
 
     const mapQuery = usePortalMapData(filters, request?.viewport ?? null, request?.includeExtent ?? false, basePath);
     const features = mapQuery.data?.features ?? [];
+    const clusterMembersQuery = usePortalMapClusterMembers(
+        filters,
+        expandedCluster?.viewport ?? null,
+        expandedCluster?.feature.id ?? null,
+        expandedCluster?.page ?? 1,
+        basePath,
+    );
+    const handleExpandCluster = useCallback(
+        (feature: PortalMapClusterFeature) => {
+            if (!request?.viewport) return;
+            setExpandedCluster({ feature, viewport: request.viewport, page: 1 });
+        },
+        [request?.viewport],
+    );
 
     useEffect(() => {
         const meta = mapQuery.data?.meta;
@@ -331,10 +362,12 @@ export function PortalMap({
     const extent = request?.includeExtent ? (mapQuery.data?.meta.extent ?? null) : null;
 
     const mapContent = (
-        <div className="relative h-full w-full">
-            <MapContainer center={[30, 0]} zoom={2} className="h-full w-full">
+        <div className="relative h-full w-full" aria-busy={mapQuery.isFetching}>
+            <MapContainer center={[30, 0]} zoom={2} maxZoom={PORTAL_MAP_MAX_ZOOM} className="h-full w-full">
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    maxNativeZoom={PORTAL_MAP_MAX_ZOOM}
+                    maxZoom={PORTAL_MAP_MAX_ZOOM}
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <MapResizeHandler />
@@ -345,11 +378,24 @@ export function PortalMap({
                 />
                 {!geoFilterEnabled && <FitExtentControl extent={extent} skipFilterUpdate={skipFilterUpdate} />}
                 <MapBoundsUpdater bounds={flyToBounds ?? null} skipFilterUpdate={skipFilterUpdate} />
-                <ClusterLayer features={features} />
+                <ClusterLayer features={features} interactive={!mapQuery.isFetching} onExpandCluster={handleExpandCluster} />
+                {clusterMembersQuery.data && (
+                    <ClusterMembersLayer members={clusterMembersQuery.data.members} total={clusterMembersQuery.data.total} />
+                )}
                 <ResourceShapes features={features} />
             </MapContainer>
 
             <PortalMapLegend features={features} />
+
+            {expandedCluster && (
+                <ClusterMembersPanel
+                    result={clusterMembersQuery.data}
+                    isLoading={clusterMembersQuery.isLoading}
+                    isError={clusterMembersQuery.isError}
+                    onClose={() => setExpandedCluster(null)}
+                    onPageChange={(page) => setExpandedCluster((current) => (current ? { ...current, page } : current))}
+                />
+            )}
 
             {mapQuery.isFetching && (
                 <div
