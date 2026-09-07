@@ -822,6 +822,19 @@ reason.
 
 - [ ] `Logs` loads the list, timestamps, levels, and messages without errors.
 
+- [ ] CPU and Memory utilization show plausible percentages for the entire
+      Stage VM, not only the application container.
+
+- [ ] `Last 24 hours` and `Last 7 days` switch both charts, use a 0–100 percent
+      scale, and retain genuine gaps instead of drawing zero values.
+
+- [ ] The latest sample is no older than three minutes while the scheduler is
+      healthy; stopping collection produces a clear stale state without hiding
+      the previous history.
+
+- [ ] A newly enabled or restarted collector explains the initial CPU baseline
+      instead of displaying a false zero value.
+
 - [ ] Search, filters, sorting, and detail view work where provided.
 
 - [ ] A harmless error intentionally triggered during the test can be correlated

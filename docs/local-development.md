@@ -206,6 +206,40 @@ log channel must therefore keep `LOG_DAILY_DAYS` at 31 or more for complete
 repository environment templates and Laravel's default use 31 days, while an
 environment-specific override takes precedence.
 
+### Host VM resource monitoring
+
+The administrator-only `/logs` page includes CPU and memory history for the
+entire host VM. Production and Stage enable the collector in their Compose
+files. Only the `scheduler` container receives read-only bind mounts for the
+host's `/proc/stat` and `/proc/meminfo`; the web application reads normalized
+samples from MySQL and has no host filesystem access.
+
+The scheduler records one sample per minute. The page displays five-minute
+averages for the last 24 hours or 30-minute averages for the last 7 days. Raw
+samples are retained for 30 days by default and pruned daily. The first sample
+after enabling monitoring or rebooting the VM establishes a CPU baseline, so a
+CPU percentage appears after the next consecutive sample. Missing intervals
+remain visible as gaps instead of being filled with zeroes.
+
+Local collection defaults to `SYSTEM_METRICS_ENABLED=false`. Docker Desktop
+would report the resource usage of its internal Linux VM rather than the
+physical Windows or macOS computer, so `/logs` shows an intentional disabled
+state locally. Parser and collector tests use deterministic fixtures and never
+depend on the development host's `/proc`.
+
+Useful Stage or Production checks are:
+
+```bash
+docker compose -f docker-compose.stage.yml exec scheduler test -r /host/proc/stat
+docker compose -f docker-compose.stage.yml exec scheduler test -r /host/proc/meminfo
+docker compose -f docker-compose.stage.yml exec scheduler php artisan system-metrics:collect
+```
+
+No Docker socket, privileged container, host PID namespace, or writable host
+mount is required. Override `SYSTEM_METRICS_RETENTION_DAYS` only with a positive
+number. Disabling collection preserves existing history until normal retention
+removes it.
+
 ### DataCite import mode
 
 Keep `DATACITE_TEST_MODE=true` for local development and Stage. Eligible imported resources and every newly imported IGSN receive their local landing page, but the import never writes metadata to either DataCite API in this mode.

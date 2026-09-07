@@ -76,3 +76,25 @@ it('schedules relation discovery weekly on Sundays at 02:00', function () {
         ->and($event->expression)->toBe('0 2 * * 0')
         ->and($event->withoutOverlapping)->toBeTrue();
 });
+
+it('collects system metrics every minute without overlapping', function (): void {
+    $event = collect(app(Schedule::class)->events())
+        ->first(fn ($event) => str_contains($event->command, 'system-metrics:collect'));
+
+    expect($event)->not->toBeNull()
+        ->and($event->expression)->toBe('* * * * *')
+        ->and($event->description)->toBe('collect-system-metrics')
+        ->and($event->withoutOverlapping)->toBeTrue()
+        ->and($event->expiresAt)->toBe(2);
+});
+
+it('prunes system metrics daily without overlapping', function (): void {
+    $event = collect(app(Schedule::class)->events())
+        ->first(fn ($event) => str_contains($event->command, 'system-metrics:prune'));
+
+    expect($event)->not->toBeNull()
+        ->and($event->expression)->toBe('30 3 * * *')
+        ->and($event->description)->toBe('prune-system-metrics')
+        ->and($event->withoutOverlapping)->toBeTrue()
+        ->and($event->expiresAt)->toBe(10);
+});

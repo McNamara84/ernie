@@ -59,7 +59,7 @@ it('isolates bootstrap caches and assigns migrations to the app role', function 
 
     foreach (['app', 'queue', 'scheduler'] as $serviceName) {
         $volumes = $services[$serviceName]['volumes'] ?? [];
-        expect(implode("\n", $volumes))->not->toContain('bootstrap/cache');
+        expect(json_encode($volumes, JSON_THROW_ON_ERROR))->not->toContain('bootstrap/cache');
     }
 
     expect($services['app']['environment'])->toContain('ERNIE_RUN_MIGRATIONS=1')

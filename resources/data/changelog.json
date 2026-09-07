@@ -2,7 +2,12 @@
     {
         "version": "1.0.8",
         "date": "2026-09-09",
-        "features": [],
+        "features": [
+            {
+                "title": "Production VM Resource History",
+                "description": "Administrators can now review CPU and memory utilization for the entire production VM directly above the application logs. Minute-level host samples provide responsive charts for the last 24 hours and 7 days, while clear collecting, stale, disabled, gap, and retry states keep the history honest across deployments and scheduler interruptions. Only the scheduler receives read-only access to the two required Linux proc files; no Docker socket or privileged container is exposed."
+            }
+        ],
         "improvements": [
             {
                 "title": "Faster Production Runtime and Portal Caches",

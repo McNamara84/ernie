@@ -53,6 +53,7 @@ use App\Http\Controllers\Settings\PidSettingsController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\StatisticsController;
+use App\Http\Controllers\SystemMetricsController;
 use App\Http\Controllers\TestHelperController;
 use App\Http\Controllers\UploadIgsnCsvController;
 use App\Http\Controllers\UploadJsonController;
@@ -335,6 +336,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('logs/data', [LogController::class, 'getLogsJson'])
             ->name('logs.data');
+
+        Route::get('logs/system-metrics', SystemMetricsController::class)
+            ->name('logs.system-metrics');
 
         Route::get('logs/download/{period}', [LogController::class, 'download'])
             ->name('logs.download');

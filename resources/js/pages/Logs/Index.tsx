@@ -40,6 +40,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
+import SystemMetricsPanel from '@/pages/Logs/components/system-metrics-panel';
 import { type BreadcrumbItem } from '@/types';
 
 interface LogEntry {
@@ -102,6 +103,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
     const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
     const [deleteConfirmation, setDeleteConfirmation] = useState('');
     const [isDeletingAll, setIsDeletingAll] = useState(false);
+    const [systemMetricsRefreshKey, setSystemMetricsRefreshKey] = useState(0);
     // Preserve expanded rows across refreshes by tracking them in a ref
     const preservedExpandedRows = useRef<Set<number>>(new Set());
 
@@ -188,6 +190,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
     const handleRefresh = () => {
         // Preserve currently expanded rows
         preservedExpandedRows.current = new Set(expandedRows);
+        setSystemMetricsRefreshKey((value) => value + 1);
         setIsLoading(true);
         router.reload({
             onFinish: () => {
@@ -223,6 +226,8 @@ export default function Index({ logs, pagination, filters, available_levels, can
             <Head title="Logs" />
 
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
+                <SystemMetricsPanel refreshKey={systemMetricsRefreshKey} />
+
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                         <div className="flex items-center gap-2">

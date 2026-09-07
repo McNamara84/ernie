@@ -9,6 +9,8 @@ it('documents the administrator log download workflow', function (): void {
         ->toBeString()
         ->toContain("id: 'application-logs'")
         ->toContain("minRole: 'admin'")
+        ->toContain('entire production VM')
+        ->toContain('Stale')
         ->toContain('Last 24 hours')
         ->toContain('Last 7 days')
         ->toContain('Last 30 days')

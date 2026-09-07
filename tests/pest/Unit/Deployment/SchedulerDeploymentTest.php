@@ -110,3 +110,60 @@ it('runs a self-contained Laravel scheduler in every Docker environment', functi
     'stage' => 'docker-compose.stage.yml',
     'production' => 'docker-compose.prod.yml',
 ]);
+
+it('grants only the stage and production schedulers read-only access to host metric files', function (string $composeFile): void {
+    $services = schedulerCompose($composeFile)['services'];
+    $schedulerVolumes = collect($services['scheduler']['volumes'] ?? [])
+        ->filter(fn (mixed $volume): bool => is_array($volume))
+        ->keyBy(fn (array $volume): string => (string) ($volume['source'] ?? ''));
+
+    expect($schedulerVolumes)->toHaveKeys(['/proc/stat', '/proc/meminfo']);
+
+    foreach (['/proc/stat' => '/host/proc/stat', '/proc/meminfo' => '/host/proc/meminfo'] as $source => $target) {
+        $mount = $schedulerVolumes[$source];
+
+        expect($mount['target'] ?? null)->toBe($target)
+            ->and($mount['read_only'] ?? null)->toBeTrue()
+            ->and($mount['bind']['create_host_path'] ?? null)->toBeFalse();
+    }
+
+    foreach ($services as $serviceName => $service) {
+        if ($serviceName === 'scheduler') {
+            continue;
+        }
+
+        $sources = collect($service['volumes'] ?? [])
+            ->filter(fn (mixed $volume): bool => is_array($volume))
+            ->pluck('source');
+
+        expect($sources)->not->toContain('/proc/stat', '/proc/meminfo');
+    }
+
+    $appEnvironment = schedulerEnvironment($services['app']['environment'] ?? null);
+    $schedulerEnvironment = schedulerEnvironment($services['scheduler']['environment'] ?? null);
+
+    expect($appEnvironment['SYSTEM_METRICS_ENABLED'] ?? null)->toBe('${SYSTEM_METRICS_ENABLED:-true}')
+        ->and($schedulerEnvironment['SYSTEM_METRICS_ENABLED'] ?? null)->toBe('${SYSTEM_METRICS_ENABLED:-true}')
+        ->and($schedulerEnvironment['SYSTEM_METRICS_PROC_STAT_PATH'] ?? null)->toBe('/host/proc/stat')
+        ->and($schedulerEnvironment['SYSTEM_METRICS_PROC_MEMINFO_PATH'] ?? null)->toBe('/host/proc/meminfo');
+})->with([
+    'stage' => 'docker-compose.stage.yml',
+    'production' => 'docker-compose.prod.yml',
+]);
+
+it('keeps local host metric collection disabled without host proc mounts', function (): void {
+    $services = schedulerCompose('docker-compose.dev.yml')['services'];
+    $appEnvironment = schedulerEnvironment($services['app']['environment'] ?? null);
+    $schedulerEnvironment = schedulerEnvironment($services['scheduler']['environment'] ?? null);
+
+    expect($appEnvironment['SYSTEM_METRICS_ENABLED'] ?? null)->toBe('${SYSTEM_METRICS_ENABLED:-false}')
+        ->and($schedulerEnvironment['SYSTEM_METRICS_ENABLED'] ?? null)->toBe('${SYSTEM_METRICS_ENABLED:-false}');
+
+    foreach (['app', 'scheduler'] as $serviceName) {
+        $sources = collect($services[$serviceName]['volumes'] ?? [])
+            ->filter(fn (mixed $volume): bool => is_array($volume))
+            ->pluck('source');
+
+        expect($sources)->not->toContain('/proc/stat', '/proc/meminfo');
+    }
+});

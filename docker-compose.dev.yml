@@ -83,6 +83,7 @@ services:
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - SYSTEM_METRICS_ENABLED=${SYSTEM_METRICS_ENABLED:-false}
       - PORTAL_MAP_ENABLED=${PORTAL_MAP_ENABLED:-true}
       - PORTAL_MAP_MAX_FEATURES=${PORTAL_MAP_MAX_FEATURES:-1000}
       - PORTAL_MAP_CLUSTER_RADIUS=${PORTAL_MAP_CLUSTER_RADIUS:-60}
@@ -350,6 +351,7 @@ services:
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
+      - SYSTEM_METRICS_ENABLED=${SYSTEM_METRICS_ENABLED:-false}
 
 networks:
   ernie-dev-network:

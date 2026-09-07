@@ -67,3 +67,14 @@ Schedule::command('database-dumps:cleanup')
     ->hourly()
     ->name('cleanup-database-dumps')
     ->withoutOverlapping();
+
+// Collect host VM CPU and memory metrics every minute and retain raw samples for 30 days by default.
+Schedule::command('system-metrics:collect')
+    ->everyMinute()
+    ->name('collect-system-metrics')
+    ->withoutOverlapping(2);
+
+Schedule::command('system-metrics:prune')
+    ->dailyAt('03:30')
+    ->name('prune-system-metrics')
+    ->withoutOverlapping(10);
