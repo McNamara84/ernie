@@ -41,24 +41,24 @@ it('rejects missing and malformed aggregate CPU data', function (string $content
     $reader = new SystemMetricsReaderService(new Filesystem);
 
     expect(fn (): array => $reader->parseCpuStat($contents))
-        ->toThrow(RuntimeException::class, $message);
+        ->toThrow(new RuntimeException($message));
 })->with([
-    'missing aggregate' => ["cpu0 1 2 3 4\n", 'aggregate CPU line is missing'],
-    'too few counters' => ["cpu 1 2 3\n", 'aggregate CPU line is malformed'],
-    'non integer counter' => ["cpu 1 2 busy 4\n", 'non-integer counter'],
-    'zero total' => ["cpu 0 0 0 0\n", 'CPU total must be positive'],
+    'missing aggregate' => ["cpu0 1 2 3 4\n", 'The aggregate CPU line is missing from proc stat.'],
+    'too few counters' => ["cpu 1 2 3\n", 'The aggregate CPU line is malformed.'],
+    'non integer counter' => ["cpu 1 2 busy 4\n", 'The aggregate CPU line contains a non-integer counter.'],
+    'zero total' => ["cpu 0 0 0 0\n", 'The aggregate CPU total must be positive.'],
 ]);
 
 it('rejects missing or invalid memory data', function (string $contents, string $message): void {
     $reader = new SystemMetricsReaderService(new Filesystem);
 
     expect(fn (): array => $reader->parseMeminfo($contents))
-        ->toThrow(RuntimeException::class, $message);
+        ->toThrow(new RuntimeException($message));
 })->with([
-    'missing available memory' => ["MemTotal: 1024 kB\n", 'MemTotal or MemAvailable is missing'],
-    'zero total' => ["MemTotal: 0 kB\nMemAvailable: 0 kB\n", 'outside their valid range'],
-    'available exceeds total' => ["MemTotal: 1024 kB\nMemAvailable: 2048 kB\n", 'outside their valid range'],
-    'unexpected unit' => ["MemTotal: 1024 MB\nMemAvailable: 512 MB\n", 'MemTotal or MemAvailable is missing'],
+    'missing available memory' => ["MemTotal: 1024 kB\n", 'MemTotal or MemAvailable is missing from proc meminfo.'],
+    'zero total' => ["MemTotal: 0 kB\nMemAvailable: 0 kB\n", 'The proc meminfo values are outside their valid range.'],
+    'available exceeds total' => ["MemTotal: 1024 kB\nMemAvailable: 2048 kB\n", 'The proc meminfo values are outside their valid range.'],
+    'unexpected unit' => ["MemTotal: 1024 MB\nMemAvailable: 512 MB\n", 'MemTotal or MemAvailable is missing from proc meminfo.'],
 ]);
 
 it('rejects empty configured host paths before reading files', function (): void {
@@ -68,5 +68,5 @@ it('rejects empty configured host paths before reading files', function (): void
     $reader = new SystemMetricsReaderService(Mockery::mock(Filesystem::class));
 
     expect(fn () => $reader->read())
-        ->toThrow(RuntimeException::class, 'host paths must not be empty');
+        ->toThrow(new RuntimeException('System metrics host paths must not be empty.'));
 });
