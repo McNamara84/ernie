@@ -421,10 +421,7 @@ for (const portal of [
                         visibleLocations: 39,
                         returnedFeatures: 1,
                         totalLocations: 39,
-                        extent:
-                            url.searchParams.get('include_extent') === '1'
-                                ? { north: 82, south: 73, east: 30, west: 0 }
-                                : null,
+                        extent: null,
                         coarsened: false,
                         visualizationDimension: portal.typeSlug === 'physical-object' ? 'material' : 'resource-type',
                     },
@@ -439,6 +436,7 @@ for (const portal of [
         const zoomOut = map.locator('.leaflet-control-zoom-out');
 
         await expect(cluster()).toBeVisible();
+        await expect(cluster()).toHaveClass(/leaflet-interactive/);
 
         let currentZoom = requestedZooms.at(-1)!;
         for (let adjustment = 0; currentZoom !== 4 && adjustment < 18; adjustment++) {
