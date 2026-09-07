@@ -1,6 +1,6 @@
 import L from 'leaflet';
 
-import type { PortalCreator, PortalResource } from '@/types/portal';
+import type { PortalCreator, PortalMapPresentation, PortalMapVisualizationDimension, PortalResource } from '@/types/portal';
 
 // Leaflet type extension for storing resource type slug on markers
 declare module 'leaflet' {
@@ -53,12 +53,76 @@ export const RESOURCE_TYPE_COLORS: Record<string, string> = {
 /** Fallback color for unknown resource type slugs. */
 export const DEFAULT_MARKER_COLOR = '#6B7280';
 
+export interface MaterialCategoryStyle {
+    label: string;
+    color: string;
+    textColor: string;
+    order: number;
+}
+
+/** Stable top-level material palette, including controlled values not yet present in production. */
+export const MATERIAL_CATEGORY_STYLES: Record<string, MaterialCategoryStyle> = {
+    rock: { label: 'Rock', color: '#6F4E37', textColor: '#FFFFFF', order: 10 },
+    liquid: { label: 'Liquid', color: '#0072B2', textColor: '#FFFFFF', order: 20 },
+    soil: { label: 'Soil', color: '#A65628', textColor: '#FFFFFF', order: 30 },
+    sediment: { label: 'Sediment', color: '#E69F00', textColor: '#1F2937', order: 40 },
+    biology: { label: 'Biology', color: '#009E73', textColor: '#FFFFFF', order: 50 },
+    particulate: { label: 'Particulate', color: '#E76F51', textColor: '#1F2937', order: 60 },
+    mineral: { label: 'Mineral', color: '#CC79A7', textColor: '#1F2937', order: 70 },
+    ice: { label: 'Ice', color: '#A5D8FF', textColor: '#1F2937', order: 80 },
+    snow: { label: 'Snow', color: '#F8FAFC', textColor: '#1F2937', order: 90 },
+    gas: { label: 'Gas', color: '#56B4E9', textColor: '#1F2937', order: 100 },
+    'organic-material': { label: 'Organic Material', color: '#7A5195', textColor: '#FFFFFF', order: 110 },
+    synthetic: { label: 'Synthetic', color: '#D55E00', textColor: '#FFFFFF', order: 120 },
+    tephra: { label: 'Tephra', color: '#4C566A', textColor: '#FFFFFF', order: 130 },
+    other: { label: 'Other', color: '#6B7280', textColor: '#FFFFFF', order: 140 },
+    'not-applicable': { label: 'Not applicable', color: '#D1D5DB', textColor: '#1F2937', order: 150 },
+    missing: { label: 'No material provided', color: '#FFFFFF', textColor: '#1F2937', order: 160 },
+    unrecognized: { label: 'Unrecognized material', color: '#F0E442', textColor: '#1F2937', order: 170 },
+};
+
+export const DEFAULT_MATERIAL_CATEGORY_STYLE: MaterialCategoryStyle = MATERIAL_CATEGORY_STYLES.unrecognized;
+
 /**
  * Get the color for a given resource type slug.
  */
 export function getResourceTypeColor(slug: string | null): string {
     if (!slug) return DEFAULT_MARKER_COLOR;
     return RESOURCE_TYPE_COLORS[slug] ?? DEFAULT_MARKER_COLOR;
+}
+
+export function getMaterialCategoryStyle(key: string | null): MaterialCategoryStyle {
+    if (!key) return MATERIAL_CATEGORY_STYLES.missing;
+    return MATERIAL_CATEGORY_STYLES[key] ?? DEFAULT_MATERIAL_CATEGORY_STYLE;
+}
+
+export function getMapCategoryColor(dimension: PortalMapVisualizationDimension, key: string | null): string {
+    return dimension === 'material' ? getMaterialCategoryStyle(key).color : getResourceTypeColor(key);
+}
+
+export function getMapCategoryLabel(dimension: PortalMapVisualizationDimension, key: string, fallback?: string): string {
+    if (dimension === 'material') return getMaterialCategoryStyle(key).label;
+    if (fallback) return fallback;
+
+    return key
+        .split('-')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+export function compareMapCategoryKeys(dimension: PortalMapVisualizationDimension, left: string, right: string): number {
+    if (dimension === 'material') {
+        return getMaterialCategoryStyle(left).order - getMaterialCategoryStyle(right).order || left.localeCompare(right);
+    }
+
+    if (left === 'physical-object') return 1;
+    if (right === 'physical-object') return -1;
+    return left.localeCompare(right);
+}
+
+export function getMaterialDisplayLabel(presentation: PortalMapPresentation, materialLabel?: string | null): string {
+    if (presentation.status === 'unrecognized' && materialLabel) return `${materialLabel} (unrecognized)`;
+    return materialLabel ?? presentation.label;
 }
 
 /**
@@ -90,10 +154,22 @@ export function formatAuthorsShort(creators: PortalCreator[]): string {
 /**
  * Create a diamond-shaped DivIcon for IGSN markers.
  */
-export function createIgsnMarkerIcon(): L.DivIcon {
-    const color = RESOURCE_TYPE_COLORS['physical-object'];
+export function createIgsnMarkerIcon(materialCategoryKey?: string | null): L.DivIcon {
+    const legacyMarker = materialCategoryKey === undefined;
+    const style = legacyMarker ? null : getMaterialCategoryStyle(materialCategoryKey);
+    const color = style?.color ?? RESOURCE_TYPE_COLORS['physical-object'];
+    const stroke = legacyMarker || style?.textColor === '#FFFFFF' ? '#FFFFFF' : '#374151';
+    const dash = materialCategoryKey === 'missing' ? ' stroke-dasharray="2 2"' : '';
+    const indicator =
+        materialCategoryKey === 'not-applicable'
+            ? '<path d="M6 10h8" stroke="#374151" stroke-width="2" stroke-linecap="round"/>'
+            : materialCategoryKey === 'missing'
+              ? '<circle cx="10" cy="10" r="1.7" fill="#374151"/>'
+              : materialCategoryKey === 'unrecognized'
+                ? '<path d="M10 6v5M10 14v.2" stroke="#1F2937" stroke-width="1.8" stroke-linecap="round"/>'
+                : '';
     const size = 20;
-    const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="14" height="14" rx="2" transform="rotate(45 ${size / 2} ${size / 2})" fill="${color}" stroke="white" stroke-width="2"/></svg>`;
+    const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="14" height="14" rx="2" transform="rotate(45 ${size / 2} ${size / 2})" fill="${color}" stroke="${stroke}" stroke-width="2"${dash}/>${indicator}</svg>`;
 
     return L.divIcon({
         html: svg,
@@ -145,6 +221,21 @@ export function getShapePathOptions(slug: string | null, type: 'box' | 'polygon'
     };
 }
 
+export function getPresentationShapePathOptions(
+    presentation: PortalMapPresentation | undefined,
+    resourceTypeSlug: string | null,
+    type: 'box' | 'polygon' | 'line',
+): L.PathOptions {
+    const color = presentation ? getMapCategoryColor(presentation.dimension, presentation.key) : getResourceTypeColor(resourceTypeSlug);
+    const options = getShapePathOptions(resourceTypeSlug, type);
+
+    return {
+        ...options,
+        color,
+        ...(type === 'line' ? {} : { fillColor: color }),
+    };
+}
+
 /**
  * Escape a string for safe use inside an HTML attribute value (double-quoted).
  */
@@ -170,9 +261,16 @@ export function isSafeUrl(url: string): boolean {
  * Render popup HTML string for a resource (used by imperative Leaflet markers in ClusterLayer).
  */
 export function renderPopupHtml(resource: PortalResource): string {
+    const isMaterialPresentation = resource.presentation?.dimension === 'material';
+    const materialStyle = isMaterialPresentation ? getMaterialCategoryStyle(resource.presentation?.key ?? null) : null;
     const bgColor = resource.isIgsn ? '#f1f5f9' : getResourceTypeColor(resource.resourceTypeSlug);
     const textColor = resource.isIgsn ? '#475569' : '#ffffff';
     const badgeStyle = `display:inline-block;background-color:${bgColor};color:${textColor};padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:500;`;
+    const materialBadgeStyle = materialStyle
+        ? `display:inline-block;background-color:${materialStyle.color};color:${materialStyle.textColor};border:1px solid #64748b;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:500;`
+        : '';
+    const detailBadgeStyle =
+        'display:inline-block;background-color:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:500;';
 
     const authors = escapeHtml(formatAuthorsShort(resource.creators));
     const year = resource.year ? ` \u2022 ${resource.year}` : '';
@@ -180,8 +278,11 @@ export function renderPopupHtml(resource: PortalResource): string {
         resource.landingPageUrl && isSafeUrl(resource.landingPageUrl)
             ? `<a href="${escapeHtmlAttr(resource.landingPageUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;font-weight:500;color:#2563eb;text-decoration:none;">View Details \u2192</a>`
             : '';
+    const badges = isMaterialPresentation
+        ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;"><span style="${materialBadgeStyle}">Material: ${escapeHtml(getMaterialDisplayLabel(resource.presentation!, resource.igsn?.materialLabel))}</span><span style="${detailBadgeStyle}">Sample Type: ${escapeHtml(resource.igsn?.sampleType?.trim() || 'No sample type provided')}</span></div>`
+        : `<span style="${badgeStyle}">${escapeHtml(resource.resourceType)}</span>`;
 
-    return `<div style="min-width:200px;max-width:280px;"><span style="${badgeStyle}">${escapeHtml(resource.resourceType)}</span><h4 style="margin:8px 0 4px;font-size:13px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escapeHtml(resource.title)}</h4><p style="margin:0 0 8px;font-size:11px;color:#6b7280;">${authors}${year}</p>${link}</div>`;
+    return `<div style="min-width:200px;max-width:280px;">${badges}<h4 style="margin:8px 0 4px;font-size:13px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escapeHtml(resource.title)}</h4><p style="margin:0 0 8px;font-size:11px;color:#6b7280;">${authors}${year}</p>${link}</div>`;
 }
 
 /**
@@ -196,7 +297,12 @@ export function getClusterSize(count: number): number {
  * Generate an SVG pie chart for a marker cluster icon.
  * Each slice represents the proportion of a given resource type in the cluster.
  */
-export function createPieChartSvg(typeCounts: Record<string, number>, total: number, size: number): string {
+export function createPieChartSvg(
+    typeCounts: Record<string, number>,
+    total: number,
+    size: number,
+    dimension: PortalMapVisualizationDimension = 'resource-type',
+): string {
     const r = size / 2;
     let cumulativePercent = 0;
 
@@ -205,7 +311,7 @@ export function createPieChartSvg(typeCounts: Record<string, number>, total: num
         const startAngle = cumulativePercent * 2 * Math.PI;
         cumulativePercent += percent;
         const endAngle = cumulativePercent * 2 * Math.PI;
-        return { slug, startAngle, endAngle, color: getResourceTypeColor(slug) };
+        return { slug, startAngle, endAngle, color: getMapCategoryColor(dimension, slug) };
     });
 
     const paths = slices

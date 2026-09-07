@@ -15,6 +15,8 @@ use App\Support\CircularLongitudeCoverage;
  */
 final class PortalMapClusterService
 {
+    public const RESOURCE_TYPE_DIMENSION = 'resource-type';
+
     private const TILE_SIZE = 256.0;
 
     private const MAX_MERCATOR_LATITUDE = 85.05112878;
@@ -23,6 +25,7 @@ final class PortalMapClusterService
      * @param  iterable<array{
      *     location_id: int,
      *     resource_type_slug: string|null,
+     *     category_key?: string|null,
      *     geometry_type: string,
      *     latitude: float,
      *     longitude: float,
@@ -34,8 +37,12 @@ final class PortalMapClusterService
      *     meta: array{requestedZoom: int, effectiveZoom: int, visibleLocations: int, coarsened: bool}
      * }
      */
-    public function cluster(iterable $locations, array $viewport, int $requestedZoom): array
-    {
+    public function cluster(
+        iterable $locations,
+        array $viewport,
+        int $requestedZoom,
+        string $dimension = self::RESOURCE_TYPE_DIMENSION,
+    ): array {
         $maxFeatures = max(1, (int) config('portal_map.max_features', 1000));
         $clusterRadius = max(1, (int) config('portal_map.cluster_radius', 60));
         $shapeDetailZoom = (int) config('portal_map.shape_detail_zoom', 10);
@@ -90,6 +97,9 @@ final class PortalMapClusterService
             /** @var array<string, int> $resourceTypeCounts */
             $resourceTypeCounts = $cell['resource_type_counts'];
             ksort($resourceTypeCounts);
+            /** @var array<string, int> $categoryCounts */
+            $categoryCounts = $cell['category_counts'];
+            ksort($categoryCounts);
 
             $position = [
                 'lat' => $cell['latitude_sum'] / $cell['count'],
@@ -127,6 +137,10 @@ final class PortalMapClusterService
                 'bounds' => $bounds,
                 'count' => $cell['count'],
                 'resourceTypeCounts' => $resourceTypeCounts,
+                'composition' => [
+                    'dimension' => $dimension,
+                    'counts' => $categoryCounts,
+                ],
             ];
         }
 
@@ -194,6 +208,7 @@ final class PortalMapClusterService
     private function newCell(int $cellX, int $cellY, array $location): array
     {
         $slug = $location['resource_type_slug'] ?? 'other';
+        $categoryKey = $location['category_key'] ?? $slug;
         $longitudeRadians = deg2rad($location['longitude']);
 
         return [
@@ -209,6 +224,7 @@ final class PortalMapClusterService
             'east' => $location['bounds']['east'],
             'west' => $location['bounds']['west'],
             'resource_type_counts' => [$slug => 1],
+            'category_counts' => [$categoryKey => 1],
             'singleton_location_id' => $location['location_id'],
             'singleton_geometry_type' => $location['geometry_type'],
         ];
@@ -222,6 +238,7 @@ final class PortalMapClusterService
     private function addLocation(array $cell, array $location): array
     {
         $slug = $location['resource_type_slug'] ?? 'other';
+        $categoryKey = $location['category_key'] ?? $slug;
         $longitudeRadians = deg2rad($location['longitude']);
         $longitudeBounds = CircularLongitudeCoverage::merge(
             $cell['west'],
@@ -238,6 +255,7 @@ final class PortalMapClusterService
         $cell['east'] = $longitudeBounds['east'];
         $cell['west'] = $longitudeBounds['west'];
         $cell['resource_type_counts'][$slug] = ($cell['resource_type_counts'][$slug] ?? 0) + 1;
+        $cell['category_counts'][$categoryKey] = ($cell['category_counts'][$categoryKey] ?? 0) + 1;
         $cell['singleton_location_id'] = null;
         $cell['singleton_geometry_type'] = null;
 
@@ -283,6 +301,10 @@ final class PortalMapClusterService
 
             foreach ($cell['resource_type_counts'] as $slug => $count) {
                 $parent['resource_type_counts'][$slug] = ($parent['resource_type_counts'][$slug] ?? 0) + $count;
+            }
+
+            foreach ($cell['category_counts'] as $categoryKey => $count) {
+                $parent['category_counts'][$categoryKey] = ($parent['category_counts'][$categoryKey] ?? 0) + $count;
             }
 
             $parent['singleton_location_id'] = null;

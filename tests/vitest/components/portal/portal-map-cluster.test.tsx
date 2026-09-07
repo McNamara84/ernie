@@ -88,6 +88,30 @@ describe('PortalMapCluster', () => {
         expect(mapMock.fitBounds).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ maxZoom: 9 }));
     });
 
+    it('renders IGSN clusters from their material composition', () => {
+        const features: PortalMapFeature[] = [
+            {
+                kind: 'cluster',
+                id: 'z5:material',
+                position: { lat: 52, lng: 13 },
+                bounds: { north: 53, south: 51, east: 14, west: 12 },
+                count: 5,
+                resourceTypeCounts: { 'physical-object': 5 },
+                composition: {
+                    dimension: 'material',
+                    counts: { rock: 3, liquid: 2 },
+                },
+            },
+        ];
+
+        render(<ClusterLayer features={features} />);
+
+        const html = String((leafletState.markers[0].options.icon as { html: string }).html);
+        expect(html).toContain('#6F4E37');
+        expect(html).toContain('#0072B2');
+        expect(html).not.toContain('#F97316');
+    });
+
     it('rebases an antimeridian cluster and fits its wrapped bounds on the visible world copy', () => {
         const features: PortalMapFeature[] = [
             {
@@ -141,5 +165,37 @@ describe('PortalMapCluster', () => {
             minWidth: 200,
             maxWidth: 280,
         });
+    });
+
+    it('uses material presentation for an IGSN marker and popup', () => {
+        const features: PortalMapFeature[] = [
+            {
+                kind: 'resource',
+                id: '13',
+                position: { lat: 52.5, lng: 13 },
+                bounds: { north: 52.5, south: 52.5, east: 13, west: 13 },
+                geometry: { type: 'point', latitude: 52.5, longitude: 13 },
+                resource: {
+                    id: 5,
+                    identifier: '10.60510/test',
+                    title: 'Mapped porewater sample',
+                    creators: [{ name: 'Ada Example' }],
+                    resourceType: { slug: 'physical-object', name: 'Physical Object' },
+                    presentation: { dimension: 'material', key: 'liquid', label: 'Liquid', status: 'value' },
+                    igsn: { sampleType: 'Individual Sample', material: 'Liquid>aqueous', materialLabel: 'Liquid › aqueous' },
+                    landingPageUrl: '/10.60510/test/mapped-sample',
+                },
+            },
+        ];
+
+        render(<ClusterLayer features={features} />);
+
+        const html = String((leafletState.markers[0].options.icon as { html: string }).html);
+        expect(html).toContain('#0072B2');
+        expect(leafletState.markers[0].bindPopup).toHaveBeenCalledWith(expect.stringContaining('Material: Liquid › aqueous'), {
+            minWidth: 200,
+            maxWidth: 280,
+        });
+        expect(leafletState.markers[0].bindPopup).toHaveBeenCalledWith(expect.not.stringContaining('Physical Object'), expect.anything());
     });
 });

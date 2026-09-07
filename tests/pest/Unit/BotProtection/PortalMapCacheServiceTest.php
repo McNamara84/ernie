@@ -55,6 +55,19 @@ it('generates the same key for semantically identical nested query ordering', fu
     expect($service->keyForRequest($first))->toBe($service->keyForRequest($second));
 });
 
+it('separates IGSN payloads for material and resource type visualization modes', function (): void {
+    $service = app(PortalMapCacheService::class);
+    $request = Request::create('/igsn-search/map', 'GET', ['zoom' => 8]);
+
+    config(['portal_map.igsn_material_visualization_enabled' => true]);
+    $materialKey = $service->keyForRequest($request);
+
+    config(['portal_map.igsn_material_visualization_enabled' => false]);
+    $resourceTypeKey = $service->keyForRequest($request);
+
+    expect($materialKey)->not->toBe($resourceTypeKey);
+});
+
 it('shares extent scans across technical viewports with the same semantic filters', function (): void {
     $service = app(PortalMapCacheService::class);
     $calls = 0;

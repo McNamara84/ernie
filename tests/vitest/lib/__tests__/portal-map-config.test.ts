@@ -9,10 +9,13 @@ import {
     escapeHtmlAttr,
     formatAuthorsShort,
     getClusterSize,
+    getMapCategoryColor,
+    getMaterialCategoryStyle,
     getResourceTypeColor,
     getShapePathOptions,
     isIgsnType,
     isSafeUrl,
+    MATERIAL_CATEGORY_STYLES,
     renderPopupHtml,
     RESOURCE_TYPE_COLORS,
 } from '@/lib/portal-map-config';
@@ -28,16 +31,42 @@ describe('RESOURCE_TYPE_COLORS', () => {
 
     it('includes all expected resource types', () => {
         const expectedSlugs = [
-            'audiovisual', 'award', 'book', 'book-chapter', 'collection',
-            'computational-notebook', 'conference-paper', 'conference-proceeding',
-            'data-paper', 'dataset', 'dissertation', 'event', 'image',
-            'instrument', 'interactive-resource', 'journal', 'journal-article',
-            'model', 'other', 'output-management-plan', 'peer-review',
-            'physical-object', 'poster', 'preprint', 'presentation', 'project',
-            'report', 'service', 'software', 'sound', 'standard',
-            'study-registration', 'text', 'workflow',
+            'audiovisual',
+            'award',
+            'book',
+            'book-chapter',
+            'collection',
+            'computational-notebook',
+            'conference-paper',
+            'conference-proceeding',
+            'data-paper',
+            'dataset',
+            'dissertation',
+            'event',
+            'image',
+            'instrument',
+            'interactive-resource',
+            'journal',
+            'journal-article',
+            'model',
+            'other',
+            'output-management-plan',
+            'peer-review',
+            'physical-object',
+            'poster',
+            'preprint',
+            'presentation',
+            'project',
+            'report',
+            'service',
+            'software',
+            'sound',
+            'standard',
+            'study-registration',
+            'text',
+            'workflow',
         ];
-        expectedSlugs.forEach(slug => {
+        expectedSlugs.forEach((slug) => {
             expect(RESOURCE_TYPE_COLORS).toHaveProperty(slug);
         });
     });
@@ -51,7 +80,7 @@ describe('RESOURCE_TYPE_COLORS', () => {
     });
 
     it('has valid hex color format for all entries', () => {
-        Object.values(RESOURCE_TYPE_COLORS).forEach(color => {
+        Object.values(RESOURCE_TYPE_COLORS).forEach((color) => {
             expect(color).toMatch(/^#[0-9A-Fa-f]{6}$/);
         });
     });
@@ -86,6 +115,39 @@ describe('getResourceTypeColor', () => {
     });
 });
 
+describe('material map categories', () => {
+    it('defines every controlled top-level material and bounded fallback category', () => {
+        const expected = [
+            'biology',
+            'gas',
+            'ice',
+            'liquid',
+            'mineral',
+            'not-applicable',
+            'organic-material',
+            'other',
+            'particulate',
+            'rock',
+            'sediment',
+            'snow',
+            'soil',
+            'synthetic',
+            'tephra',
+            'missing',
+            'unrecognized',
+        ];
+
+        expected.forEach((key) => expect(MATERIAL_CATEGORY_STYLES).toHaveProperty(key));
+    });
+
+    it('uses stable material colors and the unrecognized fallback', () => {
+        expect(getMapCategoryColor('material', 'rock')).toBe('#6F4E37');
+        expect(getMapCategoryColor('material', 'liquid')).toBe('#0072B2');
+        expect(getMaterialCategoryStyle('unexpected')).toBe(MATERIAL_CATEGORY_STYLES.unrecognized);
+        expect(getMaterialCategoryStyle(null)).toBe(MATERIAL_CATEGORY_STYLES.missing);
+    });
+});
+
 // ---------------------------------------------------------------------------
 // isIgsnType
 // ---------------------------------------------------------------------------
@@ -110,9 +172,7 @@ describe('isIgsnType', () => {
 // ---------------------------------------------------------------------------
 describe('escapeHtml', () => {
     it('escapes angle brackets', () => {
-        expect(escapeHtml('<script>alert("xss")</script>')).toBe(
-            '&lt;script&gt;alert("xss")&lt;/script&gt;',
-        );
+        expect(escapeHtml('<script>alert("xss")</script>')).toBe('&lt;script&gt;alert("xss")&lt;/script&gt;');
     });
 
     it('escapes ampersand', () => {
@@ -166,19 +226,11 @@ describe('formatAuthorsShort', () => {
     });
 
     it('joins two authors with ampersand', () => {
-        expect(formatAuthorsShort([{ name: 'Doe, John' }, { name: 'Smith, Jane' }])).toBe(
-            'Doe, John & Smith, Jane',
-        );
+        expect(formatAuthorsShort([{ name: 'Doe, John' }, { name: 'Smith, Jane' }])).toBe('Doe, John & Smith, Jane');
     });
 
     it('abbreviates three or more authors with et al.', () => {
-        expect(
-            formatAuthorsShort([
-                { name: 'Doe, John' },
-                { name: 'Smith, Jane' },
-                { name: 'Brown, Bob' },
-            ]),
-        ).toBe('Doe, John et al.');
+        expect(formatAuthorsShort([{ name: 'Doe, John' }, { name: 'Smith, Jane' }, { name: 'Brown, Bob' }])).toBe('Doe, John et al.');
     });
 });
 
@@ -211,6 +263,18 @@ describe('createIgsnMarkerIcon', () => {
         const icon = createIgsnMarkerIcon();
         expect(icon.options.html).toContain('rotate(45');
         expect(icon.options.html).toContain('<rect');
+    });
+
+    it('uses a material color when a category is provided', () => {
+        const icon = createIgsnMarkerIcon('liquid');
+        expect(icon.options.html).toContain(MATERIAL_CATEGORY_STYLES.liquid.color);
+        expect(icon.options.html).not.toContain(RESOURCE_TYPE_COLORS['physical-object']);
+    });
+
+    it('adds non-color indicators for exceptional material states', () => {
+        expect(createIgsnMarkerIcon('missing').options.html).toContain('stroke-dasharray');
+        expect(createIgsnMarkerIcon('not-applicable').options.html).toContain('M6 10h8');
+        expect(createIgsnMarkerIcon('unrecognized').options.html).toContain('M10 6v5');
     });
 });
 
@@ -384,6 +448,72 @@ describe('renderPopupHtml', () => {
         expect(html).toContain('#475569'); // IGSN badge text
     });
 
+    it('renders material and sample type instead of a physical-object badge for the IGSN material view', () => {
+        const igsnResource: PortalResource = {
+            ...baseResource,
+            resourceType: 'Physical Object',
+            resourceTypeSlug: 'physical-object',
+            isIgsn: true,
+            presentation: {
+                dimension: 'material',
+                key: 'liquid',
+                label: 'Liquid',
+                status: 'value',
+            },
+            igsn: {
+                sampleType: 'Individual <Sample>',
+                material: 'Liquid>aqueous',
+                materialLabel: 'Liquid › aqueous',
+            },
+        };
+
+        const html = renderPopupHtml(igsnResource);
+        expect(html).toContain('Material: Liquid › aqueous');
+        expect(html).toContain('Sample Type: Individual &lt;Sample&gt;');
+        expect(html).not.toContain('Physical Object');
+        expect(html).toContain(MATERIAL_CATEGORY_STYLES.liquid.color);
+    });
+
+    it('labels missing IGSN map details explicitly', () => {
+        const igsnResource: PortalResource = {
+            ...baseResource,
+            resourceType: 'Physical Object',
+            resourceTypeSlug: 'physical-object',
+            isIgsn: true,
+            presentation: {
+                dimension: 'material',
+                key: 'missing',
+                label: 'No material provided',
+                status: 'missing',
+            },
+            igsn: { sampleType: null, material: null, materialLabel: null },
+        };
+
+        const html = renderPopupHtml(igsnResource);
+        expect(html).toContain('Material: No material provided');
+        expect(html).toContain('Sample Type: No sample type provided');
+    });
+
+    it('preserves and flags an unrecognized legacy material in the popup', () => {
+        const igsnResource: PortalResource = {
+            ...baseResource,
+            resourceType: 'Physical Object',
+            resourceTypeSlug: 'physical-object',
+            isIgsn: true,
+            presentation: {
+                dimension: 'material',
+                key: 'unrecognized',
+                label: 'Unrecognized material',
+                status: 'unrecognized',
+            },
+            igsn: { sampleType: 'Specimen', material: 'Legacy material', materialLabel: 'Legacy material' },
+        };
+
+        const html = renderPopupHtml(igsnResource);
+        expect(html).toContain('Material: Legacy material (unrecognized)');
+        expect(html).toContain('Sample Type: Specimen');
+    });
+
     it('uses resource type color for non-IGSN badge', () => {
         const html = renderPopupHtml(baseResource);
         expect(html).toContain('#0C2A63'); // dataset color
@@ -476,6 +606,12 @@ describe('createPieChartSvg', () => {
         const svg = createPieChartSvg({ 'unknown-slug': 3 }, 3, 40);
         expect(svg).toContain(DEFAULT_MARKER_COLOR);
     });
+
+    it('uses material colors for material compositions', () => {
+        const svg = createPieChartSvg({ rock: 3, liquid: 2 }, 5, 40, 'material');
+        expect(svg).toContain(MATERIAL_CATEGORY_STYLES.rock.color);
+        expect(svg).toContain(MATERIAL_CATEGORY_STYLES.liquid.color);
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -487,9 +623,9 @@ describe('getClusterSize', () => {
     });
 
     it('scales logarithmically', () => {
-        expect(getClusterSize(2)).toBeCloseTo(40 + 8, 5);     // log2(2) = 1
-        expect(getClusterSize(4)).toBeCloseTo(40 + 16, 5);    // log2(4) = 2
-        expect(getClusterSize(8)).toBeCloseTo(40 + 24, 5);    // log2(8) = 3
+        expect(getClusterSize(2)).toBeCloseTo(40 + 8, 5); // log2(2) = 1
+        expect(getClusterSize(4)).toBeCloseTo(40 + 16, 5); // log2(4) = 2
+        expect(getClusterSize(8)).toBeCloseTo(40 + 24, 5); // log2(8) = 3
     });
 
     it('caps at maximum 70', () => {
