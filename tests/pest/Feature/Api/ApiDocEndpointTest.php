@@ -161,6 +161,14 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./{portal}-search/map.get.responses.500.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('paths./{portal}-search/map.get.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('components.schemas.PortalMapResponse.properties.features.items.$ref', '#/components/schemas/PortalMapFeature')
+        ->assertJsonPath('components.schemas.PortalMapResponse.properties.schemaVersion.enum.0', 2)
+        ->assertJsonPath('components.schemas.PortalMapResourceSummary.properties.presentation.$ref', '#/components/schemas/PortalMapPresentation')
+        ->assertJsonPath('components.schemas.PortalMapResourceSummary.properties.igsn.oneOf.0.$ref', '#/components/schemas/PortalMapIgsnSummary')
+        ->assertJsonPath('components.schemas.PortalMapClusterFeature.properties.composition.$ref', '#/components/schemas/PortalMapComposition')
+        ->assertJsonPath('components.schemas.PortalMapMeta.properties.visualizationDimension.$ref', '#/components/schemas/PortalMapVisualizationDimension')
+        ->assertJsonPath('components.schemas.PortalMapPresentation.additionalProperties', false)
+        ->assertJsonPath('components.schemas.PortalMapIgsnSummary.additionalProperties', false)
+        ->assertJsonPath('components.schemas.PortalMapComposition.additionalProperties', false)
         ->assertJsonPath('components.schemas.PortalMapMeta.properties.coarsened.type', 'boolean')
         ->assertJsonPath('components.schemas.DatacenterIgsnImportRequest.properties.datacenter_id.pattern', '^IGSNDB\\.[A-Z0-9_-]+$')
         ->assertJsonPath('components.schemas.DatacenterIgsnImportRequest.properties.datacenter_id.maxLength', 100)
@@ -267,6 +275,16 @@ it('returns the OpenAPI documentation as JSON', function () {
     expect(data_get($spec, 'components.schemas.DateType.properties.description.type'))
         ->toBeArray()
         ->toContain('string', 'null');
+
+    expect(data_get($spec, 'components.schemas.PortalMapResourceSummary.required'))
+        ->toBeArray()
+        ->toContain('presentation', 'igsn')
+        ->and(data_get($spec, 'components.schemas.PortalMapClusterFeature.required'))
+        ->toBeArray()
+        ->toContain('composition')
+        ->and(data_get($spec, 'components.schemas.PortalMapMeta.required'))
+        ->toBeArray()
+        ->toContain('visualizationDimension');
 
     $igsnFilterParameters = [
         'sample_types[]',

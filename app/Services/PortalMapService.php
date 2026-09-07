@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\PortalScope;
 use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceType;
+use App\Services\Igsn\IgsnMapPresentationService;
 use App\Support\CircularLongitudeCoverage;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +20,7 @@ class PortalMapService
     public function __construct(
         private readonly PortalSearchService $portalSearchService,
         private readonly PortalMapClusterService $clusterService,
+        private readonly IgsnMapPresentationService $igsnPresentationService,
     ) {}
 
     /**
@@ -25,22 +29,30 @@ class PortalMapService
      * @param  array{0: int, 1: array{south: float, west: float, north: float, east: float}|null}|null  $extentSummary
      * @return array<string, mixed>
      */
-    public function getMapData(array $filters, array $viewport, int $zoom, ?array $extentSummary = null): array
-    {
+    public function getMapData(
+        array $filters,
+        array $viewport,
+        int $zoom,
+        PortalScope $scope,
+        ?array $extentSummary = null,
+    ): array {
+        $dimension = $this->visualizationDimension($scope);
         $clustered = $this->clusterService->cluster(
-            $this->visibleLocations($filters, $viewport),
+            $this->visibleLocations($filters, $viewport, $dimension),
             $viewport,
             $zoom,
+            $dimension,
         );
 
-        $features = $this->hydrateResourceCandidates($clustered['features']);
+        $features = $this->hydrateResourceCandidates($clustered['features'], $dimension);
         [$totalLocations, $extent] = $extentSummary ?? [null, null];
 
         return [
-            'schemaVersion' => 1,
+            'schemaVersion' => 2,
             'features' => $features,
             'meta' => [
                 ...$clustered['meta'],
+                'visualizationDimension' => $dimension,
                 'returnedFeatures' => count($features),
                 'totalLocations' => $totalLocations,
                 'extent' => $extent,
@@ -55,16 +67,17 @@ class PortalMapService
      *     location_id: int,
      *     resource_id: int,
      *     resource_type_slug: string,
+     *     category_key: string,
      *     geometry_type: string,
      *     latitude: float,
      *     longitude: float,
      *     bounds: array{north: float, south: float, east: float, west: float}
      * }>
      */
-    private function visibleLocations(array $filters, array $viewport): iterable
+    private function visibleLocations(array $filters, array $viewport, string $dimension): iterable
     {
-        foreach ($this->locationQuery($filters, $viewport)->cursor() as $row) {
-            $location = $this->normalizeLocation($row);
+        foreach ($this->locationQuery($filters, $viewport, $dimension === IgsnMapPresentationService::DIMENSION)->cursor() as $row) {
+            $location = $this->normalizeLocation($row, $dimension);
 
             if ($location === null || ! $this->overlapsViewport($location['bounds'], $viewport)) {
                 continue;
@@ -84,7 +97,7 @@ class PortalMapService
      * @param  array<string, mixed>  $filters
      * @param  array{north: float, south: float, east: float, west: float, width?: int, height?: int}|null  $viewport
      */
-    private function locationQuery(array $filters, ?array $viewport): Builder
+    private function locationQuery(array $filters, ?array $viewport, bool $includeIgsnMaterial = false): Builder
     {
         $resourceFilters = $filters;
         if ($viewport !== null && ($filters['bounds'] ?? null) === null) {
@@ -100,7 +113,7 @@ class PortalMapService
             ->buildFilteredResourceQuery($resourceFilters, ($resourceFilters['bounds'] ?? null) !== null)
             ->select('resources.id');
 
-        return DB::table('geo_locations as map_locations')
+        $query = DB::table('geo_locations as map_locations')
             ->joinSub($eligibleResources, 'eligible_resources', function ($join) {
                 $join->on('eligible_resources.id', '=', 'map_locations.resource_id');
             })
@@ -120,7 +133,15 @@ class PortalMapService
                 'map_locations.in_polygon_point_latitude',
                 'map_locations.in_polygon_point_longitude',
                 'map_resource_types.slug as resource_type_slug',
-            ])
+            ]);
+
+        if ($includeIgsnMaterial) {
+            $query
+                ->leftJoin('igsn_metadata as map_igsn_metadata', 'map_igsn_metadata.resource_id', '=', 'map_resources.id')
+                ->addSelect('map_igsn_metadata.material as igsn_material');
+        }
+
+        return $query
             ->where(function (Builder $query) {
                 $query
                     ->whereNotNull('map_locations.point_latitude')
@@ -136,15 +157,23 @@ class PortalMapService
      *     location_id: int,
      *     resource_id: int,
      *     resource_type_slug: string,
+     *     category_key: string,
      *     geometry_type: string,
      *     latitude: float,
      *     longitude: float,
      *     bounds: array{north: float, south: float, east: float, west: float}
      * }|null
      */
-    private function normalizeLocation(object $row): ?array
-    {
+    private function normalizeLocation(
+        object $row,
+        string $dimension = PortalMapClusterService::RESOURCE_TYPE_DIMENSION,
+    ): ?array {
         $attributes = (array) $row;
+        $attributes['category_key'] = $dimension === IgsnMapPresentationService::DIMENSION
+            ? $this->igsnPresentationService->forMaterial(
+                is_string($attributes['igsn_material'] ?? null) ? $attributes['igsn_material'] : null,
+            )['key']
+            : (string) ($attributes['resource_type_slug'] ?? 'other');
         $polygonPoints = $this->decodePolygonPoints($attributes['polygon_points'] ?? null);
         $pointLatitude = $this->nullableFloat($attributes['point_latitude'] ?? null);
         $pointLongitude = $this->nullableFloat($attributes['point_longitude'] ?? null);
@@ -285,6 +314,7 @@ class PortalMapService
      *     location_id: int,
      *     resource_id: int,
      *     resource_type_slug: string,
+     *     category_key: string,
      *     geometry_type: string,
      *     latitude: float,
      *     longitude: float,
@@ -304,6 +334,7 @@ class PortalMapService
             'location_id' => (int) ($attributes['location_id'] ?? 0),
             'resource_id' => (int) ($attributes['resource_id'] ?? 0),
             'resource_type_slug' => (string) ($attributes['resource_type_slug'] ?? 'other'),
+            'category_key' => (string) ($attributes['category_key'] ?? 'other'),
             'geometry_type' => $geometryType,
             'latitude' => $latitude,
             'longitude' => $longitude,
@@ -347,6 +378,7 @@ class PortalMapService
      *     location_id: int,
      *     resource_id: int,
      *     resource_type_slug: string,
+     *     category_key: string,
      *     geometry_type: string,
      *     latitude: float,
      *     longitude: float,
@@ -358,6 +390,7 @@ class PortalMapService
      *     location_id: int,
      *     resource_id: int,
      *     resource_type_slug: string,
+     *     category_key: string,
      *     geometry_type: string,
      *     latitude: float,
      *     longitude: float,
@@ -756,7 +789,7 @@ class PortalMapService
      * @param  list<array<string, mixed>>  $features
      * @return list<array<string, mixed>>
      */
-    private function hydrateResourceCandidates(array $features): array
+    private function hydrateResourceCandidates(array $features, string $dimension): array
     {
         $locationIds = array_map(
             fn (array $feature): int => (int) $feature['locationId'],
@@ -767,18 +800,23 @@ class PortalMapService
             return $features;
         }
 
+        $relations = [
+            'resource.titles.titleType',
+            'resource.creators.creatorable',
+            'resource.resourceType',
+            'resource.landingPage',
+        ];
+        if ($dimension === IgsnMapPresentationService::DIMENSION) {
+            $relations[] = 'resource.igsnMetadata';
+        }
+
         $locations = GeoLocation::query()
             ->whereIn('id', $locationIds)
-            ->with([
-                'resource.titles.titleType',
-                'resource.creators.creatorable',
-                'resource.resourceType',
-                'resource.landingPage',
-            ])
+            ->with($relations)
             ->get()
             ->keyBy('id');
 
-        return array_map(function (array $feature) use ($locations): array {
+        return array_map(function (array $feature) use ($dimension, $locations): array {
             if ($feature['kind'] !== 'resource-candidate') {
                 return $feature;
             }
@@ -794,6 +832,14 @@ class PortalMapService
                     'bounds' => $feature['bounds'],
                     'count' => 1,
                     'resourceTypeCounts' => ['other' => 1],
+                    'composition' => [
+                        'dimension' => $dimension,
+                        'counts' => [
+                            $dimension === IgsnMapPresentationService::DIMENSION
+                                ? IgsnMapPresentationService::MISSING_KEY
+                                : 'other' => 1,
+                        ],
+                    ],
                 ];
             }
 
@@ -803,7 +849,7 @@ class PortalMapService
                 'position' => $feature['position'],
                 'bounds' => $feature['bounds'],
                 'geometry' => $this->formatGeometry($location),
-                'resource' => $this->formatResource($location->resource),
+                'resource' => $this->formatResource($location->resource, $dimension),
             ];
         }, $features);
     }
@@ -871,7 +917,7 @@ class PortalMapService
     /**
      * @return array<string, mixed>
      */
-    private function formatResource(Resource $resource): array
+    private function formatResource(Resource $resource, string $dimension): array
     {
         $mainTitle = $resource->titles->first(function ($title): bool {
             $slug = strtolower((string) $title->titleType?->slug);
@@ -879,14 +925,48 @@ class PortalMapService
             return in_array($slug, ['main-title', 'maintitle'], true);
         }) ?? $resource->titles->first();
 
+        $resourceType = $resource->resourceType;
+        $presentation = $resourceType instanceof ResourceType
+            ? [
+                'dimension' => PortalMapClusterService::RESOURCE_TYPE_DIMENSION,
+                'key' => $resourceType->slug,
+                'label' => $resourceType->name,
+                'status' => 'value',
+            ]
+            : [
+                'dimension' => PortalMapClusterService::RESOURCE_TYPE_DIMENSION,
+                'key' => 'other',
+                'label' => 'Other',
+                'status' => 'missing',
+            ];
+        $igsn = null;
+
+        if ($dimension === IgsnMapPresentationService::DIMENSION) {
+            $metadata = $resource->igsnMetadata;
+            $materialPresentation = $this->igsnPresentationService->forMaterial($metadata?->material);
+            $presentation = [
+                'dimension' => IgsnMapPresentationService::DIMENSION,
+                'key' => $materialPresentation['key'],
+                'label' => $materialPresentation['label'],
+                'status' => $materialPresentation['status'],
+            ];
+            $igsn = [
+                'sampleType' => $metadata?->sample_type,
+                'material' => $materialPresentation['material'],
+                'materialLabel' => $materialPresentation['materialLabel'],
+            ];
+        }
+
         return [
             'id' => $resource->id,
             'identifier' => $resource->doi,
             'title' => $mainTitle->value ?? 'Untitled resource',
-            'resourceType' => $resource->resourceType ? [
-                'slug' => $resource->resourceType->slug,
-                'name' => $resource->resourceType->name,
+            'resourceType' => $resourceType ? [
+                'slug' => $resourceType->slug,
+                'name' => $resourceType->name,
             ] : null,
+            'presentation' => $presentation,
+            'igsn' => $igsn,
             'creators' => $resource->creators
                 ->sortBy('position')
                 ->map(function ($creator): ?array {
@@ -908,6 +988,14 @@ class PortalMapService
                 ->all(),
             'landingPageUrl' => $resource->landingPage?->public_url,
         ];
+    }
+
+    private function visualizationDimension(PortalScope $scope): string
+    {
+        return $scope === PortalScope::IGSN
+            && (bool) config('portal_map.igsn_material_visualization_enabled', true)
+                ? IgsnMapPresentationService::DIMENSION
+                : PortalMapClusterService::RESOURCE_TYPE_DIMENSION;
     }
 
     /**

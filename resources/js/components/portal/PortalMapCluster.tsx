@@ -23,6 +23,8 @@ function popupResource(feature: PortalMapResourceFeature): PortalResource {
         resourceType: type?.name ?? 'Other',
         resourceTypeSlug: type?.slug ?? null,
         isIgsn: type?.slug === 'physical-object',
+        presentation: feature.resource.presentation,
+        igsn: feature.resource.igsn,
         geoLocations: [],
         landingPageUrl: feature.resource.landingPageUrl,
     };
@@ -39,10 +41,14 @@ export function ClusterLayer({ features }: ClusterLayerProps) {
         features.forEach((feature) => {
             if (feature.kind === 'cluster') {
                 const size = getClusterSize(feature.count);
+                const composition = feature.composition ?? {
+                    dimension: 'resource-type' as const,
+                    counts: feature.resourceTypeCounts,
+                };
                 const displayLongitude = rebaseLongitude(feature.position.lng, referenceLongitude);
                 const marker = L.marker([feature.position.lat, displayLongitude], {
                     icon: L.divIcon({
-                        html: createPieChartSvg(feature.resourceTypeCounts, feature.count, size),
+                        html: createPieChartSvg(composition.counts, feature.count, size, composition.dimension),
                         className: 'portal-pie-cluster',
                         iconSize: [size, size],
                         iconAnchor: [size / 2, size / 2],
@@ -67,9 +73,13 @@ export function ClusterLayer({ features }: ClusterLayerProps) {
             if (feature.geometry.type !== 'point') return;
 
             const typeSlug = feature.resource.resourceType?.slug ?? null;
+            const presentation = feature.resource.presentation;
             const displayLongitude = rebaseLongitude(feature.geometry.longitude, referenceLongitude);
             const marker = L.marker([feature.geometry.latitude, displayLongitude], {
-                icon: typeSlug === 'physical-object' ? createIgsnMarkerIcon() : createCircleMarkerIcon(typeSlug),
+                icon:
+                    typeSlug === 'physical-object'
+                        ? createIgsnMarkerIcon(presentation?.dimension === 'material' ? presentation.key : undefined)
+                        : createCircleMarkerIcon(typeSlug),
             });
 
             marker.bindPopup(renderPopupHtml(popupResource(feature)), { minWidth: 200, maxWidth: 280 });

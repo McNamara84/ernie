@@ -2055,7 +2055,7 @@
             "get": {
                 "tags": ["Portal"],
                 "summary": "Load clustered records for the public portal map",
-                "description": "Returns a bounded set of server-side clusters and individual published records for the visible map viewport. The optional total count and extent are cached by semantic portal filters, independently of viewport coordinates and dimensions.",
+                "description": "Returns a bounded set of server-side clusters and individual published records for the visible map viewport. DOI map categories represent Resource Types, while IGSN map categories represent top-level Materials. The optional total count and extent are cached by semantic portal filters, independently of viewport coordinates and dimensions.",
                 "operationId": "getPortalMap",
                 "security": [],
                 "parameters": [
@@ -2534,6 +2534,47 @@
                 "required": ["slug", "name"],
                 "additionalProperties": false
             },
+            "PortalMapVisualizationDimension": {
+                "type": "string",
+                "enum": ["resource-type", "material"]
+            },
+            "PortalMapCategoryStatus": {
+                "type": "string",
+                "enum": ["value", "not-applicable", "missing", "unrecognized"]
+            },
+            "PortalMapPresentation": {
+                "type": "object",
+                "properties": {
+                    "dimension": { "$ref": "#/components/schemas/PortalMapVisualizationDimension" },
+                    "key": { "type": "string", "minLength": 1 },
+                    "label": { "type": "string", "minLength": 1 },
+                    "status": { "$ref": "#/components/schemas/PortalMapCategoryStatus" }
+                },
+                "required": ["dimension", "key", "label", "status"],
+                "additionalProperties": false
+            },
+            "PortalMapIgsnSummary": {
+                "type": "object",
+                "properties": {
+                    "sampleType": { "type": ["string", "null"] },
+                    "material": { "type": ["string", "null"] },
+                    "materialLabel": { "type": ["string", "null"] }
+                },
+                "required": ["sampleType", "material", "materialLabel"],
+                "additionalProperties": false
+            },
+            "PortalMapComposition": {
+                "type": "object",
+                "properties": {
+                    "dimension": { "$ref": "#/components/schemas/PortalMapVisualizationDimension" },
+                    "counts": {
+                        "type": "object",
+                        "additionalProperties": { "type": "integer", "minimum": 1 }
+                    }
+                },
+                "required": ["dimension", "counts"],
+                "additionalProperties": false
+            },
             "PortalMapResourceSummary": {
                 "type": "object",
                 "properties": {
@@ -2543,6 +2584,10 @@
                     "resourceType": {
                         "oneOf": [{ "$ref": "#/components/schemas/PortalMapResourceType" }, { "type": "null" }]
                     },
+                    "presentation": { "$ref": "#/components/schemas/PortalMapPresentation" },
+                    "igsn": {
+                        "oneOf": [{ "$ref": "#/components/schemas/PortalMapIgsnSummary" }, { "type": "null" }]
+                    },
                     "creators": {
                         "type": "array",
                         "maxItems": 3,
@@ -2550,7 +2595,7 @@
                     },
                     "landingPageUrl": { "type": ["string", "null"] }
                 },
-                "required": ["id", "identifier", "title", "resourceType", "creators", "landingPageUrl"],
+                "required": ["id", "identifier", "title", "resourceType", "presentation", "igsn", "creators", "landingPageUrl"],
                 "additionalProperties": false
             },
             "PortalMapClusterFeature": {
@@ -2564,9 +2609,10 @@
                     "resourceTypeCounts": {
                         "type": "object",
                         "additionalProperties": { "type": "integer", "minimum": 1 }
-                    }
+                    },
+                    "composition": { "$ref": "#/components/schemas/PortalMapComposition" }
                 },
-                "required": ["kind", "id", "position", "bounds", "count", "resourceTypeCounts"],
+                "required": ["kind", "id", "position", "bounds", "count", "resourceTypeCounts", "composition"],
                 "additionalProperties": false
             },
             "PortalMapResourceFeature": {
@@ -2596,15 +2642,25 @@
                     "extent": {
                         "oneOf": [{ "$ref": "#/components/schemas/PortalMapBounds" }, { "type": "null" }]
                     },
-                    "coarsened": { "type": "boolean" }
+                    "coarsened": { "type": "boolean" },
+                    "visualizationDimension": { "$ref": "#/components/schemas/PortalMapVisualizationDimension" }
                 },
-                "required": ["requestedZoom", "effectiveZoom", "visibleLocations", "returnedFeatures", "totalLocations", "extent", "coarsened"],
+                "required": [
+                    "requestedZoom",
+                    "effectiveZoom",
+                    "visibleLocations",
+                    "returnedFeatures",
+                    "totalLocations",
+                    "extent",
+                    "coarsened",
+                    "visualizationDimension"
+                ],
                 "additionalProperties": false
             },
             "PortalMapResponse": {
                 "type": "object",
                 "properties": {
-                    "schemaVersion": { "type": "integer", "enum": [1] },
+                    "schemaVersion": { "type": "integer", "enum": [2] },
                     "features": {
                         "type": "array",
                         "description": "Bounded by the deployment's PORTAL_MAP_MAX_FEATURES setting.",

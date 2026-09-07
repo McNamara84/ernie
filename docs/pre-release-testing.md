@@ -543,6 +543,17 @@ verify them after reopening:
 - [ ] List and map interactions refer to the same resource; clusters and markers
       respond plausibly.
 
+- [ ] `/doi-search` continues to color markers, shapes, clusters, and the legend
+      by Resource Type.
+
+- [ ] `/igsn-search` colors markers, shapes, clusters, and the legend by the
+      top-level Material category; mixed cluster segments add up to the displayed
+      location count.
+
+- [ ] IGSN map details show exact Material and Sample Type values instead of a
+      redundant Physical Object badge. Not applicable, missing, and unrecognized
+      Material values remain visibly and textually distinct.
+
 - [ ] A search result opens the correct public landing page.
 
 ### 3.11 IGSN Lists, Map, and Registration
@@ -579,7 +590,7 @@ verify them after reopening:
 - [ ] In DataCite Test mode, `Register Selected` returns promptly and opens persistent
       progress with registered, updated, failed, cancelled, and remaining counters.
       Close the dialog, reload `/igsns`, and reopen the same run with `View registration
-    progress`; the queue continues independently of the browser.
+  progress`; the queue continues independently of the browser.
 
 - [ ] Request cancellation between items and verify remaining items become cancelled.
       For one controlled test failure, resolve its cause and use `Retry failed`; already

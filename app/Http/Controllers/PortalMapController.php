@@ -46,6 +46,7 @@ final class PortalMapController extends Controller
                 $filters,
                 $request->viewport(),
                 $request->zoom(),
+                $scope,
                 $extentSummary,
             );
         }, $scope);
