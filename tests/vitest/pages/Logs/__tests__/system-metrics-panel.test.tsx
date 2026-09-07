@@ -68,6 +68,7 @@ describe('SystemMetricsPanel', () => {
         expect(screen.getByLabelText('CPU utilization: 37.3 percent')).toHaveTextContent('37.3%');
         expect(screen.getByLabelText('Memory utilization: 62.5 percent')).toHaveTextContent('62.5%');
         expect(screen.getByText('10 GiB of 16 GiB')).toBeInTheDocument();
+        expect(screen.getByText(/Entire host VM/)).toBeInTheDocument();
         expect(screen.getAllByTestId('responsive-container')).toHaveLength(2);
         expect(screen.getByText('Live')).toBeInTheDocument();
         expect(mockedGet).toHaveBeenCalledWith('/logs/system-metrics', expect.objectContaining({ params: { period: 'day' } }));

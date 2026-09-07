@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Models\SystemMetricSample;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -66,16 +67,25 @@ it('fails cleanly and throttles repeated collection warnings', function (): void
     config()->set('system_metrics.enabled', true);
     config()->set('system_metrics.proc_stat_path', storage_path('missing-proc-stat'));
     config()->set('system_metrics.proc_meminfo_path', storage_path('missing-proc-meminfo'));
-    Cache::forget('system-metrics:collection-warning');
+    $warningCacheKey = CacheKey::SYSTEM_METRICS_COLLECTION_WARNING;
+    $warningCacheKey->forget();
     Log::spy();
 
     $this->artisan('system-metrics:collect')->assertFailed();
     $this->artisan('system-metrics:collect')->assertFailed();
 
-    Log::shouldHaveReceived('warning')->once()->with(
-        'Failed to collect host VM system metrics.',
-        Mockery::on(fn (array $context): bool => isset($context['exception'])),
-    );
+    $warningCache = method_exists(Cache::getStore(), 'tags')
+        ? Cache::tags($warningCacheKey->tags())
+        : Cache::store();
+
+    expect($warningCache->has($warningCacheKey->key()))->toBeTrue();
+
+    Log::shouldHaveReceived('warning')
+        ->once()
+        ->with(
+            'Failed to collect host VM system metrics.',
+            Mockery::on(fn (array $context): bool => isset($context['exception'])),
+        );
 });
 
 it('prunes only samples older than the configured retention window', function (): void {

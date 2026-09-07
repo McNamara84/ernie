@@ -24,7 +24,8 @@ final class SystemMetricsHistoryService
      */
     public function history(SystemMetricsPeriod $period): array
     {
-        $endsAt = CarbonImmutable::now('UTC')->startOfMinute();
+        $now = CarbonImmutable::now('UTC');
+        $endsAt = $now->startOfMinute();
         $startsAt = $period->startsAt($endsAt);
         $latest = SystemMetricSample::query()->latest('recorded_at')->first();
         $samples = SystemMetricSample::query()
@@ -38,7 +39,7 @@ final class SystemMetricsHistoryService
             'from' => $startsAt->toIso8601String(),
             'to' => $endsAt->toIso8601String(),
             'bucket_minutes' => $period->bucketMinutes(),
-            'status' => $this->status($latest, $endsAt),
+            'status' => $this->status($latest, $now),
             'latest' => $this->presentLatest($latest),
             'samples' => $this->bucketSamples($samples, $startsAt, $endsAt, $period->bucketMinutes()),
         ];

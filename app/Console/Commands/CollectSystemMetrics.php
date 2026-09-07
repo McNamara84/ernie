@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\CacheKey;
 use App\Services\SystemMetricsCollectorService;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class CollectSystemMetrics extends Command
 {
+    use ChecksCacheTagging;
+
     protected $signature = 'system-metrics:collect';
 
     protected $description = 'Collect one CPU and memory sample from the host VM';
@@ -27,7 +30,13 @@ final class CollectSystemMetrics extends Command
         try {
             $sample = $collector->collect();
         } catch (Throwable $exception) {
-            if (Cache::add('system-metrics:collection-warning', true, now()->addHour())) {
+            $warningCacheKey = CacheKey::SYSTEM_METRICS_COLLECTION_WARNING;
+
+            if ($this->getCacheInstance($warningCacheKey->tags())->add(
+                $warningCacheKey->key(),
+                true,
+                $warningCacheKey->ttl(),
+            )) {
                 Log::warning('Failed to collect host VM system metrics.', [
                     'exception' => $exception->getMessage(),
                 ]);

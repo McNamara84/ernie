@@ -73,6 +73,9 @@ enum CacheKey: string
     // Cache statistics
     case CACHE_STATS = 'system:cache_stats';
 
+    // System metrics collection warning throttle
+    case SYSTEM_METRICS_COLLECTION_WARNING = 'system:metrics_collection_warning';
+
     // Assistance suggestion counts
     case ASSISTANCE_TOTAL_PENDING_COUNT = 'assistance:total_pending_count';
 
@@ -173,6 +176,9 @@ enum CacheKey: string
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
 
+            // System metrics collection warnings - 1 hour
+            self::SYSTEM_METRICS_COLLECTION_WARNING => 3600,
+
             // Assistance total pending count - 2 minutes (changes after discovery jobs)
             self::ASSISTANCE_TOTAL_PENDING_COUNT => 120,
 
@@ -255,6 +261,8 @@ enum CacheKey: string
             self::CITATION_LOOKUP => ['doi', 'citations'],
 
             self::CACHE_STATS => ['system'],
+
+            self::SYSTEM_METRICS_COLLECTION_WARNING => ['system', 'system_metrics'],
 
             self::ASSISTANCE_TOTAL_PENDING_COUNT => ['assistance'],
 

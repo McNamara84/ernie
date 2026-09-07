@@ -75,6 +75,15 @@ it('reports disabled collecting and stale states honestly', function (): void {
     expect($service->history(SystemMetricsPeriod::DAY)['status'])->toBe('stale');
 });
 
+it('uses the actual current time when determining whether the latest sample is stale', function (): void {
+    createSystemMetricSample('2026-09-06 11:57:00', 20.0);
+
+    $history = app(SystemMetricsHistoryService::class)->history(SystemMetricsPeriod::DAY);
+
+    expect($history['to'])->toBe('2026-09-06T12:00:00+00:00')
+        ->and($history['status'])->toBe('stale');
+});
+
 it('protects the system metrics endpoint and defaults to the day period', function (): void {
     $admin = User::factory()->admin()->create();
     $beginner = User::factory()->beginner()->create();

@@ -665,8 +665,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Monitoring the Server and Viewing Application Logs</h3>
                         <p>
                             Administrators can open <strong>Logs</strong> from the <strong>Administration</strong> workspace or go directly to{' '}
-                            <code>/logs</code>. The page shows CPU and memory utilization for the entire production VM alongside recent application
-                            events and provides level and text filters for investigating the visible table.
+                            <code>/logs</code>. The page shows CPU and memory utilization for the entire host VM alongside recent application events
+                            and provides level and text filters for investigating the visible table.
                         </p>
 
                         <h4>Review VM utilization</h4>

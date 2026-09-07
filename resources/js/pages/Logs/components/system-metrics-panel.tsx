@@ -311,7 +311,7 @@ export default function SystemMetricsPanel({ refreshKey = 0 }: SystemMetricsPane
                         )}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Entire production VM · {statusDescription}
+                        Entire host VM · {statusDescription}
                         {latest ? ` Last sample: ${formatTimestamp(latest.recorded_at)}.` : ''}
                     </p>
                 </div>
