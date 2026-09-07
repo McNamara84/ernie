@@ -60,18 +60,18 @@ vi.mock('react-leaflet', () => ({
     MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="leaflet-map">{children}</div>,
     TileLayer: () => <div data-testid="tile-layer" />,
     Popup: ({ children }: { children: React.ReactNode }) => <div data-testid="popup">{children}</div>,
-    Rectangle: ({ children, bounds }: { children: React.ReactNode; bounds: unknown }) => (
-        <div data-testid="rectangle" data-bounds={JSON.stringify(bounds)}>
+    Rectangle: ({ children, bounds, pathOptions }: { children: React.ReactNode; bounds: unknown; pathOptions: unknown }) => (
+        <div data-testid="rectangle" data-bounds={JSON.stringify(bounds)} data-path-options={JSON.stringify(pathOptions)}>
             {children}
         </div>
     ),
-    Polygon: ({ children, positions }: { children: React.ReactNode; positions: unknown }) => (
-        <div data-testid="polygon" data-positions={JSON.stringify(positions)}>
+    Polygon: ({ children, positions, pathOptions }: { children: React.ReactNode; positions: unknown; pathOptions: unknown }) => (
+        <div data-testid="polygon" data-positions={JSON.stringify(positions)} data-path-options={JSON.stringify(pathOptions)}>
             {children}
         </div>
     ),
-    Polyline: ({ children, positions }: { children: React.ReactNode; positions: unknown }) => (
-        <div data-testid="polyline" data-positions={JSON.stringify(positions)}>
+    Polyline: ({ children, positions, pathOptions }: { children: React.ReactNode; positions: unknown; pathOptions: unknown }) => (
+        <div data-testid="polyline" data-positions={JSON.stringify(positions)} data-path-options={JSON.stringify(pathOptions)}>
             {children}
         </div>
     ),
@@ -196,8 +196,61 @@ describe('PortalMap', () => {
 
         render(<PortalMap filters={filters} />);
 
-        expect(screen.getAllByTestId(testId)[0]).toBeInTheDocument();
+        const renderedGeometry = screen.getAllByTestId(testId)[0];
+        expect(renderedGeometry).toBeInTheDocument();
+        expect(JSON.parse(renderedGeometry.getAttribute('data-path-options') ?? '{}')).toMatchObject({
+            color: '#0C2A63',
+            ...(geometryType === 'line' ? {} : { fillColor: '#0C2A63' }),
+        });
         expect(screen.getAllByText('Mapped resource')[0]).toBeInTheDocument();
+    });
+
+    it.each([
+        ['box', 'rectangle'],
+        ['polygon', 'polygon'],
+        ['line', 'polyline'],
+    ] as const)('colors a returned IGSN %s geometry by material', (geometryType, testId) => {
+        const geometry =
+            geometryType === 'box'
+                ? { type: 'box' as const, north: 53, south: 51, east: 14, west: 12 }
+                : {
+                      type: geometryType,
+                      points: [
+                          { latitude: 51, longitude: 12 },
+                          { latitude: 53, longitude: 14 },
+                          { latitude: 52, longitude: 13 },
+                      ],
+                  };
+        mapQueryState.result.data = response({
+            schemaVersion: 2,
+            features: [
+                {
+                    kind: 'resource',
+                    id: 'igsn-shape',
+                    position: { lat: 52, lng: 13 },
+                    bounds: { north: 53, south: 51, east: 14, west: 12 },
+                    geometry,
+                    resource: {
+                        id: 2,
+                        identifier: '10.60510/test',
+                        title: 'Mapped IGSN shape',
+                        creators: [],
+                        resourceType: { slug: 'physical-object', name: 'Physical Object' },
+                        presentation: { dimension: 'material', key: 'rock', label: 'Rock', status: 'value' },
+                        igsn: { sampleType: 'Core', material: 'Rock', materialLabel: 'Rock' },
+                        landingPageUrl: '/igsn-shape',
+                    },
+                },
+            ],
+        });
+
+        render(<PortalMap filters={filters} basePath="/igsn-search" />);
+
+        const renderedGeometry = screen.getAllByTestId(testId)[0];
+        expect(JSON.parse(renderedGeometry.getAttribute('data-path-options') ?? '{}')).toMatchObject({
+            color: '#6F4E37',
+            ...(geometryType === 'line' ? {} : { fillColor: '#6F4E37' }),
+        });
     });
 
     it('renders a wrapped box as the short interval across the antimeridian', () => {

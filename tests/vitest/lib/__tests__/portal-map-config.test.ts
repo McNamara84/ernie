@@ -11,6 +11,7 @@ import {
     getClusterSize,
     getMapCategoryColor,
     getMaterialCategoryStyle,
+    getPresentationShapePathOptions,
     getResourceTypeColor,
     getShapePathOptions,
     isIgsnType,
@@ -20,6 +21,19 @@ import {
     RESOURCE_TYPE_COLORS,
 } from '@/lib/portal-map-config';
 import type { PortalResource } from '@/types/portal';
+
+function relativeLuminance(color: string): number {
+    const channels = [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16) / 255);
+    const [red, green, blue] = channels.map((channel) => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4));
+
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function contrastRatio(first: string, second: string): number {
+    const luminances = [relativeLuminance(first), relativeLuminance(second)].sort((left, right) => right - left);
+
+    return (luminances[0] + 0.05) / (luminances[1] + 0.05);
+}
 
 // ---------------------------------------------------------------------------
 // RESOURCE_TYPE_COLORS constant
@@ -145,6 +159,12 @@ describe('material map categories', () => {
         expect(getMapCategoryColor('material', 'liquid')).toBe('#0072B2');
         expect(getMaterialCategoryStyle('unexpected')).toBe(MATERIAL_CATEGORY_STYLES.unrecognized);
         expect(getMaterialCategoryStyle(null)).toBe(MATERIAL_CATEGORY_STYLES.missing);
+    });
+
+    it('keeps every material badge foreground at WCAG AA text contrast', () => {
+        Object.values(MATERIAL_CATEGORY_STYLES).forEach(({ color, textColor }) => {
+            expect(contrastRatio(color, textColor), `${textColor} on ${color}`).toBeGreaterThanOrEqual(4.5);
+        });
     });
 });
 
@@ -377,6 +397,34 @@ describe('getShapePathOptions', () => {
     it('uses DEFAULT_MARKER_COLOR for null slug', () => {
         const opts = getShapePathOptions(null, 'box');
         expect(opts.color).toBe(DEFAULT_MARKER_COLOR);
+    });
+});
+
+describe('getPresentationShapePathOptions', () => {
+    it.each(['box', 'polygon', 'line'] as const)('uses the material category color for %s geometry', (geometryType) => {
+        const options = getPresentationShapePathOptions(
+            { dimension: 'material', key: 'rock', label: 'Rock', status: 'value' },
+            'physical-object',
+            geometryType,
+        );
+
+        expect(options.color).toBe(MATERIAL_CATEGORY_STYLES.rock.color);
+        if (geometryType === 'line') {
+            expect(options).not.toHaveProperty('fillColor');
+        } else {
+            expect(options.fillColor).toBe(MATERIAL_CATEGORY_STYLES.rock.color);
+        }
+    });
+
+    it.each(['box', 'polygon', 'line'] as const)('falls back to the resource-type color for %s geometry', (geometryType) => {
+        const options = getPresentationShapePathOptions(undefined, 'dataset', geometryType);
+
+        expect(options.color).toBe(RESOURCE_TYPE_COLORS.dataset);
+        if (geometryType === 'line') {
+            expect(options).not.toHaveProperty('fillColor');
+        } else {
+            expect(options.fillColor).toBe(RESOURCE_TYPE_COLORS.dataset);
+        }
     });
 });
 
