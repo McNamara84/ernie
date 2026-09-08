@@ -156,8 +156,12 @@ it('keeps local host metric collection disabled without host proc mounts', funct
     $appEnvironment = schedulerEnvironment($services['app']['environment'] ?? null);
     $schedulerEnvironment = schedulerEnvironment($services['scheduler']['environment'] ?? null);
 
-    expect($appEnvironment['SYSTEM_METRICS_ENABLED'] ?? null)->toBe('${SYSTEM_METRICS_ENABLED:-false}')
-        ->and($schedulerEnvironment['SYSTEM_METRICS_ENABLED'] ?? null)->toBe('${SYSTEM_METRICS_ENABLED:-false}');
+    foreach ([$appEnvironment, $schedulerEnvironment] as $environment) {
+        expect($environment['SYSTEM_METRICS_ENABLED'] ?? null)->toBe('${SYSTEM_METRICS_ENABLED:-false}')
+            ->and($environment['SYSTEM_METRICS_PROC_STAT_PATH'] ?? null)->toBe('${SYSTEM_METRICS_PROC_STAT_PATH:-/host/proc/stat}')
+            ->and($environment['SYSTEM_METRICS_PROC_MEMINFO_PATH'] ?? null)->toBe('${SYSTEM_METRICS_PROC_MEMINFO_PATH:-/host/proc/meminfo}')
+            ->and($environment['SYSTEM_METRICS_RETENTION_DAYS'] ?? null)->toBe('${SYSTEM_METRICS_RETENTION_DAYS:-30}');
+    }
 
     foreach (['app', 'scheduler'] as $serviceName) {
         $sources = collect($services[$serviceName]['volumes'] ?? [])
