@@ -1,9 +1,10 @@
-import { FileUp } from 'lucide-react';
+import { FileUp, Link2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { getCitation } from '@/actions/App/Http/Controllers/Api/DataCiteController';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { normalizeDOI } from '@/lib/doi-validation';
 import { detectIdentifierType } from '@/lib/identifier-type-detection';
 import type { IdentifierType, RelatedIdentifier, RelatedIdentifierFormData, RelationType } from '@/types';
@@ -83,6 +84,7 @@ function getPreferredActiveOption<T extends string>(preferred: T, activeOptions?
 
 export default function RelatedWorkField({ relatedWorks, onChange, activeRelationTypes, activeIdentifierTypes }: RelatedWorkFieldProps) {
     const [showCsvImport, setShowCsvImport] = useState(false);
+    const [isFirstRelatedWorkDraftOpen, setIsFirstRelatedWorkDraftOpen] = useState(false);
     const [duplicateError, setDuplicateError] = useState<string | null>(null);
     const relatedWorksRef = useRef(relatedWorks);
     const defaultIdentifierType = getPreferredActiveOption<IdentifierType>('DOI', activeIdentifierTypes);
@@ -93,6 +95,25 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
     const [identifierType, setIdentifierType] = useState<IdentifierType>(() => defaultIdentifierType ?? 'DOI');
     const [identifierTypeWasManuallySelected, setIdentifierTypeWasManuallySelected] = useState(false);
     const [relationType, setRelationType] = useState<RelationType>(() => defaultRelationType ?? 'Cites');
+
+    const resetQuickAddDraft = () => {
+        setIdentifier('');
+        setIdentifierType(defaultIdentifierType ?? 'DOI');
+        setIdentifierTypeWasManuallySelected(false);
+        setRelationType(defaultRelationType ?? 'Cites');
+        setDuplicateError(null);
+    };
+
+    const handleStartFirstRelatedWork = () => {
+        resetQuickAddDraft();
+        setIsFirstRelatedWorkDraftOpen(true);
+    };
+
+    const handleCancelFirstRelatedWork = () => {
+        resetQuickAddDraft();
+        setShowCsvImport(false);
+        setIsFirstRelatedWorkDraftOpen(false);
+    };
 
     useEffect(() => {
         relatedWorksRef.current = relatedWorks;
@@ -242,16 +263,14 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         const updated = [...relatedWorks, newItem];
         relatedWorksRef.current = updated;
         onChange(updated);
+        setIsFirstRelatedWorkDraftOpen(false);
 
         if (!newItem.citation_label?.trim()) {
             void hydrateCitationLabel(newItem.identifier, newItem.identifier_type, newItem.relation_type);
         }
 
         // Reset form after successful add
-        setIdentifier('');
-        setIdentifierType(defaultIdentifierType ?? 'DOI');
-        setIdentifierTypeWasManuallySelected(false);
-        setRelationType(defaultRelationType ?? 'Cites');
+        resetQuickAddDraft();
     };
 
     const handleBulkImport = (data: RelatedIdentifierFormData[]) => {
@@ -281,6 +300,9 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         relatedWorksRef.current = combinedList;
         onChange(combinedList);
         setShowCsvImport(false);
+        if (combinedList.length > 0) {
+            setIsFirstRelatedWorkDraftOpen(false);
+        }
 
         void hydrateCitationLabelsForImportedItems(importedItems);
 
@@ -298,6 +320,12 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
 
         relatedWorksRef.current = reindexed;
         onChange(reindexed);
+
+        if (reindexed.length === 0) {
+            resetQuickAddDraft();
+            setShowCsvImport(false);
+            setIsFirstRelatedWorkDraftOpen(false);
+        }
     };
 
     const handleItemChange = (index: number, updatedItem: RelatedIdentifier) => {
@@ -361,6 +389,22 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                         activeIdentifierTypes={activeIdentifierTypes}
                     />
                 </div>
+            ) : relatedWorks.length === 0 && !isFirstRelatedWorkDraftOpen ? (
+                <EmptyState
+                    icon={<Link2 className="h-8 w-8" />}
+                    title="No related works added"
+                    description="Add relationships to other datasets, publications, or resources."
+                    action={{
+                        label: 'Add Related Work',
+                        onClick: handleStartFirstRelatedWork,
+                    }}
+                    secondaryAction={{
+                        label: 'Import CSV',
+                        onClick: () => setShowCsvImport(true),
+                        icon: <FileUp className="mr-2 h-4 w-4" />,
+                    }}
+                    data-testid="related-work-empty-state"
+                />
             ) : (
                 <>
                     <RelatedWorkQuickAdd
@@ -376,7 +420,12 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                     />
 
                     {/* CSV Import Button */}
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                        {relatedWorks.length === 0 && (
+                            <Button type="button" variant="ghost" size="sm" onClick={handleCancelFirstRelatedWork}>
+                                Cancel
+                            </Button>
+                        )}
                         <Button type="button" variant="outline" size="sm" onClick={() => setShowCsvImport(true)}>
                             <FileUp className="mr-2 h-4 w-4" />
                             Import from CSV

@@ -1074,6 +1074,47 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('documents the empty Related Work and CSV import workflows for curators', async () => {
+        const { user } = renderDocsPage('curator');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Starting with an Empty Related Work List', level: 4 })).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Add Related Work') && text.includes('Import CSV') && text.includes('bulk import immediately');
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Cancel') && text.includes('discard its unsaved values') && text.includes('Removing the final entry');
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'CSV Bulk Import', level: 4 })).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('identifier and relation_type') &&
+                    text.includes('identifier_type is optional') &&
+                    text.includes('Download Example')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/An exact duplicate with the same identifier and relation type is skipped and reported/i)).toBeInTheDocument();
+    });
+
     it('hides resource types documentation when no resource types are active', async () => {
         const { user } = renderDocsPage(
             'beginner',

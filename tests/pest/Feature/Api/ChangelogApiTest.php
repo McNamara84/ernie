@@ -15,6 +15,9 @@ it('returns changelog data grouped by release', function () {
             'title' => 'Single Funding Reference Add Action',
         ])
         ->assertJsonFragment([
+            'title' => 'Clear Related Work Empty State',
+        ])
+        ->assertJsonFragment([
             'version' => '1.0.7',
             'date' => '2026-09-04',
         ])

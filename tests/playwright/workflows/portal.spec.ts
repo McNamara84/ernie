@@ -432,6 +432,7 @@ for (const portal of [
 
         await openPortal(page, portal.path);
         const map = page.locator('.leaflet-container').first();
+        const mapPane = map.locator('.leaflet-map-pane');
         const cluster = () => map.locator('.portal-pie-cluster').first();
         const zoomIn = map.locator('.leaflet-control-zoom-in');
         const zoomOut = map.locator('.leaflet-control-zoom-out');
@@ -442,7 +443,9 @@ for (const portal of [
         let currentZoom = requestedZooms.at(-1)!;
         for (let adjustment = 0; currentZoom !== 4 && adjustment < 18; adjustment++) {
             const targetZoom = currentZoom < 4 ? currentZoom + 1 : currentZoom - 1;
+            await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
             await (currentZoom < 4 ? zoomIn : zoomOut).click();
+            await expect(mapPane).not.toHaveClass(/leaflet-zoom-anim/);
             await expect.poll(() => requestedZooms.at(-1)).toBe(targetZoom);
             currentZoom = targetZoom;
         }

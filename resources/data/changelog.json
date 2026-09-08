@@ -5,6 +5,10 @@
         "features": [],
         "improvements": [
             {
+                "title": "Clear Related Work Empty State",
+                "description": "The Data Editor now presents an explicit empty state before the first Related Work is added, with separate actions for manual entry and CSV import. Curators can cancel an unfinished first entry, and removing the final relation returns the section to the same clear starting state."
+            },
+            {
                 "title": "Logs with VM Resource History",
                 "description": "Administrators can now review CPU and memory utilization for the entire host VM directly above the application logs. Minute-level host samples provide responsive charts for the last 24 hours and 7 days, while clear collecting, stale, disabled, gap, and retry states keep the history honest across deployments and scheduler interruptions. Only the scheduler receives read-only access to the two required Linux proc files; no Docker socket or privileged container is exposed."
             },

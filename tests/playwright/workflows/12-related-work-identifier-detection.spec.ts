@@ -36,7 +36,10 @@ test.describe('Related Work Identifier Type Detection', () => {
             await expect(relatedWorkSection).toHaveAttribute('data-state', 'open', { timeout: 10000 });
         }
 
-        await page.getByTestId('related-identifier-input').waitFor({ state: 'visible', timeout: 10000 });
+        const emptyState = page.getByTestId('related-work-empty-state');
+        await expect(emptyState).toBeVisible({ timeout: 10000 });
+        await emptyState.getByRole('button', { name: 'Add Related Work' }).click();
+        await expect(page.getByTestId('related-identifier-input')).toBeVisible({ timeout: 10000 });
     });
 
     /**
