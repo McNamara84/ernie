@@ -7,6 +7,7 @@ use App\Models\LandingPageTemplate;
 use App\Support\LegacyIgsnDatacenterCatalog;
 use Database\Seeders\DatacenterSeeder;
 use Database\Seeders\LandingPageTemplateSeeder;
+use Illuminate\Support\Facades\DB;
 
 it('seeds every canonical legacy IGSN datacenter without a duplicate GFZ Potsdam entry', function (): void {
     $this->seed(DatacenterSeeder::class);
@@ -20,6 +21,12 @@ it('seeds every canonical legacy IGSN datacenter without a duplicate GFZ Potsdam
 
 it('assigns both system templates to every seeded datacenter', function (): void {
     $this->seed(DatacenterSeeder::class);
+
+    DB::table('datacenters')->update([
+        'landing_page_template_id' => null,
+        'igsn_landing_page_template_id' => null,
+    ]);
+
     $this->seed(LandingPageTemplateSeeder::class);
 
     $defaults = LandingPageTemplate::ensureSystemTemplatesExist();
@@ -36,7 +43,7 @@ it('initializes a missing GFZ IGSN assignment when its resource slot already exi
 
     $defaults = LandingPageTemplate::ensureSystemTemplatesExist();
     $gfz = Datacenter::query()->where('name', Datacenter::GFZ_NAME)->firstOrFail();
-    $gfz->update([
+    DB::table('datacenters')->where('id', $gfz->id)->update([
         'landing_page_template_id' => $defaults['resource']->id,
         'igsn_landing_page_template_id' => null,
     ]);
@@ -80,8 +87,8 @@ it('repairs only missing assignments for every existing datacenter', function ()
     $igsnMissing = Datacenter::factory()->create([
         'landing_page_template_id' => $customResourceTemplate->id,
     ]);
-    $resourceMissing->update(['landing_page_template_id' => null]);
-    $igsnMissing->update(['igsn_landing_page_template_id' => null]);
+    DB::table('datacenters')->where('id', $resourceMissing->id)->update(['landing_page_template_id' => null]);
+    DB::table('datacenters')->where('id', $igsnMissing->id)->update(['igsn_landing_page_template_id' => null]);
 
     $this->seed(LandingPageTemplateSeeder::class);
 
