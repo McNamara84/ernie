@@ -40,6 +40,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
+import SystemMetricsPanel from '@/pages/Logs/components/system-metrics-panel';
 import { type BreadcrumbItem } from '@/types';
 
 interface LogEntry {
@@ -102,6 +103,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
     const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
     const [deleteConfirmation, setDeleteConfirmation] = useState('');
     const [isDeletingAll, setIsDeletingAll] = useState(false);
+    const [systemMetricsRefreshKey, setSystemMetricsRefreshKey] = useState(0);
     // Preserve expanded rows across refreshes by tracking them in a ref
     const preservedExpandedRows = useRef<Set<number>>(new Set());
 
@@ -188,6 +190,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
     const handleRefresh = () => {
         // Preserve currently expanded rows
         preservedExpandedRows.current = new Set(expandedRows);
+        setSystemMetricsRefreshKey((value) => value + 1);
         setIsLoading(true);
         router.reload({
             onFinish: () => {
@@ -222,19 +225,21 @@ export default function Index({ logs, pagination, filters, available_levels, can
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Logs" />
 
-            <div className="flex h-full flex-1 flex-col gap-4 p-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                        <div className="flex items-center gap-2">
-                            <ScrollText className="size-6" />
-                            <div>
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 p-4">
+                <SystemMetricsPanel refreshKey={systemMetricsRefreshKey} />
+
+                <Card className="min-w-0 overflow-hidden">
+                    <CardHeader className="flex flex-col items-stretch gap-4 space-y-0 px-4 pb-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+                        <div className="flex min-w-0 items-start gap-2">
+                            <ScrollText className="size-6 shrink-0" />
+                            <div className="min-w-0">
                                 <CardTitle>Application Logs</CardTitle>
                                 <CardDescription>
                                     {pagination.total} log {pagination.total === 1 ? 'entry' : 'entries'} found
                                 </CardDescription>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button type="button" variant="outline" size="sm">
@@ -295,7 +300,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
                         </div>
                     </CardHeader>
 
-                    <CardContent>
+                    <CardContent className="min-w-0 px-4 sm:px-6">
                         {/* Security Warning */}
                         <Alert variant="default" className="mb-4 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
                             <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400" />
@@ -306,10 +311,10 @@ export default function Index({ logs, pagination, filters, available_levels, can
                         </Alert>
 
                         {/* Filters */}
-                        <div className="mb-4 flex flex-wrap items-center gap-4">
-                            <div className="flex items-center gap-2">
+                        <div className="mb-4 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center">
+                            <div className="w-full sm:w-auto">
                                 <Select value={level || 'all'} onValueChange={handleLevelChange}>
-                                    <SelectTrigger size="sm" className="w-40">
+                                    <SelectTrigger size="sm" className="w-full sm:w-40">
                                         <SelectValue placeholder="Filter by level" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -326,8 +331,8 @@ export default function Index({ logs, pagination, filters, available_levels, can
                                 </Select>
                             </div>
 
-                            <div className="flex flex-1 items-center gap-2">
-                                <div className="relative flex-1">
+                            <div className="flex w-full min-w-0 flex-1 items-center gap-2">
+                                <div className="relative min-w-0 flex-1">
                                     <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                                     <Input
                                         placeholder="Search logs..."
@@ -351,8 +356,8 @@ export default function Index({ logs, pagination, filters, available_levels, can
                                 <p className="text-sm">Try adjusting your filters or check back later</p>
                             </div>
                         ) : (
-                            <div className="rounded-md border">
-                                <Table>
+                            <div className="max-w-full min-w-0 overflow-hidden rounded-md border">
+                                <Table containerClassName="max-w-full">
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="w-48">Timestamp</TableHead>
@@ -434,7 +439,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
 
                         {/* Pagination */}
                         {pagination.last_page > 1 && (
-                            <div className="mt-4 flex items-center justify-between">
+                            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <p className="text-sm text-muted-foreground">
                                     Page {pagination.current_page} of {pagination.last_page}
                                 </p>

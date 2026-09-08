@@ -662,11 +662,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 minRole: 'admin',
                 content: (
                     <>
-                        <h3>Viewing and Downloading Application Logs</h3>
+                        <h3>Monitoring the Server and Viewing Application Logs</h3>
                         <p>
                             Administrators can open <strong>Logs</strong> from the <strong>Administration</strong> workspace or go directly to{' '}
-                            <code>/logs</code>. The page shows recent application events and provides level and text filters for investigating the
-                            visible table.
+                            <code>/logs</code>. The page shows CPU and memory utilization for the entire host VM alongside recent application events
+                            and provides level and text filters for investigating the visible table.
+                        </p>
+
+                        <h4>Review VM utilization</h4>
+                        <p>
+                            Use <strong>Last 24 hours</strong> or <strong>Last 7 days</strong> to switch both percentage charts. Current values and
+                            the latest sample time appear above the charts. A Collecting state is expected immediately after deployment or a VM
+                            restart, while Stale indicates that the scheduler has not stored a sample for more than three minutes. Missing
+                            measurements remain visible as gaps.
                         </p>
 
                         <h4>Download a rolling log period</h4>

@@ -805,6 +805,21 @@ erDiagram
     }
 
     %% =========================================================================
+    %% SYSTEM MONITORING TABLES
+    %% =========================================================================
+
+    system_metric_samples {
+        bigint id PK
+        timestamp recorded_at UK
+        decimal cpu_usage_percent "5,2 nullable"
+        decimal memory_usage_percent "5,2"
+        bigint memory_used_bytes "unsigned"
+        bigint memory_total_bytes "unsigned"
+        bigint cpu_total_ticks "unsigned"
+        bigint cpu_idle_ticks "unsigned"
+    }
+
+    %% =========================================================================
     %% DATACENTER TABLES
     %% =========================================================================
 

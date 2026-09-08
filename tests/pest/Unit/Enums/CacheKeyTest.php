@@ -12,6 +12,7 @@ it('generates correct cache keys without suffix', function () {
     expect(CacheKey::RESOURCE_LISTING_COUNT->key())->toBe('resources:listing_count');
     expect(CacheKey::IGSN_LISTING_COUNT->key())->toBe('igsns:listing_count');
     expect(CacheKey::PORTAL_LISTING_COUNT->key())->toBe('portal:listing_count');
+    expect(CacheKey::SYSTEM_METRICS_COLLECTION_WARNING->key())->toBe('system:metrics_collection_warning');
     expect(CacheKey::GCMD_SCIENCE_KEYWORDS->key())->toBe('vocabularies:gcmd:science_keywords');
     expect(CacheKey::RAID_PROJECTS->key())->toBe('vocabularies:raid:projects');
     expect(CacheKey::ROR_AFFILIATION->key())->toBe('ror:affiliation');
@@ -117,7 +118,9 @@ it('returns correct tags for ORCID', function () {
 });
 
 it('returns correct tags for system', function () {
-    expect(CacheKey::CACHE_STATS->tags())->toBe(['system']);
+    expect(CacheKey::CACHE_STATS->tags())->toBe(['system'])
+        ->and(CacheKey::SYSTEM_METRICS_COLLECTION_WARNING->ttl())->toBe(3600)
+        ->and(CacheKey::SYSTEM_METRICS_COLLECTION_WARNING->tags())->toBe(['system', 'system_metrics']);
 });
 
 it('returns correct tags for public page payload caches', function () {

@@ -42,6 +42,36 @@ docker compose -f docker-compose.prod.yml exec db mysql -u root -p -e "SHOW VARI
 
 Do not expose `opcache_get_status()` through a web route. All long-running PHP containers must be recreated during deployment so their immutable OPcache state matches the application image.
 
+## Host VM resource history
+
+The administrator Logs page records aggregate CPU and RAM utilization for the
+entire Linux VM. Production and Stage default
+`SYSTEM_METRICS_ENABLED` to `true`; local development defaults it to `false`.
+Only the scheduler mounts `/proc/stat` and `/proc/meminfo`, both read-only and
+with `create_host_path: false`. Do not replace these narrow mounts with the
+Docker socket, a privileged container, or the host PID namespace.
+
+The collector runs once per minute. CPU usage is calculated from consecutive
+aggregate counter deltas, while RAM usage is `MemTotal - MemAvailable`. Raw
+samples remain for `SYSTEM_METRICS_RETENTION_DAYS` (30 by default) and a daily
+task removes older rows. The UI treats samples older than three minutes as
+stale and leaves scheduler gaps visible.
+
+After recreating the services, validate the mounts and collect two consecutive
+samples:
+
+```bash
+docker compose -f docker-compose.prod.yml exec scheduler test -r /host/proc/stat
+docker compose -f docker-compose.prod.yml exec scheduler test -r /host/proc/meminfo
+docker compose -f docker-compose.prod.yml exec scheduler php artisan system-metrics:collect
+docker compose -f docker-compose.prod.yml exec app php artisan tinker --execute="dump(App\\Models\\SystemMetricSample::query()->latest('recorded_at')->first()?->only(['recorded_at', 'cpu_usage_percent', 'memory_usage_percent']));"
+```
+
+The first CPU value is intentionally empty because it establishes the baseline.
+After the next scheduled minute, compare the displayed percentages with `top`
+and `free` on the VM. Never expose raw CPU counters or host paths through a web
+endpoint.
+
 ## Public portal caches
 
 Portal page payloads use a configurable fresh/stale window and an atomic cold-miss lock:

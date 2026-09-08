@@ -31,6 +31,10 @@ services:
       - APP_DEBUG=false
       - ERNIE_CONTAINER_ROLE=app
       - ERNIE_RUN_MIGRATIONS=1
+      - SYSTEM_METRICS_ENABLED=${SYSTEM_METRICS_ENABLED:-true}
+      - SYSTEM_METRICS_PROC_STAT_PATH=/host/proc/stat
+      - SYSTEM_METRICS_PROC_MEMINFO_PATH=/host/proc/meminfo
+      - SYSTEM_METRICS_RETENTION_DAYS=${SYSTEM_METRICS_RETENTION_DAYS:-30}
       - PHP_FPM_MAX_CHILDREN=${PHP_FPM_MAX_CHILDREN:-6}
       - PHP_FPM_START_SERVERS=${PHP_FPM_START_SERVERS:-2}
       - PHP_FPM_MIN_SPARE_SERVERS=${PHP_FPM_MIN_SPARE_SERVERS:-2}
@@ -376,6 +380,18 @@ services:
         exec php artisan schedule:work --no-interaction
     volumes:
       - storage-data:/var/www/html/storage
+      - type: bind
+        source: /proc/stat
+        target: /host/proc/stat
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /proc/meminfo
+        target: /host/proc/meminfo
+        read_only: true
+        bind:
+          create_host_path: false
     networks:
       - dockerized-laravel-network
     depends_on:
@@ -393,6 +409,10 @@ services:
       - APP_DEBUG=false
       - ERNIE_CONTAINER_ROLE=scheduler
       - ERNIE_RUN_MIGRATIONS=0
+      - SYSTEM_METRICS_ENABLED=${SYSTEM_METRICS_ENABLED:-true}
+      - SYSTEM_METRICS_PROC_STAT_PATH=/host/proc/stat
+      - SYSTEM_METRICS_PROC_MEMINFO_PATH=/host/proc/meminfo
+      - SYSTEM_METRICS_RETENTION_DAYS=${SYSTEM_METRICS_RETENTION_DAYS:-30}
       - INERTIA_SSR_ENABLED=false
       - DATACITE_QUEUE=${DATACITE_QUEUE:-datacite}
       - DB_HOST=db

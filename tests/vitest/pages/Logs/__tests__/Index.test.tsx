@@ -18,6 +18,10 @@ vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children: React.ReactNode }) => <div data-testid="app-layout">{children}</div>,
 }));
 
+vi.mock('@/pages/Logs/components/system-metrics-panel', () => ({
+    default: ({ refreshKey }: { refreshKey: number }) => <div data-testid="system-metrics-panel" data-refresh-key={refreshKey} />,
+}));
+
 vi.mock('sonner', () => ({
     toast: {
         success: vi.fn(),
@@ -81,7 +85,18 @@ describe('Logs/Index', () => {
     it('renders the logs page', () => {
         render(<Index {...defaultProps} />);
 
+        expect(screen.getByTestId('system-metrics-panel')).toBeInTheDocument();
         expect(screen.getByText('Application Logs')).toBeInTheDocument();
+    });
+
+    it('refreshes server metrics with the application logs', async () => {
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} />);
+
+        expect(screen.getByTestId('system-metrics-panel')).toHaveAttribute('data-refresh-key', '0');
+        await user.click(screen.getByRole('button', { name: /Refresh/i }));
+
+        expect(screen.getByTestId('system-metrics-panel')).toHaveAttribute('data-refresh-key', '1');
     });
 
     it('displays log count', () => {

@@ -874,6 +874,22 @@ entity "resource_instruments" as resource_instruments {
 }
 
 ' ==========================================================================
+' SYSTEM MONITORING TABLES
+' ==========================================================================
+
+entity "system_metric_samples" as system_metric_samples {
+    * **id** : BIGINT <<PK>>
+    --
+    * recorded_at : TIMESTAMP <<UK>>
+    cpu_usage_percent : DECIMAL(5,2) <<nullable>>
+    * memory_usage_percent : DECIMAL(5,2)
+    * memory_used_bytes : BIGINT <<unsigned>>
+    * memory_total_bytes : BIGINT <<unsigned>>
+    * cpu_total_ticks : BIGINT <<unsigned>>
+    * cpu_idle_ticks : BIGINT <<unsigned>>
+}
+
+' ==========================================================================
 ' DATACENTER TABLES
 ' ==========================================================================
 
