@@ -612,6 +612,68 @@ describe('Assessment page', () => {
         expect(mockToast.success).toHaveBeenCalledWith('Resources assessment completed.');
     });
 
+    it('uses scope-aware status fallbacks when polling responses omit progress', async () => {
+        mockAxiosPost.mockResolvedValueOnce({
+            data: {
+                jobId: '22222222-2222-4222-8222-222222222222',
+                status: 'queued',
+            },
+        });
+        mockAxiosGet
+            .mockResolvedValueOnce({ data: { status: 'running' } })
+            .mockResolvedValueOnce({ data: { status: 'completed', assessedResources: 2 } });
+
+        render(<AssessmentPage {...makeProps()} />);
+
+        act(() => {
+            fireEvent.click(screen.getByRole('button', { name: 'Check IGSNs' }));
+        });
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+
+        expect(screen.getByText('Assessing IGSNs...')).toBeInTheDocument();
+        expect(screen.queryByText(/Assessment assessment/)).not.toBeInTheDocument();
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+
+        expect(screen.getByText('IGSNs assessment completed.')).toBeInTheDocument();
+        expect(mockToast.success).toHaveBeenCalledWith('IGSNs assessment completed.');
+    });
+
+    it('uses a scope-aware paused fallback when a terminal polling response omits progress', async () => {
+        mockAxiosGet.mockResolvedValueOnce({
+            data: {
+                status: 'paused',
+                error: 'Resume the resource assessment after checking the worker.',
+            },
+        });
+
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    resourceAssessmentRun: {
+                        jobId: '11111111-1111-4111-8111-111111111111',
+                        scope: 'resource',
+                        status: 'running',
+                        progress: 'Assessing resources...',
+                    },
+                })}
+            />,
+        );
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+
+        expect(screen.getByText('Resources assessment paused.')).toBeInTheDocument();
+        expect(screen.queryByText(/Assessment assessment/)).not.toBeInTheDocument();
+        expect(mockToast.warning).toHaveBeenCalledWith('Resume the resource assessment after checking the worker.');
+    });
+
     it('resumes polling a persistent run after the page is reopened', async () => {
         mockAxiosGet.mockResolvedValueOnce({
             data: {
@@ -688,9 +750,7 @@ describe('Assessment page', () => {
             fireEvent.click(screen.getByRole('button', { name: 'Resume Resources' }));
         });
 
-        expect(mockAxiosPost).toHaveBeenCalledWith(
-            '/assessment/check/resource/11111111-1111-4111-8111-111111111111/resume',
-        );
+        expect(mockAxiosPost).toHaveBeenCalledWith('/assessment/check/resource/11111111-1111-4111-8111-111111111111/resume');
         expect(screen.getByText('Resources assessment is waiting to start.')).toBeInTheDocument();
     });
 

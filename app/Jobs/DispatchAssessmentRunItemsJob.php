@@ -60,7 +60,7 @@ final class DispatchAssessmentRunItemsJob implements ShouldQueue
                     'cancelled_at' => now(),
                     'completed_at' => now(),
                 ])->save();
-                Log::info('Resource assessment run cancelled', $this->runLogContext($run));
+                Log::info(sprintf('%s assessment run cancelled', $run->scope->singularLabel()), $this->runLogContext($run));
 
                 return [];
             }
@@ -129,7 +129,7 @@ final class DispatchAssessmentRunItemsJob implements ShouldQueue
                     'active_scope' => null,
                     'completed_at' => now(),
                 ])->save();
-                Log::info('Resource assessment run completed', $this->runLogContext($run));
+                Log::info(sprintf('%s assessment run completed', $run->scope->singularLabel()), $this->runLogContext($run));
             }
 
             return $items->modelKeys();

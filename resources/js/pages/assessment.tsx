@@ -140,12 +140,41 @@ function initialScopeState(run?: AssessmentJobStatus | null): ScopeState {
     };
 }
 
-function stateFromStatus(status: AssessmentJobStatus, jobId: string, scope?: AssessmentScope): ScopeState {
+function assessmentProgressFallback(scope: AssessmentScope, status: AssessmentJobStatus['status']): string {
+    const label = scopeLabel(scope);
+
+    switch (status) {
+        case 'preparing':
+            return `${label} assessment is being prepared.`;
+        case 'queued':
+            return `${label} assessment is waiting to start.`;
+        case 'running':
+            return `Assessing ${scopeNoun(scope)}...`;
+        case 'paused':
+            return `${label} assessment paused.`;
+        case 'cancel_requested':
+            return `${label} assessment cancellation requested.`;
+        case 'cancelled':
+            return `${label} assessment cancelled.`;
+        case 'completed':
+            return `${label} assessment completed.`;
+        case 'failed':
+            return `${label} assessment failed.`;
+        case 'unknown':
+            return '';
+    }
+}
+
+function stateFromStatus(status: AssessmentJobStatus, jobId: string, scope: AssessmentScope): ScopeState {
+    const normalizedRunStatus = status.status || 'queued';
     const normalizedStatus: AssessmentJobStatus = {
         ...status,
         jobId,
-        status: status.status || 'queued',
-        progress: status.progress || `${scope === undefined ? 'Assessment' : scopeLabel(scope)} assessment is waiting to start.`,
+        status: normalizedRunStatus,
+        progress:
+            typeof status.progress === 'string' && status.progress.trim() !== ''
+                ? userFacingAssessmentMessage(status.progress)
+                : assessmentProgressFallback(scope, normalizedRunStatus),
     };
 
     return {
@@ -371,7 +400,7 @@ export default function Assessment({
 
                 if (data.status === 'completed') {
                     stopPolling(scope);
-                    patchState(scope, stateFromStatus(data, jobId));
+                    patchState(scope, stateFromStatus(data, jobId, scope));
                     if ((data.failedResources ?? 0) > 0) {
                         toast.warning(`${scopeLabel(scope)} assessment completed with ${data.failedResources} failed resources.`);
                     } else {
@@ -384,7 +413,7 @@ export default function Assessment({
 
                 if (data.status === 'failed' || data.status === 'paused' || data.status === 'cancelled') {
                     stopPolling(scope);
-                    patchState(scope, stateFromStatus(data, jobId));
+                    patchState(scope, stateFromStatus(data, jobId, scope));
                     router.reload({ only: [...RELOAD_KEYS] });
 
                     if (data.status === 'paused') {
@@ -398,10 +427,7 @@ export default function Assessment({
                     return;
                 }
 
-                patchState(scope, {
-                    ...stateFromStatus(data, jobId),
-                    progress: userFacingAssessmentMessage(data.progress),
-                });
+                patchState(scope, stateFromStatus(data, jobId, scope));
 
                 pollingRefs.current[scope] = setTimeout(pollStatus, 3000);
             } catch (error) {

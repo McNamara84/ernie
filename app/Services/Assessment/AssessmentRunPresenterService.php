@@ -17,7 +17,7 @@ final class AssessmentRunPresenterService
             'scope' => $run->scope->value,
             'status' => $run->status->value,
             'progress' => $this->progress($run),
-            'error' => $run->last_error ?? $run->pause_reason,
+            'error' => $run->pause_reason ?? $run->last_error,
             'totalResources' => $run->total,
             'processedResources' => $run->processed,
             'assessedResources' => $run->assessed,

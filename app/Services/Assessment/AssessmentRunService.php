@@ -186,7 +186,7 @@ final class AssessmentRunService
                 'completed_at' => now(),
             ])->save();
 
-            Log::info('Resource assessment run cancelled', [
+            Log::info(sprintf('%s assessment run cancelled', $locked->scope->singularLabel()), [
                 'run_id' => $locked->id,
                 'scope' => $locked->scope->value,
                 'processed' => $locked->processed,
@@ -210,7 +210,7 @@ final class AssessmentRunService
             'paused_at' => now(),
         ])->save();
 
-        Log::warning('Resource assessment run paused', [
+        Log::warning(sprintf('%s assessment run paused', $run->scope->singularLabel()), [
             'run_id' => $run->id,
             'scope' => $run->scope->value,
             'processed' => $run->processed,

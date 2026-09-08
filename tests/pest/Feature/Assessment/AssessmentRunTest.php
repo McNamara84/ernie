@@ -21,6 +21,7 @@ use App\Services\Assessment\FujiAssessmentService;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
 
@@ -362,7 +363,10 @@ test('the dispatcher recovers an expired item lease', function (): void {
 });
 
 test('the dispatcher completes a run only after every item is terminal', function (): void {
+    Log::spy();
     $run = AssessmentRun::factory()->create([
+        'scope' => AssessmentScope::IGSN,
+        'active_scope' => AssessmentScope::IGSN,
         'status' => AssessmentRunStatus::RUNNING,
         'total' => 1,
         'processed' => 1,
@@ -384,10 +388,17 @@ test('the dispatcher completes a run only after every item is terminal', functio
         ->and($run->fresh()->active_scope)->toBeNull()
         ->and($run->fresh()->completed_at)->not->toBeNull();
     Queue::assertNotPushed(AssessResourceRunItemJob::class);
+    Log::shouldHaveReceived('info')->once()->with(
+        'IGSN assessment run completed',
+        Mockery::on(fn (array $context): bool => $context['scope'] === AssessmentScope::IGSN->value),
+    );
 });
 
 test('the dispatcher cancels every open item after cancellation is requested', function (): void {
+    Log::spy();
     $run = AssessmentRun::factory()->create([
+        'scope' => AssessmentScope::IGSN,
+        'active_scope' => AssessmentScope::IGSN,
         'status' => AssessmentRunStatus::CANCEL_REQUESTED,
         'total' => 2,
         'pending' => 2,
@@ -404,11 +415,18 @@ test('the dispatcher cancels every open item after cancellation is requested', f
         ->and($run->fresh()->processed)->toBe(2)
         ->and($run->fresh()->skipped)->toBe(2)
         ->and($run->items()->where('status', AssessmentRunItemStatus::CANCELLED)->count())->toBe(2);
+    Log::shouldHaveReceived('info')->once()->with(
+        'IGSN assessment run cancelled',
+        Mockery::on(fn (array $context): bool => $context['scope'] === AssessmentScope::IGSN->value),
+    );
 });
 
 test('the dispatcher pauses a run when its snapshotted F-UJI configuration changed', function (): void {
+    Log::spy();
     $user = User::factory()->admin()->create();
     $run = AssessmentRun::factory()->create([
+        'scope' => AssessmentScope::IGSN,
+        'active_scope' => AssessmentScope::IGSN,
         'status' => AssessmentRunStatus::QUEUED,
         'fuji_base_url' => 'https://old-fuji.test',
     ]);
@@ -422,6 +440,10 @@ test('the dispatcher pauses a run when its snapshotted F-UJI configuration chang
     expect($run->fresh()->status)->toBe(AssessmentRunStatus::PAUSED)
         ->and($run->fresh()->pause_reason)->toContain('configuration changed');
     Queue::assertNotPushed(AssessResourceRunItemJob::class);
+    Log::shouldHaveReceived('warning')->once()->with(
+        'IGSN assessment run paused',
+        Mockery::on(fn (array $context): bool => $context['scope'] === AssessmentScope::IGSN->value),
+    );
 
     $resumed = app(AssessmentRunService::class)->resume($run->fresh(), $user);
 
@@ -430,7 +452,7 @@ test('the dispatcher pauses a run when its snapshotted F-UJI configuration chang
         ->and($resumed->metric_version)->toBe('metrics_v0.8')
         ->and($resumed->concurrency)->toBe(2)
         ->and($resumed->requests_per_minute)->toBe(1000)
-        ->and($resumed->active_scope)->toBe(AssessmentScope::RESOURCE);
+        ->and($resumed->active_scope)->toBe(AssessmentScope::IGSN);
 
     (new DispatchAssessmentRunItemsJob($run->id))->handle(
         app(AssessmentRunService::class),
@@ -442,8 +464,11 @@ test('the dispatcher pauses a run when its snapshotted F-UJI configuration chang
 });
 
 test('cancelling a paused run releases its scope and terminalizes open items', function (): void {
+    Log::spy();
     $user = User::factory()->admin()->create();
     $run = AssessmentRun::factory()->create([
+        'scope' => AssessmentScope::IGSN,
+        'active_scope' => AssessmentScope::IGSN,
         'status' => AssessmentRunStatus::PAUSED,
         'total' => 2,
         'pending' => 2,
@@ -460,8 +485,12 @@ test('cancelling a paused run releases its scope and terminalizes open items', f
         ->and($cancelled->pending)->toBe(0)
         ->and($cancelled->skipped)->toBe(2)
         ->and($cancelled->items()->where('status', AssessmentRunItemStatus::CANCELLED)->count())->toBe(2);
+    Log::shouldHaveReceived('info')->once()->with(
+        'IGSN assessment run cancelled',
+        Mockery::on(fn (array $context): bool => $context['scope'] === AssessmentScope::IGSN->value),
+    );
 
-    $replacement = app(AssessmentRunService::class)->startOrResume(AssessmentScope::RESOURCE, $user);
+    $replacement = app(AssessmentRunService::class)->startOrResume(AssessmentScope::IGSN, $user);
 
     expect($replacement->id)->not->toBe($run->id)
         ->and($replacement->status)->toBe(AssessmentRunStatus::PREPARING);
