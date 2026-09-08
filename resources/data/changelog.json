@@ -31,6 +31,10 @@
         ],
         "fixes": [
             {
+                "title": "Single Funding Reference Add Action",
+                "description": "The Data Editor now shows one clear Add Funding Reference action when the section is empty instead of displaying the same prompt twice. The empty-state action creates the first reference, while a single list-level button remains available for adding further references."
+            },
+            {
                 "title": "Complete Datacenter Template Assignments",
                 "description": "Admins and Group Leaders can now assign GFZ and every other datacenter to custom Resource and IGSN landing-page templates independently. A custom template may serve zero, one, or many datacenters; moving or removing an assignment preserves the other template type and automatically restores the matching Templates Resources or Templates IGSN fallback. New datacenters and existing gaps receive both persistent defaults."
             },

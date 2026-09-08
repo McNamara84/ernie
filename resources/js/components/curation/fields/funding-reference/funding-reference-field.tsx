@@ -162,10 +162,12 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
             )}
 
             {/* Add Button */}
-            <Button type="button" variant="outline" size="sm" onClick={handleAdd} className="w-full">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Funding Reference
-            </Button>
+            {value.length > 0 && (
+                <Button type="button" variant="outline" size="sm" onClick={handleAdd} className="w-full">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Funding Reference
+                </Button>
+            )}
         </div>
     );
 }
