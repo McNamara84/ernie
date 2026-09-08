@@ -142,7 +142,7 @@ it('renders one allow-listed style identically to the complete landing-page set'
 it('rejects unknown single-style identifiers', function () {
     app(LandingPageCitationService::class)
         ->formatStyle(landingPageCitationServiceTestFixture(), 'invented-style');
-})->throws(\InvalidArgumentException::class, 'Unknown landing-page citation style [invented-style].');
+})->throws(InvalidArgumentException::class, 'Unknown landing-page citation style [invented-style].');
 
 it('renders a physical object fixture through every official style', function () {
     $styles = app(LandingPageCitationService::class)->format(
