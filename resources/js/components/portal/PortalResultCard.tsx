@@ -1,5 +1,5 @@
 import { Check, Copy, Info } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -55,18 +55,19 @@ export function PortalResultCard({ resource, basePath }: PortalResultCardProps) 
     const landingPageUrl = resource.landingPageUrl;
     const hasLandingPage = landingPageUrl !== null;
 
-    useEffect(
-        () => () => {
-            if (copyTimeoutRef.current) {
-                clearTimeout(copyTimeoutRef.current);
-            }
-        },
-        [],
-    );
+    const clearCopyTimeout = useCallback(() => {
+        if (copyTimeoutRef.current !== null) {
+            clearTimeout(copyTimeoutRef.current);
+            copyTimeoutRef.current = null;
+        }
+    }, []);
+
+    useEffect(() => clearCopyTimeout, [clearCopyTimeout]);
 
     const handleOpenChange = (open: boolean) => {
         setIsPreviewOpen(open);
         if (!open) {
+            clearCopyTimeout();
             setCopied(false);
         }
     };
@@ -80,10 +81,11 @@ export function PortalResultCard({ resource, basePath }: PortalResultCardProps) 
             setCopied(true);
             toast.success('Citation copied to clipboard');
 
-            if (copyTimeoutRef.current) {
-                clearTimeout(copyTimeoutRef.current);
-            }
-            copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+            clearCopyTimeout();
+            copyTimeoutRef.current = setTimeout(() => {
+                copyTimeoutRef.current = null;
+                setCopied(false);
+            }, 2000);
         } catch {
             setCopied(false);
             toast.error('Failed to copy citation');

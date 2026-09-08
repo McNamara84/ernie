@@ -290,5 +290,30 @@ describe('PortalResultCard', () => {
             expect(clipboardSpy).toHaveBeenCalledWith(preview.citation.text);
             expect(await screen.findByRole('status')).toHaveTextContent('Citation copied to clipboard');
         });
+
+        it('clears the pending copied-state timeout when the preview closes', async () => {
+            const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+            const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+            try {
+                const user = userEvent.setup();
+                renderCard();
+
+                await user.click(screen.getByRole('button', { name: /show citation and abstract/i }));
+                await user.click(await screen.findByRole('button', { name: 'Copy citation to clipboard' }));
+
+                const resetCallIndex = setTimeoutSpy.mock.calls.findIndex(([, delay]) => delay === 2000);
+                expect(resetCallIndex).toBeGreaterThanOrEqual(0);
+                const resetTimeout = setTimeoutSpy.mock.results[resetCallIndex]?.value;
+
+                await user.keyboard('{Escape}');
+
+                expect(clearTimeoutSpy).toHaveBeenCalledWith(resetTimeout);
+                expect(screen.queryByTestId('portal-result-preview')).not.toBeInTheDocument();
+            } finally {
+                setTimeoutSpy.mockRestore();
+                clearTimeoutSpy.mockRestore();
+            }
+        });
     });
 });
