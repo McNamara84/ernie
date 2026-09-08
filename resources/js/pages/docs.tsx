@@ -1957,13 +1957,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Exploring Results on the Map</h4>
                         <p>
                             The map loads the records in the currently visible area. Pan or zoom to explore another region. Nearby records are
-                            combined into numbered, color-coded clusters to keep large result sets easy to navigate.
+                            combined into numbered, color-coded clusters to keep large result sets easy to navigate. The Data Portal uses colors for
+                            Resource Types. In the IGSN Portal, colors represent the top-level Material category instead, and each cluster segment
+                            shows that material&apos;s share of the locations in the cluster.
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Click a cluster, or zoom in, to separate it into smaller clusters and individual records</li>
-                            <li>Click an individual marker or shape to open its record preview</li>
+                            <li>Click an individual marker or shape to open its record preview, including Material and Sample Type for IGSNs</li>
                             <li>Boxes, polygons, and lines appear when you zoom in far enough to inspect their geographic detail</li>
                             <li>Enable the spatial filter when you want the result list to follow the selected map area</li>
+                            <li>
+                                IGSN values marked Not applicable, records without Material, and unexpected legacy Material values have separate
+                                legend entries and marker styles
+                            </li>
                         </ul>
 
                         <h4>Text Search and Free Keyword Suggestions</h4>

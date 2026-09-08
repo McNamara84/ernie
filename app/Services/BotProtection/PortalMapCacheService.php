@@ -7,7 +7,9 @@ namespace App\Services\BotProtection;
 use App\Enums\CacheKey;
 use App\Enums\PortalScope;
 use App\Services\FlexibleCacheService;
+use App\Services\Igsn\IgsnMapPresentationService;
 use App\Services\PortalCacheVersionService;
+use App\Services\PortalMapClusterService;
 use App\Support\PortalCacheNamespace;
 use App\Support\Traits\ChecksCacheTagging;
 use Closure;
@@ -76,6 +78,7 @@ final class PortalMapCacheService
 
         return CacheKey::PORTAL_MAP_PAYLOAD->key(implode(':', [
             $scope->value,
+            $this->visualizationDimension($scope),
             'v'.$this->versionService->current(CacheKey::PORTAL_MAP_PAYLOAD, $scope),
             hash('sha256', $request->path().'|'.$fingerprint),
         ]));
@@ -177,6 +180,14 @@ final class PortalMapCacheService
         return str_starts_with($request->path(), 'igsn-search')
             ? PortalScope::IGSN
             : PortalScope::DOI;
+    }
+
+    private function visualizationDimension(PortalScope $scope): string
+    {
+        return $scope === PortalScope::IGSN
+            && (bool) config('portal_map.igsn_material_visualization_enabled', true)
+                ? IgsnMapPresentationService::DIMENSION
+                : PortalMapClusterService::RESOURCE_TYPE_DIMENSION;
     }
 
     /** @param array<string, mixed> $filters */

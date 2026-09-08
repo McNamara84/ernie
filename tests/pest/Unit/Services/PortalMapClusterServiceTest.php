@@ -13,8 +13,9 @@ function portalMapClusterLocation(
     string $type = 'point',
     string $slug = 'dataset',
     ?array $bounds = null,
+    ?string $categoryKey = null,
 ): array {
-    return [
+    $location = [
         'location_id' => $id,
         'resource_type_slug' => $slug,
         'geometry_type' => $type,
@@ -27,6 +28,12 @@ function portalMapClusterLocation(
             'west' => $longitude,
         ],
     ];
+
+    if ($categoryKey !== null) {
+        $location['category_key'] = $categoryKey;
+    }
+
+    return $location;
 }
 
 function portalMapClusterViewport(array $overrides = []): array
@@ -77,7 +84,36 @@ it('aggregates colocated resources and preserves resource type counts', function
         ->and($result['features'][0]['resourceTypeCounts'])->toBe([
             'dataset' => 2,
             'physical-object' => 1,
+        ])
+        ->and($result['features'][0]['composition'])->toBe([
+            'dimension' => 'resource-type',
+            'counts' => [
+                'dataset' => 2,
+                'physical-object' => 1,
+            ],
         ]);
+});
+
+it('aggregates IGSN material categories without changing compatibility counts', function (): void {
+    $result = (new PortalMapClusterService)->cluster([
+        portalMapClusterLocation(1, 52.5, 13.4, slug: 'physical-object', categoryKey: 'rock'),
+        portalMapClusterLocation(2, 52.5001, 13.4001, slug: 'physical-object', categoryKey: 'liquid'),
+        portalMapClusterLocation(3, 52.5002, 13.4002, slug: 'physical-object', categoryKey: 'rock'),
+        portalMapClusterLocation(4, 52.5003, 13.4003, slug: 'physical-object', categoryKey: 'missing'),
+    ], portalMapClusterViewport(), 12, 'material');
+
+    expect($result['features'])->toHaveCount(1)
+        ->and($result['features'][0]['count'])->toBe(4)
+        ->and($result['features'][0]['resourceTypeCounts'])->toBe(['physical-object' => 4])
+        ->and($result['features'][0]['composition'])->toBe([
+            'dimension' => 'material',
+            'counts' => [
+                'liquid' => 1,
+                'missing' => 1,
+                'rock' => 2,
+            ],
+        ])
+        ->and(array_sum($result['features'][0]['composition']['counts']))->toBe($result['features'][0]['count']);
 });
 
 it('keeps shapes clustered until the configured detail zoom', function (): void {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\PortalCacheArea;
 use App\Models\GeoLocation;
 use App\Models\IgsnClassification;
+use App\Models\IgsnMetadata;
 use App\Models\ResourceDate;
 use App\Models\Title;
 use App\Observers\PortalResourceDependencyObserver;
@@ -70,6 +71,34 @@ it('invalidates IGSN result, count and map caches for filter metadata', function
     ]);
 
     $this->observer->saved($classification);
+});
+
+it('invalidates IGSN map presentation when material changes', function (): void {
+    $metadata = new IgsnMetadata(['resource_id' => 42, 'material' => 'Rock']);
+    $metadata->syncOriginal();
+    $metadata->material = 'Soil';
+    $metadata->syncChanges();
+
+    $this->invalidation->shouldReceive('scheduleForResourceId')->once()->with(42, [
+        PortalCacheArea::PAGE,
+        PortalCacheArea::COUNT,
+        PortalCacheArea::IGSN_FACETS,
+        PortalCacheArea::MAP_PAYLOAD,
+        PortalCacheArea::MAP_EXTENT,
+    ]);
+
+    $this->observer->saved($metadata);
+});
+
+it('does not invalidate public caches for unrelated IGSN metadata updates', function (): void {
+    $metadata = new IgsnMetadata(['resource_id' => 42, 'material' => 'Rock', 'sample_access' => 'open']);
+    $metadata->syncOriginal();
+    $metadata->sample_access = 'closed';
+    $metadata->syncChanges();
+
+    $this->invalidation->shouldNotReceive('scheduleForResourceId');
+
+    $this->observer->saved($metadata);
 });
 
 it('ignores models without a numeric resource id', function (): void {

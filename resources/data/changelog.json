@@ -9,6 +9,10 @@
                 "description": "Administrators can now review CPU and memory utilization for the entire host VM directly above the application logs. Minute-level host samples provide responsive charts for the last 24 hours and 7 days, while clear collecting, stale, disabled, gap, and retry states keep the history honest across deployments and scheduler interruptions. Only the scheduler receives read-only access to the two required Linux proc files; no Docker socket or privileged container is exposed."
             },
             {
+                "title": "Material-Aware IGSN Portal Map",
+                "description": "The public IGSN Portal map now colors samples, geographic shapes, and cluster segments by top-level Material instead of the redundant Physical Object resource type. Its ordered legend and marker details show exact Material and Sample Type metadata, explicitly distinguish not-applicable, missing, and unrecognized legacy values, and leave the Data Portal's Resource Type visualization unchanged."
+            },
+            {
                 "title": "Faster Production Runtime and Portal Caches",
                 "description": "Production now uses tuned PHP-FPM and MySQL resource budgets, OPcache, deterministic Laravel bootstrap caches, and an optional F-UJI service profile. Scope-aware stale-while-revalidate caches, precise transaction-safe invalidation, stampede protection, and an operator-facing portal cache warm-up command reduce load times while keeping search facets, maps, and published links current."
             },

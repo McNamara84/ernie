@@ -62,6 +62,8 @@ export interface PortalResource {
     resourceType: string;
     resourceTypeSlug: string | null;
     isIgsn: boolean;
+    presentation?: PortalMapPresentation;
+    igsn?: PortalMapIgsnSummary | null;
     geoLocations: PortalGeoLocation[];
     landingPageUrl: string | null;
     citationAuthorDisplayLimit?: number;
@@ -201,8 +203,32 @@ export interface PortalMapResourceSummary {
     identifier: string | null;
     title: string;
     resourceType: { slug: string; name: string } | null;
+    presentation?: PortalMapPresentation;
+    igsn?: PortalMapIgsnSummary | null;
     creators: PortalCreator[];
     landingPageUrl: string | null;
+}
+
+export type PortalMapVisualizationDimension = 'resource-type' | 'material';
+
+export type PortalMapCategoryStatus = 'value' | 'not-applicable' | 'missing' | 'unrecognized';
+
+export interface PortalMapPresentation {
+    dimension: PortalMapVisualizationDimension;
+    key: string;
+    label: string;
+    status: PortalMapCategoryStatus;
+}
+
+export interface PortalMapIgsnSummary {
+    sampleType: string | null;
+    material: string | null;
+    materialLabel: string | null;
+}
+
+export interface PortalMapComposition {
+    dimension: PortalMapVisualizationDimension;
+    counts: Record<string, number>;
 }
 
 export type PortalMapGeometry =
@@ -216,7 +242,9 @@ export interface PortalMapClusterFeature {
     position: GeoPoint;
     bounds: GeoBounds;
     count: number;
+    /** @deprecated Version 1 compatibility; prefer composition. */
     resourceTypeCounts: Record<string, number>;
+    composition?: PortalMapComposition;
 }
 
 export interface PortalMapResourceFeature {
@@ -231,7 +259,7 @@ export interface PortalMapResourceFeature {
 export type PortalMapFeature = PortalMapClusterFeature | PortalMapResourceFeature;
 
 export interface PortalMapResponse {
-    schemaVersion: 1;
+    schemaVersion: 1 | 2;
     features: PortalMapFeature[];
     meta: {
         requestedZoom: number;
@@ -241,6 +269,7 @@ export interface PortalMapResponse {
         totalLocations: number | null;
         extent: GeoBounds | null;
         coarsened: boolean;
+        visualizationDimension?: PortalMapVisualizationDimension;
     };
 }
 

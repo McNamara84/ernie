@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { usePortalMapData } from '@/hooks/use-portal-map-data';
-import { formatAuthorsShort, getShapePathOptions } from '@/lib/portal-map-config';
+import { formatAuthorsShort, getMaterialCategoryStyle, getMaterialDisplayLabel, getPresentationShapePathOptions } from '@/lib/portal-map-config';
 import { normalizeLongitude, unwrapLongitudeBounds, unwrapPathLongitudes } from '@/lib/portal-map-longitude';
 import { cn } from '@/lib/utils';
 import type { GeoBounds, PortalBasePath, PortalFilters, PortalMapFeature, PortalMapResourceFeature, PortalMapViewport } from '@/types/portal';
@@ -191,12 +191,26 @@ function MapBoundsUpdater({ bounds, skipFilterUpdate }: { bounds: GeoBounds | nu
 function ResourcePopupContent({ feature }: { feature: PortalMapResourceFeature }) {
     const resource = feature.resource;
     const resourceType = resource.resourceType;
+    const isMaterialPresentation = resource.presentation?.dimension === 'material';
+    const materialStyle = isMaterialPresentation ? getMaterialCategoryStyle(resource.presentation?.key ?? null) : null;
 
     return (
         <div className="max-w-[280px] min-w-[200px]">
-            <Badge variant={resourceType?.slug === 'physical-object' ? 'secondary' : 'default'} className="mb-2">
-                {resourceType?.name ?? 'Other'}
-            </Badge>
+            {isMaterialPresentation ? (
+                <div className="mb-2 flex flex-wrap gap-1">
+                    <Badge
+                        variant="outline"
+                        style={{ backgroundColor: materialStyle?.color, color: materialStyle?.textColor, borderColor: '#64748b' }}
+                    >
+                        Material: {getMaterialDisplayLabel(resource.presentation!, resource.igsn?.materialLabel)}
+                    </Badge>
+                    <Badge variant="secondary">Sample Type: {resource.igsn?.sampleType?.trim() || 'No sample type provided'}</Badge>
+                </div>
+            ) : (
+                <Badge variant={resourceType?.slug === 'physical-object' ? 'secondary' : 'default'} className="mb-2">
+                    {resourceType?.name ?? 'Other'}
+                </Badge>
+            )}
             <h4 className="mb-1 line-clamp-2 text-sm leading-tight font-semibold">{resource.title}</h4>
             <p className="mb-2 text-xs text-muted-foreground">{formatAuthorsShort(resource.creators)}</p>
             {resource.landingPageUrl && (
@@ -221,6 +235,7 @@ function ResourceShapes({ features }: { features: PortalMapFeature[] }) {
         if (feature.kind !== 'resource' || feature.geometry.type === 'point') return null;
 
         const typeSlug = feature.resource.resourceType?.slug ?? null;
+        const presentation = feature.resource.presentation;
         const popup = <ResourcePopupContent feature={feature} />;
 
         if (feature.geometry.type === 'box') {
@@ -233,7 +248,7 @@ function ResourceShapes({ features }: { features: PortalMapFeature[] }) {
                         [feature.geometry.south, displayLongitudes.west],
                         [feature.geometry.north, displayLongitudes.east],
                     ]}
-                    pathOptions={getShapePathOptions(typeSlug, 'box')}
+                    pathOptions={getPresentationShapePathOptions(presentation, typeSlug, 'box')}
                 >
                     <Popup>{popup}</Popup>
                 </Rectangle>
@@ -246,11 +261,11 @@ function ResourceShapes({ features }: { features: PortalMapFeature[] }) {
         ]);
 
         return feature.geometry.type === 'polygon' ? (
-            <Polygon key={feature.id} positions={positions} pathOptions={getShapePathOptions(typeSlug, 'polygon')}>
+            <Polygon key={feature.id} positions={positions} pathOptions={getPresentationShapePathOptions(presentation, typeSlug, 'polygon')}>
                 <Popup>{popup}</Popup>
             </Polygon>
         ) : (
-            <Polyline key={feature.id} positions={positions} pathOptions={getShapePathOptions(typeSlug, 'line')}>
+            <Polyline key={feature.id} positions={positions} pathOptions={getPresentationShapePathOptions(presentation, typeSlug, 'line')}>
                 <Popup>{popup}</Popup>
             </Polyline>
         );

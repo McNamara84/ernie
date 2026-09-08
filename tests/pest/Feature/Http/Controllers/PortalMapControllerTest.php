@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\GeoLocation;
+use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
@@ -52,6 +53,7 @@ beforeEach(function (): void {
     config([
         'bot_protection.enabled' => false,
         'portal_map.enabled' => true,
+        'portal_map.igsn_material_visualization_enabled' => true,
         'portal_map.max_features' => 1000,
     ]);
 
@@ -71,12 +73,15 @@ it('returns a lightweight resource feature for a published point in the viewport
 
     $this->getJson(route('portal.doi.map', portalMapRequestQuery(['include_extent' => 1])))
         ->assertOk()
-        ->assertJsonPath('schemaVersion', 1)
+        ->assertJsonPath('schemaVersion', 2)
         ->assertJsonCount(1, 'features')
         ->assertJsonPath('features.0.kind', 'resource')
         ->assertJsonPath('features.0.geometry.type', 'point')
         ->assertJsonPath('features.0.resource.title', 'Berlin gravity data')
         ->assertJsonPath('features.0.resource.resourceType.slug', 'dataset')
+        ->assertJsonPath('features.0.resource.presentation.dimension', 'resource-type')
+        ->assertJsonPath('features.0.resource.presentation.key', 'dataset')
+        ->assertJsonPath('meta.visualizationDimension', 'resource-type')
         ->assertJsonPath('meta.visibleLocations', 1)
         ->assertJsonPath('meta.totalLocations', 1)
         ->assertJsonPath('meta.returnedFeatures', 1);
@@ -212,7 +217,113 @@ it('keeps DOI and IGSN map data in their respective portal scopes', function ():
         ->assertOk()
         ->assertJsonCount(1, 'features')
         ->assertJsonPath('meta.visibleLocations', 1)
-        ->assertJsonPath('features.0.resource.resourceType.slug', 'physical-object');
+        ->assertJsonPath('features.0.resource.resourceType.slug', 'physical-object')
+        ->assertJsonPath('features.0.resource.presentation.dimension', 'material')
+        ->assertJsonPath('features.0.resource.presentation.key', 'missing')
+        ->assertJsonPath('meta.visualizationDimension', 'material');
+});
+
+it('returns exact IGSN details and top-level material presentation for a point', function (): void {
+    $sample = createPublishedPortalMapResource($this->physicalObjectType, 'Porewater sample');
+    IgsnMetadata::query()->create([
+        'resource_id' => $sample->id,
+        'sample_type' => 'Individual Sample',
+        'material' => 'Liquid>aqueous>porewater',
+    ]);
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $sample->id]);
+
+    $this->getJson(route('portal.igsn.map', portalMapRequestQuery(['zoom' => 12])))
+        ->assertOk()
+        ->assertJsonPath('schemaVersion', 2)
+        ->assertJsonPath('meta.visualizationDimension', 'material')
+        ->assertJsonPath('features.0.kind', 'resource')
+        ->assertJsonPath('features.0.resource.presentation.dimension', 'material')
+        ->assertJsonPath('features.0.resource.presentation.key', 'liquid')
+        ->assertJsonPath('features.0.resource.presentation.label', 'Liquid')
+        ->assertJsonPath('features.0.resource.presentation.status', 'value')
+        ->assertJsonPath('features.0.resource.igsn.sampleType', 'Individual Sample')
+        ->assertJsonPath('features.0.resource.igsn.material', 'Liquid>aqueous>porewater')
+        ->assertJsonPath('features.0.resource.igsn.materialLabel', 'Liquid › aqueous › porewater');
+});
+
+it('aggregates controlled, missing, not-applicable, and unrecognized IGSN materials', function (): void {
+    $materials = ['Rock', 'Liquid>aqueous', 'NotApplicable', null, 'Legacy material'];
+
+    foreach ($materials as $index => $material) {
+        $sample = createPublishedPortalMapResource($this->physicalObjectType, "Sample {$index}");
+        if ($material !== null) {
+            IgsnMetadata::query()->create([
+                'resource_id' => $sample->id,
+                'sample_type' => 'Individual Sample',
+                'material' => $material,
+            ]);
+        }
+        GeoLocation::factory()->withPoint(13.4 + ($index / 10000), 52.5 + ($index / 10000))->create([
+            'resource_id' => $sample->id,
+        ]);
+    }
+
+    $response = $this->getJson(route('portal.igsn.map', portalMapRequestQuery(['zoom' => 10])))
+        ->assertOk()
+        ->assertJsonCount(1, 'features')
+        ->assertJsonPath('features.0.kind', 'cluster')
+        ->assertJsonPath('features.0.count', 5)
+        ->assertJsonPath('features.0.resourceTypeCounts.physical-object', 5)
+        ->assertJsonPath('features.0.composition.dimension', 'material')
+        ->assertJsonPath('features.0.composition.counts.liquid', 1)
+        ->assertJsonPath('features.0.composition.counts.missing', 1)
+        ->assertJsonPath('features.0.composition.counts.not-applicable', 1)
+        ->assertJsonPath('features.0.composition.counts.rock', 1)
+        ->assertJsonPath('features.0.composition.counts.unrecognized', 1);
+
+    expect(array_sum($response->json('features.0.composition.counts')))->toBe(5);
+});
+
+it('can roll the IGSN map back to the resource-type presentation', function (): void {
+    config(['portal_map.igsn_material_visualization_enabled' => false]);
+    $sample = createPublishedPortalMapResource($this->physicalObjectType, 'Fallback sample');
+    IgsnMetadata::query()->create([
+        'resource_id' => $sample->id,
+        'sample_type' => 'Specimen',
+        'material' => 'Rock',
+    ]);
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $sample->id]);
+
+    $this->getJson(route('portal.igsn.map', portalMapRequestQuery(['zoom' => 12])))
+        ->assertOk()
+        ->assertJsonPath('meta.visualizationDimension', 'resource-type')
+        ->assertJsonPath('features.0.resource.presentation.dimension', 'resource-type')
+        ->assertJsonPath('features.0.resource.presentation.key', 'physical-object')
+        ->assertJsonPath('features.0.resource.igsn', null);
+});
+
+it('applies IGSN metadata filters before building material presentation', function (): void {
+    $rock = createPublishedPortalMapResource($this->physicalObjectType, 'Wanted core');
+    $liquid = createPublishedPortalMapResource($this->physicalObjectType, 'Excluded specimen');
+    IgsnMetadata::query()->create([
+        'resource_id' => $rock->id,
+        'sample_type' => 'Core',
+        'material' => 'Rock',
+    ]);
+    IgsnMetadata::query()->create([
+        'resource_id' => $liquid->id,
+        'sample_type' => 'Specimen',
+        'material' => 'Liquid>aqueous',
+    ]);
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $rock->id]);
+    GeoLocation::factory()->withPoint(13.4001, 52.5001)->create(['resource_id' => $liquid->id]);
+
+    $this->getJson(route('portal.igsn.map', portalMapRequestQuery([
+        'zoom' => 12,
+        'sample_types' => ['Core'],
+        'materials' => ['Rock'],
+    ])))
+        ->assertOk()
+        ->assertJsonPath('meta.visibleLocations', 1)
+        ->assertJsonCount(1, 'features')
+        ->assertJsonPath('features.0.resource.title', 'Wanted core')
+        ->assertJsonPath('features.0.resource.presentation.key', 'rock')
+        ->assertJsonPath('features.0.resource.igsn.sampleType', 'Core');
 });
 
 it('uses the same text and resource-type filters as the result list', function (): void {
