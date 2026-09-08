@@ -27,6 +27,7 @@ export const queryKeys = {
         map: (url: string) => ['portal', 'map', url] as const,
         mapClusterMembers: (url: string) => ['portal', 'map-cluster-members', url] as const,
         keywordSuggestions: (basePath: string, query: string) => ['portal', 'keyword-suggestions', basePath, query] as const,
+        resourcePreview: (basePath: string, resourceId: number) => ['portal', 'resource-preview', basePath, resourceId] as const,
     },
 } as const;
 

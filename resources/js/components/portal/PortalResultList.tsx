@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { PortalPagination, PortalResource } from '@/types/portal';
+import type { PortalBasePath, PortalPagination, PortalResource } from '@/types/portal';
 
 interface PortalResultListProps {
+    basePath: PortalBasePath;
     resources: PortalResource[];
     pagination: PortalPagination;
     onPageChange: (page: number) => void;
@@ -22,6 +23,7 @@ interface PortalResultListProps {
  * Paginated list of portal search results.
  */
 export function PortalResultList({
+    basePath,
     resources,
     pagination,
     onPageChange,
@@ -109,7 +111,7 @@ export function PortalResultList({
             <ScrollArea className="min-h-0 flex-1">
                 <div className={`flex flex-col gap-2 p-4 transition-opacity ${isLoading ? 'opacity-70' : 'opacity-100'}`}>
                     {resources.map((resource) => (
-                        <PortalResultCard key={resource.id} resource={resource} />
+                        <PortalResultCard key={resource.id} resource={resource} basePath={basePath} />
                     ))}
                 </div>
             </ScrollArea>

@@ -155,3 +155,12 @@ export function buildPortalMapClusterMembersUrl(
 
     return `${basePath}/map/clusters/${encodeURIComponent(clusterId)}?${params.toString()}`;
 }
+
+/** Build the on-demand citation and abstract endpoint for one portal result. */
+export function buildPortalResourcePreviewUrl(resourceId: number, basePath: PortalBasePath): string {
+    if (!Number.isSafeInteger(resourceId) || resourceId <= 0) {
+        throw new RangeError('Portal resource IDs must be positive safe integers.');
+    }
+
+    return `${basePath}/resources/${resourceId}/preview`;
+}

@@ -8,7 +8,6 @@ use App\Enums\CacheKey;
 use App\Enums\PortalScope;
 use App\Models\Datacenter;
 use App\Models\DateType;
-use App\Models\Description;
 use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\LandingPage;
@@ -19,14 +18,12 @@ use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
-use App\Support\LanguageTag;
 use App\Support\PortalCacheNamespace;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
 use Closure;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -42,7 +39,6 @@ class PortalSearchService
 
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
-        private readonly LandingPageTemplateResolverService $templateResolver,
         private readonly IgsnMaterialHierarchyService $materialHierarchyService,
     ) {}
 
@@ -104,7 +100,7 @@ class PortalSearchService
      */
     public function search(array $filters = []): LengthAwarePaginator
     {
-        $query = $this->buildQuery($filters, includeAbstractPreview: true);
+        $query = $this->buildQuery($filters);
 
         $perPage = min(
             $filters['per_page'] ?? self::DEFAULT_PER_PAGE,
@@ -128,7 +124,7 @@ class PortalSearchService
      */
     public function simpleSearch(array $filters = []): Paginator
     {
-        $query = $this->buildQuery($filters, includeAbstractPreview: true);
+        $query = $this->buildQuery($filters);
         $perPage = min(
             $filters['per_page'] ?? self::DEFAULT_PER_PAGE,
             self::MAX_PER_PAGE,
@@ -175,7 +171,7 @@ class PortalSearchService
      * }  $filters
      * @return Builder<Resource>
      */
-    private function buildQuery(array $filters, bool $applyBounds = true, bool $includeAbstractPreview = false): Builder
+    private function buildQuery(array $filters, bool $applyBounds = true): Builder
     {
         $query = $this->buildFilteredResourceQuery($filters, $applyBounds)
             ->with([
@@ -184,9 +180,7 @@ class PortalSearchService
                 'resourceType',
                 'language:id,code',
                 'geoLocations',
-                'landingPage.landingPageTemplate',
-                'datacenter.landingPageTemplate',
-                'datacenter.igsnLandingPageTemplate',
+                'landingPage',
             ])
             // Order by actual publication date (when landing page was published)
             // Then by resource creation date as fallback
@@ -196,10 +190,6 @@ class PortalSearchService
                     ->limit(1)
             )
             ->orderByDesc('created_at');
-
-        if ($includeAbstractPreview) {
-            $this->withAbstractPreview($query);
-        }
 
         return $query;
     }
@@ -1205,15 +1195,11 @@ class PortalSearchService
         $geoLocations = $this->formatGeoLocations($resource);
 
         $resourceType = $resource->resourceType;
-        $resolvedTemplate = $resource->landingPage !== null
-            ? $this->templateResolver->forLandingPage($resource, $resource->landingPage)
-            : $this->templateResolver->automatic($resource);
 
         return [
             'id' => $resource->id,
             'doi' => $resource->doi,
             'title' => $mainTitle,
-            'abstract' => $this->extractAbstract($resource),
             'creators' => $creators,
             'year' => $resource->publication_year,
             'resourceType' => $resourceType !== null ? $resourceType->name : 'Unknown',
@@ -1221,7 +1207,6 @@ class PortalSearchService
             'isIgsn' => $resourceType?->slug === 'physical-object',
             'geoLocations' => $geoLocations,
             'landingPageUrl' => $resource->landingPage?->public_url,
-            'citationAuthorDisplayLimit' => (int) $resolvedTemplate['template']->citation_author_display_limit,
         ];
     }
 
@@ -1244,58 +1229,6 @@ class PortalSearchService
         }
 
         return 'Untitled';
-    }
-
-    private function extractAbstract(Resource $resource): ?string
-    {
-        if (! $resource->relationLoaded('descriptions')) {
-            return null;
-        }
-
-        $preferredLanguage = LanguageTag::normalize($resource->language?->code);
-        $abstract = $resource->descriptions
-            ->filter(fn (Description $description): bool => $description->isAbstract())
-            ->sortBy(function (Description $description) use ($preferredLanguage): string {
-                $language = LanguageTag::normalize($description->language);
-                $primaryLanguage = LanguageTag::primarySubtag($language);
-                $rank = match (true) {
-                    $language !== null && $language === $preferredLanguage => 0,
-                    $primaryLanguage === 'en' => 1,
-                    $primaryLanguage === 'de' => 2,
-                    $language !== null => 3,
-                    default => 4,
-                };
-
-                return sprintf('%d-%020d', $rank, $description->id);
-            })
-            ->first();
-
-        if ($abstract === null) {
-            return null;
-        }
-
-        $value = trim((string) $abstract->value);
-
-        return $value !== '' ? $value : null;
-    }
-
-    /**
-     * @param  Builder<Resource>  $query
-     */
-    private function withAbstractPreview(Builder $query): void
-    {
-        $query->with([
-            'descriptions' => function (Relation $descriptionRelation): void {
-                $descriptionQuery = $descriptionRelation->getQuery();
-
-                $descriptionQuery
-                    ->select(['id', 'resource_id', 'value', 'description_type_id', 'language'])
-                    ->whereHas('descriptionType', function (Builder $typeQuery): void {
-                        $typeQuery->where('slug', 'Abstract');
-                    })
-                    ->with(['descriptionType:id,slug']);
-            },
-        ]);
     }
 
     /**

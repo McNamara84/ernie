@@ -248,6 +248,7 @@ export default function Portal({
 
     const results = (
         <PortalResultList
+            basePath={portal.basePath}
             resources={resources}
             pagination={resolvedPagination}
             onPageChange={handlePageChange}

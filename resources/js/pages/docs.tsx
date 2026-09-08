@@ -2056,9 +2056,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             it responsively so author and year metadata stay visible.
                         </p>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Hover a result row with the mouse to open a metadata preview</li>
-                            <li>Tab to a result link to open the same preview from the keyboard</li>
-                            <li>The preview shows the full main title, the full creator list, and the abstract when one is available</li>
+                            <li>Select the small information button on the left of a result to open its details</li>
+                            <li>The button works by mouse, touch, and keyboard; merely hovering over a row no longer opens a preview</li>
+                            <li>The preview loads the APA 7 citation and abstract on demand and lets you copy the citation</li>
                         </ul>
                     </>
                 ),
