@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use App\Enums\CacheKey;
 use App\Services\Assessment\FujiAssessmentRequestLimiterService;
+use Illuminate\Cache\CacheManager;
+use Illuminate\Contracts\Cache\Lock as LockContract;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 
 beforeEach(function (): void {
@@ -56,6 +59,29 @@ test('a global cooldown takes precedence over otherwise available slots', functi
         ->and($clock->reserveSlot())->toBe(30_000);
     $clock->milliseconds += 30_000;
     expect($clock->reserveSlot())->toBe(0);
+});
+
+test('a cooldown lock timeout is treated as a best-effort no-op', function (): void {
+    $lock = Mockery::mock(LockContract::class);
+    $lock->shouldReceive('block')
+        ->once()
+        ->with(5, Mockery::type(Closure::class))
+        ->andThrow(new LockTimeoutException);
+
+    $originalCacheManager = Cache::getFacadeRoot();
+    $cacheManager = Mockery::mock(CacheManager::class, [app()])->makePartial();
+    $cacheManager->shouldReceive('lock')
+        ->once()
+        ->with(CacheKey::FUJI_ASSESSMENT_LIMITER_LOCK->key(), 10)
+        ->andReturn($lock);
+    Cache::swap($cacheManager);
+
+    try {
+        expect(fn () => app(FujiAssessmentRequestLimiterService::class)->imposeCooldown(30))
+            ->not->toThrow(LockTimeoutException::class);
+    } finally {
+        Cache::swap($originalCacheManager);
+    }
 });
 
 test('clearing the limiter removes request history and cooldown', function (): void {

@@ -52,14 +52,18 @@ class FujiAssessmentRequestLimiterService
     {
         $untilMs = $this->nowMs() + (max(1, $seconds) * 1000);
 
-        Cache::lock(CacheKey::FUJI_ASSESSMENT_LIMITER_LOCK->key(), 10)->block(5, function () use ($untilMs): void {
-            $cooldownKey = CacheKey::FUJI_ASSESSMENT_LIMITER_COOLDOWN->key();
-            $current = (int) Cache::get($cooldownKey, 0);
+        try {
+            Cache::lock(CacheKey::FUJI_ASSESSMENT_LIMITER_LOCK->key(), 10)->block(5, function () use ($untilMs): void {
+                $cooldownKey = CacheKey::FUJI_ASSESSMENT_LIMITER_COOLDOWN->key();
+                $current = (int) Cache::get($cooldownKey, 0);
 
-            if ($untilMs > $current) {
-                Cache::put($cooldownKey, $untilMs, now()->addMilliseconds(max(1000, $untilMs - $this->nowMs() + 60_000)));
-            }
-        });
+                if ($untilMs > $current) {
+                    Cache::put($cooldownKey, $untilMs, now()->addMilliseconds(max(1000, $untilMs - $this->nowMs() + 60_000)));
+                }
+            });
+        } catch (LockTimeoutException) {
+            // Another limiter operation holds the lock; the caller still handles the 429 at item level.
+        }
     }
 
     public function clear(): void
