@@ -4,6 +4,33 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
+it('caps the configured portal map zoom at the supported tile limit', function (): void {
+    $previousMaxZoom = $_SERVER['PORTAL_MAP_MAX_ZOOM'] ?? null;
+    $previousShapeDetailZoom = $_SERVER['PORTAL_MAP_SHAPE_DETAIL_ZOOM'] ?? null;
+
+    try {
+        $_SERVER['PORTAL_MAP_MAX_ZOOM'] = '99';
+        $_SERVER['PORTAL_MAP_SHAPE_DETAIL_ZOOM'] = '99';
+
+        $config = require config_path('portal_map.php');
+
+        expect($config['max_zoom'])->toBe(18)
+            ->and($config['shape_detail_zoom'])->toBe(18);
+    } finally {
+        if ($previousMaxZoom === null) {
+            unset($_SERVER['PORTAL_MAP_MAX_ZOOM']);
+        } else {
+            $_SERVER['PORTAL_MAP_MAX_ZOOM'] = $previousMaxZoom;
+        }
+
+        if ($previousShapeDetailZoom === null) {
+            unset($_SERVER['PORTAL_MAP_SHAPE_DETAIL_ZOOM']);
+        } else {
+            $_SERVER['PORTAL_MAP_SHAPE_DETAIL_ZOOM'] = $previousShapeDetailZoom;
+        }
+    }
+});
+
 it('forwards the portal map settings to the app container', function (string $composeFile): void {
     $compose = Yaml::parseFile(base_path($composeFile));
 
