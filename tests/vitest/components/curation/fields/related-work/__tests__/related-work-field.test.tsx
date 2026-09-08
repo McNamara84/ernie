@@ -171,6 +171,10 @@ vi.mock('@/lib/identifier-type-detection', () => ({
 
 const mockDetectIdentifierType = vi.mocked(detectIdentifierType);
 
+async function openFirstRelatedWorkForm(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: /^add related work$/i }));
+}
+
 describe('RelatedWorkField', () => {
     let onChange = vi.fn<(relatedWorks: RelatedIdentifier[]) => void>();
 
@@ -188,11 +192,51 @@ describe('RelatedWorkField', () => {
         vi.useRealTimers();
     });
 
-    it('renders the add form by default', () => {
+    it('renders the empty state with manual and CSV actions by default', () => {
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
+        expect(screen.getByTestId('related-work-empty-state')).toBeInTheDocument();
+        expect(screen.getByText('No related works added')).toBeInTheDocument();
+        expect(screen.getByText('Add relationships to other datasets, publications, or resources.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^add related work$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^import csv$/i })).toBeInTheDocument();
+        expect(screen.queryByTestId('quick-add')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('related-work-list')).not.toBeInTheDocument();
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('opens the quick-add form without creating a related work', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+
+        await openFirstRelatedWorkForm(user);
+
+        expect(screen.queryByTestId('related-work-empty-state')).not.toBeInTheDocument();
         expect(screen.getByTestId('quick-add')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /import from csv/i })).toBeInTheDocument();
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('cancels and resets an unfinished first related work', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+
+        await openFirstRelatedWorkForm(user);
+        await user.type(screen.getByTestId('identifier-input'), 'unfinished-identifier');
+        await user.click(screen.getByTestId('set-url-type'));
+        await user.click(screen.getByTestId('set-references'));
+        await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+        expect(screen.getByTestId('related-work-empty-state')).toBeInTheDocument();
+        expect(screen.queryByTestId('quick-add')).not.toBeInTheDocument();
+        expect(onChange).not.toHaveBeenCalled();
+
+        await openFirstRelatedWorkForm(user);
+
+        expect(screen.getByTestId('identifier-input')).toHaveValue('');
+        expect(screen.getByTestId('identifier-type')).toHaveTextContent('DOI');
+        expect(screen.getByTestId('relation-type')).toHaveTextContent('Cites');
     });
 
     it('renders the list when related works are provided', () => {
@@ -203,14 +247,18 @@ describe('RelatedWorkField', () => {
             />,
         );
 
+        expect(screen.getByTestId('quick-add')).toBeInTheDocument();
         expect(screen.getByTestId('related-work-list')).toBeInTheDocument();
         expect(screen.getByText('10.1234/test')).toBeInTheDocument();
+        expect(screen.queryByTestId('related-work-empty-state')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^cancel$/i })).not.toBeInTheDocument();
     });
 
     it('adds a new related work via the add form', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
+        await openFirstRelatedWorkForm(user);
         await user.type(screen.getByTestId('identifier-input'), '10.1234/new');
         await user.click(screen.getByTestId('add-button'));
 
@@ -230,6 +278,7 @@ describe('RelatedWorkField', () => {
 
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
+        await openFirstRelatedWorkForm(user);
         await user.type(screen.getByTestId('identifier-input'), 'https://example.org/resource');
 
         expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
@@ -241,6 +290,7 @@ describe('RelatedWorkField', () => {
 
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
+        await openFirstRelatedWorkForm(user);
         await user.click(screen.getByTestId('set-url-type'));
         await user.type(screen.getByTestId('identifier-input'), 'ambiguous-identifier');
 
@@ -253,6 +303,7 @@ describe('RelatedWorkField', () => {
 
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
+        await openFirstRelatedWorkForm(user);
         await user.click(screen.getByTestId('set-url-type'));
         await user.type(screen.getByTestId('identifier-input'), 'ambiguous-identifier');
         await user.clear(screen.getByTestId('identifier-input'));
@@ -266,6 +317,7 @@ describe('RelatedWorkField', () => {
 
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} activeIdentifierTypes={['URL']} activeRelationTypes={['References']} />);
 
+        await openFirstRelatedWorkForm(user);
         expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
         expect(screen.getByTestId('relation-type')).toHaveTextContent('References');
 
@@ -280,6 +332,9 @@ describe('RelatedWorkField', () => {
                 position: 0,
             }),
         ]);
+
+        await openFirstRelatedWorkForm(user);
+
         expect(screen.getByTestId('identifier-input')).toHaveValue('');
         expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
         expect(screen.getByTestId('relation-type')).toHaveTextContent('References');
@@ -291,6 +346,7 @@ describe('RelatedWorkField', () => {
 
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} activeIdentifierTypes={['URL']} />);
 
+        await openFirstRelatedWorkForm(user);
         await user.type(screen.getByTestId('identifier-input'), '10.5880/inactive-doi');
 
         expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
@@ -305,6 +361,7 @@ describe('RelatedWorkField', () => {
 
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
+        await openFirstRelatedWorkForm(user);
         await user.type(screen.getByTestId('identifier-input'), '10.1234/new');
         await user.click(screen.getByTestId('add-button'));
 
@@ -330,6 +387,7 @@ describe('RelatedWorkField', () => {
 
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
+        await openFirstRelatedWorkForm(user);
         await user.type(screen.getByTestId('identifier-input'), '10.1234/new');
         await user.click(screen.getByTestId('add-button'));
 
@@ -451,15 +509,25 @@ describe('RelatedWorkField', () => {
 
     it('resets the add-form state after a successful add', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
+        function StatefulField() {
+            const [items, setItems] = useState<RelatedIdentifier[]>([]);
+
+            return <RelatedWorkField relatedWorks={items} onChange={setItems} />;
+        }
+
+        render(<StatefulField />);
+
+        await openFirstRelatedWorkForm(user);
         await user.type(screen.getByTestId('identifier-input'), '10.1234/new');
         await user.click(screen.getByTestId('set-references'));
         await user.click(screen.getByTestId('add-button'));
 
+        expect(screen.getByTestId('related-work-list')).toBeInTheDocument();
         expect(screen.getByTestId('identifier-input')).toHaveValue('');
         expect(screen.getByTestId('relation-type')).toHaveTextContent('Cites');
         expect(screen.getByTestId('identifier-type')).toHaveTextContent('DOI');
+        expect(screen.queryByRole('button', { name: /^cancel$/i })).not.toBeInTheDocument();
     });
 
     it('removes a related work and reindexes positions', async () => {
@@ -481,6 +549,31 @@ describe('RelatedWorkField', () => {
             { identifier: '10.1234/a', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
             { identifier: '10.1234/c', identifier_type: 'DOI', relation_type: 'Describes', position: 1 },
         ]);
+    });
+
+    it('returns to the empty state after the final related work is removed', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        function StatefulField() {
+            const [items, setItems] = useState<RelatedIdentifier[]>([
+                { identifier: '10.1234/only', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
+            ]);
+
+            return <RelatedWorkField relatedWorks={items} onChange={setItems} />;
+        }
+
+        render(<StatefulField />);
+
+        await user.type(screen.getByTestId('identifier-input'), 'unfinished-next-item');
+        await user.click(screen.getByTestId('remove-0'));
+
+        expect(screen.getByTestId('related-work-empty-state')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^add related work$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^import csv$/i })).toBeInTheDocument();
+        expect(screen.queryByTestId('quick-add')).not.toBeInTheDocument();
+
+        await openFirstRelatedWorkForm(user);
+        expect(screen.getByTestId('identifier-input')).toHaveValue('');
     });
 
     it('clears stale citation labels and resolved metadata when an item identifier changes', async () => {
@@ -662,22 +755,62 @@ describe('RelatedWorkField', () => {
         ]);
     });
 
-    it('opens and closes the CSV import flow', async () => {
+    it('opens the CSV import directly from the empty state and returns there when closed', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
-        await user.click(screen.getByRole('button', { name: /import from csv/i }));
+        await user.click(screen.getByRole('button', { name: /^import csv$/i }));
         expect(screen.getByTestId('csv-import')).toBeInTheDocument();
+        expect(screen.queryByTestId('related-work-empty-state')).not.toBeInTheDocument();
 
         await user.click(screen.getByTestId('csv-import-close'));
         expect(screen.queryByTestId('csv-import')).not.toBeInTheDocument();
+        expect(screen.getByTestId('related-work-empty-state')).toBeInTheDocument();
+        expect(screen.queryByTestId('quick-add')).not.toBeInTheDocument();
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('returns to quick add when CSV import is closed after manual entry was started', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+
+        await openFirstRelatedWorkForm(user);
+        await user.type(screen.getByTestId('identifier-input'), 'draft-value');
+        await user.click(screen.getByRole('button', { name: /import from csv/i }));
+        await user.click(screen.getByTestId('csv-import-close'));
+
         expect(screen.getByTestId('quick-add')).toBeInTheDocument();
+        expect(screen.getByTestId('identifier-input')).toHaveValue('draft-value');
+        expect(screen.queryByTestId('related-work-empty-state')).not.toBeInTheDocument();
+    });
+
+    it('switches from direct CSV import to the populated view after a successful import', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        function StatefulField() {
+            const [items, setItems] = useState<RelatedIdentifier[]>([]);
+
+            return <RelatedWorkField relatedWorks={items} onChange={setItems} />;
+        }
+
+        render(<StatefulField />);
+
+        await user.click(screen.getByRole('button', { name: /^import csv$/i }));
+        await user.click(screen.getByTestId('csv-import-submit'));
+
+        expect(screen.queryByTestId('csv-import')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('related-work-empty-state')).not.toBeInTheDocument();
+        expect(screen.getByTestId('quick-add')).toBeInTheDocument();
+        expect(screen.getByTestId('related-work-list')).toBeInTheDocument();
+        expect(screen.getByText('10.1234/csv1')).toBeInTheDocument();
+        expect(screen.getByText('10.1234/csv2')).toBeInTheDocument();
     });
 
     it('skips client-side citation lookups for non-DOI entries', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
+        await openFirstRelatedWorkForm(user);
         await user.type(screen.getByTestId('identifier-input'), 'https://example.org/documentation');
         await user.click(screen.getByTestId('set-url-type'));
         await user.click(screen.getByTestId('add-button'));
@@ -689,6 +822,7 @@ describe('RelatedWorkField', () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
+        await openFirstRelatedWorkForm(user);
         await user.type(screen.getByTestId('identifier-input'), '10.1234/manual-citation');
         await user.click(screen.getByTestId('add-with-manual-citation'));
 
@@ -794,6 +928,7 @@ describe('RelatedWorkField', () => {
 
         render(<StatefulField />);
 
+        await openFirstRelatedWorkForm(user);
         await user.type(screen.getByTestId('identifier-input'), '10.1234/pending');
         await user.click(screen.getByTestId('add-button'));
         await user.click(screen.getByTestId('remove-0'));
@@ -805,6 +940,7 @@ describe('RelatedWorkField', () => {
         });
 
         expect(screen.queryByTestId('related-work-list')).not.toBeInTheDocument();
+        expect(screen.getByTestId('related-work-empty-state')).toBeInTheDocument();
         expect(screen.queryByText('Deferred citation')).not.toBeInTheDocument();
     });
 });
