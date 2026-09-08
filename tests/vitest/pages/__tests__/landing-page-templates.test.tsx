@@ -494,8 +494,9 @@ describe('LandingPageTemplatesPage', () => {
                 expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', {
                     name: 'Assigned Template',
                     template_type: 'resource',
-                    datacenter_ids: [11, 10],
+                    datacenter_ids: expect.arrayContaining([10, 11]),
                 });
+                expect(mockedAxiosPost.mock.calls.at(-1)?.[1]?.datacenter_ids).toHaveLength(2);
                 expect(routerMock.reload).toHaveBeenCalledWith({ only: ['templates', 'datacenters'] });
             });
         });

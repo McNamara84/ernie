@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\Datacenter;
 use App\Models\LandingPageTemplate;
 use App\Observers\DatacenterLandingPageTemplateAssignmentObserver;
+use Illuminate\Support\Facades\Schema;
 
 covers(DatacenterLandingPageTemplateAssignmentObserver::class);
 
@@ -61,4 +62,30 @@ it('restores both copy templates when an existing datacenter is saved without as
 
     expect($datacenter->landing_page_template_id)->toBe($defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id)
         ->and($datacenter->igsn_landing_page_template_id)->toBe($defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]->id);
+});
+
+it('checks each assignment column only once per process', function (): void {
+    $columnCache = new ReflectionProperty(DatacenterLandingPageTemplateAssignmentObserver::class, 'existingColumns');
+    $columnCache->setValue(null, []);
+
+    Schema::shouldReceive('hasColumn')
+        ->once()
+        ->with('datacenters', 'landing_page_template_id')
+        ->andReturnTrue();
+    Schema::shouldReceive('hasColumn')
+        ->once()
+        ->with('datacenters', 'igsn_landing_page_template_id')
+        ->andReturnTrue();
+
+    $observer = new DatacenterLandingPageTemplateAssignmentObserver;
+    $first = new Datacenter(['name' => 'First datacenter']);
+    $second = new Datacenter(['name' => 'Second datacenter']);
+
+    $observer->saving($first);
+    $observer->saving($second);
+
+    expect($first->landing_page_template_id)->not->toBeNull()
+        ->and($first->igsn_landing_page_template_id)->not->toBeNull()
+        ->and($second->landing_page_template_id)->toBe($first->landing_page_template_id)
+        ->and($second->igsn_landing_page_template_id)->toBe($first->igsn_landing_page_template_id);
 });
