@@ -11,7 +11,9 @@ FUJI_ENABLED=true docker compose -f docker-compose.stage.yml --profile assessmen
 FUJI_ENABLED=true docker compose -f docker-compose.prod.yml --profile assessment up -d
 ```
 
-Without `--profile assessment`, Compose does not create the F-UJI container. Setting `FUJI_ENABLED=true` without starting the profile leaves the application configured for an unavailable service and is therefore not a valid deployment configuration.
+The profile creates both F-UJI and two dedicated `assessment-queue` workers. Without `--profile assessment`, Compose creates neither service. Setting `FUJI_ENABLED=true` without starting the profile leaves the application configured for an unavailable service and its persistent assessment queue without consumers, so it is not a valid deployment configuration.
+
+The workers process one resource per job and share a Redis-backed limiter. The conservative defaults are concurrency `2`, at most `80` request starts per rolling minute, and at least `750` ms between starts. `FUJI_ASSESSMENT_ITEM_TIMEOUT=150` must remain above the F-UJI HTTP timeout; `FUJI_ASSESSMENT_LEASE_SECONDS=210` and `FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=210` must remain above the item timeout. Validate F-UJI latency, 429 responses, errors, CPU, and memory on Stage before changing these values. Reduce concurrency to `1` first when F-UJI is under pressure.
 
 ## Initial runtime budgets
 

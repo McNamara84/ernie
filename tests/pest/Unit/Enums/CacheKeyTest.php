@@ -16,6 +16,10 @@ it('generates correct cache keys without suffix', function () {
     expect(CacheKey::GCMD_SCIENCE_KEYWORDS->key())->toBe('vocabularies:gcmd:science_keywords');
     expect(CacheKey::RAID_PROJECTS->key())->toBe('vocabularies:raid:projects');
     expect(CacheKey::ROR_AFFILIATION->key())->toBe('ror:affiliation');
+    expect(CacheKey::ASSESSMENT_RUN_START_LOCK->key('resource'))->toBe('assessment:run:start:resource');
+    expect(CacheKey::FUJI_ASSESSMENT_LIMITER_HISTORY->key())->toBe('fuji:assessment:request-history-ms');
+    expect(CacheKey::FUJI_ASSESSMENT_LIMITER_COOLDOWN->key())->toBe('fuji:assessment:cooldown-until-ms');
+    expect(CacheKey::FUJI_ASSESSMENT_LIMITER_LOCK->key())->toBe('fuji:assessment:request-limiter-lock');
 });
 
 it('generates correct cache keys with string suffix', function () {
@@ -131,7 +135,11 @@ it('returns correct tags for public page payload caches', function () {
 });
 
 it('returns correct tags for assessment summary metrics', function () {
-    expect(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->tags())->toBe(['assessments']);
+    expect(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->tags())->toBe(['assessments'])
+        ->and(CacheKey::ASSESSMENT_RUN_START_LOCK->tags())->toBe([])
+        ->and(CacheKey::FUJI_ASSESSMENT_LIMITER_HISTORY->tags())->toBe([])
+        ->and(CacheKey::FUJI_ASSESSMENT_LIMITER_COOLDOWN->tags())->toBe([])
+        ->and(CacheKey::FUJI_ASSESSMENT_LIMITER_LOCK->tags())->toBe([]);
 });
 
 it('all cache keys have unique values', function () {

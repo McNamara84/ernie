@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Assessment;
 
+use App\Exceptions\FujiAssessmentException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -87,7 +88,7 @@ class FujiAssessmentService
     public function assessIdentifier(string $identifier): array
     {
         if (! $this->isConfigured()) {
-            throw new RuntimeException('F-UJI is not configured.');
+            throw new FujiAssessmentException('F-UJI is not configured.', retryable: false);
         }
 
         try {
@@ -98,17 +99,22 @@ class FujiAssessmentService
         } catch (ConnectionException $exception) {
             $this->logAssessmentTransportFailureOnce($exception, $identifier);
 
-            throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
+            throw new FujiAssessmentException(self::UNAVAILABLE_MESSAGE, retryable: true, previous: $exception);
         } catch (\Throwable $exception) {
             $this->logAssessmentTransportFailureOnce($exception, $identifier);
 
-            throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
+            throw new FujiAssessmentException(self::UNAVAILABLE_MESSAGE, retryable: true, previous: $exception);
         }
 
         if (! $response->successful()) {
             $this->logAssessmentUnsuccessfulResponseOnce($response, $identifier);
 
-            throw new RuntimeException(self::UNAVAILABLE_MESSAGE);
+            throw new FujiAssessmentException(
+                self::UNAVAILABLE_MESSAGE,
+                retryable: $response->status() === 429 || $response->serverError(),
+                httpStatus: $response->status(),
+                retryAfterSeconds: $this->retryAfterSeconds($response),
+            );
         }
 
         try {
@@ -129,7 +135,12 @@ class FujiAssessmentService
         } catch (\Throwable $exception) {
             $this->logAssessmentInvalidPayloadOnce($response, $identifier, $exception);
 
-            throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
+            throw new FujiAssessmentException(
+                self::UNAVAILABLE_MESSAGE,
+                retryable: true,
+                httpStatus: $response->status(),
+                previous: $exception,
+            );
         }
 
         return [
@@ -206,6 +217,26 @@ class FujiAssessmentService
     private function connectTimeout(): int
     {
         return max(1, (int) Config::get('fuji.connect_timeout', 10));
+    }
+
+    private function retryAfterSeconds(Response $response): ?int
+    {
+        if ($response->status() !== 429 && ! $response->serverError()) {
+            return null;
+        }
+
+        $header = trim((string) $response->header('Retry-After'));
+        if ($header === '') {
+            return null;
+        }
+
+        if (ctype_digit($header)) {
+            return max(1, (int) $header);
+        }
+
+        $timestamp = strtotime($header);
+
+        return $timestamp === false ? null : max(1, $timestamp - time());
     }
 
     private function baseRequest(): PendingRequest

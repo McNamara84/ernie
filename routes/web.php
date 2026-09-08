@@ -280,11 +280,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             Route::post('assessment/check-igsns', [AssessmentController::class, 'checkIgsns'])
                 ->name('assessment.check-igsns');
+
+            Route::post('assessment/check/{scope}/{jobId}/resume', [AssessmentController::class, 'resume'])
+                ->where('scope', 'resource|igsn')
+                ->whereUuid('jobId')
+                ->name('assessment.resume');
+
+            Route::delete('assessment/check/{scope}/{jobId}', [AssessmentController::class, 'cancel'])
+                ->where('scope', 'resource|igsn')
+                ->whereUuid('jobId')
+                ->name('assessment.cancel');
         });
 
         Route::get('assessment/check/{scope}/{jobId}/status', [AssessmentController::class, 'status'])
             ->where('scope', 'resource|igsn')
-            ->where('jobId', '[a-f0-9-]{36}')
+            ->whereUuid('jobId')
             ->name('assessment.status');
     });
 

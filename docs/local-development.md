@@ -13,8 +13,8 @@ Host-side frontend commands require local `node_modules` in the repository check
 | Mode               | Purpose                                                                                                                                                   | Command                         |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
 | Fast Mode          | Start the core development stack only                                                                                                                     | `npm run docker:dev:up`         |
-| Assessment profile | Start the stack with the F-UJI container for assessment work; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use it                      | `npm run docker:dev:assessment` |
-| Parity profile     | Start the stack with the parity profile, which currently adds the F-UJI container; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use it | `npm run docker:dev:parity`     |
+| Assessment profile | Start F-UJI and the dedicated persistent assessment workers; also set `FUJI_ENABLED=true` in `.env.docker`                                         | `npm run docker:dev:assessment` |
+| Parity profile     | Start the parity stack including F-UJI and the dedicated persistent assessment workers; also set `FUJI_ENABLED=true` in `.env.docker`                | `npm run docker:dev:parity`     |
 
 Fast Mode is the default because it keeps the profile-gated F-UJI service out of the normal startup path.
 
@@ -124,8 +124,8 @@ The scheduler waits for the application and database to become healthy, refreshe
 
 Optional profiles:
 
-- `assessment` starts the F-UJI container; set `FUJI_ENABLED=true` in `.env.docker` when the app should use it
-- `parity` currently starts the same F-UJI container under the parity profile; set `FUJI_ENABLED=true` in `.env.docker` when the app should use it
+- `assessment` starts F-UJI plus the dedicated `assessment-queue` workers; set `FUJI_ENABLED=true` in `.env.docker` when the app should use it
+- `parity` starts the same assessment services together with the parity profile; set `FUJI_ENABLED=true` in `.env.docker` when the app should use it
 
 Common startup commands:
 
@@ -133,6 +133,25 @@ Common startup commands:
 npm run docker:dev:up
 npm run docker:dev:assessment
 npm run docker:dev:parity
+```
+
+### Persistent FAIR assessment queue
+
+Resource and IGSN assessments use database-backed runs and one short queue job per resource. Closing the browser, restarting a worker, or deploying the application therefore does not discard the run snapshot or its progress. Opening `/assessment` again reconnects to an active run; pressing `Check` while a run is active returns that same run, and a paused run is resumed instead of replaced.
+
+The assessment profile starts two `assessment-queue` workers by default. Their shared Redis limiter permits at most 80 F-UJI requests per rolling 60-second window and spaces request starts by at least 750 ms. These defaults leave headroom below the local F-UJI limit of 100 requests per minute. To diagnose pressure, reduce `FUJI_ASSESSMENT_CONCURRENCY` to `1` before increasing any request limits.
+
+The relevant settings are documented in `.env.docker.example`. Keep these relationships intact when changing them:
+
+- `FUJI_ASSESSMENT_ITEM_TIMEOUT` must remain higher than `FUJI_TIMEOUT`.
+- `FUJI_ASSESSMENT_LEASE_SECONDS` and `FUJI_ASSESSMENT_QUEUE_RETRY_AFTER` must remain higher than the item timeout.
+- `FUJI_ASSESSMENT_QUEUE_CONNECTION` must use a persistent driver; `sync` and `null` are rejected.
+- Every web and assessment-worker process must use the same Redis cache so request limiting and start locks are shared.
+
+For a one-worker local load comparison, run:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml --profile assessment up --build --scale assessment-queue=1
 ```
 
 ## Command Reference

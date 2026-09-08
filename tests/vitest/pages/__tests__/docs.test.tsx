@@ -430,7 +430,11 @@ describe('Docs page', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         expect(screen.getByText('Start a check')).toBeInTheDocument();
+        expect(screen.getByText('Monitor progress')).toBeInTheDocument();
+        expect(screen.getByText('Resume or cancel a paused run')).toBeInTheDocument();
         expect(screen.getByText(/These actions are available only to Admins and Group Leaders/)).toBeInTheDocument();
+        expect(screen.getByText(/returning to Assessment reconnects to the same progress automatically/)).toBeInTheDocument();
+        expect(screen.getByText(/apply the current service settings and continue the same snapshot/)).toBeInTheDocument();
         expect(
             screen.getByText((_, element) => {
                 if (element?.tagName !== 'P') {

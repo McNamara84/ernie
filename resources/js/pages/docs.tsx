@@ -1045,13 +1045,26 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <WorkflowSteps.Step number={1} title="Start a check">
                                     <p>
                                         Use <strong>Check Resources</strong>, <strong>Check IGSNs</strong>, or <strong>Check all</strong> to enqueue
-                                        new FAIR assessments. These actions are available only to Admins and Group Leaders.
+                                        new FAIR assessments. ERNIE first persists the run and prepares its Resource snapshot in the background. These
+                                        actions are available only to Admins and Group Leaders.
                                     </p>
                                 </WorkflowSteps.Step>
                                 <WorkflowSteps.Step number={2} title="Monitor progress">
-                                    <p>The page polls the queue status and shows progress messages while each scope is running.</p>
+                                    <p>
+                                        The page polls the persisted run and shows progress while each scope is running. Reloading the page,
+                                        navigating away, or restarting a queue worker does not lose the run; returning to Assessment reconnects to the
+                                        same progress automatically.
+                                    </p>
                                 </WorkflowSteps.Step>
-                                <WorkflowSteps.Step number={3} title="Review the worst scores">
+                                <WorkflowSteps.Step number={3} title="Resume or cancel a paused run">
+                                    <p>
+                                        If an infrastructure error or changed FAIR assessment service configuration pauses a run, the error remains
+                                        visible with the stored progress. Use <strong>Resume Resources</strong> or <strong>Resume IGSNs</strong> to
+                                        apply the current service settings and continue the same snapshot, or cancel the run to release that scope for
+                                        a fresh check.
+                                    </p>
+                                </WorkflowSteps.Step>
+                                <WorkflowSteps.Step number={4} title="Review the worst scores">
                                     <p>
                                         After completion, the page refreshes automatically and lists the weakest FAIR scores first so you can focus
                                         curation work where it has the biggest impact.

@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\FujiAssessmentException;
 use App\Services\Assessment\FujiAssessmentService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use PHPUnit\Framework\Assert;
 
 covers(FujiAssessmentService::class);
 
@@ -231,6 +233,32 @@ describe('assessIdentifier', function (): void {
                 && str_contains($context['body'], 'Unavailable')
             );
     });
+
+    it('classifies HTTP failures for persistent queue retry decisions', function (int $status, bool $retryable, ?int $retryAfter): void {
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response(
+                ['error' => 'Unavailable'],
+                $status,
+                $retryAfter === null ? [] : ['Retry-After' => (string) $retryAfter],
+            ),
+        ]);
+
+        try {
+            makeFujiAssessmentService()->assessIdentifier('10.5880/test.001');
+        } catch (FujiAssessmentException $exception) {
+            expect($exception->retryable)->toBe($retryable)
+                ->and($exception->httpStatus)->toBe($status)
+                ->and($exception->retryAfterSeconds)->toBe($retryAfter);
+
+            return;
+        }
+
+        Assert::fail('Expected a typed F-UJI assessment exception.');
+    })->with([
+        'rate limit with Retry-After' => [429, true, 30],
+        'server error' => [503, true, null],
+        'permanent client error' => [400, false, null],
+    ]);
 
     it('throws a generic availability message when the F-UJI request cannot connect and logs the transport details once', function (): void {
         Log::spy();

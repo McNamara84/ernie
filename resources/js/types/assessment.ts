@@ -57,7 +57,9 @@ export interface AssessmentSummary {
 }
 
 export interface AssessmentJobStatus {
-    status: 'queued' | 'running' | 'completed' | 'failed' | 'unknown';
+    jobId?: string;
+    scope?: AssessmentScope;
+    status: 'preparing' | 'queued' | 'running' | 'paused' | 'cancel_requested' | 'cancelled' | 'completed' | 'failed' | 'unknown';
     progress: string;
     error?: string;
     totalResources?: number;
@@ -65,6 +67,11 @@ export interface AssessmentJobStatus {
     assessedResources?: number;
     failedResources?: number;
     skippedResources?: number;
+    pendingResources?: number;
+    startedAt?: string | null;
+    pausedAt?: string | null;
+    completedAt?: string | null;
+    updatedAt?: string | null;
 }
 
 export interface AssessmentPageProps {
@@ -83,4 +90,6 @@ export interface AssessmentPageProps {
     igsnsNeedingAttention: AssessmentEntry[];
     resourceAssessmentSummary: AssessmentSummary;
     igsnAssessmentSummary: AssessmentSummary;
+    resourceAssessmentRun?: AssessmentJobStatus | null;
+    igsnAssessmentRun?: AssessmentJobStatus | null;
 }

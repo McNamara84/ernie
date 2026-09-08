@@ -65,6 +65,9 @@ test.describe('Related Work Identifier Type Detection', () => {
 
         const listbox = page.getByRole('listbox');
         await expect(listbox).toBeVisible();
+        await listbox.evaluate(async (element) => {
+            await Promise.allSettled(element.getAnimations({ subtree: true }).map((animation) => animation.finished));
+        });
         const before = await listbox.boundingBox();
         expect(before).not.toBeNull();
 
@@ -90,6 +93,9 @@ test.describe('Related Work Identifier Type Detection', () => {
 
         const resourceTypeListbox = page.getByRole('listbox');
         await expect(resourceTypeListbox).toBeVisible();
+        await resourceTypeListbox.evaluate(async (element) => {
+            await Promise.allSettled(element.getAnimations({ subtree: true }).map((animation) => animation.finished));
+        });
         const resourceTypeBounds = await resourceTypeListbox.boundingBox();
         expect(resourceTypeBounds).not.toBeNull();
         expect((resourceTypeBounds?.y ?? 0) + (resourceTypeBounds?.height ?? 0)).toBeLessThanOrEqual(676);

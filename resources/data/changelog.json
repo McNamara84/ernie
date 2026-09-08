@@ -39,6 +39,10 @@
         ],
         "fixes": [
             {
+                "title": "Resumable FAIR Assessment Runs",
+                "description": "Resource and IGSN assessments now prepare persistent snapshots in resumable background chunks and use short, idempotent per-resource jobs instead of one time-limited queue job. Browser reloads, worker restarts, deployments, transient F-UJI failures, and rate limits no longer discard progress; paused runs can continue with current service settings or be cancelled to release their scope, while dedicated workers, bounded retries, shared request limiting, and persistent progress details keep every remaining resource traceable until completion."
+            },
+            {
                 "title": "Single Funding Reference Add Action",
                 "description": "The Data Editor now shows one clear Add Funding Reference action when the section is empty instead of displaying the same prompt twice. The empty-state action creates the first reference, while a single list-level button remains available for adding further references."
             },

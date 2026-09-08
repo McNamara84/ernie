@@ -32,7 +32,19 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 type ScopeState = {
     isChecking: boolean;
+    isCancelling: boolean;
     progress: string;
+    status?: AssessmentJobStatus['status'];
+    jobId?: string;
+    error?: string;
+    totalResources?: number;
+    processedResources?: number;
+    assessedResources?: number;
+    failedResources?: number;
+    skippedResources?: number;
+    pendingResources?: number;
+    startedAt?: string | null;
+    updatedAt?: string | null;
 };
 
 const RELOAD_KEYS = [
@@ -41,6 +53,8 @@ const RELOAD_KEYS = [
     'resourceAssessmentSummary',
     'igsnAssessmentSummary',
     'datacenterOptions',
+    'resourceAssessmentRun',
+    'igsnAssessmentRun',
 ] as const;
 
 const ENDPOINTS: Record<AssessmentScope, string> = {
@@ -91,6 +105,88 @@ function summaryText(summary: AssessmentSummary): string {
 
 function assessmentLabel(scope: AssessmentScope): string {
     return scope === 'resource' ? 'resource assessments' : 'IGSN assessments';
+}
+
+function isActiveAssessmentStatus(status: AssessmentJobStatus['status']): boolean {
+    return ['preparing', 'queued', 'running', 'cancel_requested'].includes(status);
+}
+
+function isCancellableAssessmentStatus(status?: AssessmentJobStatus['status']): boolean {
+    return status !== undefined && ['preparing', 'queued', 'running', 'paused', 'cancel_requested'].includes(status);
+}
+
+function initialScopeState(run?: AssessmentJobStatus | null): ScopeState {
+    if (run === null || run === undefined) {
+        return { isChecking: false, isCancelling: false, progress: '' };
+    }
+
+    const isChecking = isActiveAssessmentStatus(run.status);
+
+    return {
+        isChecking,
+        isCancelling: false,
+        progress: run.status === 'unknown' ? '' : run.progress,
+        status: run.status,
+        jobId: run.jobId,
+        error: run.error,
+        totalResources: run.totalResources,
+        processedResources: run.processedResources,
+        assessedResources: run.assessedResources,
+        failedResources: run.failedResources,
+        skippedResources: run.skippedResources,
+        pendingResources: run.pendingResources,
+        startedAt: run.startedAt,
+        updatedAt: run.updatedAt,
+    };
+}
+
+function assessmentProgressFallback(scope: AssessmentScope, status: AssessmentJobStatus['status']): string {
+    const label = scopeLabel(scope);
+
+    switch (status) {
+        case 'preparing':
+            return `${label} assessment is being prepared.`;
+        case 'queued':
+            return `${label} assessment is waiting to start.`;
+        case 'running':
+            return `Assessing ${scopeNoun(scope)}...`;
+        case 'paused':
+            return `${label} assessment paused.`;
+        case 'cancel_requested':
+            return `${label} assessment cancellation requested.`;
+        case 'cancelled':
+            return `${label} assessment cancelled.`;
+        case 'completed':
+            return `${label} assessment completed.`;
+        case 'failed':
+            return `${label} assessment failed.`;
+        case 'unknown':
+            return '';
+    }
+}
+
+function stateFromStatus(status: Partial<AssessmentJobStatus>, jobId: string, scope: AssessmentScope): ScopeState {
+    const normalizedRunStatus = status.status ?? 'queued';
+    const normalizedStatus: AssessmentJobStatus = {
+        ...status,
+        jobId,
+        status: normalizedRunStatus,
+        progress:
+            typeof status.progress === 'string' && status.progress.trim() !== ''
+                ? userFacingAssessmentMessage(status.progress)
+                : assessmentProgressFallback(scope, normalizedRunStatus),
+    };
+
+    return {
+        ...initialScopeState(normalizedStatus),
+        jobId,
+    };
+}
+
+function formatRunTime(value: string): string {
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
 function hasCuratorAction(entry: AssessmentEntry): boolean {
@@ -240,19 +336,34 @@ export default function Assessment({
     igsnsNeedingAttention,
     resourceAssessmentSummary,
     igsnAssessmentSummary,
+    resourceAssessmentRun = null,
+    igsnAssessmentRun = null,
 }: AssessmentPageProps) {
     const [states, setStates] = useState<Record<AssessmentScope, ScopeState>>({
-        resource: { isChecking: false, progress: '' },
-        igsn: { isChecking: false, progress: '' },
+        resource: initialScopeState(resourceAssessmentRun),
+        igsn: initialScopeState(igsnAssessmentRun),
     });
     const fujiConfiguredForActions = fujiConfigured;
     const pollingRefs = useRef<Record<AssessmentScope, ReturnType<typeof setTimeout> | null>>({
         resource: null,
         igsn: null,
     });
+    const startPollingRef = useRef<(scope: AssessmentScope, jobId: string) => void>(() => undefined);
 
     useEffect(() => {
         const timers = pollingRefs.current;
+        const initialRuns: Record<AssessmentScope, AssessmentJobStatus | null> = {
+            resource: resourceAssessmentRun,
+            igsn: igsnAssessmentRun,
+        };
+
+        for (const scope of Object.keys(initialRuns) as AssessmentScope[]) {
+            const run = initialRuns[scope];
+
+            if (run?.jobId && isActiveAssessmentStatus(run.status)) {
+                startPollingRef.current(scope, run.jobId);
+            }
+        }
 
         return () => {
             for (const scope of Object.keys(timers) as AssessmentScope[]) {
@@ -261,7 +372,7 @@ export default function Assessment({
                 }
             }
         };
-    }, []);
+    }, [igsnAssessmentRun, resourceAssessmentRun]);
 
     function patchState(scope: AssessmentScope, patch: Partial<ScopeState>) {
         setStates((current) => ({
@@ -285,29 +396,38 @@ export default function Assessment({
 
         const pollStatus = async () => {
             try {
-                const { data } = await axios.get<AssessmentJobStatus>(`/assessment/check/${scope}/${jobId}/status`);
+                const { data } = await axios.get<Partial<AssessmentJobStatus>>(`/assessment/check/${scope}/${jobId}/status`);
 
                 if (data.status === 'completed') {
                     stopPolling(scope);
-                    patchState(scope, { isChecking: false, progress: '' });
-                    toast.success(`${scopeLabel(scope)} assessment completed.`);
+                    patchState(scope, stateFromStatus(data, jobId, scope));
+                    if ((data.failedResources ?? 0) > 0) {
+                        toast.warning(`${scopeLabel(scope)} assessment completed with ${data.failedResources} failed resources.`);
+                    } else {
+                        toast.success(`${scopeLabel(scope)} assessment completed.`);
+                    }
                     router.reload({ only: [...RELOAD_KEYS] });
 
                     return;
                 }
 
-                if (data.status === 'failed') {
+                if (data.status === 'failed' || data.status === 'paused' || data.status === 'cancelled') {
                     stopPolling(scope);
-                    patchState(scope, { isChecking: false, progress: '' });
-                    toast.error(userFacingAssessmentMessage(data.error ?? `${scopeLabel(scope)} assessment failed.`));
+                    patchState(scope, stateFromStatus(data, jobId, scope));
+                    router.reload({ only: [...RELOAD_KEYS] });
+
+                    if (data.status === 'paused') {
+                        toast.warning(userFacingAssessmentMessage(data.error ?? `${scopeLabel(scope)} assessment paused.`));
+                    } else if (data.status === 'failed') {
+                        toast.error(userFacingAssessmentMessage(data.error ?? `${scopeLabel(scope)} assessment failed.`));
+                    } else {
+                        toast.warning(`${scopeLabel(scope)} assessment cancelled.`);
+                    }
 
                     return;
                 }
 
-                patchState(scope, {
-                    isChecking: true,
-                    progress: userFacingAssessmentMessage(data.progress),
-                });
+                patchState(scope, stateFromStatus(data, jobId, scope));
 
                 pollingRefs.current[scope] = setTimeout(pollStatus, 3000);
             } catch (error) {
@@ -327,12 +447,18 @@ export default function Assessment({
         pollingRefs.current[scope] = setTimeout(pollStatus, 3000);
     }
 
+    startPollingRef.current = startPolling;
+
     async function handleCheck(scope: AssessmentScope) {
         patchState(scope, { isChecking: true, progress: `${scopeLabel(scope)} assessment is waiting to start.` });
         stopPolling(scope);
 
         try {
-            const { data } = await axios.post<{ jobId: string }>(ENDPOINTS[scope]);
+            const currentState = states[scope];
+            const endpoint =
+                currentState.status === 'paused' && currentState.jobId ? `/assessment/check/${scope}/${currentState.jobId}/resume` : ENDPOINTS[scope];
+            const { data } = await axios.post<AssessmentJobStatus & { jobId: string }>(endpoint);
+            patchState(scope, stateFromStatus(data, data.jobId, scope));
             startPolling(scope, data.jobId);
         } catch (error) {
             patchState(scope, { isChecking: false, progress: '' });
@@ -353,6 +479,26 @@ export default function Assessment({
         }
     }
 
+    async function handleCancel(scope: AssessmentScope) {
+        const jobId = states[scope].jobId;
+        if (!jobId) {
+            return;
+        }
+
+        patchState(scope, { isCancelling: true });
+        stopPolling(scope);
+
+        try {
+            const { data } = await axios.delete<AssessmentJobStatus>(`/assessment/check/${scope}/${jobId}`);
+            patchState(scope, stateFromStatus(data, jobId, scope));
+            router.reload({ only: [...RELOAD_KEYS] });
+            toast.warning(`${scopeLabel(scope)} assessment cancelled.`);
+        } catch (error) {
+            patchState(scope, { isCancelling: false });
+            toast.error(getAssessmentErrorMessage(error, `Failed to cancel ${scopeLabel(scope)} assessment.`));
+        }
+    }
+
     async function handleCheckAll() {
         for (const scope of ['resource', 'igsn'] as AssessmentScope[]) {
             patchState(scope, { isChecking: true, progress: `${scopeLabel(scope)} assessment is waiting to start.` });
@@ -367,6 +513,7 @@ export default function Assessment({
                 const error = data[`${scope}Error`];
 
                 if (jobId) {
+                    patchState(scope, { jobId });
                     startPolling(scope, jobId);
 
                     continue;
@@ -436,6 +583,7 @@ export default function Assessment({
     }
 
     const isAnyChecking = states.resource.isChecking || states.igsn.isChecking;
+    const isAnyCancelling = states.resource.isCancelling || states.igsn.isCancelling;
     const hasActiveFilters = filters.doi !== null || filters.datacenter_id !== null;
     const fujiAvailabilityMessage = !fujiConfigured
         ? 'The FAIR assessment service is not configured for this environment.'
@@ -464,7 +612,7 @@ export default function Assessment({
                     </div>
 
                     {canRunAssessments && (
-                        <LoadingButton onClick={handleCheckAll} disabled={!fujiConfiguredForActions} loading={isAnyChecking}>
+                        <LoadingButton onClick={handleCheckAll} disabled={!fujiConfiguredForActions || isAnyCancelling} loading={isAnyChecking}>
                             {isAnyChecking ? (
                                 'Checking...'
                             ) : (
@@ -489,14 +637,52 @@ export default function Assessment({
                 {(['resource', 'igsn'] as AssessmentScope[]).map((scope) => {
                     const state = states[scope];
 
-                    if (!state.isChecking || state.progress === '') {
+                    if (state.progress === '') {
                         return null;
                     }
 
                     return (
-                        <div key={scope} className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
-                            <Spinner size="sm" />
-                            <span>{state.progress}</span>
+                        <div key={scope} className="flex items-start gap-3 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
+                            {state.isChecking && <Spinner size="sm" className="mt-0.5" />}
+                            <div className="min-w-0 flex-1 space-y-1">
+                                <p>{state.progress}</p>
+                                {state.totalResources !== undefined && (
+                                    <p className="text-xs">
+                                        {state.processedResources ?? 0}/{state.totalResources} processed; {state.assessedResources ?? 0} assessed,{' '}
+                                        {state.failedResources ?? 0} failed, {state.skippedResources ?? 0} skipped, {state.pendingResources ?? 0}{' '}
+                                        pending.
+                                    </p>
+                                )}
+                                {state.error && state.error !== state.progress && (
+                                    <p className="text-xs">{userFacingAssessmentMessage(state.error)}</p>
+                                )}
+                                {(state.startedAt || state.updatedAt) && (
+                                    <p className="text-xs">
+                                        {state.startedAt && (
+                                            <>
+                                                Started <time dateTime={state.startedAt}>{formatRunTime(state.startedAt)}</time>
+                                            </>
+                                        )}
+                                        {state.startedAt && state.updatedAt && ' · '}
+                                        {state.updatedAt && (
+                                            <>
+                                                Updated <time dateTime={state.updatedAt}>{formatRunTime(state.updatedAt)}</time>
+                                            </>
+                                        )}
+                                    </p>
+                                )}
+                            </div>
+                            {canRunAssessments && state.jobId && isCancellableAssessmentStatus(state.status) && (
+                                <LoadingButton
+                                    variant="outline"
+                                    size="sm"
+                                    loading={state.isCancelling}
+                                    disabled={state.isCancelling}
+                                    onClick={() => handleCancel(scope)}
+                                >
+                                    {state.isCancelling ? 'Cancelling...' : `Cancel ${scopeLabel(scope)}`}
+                                </LoadingButton>
+                            )}
                         </div>
                     );
                 })}
@@ -535,10 +721,14 @@ export default function Assessment({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleCheck('resource')}
-                                    disabled={!fujiConfiguredForActions}
+                                    disabled={!fujiConfiguredForActions || states.resource.isCancelling}
                                     loading={states.resource.isChecking}
                                 >
-                                    {states.resource.isChecking ? 'Checking...' : 'Check Resources'}
+                                    {states.resource.isChecking
+                                        ? 'Checking...'
+                                        : states.resource.status === 'paused'
+                                          ? 'Resume Resources'
+                                          : 'Check Resources'}
                                 </LoadingButton>
                             )}
                         </CardHeader>
@@ -566,10 +756,10 @@ export default function Assessment({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleCheck('igsn')}
-                                    disabled={!fujiConfiguredForActions}
+                                    disabled={!fujiConfiguredForActions || states.igsn.isCancelling}
                                     loading={states.igsn.isChecking}
                                 >
-                                    {states.igsn.isChecking ? 'Checking...' : 'Check IGSNs'}
+                                    {states.igsn.isChecking ? 'Checking...' : states.igsn.status === 'paused' ? 'Resume IGSNs' : 'Check IGSNs'}
                                 </LoadingButton>
                             )}
                         </CardHeader>
