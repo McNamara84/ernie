@@ -100,6 +100,16 @@ describe('FundingReferenceField', () => {
             });
         });
 
+        it('shows exactly one add action when no funding references exist', async () => {
+            render(<FundingReferenceField value={[]} onChange={onChange} />);
+
+            await waitFor(() => {
+                expect(screen.queryByText(/loading ror data/i)).not.toBeInTheDocument();
+            });
+
+            expect(screen.getByRole('button', { name: /^add funding reference$/i })).toBeInTheDocument();
+        });
+
         it('does not show an artificial maximum', async () => {
             render(<FundingReferenceField value={[]} onChange={onChange} />);
 
@@ -139,8 +149,8 @@ describe('FundingReferenceField', () => {
                 expect(screen.queryByText(/loading ror data/i)).not.toBeInTheDocument();
             });
 
-            const addButtons = screen.getAllByRole('button', { name: /add funding reference/i });
-            await user.click(addButtons[0]);
+            const addButton = screen.getByRole('button', { name: /^add funding reference$/i });
+            await user.click(addButton);
 
             expect(onChange).toHaveBeenCalledWith([
                 expect.objectContaining({
@@ -163,7 +173,7 @@ describe('FundingReferenceField', () => {
                     expect(screen.queryByText(/loading ror data/i)).not.toBeInTheDocument();
                 });
 
-                const [addButton] = screen.getAllByRole('button', { name: /add funding reference/i });
+                const addButton = screen.getByRole('button', { name: /^add funding reference$/i });
                 await user.click(addButton);
                 await user.click(addButton);
 
@@ -177,6 +187,28 @@ describe('FundingReferenceField', () => {
                 dateNowSpy.mockRestore();
                 randomSpy.mockRestore();
             }
+        });
+
+        it('shows one add action for existing references and appends another reference', async () => {
+            const user = userEvent.setup();
+            const fundings = [createFunding({ id: 'f1', funderName: 'DFG' })];
+
+            render(<FundingReferenceField value={fundings} onChange={onChange} />);
+
+            await waitFor(() => {
+                expect(screen.queryByText(/loading ror data/i)).not.toBeInTheDocument();
+            });
+
+            await user.click(screen.getByRole('button', { name: /^add funding reference$/i }));
+
+            expect(onChange).toHaveBeenCalledWith([
+                expect.objectContaining({ id: 'f1', funderName: 'DFG' }),
+                expect.objectContaining({
+                    id: expect.stringMatching(/^funding-[0-9a-f-]{36}$/i),
+                    funderName: '',
+                    isExpanded: false,
+                }),
+            ]);
         });
 
         it('allows adding beyond the former maximum', async () => {
@@ -213,6 +245,25 @@ describe('FundingReferenceField', () => {
             expect(onChange).toHaveBeenCalledWith([
                 expect.objectContaining({ id: 'f2', funderName: 'EU' }),
             ]);
+        });
+
+        it('returns to one empty-state add action after the last reference is removed', async () => {
+            const user = userEvent.setup();
+            const { rerender } = render(
+                <FundingReferenceField value={[createFunding({ id: 'f1', funderName: 'DFG' })]} onChange={onChange} />,
+            );
+
+            await waitFor(() => {
+                expect(screen.queryByText(/loading ror data/i)).not.toBeInTheDocument();
+            });
+
+            await user.click(screen.getByTestId('remove-funding-0'));
+            expect(onChange).toHaveBeenLastCalledWith([]);
+
+            rerender(<FundingReferenceField value={[]} onChange={onChange} />);
+
+            expect(screen.getByTestId('funding-empty-state')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^add funding reference$/i })).toBeInTheDocument();
         });
     });
 
