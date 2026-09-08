@@ -16,6 +16,8 @@ const editorRouteMock = vi.hoisted(() =>
     })),
 );
 const openDetachedTabMock = vi.hoisted(() => vi.fn());
+const toastSuccessMock = vi.hoisted(() => vi.fn());
+const toastErrorMock = vi.hoisted(() => vi.fn());
 const authUserMock = vi.hoisted(() => ({
     id: 1,
     name: 'Test User',
@@ -57,6 +59,12 @@ vi.mock('@/routes', () => ({
     editor: editorRouteMock,
 }));
 vi.mock('@/lib/detached-tab', () => ({ openDetachedTab: openDetachedTabMock }));
+vi.mock('sonner', () => ({
+    toast: {
+        success: toastSuccessMock,
+        error: toastErrorMock,
+    },
+}));
 
 vi.mock('@/utils/filter-parser', () => ({
     parseResourceFiltersFromUrl: vi.fn().mockReturnValue({}),
@@ -157,6 +165,8 @@ describe('ResourcesPage', () => {
         editorRouteMock.mockClear();
         openDetachedTabMock.mockReset();
         openDetachedTabMock.mockReturnValue({} as Window);
+        toastSuccessMock.mockReset();
+        toastErrorMock.mockReset();
         originalOpen = window.open;
         originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
         openMock = vi.fn().mockReturnValue({ closed: false });
@@ -798,6 +808,281 @@ describe('ResourcesPage', () => {
         expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: resource.id } });
         expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=1');
         expect(routerMock.get).not.toHaveBeenCalled();
+    });
+
+    it('copies the trimmed DOI without opening the editor or DOI resolver', async () => {
+        const resource = {
+            id: 1,
+            doi: ' 10.9999/example ',
+            year: 2024,
+            title: 'Primary title',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'curation',
+            landingPage: null,
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        expect(screen.getByText('10.9999/example')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Copy DOI 10.9999/example to clipboard' }));
+
+        await waitFor(() => expect(clipboardWriteTextMock).toHaveBeenCalledWith('10.9999/example'));
+        expect(clipboardWriteTextMock).not.toHaveBeenCalledWith('https://doi.org/10.9999/example');
+        expect(toastSuccessMock).toHaveBeenCalledWith('DOI copied to clipboard', {
+            description: '10.9999/example',
+            duration: 3000,
+        });
+        expect(screen.getByRole('button', { name: 'DOI 10.9999/example copied to clipboard' })).toBeInTheDocument();
+        expect(editorRouteMock).not.toHaveBeenCalled();
+        expect(openDetachedTabMock).not.toHaveBeenCalled();
+        expect(openMock).not.toHaveBeenCalled();
+    });
+
+    it('copies a DOI with native keyboard button activation without activating the row', async () => {
+        const resource = {
+            id: 2,
+            doi: '10.9999/keyboard-copy',
+            year: 2024,
+            title: 'Keyboard copy resource',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'curation',
+            landingPage: null,
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        const copyButton = screen.getByRole('button', { name: 'Copy DOI 10.9999/keyboard-copy to clipboard' });
+        copyButton.focus();
+        await userEvent.keyboard('{Enter}');
+
+        await waitFor(() => expect(clipboardWriteTextMock).toHaveBeenCalledWith('10.9999/keyboard-copy'));
+        expect(editorRouteMock).not.toHaveBeenCalled();
+        expect(openDetachedTabMock).not.toHaveBeenCalled();
+    });
+
+    it('resets the DOI copy success state after the feedback timeout', async () => {
+        const resource = {
+            id: 3,
+            doi: '10.9999/temporary-feedback',
+            year: 2024,
+            title: 'Temporary feedback resource',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'curation',
+            landingPage: null,
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        vi.useFakeTimers();
+
+        try {
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: 'Copy DOI 10.9999/temporary-feedback to clipboard' }));
+                await Promise.resolve();
+            });
+
+            expect(screen.getByRole('button', { name: 'DOI 10.9999/temporary-feedback copied to clipboard' })).toBeInTheDocument();
+
+            act(() => vi.advanceTimersByTime(2000));
+
+            expect(screen.getByRole('button', { name: 'Copy DOI 10.9999/temporary-feedback to clipboard' })).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('shows no DOI copy action for null, empty, or whitespace-only DOI values', () => {
+        const resources = [
+            { id: 4, doi: null, title: 'Null DOI resource' },
+            { id: 5, doi: '', title: 'Empty DOI resource' },
+            { id: 6, doi: '   ', title: 'Whitespace DOI resource' },
+        ].map((resource) => ({
+            ...resource,
+            year: 2024,
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'curation',
+            landingPage: null,
+        }));
+
+        render(
+            <ResourcesPage
+                resources={resources as never}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 3,
+                    from: 1,
+                    to: 3,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        expect(screen.getAllByText('Not registered')).toHaveLength(3);
+        expect(screen.queryByRole('button', { name: /copy doi/i })).not.toBeInTheDocument();
+    });
+
+    it('shows a malformed saved DOI without offering a copy action', () => {
+        const resource = {
+            id: 9,
+            doi: 'not-a-doi',
+            year: 2024,
+            title: 'Malformed DOI resource',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'draft',
+            landingPage: null,
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        expect(screen.getByText('not-a-doi')).toBeInTheDocument();
+        expect(screen.queryByTestId('copy-resource-doi-9')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /copy doi not-a-doi/i })).not.toBeInTheDocument();
+    });
+
+    it('reports a rejected DOI clipboard write without activating the row', async () => {
+        clipboardWriteTextMock.mockRejectedValueOnce(new Error('Clipboard write denied'));
+
+        const resource = {
+            id: 7,
+            doi: '10.9999/rejected-copy',
+            year: 2024,
+            title: 'Rejected copy resource',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'curation',
+            landingPage: null,
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        await userEvent.click(screen.getByRole('button', { name: 'Copy DOI 10.9999/rejected-copy to clipboard' }));
+
+        await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith('Failed to copy DOI to clipboard'));
+        expect(screen.getByRole('button', { name: 'Copy DOI 10.9999/rejected-copy to clipboard' })).toBeInTheDocument();
+        expect(editorRouteMock).not.toHaveBeenCalled();
+        expect(openDetachedTabMock).not.toHaveBeenCalled();
+        expect(openMock).not.toHaveBeenCalled();
+    });
+
+    it('reports an unavailable Clipboard API without throwing or activating the row', async () => {
+        Object.defineProperty(navigator, 'clipboard', {
+            value: undefined,
+            configurable: true,
+            writable: true,
+        });
+
+        const resource = {
+            id: 8,
+            doi: '10.9999/unavailable-copy',
+            year: 2024,
+            title: 'Unavailable copy resource',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'curation',
+            landingPage: null,
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        await userEvent.click(screen.getByRole('button', { name: 'Copy DOI 10.9999/unavailable-copy to clipboard' }));
+
+        await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith('Failed to copy DOI to clipboard'));
+        expect(editorRouteMock).not.toHaveBeenCalled();
+        expect(openDetachedTabMock).not.toHaveBeenCalled();
+        expect(openMock).not.toHaveBeenCalled();
     });
 
     it('opens the curation editor from keyboard row activation', () => {
