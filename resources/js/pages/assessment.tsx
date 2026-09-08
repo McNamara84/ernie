@@ -165,8 +165,8 @@ function assessmentProgressFallback(scope: AssessmentScope, status: AssessmentJo
     }
 }
 
-function stateFromStatus(status: AssessmentJobStatus, jobId: string, scope: AssessmentScope): ScopeState {
-    const normalizedRunStatus = status.status || 'queued';
+function stateFromStatus(status: Partial<AssessmentJobStatus>, jobId: string, scope: AssessmentScope): ScopeState {
+    const normalizedRunStatus = status.status ?? 'queued';
     const normalizedStatus: AssessmentJobStatus = {
         ...status,
         jobId,
@@ -396,7 +396,7 @@ export default function Assessment({
 
         const pollStatus = async () => {
             try {
-                const { data } = await axios.get<AssessmentJobStatus>(`/assessment/check/${scope}/${jobId}/status`);
+                const { data } = await axios.get<Partial<AssessmentJobStatus>>(`/assessment/check/${scope}/${jobId}/status`);
 
                 if (data.status === 'completed') {
                     stopPolling(scope);
