@@ -1046,6 +1046,40 @@ describe('Landing Page with Custom Template', function () {
             );
     });
 
+    test('inherits a custom Resource template and header logo from the GFZ datacenter', function () {
+        $template = LandingPageTemplate::factory()->create([
+            'logo_path' => 'landing-page-logos/gfz-resource/header.png',
+            'creator_display_limit' => 17,
+        ]);
+        $gfz = Datacenter::factory()->create([
+            'name' => Datacenter::GFZ_NAME,
+            'landing_page_template_id' => $template->id,
+        ]);
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/test.public.gfz.resource',
+            'datacenter_id' => $gfz->id,
+        ]);
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/test.public.gfz.resource',
+                'slug' => 'gfz-resource-inherited-template',
+                'template' => 'default_gfz',
+                'landing_page_template_id' => null,
+            ]);
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('landingPageTemplateSource', 'datacenter')
+                ->where('effectiveLandingPageTemplate.id', $template->id)
+                ->where('displayLimits.creators', 17)
+                ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/gfz-resource/header.png'))
+            );
+    });
+
     test('inherits a custom IGSN template and header logo from the GFZ datacenter', function () {
         $physicalObjectType = ResourceType::firstOrCreate(
             ['slug' => 'physical-object'],

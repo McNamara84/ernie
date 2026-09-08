@@ -47,6 +47,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Observers\DashboardMetricsObserver;
+use App\Observers\DatacenterLandingPageTemplateAssignmentObserver;
 use App\Observers\FormatObserver;
 use App\Observers\IgsnMetadataObserver;
 use App\Observers\LandingPageFileObserver;
@@ -141,6 +142,7 @@ class AppServiceProvider extends ServiceProvider
         LandingPage::observe(LandingPageObserver::class);
         LandingPage::observe(ResourceListingProjectionObserver::class);
         ResourceType::observe(ResourceListingProjectionDependencyObserver::class);
+        Datacenter::observe(DatacenterLandingPageTemplateAssignmentObserver::class);
         Datacenter::observe(ResourceListingProjectionDependencyObserver::class);
         Datacenter::observe(PortalSharedDependencyObserver::class);
         Right::observe(ResourceListingProjectionDependencyObserver::class);

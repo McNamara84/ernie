@@ -450,23 +450,23 @@ describe('LandingPageTemplatesPage', () => {
             });
         });
 
-        it('assigns selected datacenters while protecting the canonical GFZ assignment', async () => {
+        it('assigns GFZ and another datacenter while cloning a Resource template', async () => {
             mockDatacenters = [
                 {
                     id: 10,
                     name: 'Specialized Datacenter',
-                    landing_page_template_id: null,
-                    landing_page_template_name: null,
-                    igsn_landing_page_template_id: null,
-                    igsn_landing_page_template_name: null,
+                    landing_page_template_id: defaultTemplate.id,
+                    landing_page_template_name: defaultTemplate.name,
+                    igsn_landing_page_template_id: defaultIgsnTemplate.id,
+                    igsn_landing_page_template_name: defaultIgsnTemplate.name,
                 },
                 {
                     id: 11,
                     name: 'GFZ German Research Centre for Geosciences',
                     landing_page_template_id: defaultTemplate.id,
                     landing_page_template_name: defaultTemplate.name,
-                    igsn_landing_page_template_id: null,
-                    igsn_landing_page_template_name: null,
+                    igsn_landing_page_template_id: defaultIgsnTemplate.id,
+                    igsn_landing_page_template_name: defaultIgsnTemplate.name,
                 },
             ];
             mockedAxiosPost.mockResolvedValue({ data: { message: 'Created', template: {} } });
@@ -482,8 +482,10 @@ describe('LandingPageTemplatesPage', () => {
             });
 
             expect(specialized).toBeEnabled();
-            expect(canonicalGfz).toBeDisabled();
+            expect(canonicalGfz).toBeEnabled();
+            expect(screen.getAllByText(/Currently assigned to Templates Resources; saving will move it/i)).toHaveLength(2);
 
+            await user.click(canonicalGfz);
             await user.click(specialized);
             await user.type(screen.getByLabelText(/Template Name/i), 'Assigned Template');
             await user.click(screen.getByRole('button', { name: /Clone Template/i }));
@@ -492,9 +494,36 @@ describe('LandingPageTemplatesPage', () => {
                 expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', {
                     name: 'Assigned Template',
                     template_type: 'resource',
-                    datacenter_ids: [10],
+                    datacenter_ids: expect.arrayContaining([10, 11]),
                 });
+                expect(mockedAxiosPost.mock.calls.at(-1)?.[1]?.datacenter_ids).toHaveLength(2);
+                expect(routerMock.reload).toHaveBeenCalledWith({ only: ['templates', 'datacenters'] });
             });
+        });
+
+        it('clears selected datacenters when the clone template type changes', async () => {
+            mockDatacenters = [
+                {
+                    id: 11,
+                    name: 'GFZ German Research Centre for Geosciences',
+                    landing_page_template_id: defaultTemplate.id,
+                    landing_page_template_name: defaultTemplate.name,
+                    igsn_landing_page_template_id: defaultIgsnTemplate.id,
+                    igsn_landing_page_template_name: defaultIgsnTemplate.name,
+                },
+            ];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /New Template/i }));
+            const datacenter = screen.getByRole('checkbox', { name: /GFZ German Research Centre/i });
+            await user.click(datacenter);
+            expect(datacenter).toBeChecked();
+
+            await user.click(screen.getByRole('combobox'));
+            await user.click(screen.getByRole('option', { name: /IGSN.*Templates IGSN/i }));
+
+            expect(screen.getByRole('checkbox', { name: /GFZ German Research Centre/i })).not.toBeChecked();
         });
 
         it('disables Clone button when name is empty', async () => {
@@ -679,10 +708,7 @@ describe('LandingPageTemplatesPage', () => {
             await user.click(screen.getByRole('button', { name: /Save Changes/i }));
 
             await waitFor(() => {
-                expect(mockedAxiosPut).toHaveBeenCalledWith(
-                    '/landing-pages/5',
-                    expect.objectContaining({ show_igsn_drilling: true }),
-                );
+                expect(mockedAxiosPut).toHaveBeenCalledWith('/landing-pages/5', expect.objectContaining({ show_igsn_drilling: true }));
             });
         });
 
@@ -705,6 +731,7 @@ describe('LandingPageTemplatesPage', () => {
                     `/landing-pages/${customTemplate.id}`,
                     expect.objectContaining({ name: 'Updated Template' }),
                 );
+                expect(routerMock.reload).toHaveBeenCalledWith({ only: ['templates', 'datacenters'] });
             });
         });
 
@@ -887,6 +914,35 @@ describe('LandingPageTemplatesPage', () => {
             });
         });
 
+        it('allows GFZ to be moved to a custom Resource template while editing', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [customTemplate];
+            mockDatacenters = [
+                {
+                    id: 21,
+                    name: 'GFZ German Research Centre for Geosciences',
+                    landing_page_template_id: defaultTemplate.id,
+                    landing_page_template_name: defaultTemplate.name,
+                    igsn_landing_page_template_id: defaultIgsnTemplate.id,
+                    igsn_landing_page_template_name: defaultIgsnTemplate.name,
+                },
+            ];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /^Edit$/i }));
+            const canonicalGfz = screen.getByRole('checkbox', { name: /GFZ German Research Centre/i });
+            expect(canonicalGfz).toBeEnabled();
+            expect(screen.getByText(/Currently assigned to Templates Resources; saving will move it/i)).toBeInTheDocument();
+
+            await user.click(canonicalGfz);
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(`/landing-pages/${customTemplate.id}`, expect.objectContaining({ datacenter_ids: [21] }));
+            });
+        });
+
         it('keeps the existing GFZ assignment read-only on the built-in IGSN copy template', async () => {
             mockTemplates = [
                 {
@@ -913,7 +969,35 @@ describe('LandingPageTemplatesPage', () => {
 
             expect(canonicalGfz).toBeChecked();
             expect(canonicalGfz).toBeDisabled();
-            expect(screen.getByText(/Existing copy-template assignment/i)).toBeInTheDocument();
+            expect(screen.getByText(/Default assignment; select this datacenter on another IGSN template to move it/i)).toBeInTheDocument();
+        });
+
+        it('allows a copy template to reclaim a datacenter assigned to a custom template', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [defaultTemplate];
+            mockDatacenters = [
+                {
+                    id: 31,
+                    name: 'Custom-assigned Datacenter',
+                    landing_page_template_id: customTemplate.id,
+                    landing_page_template_name: customTemplate.name,
+                    igsn_landing_page_template_id: defaultIgsnTemplate.id,
+                    igsn_landing_page_template_name: defaultIgsnTemplate.name,
+                },
+            ];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /Limits/i }));
+            const datacenter = screen.getByRole('checkbox', { name: /Custom-assigned Datacenter/i });
+            expect(datacenter).toBeEnabled();
+            expect(screen.getByText(/Currently assigned to Geophysics Template; saving will move it/i)).toBeInTheDocument();
+            await user.click(datacenter);
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith('/landing-pages/1', expect.objectContaining({ datacenter_ids: [31] }));
+            });
         });
 
         it('shows validation errors on save failure', async () => {

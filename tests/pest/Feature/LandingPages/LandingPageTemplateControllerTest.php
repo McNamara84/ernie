@@ -48,6 +48,15 @@ beforeEach(function (): void {
     $this->igsnDefaultTemplate = $systemTemplates[LandingPageTemplate::TEMPLATE_TYPE_IGSN];
 });
 
+it('maps each template type to its datacenter assignment column', function (): void {
+    expect(LandingPageTemplate::datacenterAssignmentColumnForType(LandingPageTemplate::TEMPLATE_TYPE_RESOURCE))
+        ->toBe('landing_page_template_id')
+        ->and(LandingPageTemplate::datacenterAssignmentColumnForType(LandingPageTemplate::TEMPLATE_TYPE_IGSN))
+        ->toBe('igsn_landing_page_template_id')
+        ->and(fn () => LandingPageTemplate::datacenterAssignmentColumnForType('unsupported'))
+        ->toThrow(InvalidArgumentException::class, 'Unsupported landing-page template type [unsupported].');
+});
+
 describe('Flexible IGSN columns for Issue 1168', function (): void {
     it('accepts every IGSN module in either column including an empty column', function (): void {
         expect(LandingPageTemplate::isValidIgsnSectionLayout(

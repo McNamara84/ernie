@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use App\Models\Datacenter;
 use App\Models\LandingPageTemplate;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -62,7 +61,6 @@ class UpdateLandingPageTemplateRequest extends FormRequest
         $validator->after(function (Validator $validator): void {
             /** @var LandingPageTemplate $template */
             $template = $this->route('landingPageTemplate');
-            $datacenterIds = $this->input('datacenter_ids', []);
 
             if ($this->has('show_igsn_drilling')
                 && $template->template_type !== LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
@@ -70,31 +68,6 @@ class UpdateLandingPageTemplateRequest extends FormRequest
                     'show_igsn_drilling',
                     'The Drilling card setting is only available for IGSN templates.'
                 );
-            }
-
-            if ($this->has('datacenter_ids') && is_array($datacenterIds) && $datacenterIds !== []) {
-                $gfz = Datacenter::query()
-                    ->whereKey($datacenterIds)
-                    ->where('name', Datacenter::GFZ_NAME)
-                    ->first(['id', 'landing_page_template_id', 'igsn_landing_page_template_id']);
-
-                if ($gfz !== null) {
-                    if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE && ! $template->isDefault()) {
-                        $validator->errors()->add(
-                            'datacenter_ids',
-                            'The canonical GFZ datacenter must remain assigned to the Templates Resources copy template.',
-                        );
-                    }
-
-                    if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
-                        && $template->isDefault()
-                        && $gfz->igsn_landing_page_template_id !== $template->id) {
-                        $validator->errors()->add(
-                            'datacenter_ids',
-                            'The Templates IGSN copy template cannot reclaim the GFZ datacenter after it has been assigned to a custom IGSN template.',
-                        );
-                    }
-                }
             }
 
             if ($this->has('right_column_order') || $this->has('left_column_order')) {

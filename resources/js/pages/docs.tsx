@@ -2231,11 +2231,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             landing pages. Custom templates are cloned from the built-in <strong>Templates Resources</strong> or{' '}
                             <strong>Templates IGSN</strong> copy template and allow customization of section order, header logo, displayed Date Types,
                             and displayed Relation Types. Both template types can be assigned to any number of datacenters through independent
-                            assignment slots. The GFZ datacenter remains reserved for Templates Resources in the Resource slot, but can be moved to a
-                            custom IGSN template in the independent IGSN slot. A landing page in automatic mode inherits the compatible template
-                            assigned to its datacenter; without such an assignment, ERNIE uses the matching built-in copy template as its technical
-                            fallback. An explicit landing-page selection always overrides datacenter inheritance. The two copy templates stay pinned
-                            at the top of template management.
+                            assignment slots, including the GFZ datacenter. Custom templates may also remain unassigned. Every datacenter always has
+                            one persistent Resource assignment and one persistent IGSN assignment. New datacenters start on the matching copy
+                            templates; removing a datacenter from a custom template moves it back to that type's copy template automatically. A
+                            landing page in automatic mode inherits the compatible template assigned to its datacenter. An explicit landing-page
+                            selection always overrides datacenter inheritance. The two copy templates stay pinned at the top of template management.
                         </p>
 
                         <WorkflowSteps>
@@ -2321,7 +2321,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>
                                     Assign Resource or IGSN templates to datacenters in template management. In the landing-page setup modal, choose{' '}
                                     <strong>Use automatic template</strong> to inherit the assignment from the matching slot, or select an explicit
-                                    compatible template to override it.
+                                    compatible template to override it. Selecting a datacenter moves only the matching Resource or IGSN assignment;
+                                    clearing it from a custom template restores the matching copy template automatically.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
