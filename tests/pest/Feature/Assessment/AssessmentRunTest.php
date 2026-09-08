@@ -312,6 +312,7 @@ test('the dispatcher never completes a run whose snapshot is still being prepare
 });
 
 test('duplicate dispatcher jobs do not exceed the configured execution window', function (): void {
+    config(['fuji.assessment.concurrency' => 1]);
     $run = AssessmentRun::factory()->create([
         'status' => AssessmentRunStatus::RUNNING,
         'concurrency' => 1,
@@ -338,6 +339,7 @@ test('duplicate dispatcher jobs do not exceed the configured execution window', 
 });
 
 test('the dispatcher recovers an expired item lease', function (): void {
+    config(['fuji.assessment.concurrency' => 1]);
     $run = AssessmentRun::factory()->create([
         'status' => AssessmentRunStatus::RUNNING,
         'concurrency' => 1,
@@ -462,6 +464,39 @@ test('the dispatcher pauses a run when its snapshotted F-UJI configuration chang
     expect($run->fresh()->status)->toBe(AssessmentRunStatus::RUNNING);
     Queue::assertPushed(AssessResourceRunItemJob::class, 1);
 });
+
+test('the dispatcher pauses a run when a snapshotted throughput setting changed', function (
+    string $configurationKey,
+    string $runAttribute,
+    int $snapshottedValue,
+    int $configuredValue,
+): void {
+    $user = User::factory()->admin()->create();
+    $run = AssessmentRun::factory()->create([
+        'status' => AssessmentRunStatus::QUEUED,
+        $runAttribute => $snapshottedValue,
+    ]);
+    AssessmentRunItem::factory()->for($run, 'run')->create();
+    config([$configurationKey => $configuredValue]);
+
+    (new DispatchAssessmentRunItemsJob($run->id))->handle(
+        app(AssessmentRunService::class),
+        app(AssessmentQueueService::class),
+    );
+
+    expect($run->fresh()->status)->toBe(AssessmentRunStatus::PAUSED)
+        ->and($run->fresh()->pause_reason)->toContain('configuration changed');
+    Queue::assertNotPushed(AssessResourceRunItemJob::class);
+
+    $resumed = app(AssessmentRunService::class)->resume($run->fresh(), $user);
+
+    expect($resumed->status)->toBe(AssessmentRunStatus::QUEUED)
+        ->and($resumed->{$runAttribute})->toBe($configuredValue);
+    Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 1);
+})->with([
+    'lower concurrency' => ['fuji.assessment.concurrency', 'concurrency', 2, 1],
+    'lower request rate' => ['fuji.assessment.requests_per_minute', 'requests_per_minute', 1000, 100],
+]);
 
 test('cancelling a paused run releases its scope and terminalizes open items', function (): void {
     Log::spy();

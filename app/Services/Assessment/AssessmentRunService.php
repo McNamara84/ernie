@@ -115,7 +115,9 @@ final class AssessmentRunService
         return rtrim($run->fuji_base_url, '/') === rtrim($configuration['fuji_base_url'], '/')
             && $run->metric_version === $configuration['metric_version']
             && $run->use_datacite === $configuration['use_datacite']
-            && $run->use_github === $configuration['use_github'];
+            && $run->use_github === $configuration['use_github']
+            && $run->concurrency === $configuration['concurrency']
+            && $run->requests_per_minute === $configuration['requests_per_minute'];
     }
 
     public function resume(AssessmentRun $run, User $user): AssessmentRun
