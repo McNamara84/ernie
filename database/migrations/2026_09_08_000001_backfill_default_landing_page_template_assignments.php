@@ -10,6 +10,8 @@ return new class extends Migration
 {
     public function up(): void
     {
+        LandingPageTemplate::ensureSystemTemplatesExist();
+
         $resourceTemplateId = DB::table('landing_page_templates')
             ->where('slug', LandingPageTemplate::DEFAULT_TEMPLATE_SLUG)
             ->value('id');
@@ -18,7 +20,7 @@ return new class extends Migration
             ->value('id');
 
         if ($resourceTemplateId === null || $igsnTemplateId === null) {
-            throw new RuntimeException('Both built-in landing-page templates must exist before datacenter assignments are backfilled.');
+            throw new RuntimeException('Both built-in landing-page templates must be restorable before datacenter assignments are backfilled.');
         }
 
         DB::table('datacenters')

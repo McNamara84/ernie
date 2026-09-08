@@ -54,12 +54,26 @@ it('backfills only missing resource and IGSN datacenter template assignments', f
         ->and($bothMissing->fresh()?->igsn_landing_page_template_id)->toBe($defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]->id);
 });
 
-it('refuses to backfill assignments when a built-in template is missing', function (): void {
+it('restores a missing built-in template before backfilling assignments', function (): void {
     $migration = loadDatacenterTemplateAssignmentBackfillMigration();
     $defaults = LandingPageTemplate::ensureSystemTemplatesExist();
+    $datacenter = Datacenter::factory()->create();
+
+    DB::table('datacenters')->where('id', $datacenter->id)->update([
+        'igsn_landing_page_template_id' => null,
+    ]);
 
     $defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]->delete();
+    expect(LandingPageTemplate::query()->where('slug', LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG)->exists())->toBeFalse();
 
-    expect(fn () => $migration->up())
-        ->toThrow(RuntimeException::class, 'Both built-in landing-page templates must exist');
+    $migration->up();
+
+    $restoredIgsnTemplate = LandingPageTemplate::query()
+        ->where('slug', LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG)
+        ->firstOrFail();
+
+    expect($restoredIgsnTemplate->is_default)->toBeTrue()
+        ->and($restoredIgsnTemplate->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN)
+        ->and($datacenter->fresh()?->landing_page_template_id)->toBe($defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id)
+        ->and($datacenter->fresh()?->igsn_landing_page_template_id)->toBe($restoredIgsnTemplate->id);
 });
