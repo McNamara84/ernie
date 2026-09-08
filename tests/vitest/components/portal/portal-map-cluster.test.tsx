@@ -19,6 +19,7 @@ const leafletState = vi.hoisted(() => ({
 const mapMock = vi.hoisted(() => ({
     fitBounds: vi.fn(),
     setView: vi.fn(),
+    getBoundsZoom: vi.fn(() => 8),
     getZoom: vi.fn(() => 5),
     getCenter: vi.fn(() => ({ lat: 0, lng: 180 })),
     removeLayer: vi.fn(),
@@ -54,6 +55,7 @@ vi.mock('leaflet', () => ({
                 getSouthWest: () => ({}),
             };
         }),
+        point: vi.fn((x: number, y: number) => ({ x, y })),
     },
 }));
 
@@ -66,26 +68,39 @@ describe('PortalMapCluster', () => {
         leafletState.layers = [];
         leafletState.boundsArguments = [];
         mapMock.getCenter.mockReturnValue({ lat: 0, lng: 180 });
+        mapMock.getZoom.mockReturnValue(5);
+        mapMock.getBoundsZoom.mockReturnValue(8);
     });
 
-    it('renders the server-provided cluster distribution and fits its bounds on click', () => {
+    it('renders the server-provided cluster distribution and navigates into its anchor bounds on click', () => {
         const features: PortalMapFeature[] = [
             {
                 kind: 'cluster',
                 id: 'z5:1:2',
                 position: { lat: 52, lng: 13 },
                 bounds: { north: 53, south: 51, east: 14, west: 12 },
+                navigationBounds: { north: 52.2, south: 51.8, east: 13.2, west: 12.8 },
                 count: 25,
                 resourceTypeCounts: { dataset: 20, 'physical-object': 5 },
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
 
         expect(leafletState.markers).toHaveLength(1);
         expect(String((leafletState.markers[0].options.icon as { html: string }).html)).toContain('25');
         leafletState.markers[0].events.click();
-        expect(mapMock.fitBounds).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ maxZoom: 9 }));
+        const bounds = leafletState.boundsArguments.at(-1)!;
+        expect(bounds[0][0]).toBeCloseTo(51.8);
+        expect(bounds[0][1]).toBeCloseTo(12.8);
+        expect(bounds[1][0]).toBeCloseTo(52.2);
+        expect(bounds[1][1]).toBeCloseTo(13.2);
+        const [center, zoom, options] = mapMock.setView.mock.calls.at(-1)!;
+        expect(center[0]).toBeCloseTo(52);
+        expect(center[1]).toBeCloseTo(13);
+        expect(zoom).toBe(8);
+        expect(options).toEqual({ animate: true });
+        expect(mapMock.fitBounds).not.toHaveBeenCalled();
     });
 
     it('renders IGSN clusters from their material composition', () => {
@@ -104,7 +119,7 @@ describe('PortalMapCluster', () => {
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
 
         const html = String((leafletState.markers[0].options.icon as { html: string }).html);
         expect(html).toContain('#6F4E37');
@@ -119,23 +134,105 @@ describe('PortalMapCluster', () => {
                 id: 'z5:edge',
                 position: { lat: 0, lng: -179 },
                 bounds: { north: 5, south: -5, west: 170, east: -170 },
+                navigationBounds: { north: 1, south: -1, west: 179, east: -179 },
                 count: 2,
                 resourceTypeCounts: { dataset: 2 },
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
         expect(leafletState.markers[0].position).toEqual([0, 181]);
         leafletState.markers[0].events.click();
 
         expect(leafletState.boundsArguments).toEqual([
             [
-                [-5, 170],
-                [5, 190],
+                [-1, 179],
+                [1, 181],
             ],
         ]);
-        expect(mapMock.fitBounds).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ maxZoom: 9 }));
+        expect(mapMock.setView).toHaveBeenCalledWith([0, 181], 8, { animate: true });
+    });
+
+    it('never zooms out when legacy geometry bounds cover the world', () => {
+        mapMock.getZoom.mockReturnValue(7);
+        mapMock.getBoundsZoom.mockReturnValue(1);
+        const features: PortalMapFeature[] = [
+            {
+                kind: 'cluster',
+                id: 'z7:spitsbergen',
+                position: { lat: 78.39, lng: 14.98 },
+                bounds: { north: 90, south: -90, east: 180, west: -180 },
+                count: 39,
+                resourceTypeCounts: { dataset: 39 },
+            },
+        ];
+
+        render(<ClusterLayer features={features} maxZoom={18} />);
+        leafletState.markers[0].events.click();
+
+        const [center, zoom, options] = mapMock.setView.mock.calls.at(-1)!;
+        expect(center[0]).toBeCloseTo(78.39);
+        expect(center[1]).toBeCloseTo(14.98);
+        expect(zoom).toBe(8);
+        expect(options).toEqual({ animate: true });
+    });
+
+    it('limits a large cluster expansion to four zoom levels', () => {
+        mapMock.getBoundsZoom.mockReturnValue(18);
+        const features: PortalMapFeature[] = [
+            {
+                kind: 'cluster',
+                id: 'z5:fast',
+                position: { lat: 52, lng: 13 },
+                bounds: { north: 53, south: 51, east: 14, west: 12 },
+                navigationBounds: { north: 52.01, south: 52, east: 13.01, west: 13 },
+                count: 2,
+                resourceTypeCounts: { dataset: 2 },
+            },
+        ];
+
+        render(<ClusterLayer features={features} maxZoom={18} />);
+        leafletState.markers[0].events.click();
+
+        expect(mapMock.setView).toHaveBeenCalledWith([52, 13], 9, { animate: true });
+    });
+
+    it('opens terminal cluster members at the configured maximum zoom', () => {
+        mapMock.getZoom.mockReturnValue(7);
+        const onExpandCluster = vi.fn();
+        const feature: PortalMapFeature = {
+            kind: 'cluster',
+            id: 'z7:terminal',
+            position: { lat: 52, lng: 13 },
+            bounds: { north: 52, south: 52, east: 13, west: 13 },
+            navigationBounds: { north: 52, south: 52, east: 13, west: 13 },
+            count: 2,
+            resourceTypeCounts: { dataset: 2 },
+        };
+
+        render(<ClusterLayer features={[feature]} maxZoom={7} onExpandCluster={onExpandCluster} />);
+        leafletState.markers[0].events.click();
+
+        expect(onExpandCluster).toHaveBeenCalledWith(feature);
         expect(mapMock.setView).not.toHaveBeenCalled();
+    });
+
+    it('leaves placeholder clusters non-interactive while the map refreshes', () => {
+        const features: PortalMapFeature[] = [
+            {
+                kind: 'cluster',
+                id: 'z5:stale',
+                position: { lat: 52, lng: 13 },
+                bounds: { north: 53, south: 51, east: 14, west: 12 },
+                count: 2,
+                resourceTypeCounts: { dataset: 2 },
+            },
+        ];
+
+        render(<ClusterLayer features={features} maxZoom={18} interactive={false} />);
+
+        expect(leafletState.markers[0].options.interactive).toBe(false);
+        expect(leafletState.markers[0].events.click).toBeUndefined();
     });
 
     it('binds a resource popup only for returned point details', () => {
@@ -157,7 +254,7 @@ describe('PortalMapCluster', () => {
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
 
         expect(leafletState.markers).toHaveLength(1);
         expect(leafletState.markers[0].position).toEqual([52.5, 181]);
@@ -188,7 +285,7 @@ describe('PortalMapCluster', () => {
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
 
         const html = String((leafletState.markers[0].options.icon as { html: string }).html);
         expect(html).toContain('#0072B2');

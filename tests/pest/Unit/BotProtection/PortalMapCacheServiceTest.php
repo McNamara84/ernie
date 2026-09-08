@@ -55,6 +55,28 @@ it('generates the same key for semantically identical nested query ordering', fu
     expect($service->keyForRequest($first))->toBe($service->keyForRequest($second));
 });
 
+it('separates cluster-member cache entries by cluster, scope, filters, and viewport', function (): void {
+    $service = app(PortalMapCacheService::class);
+    $baseQuery = [
+        'q' => 'gravity',
+        'viewport' => ['north' => 54, 'south' => 50, 'east' => 15, 'west' => 11, 'width' => 1000, 'height' => 700],
+        'page' => 1,
+    ];
+    $base = Request::create('/doi-search/map/clusters/z18:1:1', 'GET', $baseQuery);
+    $otherCluster = Request::create('/doi-search/map/clusters/z18:1:2', 'GET', $baseQuery);
+    $otherScope = Request::create('/igsn-search/map/clusters/z18:1:1', 'GET', $baseQuery);
+    $otherFilter = Request::create('/doi-search/map/clusters/z18:1:1', 'GET', [...$baseQuery, 'q' => 'seismic']);
+    $otherViewport = Request::create('/doi-search/map/clusters/z18:1:1', 'GET', [
+        ...$baseQuery,
+        'viewport' => [...$baseQuery['viewport'], 'west' => 12],
+    ]);
+
+    $keys = collect([$base, $otherCluster, $otherScope, $otherFilter, $otherViewport])
+        ->map(fn (Request $request): string => $service->keyForRequest($request));
+
+    expect($keys->unique())->toHaveCount(5);
+});
+
 it('separates IGSN payloads for material and resource type visualization modes', function (): void {
     $service = app(PortalMapCacheService::class);
     $request = Request::create('/igsn-search/map', 'GET', ['zoom' => 8]);
