@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Assessment;
 
 use App\Enums\AssessmentRunStatus;
+use App\Enums\AssessmentScope;
 use App\Models\AssessmentRun;
 
 final class AssessmentRunPresenterService
@@ -34,11 +35,12 @@ final class AssessmentRunPresenterService
     private function progress(AssessmentRun $run): string
     {
         $label = $run->scope->label();
+        $runningLabel = $run->scope === AssessmentScope::IGSN ? $label : strtolower($label);
 
         return match ($run->status) {
             AssessmentRunStatus::PREPARING => "{$label} assessment is being prepared.",
             AssessmentRunStatus::QUEUED => "{$label} assessment is waiting to start.",
-            AssessmentRunStatus::RUNNING => sprintf('Assessing %s %d of %d...', strtolower($label), $run->processed, $run->total),
+            AssessmentRunStatus::RUNNING => sprintf('Assessing %s %d of %d...', $runningLabel, $run->processed, $run->total),
             AssessmentRunStatus::PAUSED => "{$label} assessment paused.",
             AssessmentRunStatus::CANCEL_REQUESTED => "{$label} assessment cancellation requested.",
             AssessmentRunStatus::CANCELLED => "{$label} assessment cancelled.",
