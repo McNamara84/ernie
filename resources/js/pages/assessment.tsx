@@ -583,6 +583,7 @@ export default function Assessment({
     }
 
     const isAnyChecking = states.resource.isChecking || states.igsn.isChecking;
+    const isAnyCancelling = states.resource.isCancelling || states.igsn.isCancelling;
     const hasActiveFilters = filters.doi !== null || filters.datacenter_id !== null;
     const fujiAvailabilityMessage = !fujiConfigured
         ? 'The FAIR assessment service is not configured for this environment.'
@@ -611,7 +612,7 @@ export default function Assessment({
                     </div>
 
                     {canRunAssessments && (
-                        <LoadingButton onClick={handleCheckAll} disabled={!fujiConfiguredForActions} loading={isAnyChecking}>
+                        <LoadingButton onClick={handleCheckAll} disabled={!fujiConfiguredForActions || isAnyCancelling} loading={isAnyChecking}>
                             {isAnyChecking ? (
                                 'Checking...'
                             ) : (
@@ -720,7 +721,7 @@ export default function Assessment({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleCheck('resource')}
-                                    disabled={!fujiConfiguredForActions}
+                                    disabled={!fujiConfiguredForActions || states.resource.isCancelling}
                                     loading={states.resource.isChecking}
                                 >
                                     {states.resource.isChecking
@@ -755,7 +756,7 @@ export default function Assessment({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleCheck('igsn')}
-                                    disabled={!fujiConfiguredForActions}
+                                    disabled={!fujiConfiguredForActions || states.igsn.isCancelling}
                                     loading={states.igsn.isChecking}
                                 >
                                     {states.igsn.isChecking ? 'Checking...' : states.igsn.status === 'paused' ? 'Resume IGSNs' : 'Check IGSNs'}

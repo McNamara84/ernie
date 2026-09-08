@@ -1309,6 +1309,24 @@ describe('run controls', function () {
         Queue::assertNothingPushed();
     });
 
+    it('accepts uppercase UUIDs for run controls', function (string $method): void {
+        Queue::fake();
+        $user = User::factory()->admin()->create();
+        $run = AssessmentRun::factory()->create([
+            'status' => AssessmentRunStatus::PAUSED,
+            'paused_at' => now(),
+        ]);
+        $jobId = strtoupper($run->id);
+
+        $this->actingAs($user)
+            ->{$method}("/assessment/check/resource/{$jobId}".($method === 'post' ? '/resume' : ''))
+            ->assertOk()
+            ->assertJsonPath('jobId', $run->id);
+    })->with([
+        'resume' => 'post',
+        'cancel' => 'delete',
+    ]);
+
     it('rejects run controls for a mismatched scope', function (string $method): void {
         $user = User::factory()->admin()->create();
         $run = AssessmentRun::factory()->create(['scope' => AssessmentScope::RESOURCE]);
@@ -1338,7 +1356,7 @@ describe('run controls', function () {
 });
 
 describe('status', function () {
-    it('returns cached job status for a running assessment', function () {
+    it('returns cached job status for an uppercase assessment job UUID', function () {
         $user = User::factory()->create(['role' => 'admin']);
         $jobId = Str::uuid()->toString();
 
@@ -1349,7 +1367,7 @@ describe('status', function () {
         ], now()->addHour());
 
         $this->actingAs($user)
-            ->get("/assessment/check/resource/{$jobId}/status")
+            ->get('/assessment/check/resource/'.strtoupper($jobId).'/status')
             ->assertOk()
             ->assertJson([
                 'status' => 'completed',
@@ -1357,7 +1375,7 @@ describe('status', function () {
             ]);
     });
 
-    it('returns persistent status and progress for an assessment run', function () {
+    it('returns persistent status and progress for an uppercase assessment run UUID', function () {
         $user = User::factory()->create(['role' => 'admin']);
         $run = AssessmentRun::factory()->create([
             'scope' => AssessmentScope::RESOURCE,
@@ -1371,7 +1389,7 @@ describe('status', function () {
         ]);
 
         $this->actingAs($user)
-            ->get("/assessment/check/resource/{$run->id}/status")
+            ->get('/assessment/check/resource/'.strtoupper($run->id).'/status')
             ->assertOk()
             ->assertJson([
                 'jobId' => $run->id,

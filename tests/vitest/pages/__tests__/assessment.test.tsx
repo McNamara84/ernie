@@ -5,7 +5,7 @@ import { render, screen } from '@tests/vitest/utils/render';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AssessmentPageProps, FairImprovementOpportunity } from '@/types/assessment';
+import type { AssessmentJobStatus, AssessmentPageProps, FairImprovementOpportunity } from '@/types/assessment';
 
 const { mockRouterGet, mockRouterReload } = vi.hoisted(() => ({
     mockRouterGet: vi.fn(),
@@ -787,6 +787,39 @@ describe('Assessment page', () => {
         expect(screen.getByText('Resources assessment cancelled.')).toBeInTheDocument();
         expect(mockRouterReload).toHaveBeenCalledWith({ only: expect.any(Array) });
         expect(mockToast.warning).toHaveBeenCalledWith('Resources assessment cancelled.');
+    });
+
+    it.each([
+        ['resource', 'Resources'],
+        ['igsn', 'IGSNs'],
+    ] as const)('disables the %s check or resume action while cancellation is in flight', (scope, label) => {
+        mockAxiosDelete.mockReturnValueOnce(new Promise(() => undefined));
+        const run: AssessmentJobStatus = {
+            jobId: '11111111-1111-4111-8111-111111111111',
+            scope,
+            status: 'paused',
+            progress: `${label} assessment paused.`,
+        };
+        const runProps = scope === 'resource' ? { resourceAssessmentRun: run } : { igsnAssessmentRun: run };
+
+        render(<AssessmentPage {...makeProps(runProps)} />);
+
+        const resumeButton = screen.getByRole('button', { name: `Resume ${label}` });
+        const cancelButton = screen.getByRole('button', { name: `Cancel ${label}` });
+        const checkAllButton = screen.getByRole('button', { name: 'Check all' });
+        expect(resumeButton).toBeEnabled();
+        expect(checkAllButton).toBeEnabled();
+
+        act(() => {
+            fireEvent.click(cancelButton);
+        });
+
+        expect(cancelButton).toBeDisabled();
+        expect(resumeButton).toBeDisabled();
+        expect(checkAllButton).toBeDisabled();
+
+        fireEvent.click(resumeButton);
+        expect(mockAxiosPost).not.toHaveBeenCalled();
     });
 
     it('warns when a persistent run completes with failed resources', async () => {

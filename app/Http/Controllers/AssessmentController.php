@@ -151,6 +151,7 @@ class AssessmentController extends Controller
         if ($assessmentScope === null) {
             return response()->json(['error' => 'Unknown assessment scope.'], 404);
         }
+        $jobId = strtolower($jobId);
 
         $run = AssessmentRun::query()
             ->whereKey($jobId)
@@ -385,7 +386,7 @@ class AssessmentController extends Controller
         }
 
         return AssessmentRun::query()
-            ->whereKey($jobId)
+            ->whereKey(strtolower($jobId))
             ->where('scope', $assessmentScope->value)
             ->first();
     }
