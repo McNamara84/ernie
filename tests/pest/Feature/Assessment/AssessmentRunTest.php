@@ -7,6 +7,7 @@ use App\Enums\AssessmentRunStatus;
 use App\Enums\AssessmentScope;
 use App\Jobs\AssessResourceRunItemJob;
 use App\Jobs\DispatchAssessmentRunItemsJob;
+use App\Jobs\PrepareAssessmentRunSnapshotJob;
 use App\Models\AssessmentRun;
 use App\Models\AssessmentRunItem;
 use App\Models\Resource;
@@ -89,6 +90,11 @@ function handleAssessmentItem(AssessResourceRunItemJob $job): void
     );
 }
 
+function prepareAssessmentRun(AssessmentRun $run): void
+{
+    (new PrepareAssessmentRunSnapshotJob($run->id))->handle(app(AssessmentRunService::class));
+}
+
 function successfulFujiAssessment(float $score = 73.08): array
 {
     return [
@@ -107,7 +113,16 @@ test('a resource run persists a complete scope snapshot and skips missing dois',
     $run = app(AssessmentRunService::class)->startOrResume(AssessmentScope::RESOURCE, User::factory()->admin()->create());
 
     expect($run->scope)->toBe(AssessmentScope::RESOURCE)
-        ->and($run->status)->toBe(AssessmentRunStatus::QUEUED)
+        ->and($run->status)->toBe(AssessmentRunStatus::PREPARING)
+        ->and($run->total)->toBe(0)
+        ->and($run->items()->exists())->toBeFalse()
+        ->and(ResourceAssessment::query()->where('resource_id', $withoutDoi->id)->exists())->toBeFalse();
+    Queue::assertPushedOn('assessments', PrepareAssessmentRunSnapshotJob::class);
+
+    prepareAssessmentRun($run);
+    $run->refresh();
+
+    expect($run->status)->toBe(AssessmentRunStatus::QUEUED)
         ->and($run->total)->toBe(2)
         ->and($run->processed)->toBe(1)
         ->and($run->skipped)->toBe(1)
@@ -129,6 +144,9 @@ test('an IGSN run snapshots only physical-object resources', function (): void {
     Cache::flush();
 
     $run = app(AssessmentRunService::class)->startOrResume(AssessmentScope::IGSN, User::factory()->admin()->create());
+
+    prepareAssessmentRun($run);
+    $run->refresh();
 
     expect($run->total)->toBe(1)
         ->and($run->items()->where('resource_id', $igsn->id)->exists())->toBeTrue()
@@ -155,9 +173,14 @@ test('starting an active run is idempotent and returns the same snapshot', funct
     Resource::factory()->withDoi('10.5880/assessment.later')->create();
     $second = $service->startOrResume(AssessmentScope::RESOURCE, $user);
 
+    prepareAssessmentRun($first);
+    $first->refresh();
+
     expect($second->id)->toBe($first->id)
-        ->and($second->total)->toBe($first->total)
+        ->and($first->total)->toBe(1)
+        ->and($first->items()->where('identifier', '10.5880/assessment.later')->exists())->toBeFalse()
         ->and(AssessmentRun::query()->count())->toBe(1);
+    Queue::assertPushed(PrepareAssessmentRunSnapshotJob::class, 1);
 });
 
 test('a paused run resets open leases and resumes the same run', function (): void {
@@ -196,7 +219,56 @@ test('a completed run allows a new complete snapshot', function (): void {
 
     expect($new->id)->not->toBe($old->id)
         ->and(AssessmentRun::query()->count())->toBe(2)
-        ->and($new->total)->toBe(1);
+        ->and($new->status)->toBe(AssessmentRunStatus::PREPARING)
+        ->and($new->total)->toBe(0);
+
+    prepareAssessmentRun($new);
+
+    expect($new->fresh()->total)->toBe(1)
+        ->and($new->fresh()->status)->toBe(AssessmentRunStatus::QUEUED);
+});
+
+test('snapshot preparation resumes from its persisted cursor in bounded chunks', function (): void {
+    config(['fuji.assessment.snapshot_chunk_size' => 2]);
+    $resources = collect([
+        Resource::factory()->withDoi('10.5880/assessment.chunk.1')->create(),
+        Resource::factory()->withDoi('10.5880/assessment.chunk.2')->create(),
+        Resource::factory()->withDoi('10.5880/assessment.chunk.3')->create(),
+    ]);
+    $run = app(AssessmentRunService::class)->startOrResume(AssessmentScope::RESOURCE, User::factory()->admin()->create());
+
+    prepareAssessmentRun($run);
+
+    expect($run->fresh()->status)->toBe(AssessmentRunStatus::PREPARING)
+        ->and($run->fresh()->preparation_cursor)->toBe($resources[1]->id)
+        ->and($run->items()->count())->toBe(2);
+
+    prepareAssessmentRun($run);
+
+    expect($run->fresh()->status)->toBe(AssessmentRunStatus::QUEUED)
+        ->and($run->fresh()->prepared_at)->not->toBeNull()
+        ->and($run->fresh()->preparation_cursor)->toBe($resources[2]->id)
+        ->and($run->items()->count())->toBe(3);
+});
+
+test('a failed snapshot preparation remains resumable from the same run', function (): void {
+    Resource::factory()->withDoi('10.5880/assessment.prepare-resume')->create();
+    $user = User::factory()->admin()->create();
+    $run = app(AssessmentRunService::class)->startOrResume(AssessmentScope::RESOURCE, $user);
+
+    (new PrepareAssessmentRunSnapshotJob($run->id))->failed(new RuntimeException('Database connection lost.'));
+
+    expect($run->fresh()->status)->toBe(AssessmentRunStatus::PAUSED)
+        ->and($run->fresh()->active_scope)->toBe(AssessmentScope::RESOURCE)
+        ->and($run->fresh()->preparation_cursor)->toBe(0);
+
+    $resumed = app(AssessmentRunService::class)->resume($run->fresh(), $user);
+    expect($resumed->status)->toBe(AssessmentRunStatus::PREPARING);
+
+    prepareAssessmentRun($resumed);
+
+    expect($resumed->fresh()->status)->toBe(AssessmentRunStatus::QUEUED)
+        ->and($resumed->items()->count())->toBe(1);
 });
 
 test('the dispatcher fills only the configured execution window', function (): void {
@@ -218,6 +290,24 @@ test('the dispatcher fills only the configured execution window', function (): v
         ->and($run->items()->where('status', AssessmentRunItemStatus::PENDING)->count())->toBe(1);
     Queue::assertPushed(AssessResourceRunItemJob::class, 2);
     Queue::assertPushedOn('assessments', AssessResourceRunItemJob::class);
+});
+
+test('the dispatcher never completes a run whose snapshot is still being prepared', function (): void {
+    $run = AssessmentRun::factory()->create([
+        'status' => AssessmentRunStatus::PREPARING,
+        'prepared_at' => null,
+        'total' => 0,
+        'pending' => 0,
+    ]);
+
+    (new DispatchAssessmentRunItemsJob($run->id))->handle(
+        app(AssessmentRunService::class),
+        app(AssessmentQueueService::class),
+    );
+
+    expect($run->fresh()->status)->toBe(AssessmentRunStatus::PREPARING)
+        ->and($run->fresh()->active_scope)->toBe(AssessmentScope::RESOURCE);
+    Queue::assertNotPushed(AssessResourceRunItemJob::class);
 });
 
 test('duplicate dispatcher jobs do not exceed the configured execution window', function (): void {
@@ -317,6 +407,7 @@ test('the dispatcher cancels every open item after cancellation is requested', f
 });
 
 test('the dispatcher pauses a run when its snapshotted F-UJI configuration changed', function (): void {
+    $user = User::factory()->admin()->create();
     $run = AssessmentRun::factory()->create([
         'status' => AssessmentRunStatus::QUEUED,
         'fuji_base_url' => 'https://old-fuji.test',
@@ -331,6 +422,49 @@ test('the dispatcher pauses a run when its snapshotted F-UJI configuration chang
     expect($run->fresh()->status)->toBe(AssessmentRunStatus::PAUSED)
         ->and($run->fresh()->pause_reason)->toContain('configuration changed');
     Queue::assertNotPushed(AssessResourceRunItemJob::class);
+
+    $resumed = app(AssessmentRunService::class)->resume($run->fresh(), $user);
+
+    expect($resumed->status)->toBe(AssessmentRunStatus::QUEUED)
+        ->and($resumed->fuji_base_url)->toBe('https://fuji.test')
+        ->and($resumed->metric_version)->toBe('metrics_v0.8')
+        ->and($resumed->concurrency)->toBe(2)
+        ->and($resumed->requests_per_minute)->toBe(1000)
+        ->and($resumed->active_scope)->toBe(AssessmentScope::RESOURCE);
+
+    (new DispatchAssessmentRunItemsJob($run->id))->handle(
+        app(AssessmentRunService::class),
+        app(AssessmentQueueService::class),
+    );
+
+    expect($run->fresh()->status)->toBe(AssessmentRunStatus::RUNNING);
+    Queue::assertPushed(AssessResourceRunItemJob::class, 1);
+});
+
+test('cancelling a paused run releases its scope and terminalizes open items', function (): void {
+    $user = User::factory()->admin()->create();
+    $run = AssessmentRun::factory()->create([
+        'status' => AssessmentRunStatus::PAUSED,
+        'total' => 2,
+        'pending' => 2,
+        'pause_reason' => 'Configuration changed.',
+        'paused_at' => now(),
+    ]);
+    AssessmentRunItem::factory()->count(2)->for($run, 'run')->create();
+
+    $cancelled = app(AssessmentRunService::class)->cancel($run, $user);
+
+    expect($cancelled->status)->toBe(AssessmentRunStatus::CANCELLED)
+        ->and($cancelled->active_scope)->toBeNull()
+        ->and($cancelled->last_controlled_by_user_id)->toBe($user->id)
+        ->and($cancelled->pending)->toBe(0)
+        ->and($cancelled->skipped)->toBe(2)
+        ->and($cancelled->items()->where('status', AssessmentRunItemStatus::CANCELLED)->count())->toBe(2);
+
+    $replacement = app(AssessmentRunService::class)->startOrResume(AssessmentScope::RESOURCE, $user);
+
+    expect($replacement->id)->not->toBe($run->id)
+        ->and($replacement->status)->toBe(AssessmentRunStatus::PREPARING);
 });
 
 test('an item job stores a successful assessment atomically', function (): void {

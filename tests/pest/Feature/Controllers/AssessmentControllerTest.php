@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Enums\AssessmentRunItemStatus;
 use App\Enums\AssessmentRunStatus;
 use App\Enums\AssessmentScope;
 use App\Enums\ResourceWorkflowStatus;
 use App\Http\Controllers\AssessmentController;
 use App\Jobs\DispatchAssessmentRunItemsJob;
+use App\Jobs\PrepareAssessmentRunSnapshotJob;
 use App\Jobs\RunResourceAssessmentsJob;
 use App\Models\AssessmentRun;
+use App\Models\AssessmentRunItem;
 use App\Models\AssistantSuggestion;
 use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
@@ -1126,11 +1129,11 @@ describe('checkResources', function () {
         expect($response->json())
             ->toMatchArray([
                 'scope' => 'resource',
-                'status' => 'queued',
-                'totalResources' => 1,
-                'pendingResources' => 1,
+                'status' => 'preparing',
+                'totalResources' => 0,
+                'pendingResources' => 0,
             ]);
-        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 1);
+        Queue::assertPushed(PrepareAssessmentRunSnapshotJob::class, 1);
     });
 
     it('allows group leaders to start every assessment scope', function (string $endpoint): void {
@@ -1149,7 +1152,7 @@ describe('checkResources', function () {
             ->post($endpoint)
             ->assertOk();
 
-        Queue::assertPushed(DispatchAssessmentRunItemsJob::class);
+        Queue::assertPushed(PrepareAssessmentRunSnapshotJob::class);
     })->with([
         'resources' => '/assessment/check-resources',
         'IGSNs' => '/assessment/check-igsns',
@@ -1236,7 +1239,7 @@ describe('checkIgsns', function () {
 
         expect($response->json('jobId'))->toBeUuid();
         expect($response->json('scope'))->toBe('igsn');
-        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 1);
+        Queue::assertPushed(PrepareAssessmentRunSnapshotJob::class, 1);
     });
 
     it('returns 503 when F-UJI is configured but unhealthy', function () {
@@ -1255,6 +1258,83 @@ describe('checkIgsns', function () {
             ->assertStatus(503)
             ->assertJson(['error' => 'F-UJI is currently unavailable. Please try again shortly.']);
     });
+});
+
+describe('run controls', function () {
+    it('resumes a paused run with the current configuration snapshot', function () {
+        Queue::fake();
+        $user = User::factory()->admin()->create();
+        $run = AssessmentRun::factory()->create([
+            'status' => AssessmentRunStatus::PAUSED,
+            'fuji_base_url' => 'https://old-fuji.test',
+            'pause_reason' => 'F-UJI configuration changed.',
+            'paused_at' => now(),
+        ]);
+        AssessmentRunItem::factory()->for($run, 'run')->create([
+            'status' => AssessmentRunItemStatus::PROCESSING,
+            'processing_started_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($user)
+            ->post("/assessment/check/resource/{$run->id}/resume")
+            ->assertOk()
+            ->assertJsonPath('jobId', $run->id)
+            ->assertJsonPath('status', 'queued');
+
+        expect($run->fresh()->fuji_base_url)->toBe('https://fuji.test')
+            ->and($run->fresh()->last_controlled_by_user_id)->toBe($user->id)
+            ->and($run->items()->firstOrFail()->status)->toBe(AssessmentRunItemStatus::PENDING);
+        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 1);
+    });
+
+    it('cancels a paused run and releases its active scope immediately', function () {
+        Queue::fake();
+        $user = User::factory()->admin()->create();
+        $run = AssessmentRun::factory()->create([
+            'status' => AssessmentRunStatus::PAUSED,
+            'total' => 1,
+            'pending' => 1,
+            'paused_at' => now(),
+        ]);
+        $item = AssessmentRunItem::factory()->for($run, 'run')->create();
+
+        $this->actingAs($user)
+            ->delete("/assessment/check/resource/{$run->id}")
+            ->assertOk()
+            ->assertJsonPath('status', 'cancelled')
+            ->assertJsonPath('pendingResources', 0);
+
+        expect($run->fresh()->active_scope)->toBeNull()
+            ->and($item->fresh()->status)->toBe(AssessmentRunItemStatus::CANCELLED);
+        Queue::assertNothingPushed();
+    });
+
+    it('rejects run controls for a mismatched scope', function (string $method): void {
+        $user = User::factory()->admin()->create();
+        $run = AssessmentRun::factory()->create(['scope' => AssessmentScope::RESOURCE]);
+
+        $this->actingAs($user)
+            ->{$method}("/assessment/check/igsn/{$run->id}".($method === 'post' ? '/resume' : ''))
+            ->assertNotFound();
+    })->with([
+        'resume' => 'post',
+        'cancel' => 'delete',
+    ]);
+
+    it('forbids curators from controlling runs', function (string $method): void {
+        $user = User::factory()->create(['role' => 'curator']);
+        $run = AssessmentRun::factory()->create([
+            'status' => AssessmentRunStatus::PAUSED,
+            'paused_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->{$method}("/assessment/check/resource/{$run->id}".($method === 'post' ? '/resume' : ''))
+            ->assertForbidden();
+    })->with([
+        'resume' => 'post',
+        'cancel' => 'delete',
+    ]);
 });
 
 describe('status', function () {
@@ -1342,7 +1422,7 @@ describe('checkAll', function () {
             ->assertOk();
 
         expect($response->json())->toHaveKeys(['resourceJobId', 'igsnJobId']);
-        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 2);
+        Queue::assertPushed(PrepareAssessmentRunSnapshotJob::class, 2);
     });
 
     it('returns 503 when F-UJI is not configured', function () {
@@ -1421,6 +1501,7 @@ describe('checkAll', function () {
         expect($response->json('resourceJobId'))->toBe($resourceRun->id)
             ->and($response->json('igsnJobId'))->toBeUuid()
             ->and(AssessmentRun::query()->count())->toBe(2);
-        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 2);
+        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 1);
+        Queue::assertPushed(PrepareAssessmentRunSnapshotJob::class, 1);
     });
 });

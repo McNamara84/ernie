@@ -36,7 +36,7 @@
         "fixes": [
             {
                 "title": "Resumable FAIR Assessment Runs",
-                "description": "Resource and IGSN assessments now use persistent run snapshots and short, idempotent per-resource jobs instead of one time-limited queue job. Browser reloads, worker restarts, deployments, transient F-UJI failures, and rate limits no longer discard progress; active or paused runs resume with the same ID, while dedicated workers, bounded retries, shared request limiting, and persistent progress details keep every remaining resource traceable until completion."
+                "description": "Resource and IGSN assessments now prepare persistent snapshots in resumable background chunks and use short, idempotent per-resource jobs instead of one time-limited queue job. Browser reloads, worker restarts, deployments, transient F-UJI failures, and rate limits no longer discard progress; paused runs can continue with current service settings or be cancelled to release their scope, while dedicated workers, bounded retries, shared request limiting, and persistent progress details keep every remaining resource traceable until completion."
             },
             {
                 "title": "Single Funding Reference Add Action",

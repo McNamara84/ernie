@@ -7,7 +7,9 @@ namespace App\Services\Assessment;
 use App\Enums\AssessmentRunItemStatus;
 use App\Enums\AssessmentRunStatus;
 use App\Enums\AssessmentScope;
+use App\Enums\CacheKey;
 use App\Jobs\DispatchAssessmentRunItemsJob;
+use App\Jobs\PrepareAssessmentRunSnapshotJob;
 use App\Models\AssessmentRun;
 use App\Models\AssessmentRunItem;
 use App\Models\Resource;
@@ -24,8 +26,6 @@ use Illuminate\Validation\ValidationException;
 
 final class AssessmentRunService
 {
-    private const SNAPSHOT_CHUNK_SIZE = 250;
-
     public function __construct(
         private readonly ResourceCacheService $resourceCache,
         private readonly AssessmentQueueService $queue,
@@ -34,7 +34,7 @@ final class AssessmentRunService
     public function startOrResume(AssessmentScope $scope, User $user): AssessmentRun
     {
         $this->ensurePersistentQueue();
-        $lock = Cache::lock("assessment:run:start:{$scope->value}", 120);
+        $lock = Cache::lock(CacheKey::ASSESSMENT_RUN_START_LOCK->key($scope->value), 120);
 
         try {
             $lock->block(15);
@@ -49,8 +49,10 @@ final class AssessmentRunService
             ]);
         }
 
+        $shouldDispatch = false;
+
         try {
-            $run = DB::transaction(function () use ($scope, $user): AssessmentRun {
+            $run = DB::transaction(function () use ($scope, $user, &$shouldDispatch): AssessmentRun {
                 $active = AssessmentRun::query()
                     ->where('active_scope', $scope->value)
                     ->lockForUpdate()
@@ -58,20 +60,18 @@ final class AssessmentRunService
 
                 if ($active !== null) {
                     if ($active->status === AssessmentRunStatus::PAUSED) {
-                        $this->resetOpenItems($active);
-                        $active->forceFill([
-                            'status' => AssessmentRunStatus::QUEUED,
-                            'last_controlled_by_user_id' => $user->id,
-                            'pause_reason' => null,
-                            'last_error' => null,
-                            'paused_at' => null,
-                        ])->save();
+                        $this->resumeLocked($active, $user);
+                        $shouldDispatch = true;
+                    } elseif ($active->status !== AssessmentRunStatus::PREPARING) {
+                        $shouldDispatch = true;
                     }
 
                     return $active;
                 }
 
-                return $this->createRunSnapshot($scope, $user);
+                $shouldDispatch = true;
+
+                return $this->createRun($scope, $user);
             });
         } catch (QueryException $exception) {
             if (! $this->isActiveScopeConflict($exception)) {
@@ -85,7 +85,7 @@ final class AssessmentRunService
             $lock->release();
         }
 
-        if ($run->status->isActive() && $run->status !== AssessmentRunStatus::PAUSED) {
+        if ($shouldDispatch && $run->status->isActive() && $run->status !== AssessmentRunStatus::PAUSED) {
             $this->dispatch($run);
         }
 
@@ -110,14 +110,91 @@ final class AssessmentRunService
 
     public function configurationMatches(AssessmentRun $run): bool
     {
-        $baseUrl = trim((string) config('fuji.base_url', ''));
-        $metricVersion = config('fuji.metric_version');
-        $metricVersion = is_string($metricVersion) && trim($metricVersion) !== '' ? trim($metricVersion) : null;
+        $configuration = $this->configurationSnapshot();
 
-        return rtrim($run->fuji_base_url, '/') === rtrim($baseUrl, '/')
-            && $run->metric_version === $metricVersion
-            && $run->use_datacite === (bool) config('fuji.use_datacite', true)
-            && $run->use_github === (bool) config('fuji.use_github', false);
+        return rtrim($run->fuji_base_url, '/') === rtrim($configuration['fuji_base_url'], '/')
+            && $run->metric_version === $configuration['metric_version']
+            && $run->use_datacite === $configuration['use_datacite']
+            && $run->use_github === $configuration['use_github'];
+    }
+
+    public function resume(AssessmentRun $run, User $user): AssessmentRun
+    {
+        $this->ensurePersistentQueue();
+        $lock = Cache::lock(CacheKey::ASSESSMENT_RUN_START_LOCK->key($run->scope->value), 120);
+
+        try {
+            $lock->block(15);
+        } catch (LockTimeoutException) {
+            throw ValidationException::withMessages([
+                'run' => ["The {$run->scope->singularLabel()} assessment is currently being controlled by another request."],
+            ]);
+        }
+
+        try {
+            $resumed = DB::transaction(function () use ($run, $user): AssessmentRun {
+                $locked = AssessmentRun::query()->lockForUpdate()->findOrFail($run->id);
+
+                if ($locked->status->isTerminal()) {
+                    throw ValidationException::withMessages(['run' => ['A completed or cancelled assessment run cannot be resumed.']]);
+                }
+
+                if ($locked->status === AssessmentRunStatus::PAUSED) {
+                    $this->resumeLocked($locked, $user);
+                }
+
+                return $locked;
+            });
+        } finally {
+            $lock->release();
+        }
+
+        if ($resumed->status->isActive() && $resumed->status !== AssessmentRunStatus::PAUSED) {
+            $this->dispatch($resumed);
+        }
+
+        return $resumed->refresh();
+    }
+
+    public function cancel(AssessmentRun $run, User $user): AssessmentRun
+    {
+        return DB::transaction(function () use ($run, $user): AssessmentRun {
+            $locked = AssessmentRun::query()->lockForUpdate()->findOrFail($run->id);
+
+            if ($locked->status->isTerminal()) {
+                return $locked;
+            }
+
+            AssessmentRunItem::query()
+                ->where('run_id', $locked->id)
+                ->whereIn('status', AssessmentRunItemStatus::openValues())
+                ->update([
+                    'status' => AssessmentRunItemStatus::CANCELLED,
+                    'available_at' => null,
+                    'processing_started_at' => null,
+                    'lease_expires_at' => null,
+                    'processed_at' => now(),
+                ]);
+
+            $this->recalculate($locked);
+            $locked->refresh();
+            $locked->forceFill([
+                'status' => AssessmentRunStatus::CANCELLED,
+                'active_scope' => null,
+                'last_controlled_by_user_id' => $user->id,
+                'cancelled_at' => now(),
+                'completed_at' => now(),
+            ])->save();
+
+            Log::info('Resource assessment run cancelled', [
+                'run_id' => $locked->id,
+                'scope' => $locked->scope->value,
+                'processed' => $locked->processed,
+                'pending' => $locked->pending,
+            ]);
+
+            return $locked;
+        }, 3);
     }
 
     public function pause(AssessmentRun $run, string $reason, ?string $error = null): void
@@ -169,93 +246,138 @@ final class AssessmentRunService
 
     public function dispatch(AssessmentRun $run, int $delaySeconds = 0): void
     {
-        DispatchAssessmentRunItemsJob::dispatch($run->id)
+        $run->refresh();
+        if ($run->status->isTerminal() || $run->status === AssessmentRunStatus::PAUSED) {
+            return;
+        }
+
+        $job = $run->status === AssessmentRunStatus::PREPARING
+            ? new PrepareAssessmentRunSnapshotJob($run->id)
+            : new DispatchAssessmentRunItemsJob($run->id);
+
+        dispatch($job)
             ->onConnection($this->queue->connection())
             ->onQueue($this->queue->queue())
             ->delay(now()->addSeconds(max(0, $delaySeconds)))
             ->afterCommit();
     }
 
-    private function createRunSnapshot(AssessmentScope $scope, User $user): AssessmentRun
+    public function prepareNextSnapshotChunk(string $runId): void
     {
-        $baseUrl = trim((string) config('fuji.base_url', ''));
-        if ($baseUrl === '') {
-            throw ValidationException::withMessages(['fuji' => ['F-UJI is not configured.']]);
-        }
+        $nextAction = DB::transaction(function () use ($runId): ?string {
+            $run = AssessmentRun::query()->lockForUpdate()->find($runId);
 
-        $metricVersion = config('fuji.metric_version');
-        $metricVersion = is_string($metricVersion) && trim($metricVersion) !== '' ? trim($metricVersion) : null;
-        $run = AssessmentRun::query()->create([
-            'scope' => $scope,
-            'status' => AssessmentRunStatus::PREPARING,
-            'active_scope' => $scope,
-            'initiated_by_user_id' => $user->id,
-            'fuji_base_url' => $baseUrl,
-            'metric_version' => $metricVersion,
-            'use_datacite' => (bool) config('fuji.use_datacite', true),
-            'use_github' => (bool) config('fuji.use_github', false),
-            'concurrency' => max(1, min(8, (int) config('fuji.assessment.concurrency', 2))),
-            'requests_per_minute' => max(1, (int) config('fuji.assessment.requests_per_minute', 80)),
-        ]);
+            if ($run === null || $run->status !== AssessmentRunStatus::PREPARING) {
+                return null;
+            }
 
-        $total = 0;
-        $skipped = 0;
-        $rows = [];
-        $now = now();
+            if (! $this->configurationMatches($run)) {
+                $this->pause($run, 'F-UJI configuration changed while the assessment run was being prepared.');
 
-        foreach ($this->scopeQuery($scope)->lazyById(self::SNAPSHOT_CHUNK_SIZE) as $resource) {
-            $identifier = is_string($resource->doi) && trim($resource->doi) !== '' ? trim($resource->doi) : null;
-            $status = $identifier === null ? AssessmentRunItemStatus::SKIPPED : AssessmentRunItemStatus::PENDING;
-            $rows[] = [
-                'run_id' => $run->id,
-                'resource_id' => $resource->id,
-                'identifier' => $identifier,
-                'status' => $status->value,
-                'attempts' => 0,
-                'error_message' => $identifier === null ? 'Resource has no DOI.' : null,
-                'processed_at' => $identifier === null ? $now : null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-            $total++;
+                return null;
+            }
 
-            if ($identifier === null) {
-                $skipped++;
-                ResourceAssessment::query()->updateOrCreate(
-                    ['resource_id' => $resource->id],
-                    [
+            $chunkSize = max(1, min(1000, (int) config('fuji.assessment.snapshot_chunk_size', 250)));
+            $resources = $this->scopeQuery($run->scope)
+                ->where('resources.id', '>', $run->preparation_cursor)
+                ->where('resources.id', '<=', $run->snapshot_max_resource_id)
+                ->orderBy('resources.id')
+                ->limit($chunkSize)
+                ->get(['resources.id', 'resources.doi']);
+            $now = now();
+            $itemRows = [];
+            $assessmentRows = [];
+
+            foreach ($resources as $resource) {
+                $identifier = is_string($resource->doi) && trim($resource->doi) !== '' ? trim($resource->doi) : null;
+                $status = $identifier === null ? AssessmentRunItemStatus::SKIPPED : AssessmentRunItemStatus::PENDING;
+                $itemRows[] = [
+                    'run_id' => $run->id,
+                    'resource_id' => $resource->id,
+                    'identifier' => $identifier,
+                    'status' => $status->value,
+                    'attempts' => 0,
+                    'error_message' => $identifier === null ? 'Resource has no DOI.' : null,
+                    'processed_at' => $identifier === null ? $now : null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+
+                if ($identifier === null) {
+                    $assessmentRows[] = [
+                        'resource_id' => $resource->id,
                         'status' => ResourceAssessment::STATUS_SKIPPED,
                         'total_score' => null,
                         'assessed_identifier' => null,
                         'error_message' => 'Resource has no DOI.',
                         'payload' => null,
                         'assessed_at' => $now,
-                    ],
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+            }
+
+            if ($itemRows !== []) {
+                AssessmentRunItem::query()->insertOrIgnore($itemRows);
+            }
+
+            if ($assessmentRows !== []) {
+                ResourceAssessment::query()->upsert(
+                    $assessmentRows,
+                    ['resource_id'],
+                    ['status', 'total_score', 'assessed_identifier', 'error_message', 'payload', 'assessed_at', 'updated_at'],
                 );
             }
 
-            if (count($rows) >= self::SNAPSHOT_CHUNK_SIZE) {
-                AssessmentRunItem::query()->insert($rows);
-                $rows = [];
+            if ($resources->isNotEmpty()) {
+                $run->preparation_cursor = (int) $resources->last()->id;
+                $run->save();
             }
+
+            $this->recalculate($run);
+            $run->refresh();
+
+            if ($resources->count() === $chunkSize) {
+                return 'prepare';
+            }
+
+            $completedAt = $run->pending === 0 ? now() : null;
+            $run->forceFill([
+                'status' => $run->pending === 0 ? AssessmentRunStatus::COMPLETED : AssessmentRunStatus::QUEUED,
+                'active_scope' => $run->pending === 0 ? null : $run->scope,
+                'prepared_at' => now(),
+                'completed_at' => $completedAt,
+            ])->save();
+
+            return $run->pending === 0 ? null : 'dispatch';
+        }, 3);
+
+        if ($nextAction === null) {
+            return;
         }
 
-        if ($rows !== []) {
-            AssessmentRunItem::query()->insert($rows);
+        $run = AssessmentRun::query()->find($runId);
+        if ($run !== null) {
+            $this->dispatch($run);
         }
+    }
 
-        $pending = $total - $skipped;
-        $run->forceFill([
-            'status' => $pending === 0 ? AssessmentRunStatus::COMPLETED : AssessmentRunStatus::QUEUED,
-            'active_scope' => $pending === 0 ? null : $scope,
-            'total' => $total,
-            'processed' => $skipped,
-            'skipped' => $skipped,
-            'pending' => $pending,
-            'completed_at' => $pending === 0 ? now() : null,
-        ])->save();
+    private function createRun(AssessmentScope $scope, User $user): AssessmentRun
+    {
+        $configuration = $this->configurationSnapshot(requireConfigured: true);
+        $snapshotMaxResourceId = Resource::query()->max('id');
 
-        return $run;
+        return AssessmentRun::query()->create([
+            'scope' => $scope,
+            'status' => AssessmentRunStatus::PREPARING,
+            'active_scope' => $scope,
+            'initiated_by_user_id' => $user->id,
+            ...$configuration,
+            'snapshot_max_resource_id' => is_numeric($snapshotMaxResourceId) ? (int) $snapshotMaxResourceId : 0,
+            'preparation_cursor' => 0,
+            'prepared_at' => null,
+        ]);
     }
 
     /** @return Builder<Resource> */
@@ -293,6 +415,48 @@ final class AssessmentRunService
             ]);
 
         $this->recalculate($run);
+    }
+
+    private function resumeLocked(AssessmentRun $run, User $user): void
+    {
+        $this->resetOpenItems($run);
+        $run->forceFill([
+            ...$this->configurationSnapshot(requireConfigured: true),
+            'status' => $run->prepared_at === null ? AssessmentRunStatus::PREPARING : AssessmentRunStatus::QUEUED,
+            'last_controlled_by_user_id' => $user->id,
+            'pause_reason' => null,
+            'last_error' => null,
+            'paused_at' => null,
+        ])->save();
+    }
+
+    /**
+     * @return array{
+     *     fuji_base_url: string,
+     *     metric_version: string|null,
+     *     use_datacite: bool,
+     *     use_github: bool,
+     *     concurrency: int,
+     *     requests_per_minute: int
+     * }
+     */
+    private function configurationSnapshot(bool $requireConfigured = false): array
+    {
+        $baseUrl = trim((string) config('fuji.base_url', ''));
+        if ($requireConfigured && $baseUrl === '') {
+            throw ValidationException::withMessages(['fuji' => ['F-UJI is not configured.']]);
+        }
+
+        $metricVersion = config('fuji.metric_version');
+
+        return [
+            'fuji_base_url' => $baseUrl,
+            'metric_version' => is_string($metricVersion) && trim($metricVersion) !== '' ? trim($metricVersion) : null,
+            'use_datacite' => (bool) config('fuji.use_datacite', true),
+            'use_github' => (bool) config('fuji.use_github', false),
+            'concurrency' => max(1, min(8, (int) config('fuji.assessment.concurrency', 2))),
+            'requests_per_minute' => max(1, (int) config('fuji.assessment.requests_per_minute', 80)),
+        ];
     }
 
     private function ensurePersistentQueue(): void

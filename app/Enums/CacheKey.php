@@ -85,6 +85,12 @@ enum CacheKey: string
     // F-UJI health check result (short-lived)
     case FUJI_HEALTH_STATUS = 'assessment:fuji_health_status';
 
+    // Persistent assessment run coordination and shared F-UJI request limiting
+    case ASSESSMENT_RUN_START_LOCK = 'assessment:run:start';
+    case FUJI_ASSESSMENT_LIMITER_HISTORY = 'fuji:assessment:request-history-ms';
+    case FUJI_ASSESSMENT_LIMITER_COOLDOWN = 'fuji:assessment:cooldown-until-ms';
+    case FUJI_ASSESSMENT_LIMITER_LOCK = 'fuji:assessment:request-limiter-lock';
+
     // Published landing page render payloads
     case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v6';
 
@@ -188,6 +194,12 @@ enum CacheKey: string
             // F-UJI health check result - 30 seconds (short-lived to reflect quick recovery)
             self::FUJI_HEALTH_STATUS => 30,
 
+            // Coordination keys use explicit lifetimes at their call sites.
+            self::ASSESSMENT_RUN_START_LOCK,
+            self::FUJI_ASSESSMENT_LIMITER_HISTORY,
+            self::FUJI_ASSESSMENT_LIMITER_COOLDOWN,
+            self::FUJI_ASSESSMENT_LIMITER_LOCK => 120,
+
             // Published landing page render data - short-lived and configurable
             self::LANDING_PAGE_RENDER_DATA => max(0, (int) config('bot_protection.landing_cache_ttl', 600)),
 
@@ -269,6 +281,11 @@ enum CacheKey: string
             self::ASSESSMENT_AVERAGE_SUMMARY => ['assessments'],
 
             self::FUJI_HEALTH_STATUS => ['assessments'],
+
+            self::ASSESSMENT_RUN_START_LOCK,
+            self::FUJI_ASSESSMENT_LIMITER_HISTORY,
+            self::FUJI_ASSESSMENT_LIMITER_COOLDOWN,
+            self::FUJI_ASSESSMENT_LIMITER_LOCK => [],
 
             self::LANDING_PAGE_RENDER_DATA => ['resources', 'landing_pages'],
 

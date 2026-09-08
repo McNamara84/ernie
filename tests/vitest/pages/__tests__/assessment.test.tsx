@@ -12,7 +12,8 @@ const { mockRouterGet, mockRouterReload } = vi.hoisted(() => ({
     mockRouterReload: vi.fn(),
 }));
 
-const { mockAxiosGet, mockAxiosPost } = vi.hoisted(() => ({
+const { mockAxiosDelete, mockAxiosGet, mockAxiosPost } = vi.hoisted(() => ({
+    mockAxiosDelete: vi.fn(),
     mockAxiosGet: vi.fn(),
     mockAxiosPost: vi.fn(),
 }));
@@ -37,6 +38,7 @@ vi.mock('@inertiajs/react', () => ({
 
 vi.mock('axios', () => ({
     default: {
+        delete: mockAxiosDelete,
         get: mockAxiosGet,
         post: mockAxiosPost,
         isAxiosError: (error: unknown) => error instanceof Error && 'isAxiosError' in error,
@@ -124,6 +126,7 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
 describe('Assessment page', () => {
     beforeEach(() => {
         vi.useFakeTimers();
+        mockAxiosDelete.mockReset();
         mockAxiosGet.mockReset();
         mockAxiosPost.mockReset();
         mockRouterGet.mockReset();
@@ -652,7 +655,7 @@ describe('Assessment page', () => {
         expect(mockToast.success).toHaveBeenCalledWith('Resources assessment completed.');
     });
 
-    it('shows a paused run and resumes the same run through the scope endpoint', async () => {
+    it('shows a paused run and resumes the same run through its explicit endpoint', async () => {
         mockAxiosPost.mockResolvedValueOnce({
             data: {
                 jobId: '11111111-1111-4111-8111-111111111111',
@@ -685,8 +688,45 @@ describe('Assessment page', () => {
             fireEvent.click(screen.getByRole('button', { name: 'Resume Resources' }));
         });
 
-        expect(mockAxiosPost).toHaveBeenCalledWith('/assessment/check-resources');
+        expect(mockAxiosPost).toHaveBeenCalledWith(
+            '/assessment/check/resource/11111111-1111-4111-8111-111111111111/resume',
+        );
         expect(screen.getByText('Resources assessment is waiting to start.')).toBeInTheDocument();
+    });
+
+    it('cancels a persisted run and refreshes assessment data', async () => {
+        mockAxiosDelete.mockResolvedValueOnce({
+            data: {
+                jobId: '11111111-1111-4111-8111-111111111111',
+                scope: 'resource',
+                status: 'cancelled',
+                progress: 'Resources assessment cancelled.',
+                pendingResources: 0,
+            },
+        });
+
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    resourceAssessmentRun: {
+                        jobId: '11111111-1111-4111-8111-111111111111',
+                        scope: 'resource',
+                        status: 'paused',
+                        progress: 'Resources assessment paused.',
+                        pendingResources: 3,
+                    },
+                })}
+            />,
+        );
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Cancel Resources' }));
+        });
+
+        expect(mockAxiosDelete).toHaveBeenCalledWith('/assessment/check/resource/11111111-1111-4111-8111-111111111111');
+        expect(screen.getByText('Resources assessment cancelled.')).toBeInTheDocument();
+        expect(mockRouterReload).toHaveBeenCalledWith({ only: expect.any(Array) });
+        expect(mockToast.warning).toHaveBeenCalledWith('Resources assessment cancelled.');
     });
 
     it('warns when a persistent run completes with failed resources', async () => {

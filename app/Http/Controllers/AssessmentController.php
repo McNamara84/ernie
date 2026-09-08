@@ -116,6 +116,35 @@ class AssessmentController extends Controller
         return response()->json($result);
     }
 
+    public function resume(string $scope, string $jobId): JsonResponse
+    {
+        $fujiUnavailableResponse = $this->fujiUnavailableResponse();
+        if ($fujiUnavailableResponse !== null) {
+            return $fujiUnavailableResponse;
+        }
+
+        $run = $this->findRun($scope, $jobId);
+        if ($run === null) {
+            return response()->json(['error' => 'Assessment run not found.'], 404);
+        }
+
+        return response()->json($this->assessmentRunPresenter->present(
+            $this->assessmentRuns->resume($run, $this->authenticatedUser()),
+        ));
+    }
+
+    public function cancel(string $scope, string $jobId): JsonResponse
+    {
+        $run = $this->findRun($scope, $jobId);
+        if ($run === null) {
+            return response()->json(['error' => 'Assessment run not found.'], 404);
+        }
+
+        return response()->json($this->assessmentRunPresenter->present(
+            $this->assessmentRuns->cancel($run, $this->authenticatedUser()),
+        ));
+    }
+
     public function status(string $scope, string $jobId): JsonResponse
     {
         $assessmentScope = AssessmentScope::tryFrom($scope);
@@ -346,6 +375,19 @@ class AssessmentController extends Controller
         $run = $this->assessmentRuns->latestForScope($scope);
 
         return $run === null ? null : $this->assessmentRunPresenter->present($run);
+    }
+
+    private function findRun(string $scope, string $jobId): ?AssessmentRun
+    {
+        $assessmentScope = AssessmentScope::tryFrom($scope);
+        if ($assessmentScope === null) {
+            return null;
+        }
+
+        return AssessmentRun::query()
+            ->whereKey($jobId)
+            ->where('scope', $assessmentScope->value)
+            ->first();
     }
 
     private function authenticatedUser(): User

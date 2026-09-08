@@ -28,6 +28,14 @@ it('defines the indexes needed for unique active runs and dispatcher lookups', f
         ]))->toBeTrue();
 });
 
+it('stores resumable snapshot preparation progress', function (): void {
+    expect(Schema::hasColumns('assessment_runs', [
+        'snapshot_max_resource_id',
+        'preparation_cursor',
+        'prepared_at',
+    ]))->toBeTrue();
+});
+
 it('allows only one active run per scope while retaining terminal run history', function (): void {
     $first = AssessmentRun::factory()->create([
         'scope' => AssessmentScope::RESOURCE,

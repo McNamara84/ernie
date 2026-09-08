@@ -32,6 +32,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 type ScopeState = {
     isChecking: boolean;
+    isCancelling: boolean;
     progress: string;
     status?: AssessmentJobStatus['status'];
     jobId?: string;
@@ -110,15 +111,20 @@ function isActiveAssessmentStatus(status: AssessmentJobStatus['status']): boolea
     return ['preparing', 'queued', 'running', 'cancel_requested'].includes(status);
 }
 
+function isCancellableAssessmentStatus(status?: AssessmentJobStatus['status']): boolean {
+    return status !== undefined && ['preparing', 'queued', 'running', 'paused', 'cancel_requested'].includes(status);
+}
+
 function initialScopeState(run?: AssessmentJobStatus | null): ScopeState {
     if (run === null || run === undefined) {
-        return { isChecking: false, progress: '' };
+        return { isChecking: false, isCancelling: false, progress: '' };
     }
 
     const isChecking = isActiveAssessmentStatus(run.status);
 
     return {
         isChecking,
+        isCancelling: false,
         progress: run.status === 'unknown' ? '' : run.progress,
         status: run.status,
         jobId: run.jobId,
@@ -422,7 +428,10 @@ export default function Assessment({
         stopPolling(scope);
 
         try {
-            const { data } = await axios.post<AssessmentJobStatus & { jobId: string }>(ENDPOINTS[scope]);
+            const currentState = states[scope];
+            const endpoint =
+                currentState.status === 'paused' && currentState.jobId ? `/assessment/check/${scope}/${currentState.jobId}/resume` : ENDPOINTS[scope];
+            const { data } = await axios.post<AssessmentJobStatus & { jobId: string }>(endpoint);
             patchState(scope, stateFromStatus(data, data.jobId, scope));
             startPolling(scope, data.jobId);
         } catch (error) {
@@ -441,6 +450,26 @@ export default function Assessment({
             }
 
             toast.error(`Failed to start ${scopeLabel(scope)} assessment.`);
+        }
+    }
+
+    async function handleCancel(scope: AssessmentScope) {
+        const jobId = states[scope].jobId;
+        if (!jobId) {
+            return;
+        }
+
+        patchState(scope, { isCancelling: true });
+        stopPolling(scope);
+
+        try {
+            const { data } = await axios.delete<AssessmentJobStatus>(`/assessment/check/${scope}/${jobId}`);
+            patchState(scope, stateFromStatus(data, jobId, scope));
+            router.reload({ only: [...RELOAD_KEYS] });
+            toast.warning(`${scopeLabel(scope)} assessment cancelled.`);
+        } catch (error) {
+            patchState(scope, { isCancelling: false });
+            toast.error(getAssessmentErrorMessage(error, `Failed to cancel ${scopeLabel(scope)} assessment.`));
         }
     }
 
@@ -586,9 +615,9 @@ export default function Assessment({
                     }
 
                     return (
-                        <div key={scope} className="flex items-start gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
+                        <div key={scope} className="flex items-start gap-3 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
                             {state.isChecking && <Spinner size="sm" className="mt-0.5" />}
-                            <div className="space-y-1">
+                            <div className="min-w-0 flex-1 space-y-1">
                                 <p>{state.progress}</p>
                                 {state.totalResources !== undefined && (
                                     <p className="text-xs">
@@ -616,6 +645,17 @@ export default function Assessment({
                                     </p>
                                 )}
                             </div>
+                            {canRunAssessments && state.jobId && isCancellableAssessmentStatus(state.status) && (
+                                <LoadingButton
+                                    variant="outline"
+                                    size="sm"
+                                    loading={state.isCancelling}
+                                    disabled={state.isCancelling}
+                                    onClick={() => handleCancel(scope)}
+                                >
+                                    {state.isCancelling ? 'Cancelling...' : `Cancel ${scopeLabel(scope)}`}
+                                </LoadingButton>
+                            )}
                         </div>
                     );
                 })}

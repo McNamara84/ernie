@@ -27,8 +27,11 @@ class AssessmentRunFactory extends Factory
             'metric_version' => 'metrics_v0.8',
             'use_datacite' => true,
             'use_github' => false,
-            'concurrency' => 2,
-            'requests_per_minute' => 80,
+            'concurrency' => max(1, min(8, (int) config('fuji.assessment.concurrency', 2))),
+            'requests_per_minute' => max(1, (int) config('fuji.assessment.requests_per_minute', 80)),
+            'snapshot_max_resource_id' => 0,
+            'preparation_cursor' => 0,
+            'prepared_at' => now(),
             'total' => 1,
             'pending' => 1,
         ];

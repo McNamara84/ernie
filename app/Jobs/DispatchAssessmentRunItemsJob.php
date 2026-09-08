@@ -36,7 +36,9 @@ final class DispatchAssessmentRunItemsJob implements ShouldQueue
         $itemIds = DB::transaction(function () use ($runs): array {
             $run = AssessmentRun::query()->lockForUpdate()->find($this->runId);
 
-            if ($run === null || $run->status->isTerminal() || $run->status === AssessmentRunStatus::PAUSED) {
+            if ($run === null
+                || $run->status->isTerminal()
+                || in_array($run->status, [AssessmentRunStatus::PREPARING, AssessmentRunStatus::PAUSED], true)) {
                 return [];
             }
 

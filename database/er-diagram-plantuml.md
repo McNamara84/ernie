@@ -629,6 +629,58 @@ entity "resource_assessments" as resource_assessments {
     updated_at : TIMESTAMP
 }
 
+entity "assessment_runs" as assessment_runs {
+    * **id** : UUID <<PK>>
+    --
+    * scope : VARCHAR(20)
+    * status : VARCHAR(30)
+    active_scope : VARCHAR(20) <<UK>> <<nullable>>
+    initiated_by_user_id : BIGINT <<FK>> <<nullable>>
+    last_controlled_by_user_id : BIGINT <<FK>> <<nullable>>
+    * fuji_base_url : VARCHAR(500)
+    metric_version : VARCHAR(100) <<nullable>>
+    * use_datacite : BOOLEAN
+    * use_github : BOOLEAN
+    * concurrency : TINYINT UNSIGNED = 2
+    * requests_per_minute : SMALLINT UNSIGNED = 80
+    * snapshot_max_resource_id : BIGINT UNSIGNED = 0
+    * preparation_cursor : BIGINT UNSIGNED = 0
+    * total : INT UNSIGNED = 0
+    * processed : INT UNSIGNED = 0
+    * assessed : INT UNSIGNED = 0
+    * failed : INT UNSIGNED = 0
+    * skipped : INT UNSIGNED = 0
+    * pending : INT UNSIGNED = 0
+    pause_reason : TEXT <<nullable>>
+    last_error : TEXT <<nullable>>
+    started_at : TIMESTAMP <<nullable>>
+    prepared_at : TIMESTAMP <<nullable>>
+    paused_at : TIMESTAMP <<nullable>>
+    cancelled_at : TIMESTAMP <<nullable>>
+    completed_at : TIMESTAMP <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "assessment_run_items" as assessment_run_items {
+    * **id** : BIGINT <<PK>>
+    --
+    * run_id : UUID <<FK>>
+    resource_id : BIGINT <<FK>> <<nullable>>
+    identifier : VARCHAR(255) <<nullable>>
+    * status : VARCHAR(30)
+    * attempts : SMALLINT UNSIGNED = 0
+    last_http_status : SMALLINT UNSIGNED <<nullable>>
+    error_message : TEXT <<nullable>>
+    available_at : TIMESTAMP <<nullable>>
+    processing_started_at : TIMESTAMP <<nullable>>
+    lease_expires_at : TIMESTAMP <<nullable>>
+    processed_at : TIMESTAMP <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+' assessment_run_items unique(run_id, resource_id)
+
 entity "alternate_identifiers" as alternate_identifiers {
     * **id** : BIGINT <<PK>>
     --
@@ -1352,6 +1404,12 @@ users |o--o{ igsn_registration_runs : "initiated_by_user_id"
 users |o--o{ igsn_registration_runs : "last_controlled_by_user_id"
 igsn_registration_runs ||--o{ igsn_registration_items
 resources |o--o{ igsn_registration_items
+
+' FAIR assessment run relationships
+users |o--o{ assessment_runs : "initiated_by_user_id"
+users |o--o{ assessment_runs : "last_controlled_by_user_id"
+assessment_runs ||--o{ assessment_run_items
+resources |o--o{ assessment_run_items
 
 ' Resource core relationships
 resources ||--o| resource_listing_projections

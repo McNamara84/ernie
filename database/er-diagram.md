@@ -576,6 +576,56 @@ erDiagram
         timestamp updated_at
     }
 
+    assessment_runs {
+        uuid id PK
+        varchar scope "20, indexed"
+        varchar status "30, indexed"
+        varchar active_scope UK "20, nullable"
+        bigint initiated_by_user_id FK "nullable"
+        bigint last_controlled_by_user_id FK "nullable"
+        varchar fuji_base_url "500"
+        varchar metric_version "100, nullable"
+        boolean use_datacite
+        boolean use_github
+        tinyint concurrency "unsigned, default 2"
+        smallint requests_per_minute "unsigned, default 80"
+        bigint snapshot_max_resource_id "unsigned, default 0"
+        bigint preparation_cursor "unsigned, default 0"
+        int total "unsigned, default 0"
+        int processed "unsigned, default 0"
+        int assessed "unsigned, default 0"
+        int failed "unsigned, default 0"
+        int skipped "unsigned, default 0"
+        int pending "unsigned, default 0"
+        text pause_reason "nullable"
+        text last_error "nullable"
+        timestamp started_at "nullable"
+        timestamp prepared_at "nullable"
+        timestamp paused_at "nullable"
+        timestamp cancelled_at "nullable"
+        timestamp completed_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    assessment_run_items {
+        bigint id PK
+        uuid run_id FK
+        bigint resource_id FK "nullable"
+        varchar identifier "255, nullable"
+        varchar status "30, indexed"
+        smallint attempts "unsigned, default 0"
+        smallint last_http_status "unsigned, nullable"
+        text error_message "nullable"
+        timestamp available_at "nullable"
+        timestamp processing_started_at "nullable"
+        timestamp lease_expires_at "nullable, indexed"
+        timestamp processed_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+    %% assessment_run_items unique(run_id, resource_id)
+
     %% =========================================================================
     %% APPLICATION-SPECIFIC TABLES
     %% =========================================================================
@@ -1254,6 +1304,12 @@ erDiagram
     users |o--o{ igsn_registration_runs : "last controls"
     igsn_registration_runs ||--o{ igsn_registration_items : "contains"
     resources |o--o{ igsn_registration_items : "registration target"
+
+    %% FAIR assessment run relationships
+    users |o--o{ assessment_runs : "initiates"
+    users |o--o{ assessment_runs : "last controls"
+    assessment_runs ||--o{ assessment_run_items : "contains"
+    resources |o--o{ assessment_run_items : "assessment target"
 
     %% Resource core relationships
     resources ||--o| resource_listing_projections : "has listing projection"

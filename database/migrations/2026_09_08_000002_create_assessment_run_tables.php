@@ -23,6 +23,8 @@ return new class extends Migration
             $table->boolean('use_github');
             $table->unsignedTinyInteger('concurrency')->default(2);
             $table->unsignedSmallInteger('requests_per_minute')->default(80);
+            $table->unsignedBigInteger('snapshot_max_resource_id')->default(0);
+            $table->unsignedBigInteger('preparation_cursor')->default(0);
             $table->unsignedInteger('total')->default(0);
             $table->unsignedInteger('processed')->default(0);
             $table->unsignedInteger('assessed')->default(0);
@@ -32,6 +34,7 @@ return new class extends Migration
             $table->text('pause_reason')->nullable();
             $table->text('last_error')->nullable();
             $table->timestamp('started_at')->nullable();
+            $table->timestamp('prepared_at')->nullable();
             $table->timestamp('paused_at')->nullable();
             $table->timestamp('cancelled_at')->nullable();
             $table->timestamp('completed_at')->nullable();

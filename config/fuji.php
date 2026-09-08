@@ -20,6 +20,7 @@ return [
         'requests_per_minute' => (int) env('FUJI_ASSESSMENT_REQUESTS_PER_MINUTE', 80),
         'window_seconds' => (int) env('FUJI_ASSESSMENT_WINDOW_SECONDS', 60),
         'minimum_interval_ms' => (int) env('FUJI_ASSESSMENT_MINIMUM_INTERVAL_MS', 750),
+        'snapshot_chunk_size' => 250,
         'item_timeout_seconds' => (int) env('FUJI_ASSESSMENT_ITEM_TIMEOUT', 150),
         'lease_seconds' => (int) env('FUJI_ASSESSMENT_LEASE_SECONDS', 210),
         'max_attempts' => (int) env('FUJI_ASSESSMENT_MAX_ATTEMPTS', 3),

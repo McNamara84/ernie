@@ -89,6 +89,7 @@ Schedule::call(function (): void {
             AssessmentRunStatus::PREPARING,
             AssessmentRunStatus::QUEUED,
             AssessmentRunStatus::RUNNING,
+            AssessmentRunStatus::CANCEL_REQUESTED,
         ])
         ->eachById(static function (AssessmentRun $run): void {
             app(AssessmentRunService::class)->dispatch($run);

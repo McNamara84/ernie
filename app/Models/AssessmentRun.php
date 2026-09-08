@@ -29,6 +29,8 @@ use Illuminate\Support\Carbon;
  * @property bool $use_github
  * @property int $concurrency
  * @property int $requests_per_minute
+ * @property int $snapshot_max_resource_id
+ * @property int $preparation_cursor
  * @property int $total
  * @property int $processed
  * @property int $assessed
@@ -38,6 +40,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $pause_reason
  * @property string|null $last_error
  * @property Carbon|null $started_at
+ * @property Carbon|null $prepared_at
  * @property Carbon|null $paused_at
  * @property Carbon|null $cancelled_at
  * @property Carbon|null $completed_at
@@ -64,6 +67,8 @@ class AssessmentRun extends Model
         'use_github',
         'concurrency',
         'requests_per_minute',
+        'snapshot_max_resource_id',
+        'preparation_cursor',
         'total',
         'processed',
         'assessed',
@@ -73,6 +78,7 @@ class AssessmentRun extends Model
         'pause_reason',
         'last_error',
         'started_at',
+        'prepared_at',
         'paused_at',
         'cancelled_at',
         'completed_at',
@@ -89,6 +95,8 @@ class AssessmentRun extends Model
             'use_github' => 'boolean',
             'concurrency' => 'integer',
             'requests_per_minute' => 'integer',
+            'snapshot_max_resource_id' => 'integer',
+            'preparation_cursor' => 'integer',
             'total' => 'integer',
             'processed' => 'integer',
             'assessed' => 'integer',
@@ -96,6 +104,7 @@ class AssessmentRun extends Model
             'skipped' => 'integer',
             'pending' => 'integer',
             'started_at' => 'datetime',
+            'prepared_at' => 'datetime',
             'paused_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'completed_at' => 'datetime',

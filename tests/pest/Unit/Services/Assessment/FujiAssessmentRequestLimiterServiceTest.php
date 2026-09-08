@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Services\Assessment\FujiAssessmentRequestLimiterService;
 use Illuminate\Support\Facades\Cache;
 
@@ -27,6 +28,7 @@ test('the limiter enforces spacing and a rolling request cap', function (): void
 
     expect($clock->reserveSlot())->toBe(0)
         ->and($clock->reserveSlot())->toBe(750);
+    expect(Cache::has(CacheKey::FUJI_ASSESSMENT_LIMITER_HISTORY->key()))->toBeTrue();
 
     $clock->milliseconds += 750;
     expect($clock->reserveSlot())->toBe(0)
@@ -50,7 +52,8 @@ test('a global cooldown takes precedence over otherwise available slots', functi
 
     $clock->imposeCooldown(30);
 
-    expect($clock->reserveSlot())->toBe(30_000);
+    expect(Cache::has(CacheKey::FUJI_ASSESSMENT_LIMITER_COOLDOWN->key()))->toBeTrue()
+        ->and($clock->reserveSlot())->toBe(30_000);
     $clock->milliseconds += 30_000;
     expect($clock->reserveSlot())->toBe(0);
 });
