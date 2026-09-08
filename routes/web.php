@@ -39,6 +39,7 @@ use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\PortalCountController;
 use App\Http\Controllers\PortalKeywordSuggestionController;
+use App\Http\Controllers\PortalMapClusterMembersController;
 use App\Http\Controllers\PortalMapController;
 use App\Http\Controllers\PortalSearchAnalyticsController;
 use App\Http\Controllers\PublicMetadataExportController;
@@ -111,6 +112,11 @@ $registerPortalRoutes = static function (string $prefix, string $name, PortalSco
         ->defaults('portalScope', $scope->value)
         ->middleware('throttle:public-portal-map')
         ->name("portal.{$name}.map");
+
+    Route::get("{$prefix}/map/clusters/{clusterId}", PortalMapClusterMembersController::class)
+        ->defaults('portalScope', $scope->value)
+        ->middleware('throttle:public-portal-map')
+        ->name("portal.{$name}.map-cluster-members");
 
     Route::post("{$prefix}/search-analytics", [PortalSearchAnalyticsController::class, 'store'])
         ->defaults('portalScope', $scope->value)

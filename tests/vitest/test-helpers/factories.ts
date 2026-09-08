@@ -342,6 +342,7 @@ export function createMockPortalPageProps(overrides?: {
             basePath: '/doi-search',
             showResourceTypeFilter: true,
         },
+        mapConfig: { maxZoom: 18 },
         resources,
         pagination: createMockPortalPagination({
             total: resources.length,

@@ -2112,8 +2112,8 @@
                         "name": "zoom",
                         "in": "query",
                         "required": true,
-                        "description": "Leaflet zoom level requested by the client.",
-                        "schema": { "type": "integer", "minimum": 0, "maximum": 18, "example": 8 }
+                        "description": "Leaflet zoom level requested by the client, up to the deployment's configured portal-map maximum.",
+                        "schema": { "type": "integer", "minimum": 0, "example": 8 }
                     },
                     {
                         "name": "include_extent",
@@ -2330,6 +2330,258 @@
                                 "schema": { "$ref": "#/components/schemas/MessageResponse" },
                                 "example": { "message": "The portal map is temporarily unavailable." }
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/{portal}-search/map/clusters/{clusterId}": {
+            "get": {
+                "tags": ["Portal"],
+                "summary": "Load the individual members of a portal map cluster",
+                "description": "Resolves a server-issued cluster ID for the same technical viewport and semantic filters. Results are bounded and paginated for terminal cluster inspection.",
+                "operationId": "getPortalMapClusterMembers",
+                "security": [],
+                "parameters": [
+                    {
+                        "name": "portal",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                    },
+                    {
+                        "name": "clusterId",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "pattern": "^z\\d+(?:-t\\d+)?:-?\\d+:-?\\d+$", "example": "z18:140812:37114" }
+                    },
+                    {
+                        "name": "viewport[north]",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                    },
+                    {
+                        "name": "viewport[south]",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                    },
+                    {
+                        "name": "viewport[east]",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                    },
+                    {
+                        "name": "viewport[west]",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                    },
+                    {
+                        "name": "viewport[width]",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "integer", "minimum": 1, "maximum": 4096 }
+                    },
+                    {
+                        "name": "viewport[height]",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "integer", "minimum": 1, "maximum": 4096 }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": { "type": "integer", "minimum": 1, "default": 1 }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "description": "Portal full-text search term.",
+                        "schema": { "type": "string", "maxLength": 500 }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "description": "Legacy resource-type shortcut. The fixed portal scope remains authoritative, and the IGSN portal ignores resource-type filters.",
+                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                    },
+                    {
+                        "name": "type[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Selected resource-type slugs for the DOI portal. The IGSN portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "datacenter[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Selected datacenter names.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "keywords[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Legacy combined keyword filters.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "free_keywords[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact free-keyword filters.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "thesaurus_keywords[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Selected controlled-vocabulary term identifiers for the DOI portal. The IGSN portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 2048 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "sample_types[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact sample types for the IGSN portal, combined with OR. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "materials[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Controlled material nodes for the IGSN portal, combined with OR. Selecting a parent includes its descendants. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "classifications[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact classification values for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "geological_ages[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact geological ages for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "geological_units[]",
+                        "in": "query",
+                        "required": false,
+                        "description": "Exact geological units for the IGSN portal. Every selected value must be present. The DOI portal ignores this parameter.",
+                        "schema": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 255 } },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "north",
+                        "in": "query",
+                        "required": false,
+                        "description": "Northern latitude of the optional semantic spatial filter. Supply all four spatial filter bounds together.",
+                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                    },
+                    {
+                        "name": "south",
+                        "in": "query",
+                        "required": false,
+                        "description": "Southern latitude of the optional semantic spatial filter.",
+                        "schema": { "type": "number", "minimum": -90, "maximum": 90 }
+                    },
+                    {
+                        "name": "east",
+                        "in": "query",
+                        "required": false,
+                        "description": "Eastern longitude of the optional semantic spatial filter.",
+                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                    },
+                    {
+                        "name": "west",
+                        "in": "query",
+                        "required": false,
+                        "description": "Western longitude of the optional semantic spatial filter.",
+                        "schema": { "type": "number", "minimum": -180, "maximum": 180 }
+                    },
+                    {
+                        "name": "date_type",
+                        "in": "query",
+                        "required": false,
+                        "description": "Date field used by the optional temporal filter.",
+                        "schema": { "type": "string", "enum": ["Created", "Collected", "Coverage"] }
+                    },
+                    {
+                        "name": "year_from",
+                        "in": "query",
+                        "required": false,
+                        "description": "Inclusive first year of the optional temporal filter.",
+                        "schema": { "type": "integer", "minimum": 1900, "example": 2000 }
+                    },
+                    {
+                        "name": "year_to",
+                        "in": "query",
+                        "required": false,
+                        "description": "Inclusive last year of the optional temporal filter.",
+                        "schema": { "type": "integer", "minimum": 1900, "example": 2026 }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A bounded page of individually hydrated cluster members.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/PortalMapClusterMembersResponse" }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The cluster no longer exists for the supplied viewport and filters.",
+                        "content": {
+                            "application/json": { "schema": { "$ref": "#/components/schemas/MessageResponse" } }
+                        }
+                    },
+                    "422": {
+                        "description": "The cluster ID, viewport, pagination, or filter parameters are invalid.",
+                        "content": {
+                            "application/json": { "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" } }
+                        }
+                    },
+                    "429": {
+                        "description": "Public portal map rate limit exceeded.",
+                        "content": {
+                            "application/json": { "schema": { "$ref": "#/components/schemas/MessageResponse" } }
+                        }
+                    },
+                    "503": {
+                        "description": "The portal map feature is temporarily disabled.",
+                        "content": {
+                            "application/json": { "schema": { "$ref": "#/components/schemas/MessageResponse" } }
                         }
                     }
                 }
@@ -2605,6 +2857,7 @@
                     "id": { "type": "string" },
                     "position": { "$ref": "#/components/schemas/PortalMapPosition" },
                     "bounds": { "$ref": "#/components/schemas/PortalMapBounds" },
+                    "navigationBounds": { "$ref": "#/components/schemas/PortalMapBounds" },
                     "count": { "type": "integer", "minimum": 1 },
                     "resourceTypeCounts": {
                         "type": "object",
@@ -2612,7 +2865,7 @@
                     },
                     "composition": { "$ref": "#/components/schemas/PortalMapComposition" }
                 },
-                "required": ["kind", "id", "position", "bounds", "count", "resourceTypeCounts", "composition"],
+                "required": ["kind", "id", "position", "bounds", "navigationBounds", "count", "resourceTypeCounts", "composition"],
                 "additionalProperties": false
             },
             "PortalMapResourceFeature": {
@@ -2634,8 +2887,8 @@
             "PortalMapMeta": {
                 "type": "object",
                 "properties": {
-                    "requestedZoom": { "type": "integer", "minimum": 0, "maximum": 18 },
-                    "effectiveZoom": { "type": "integer", "minimum": 0, "maximum": 18 },
+                    "requestedZoom": { "type": "integer", "minimum": 0 },
+                    "effectiveZoom": { "type": "integer", "minimum": 0 },
                     "visibleLocations": { "type": "integer", "minimum": 0 },
                     "returnedFeatures": { "type": "integer", "minimum": 0 },
                     "totalLocations": { "type": ["integer", "null"], "minimum": 0 },
@@ -2660,7 +2913,7 @@
             "PortalMapResponse": {
                 "type": "object",
                 "properties": {
-                    "schemaVersion": { "type": "integer", "enum": [2] },
+                    "schemaVersion": { "type": "integer", "enum": [3] },
                     "features": {
                         "type": "array",
                         "description": "Bounded by the deployment's PORTAL_MAP_MAX_FEATURES setting.",
@@ -2669,6 +2922,32 @@
                     "meta": { "$ref": "#/components/schemas/PortalMapMeta" }
                 },
                 "required": ["schemaVersion", "features", "meta"],
+                "additionalProperties": false
+            },
+            "PortalMapClusterMembersPagination": {
+                "type": "object",
+                "properties": {
+                    "currentPage": { "type": "integer", "minimum": 1 },
+                    "lastPage": { "type": "integer", "minimum": 1 },
+                    "perPage": { "type": "integer", "minimum": 1, "maximum": 100 }
+                },
+                "required": ["currentPage", "lastPage", "perPage"],
+                "additionalProperties": false
+            },
+            "PortalMapClusterMembersResponse": {
+                "type": "object",
+                "properties": {
+                    "schemaVersion": { "type": "integer", "enum": [1] },
+                    "clusterId": { "type": "string" },
+                    "total": { "type": "integer", "minimum": 1 },
+                    "members": {
+                        "type": "array",
+                        "maxItems": 100,
+                        "items": { "$ref": "#/components/schemas/PortalMapResourceFeature" }
+                    },
+                    "pagination": { "$ref": "#/components/schemas/PortalMapClusterMembersPagination" }
+                },
+                "required": ["schemaVersion", "clusterId", "total", "members", "pagination"],
                 "additionalProperties": false
             },
             "DatacenterIgsnImportRequest": {

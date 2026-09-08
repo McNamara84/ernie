@@ -6,6 +6,21 @@ function appendArrayParams(params: URLSearchParams, key: string, values: string[
     });
 }
 
+function buildPortalMapParams(filters: PortalFilters, viewport: PortalMapViewport, basePath: PortalBasePath): URLSearchParams {
+    const filterUrl = buildPortalFilterUrl(filters, basePath);
+    const queryString = filterUrl.includes('?') ? filterUrl.slice(filterUrl.indexOf('?') + 1) : '';
+    const params = new URLSearchParams(queryString);
+
+    params.set('viewport[north]', viewport.north.toFixed(6));
+    params.set('viewport[south]', viewport.south.toFixed(6));
+    params.set('viewport[east]', viewport.east.toFixed(6));
+    params.set('viewport[west]', viewport.west.toFixed(6));
+    params.set('viewport[width]', String(Math.max(1, Math.round(viewport.width))));
+    params.set('viewport[height]', String(Math.max(1, Math.round(viewport.height))));
+
+    return params;
+}
+
 export function mergePortalFilters(filters: PortalFilters, nextFilters: Partial<PortalFilters>): PortalFilters {
     const freeKeywords = nextFilters.freeKeywords !== undefined ? nextFilters.freeKeywords : (filters.freeKeywords ?? []);
     const thesaurusKeywords = nextFilters.thesaurusKeywords !== undefined ? nextFilters.thesaurusKeywords : (filters.thesaurusKeywords ?? []);
@@ -113,24 +128,30 @@ export function buildPortalCountUrl(currentSearch: string, basePath: PortalBaseP
 export function buildPortalMapUrl(
     filters: PortalFilters,
     viewport: PortalMapViewport,
-    includeExtent = false,
-    basePath: PortalBasePath = '/doi-search',
+    includeExtent: boolean,
+    basePath: PortalBasePath,
+    maxZoom: number,
 ): string {
-    const filterUrl = buildPortalFilterUrl(filters, basePath);
-    const queryString = filterUrl.includes('?') ? filterUrl.slice(filterUrl.indexOf('?') + 1) : '';
-    const params = new URLSearchParams(queryString);
-
-    params.set('viewport[north]', viewport.north.toFixed(6));
-    params.set('viewport[south]', viewport.south.toFixed(6));
-    params.set('viewport[east]', viewport.east.toFixed(6));
-    params.set('viewport[west]', viewport.west.toFixed(6));
-    params.set('viewport[width]', String(Math.max(1, Math.round(viewport.width))));
-    params.set('viewport[height]', String(Math.max(1, Math.round(viewport.height))));
-    params.set('zoom', String(Math.max(0, Math.min(18, Math.round(viewport.zoom)))));
+    const params = buildPortalMapParams(filters, viewport, basePath);
+    params.set('zoom', String(Math.max(0, Math.min(maxZoom, Math.round(viewport.zoom)))));
 
     if (includeExtent) {
         params.set('include_extent', '1');
     }
 
     return `${basePath}/map?${params.toString()}`;
+}
+
+/** Build a bounded request for the individually hydrated members of a map cluster. */
+export function buildPortalMapClusterMembersUrl(
+    filters: PortalFilters,
+    viewport: PortalMapViewport,
+    clusterId: string,
+    page: number,
+    basePath: PortalBasePath,
+): string {
+    const params = buildPortalMapParams(filters, viewport, basePath);
+    params.set('page', String(Math.max(1, Math.round(page))));
+
+    return `${basePath}/map/clusters/${encodeURIComponent(clusterId)}?${params.toString()}`;
 }

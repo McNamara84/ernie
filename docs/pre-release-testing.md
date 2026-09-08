@@ -543,6 +543,16 @@ verify them after reopening:
 - [ ] List and map interactions refer to the same resource; clusters and markers
       respond plausibly.
 
+- [ ] Repeatedly clicking the same cluster increases the map zoom on every click
+      until the maximum is reached; large boxes or polygons must not send the map
+      back to a country or world view. Verify this with the Spitzbergen cluster
+      from issue 1263, or an equivalent cluster of overlapping geometries.
+
+- [ ] While `Updating map...` is visible, markers from the previous response do
+      not react to clicks. At maximum zoom, colocated records open as a spread
+      and an accessible list; lists with more than 50 records are paginated and
+      every visible landing-page link opens the intended record.
+
 - [ ] `/doi-search` continues to color markers, shapes, clusters, and the legend
       by Resource Type.
 

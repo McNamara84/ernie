@@ -161,7 +161,12 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./{portal}-search/map.get.responses.500.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('paths./{portal}-search/map.get.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('components.schemas.PortalMapResponse.properties.features.items.$ref', '#/components/schemas/PortalMapFeature')
-        ->assertJsonPath('components.schemas.PortalMapResponse.properties.schemaVersion.enum.0', 2)
+        ->assertJsonPath('components.schemas.PortalMapResponse.properties.schemaVersion.enum.0', 3)
+        ->assertJsonPath('components.schemas.PortalMapClusterFeature.properties.navigationBounds.$ref', '#/components/schemas/PortalMapBounds')
+        ->assertJsonPath('paths./{portal}-search/map/clusters/{clusterId}.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/PortalMapClusterMembersResponse')
+        ->assertJsonPath('paths./{portal}-search/map/clusters/{clusterId}.get.responses.404.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
+        ->assertJsonPath('components.schemas.PortalMapClusterMembersResponse.properties.members.items.$ref', '#/components/schemas/PortalMapResourceFeature')
+        ->assertJsonPath('components.schemas.PortalMapClusterMembersPagination.properties.perPage.maximum', 100)
         ->assertJsonPath('components.schemas.PortalMapResourceSummary.properties.presentation.$ref', '#/components/schemas/PortalMapPresentation')
         ->assertJsonPath('components.schemas.PortalMapResourceSummary.properties.igsn.oneOf.0.$ref', '#/components/schemas/PortalMapIgsnSummary')
         ->assertJsonPath('components.schemas.PortalMapClusterFeature.properties.composition.$ref', '#/components/schemas/PortalMapComposition')
@@ -297,7 +302,31 @@ it('returns the OpenAPI documentation as JSON', function () {
     expect(collect(data_get($spec, 'paths./{portal}-search/count.get.parameters'))->pluck('name')->all())
         ->toContain(...$igsnFilterParameters)
         ->and(collect(data_get($spec, 'paths./{portal}-search/map.get.parameters'))->pluck('name')->all())
-        ->toContain('portal', 'viewport[north]', 'viewport[width]', 'zoom', 'include_extent', 'type[]', 'north', 'date_type', ...$igsnFilterParameters);
+        ->toContain('portal', 'viewport[north]', 'viewport[width]', 'zoom', 'include_extent', 'type[]', 'north', 'date_type', ...$igsnFilterParameters)
+        ->and(collect(data_get($spec, 'paths./{portal}-search/map/clusters/{clusterId}.get.parameters'))->pluck('name')->all())
+        ->toContain(
+            'portal',
+            'clusterId',
+            'viewport[north]',
+            'viewport[width]',
+            'page',
+            'q',
+            'type',
+            'type[]',
+            'datacenter[]',
+            'keywords[]',
+            'free_keywords[]',
+            'thesaurus_keywords[]',
+            'north',
+            'south',
+            'east',
+            'west',
+            'date_type',
+            'year_from',
+            'year_to',
+            ...$igsnFilterParameters,
+        )
+        ->not->toContain('zoom');
 });
 
 it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {

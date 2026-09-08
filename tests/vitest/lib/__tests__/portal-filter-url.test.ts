@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildPortalCountUrl, buildPortalFilterUrl, buildPortalMapUrl, mergePortalFilters } from '@/lib/portal-filter-url';
+import {
+    buildPortalCountUrl,
+    buildPortalFilterUrl,
+    buildPortalMapClusterMembersUrl,
+    buildPortalMapUrl,
+    mergePortalFilters,
+} from '@/lib/portal-filter-url';
 import type { PortalFilters } from '@/types/portal';
 
 const filters: PortalFilters = {
@@ -50,6 +56,8 @@ describe('portal filter URL builders', () => {
                     zoom: 11.6,
                 },
                 true,
+                '/doi-search',
+                18,
             ),
             'https://ernie.test',
         );
@@ -62,6 +70,26 @@ describe('portal filter URL builders', () => {
         expect(url.searchParams.get('viewport[height]')).toBe('699');
         expect(url.searchParams.get('zoom')).toBe('12');
         expect(url.searchParams.get('include_extent')).toBe('1');
+    });
+
+    it('builds a paginated member URL for an encoded server-issued cluster ID', () => {
+        const url = new URL(
+            buildPortalMapClusterMembersUrl(
+                filters,
+                { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 18 },
+                'z18-t2:140812:-37114',
+                3,
+                '/igsn-search',
+            ),
+            'https://ernie.test',
+        );
+
+        expect(url.pathname).toBe('/igsn-search/map/clusters/z18-t2%3A140812%3A-37114');
+        expect(url.searchParams.get('viewport[north]')).toBe('54.000000');
+        expect(url.searchParams.has('zoom')).toBe(false);
+        expect(url.searchParams.get('page')).toBe('3');
+        expect(url.searchParams.getAll('sample_types[]')).toEqual(['Core', 'Core Sample']);
+        expect(url.searchParams.has('include_extent')).toBe(false);
     });
 
     it('preserves exact direct-URL filters for counts while dropping pagination', () => {
@@ -81,7 +109,7 @@ describe('portal filter URL builders', () => {
             'https://ernie.test',
         );
         const mapUrl = new URL(
-            buildPortalMapUrl(filters, { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 8 }, false, '/igsn-search'),
+            buildPortalMapUrl(filters, { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 8 }, false, '/igsn-search', 18),
             'https://ernie.test',
         );
 
@@ -109,20 +137,35 @@ describe('portal filter URL builders', () => {
     it('preserves the legacy DOI exclusion filter for map requests', () => {
         const legacyFilters = { ...filters, type: [], exclude_type: 'physical-object' };
         const url = new URL(
-            buildPortalMapUrl(legacyFilters, {
-                north: 90,
-                south: -90,
-                east: 180,
-                west: -180,
-                width: 800,
-                height: 600,
-                zoom: 2,
-            }),
+            buildPortalMapUrl(
+                legacyFilters,
+                {
+                    north: 90,
+                    south: -90,
+                    east: 180,
+                    west: -180,
+                    width: 800,
+                    height: 600,
+                    zoom: 2,
+                },
+                false,
+                '/doi-search',
+                18,
+            ),
             'https://ernie.test',
         );
 
         expect(url.searchParams.get('type')).toBe('doi');
         expect(url.searchParams.has('include_extent')).toBe(false);
+    });
+
+    it('clamps map requests while member requests rely on the cluster ID zoom', () => {
+        const viewport = { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 18 };
+        const mapUrl = new URL(buildPortalMapUrl(filters, viewport, false, '/doi-search', 7), 'https://ernie.test');
+        const membersUrl = new URL(buildPortalMapClusterMembersUrl(filters, viewport, 'z7:1:2', 1, '/doi-search'), 'https://ernie.test');
+
+        expect(mapUrl.searchParams.get('zoom')).toBe('7');
+        expect(membersUrl.searchParams.has('zoom')).toBe(false);
     });
 
     it('clears the legacy exclusion when a new explicit type selection is merged', () => {

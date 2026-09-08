@@ -35,6 +35,10 @@
                 "description": "Admins and Group Leaders can now assign GFZ and every other datacenter to custom Resource and IGSN landing-page templates independently. A custom template may serve zero, one, or many datacenters; moving or removing an assignment preserves the other template type and automatically restores the matching Templates Resources or Templates IGSN fallback. New datacenters and existing gaps receive both persistent defaults."
             },
             {
+                "title": "Reliable Portal Map Cluster Navigation",
+                "description": "Data and IGSN Portal map clusters now zoom progressively into their actual grouped locations instead of jumping out to oversized source-geometry bounds. Clusters remain stable while fresh map data loads, and records that share a location can be inspected at maximum zoom through an accessible spread or paginated list."
+            },
+            {
                 "title": "Clean IGSN Repository Contact Labels",
                 "description": "IGSN landing pages now show the current or original repository name without appending a redundant contact suffix when the protected recipient is stored as an email address. Addresses remain hidden, and the contact buttons continue to use secure server-side delivery."
             },
