@@ -486,7 +486,7 @@ class LandingPageTemplateController extends Controller
     }
 
     /**
-     * Assign any number of datacenters to a template within its resource scope.
+     * Assign any number of datacenters through the slot for this template's type.
      *
      * Assigning a datacenter already used by another template moves it. Removing
      * a datacenter from a custom template restores the built-in template for the
