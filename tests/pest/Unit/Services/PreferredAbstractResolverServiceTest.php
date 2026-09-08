@@ -78,7 +78,17 @@ it('ignores non-abstract descriptions and trims the selected value', function ()
     expect(app(PreferredAbstractResolverService::class)->resolve($loaded))->toBe('Selected abstract.');
 });
 
-it('returns null for an empty selected abstract', function () {
+it('skips an earlier blank abstract when a later usable abstract exists', function () {
+    $resource = Resource::factory()->create();
+    preferredAbstractTestDescription($resource, '   ', 'en');
+    preferredAbstractTestDescription($resource, 'Available English abstract.', 'en');
+
+    $loaded = $resource->fresh()->load(['language', 'descriptions.descriptionType']);
+
+    expect(app(PreferredAbstractResolverService::class)->resolve($loaded))->toBe('Available English abstract.');
+});
+
+it('returns null when all abstracts are empty', function () {
     $resource = Resource::factory()->create();
     preferredAbstractTestDescription($resource, '   ', 'en');
 

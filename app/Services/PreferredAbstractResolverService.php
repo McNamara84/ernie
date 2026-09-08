@@ -19,7 +19,10 @@ final class PreferredAbstractResolverService
 
         $preferredLanguage = LanguageTag::normalize($resource->language?->code);
         $abstract = $resource->descriptions
-            ->filter(fn (Description $description): bool => $description->isAbstract())
+            ->filter(
+                fn (Description $description): bool => $description->isAbstract()
+                    && trim((string) $description->value) !== '',
+            )
             ->sortBy(function (Description $description) use ($preferredLanguage): string {
                 $language = LanguageTag::normalize($description->language);
                 $primaryLanguage = LanguageTag::primarySubtag($language);

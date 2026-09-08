@@ -2051,6 +2051,91 @@
                 }
             }
         },
+        "/{portal}-search/resources/{resourceId}/preview": {
+            "get": {
+                "tags": ["Portal"],
+                "summary": "Load a citation and abstract for one portal result",
+                "description": "Returns an on-demand APA 7 citation and the preferred non-empty abstract for a published result in the selected portal scope. DOI resources are available only through the DOI portal, while physical samples are available only through the IGSN portal.",
+                "operationId": "getPortalResourcePreview",
+                "security": [],
+                "parameters": [
+                    {
+                        "name": "portal",
+                        "in": "path",
+                        "required": true,
+                        "description": "Fixed discovery portal scope.",
+                        "schema": { "type": "string", "enum": ["doi", "igsn"] }
+                    },
+                    {
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of the published portal resource.",
+                        "schema": { "type": "integer", "minimum": 1 },
+                        "example": 42
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "APA 7 citation and preferred abstract for the scoped published resource.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/PortalResourcePreviewResponse" },
+                                "example": {
+                                    "resourceId": 42,
+                                    "citation": {
+                                        "styleId": "apa-7",
+                                        "label": "APA 7",
+                                        "text": "Smith, J. (2026). A portal preview resource. https://doi.org/10.5880/example.2026.001"
+                                    },
+                                    "abstract": "A concise description of the published resource."
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The resource does not exist, is unpublished, or does not belong to the selected portal scope.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/MessageResponse" },
+                                "example": { "message": "Resource not found." }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Public portal rate limit exceeded.",
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until the client may retry.",
+                                "schema": { "type": "integer", "minimum": 0 }
+                            },
+                            "X-RateLimit-Limit": {
+                                "description": "Configured request limit for the current window.",
+                                "schema": { "type": "integer", "minimum": 1 }
+                            },
+                            "X-RateLimit-Remaining": {
+                                "description": "Requests remaining in the current window.",
+                                "schema": { "type": "integer", "minimum": 0 }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "The citation preview could not be rendered temporarily.",
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/MessageResponse" },
+                                "example": { "message": "The citation preview is temporarily unavailable." }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/{portal}-search/map": {
             "get": {
                 "tags": ["Portal"],
@@ -2695,6 +2780,31 @@
                     "count_status": { "type": "string", "enum": ["ready"] }
                 },
                 "required": ["filter_fingerprint", "total", "last_page", "count_status"],
+                "additionalProperties": false
+            },
+            "PortalResourcePreviewCitation": {
+                "type": "object",
+                "description": "Plain-text citation rendered in the single style supported by portal previews.",
+                "properties": {
+                    "styleId": { "type": "string", "enum": ["apa-7"] },
+                    "label": { "type": "string", "enum": ["APA 7"] },
+                    "text": { "type": "string", "minLength": 1 }
+                },
+                "required": ["styleId", "label", "text"],
+                "additionalProperties": false
+            },
+            "PortalResourcePreviewResponse": {
+                "type": "object",
+                "description": "On-demand citation and abstract details for one scoped public portal result.",
+                "properties": {
+                    "resourceId": { "type": "integer", "minimum": 1 },
+                    "citation": { "$ref": "#/components/schemas/PortalResourcePreviewCitation" },
+                    "abstract": {
+                        "type": ["string", "null"],
+                        "description": "Preferred non-empty abstract, or null when none is available."
+                    }
+                },
+                "required": ["resourceId", "citation", "abstract"],
                 "additionalProperties": false
             },
             "PortalMapBounds": {

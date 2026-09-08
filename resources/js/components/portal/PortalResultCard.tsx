@@ -1,9 +1,10 @@
-import { Check, Copy, Info, RefreshCw } from 'lucide-react';
+import { Check, Copy, Info } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePortalResourcePreview } from '@/hooks/use-portal-resource-preview';
@@ -47,6 +48,7 @@ function getTypeBadgeVariant(isIgsn: boolean): 'default' | 'secondary' | 'outlin
 export function PortalResultCard({ resource, basePath }: PortalResultCardProps) {
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [isRetrying, setIsRetrying] = useState(false);
     const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const previewQuery = usePortalResourcePreview(resource.id, basePath, isPreviewOpen);
     const authors = formatAuthors(resource.creators);
@@ -85,6 +87,16 @@ export function PortalResultCard({ resource, basePath }: PortalResultCardProps) 
         } catch {
             setCopied(false);
             toast.error('Failed to copy citation');
+        }
+    };
+
+    const handleRetry = async () => {
+        setIsRetrying(true);
+
+        try {
+            await previewQuery.refetch();
+        } finally {
+            setIsRetrying(false);
         }
     };
 
@@ -163,7 +175,20 @@ export function PortalResultCard({ resource, basePath }: PortalResultCardProps) 
                         <p className="mt-1 text-xs text-muted-foreground">Citation and abstract</p>
                     </div>
 
-                    {previewQuery.isPending || (previewQuery.isFetching && !previewQuery.data) ? (
+                    {previewQuery.isError || isRetrying ? (
+                        <div role="alert" className="space-y-3 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                            <p className="text-sm text-destructive">Citation and abstract could not be loaded.</p>
+                            <LoadingButton
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void handleRetry()}
+                                loading={previewQuery.isFetching}
+                            >
+                                Retry
+                            </LoadingButton>
+                        </div>
+                    ) : previewQuery.isPending || (previewQuery.isFetching && !previewQuery.data) ? (
                         <div className="space-y-4" aria-label="Loading citation and abstract">
                             <div className="space-y-2">
                                 <Skeleton className="h-3 w-20" />
@@ -176,20 +201,6 @@ export function PortalResultCard({ resource, basePath }: PortalResultCardProps) 
                                 <Skeleton className="h-4 w-full" />
                                 <Skeleton className="h-4 w-2/3" />
                             </div>
-                        </div>
-                    ) : previewQuery.isError ? (
-                        <div role="alert" className="space-y-3 rounded-md border border-destructive/30 bg-destructive/5 p-3">
-                            <p className="text-sm text-destructive">Citation and abstract could not be loaded.</p>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => void previewQuery.refetch()}
-                                disabled={previewQuery.isFetching}
-                            >
-                                <RefreshCw className={cn(previewQuery.isFetching && 'animate-spin')} aria-hidden="true" />
-                                Retry
-                            </Button>
                         </div>
                     ) : previewQuery.data ? (
                         <>

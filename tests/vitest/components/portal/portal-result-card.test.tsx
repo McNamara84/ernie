@@ -246,10 +246,20 @@ describe('PortalResultCard', () => {
 
         it('offers retry after a non-retriable request failure', async () => {
             let attempts = 0;
+            let releaseRetry: (() => void) | undefined;
+            const retryBarrier = new Promise<void>((resolve) => {
+                releaseRetry = resolve;
+            });
             server.use(
-                http.get('/doi-search/resources/:resourceId/preview', () => {
+                http.get('/doi-search/resources/:resourceId/preview', async () => {
                     attempts++;
-                    return attempts === 1 ? HttpResponse.json({ message: 'Missing' }, { status: 404 }) : HttpResponse.json(preview);
+                    if (attempts === 1) {
+                        return HttpResponse.json({ message: 'Missing' }, { status: 404 });
+                    }
+
+                    await retryBarrier;
+
+                    return HttpResponse.json(preview);
                 }),
             );
             const user = userEvent.setup();
@@ -257,7 +267,13 @@ describe('PortalResultCard', () => {
 
             await user.click(screen.getByRole('button', { name: /show citation and abstract/i }));
             expect(await screen.findByRole('alert')).toHaveTextContent('Citation and abstract could not be loaded.');
-            await user.click(screen.getByRole('button', { name: 'Retry' }));
+            const retryButton = screen.getByRole('button', { name: 'Retry' });
+            expect(retryButton).toHaveAttribute('aria-busy', 'false');
+            await user.click(retryButton);
+            await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toHaveAttribute('aria-busy', 'true'));
+            expect(screen.getByRole('button', { name: 'Retry' })).toBeDisabled();
+
+            releaseRetry?.();
 
             expect(await screen.findByTestId('portal-preview-citation')).toHaveTextContent(preview.citation.text);
             expect(attempts).toBe(2);
