@@ -63,7 +63,7 @@ it('collects a sample from the configured host files', function (): void {
     expect(SystemMetricSample::query()->count())->toBe(1);
 });
 
-it('fails cleanly and throttles repeated collection warnings', function (): void {
+it('logs the collection exception and throttles repeated warnings', function (): void {
     config()->set('system_metrics.enabled', true);
     config()->set('system_metrics.proc_stat_path', storage_path('missing-proc-stat'));
     config()->set('system_metrics.proc_meminfo_path', storage_path('missing-proc-meminfo'));
@@ -84,7 +84,7 @@ it('fails cleanly and throttles repeated collection warnings', function (): void
         ->once()
         ->with(
             'Failed to collect host VM system metrics.',
-            Mockery::on(fn (array $context): bool => isset($context['exception'])),
+            Mockery::on(fn (array $context): bool => ($context['exception'] ?? null) instanceof Throwable),
         );
 });
 

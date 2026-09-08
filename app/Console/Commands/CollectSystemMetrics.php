@@ -38,7 +38,7 @@ final class CollectSystemMetrics extends Command
                 $warningCacheKey->ttl(),
             )) {
                 Log::warning('Failed to collect host VM system metrics.', [
-                    'exception' => $exception->getMessage(),
+                    'exception' => $exception,
                 ]);
             }
 
