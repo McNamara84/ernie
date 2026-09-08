@@ -38,6 +38,7 @@ import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
 import { openDetachedTab } from '@/lib/detached-tab';
+import { validateDOIFormat } from '@/lib/doi-validation';
 import {
     clearStoredResourceDatacenterFilter,
     persistResourceDatacenterFilter,
@@ -2004,6 +2005,7 @@ function ResourcesPage({
                 const title = resource.title ?? '-';
                 const doi = resource.doi?.trim() ?? '';
                 const identifierValue = doi || 'Not registered';
+                const hasValidDoi = doi !== '' && validateDOIFormat(doi).isValid;
                 // Lighter gray for "Not registered" text to de-emphasize missing DOI
                 // Dark mode uses lighter shade (400) for better readability on dark backgrounds
                 const identifierClasses = doi ? 'text-sm text-gray-600 dark:text-gray-300' : 'text-sm text-gray-500 dark:text-gray-400 italic';
@@ -2013,7 +2015,7 @@ function ResourcesPage({
                     <div className="flex min-w-0 flex-col gap-1 text-left" aria-label={`DOI: ${identifierValue}. Title: ${title}`}>
                         <div className="flex min-w-0 items-center gap-1">
                             <OverflowTooltipText value={identifierValue} className={cn(identifierClasses, 'min-w-0 flex-1')} />
-                            {doi && (
+                            {hasValidDoi && (
                                 <Button
                                     type="button"
                                     variant="ghost"

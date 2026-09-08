@@ -971,6 +971,39 @@ describe('ResourcesPage', () => {
         expect(screen.queryByRole('button', { name: /copy doi/i })).not.toBeInTheDocument();
     });
 
+    it('shows a malformed saved DOI without offering a copy action', () => {
+        const resource = {
+            id: 9,
+            doi: 'not-a-doi',
+            year: 2024,
+            title: 'Malformed DOI resource',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'draft',
+            landingPage: null,
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        expect(screen.getByText('not-a-doi')).toBeInTheDocument();
+        expect(screen.queryByTestId('copy-resource-doi-9')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /copy doi not-a-doi/i })).not.toBeInTheDocument();
+    });
+
     it('reports a rejected DOI clipboard write without activating the row', async () => {
         clipboardWriteTextMock.mockRejectedValueOnce(new Error('Clipboard write denied'));
 
