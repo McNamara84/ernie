@@ -304,6 +304,8 @@ describe('Assessment page', () => {
                     'resourceAssessmentSummary',
                     'igsnAssessmentSummary',
                     'datacenterOptions',
+                    'resourceAssessmentRun',
+                    'igsnAssessmentRun',
                 ],
                 preserveScroll: true,
                 preserveState: true,
@@ -527,7 +529,15 @@ describe('Assessment page', () => {
         expect(mockAxiosGet).toHaveBeenCalledWith('/assessment/check/resource/11111111-1111-4111-8111-111111111111/status');
 
         expect(mockRouterReload).toHaveBeenCalledWith({
-            only: ['resourcesNeedingAttention', 'igsnsNeedingAttention', 'resourceAssessmentSummary', 'igsnAssessmentSummary', 'datacenterOptions'],
+            only: [
+                'resourcesNeedingAttention',
+                'igsnsNeedingAttention',
+                'resourceAssessmentSummary',
+                'igsnAssessmentSummary',
+                'datacenterOptions',
+                'resourceAssessmentRun',
+                'igsnAssessmentRun',
+            ],
         });
         expect(mockToast.success).toHaveBeenCalledWith('Resources assessment completed.');
     });
@@ -599,6 +609,114 @@ describe('Assessment page', () => {
         expect(mockToast.success).toHaveBeenCalledWith('Resources assessment completed.');
     });
 
+    it('resumes polling a persistent run after the page is reopened', async () => {
+        mockAxiosGet.mockResolvedValueOnce({
+            data: {
+                jobId: '11111111-1111-4111-8111-111111111111',
+                scope: 'resource',
+                status: 'completed',
+                progress: 'Resources assessment completed.',
+                assessedResources: 8,
+                failedResources: 0,
+            },
+        });
+
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    resourceAssessmentRun: {
+                        jobId: '11111111-1111-4111-8111-111111111111',
+                        scope: 'resource',
+                        status: 'running',
+                        progress: 'Assessing resources 7 of 10...',
+                        totalResources: 10,
+                        processedResources: 7,
+                        assessedResources: 6,
+                        failedResources: 1,
+                        skippedResources: 0,
+                        pendingResources: 3,
+                    },
+                })}
+            />,
+        );
+
+        expect(screen.getByText('Assessing resources 7 of 10...')).toBeInTheDocument();
+        expect(screen.getByText('7/10 processed; 6 assessed, 1 failed, 0 skipped, 3 pending.')).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: 'Checking...' }).every((button) => button.getAttribute('aria-busy') === 'true')).toBe(true);
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+
+        expect(mockAxiosGet).toHaveBeenCalledWith('/assessment/check/resource/11111111-1111-4111-8111-111111111111/status');
+        expect(mockToast.success).toHaveBeenCalledWith('Resources assessment completed.');
+    });
+
+    it('shows a paused run and resumes the same run through the scope endpoint', async () => {
+        mockAxiosPost.mockResolvedValueOnce({
+            data: {
+                jobId: '11111111-1111-4111-8111-111111111111',
+                scope: 'resource',
+                status: 'queued',
+                progress: 'Resources assessment is waiting to start.',
+            },
+        });
+
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    resourceAssessmentRun: {
+                        jobId: '11111111-1111-4111-8111-111111111111',
+                        scope: 'resource',
+                        status: 'paused',
+                        progress: 'Resources assessment paused.',
+                        error: 'Worker stopped.',
+                        pendingResources: 3,
+                    },
+                })}
+            />,
+        );
+
+        expect(screen.getByText('Resources assessment paused.')).toBeInTheDocument();
+        expect(screen.getByText('Worker stopped.')).toBeInTheDocument();
+        expect(mockAxiosGet).not.toHaveBeenCalled();
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Resume Resources' }));
+        });
+
+        expect(mockAxiosPost).toHaveBeenCalledWith('/assessment/check-resources');
+        expect(screen.getByText('Resources assessment is waiting to start.')).toBeInTheDocument();
+    });
+
+    it('warns when a persistent run completes with failed resources', async () => {
+        mockAxiosPost.mockResolvedValueOnce({
+            data: {
+                jobId: '11111111-1111-4111-8111-111111111111',
+                status: 'queued',
+                progress: 'Resources assessment is waiting to start.',
+            },
+        });
+        mockAxiosGet.mockResolvedValueOnce({
+            data: {
+                status: 'completed',
+                progress: 'Resources assessment completed.',
+                assessedResources: 8,
+                failedResources: 2,
+            },
+        });
+
+        render(<AssessmentPage {...makeProps()} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Check Resources' }));
+            await vi.runAllTimersAsync();
+        });
+
+        expect(mockToast.warning).toHaveBeenCalledWith('Resources assessment completed with 2 failed resources.');
+        expect(mockToast.success).not.toHaveBeenCalled();
+    });
+
     it('clears active polling timers when the page unmounts', async () => {
         const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
 
@@ -638,7 +756,17 @@ describe('Assessment page', () => {
         });
 
         expect(mockToast.error).toHaveBeenCalledWith('FAIR assessment service is not configured.');
-        expect(mockRouterReload).not.toHaveBeenCalled();
+        expect(mockRouterReload).toHaveBeenCalledWith({
+            only: [
+                'resourcesNeedingAttention',
+                'igsnsNeedingAttention',
+                'resourceAssessmentSummary',
+                'igsnAssessmentSummary',
+                'datacenterOptions',
+                'resourceAssessmentRun',
+                'igsnAssessmentRun',
+            ],
+        });
     });
 
     it('stops polling cleanly and shows the backend message when the job is no longer found', async () => {

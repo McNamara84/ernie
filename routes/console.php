@@ -1,8 +1,11 @@
 <?php
 
+use App\Enums\AssessmentRunStatus;
 use App\Enums\UserRole;
 use App\Jobs\DiscoverRelationsJob;
+use App\Models\AssessmentRun;
 use App\Models\User;
+use App\Services\Assessment\AssessmentRunService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -78,3 +81,19 @@ Schedule::command('system-metrics:prune')
     ->dailyAt('03:30')
     ->name('prune-system-metrics')
     ->withoutOverlapping(10);
+
+Schedule::call(function (): void {
+    AssessmentRun::query()
+        ->whereNotNull('active_scope')
+        ->whereIn('status', [
+            AssessmentRunStatus::PREPARING,
+            AssessmentRunStatus::QUEUED,
+            AssessmentRunStatus::RUNNING,
+        ])
+        ->eachById(static function (AssessmentRun $run): void {
+            app(AssessmentRunService::class)->dispatch($run);
+        });
+})
+    ->everyMinute()
+    ->name('recover-assessment-runs')
+    ->withoutOverlapping(2);

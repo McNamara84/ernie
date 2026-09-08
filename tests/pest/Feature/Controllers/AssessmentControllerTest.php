@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\AssessmentRunStatus;
+use App\Enums\AssessmentScope;
 use App\Enums\ResourceWorkflowStatus;
 use App\Http\Controllers\AssessmentController;
+use App\Jobs\DispatchAssessmentRunItemsJob;
 use App\Jobs\RunResourceAssessmentsJob;
+use App\Models\AssessmentRun;
 use App\Models\AssistantSuggestion;
 use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
@@ -119,6 +123,8 @@ describe('index', function () {
                 ->where('showImprovementActorLabels', true)
                 ->where('includeExternalResources', false)
                 ->where('includeDraftReviewResources', false)
+                ->where('resourceAssessmentRun', null)
+                ->where('igsnAssessmentRun', null)
                 ->has('resourcesNeedingAttention')
                 ->has('igsnsNeedingAttention')
             );
@@ -149,6 +155,33 @@ describe('index', function () {
                 ->where('fujiHealthy', false)
                 ->where('fujiStatusMessage', 'F-UJI is currently unavailable. Please try again shortly.')
                 ->where('fujiStatusCode', 503)
+            );
+    });
+
+    it('exposes the latest persistent run so polling survives navigation and reloads', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $run = AssessmentRun::factory()->create([
+            'scope' => AssessmentScope::RESOURCE,
+            'status' => AssessmentRunStatus::RUNNING,
+            'active_scope' => AssessmentScope::RESOURCE,
+            'total' => 10,
+            'processed' => 4,
+            'assessed' => 3,
+            'failed' => 1,
+            'pending' => 6,
+            'started_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/assessment')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('resourceAssessmentRun.jobId', $run->id)
+                ->where('resourceAssessmentRun.status', 'running')
+                ->where('resourceAssessmentRun.totalResources', 10)
+                ->where('resourceAssessmentRun.processedResources', 4)
+                ->where('resourceAssessmentRun.pendingResources', 6)
+                ->where('igsnAssessmentRun', null)
             );
     });
 
@@ -1082,6 +1115,7 @@ describe('index', function () {
 describe('checkResources', function () {
     it('starts the resource assessment job and returns a job id', function () {
         Queue::fake();
+        Resource::factory()->withDoi('10.5880/controller.resource.start')->create();
         $user = User::factory()->create(['role' => 'admin']);
 
         $response = $this->actingAs($user)
@@ -1089,18 +1123,33 @@ describe('checkResources', function () {
             ->assertOk();
 
         expect($response->json('jobId'))->toBeUuid();
-        Queue::assertPushed(RunResourceAssessmentsJob::class, 1);
+        expect($response->json())
+            ->toMatchArray([
+                'scope' => 'resource',
+                'status' => 'queued',
+                'totalResources' => 1,
+                'pendingResources' => 1,
+            ]);
+        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 1);
     });
 
     it('allows group leaders to start every assessment scope', function (string $endpoint): void {
         Queue::fake();
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'Physical Object',
+            'slug' => 'physical-object',
+        ]);
+        Resource::factory()->withDoi('10.5880/controller.group-leader')->create();
+        Resource::factory()->withDoi('10.60510/CONTROLLER.GROUP.LEADER')->create([
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
         $user = User::factory()->create(['role' => 'group_leader']);
 
         $this->actingAs($user)
             ->post($endpoint)
             ->assertOk();
 
-        Queue::assertPushed(RunResourceAssessmentsJob::class);
+        Queue::assertPushed(DispatchAssessmentRunItemsJob::class);
     })->with([
         'resources' => '/assessment/check-resources',
         'IGSNs' => '/assessment/check-igsns',
@@ -1122,13 +1171,23 @@ describe('checkResources', function () {
         'all scopes' => '/assessment/check-all',
     ]);
 
-    it('returns 409 when the resource assessment lock is already held', function () {
+    it('returns the existing resource run when the scope is already active', function () {
+        Queue::fake();
         $user = User::factory()->create(['role' => 'admin']);
-        Cache::lock('resource_assessment:resource:running', 7200)->get();
+        $run = AssessmentRun::factory()->create([
+            'scope' => AssessmentScope::RESOURCE,
+            'status' => AssessmentRunStatus::RUNNING,
+            'active_scope' => AssessmentScope::RESOURCE,
+        ]);
 
         $this->actingAs($user)
             ->post('/assessment/check-resources')
-            ->assertStatus(409);
+            ->assertOk()
+            ->assertJsonPath('jobId', $run->id)
+            ->assertJsonPath('status', 'running');
+
+        expect(AssessmentRun::query()->count())->toBe(1);
+        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 1);
     });
 
     it('returns 503 when F-UJI is not configured', function () {
@@ -1162,6 +1221,13 @@ describe('checkResources', function () {
 describe('checkIgsns', function () {
     it('starts the igsn assessment job and returns a job id', function () {
         Queue::fake();
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'Physical Object',
+            'slug' => 'physical-object',
+        ]);
+        Resource::factory()->withDoi('10.60510/CONTROLLER.IGSN.START')->create([
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
         $user = User::factory()->create(['role' => 'admin']);
 
         $response = $this->actingAs($user)
@@ -1169,7 +1235,8 @@ describe('checkIgsns', function () {
             ->assertOk();
 
         expect($response->json('jobId'))->toBeUuid();
-        Queue::assertPushed(RunResourceAssessmentsJob::class, 1);
+        expect($response->json('scope'))->toBe('igsn');
+        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 1);
     });
 
     it('returns 503 when F-UJI is configured but unhealthy', function () {
@@ -1210,6 +1277,32 @@ describe('status', function () {
             ]);
     });
 
+    it('returns persistent status and progress for an assessment run', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $run = AssessmentRun::factory()->create([
+            'scope' => AssessmentScope::RESOURCE,
+            'status' => AssessmentRunStatus::RUNNING,
+            'active_scope' => AssessmentScope::RESOURCE,
+            'total' => 10,
+            'processed' => 4,
+            'assessed' => 3,
+            'failed' => 1,
+            'pending' => 6,
+        ]);
+
+        $this->actingAs($user)
+            ->get("/assessment/check/resource/{$run->id}/status")
+            ->assertOk()
+            ->assertJson([
+                'jobId' => $run->id,
+                'scope' => 'resource',
+                'status' => 'running',
+                'progress' => 'Assessing resources 4 of 10...',
+                'processedResources' => 4,
+                'pendingResources' => 6,
+            ]);
+    });
+
     it('returns 404 for unknown scopes', function () {
         $response = app(AssessmentController::class)->status('unknown', '11111111-1111-4111-8111-111111111111');
 
@@ -1234,6 +1327,14 @@ describe('status', function () {
 describe('checkAll', function () {
     it('starts both assessment scopes', function () {
         Queue::fake();
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'Physical Object',
+            'slug' => 'physical-object',
+        ]);
+        Resource::factory()->withDoi('10.5880/controller.all.resource')->create();
+        Resource::factory()->withDoi('10.60510/CONTROLLER.ALL.IGSN')->create([
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
         $user = User::factory()->create(['role' => 'admin']);
 
         $response = $this->actingAs($user)
@@ -1241,7 +1342,7 @@ describe('checkAll', function () {
             ->assertOk();
 
         expect($response->json())->toHaveKeys(['resourceJobId', 'igsnJobId']);
-        Queue::assertPushed(RunResourceAssessmentsJob::class, 2);
+        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 2);
     });
 
     it('returns 503 when F-UJI is not configured', function () {
@@ -1271,30 +1372,55 @@ describe('checkAll', function () {
             ->assertJson(['error' => 'F-UJI is currently unavailable. Please try again shortly.']);
     });
 
-    it('returns 409 when all assessment jobs are already running', function () {
+    it('returns the existing run ids when both assessment scopes are already active', function () {
+        Queue::fake();
         $user = User::factory()->create(['role' => 'admin']);
-        Cache::lock('resource_assessment:resource:running', 7200)->get();
-        Cache::lock('resource_assessment:igsn:running', 7200)->get();
+        $resourceRun = AssessmentRun::factory()->create([
+            'scope' => AssessmentScope::RESOURCE,
+            'status' => AssessmentRunStatus::RUNNING,
+            'active_scope' => AssessmentScope::RESOURCE,
+        ]);
+        $igsnRun = AssessmentRun::factory()->create([
+            'scope' => AssessmentScope::IGSN,
+            'status' => AssessmentRunStatus::RUNNING,
+            'active_scope' => AssessmentScope::IGSN,
+        ]);
 
         $this->actingAs($user)
             ->post('/assessment/check-all')
-            ->assertStatus(409)
+            ->assertOk()
             ->assertJson([
-                'error' => 'All assessment jobs are already running. Please wait for them to finish.',
+                'resourceJobId' => $resourceRun->id,
+                'igsnJobId' => $igsnRun->id,
             ]);
+
+        expect(AssessmentRun::query()->count())->toBe(2);
+        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 2);
     });
 
-    it('returns a partial result when one scope is locked and the other can start', function () {
+    it('reuses one active scope and creates the other scope', function () {
         Queue::fake();
         $user = User::factory()->create(['role' => 'admin']);
-        Cache::lock('resource_assessment:resource:running', 7200)->get();
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'Physical Object',
+            'slug' => 'physical-object',
+        ]);
+        Resource::factory()->withDoi('10.60510/CONTROLLER.ALL.RESUME')->create([
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+        $resourceRun = AssessmentRun::factory()->create([
+            'scope' => AssessmentScope::RESOURCE,
+            'status' => AssessmentRunStatus::RUNNING,
+            'active_scope' => AssessmentScope::RESOURCE,
+        ]);
 
         $response = $this->actingAs($user)
             ->post('/assessment/check-all')
             ->assertOk();
 
-        expect($response->json())->toHaveKeys(['resourceError', 'igsnJobId']);
-        expect($response->json('resourceError'))->toBe('Resource assessment is already running.');
-        Queue::assertPushed(RunResourceAssessmentsJob::class, 1);
+        expect($response->json('resourceJobId'))->toBe($resourceRun->id)
+            ->and($response->json('igsnJobId'))->toBeUuid()
+            ->and(AssessmentRun::query()->count())->toBe(2);
+        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 2);
     });
 });

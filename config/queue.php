@@ -43,6 +43,15 @@ return [
             'after_commit' => false,
         ],
 
+        'assessment' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => env('FUJI_ASSESSMENT_QUEUE', 'assessments'),
+            'retry_after' => (int) env('FUJI_ASSESSMENT_QUEUE_RETRY_AFTER', 210),
+            'after_commit' => false,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => env('BEANSTALKD_QUEUE_HOST', 'localhost'),

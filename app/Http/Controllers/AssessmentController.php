@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\AssessmentScope;
 use App\Enums\CacheKey;
 use App\Enums\UserRole;
 use App\Http\Requests\Assessment\IndexAssessmentRequest;
 use App\Jobs\RunResourceAssessmentsJob;
+use App\Models\AssessmentRun;
 use App\Models\Datacenter;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
+use App\Models\User;
+use App\Services\Assessment\AssessmentRunPresenterService;
+use App\Services\Assessment\AssessmentRunService;
 use App\Services\Assessment\FairImprovementContextFactory;
 use App\Services\Assessment\FairImprovementOpportunityResolver;
 use App\Services\Assessment\FujiAssessmentService;
@@ -22,7 +27,6 @@ use App\Support\ResourceImpactFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,6 +40,8 @@ class AssessmentController extends Controller
         private readonly AssistanceReviewService $assistanceReviewService,
         private readonly FairImprovementContextFactory $fairImprovementContextFactory,
         private readonly FairImprovementOpportunityResolver $fairImprovementResolver,
+        private readonly AssessmentRunService $assessmentRuns,
+        private readonly AssessmentRunPresenterService $assessmentRunPresenter,
     ) {}
 
     public function index(IndexAssessmentRequest $request): Response
@@ -77,17 +83,19 @@ class AssessmentController extends Controller
             ),
             'resourceAssessmentSummary' => $this->buildSummary(RunResourceAssessmentsJob::RESOURCE_SCOPE, $physicalObjectTypeId, $filter),
             'igsnAssessmentSummary' => $this->buildSummary(RunResourceAssessmentsJob::IGSN_SCOPE, $physicalObjectTypeId, $filter),
+            'resourceAssessmentRun' => $this->presentLatestRun(AssessmentScope::RESOURCE),
+            'igsnAssessmentRun' => $this->presentLatestRun(AssessmentScope::IGSN),
         ]);
     }
 
     public function checkResources(): JsonResponse
     {
-        return $this->startScopeJob(RunResourceAssessmentsJob::RESOURCE_SCOPE);
+        return $this->startScopeJob(AssessmentScope::RESOURCE);
     }
 
     public function checkIgsns(): JsonResponse
     {
-        return $this->startScopeJob(RunResourceAssessmentsJob::IGSN_SCOPE);
+        return $this->startScopeJob(AssessmentScope::IGSN);
     }
 
     public function checkAll(): JsonResponse
@@ -100,27 +108,9 @@ class AssessmentController extends Controller
 
         $result = [];
 
-        foreach (RunResourceAssessmentsJob::SCOPES as $scope) {
-            $started = $this->attemptScopeDispatch($scope);
-
-            if (isset($started['jobId'])) {
-                $result["{$scope}JobId"] = $started['jobId'];
-
-                continue;
-            }
-
-            if (isset($started['error'])) {
-                $result["{$scope}Error"] = $started['error'];
-            }
-        }
-
-        $hasJobIds = collect($result)->keys()->contains(fn (string $key): bool => str_ends_with($key, 'JobId'));
-
-        if (! $hasJobIds) {
-            return response()->json([
-                ...$result,
-                'error' => 'All assessment jobs are already running. Please wait for them to finish.',
-            ], 409);
+        foreach (AssessmentScope::cases() as $scope) {
+            $run = $this->assessmentRuns->startOrResume($scope, $this->authenticatedUser());
+            $result["{$scope->value}JobId"] = $run->id;
         }
 
         return response()->json($result);
@@ -128,8 +118,18 @@ class AssessmentController extends Controller
 
     public function status(string $scope, string $jobId): JsonResponse
     {
-        if (! in_array($scope, RunResourceAssessmentsJob::SCOPES, true)) {
+        $assessmentScope = AssessmentScope::tryFrom($scope);
+        if ($assessmentScope === null) {
             return response()->json(['error' => 'Unknown assessment scope.'], 404);
+        }
+
+        $run = AssessmentRun::query()
+            ->whereKey($jobId)
+            ->where('scope', $assessmentScope->value)
+            ->first();
+
+        if ($run !== null) {
+            return response()->json($this->assessmentRunPresenter->present($run));
         }
 
         $cacheKey = RunResourceAssessmentsJob::getCacheKey($scope, $jobId);
@@ -145,46 +145,6 @@ class AssessmentController extends Controller
         unset($status['lockOwner']);
 
         return response()->json($status);
-    }
-
-    /**
-     * @return array{jobId?: string, error?: string}
-     */
-    private function attemptScopeDispatch(string $scope): array
-    {
-        $lockKey = $this->lockKey($scope);
-        $lock = Cache::lock($lockKey, RunResourceAssessmentsJob::LOCK_TTL_SECONDS);
-
-        if (! $lock->get()) {
-            return [
-                'error' => sprintf('%s assessment is already running.', $this->scopeLabel($scope)),
-            ];
-        }
-
-        $jobId = Str::uuid()->toString();
-
-        try {
-            Cache::put(RunResourceAssessmentsJob::getCacheKey($scope, $jobId), [
-                'status' => 'queued',
-                'progress' => sprintf('%s assessment is waiting to start.', $this->scopeLabel($scope)),
-                'startedAt' => now()->toIso8601String(),
-                'lockOwner' => $lock->owner(),
-            ], now()->addSeconds(RunResourceAssessmentsJob::STATUS_TTL_SECONDS));
-
-            RunResourceAssessmentsJob::dispatch(
-                scope: $scope,
-                jobId: $jobId,
-                lockOwner: $lock->owner(),
-                lockKey: $lockKey,
-            );
-        } catch (\Throwable $exception) {
-            $lock->release();
-            Cache::forget(RunResourceAssessmentsJob::getCacheKey($scope, $jobId));
-
-            throw $exception;
-        }
-
-        return ['jobId' => $jobId];
     }
 
     /**
@@ -367,17 +327,7 @@ class AssessmentController extends Controller
             ->all());
     }
 
-    private function lockKey(string $scope): string
-    {
-        return "resource_assessment:{$scope}:running";
-    }
-
-    private function scopeLabel(string $scope): string
-    {
-        return $scope === RunResourceAssessmentsJob::IGSN_SCOPE ? 'IGSN' : 'Resource';
-    }
-
-    private function startScopeJob(string $scope): JsonResponse
+    private function startScopeJob(AssessmentScope $scope): JsonResponse
     {
         $fujiUnavailableResponse = $this->fujiUnavailableResponse();
 
@@ -385,17 +335,25 @@ class AssessmentController extends Controller
             return $fujiUnavailableResponse;
         }
 
-        $started = $this->attemptScopeDispatch($scope);
+        $run = $this->assessmentRuns->startOrResume($scope, $this->authenticatedUser());
 
-        if (! isset($started['jobId'])) {
-            return response()->json([
-                'error' => $started['error'] ?? 'Assessment could not be started.',
-            ], 409);
-        }
+        return response()->json($this->assessmentRunPresenter->present($run));
+    }
 
-        return response()->json([
-            'jobId' => $started['jobId'],
-        ]);
+    /** @return array<string, mixed>|null */
+    private function presentLatestRun(AssessmentScope $scope): ?array
+    {
+        $run = $this->assessmentRuns->latestForScope($scope);
+
+        return $run === null ? null : $this->assessmentRunPresenter->present($run);
+    }
+
+    private function authenticatedUser(): User
+    {
+        $user = request()->user();
+        abort_unless($user instanceof User, 401);
+
+        return $user;
     }
 
     private function fujiUnavailableResponse(): ?JsonResponse
