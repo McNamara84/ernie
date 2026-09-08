@@ -1,7 +1,7 @@
 // organize-imports-ignore
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, GripVertical, RotateCcw } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, Copy, ExternalLink, GripVertical, RotateCcw } from 'lucide-react';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -166,6 +166,7 @@ interface ResourceColumn {
 }
 
 const SELECT_COLUMN_WIDTH = 48;
+const DOI_COPY_FEEDBACK_DURATION_MS = 2000;
 const DATE_COLUMN_CONTAINER_CLASSES = 'flex min-w-0 flex-col gap-1 text-left text-gray-600 dark:text-gray-300';
 const DATE_COLUMN_HEADER_LABEL = (
     <span className="flex flex-col leading-tight normal-case">
@@ -758,12 +759,14 @@ function ResourcesPage({
     const [filterOptions, setFilterOptions] = useState<ResourceFilterOptions | null>(null);
     const [columnWidths, setColumnWidths] = useState<ResourceColumnWidths>(DEFAULT_RESOURCE_COLUMN_WIDTHS);
     const [tableCanResize, setTableCanResize] = useState<boolean>(true);
+    const [copiedDoi, setCopiedDoi] = useState<string | null>(null);
 
     const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
     const attemptedDatacenterFilterRestoreRef = useRef(false);
     const loadMoreControllerRef = useRef<AbortController | null>(null);
     const loadMoreInFlightRef = useRef(false);
+    const doiCopyResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         setListingState((current) => ({ ...current, resources: initialResources }));
@@ -794,6 +797,14 @@ function ResourcesPage({
             }
         };
     }, [filters, pagination.per_page, sortState.direction, sortState.key]);
+
+    useEffect(() => {
+        return () => {
+            if (doiCopyResetTimeoutRef.current !== null) {
+                clearTimeout(doiCopyResetTimeoutRef.current);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         setColumnWidths(readStoredResourceColumnWidths());
@@ -1195,19 +1206,63 @@ function ResourcesPage({
     /**
      * Copy text to clipboard with toast notification
      */
-    const copyToClipboard = useCallback((text: string, successMessage: string, successDescription?: string) => {
-        navigator.clipboard
-            .writeText(text)
-            .then(() => {
+    const copyToClipboard = useCallback(
+        async (
+            text: string,
+            successMessage: string,
+            successDescription?: string,
+            errorMessage = 'Failed to copy URL to clipboard',
+        ): Promise<boolean> => {
+            if (typeof navigator === 'undefined' || typeof navigator.clipboard?.writeText !== 'function') {
+                toast.error(errorMessage);
+
+                return false;
+            }
+
+            try {
+                await navigator.clipboard.writeText(text);
                 toast.success(successMessage, {
                     description: successDescription,
                     duration: 3000,
                 });
-            })
-            .catch(() => {
-                toast.error('Failed to copy URL to clipboard');
-            });
-    }, []);
+
+                return true;
+            } catch {
+                toast.error(errorMessage);
+
+                return false;
+            }
+        },
+        [],
+    );
+
+    const handleDoiCopy = useCallback(
+        async (doi: string): Promise<void> => {
+            const normalizedDoi = doi.trim();
+
+            if (normalizedDoi === '') {
+                return;
+            }
+
+            const copied = await copyToClipboard(normalizedDoi, 'DOI copied to clipboard', normalizedDoi, 'Failed to copy DOI to clipboard');
+
+            if (!copied) {
+                return;
+            }
+
+            setCopiedDoi(normalizedDoi);
+
+            if (doiCopyResetTimeoutRef.current !== null) {
+                clearTimeout(doiCopyResetTimeoutRef.current);
+            }
+
+            doiCopyResetTimeoutRef.current = setTimeout(() => {
+                setCopiedDoi(null);
+                doiCopyResetTimeoutRef.current = null;
+            }, DOI_COPY_FEEDBACK_DURATION_MS);
+        },
+        [copyToClipboard],
+    );
 
     const handleStatusBadgeClick = useCallback(
         (resource: Resource, status: string) => {
@@ -1215,7 +1270,7 @@ function ResourcesPage({
                 // Published: Open DOI URL and copy to clipboard
                 const doiUrl = `https://doi.org/${resource.doi}`;
 
-                copyToClipboard(doiUrl, 'DOI URL copied to clipboard', doiUrl);
+                void copyToClipboard(doiUrl, 'DOI URL copied to clipboard', doiUrl);
 
                 // Open in new tab
                 window.open(doiUrl, '_blank', 'noopener,noreferrer');
@@ -1223,7 +1278,7 @@ function ResourcesPage({
                 // Review: Open preview landing page and copy URL to clipboard
                 const previewUrl = resource.landingPage.preview_url;
 
-                copyToClipboard(previewUrl, 'Preview URL copied to clipboard', 'URL with access token copied for sharing with reviewers');
+                void copyToClipboard(previewUrl, 'Preview URL copied to clipboard', 'URL with access token copied for sharing with reviewers');
 
                 // Open in new tab
                 window.open(previewUrl, '_blank', 'noopener,noreferrer');
@@ -1947,16 +2002,36 @@ function ResourcesPage({
             sortGroupLabel: 'Sort options for DOI and title',
             render: (resource: Resource) => {
                 const title = resource.title ?? '-';
-                const identifierValue = resource.doi || 'Not registered';
+                const doi = resource.doi?.trim() ?? '';
+                const identifierValue = doi || 'Not registered';
                 // Lighter gray for "Not registered" text to de-emphasize missing DOI
                 // Dark mode uses lighter shade (400) for better readability on dark backgrounds
-                const identifierClasses = resource.doi
-                    ? 'text-sm text-gray-600 dark:text-gray-300'
-                    : 'text-sm text-gray-500 dark:text-gray-400 italic';
+                const identifierClasses = doi ? 'text-sm text-gray-600 dark:text-gray-300' : 'text-sm text-gray-500 dark:text-gray-400 italic';
+                const isCopied = copiedDoi === doi;
 
                 return (
                     <div className="flex min-w-0 flex-col gap-1 text-left" aria-label={`DOI: ${identifierValue}. Title: ${title}`}>
-                        <OverflowTooltipText value={identifierValue} className={identifierClasses} />
+                        <div className="flex min-w-0 items-center gap-1">
+                            <OverflowTooltipText value={identifierValue} className={cn(identifierClasses, 'min-w-0 flex-1')} />
+                            {doi && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    className="shrink-0 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                                    onClick={() => void handleDoiCopy(doi)}
+                                    aria-label={isCopied ? `DOI ${doi} copied to clipboard` : `Copy DOI ${doi} to clipboard`}
+                                    title={isCopied ? 'DOI copied' : 'Copy DOI'}
+                                    data-testid={`copy-resource-doi-${resource.id ?? doi}`}
+                                >
+                                    {isCopied ? (
+                                        <Check className="text-green-600 dark:text-green-400" aria-hidden="true" />
+                                    ) : (
+                                        <Copy aria-hidden="true" />
+                                    )}
+                                </Button>
+                            )}
+                        </div>
                         <OverflowTooltipText value={title} className="text-sm leading-relaxed font-normal text-gray-900 dark:text-gray-100" />
                     </div>
                 );

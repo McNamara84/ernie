@@ -5,6 +5,10 @@
         "features": [],
         "improvements": [
             {
+                "title": "One-Click DOI Copying in Resources",
+                "description": "Each registered DOI in the Resources overview now has a dedicated, always-visible copy action. Curators can copy the plain DOI by mouse, touch, or keyboard without opening the Data Editor or DOI resolver, with immediate success feedback and clear handling when browser clipboard access is unavailable."
+            },
+            {
                 "title": "On-Demand Portal Citation Details",
                 "description": "Data and IGSN Portal result rows now provide a compact information button on the left instead of opening disruptive previews on hover. Selecting it by mouse, touch, or keyboard loads the matching APA 7 citation and abstract on demand, with an accessible copy action and clear loading, retry, and missing-abstract states."
             },
