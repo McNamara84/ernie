@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use App\Models\Datacenter;
 use App\Models\LandingPageTemplate;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 class StoreLandingPageTemplateRequest extends FormRequest
 {
@@ -34,25 +32,6 @@ class StoreLandingPageTemplateRequest extends FormRequest
             'datacenter_ids' => ['sometimes', 'array'],
             'datacenter_ids.*' => ['integer', 'distinct', Rule::exists('datacenters', 'id')],
         ];
-    }
-
-    public function withValidator(Validator $validator): void
-    {
-        $validator->after(function (Validator $validator): void {
-            $datacenterIds = $this->input('datacenter_ids', []);
-            if (! is_array($datacenterIds) || $datacenterIds === []) {
-                return;
-            }
-
-            $type = $this->input('template_type', LandingPageTemplate::TEMPLATE_TYPE_RESOURCE);
-            if ($type === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE
-                && Datacenter::query()->whereKey($datacenterIds)->where('name', Datacenter::GFZ_NAME)->exists()) {
-                $validator->errors()->add(
-                    'datacenter_ids',
-                    'The canonical GFZ datacenter must remain assigned to the Templates Resources copy template.',
-                );
-            }
-        });
     }
 
     /**

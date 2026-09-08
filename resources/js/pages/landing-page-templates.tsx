@@ -291,7 +291,7 @@ function DatacenterAssignmentField({
             <Label htmlFor="datacenter-template-search">Assigned datacenters</Label>
             <p className="text-xs text-muted-foreground">
                 Saving moves selected datacenters within this template type. Resources without an explicit override inherit this assignment
-                immediately.
+                immediately. Removing a datacenter from a custom template returns it to the matching copy template.
             </p>
             <Input
                 id="datacenter-template-search"
@@ -301,12 +301,11 @@ function DatacenterAssignmentField({
             />
             <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
                 {visibleOptions.map((option) => {
-                    const isCanonicalGfz = option.name === 'GFZ German Research Centre for Geosciences';
-                    const isProtected = isCanonicalGfz && (templateType === 'resource' || isCopyTemplate);
                     const checkboxId = `datacenter-template-${templateType}-${option.id}`;
                     const assignedTemplateId = templateType === 'igsn' ? option.igsn_landing_page_template_id : option.landing_page_template_id;
                     const assignedTemplateName = templateType === 'igsn' ? option.igsn_landing_page_template_name : option.landing_page_template_name;
                     const assignedElsewhere = assignedTemplateId !== null && assignedTemplateId !== currentTemplateId;
+                    const isCurrentCopyTemplateAssignment = isCopyTemplate && assignedTemplateId === currentTemplateId;
 
                     return (
                         <div key={option.id} className="flex items-start gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/50">
@@ -314,22 +313,19 @@ function DatacenterAssignmentField({
                                 id={checkboxId}
                                 className="mt-0.5 size-4"
                                 checked={selected.includes(option.id)}
-                                disabled={isProtected}
+                                disabled={isCurrentCopyTemplateAssignment}
                                 onCheckedChange={() => toggle(option.id)}
                             />
                             <Label htmlFor={checkboxId} className="flex-1 cursor-pointer items-start font-normal">
                                 <span>
                                     <span className="block">{option.name}</span>
-                                    {isProtected && (
+                                    {isCurrentCopyTemplateAssignment && (
                                         <span className="block text-xs text-muted-foreground">
-                                            {templateType === 'resource'
-                                                ? 'Reserved for the Templates Resources copy template'
-                                                : selected.includes(option.id)
-                                                  ? 'Existing copy-template assignment; assign GFZ to a custom IGSN template to move it.'
-                                                  : 'GFZ can only be assigned to a custom IGSN template.'}
+                                            Default assignment; select this datacenter on another {templateType === 'igsn' ? 'IGSN' : 'Resource'}{' '}
+                                            template to move it.
                                         </span>
                                     )}
-                                    {!isProtected && assignedElsewhere && (
+                                    {assignedElsewhere && (
                                         <span className="block text-xs text-amber-700 dark:text-amber-400">
                                             Currently assigned to {assignedTemplateName}; saving will move it.
                                         </span>
@@ -482,10 +478,11 @@ export default function LandingPageTemplatesPage() {
             toast.success('Template cloned successfully');
             setCloneOpen(false);
             setCloneName('');
-            router.reload({ only: ['templates'] });
+            router.reload({ only: ['templates', 'datacenters'] });
         } catch (error) {
-            if (isAxiosError(error) && error.response?.data?.errors?.name) {
-                toast.error(error.response.data.errors.name[0]);
+            if (isAxiosError(error) && error.response?.data?.errors) {
+                const errors = error.response.data.errors;
+                toast.error(Object.values(errors).flat().join(', '));
             } else {
                 toast.error('Failed to clone template');
             }
@@ -563,7 +560,7 @@ export default function LandingPageTemplatesPage() {
             await axios.put(`/landing-pages/${editTemplate.id}`, payload);
             toast.success('Template updated successfully');
             setEditOpen(false);
-            router.reload({ only: ['templates'] });
+            router.reload({ only: ['templates', 'datacenters'] });
         } catch (error) {
             if (isAxiosError(error) && error.response?.data?.errors) {
                 const errors = error.response.data.errors;
@@ -854,7 +851,13 @@ export default function LandingPageTemplatesPage() {
                     <div className="space-y-4 py-2">
                         <div className="space-y-2">
                             <Label htmlFor="clone-type">Template Type</Label>
-                            <Select value={cloneType} onValueChange={(value) => setCloneType(value as 'resource' | 'igsn')}>
+                            <Select
+                                value={cloneType}
+                                onValueChange={(value) => {
+                                    setCloneType(value as 'resource' | 'igsn');
+                                    setCloneDatacenterIds([]);
+                                }}
+                            >
                                 <SelectTrigger id="clone-type">
                                     <SelectValue />
                                 </SelectTrigger>

@@ -87,10 +87,11 @@ it('assigns datacenters to IGSN templates through the independent IGSN slot', fu
     expect($datacenter->fresh()->igsn_landing_page_template_id)->toBe($template->id);
 });
 
-it('keeps the canonical GFZ datacenter on the resource system default', function (): void {
+it('allows a custom resource template to take the GFZ assignment without changing its IGSN template', function (): void {
     $gfz = Datacenter::factory()->create([
         'name' => Datacenter::GFZ_NAME,
         'landing_page_template_id' => $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id,
+        'igsn_landing_page_template_id' => $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]->id,
     ]);
     $custom = LandingPageTemplate::factory()->create();
 
@@ -98,30 +99,36 @@ it('keeps the canonical GFZ datacenter on the resource system default', function
         ->putJson("/landing-pages/{$custom->id}", [
             'datacenter_ids' => [$gfz->id],
         ])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors('datacenter_ids');
+        ->assertOk()
+        ->assertJsonPath('template.datacenters.0.id', $gfz->id);
 
-    expect($gfz->fresh()->landing_page_template_id)
-        ->toBe($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id);
+    $gfz->refresh();
+    expect($gfz->landing_page_template_id)->toBe($custom->id)
+        ->and($gfz->igsn_landing_page_template_id)
+        ->toBe($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]->id);
 });
 
-it('rejects assigning the canonical GFZ datacenter while cloning a resource template', function (): void {
+it('allows a group leader to assign GFZ and other datacenters while cloning a resource template', function (): void {
+    $groupLeader = User::factory()->groupLeader()->create();
     $gfz = Datacenter::factory()->create([
         'name' => Datacenter::GFZ_NAME,
         'landing_page_template_id' => $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id,
     ]);
+    $other = Datacenter::factory()->create();
 
-    $this->actingAs($this->admin)
+    $response = $this->actingAs($groupLeader)
         ->postJson('/landing-pages', [
             'name' => 'Custom GFZ Resource Template',
             'template_type' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
-            'datacenter_ids' => [$gfz->id],
-        ])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors('datacenter_ids');
+            'datacenter_ids' => [$gfz->id, $other->id],
+        ]);
 
-    expect($gfz->fresh()->landing_page_template_id)
-        ->toBe($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id);
+    $response->assertCreated()
+        ->assertJsonCount(2, 'template.datacenters');
+    $templateId = $response->json('template.id');
+
+    expect($gfz->fresh()->landing_page_template_id)->toBe($templateId)
+        ->and($other->fresh()->landing_page_template_id)->toBe($templateId);
 });
 
 it('keeps resource and IGSN template assignments independent on the same datacenter', function (): void {
@@ -163,21 +170,85 @@ it('allows a custom IGSN template to take the canonical GFZ assignment without c
         ->toBe($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id);
 });
 
-it('allows the IGSN copy template to keep its existing canonical GFZ assignment', function (): void {
+it('allows the IGSN copy template to keep an existing datacenter assignment', function (): void {
     $igsnCopyTemplate = $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN];
-    $gfz = Datacenter::factory()->create([
-        'name' => Datacenter::GFZ_NAME,
+    $datacenter = Datacenter::factory()->create([
         'igsn_landing_page_template_id' => $igsnCopyTemplate->id,
     ]);
 
     $this->actingAs($this->admin)
         ->putJson("/landing-pages/{$igsnCopyTemplate->id}", [
-            'datacenter_ids' => [$gfz->id],
+            'datacenter_ids' => [$datacenter->id],
         ])
         ->assertOk();
 
-    expect($gfz->fresh()->igsn_landing_page_template_id)->toBe($igsnCopyTemplate->id);
+    expect($datacenter->fresh()->igsn_landing_page_template_id)->toBe($igsnCopyTemplate->id);
 });
+
+it('preserves existing assignments when a copy template is updated with an empty selection', function (string $type): void {
+    $foreignKey = LandingPageTemplate::datacenterAssignmentColumnForType($type);
+    $copyTemplate = $this->defaults[$type];
+    $datacenter = Datacenter::factory()->create([
+        $foreignKey => $copyTemplate->id,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->putJson("/landing-pages/{$copyTemplate->id}", [
+            'datacenter_ids' => [],
+        ])
+        ->assertOk();
+
+    expect($datacenter->fresh()->getAttribute($foreignKey))->toBe($copyTemplate->id);
+})->with([
+    'resource' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
+    'IGSN' => LandingPageTemplate::TEMPLATE_TYPE_IGSN,
+]);
+
+it('returns datacenters removed from a custom template to the matching copy template', function (string $type): void {
+    $foreignKey = LandingPageTemplate::datacenterAssignmentColumnForType($type);
+    $factory = LandingPageTemplate::factory();
+    if ($type === LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
+        $factory = $factory->igsn();
+    }
+    $custom = $factory->create();
+    $datacenter = Datacenter::factory()->create([$foreignKey => $custom->id]);
+
+    $this->actingAs($this->admin)
+        ->putJson("/landing-pages/{$custom->id}", [
+            'datacenter_ids' => [],
+        ])
+        ->assertOk()
+        ->assertJsonCount(0, 'template.datacenters');
+
+    expect($datacenter->fresh()->getAttribute($foreignKey))->toBe($this->defaults[$type]->id)
+        ->and($custom->fresh()?->getDatacenterUsageCount())->toBe(0);
+})->with([
+    'resource' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
+    'IGSN' => LandingPageTemplate::TEMPLATE_TYPE_IGSN,
+]);
+
+it('allows a copy template to reclaim a datacenter from a custom template', function (string $type): void {
+    $foreignKey = LandingPageTemplate::datacenterAssignmentColumnForType($type);
+    $factory = LandingPageTemplate::factory();
+    if ($type === LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
+        $factory = $factory->igsn();
+    }
+    $custom = $factory->create();
+    $datacenter = Datacenter::factory()->create([$foreignKey => $custom->id]);
+    $copyTemplate = $this->defaults[$type];
+
+    $this->actingAs($this->admin)
+        ->putJson("/landing-pages/{$copyTemplate->id}", [
+            'datacenter_ids' => [$datacenter->id],
+        ])
+        ->assertOk();
+
+    expect($datacenter->fresh()->getAttribute($foreignKey))->toBe($copyTemplate->id)
+        ->and($custom->fresh()?->getDatacenterUsageCount())->toBe(0);
+})->with([
+    'resource' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
+    'IGSN' => LandingPageTemplate::TEMPLATE_TYPE_IGSN,
+]);
 
 it('preserves the existing GFZ assignment when the IGSN copy template is updated with an empty selection', function (): void {
     $igsnCopyTemplate = $this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN];
@@ -220,7 +291,7 @@ it('allows a group leader to assign GFZ and other datacenters while cloning an I
         ->toBe($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id);
 });
 
-it('does not let the IGSN copy template reclaim GFZ after a custom assignment', function (): void {
+it('lets the IGSN copy template reclaim GFZ after a custom assignment', function (): void {
     $custom = LandingPageTemplate::factory()->igsn()->create();
     $gfz = Datacenter::factory()->create([
         'name' => Datacenter::GFZ_NAME,
@@ -232,16 +303,10 @@ it('does not let the IGSN copy template reclaim GFZ after a custom assignment', 
         ->putJson("/landing-pages/{$igsnCopyTemplate->id}", [
             'datacenter_ids' => [$gfz->id],
         ])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors('datacenter_ids');
-
-    $this->actingAs($this->admin)
-        ->putJson("/landing-pages/{$igsnCopyTemplate->id}", [
-            'datacenter_ids' => [],
-        ])
         ->assertOk();
 
-    expect($gfz->fresh()->igsn_landing_page_template_id)->toBe($custom->id);
+    expect($gfz->fresh()->igsn_landing_page_template_id)->toBe($igsnCopyTemplate->id)
+        ->and($custom->fresh()?->igsnDatacenters()->exists())->toBeFalse();
 });
 
 it('inherits an IGSN template for a physical object resource', function (): void {

@@ -922,6 +922,18 @@ class LandingPageTemplate extends Model
         };
     }
 
+    /**
+     * Resolve the Datacenter foreign key used by a landing-page template type.
+     */
+    public static function datacenterAssignmentColumnForType(string $templateType): string
+    {
+        return match ($templateType) {
+            self::TEMPLATE_TYPE_RESOURCE => 'landing_page_template_id',
+            self::TEMPLATE_TYPE_IGSN => 'igsn_landing_page_template_id',
+            default => throw new \InvalidArgumentException("Unsupported landing-page template type [{$templateType}]."),
+        };
+    }
+
     public static function existingDefaultForType(string $templateType): ?self
     {
         return self::query()

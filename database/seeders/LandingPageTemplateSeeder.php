@@ -20,19 +20,12 @@ class LandingPageTemplateSeeder extends Seeder
     {
         $templates = LandingPageTemplate::ensureSystemTemplatesExist();
 
-        $gfz = Datacenter::query()->firstOrCreate([
-            'name' => Datacenter::GFZ_NAME,
-        ]);
-        $initializeIgsnAssignment = $gfz->igsn_landing_page_template_id === null;
+        Datacenter::query()
+            ->whereNull('landing_page_template_id')
+            ->update(['landing_page_template_id' => $templates[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id]);
 
-        $assignments = [
-            'landing_page_template_id' => $templates['resource']->id,
-        ];
-
-        if ($initializeIgsnAssignment) {
-            $assignments['igsn_landing_page_template_id'] = $templates['igsn']->id;
-        }
-
-        $gfz->forceFill($assignments)->save();
+        Datacenter::query()
+            ->whereNull('igsn_landing_page_template_id')
+            ->update(['igsn_landing_page_template_id' => $templates[LandingPageTemplate::TEMPLATE_TYPE_IGSN]->id]);
     }
 }

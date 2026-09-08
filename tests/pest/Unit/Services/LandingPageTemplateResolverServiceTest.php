@@ -8,6 +8,7 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Services\LandingPageTemplateResolverService;
+use Illuminate\Support\Facades\DB;
 
 covers(LandingPageTemplateResolverService::class);
 
@@ -74,8 +75,36 @@ it('allows the explicit resource system default to override datacenter inheritan
         ->and($resolved['source'])->toBe(LandingPageTemplateResolverService::SOURCE_EXPLICIT);
 });
 
-it('uses the resource system default without a datacenter template', function (): void {
+it('inherits the persisted resource system default from the datacenter', function (): void {
     $datacenter = Datacenter::factory()->create();
+    $resource = Resource::factory()->create([
+        'resource_type_id' => $this->datasetType->id,
+        'datacenter_id' => $datacenter->id,
+    ]);
+
+    $resolved = $this->resolver->automatic($resource);
+
+    expect($resolved['template']->is($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]))->toBeTrue()
+        ->and($resolved['source'])->toBe(LandingPageTemplateResolverService::SOURCE_DATACENTER);
+});
+
+it('ignores the resource assignment and inherits the persisted IGSN default for physical objects', function (): void {
+    $resourceTemplate = LandingPageTemplate::factory()->create();
+    $datacenter = Datacenter::factory()->create(['landing_page_template_id' => $resourceTemplate->id]);
+    $resource = Resource::factory()->create([
+        'resource_type_id' => $this->physicalObjectType->id,
+        'datacenter_id' => $datacenter->id,
+    ]);
+
+    $resolved = $this->resolver->automatic($resource);
+
+    expect($resolved['template']->is($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]))->toBeTrue()
+        ->and($resolved['source'])->toBe(LandingPageTemplateResolverService::SOURCE_DATACENTER);
+});
+
+it('retains the defensive resource fallback for an inconsistent null assignment', function (): void {
+    $datacenter = Datacenter::factory()->create();
+    DB::table('datacenters')->where('id', $datacenter->id)->update(['landing_page_template_id' => null]);
     $resource = Resource::factory()->create([
         'resource_type_id' => $this->datasetType->id,
         'datacenter_id' => $datacenter->id,
@@ -87,9 +116,9 @@ it('uses the resource system default without a datacenter template', function ()
         ->and($resolved['source'])->toBe(LandingPageTemplateResolverService::SOURCE_DEFAULT);
 });
 
-it('ignores datacenter templates for physical object resources', function (): void {
-    $resourceTemplate = LandingPageTemplate::factory()->create();
-    $datacenter = Datacenter::factory()->create(['landing_page_template_id' => $resourceTemplate->id]);
+it('retains the defensive IGSN fallback for an inconsistent null assignment', function (): void {
+    $datacenter = Datacenter::factory()->create();
+    DB::table('datacenters')->where('id', $datacenter->id)->update(['igsn_landing_page_template_id' => null]);
     $resource = Resource::factory()->create([
         'resource_type_id' => $this->physicalObjectType->id,
         'datacenter_id' => $datacenter->id,

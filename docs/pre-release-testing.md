@@ -712,11 +712,16 @@ Modify only purpose-created `MANUAL-TEST` users.
 - [ ] The built-in copy templates are named `Templates Resources` and
       `Templates IGSN` throughout template management and landing-page setup.
 
-- [ ] `GFZ German Research Centre for Geosciences` remains disabled for a
-      custom Resource template but can be selected for a custom IGSN template.
+- [ ] `GFZ German Research Centre for Geosciences` and at least one other
+      datacenter can each be selected for both a custom Resource template and a
+      custom IGSN template; the two assignment slots remain independent.
 
-- [ ] Assigning GFZ to the custom IGSN template changes only its IGSN template
-      slot; its Resource template remains `Templates Resources`.
+- [ ] One custom template can serve multiple datacenters, while another custom
+      template of the same type can remain assigned to none.
+
+- [ ] Removing a datacenter from a custom Resource or IGSN template immediately
+      restores `Templates Resources` or `Templates IGSN`, respectively, without
+      changing the other template type's assignment.
 
 - [ ] Logo upload accepts a valid image and clearly rejects an invalid file type.
 
@@ -740,8 +745,8 @@ Modify only purpose-created `MANUAL-TEST` users.
 - [ ] Cancelling preserves the template; confirmed deletion removes only the
       `MANUAL-TEST` template.
 
-- [ ] The temporary GFZ IGSN assignment is restored before deleting the
-      `MANUAL-TEST` template.
+- [ ] The temporary GFZ Resource and IGSN assignments are restored to their
+      matching copy templates before deleting the `MANUAL-TEST` templates.
 
 ### 3.17 Assistance and Assessment
 

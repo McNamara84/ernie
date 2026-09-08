@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\DatacenterController;
 use App\Models\Datacenter;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\User;
 
@@ -76,6 +77,10 @@ describe('Datacenter Creation', function () {
             ]);
 
         expect(Datacenter::where('name', 'GFZ Potsdam')->exists())->toBeTrue();
+        $datacenter = Datacenter::where('name', 'GFZ Potsdam')->firstOrFail();
+        $defaults = LandingPageTemplate::ensureSystemTemplatesExist();
+        expect($datacenter->landing_page_template_id)->toBe($defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]->id)
+            ->and($datacenter->igsn_landing_page_template_id)->toBe($defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]->id);
     });
 
     test('group leader can create a datacenter', function () {

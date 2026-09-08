@@ -488,31 +488,17 @@ class LandingPageTemplateController extends Controller
     /**
      * Assign any number of datacenters to a template within its resource scope.
      *
-     * Assigning a datacenter already used by another template moves it. The
-     * canonical GFZ resource assignment is retained on its system copy template.
-     * Its IGSN assignment is retained there only until a custom template takes it.
+     * Assigning a datacenter already used by another template moves it. Removing
+     * a datacenter from a custom template restores the built-in template for the
+     * same type, so a datacenter never loses its persisted default assignment.
      *
      * @param  list<int>  $datacenterIds
      */
     private function syncDatacenters(LandingPageTemplate $template, array $datacenterIds): void
     {
         $selectedIds = array_values(array_unique(array_map('intval', $datacenterIds)));
-        $foreignKey = $template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
-            ? 'igsn_landing_page_template_id'
-            : 'landing_page_template_id';
-
-        if ($template->isDefault()) {
-            $gfz = Datacenter::query()
-                ->where('name', Datacenter::GFZ_NAME)
-                ->first(['id', 'igsn_landing_page_template_id']);
-            $shouldRetainCanonicalGfz = $gfz !== null
-                && ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE
-                    || $gfz->igsn_landing_page_template_id === $template->id);
-
-            if ($shouldRetainCanonicalGfz && ! in_array((int) $gfz->id, $selectedIds, true)) {
-                $selectedIds[] = (int) $gfz->id;
-            }
-        }
+        $foreignKey = LandingPageTemplate::datacenterAssignmentColumnForType($template->template_type);
+        $defaultTemplate = LandingPageTemplate::defaultForType($template->template_type);
 
         sort($selectedIds);
 
@@ -523,27 +509,52 @@ class LandingPageTemplateController extends Controller
             ->all();
         sort($currentIds);
 
-        if ($currentIds === $selectedIds) {
+        $affectedIds = array_values(array_unique([...$currentIds, ...$selectedIds]));
+
+        if ($affectedIds === []) {
             return;
         }
 
-        $affectedIds = array_values(array_unique([...$currentIds, ...$selectedIds]));
+        $lockedDatacenters = Datacenter::query()
+            ->whereKey($affectedIds)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get(['id', $foreignKey]);
 
-        if ($affectedIds !== []) {
-            Datacenter::query()->whereKey($affectedIds)->lockForUpdate()->get(['id']);
+        $currentIds = $lockedDatacenters
+            ->filter(fn (Datacenter $datacenter): bool => (int) $datacenter->getAttribute($foreignKey) === $template->id)
+            ->pluck('id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+
+        if ($template->isDefault()) {
+            $selectedIds = array_values(array_unique([...$currentIds, ...$selectedIds]));
+            sort($selectedIds);
         }
 
-        Datacenter::query()
-            ->where($foreignKey, $template->id)
-            ->when($selectedIds !== [], fn ($query) => $query->whereNotIn('id', $selectedIds))
-            ->update([$foreignKey => null]);
+        $removedIds = array_values(array_diff($currentIds, $selectedIds));
+        $selectedChanges = $lockedDatacenters
+            ->filter(fn (Datacenter $datacenter): bool => in_array((int) $datacenter->id, $selectedIds, true)
+                && (int) $datacenter->getAttribute($foreignKey) !== $template->id)
+            ->pluck('id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+        $changedIds = array_values(array_unique([...$removedIds, ...$selectedChanges]));
 
-        if ($selectedIds !== []) {
-            Datacenter::query()->whereKey($selectedIds)->update([$foreignKey => $template->id]);
+        if ($changedIds === []) {
+            return;
         }
 
-        DB::afterCommit(function () use ($affectedIds): void {
-            app(LandingPageRenderDataCacheService::class)->forgetForDatacenters($affectedIds);
+        if ($removedIds !== []) {
+            Datacenter::query()->whereKey($removedIds)->update([$foreignKey => $defaultTemplate->id]);
+        }
+
+        if ($selectedChanges !== []) {
+            Datacenter::query()->whereKey($selectedChanges)->update([$foreignKey => $template->id]);
+        }
+
+        DB::afterCommit(function () use ($changedIds): void {
+            app(LandingPageRenderDataCacheService::class)->forgetForDatacenters($changedIds);
             app(PortalCacheInvalidationService::class)->schedule(
                 PortalScope::cases(),
                 [PortalCacheArea::PAGE],
