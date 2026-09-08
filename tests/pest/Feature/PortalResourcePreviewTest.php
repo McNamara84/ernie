@@ -85,6 +85,18 @@ it('publishes preview routes in both portal endpoint families', function () {
         ->toBe('/igsn-search/resources/42/preview');
 });
 
+it('rejects non-positive resource ids at the routing boundary', function (string $routeName, string $uri) {
+    $route = app('router')->getRoutes()->getByName($routeName);
+
+    expect($route)->not->toBeNull()
+        ->and($route?->wheres['resourceId'] ?? null)->toBe('[1-9][0-9]*');
+
+    $this->getJson($uri)->assertNotFound();
+})->with([
+    'DOI portal' => ['portal.doi.resource-preview', '/doi-search/resources/0/preview'],
+    'IGSN portal' => ['portal.igsn.resource-preview', '/igsn-search/resources/0/preview'],
+]);
+
 it('returns the same APA 7 plaintext as the landing-page citation service', function () {
     $resource = portalPreviewResource($this->portalPreviewDatasetType);
     portalPreviewDescription($resource, 'The complete English abstract.');

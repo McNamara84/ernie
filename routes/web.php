@@ -120,7 +120,7 @@ $registerPortalRoutes = static function (string $prefix, string $name, PortalSco
         ->name("portal.{$name}.map-cluster-members");
 
     Route::get("{$prefix}/resources/{resourceId}/preview", PortalResourcePreviewController::class)
-        ->whereNumber('resourceId')
+        ->where('resourceId', '[1-9][0-9]*')
         ->defaults('portalScope', $scope->value)
         ->middleware('throttle:public-portal')
         ->name("portal.{$name}.resource-preview");
