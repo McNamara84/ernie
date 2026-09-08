@@ -1764,6 +1764,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Linking Related Resources</h3>
                         <p>Connect your dataset to related publications, datasets, and other resources.</p>
 
+                        <h4>Starting with an Empty Related Work List</h4>
+                        <p>
+                            When the <strong>Related Work</strong> section has no entries, the Data Editor presents two actions instead of an empty
+                            form. Choose <strong>Add Related Work</strong> to open the first manual entry form, or choose <strong>Import CSV</strong>{' '}
+                            to start a bulk import immediately.
+                        </p>
+                        <p>
+                            While creating the first manual entry, use <strong>Cancel</strong> to discard its unsaved values and return to the empty
+                            state. After the first entry is added, the quick-add form and the related-work list remain visible. Removing the final
+                            entry returns the section to the same empty state.
+                        </p>
+
                         <h4>Adding Related Identifiers</h4>
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Enter the Identifier">
@@ -1791,6 +1803,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
+
+                        <h4>CSV Bulk Import</h4>
+                        <p>
+                            Start the importer with <strong>Import CSV</strong> in the empty state or <strong>Import from CSV</strong> beside the
+                            quick-add form. Drop a CSV file onto the upload area or select one from your device. The required columns are{' '}
+                            <code>identifier</code> and <code>relation_type</code>; <code>identifier_type</code> is optional and is auto-detected when
+                            omitted. An example file is available from <strong>Download Example</strong> in the importer.
+                        </p>
+                        <p>
+                            Review the preview and resolve every reported validation error before importing. An exact duplicate with the same
+                            identifier and relation type is skipped and reported, while the same identifier may still be imported with a different
+                            relation type. Use <strong>Cancel</strong> or close the importer to return without adding any rows.
+                        </p>
 
                         <h4>DOI Citation Labels</h4>
                         <p>
