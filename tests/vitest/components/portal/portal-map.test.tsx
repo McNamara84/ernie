@@ -513,18 +513,17 @@ describe('PortalMap', () => {
                 cluster.id,
                 1,
                 '/doi-search',
-                18,
             ),
         );
         expect(screen.getByTestId('cluster-members-panel')).toHaveTextContent(cluster.id);
         expect(screen.getByTestId('cluster-members-layer')).toHaveTextContent('0/2');
 
         fireEvent.click(screen.getByRole('button', { name: 'page 2' }));
-        expect(usePortalMapClusterMembersMock).toHaveBeenLastCalledWith(filters, expect.anything(), cluster.id, 2, '/doi-search', 18);
+        expect(usePortalMapClusterMembersMock).toHaveBeenLastCalledWith(filters, expect.anything(), cluster.id, 2, '/doi-search');
 
         fireEvent.click(screen.getByRole('button', { name: 'close' }));
         expect(screen.queryByTestId('cluster-members-panel')).not.toBeInTheDocument();
-        expect(usePortalMapClusterMembersMock).toHaveBeenLastCalledWith(filters, null, null, 1, '/doi-search', 18);
+        expect(usePortalMapClusterMembersMock).toHaveBeenLastCalledWith(filters, null, null, 1, '/doi-search');
     });
 
     it('reports the total location count returned with an extent request', () => {

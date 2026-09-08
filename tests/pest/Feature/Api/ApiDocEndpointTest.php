@@ -309,7 +309,6 @@ it('returns the OpenAPI documentation as JSON', function () {
             'clusterId',
             'viewport[north]',
             'viewport[width]',
-            'zoom',
             'page',
             'q',
             'type',
@@ -326,7 +325,8 @@ it('returns the OpenAPI documentation as JSON', function () {
             'year_from',
             'year_to',
             ...$igsnFilterParameters,
-        );
+        )
+        ->not->toContain('zoom');
 });
 
 it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {

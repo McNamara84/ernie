@@ -51,7 +51,7 @@ describe('usePortalMapClusterMembers', () => {
             }),
         );
 
-        const { result } = renderHookWithQueryClient(() => usePortalMapClusterMembers(filters, viewport, null, 1, '/doi-search', 18));
+        const { result } = renderHookWithQueryClient(() => usePortalMapClusterMembers(filters, viewport, null, 1, '/doi-search'));
 
         expect(result.current.fetchStatus).toBe('idle');
         expect(requests).toBe(0);
@@ -71,14 +71,14 @@ describe('usePortalMapClusterMembers', () => {
             }),
         );
 
-        const { result } = renderHookWithQueryClient(() => usePortalMapClusterMembers(filters, viewport, payload.clusterId, 2, '/doi-search', 18));
+        const { result } = renderHookWithQueryClient(() => usePortalMapClusterMembers(filters, viewport, payload.clusterId, 2, '/doi-search'));
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
         const url = new URL(requestUrl);
         expect(routeClusterId).toBe(payload.clusterId);
         expect(url.searchParams.get('q')).toBe('volcano');
         expect(url.searchParams.get('viewport[north]')).toBe('54.000000');
-        expect(url.searchParams.get('zoom')).toBe('18');
+        expect(url.searchParams.has('zoom')).toBe(false);
         expect(url.searchParams.get('page')).toBe('2');
         expect(result.current.data?.pagination.currentPage).toBe(2);
     });

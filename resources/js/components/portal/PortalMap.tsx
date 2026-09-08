@@ -341,7 +341,6 @@ export function PortalMap({
         expandedCluster?.feature.id ?? null,
         expandedCluster?.page ?? 1,
         basePath,
-        maxZoom,
     );
     const handleExpandCluster = useCallback(
         (feature: PortalMapClusterFeature) => {

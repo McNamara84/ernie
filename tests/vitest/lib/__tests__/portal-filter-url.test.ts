@@ -80,14 +80,13 @@ describe('portal filter URL builders', () => {
                 'z18-t2:140812:-37114',
                 3,
                 '/igsn-search',
-                18,
             ),
             'https://ernie.test',
         );
 
         expect(url.pathname).toBe('/igsn-search/map/clusters/z18-t2%3A140812%3A-37114');
         expect(url.searchParams.get('viewport[north]')).toBe('54.000000');
-        expect(url.searchParams.get('zoom')).toBe('18');
+        expect(url.searchParams.has('zoom')).toBe(false);
         expect(url.searchParams.get('page')).toBe('3');
         expect(url.searchParams.getAll('sample_types[]')).toEqual(['Core', 'Core Sample']);
         expect(url.searchParams.has('include_extent')).toBe(false);
@@ -160,13 +159,13 @@ describe('portal filter URL builders', () => {
         expect(url.searchParams.has('include_extent')).toBe(false);
     });
 
-    it('clamps map and member requests to the configured zoom limit', () => {
+    it('clamps map requests while member requests rely on the cluster ID zoom', () => {
         const viewport = { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 18 };
         const mapUrl = new URL(buildPortalMapUrl(filters, viewport, false, '/doi-search', 7), 'https://ernie.test');
-        const membersUrl = new URL(buildPortalMapClusterMembersUrl(filters, viewport, 'z7:1:2', 1, '/doi-search', 7), 'https://ernie.test');
+        const membersUrl = new URL(buildPortalMapClusterMembersUrl(filters, viewport, 'z7:1:2', 1, '/doi-search'), 'https://ernie.test');
 
         expect(mapUrl.searchParams.get('zoom')).toBe('7');
-        expect(membersUrl.searchParams.get('zoom')).toBe('7');
+        expect(membersUrl.searchParams.has('zoom')).toBe(false);
     });
 
     it('clears the legacy exclusion when a new explicit type selection is merged', () => {

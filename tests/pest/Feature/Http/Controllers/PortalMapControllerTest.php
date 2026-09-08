@@ -50,6 +50,17 @@ function portalMapRequestQuery(array $overrides = []): array
     ];
 }
 
+/**
+ * @param  array<string, mixed>  $mapQuery
+ * @return array<string, mixed>
+ */
+function portalMapClusterMembersRequestQuery(array $mapQuery): array
+{
+    unset($mapQuery['zoom']);
+
+    return $mapQuery;
+}
+
 beforeEach(function (): void {
     config([
         'bot_protection.enabled' => false,
@@ -313,7 +324,7 @@ it('returns paginated and hydrated members for a terminal DOI cluster', function
 
     $firstPage = $this->getJson(route('portal.doi.map-cluster-members', [
         'clusterId' => $cluster['id'],
-        ...$query,
+        ...portalMapClusterMembersRequestQuery($query),
     ]))
         ->assertOk()
         ->assertJsonPath('schemaVersion', 1)
@@ -326,7 +337,7 @@ it('returns paginated and hydrated members for a terminal DOI cluster', function
 
     $secondPage = $this->getJson(route('portal.doi.map-cluster-members', [
         'clusterId' => $cluster['id'],
-        ...$query,
+        ...portalMapClusterMembersRequestQuery($query),
         'page' => 2,
     ]))
         ->assertOk()
@@ -335,6 +346,34 @@ it('returns paginated and hydrated members for a terminal DOI cluster', function
 
     expect($firstPage->json('members.0.resource.title'))->toBe('First colocated dataset')
         ->and($secondPage->json('members.0.resource.title'))->toBe('Second colocated dataset');
+});
+
+it('resolves a coarsened cluster without requiring the original requested zoom', function (): void {
+    config(['portal_map.max_features' => 1]);
+    $first = createPublishedPortalMapResource($this->datasetType, 'Western dataset');
+    $second = createPublishedPortalMapResource($this->datasetType, 'Eastern dataset');
+    GeoLocation::factory()->withPoint(-120, 0)->create(['resource_id' => $first->id]);
+    GeoLocation::factory()->withPoint(120, 0)->create(['resource_id' => $second->id]);
+    $query = portalMapRequestQuery([
+        'zoom' => 18,
+        'viewport' => ['north' => 10, 'south' => -10, 'east' => 180, 'west' => -180, 'width' => 1000, 'height' => 700],
+    ]);
+
+    $mapResponse = $this->getJson(route('portal.doi.map', $query))
+        ->assertOk()
+        ->assertJsonPath('meta.requestedZoom', 18)
+        ->assertJsonPath('features.0.kind', 'cluster');
+    $clusterId = $mapResponse->json('features.0.id');
+
+    expect($mapResponse->json('meta.effectiveZoom'))->toBeLessThan(18)
+        ->and($clusterId)->not->toStartWith('z18:');
+
+    $this->getJson(route('portal.doi.map-cluster-members', [
+        'clusterId' => $clusterId,
+        ...portalMapClusterMembersRequestQuery($query),
+    ]))
+        ->assertOk()
+        ->assertJsonPath('total', 2);
 });
 
 it('preserves IGSN material details when resolving terminal cluster members', function (): void {
@@ -354,7 +393,10 @@ it('preserves IGSN material details when resolving terminal cluster members', fu
         ->assertJsonPath('features.0.composition.counts.rock', 2)
         ->json('features.0.id');
 
-    $this->getJson(route('portal.igsn.map-cluster-members', ['clusterId' => $clusterId, ...$query]))
+    $this->getJson(route('portal.igsn.map-cluster-members', [
+        'clusterId' => $clusterId,
+        ...portalMapClusterMembersRequestQuery($query),
+    ]))
         ->assertOk()
         ->assertJsonPath('total', 2)
         ->assertJsonPath('members.0.resource.presentation.dimension', 'material')
@@ -374,7 +416,10 @@ it('keeps terminal cluster members in the portal scope and current viewport', fu
     $query = portalMapRequestQuery(['zoom' => 18]);
     $clusterId = $this->getJson(route('portal.doi.map', $query))->json('features.0.id');
 
-    $this->getJson(route('portal.doi.map-cluster-members', ['clusterId' => $clusterId, ...$query]))
+    $this->getJson(route('portal.doi.map-cluster-members', [
+        'clusterId' => $clusterId,
+        ...portalMapClusterMembersRequestQuery($query),
+    ]))
         ->assertOk()
         ->assertJsonPath('total', 2)
         ->assertJsonMissing(['title' => 'Scoped sample']);
@@ -383,7 +428,10 @@ it('keeps terminal cluster members in the portal scope and current viewport', fu
         'zoom' => 18,
         'viewport' => ['north' => 10, 'south' => -10, 'east' => 10, 'west' => -10, 'width' => 1000, 'height' => 700],
     ]);
-    $this->getJson(route('portal.doi.map-cluster-members', ['clusterId' => $clusterId, ...$outsideViewport]))
+    $this->getJson(route('portal.doi.map-cluster-members', [
+        'clusterId' => $clusterId,
+        ...portalMapClusterMembersRequestQuery($outsideViewport),
+    ]))
         ->assertNotFound()
         ->assertJsonPath('message', 'The requested map cluster was not found.');
 });
@@ -391,15 +439,23 @@ it('keeps terminal cluster members in the portal scope and current viewport', fu
 it('validates cluster member requests and respects the map feature flag', function (): void {
     $this->getJson(route('portal.doi.map-cluster-members', [
         'clusterId' => 'invalid-cluster',
-        ...portalMapRequestQuery(['zoom' => 19]),
+        ...portalMapClusterMembersRequestQuery(portalMapRequestQuery()),
     ]))
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['cluster_id', 'zoom']);
+        ->assertJsonValidationErrors(['cluster_id'])
+        ->assertJsonMissingValidationErrors(['zoom']);
+
+    $this->getJson(route('portal.doi.map-cluster-members', [
+        'clusterId' => 'z18:1:1',
+        ...portalMapRequestQuery(['zoom' => 7]),
+    ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['zoom']);
 
     config(['portal_map.enabled' => false]);
     $this->getJson(route('portal.doi.map-cluster-members', [
         'clusterId' => 'z18:1:1',
-        ...portalMapRequestQuery(['zoom' => 18]),
+        ...portalMapClusterMembersRequestQuery(portalMapRequestQuery()),
     ]))
         ->assertServiceUnavailable()
         ->assertJsonPath('message', 'The portal map is temporarily unavailable.');

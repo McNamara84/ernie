@@ -353,6 +353,7 @@ for (const portal of [
             const url = new URL(route.request().url());
 
             if (url.pathname.includes('/map/clusters/')) {
+                expect(url.searchParams.has('zoom')).toBe(false);
                 await route.fulfill({
                     contentType: 'application/json',
                     body: JSON.stringify({

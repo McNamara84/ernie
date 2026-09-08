@@ -60,7 +60,6 @@ it('separates cluster-member cache entries by cluster, scope, filters, and viewp
     $baseQuery = [
         'q' => 'gravity',
         'viewport' => ['north' => 54, 'south' => 50, 'east' => 15, 'west' => 11, 'width' => 1000, 'height' => 700],
-        'zoom' => 18,
         'page' => 1,
     ];
     $base = Request::create('/doi-search/map/clusters/z18:1:1', 'GET', $baseQuery);

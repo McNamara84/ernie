@@ -20,8 +20,11 @@ final class PortalMapClusterMembersRequest extends FormRequest
     /** @return array<string, array<int, mixed>> */
     public function rules(): array
     {
+        $rules = $this->portalMapRules();
+        $rules['zoom'] = ['prohibited'];
+
         return [
-            ...$this->portalMapRules(),
+            ...$rules,
             'cluster_id' => ['required', 'string', 'max:100', 'regex:/^z\d+(?:-t\d+)?:-?\d+:-?\d+$/'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ];
