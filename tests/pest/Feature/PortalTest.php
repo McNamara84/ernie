@@ -418,14 +418,14 @@ describe('Portal Resource Transformation', function () {
                 ->has('resources', 1)
                 ->where('resources.0.title', 'Test Dataset')
                 ->where('resources.0.doi', '10.5880/test.2024.001')
-                ->where('resources.0.abstract', null)
+                ->missing('resources.0.abstract')
                 ->where('resources.0.year', 2024)
                 ->where('resources.0.resourceType', 'Dataset')
                 ->where('resources.0.isIgsn', false)
             );
     });
 
-    it('includes the abstract description when present', function () {
+    it('keeps abstracts out of the initial result payload', function () {
         $resource = createPublishedResource($this->datasetType, 'Test Dataset');
         $abstractType = DescriptionType::firstOrCreate(
             ['slug' => 'Abstract'],
@@ -437,16 +437,10 @@ describe('Portal Resource Transformation', function () {
             'value' => 'A concise abstract for portal preview testing.',
         ]);
 
-        GeoLocation::factory()->create([
-            'resource_id' => $resource->id,
-            'point_latitude' => 52.5,
-            'point_longitude' => 13.4,
-        ]);
-
         $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('resources.0.abstract', 'A concise abstract for portal preview testing.')
+                ->missing('resources.0.abstract')
             );
     });
 

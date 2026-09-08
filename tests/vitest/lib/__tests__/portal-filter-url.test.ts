@@ -5,6 +5,7 @@ import {
     buildPortalFilterUrl,
     buildPortalMapClusterMembersUrl,
     buildPortalMapUrl,
+    buildPortalResourcePreviewUrl,
     mergePortalFilters,
 } from '@/lib/portal-filter-url';
 import type { PortalFilters } from '@/types/portal';
@@ -90,6 +91,13 @@ describe('portal filter URL builders', () => {
         expect(url.searchParams.get('page')).toBe('3');
         expect(url.searchParams.getAll('sample_types[]')).toEqual(['Core', 'Core Sample']);
         expect(url.searchParams.has('include_extent')).toBe(false);
+    });
+
+    it('builds scoped resource preview URLs and rejects invalid IDs', () => {
+        expect(buildPortalResourcePreviewUrl(42, '/doi-search')).toBe('/doi-search/resources/42/preview');
+        expect(buildPortalResourcePreviewUrl(42, '/igsn-search')).toBe('/igsn-search/resources/42/preview');
+        expect(() => buildPortalResourcePreviewUrl(0, '/doi-search')).toThrow(RangeError);
+        expect(() => buildPortalResourcePreviewUrl(Number.MAX_SAFE_INTEGER + 1, '/doi-search')).toThrow(RangeError);
     });
 
     it('preserves exact direct-URL filters for counts while dropping pagination', () => {

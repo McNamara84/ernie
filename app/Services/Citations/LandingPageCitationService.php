@@ -6,6 +6,7 @@ namespace App\Services\Citations;
 
 use App\Models\Resource;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 use Seboettg\CiteProc\CiteProc;
 use Seboettg\CiteProc\StyleSheet;
 use Throwable;
@@ -45,23 +46,73 @@ final class LandingPageCitationService
             }, $styles);
         }
 
-        return array_map(function (array $style) use ($resource, $item): array {
-            try {
-                [$html, $text] = $this->renderStyle($style, $item);
+        return array_map(
+            fn (array $style): array => $this->formatMappedStyle($resource, $style, $item),
+            $styles,
+        );
+    }
 
-                return [
-                    'id' => $style['id'],
-                    'label' => $style['label'],
-                    'available' => true,
-                    'html' => $html,
-                    'text' => $text,
-                ];
-            } catch (Throwable $exception) {
-                $this->logFailure($resource, $style['id'], $exception);
+    /**
+     * Render one allow-listed citation style without paying the cost of all
+     * five landing-page styles. Public portal previews use this on demand.
+     *
+     * @return array{
+     *     id: string,
+     *     label: string,
+     *     available: bool,
+     *     html: string|null,
+     *     text: string|null
+     * }
+     */
+    public function formatStyle(Resource $resource, string $styleId): array
+    {
+        $style = null;
 
-                return $this->unavailableStyle($style);
+        foreach ($this->registry->styles() as $candidate) {
+            if ($candidate['id'] === $styleId) {
+                $style = $candidate;
+
+                break;
             }
-        }, $styles);
+        }
+
+        if ($style === null) {
+            throw new InvalidArgumentException("Unknown landing-page citation style [{$styleId}].");
+        }
+
+        try {
+            $item = $this->mapper->map($resource);
+        } catch (Throwable $exception) {
+            $this->logFailure($resource, $style['id'], $exception);
+
+            return $this->unavailableStyle($style);
+        }
+
+        return $this->formatMappedStyle($resource, $style, $item);
+    }
+
+    /**
+     * @param  array{id: string, label: string, path: string, locale: string}  $style
+     * @param  array<string, mixed>  $item
+     * @return array{id: string, label: string, available: bool, html: string|null, text: string|null}
+     */
+    private function formatMappedStyle(Resource $resource, array $style, array $item): array
+    {
+        try {
+            [$html, $text] = $this->renderStyle($style, $item);
+
+            return [
+                'id' => $style['id'],
+                'label' => $style['label'],
+                'available' => true,
+                'html' => $html,
+                'text' => $text,
+            ];
+        } catch (Throwable $exception) {
+            $this->logFailure($resource, $style['id'], $exception);
+
+            return $this->unavailableStyle($style);
+        }
     }
 
     /**

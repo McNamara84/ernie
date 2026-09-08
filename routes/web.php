@@ -41,6 +41,7 @@ use App\Http\Controllers\PortalCountController;
 use App\Http\Controllers\PortalKeywordSuggestionController;
 use App\Http\Controllers\PortalMapClusterMembersController;
 use App\Http\Controllers\PortalMapController;
+use App\Http\Controllers\PortalResourcePreviewController;
 use App\Http\Controllers\PortalSearchAnalyticsController;
 use App\Http\Controllers\PublicMetadataExportController;
 use App\Http\Controllers\RelatedItemController;
@@ -117,6 +118,12 @@ $registerPortalRoutes = static function (string $prefix, string $name, PortalSco
         ->defaults('portalScope', $scope->value)
         ->middleware('throttle:public-portal-map')
         ->name("portal.{$name}.map-cluster-members");
+
+    Route::get("{$prefix}/resources/{resourceId}/preview", PortalResourcePreviewController::class)
+        ->where('resourceId', '[1-9][0-9]*')
+        ->defaults('portalScope', $scope->value)
+        ->middleware('throttle:public-portal')
+        ->name("portal.{$name}.resource-preview");
 
     Route::post("{$prefix}/search-analytics", [PortalSearchAnalyticsController::class, 'store'])
         ->defaults('portalScope', $scope->value)

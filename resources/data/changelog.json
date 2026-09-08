@@ -5,6 +5,10 @@
         "features": [],
         "improvements": [
             {
+                "title": "On-Demand Portal Citation Details",
+                "description": "Data and IGSN Portal result rows now provide a compact information button on the left instead of opening disruptive previews on hover. Selecting it by mouse, touch, or keyboard loads the matching APA 7 citation and abstract on demand, with an accessible copy action and clear loading, retry, and missing-abstract states."
+            },
+            {
                 "title": "Clear Related Work Empty State",
                 "description": "The Data Editor now presents an explicit empty state before the first Related Work is added, with separate actions for manual entry and CSV import. Curators can cancel an unfinished first entry, and removing the final relation returns the section to the same clear starting state."
             },

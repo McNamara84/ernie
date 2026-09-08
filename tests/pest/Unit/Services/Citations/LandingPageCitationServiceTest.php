@@ -131,6 +131,19 @@ it('renders reviewable golden plaintext for all five official styles', function 
         ->and($styles[4]['html'])->toContain('csl-hanging-indent');
 });
 
+it('renders one allow-listed style identically to the complete landing-page set', function () {
+    $service = app(LandingPageCitationService::class);
+    $resource = landingPageCitationServiceTestFixture();
+
+    expect($service->formatStyle($resource, 'apa-7'))
+        ->toBe($service->format($resource)[0]);
+});
+
+it('rejects unknown single-style identifiers', function () {
+    app(LandingPageCitationService::class)
+        ->formatStyle(landingPageCitationServiceTestFixture(), 'invented-style');
+})->throws(InvalidArgumentException::class, 'Unknown landing-page citation style [invented-style].');
+
 it('renders a physical object fixture through every official style', function () {
     $styles = app(LandingPageCitationService::class)->format(
         landingPageCitationServiceTestFixture('physical-object', 'Physical Object'),

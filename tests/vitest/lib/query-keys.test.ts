@@ -54,6 +54,14 @@ describe('queryKeys', () => {
             expect(queryKeys.msl.laboratories()).toEqual(['/vocabularies/msl-laboratories']);
         });
     });
+
+    describe('portal', () => {
+        it('keeps resource previews isolated by portal and resource', () => {
+            expect(queryKeys.portal.resourcePreview('/doi-search', 42)).toEqual(['portal', 'resource-preview', '/doi-search', 42]);
+            expect(queryKeys.portal.resourcePreview('/igsn-search', 42)).not.toEqual(queryKeys.portal.resourcePreview('/doi-search', 42));
+            expect(queryKeys.portal.resourcePreview('/doi-search', 43)).not.toEqual(queryKeys.portal.resourcePreview('/doi-search', 42));
+        });
+    });
 });
 
 describe('apiEndpoints', () => {

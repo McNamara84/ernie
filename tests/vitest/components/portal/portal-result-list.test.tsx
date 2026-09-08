@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render, screen } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PortalResultList } from '@/components/portal/PortalResultList';
@@ -15,7 +15,6 @@ function createMockResource(id: number, overrides: Partial<PortalResource> = {})
         id,
         title: `Resource ${id}`,
         doi: `10.5880/GFZ.TEST.${id}`,
-        abstract: null,
         resourceType: 'Dataset',
         resourceTypeSlug: 'dataset',
         isIgsn: false,
@@ -47,6 +46,7 @@ function createMockPagination(overrides: Partial<PortalPagination> = {}): Portal
 
 describe('PortalResultList', () => {
     const defaultProps = {
+        basePath: '/doi-search' as const,
         resources: [createMockResource(1), createMockResource(2), createMockResource(3)],
         pagination: createMockPagination({ from: 1, to: 3, total: 3 }),
         onPageChange: vi.fn(),

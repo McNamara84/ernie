@@ -60,7 +60,6 @@ export interface PortalResource {
     id: number;
     doi: string | null;
     title: string;
-    abstract: string | null;
     creators: PortalCreator[];
     year: number | null;
     resourceType: string;
@@ -70,7 +69,17 @@ export interface PortalResource {
     igsn?: PortalMapIgsnSummary | null;
     geoLocations: PortalGeoLocation[];
     landingPageUrl: string | null;
-    citationAuthorDisplayLimit?: number;
+}
+
+/** On-demand citation and abstract shown from a portal result row. */
+export interface PortalResourcePreview {
+    resourceId: number;
+    citation: {
+        styleId: 'apa-7';
+        label: string;
+        text: string;
+    };
+    abstract: string | null;
 }
 
 /**

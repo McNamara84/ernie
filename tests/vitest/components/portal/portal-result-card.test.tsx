@@ -1,21 +1,19 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { render, screen, within } from '@tests/vitest/utils/render';
-import { describe, expect, it } from 'vitest';
+import { render, screen, waitFor, within } from '@tests/vitest/utils/render';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PortalResultCard } from '@/components/portal/PortalResultCard';
-import type { PortalCreator, PortalResource } from '@/types/portal';
+import type { PortalBasePath, PortalCreator, PortalResource, PortalResourcePreview } from '@/types/portal';
 
-/**
- * Factory to create a mock PortalResource for testing
- */
+import { http, HttpResponse, server } from '../../helpers/msw-server';
+
 function createMockResource(overrides: Partial<PortalResource> = {}): PortalResource {
     return {
         id: 1,
         title: 'Test Resource Title',
         doi: '10.5880/GFZ.TEST.2024.001',
-        abstract: null,
         resourceType: 'Dataset',
         resourceTypeSlug: 'dataset',
         isIgsn: false,
@@ -27,279 +25,295 @@ function createMockResource(overrides: Partial<PortalResource> = {}): PortalReso
     };
 }
 
+const preview: PortalResourcePreview = {
+    resourceId: 1,
+    citation: {
+        styleId: 'apa-7',
+        label: 'APA 7',
+        text: 'Smith, J. (2024). Test Resource Title. https://doi.org/10.5880/GFZ.TEST.2024.001',
+    },
+    abstract: 'This abstract gives searchers more context without opening the landing page.',
+};
+
+function renderCard(resource = createMockResource(), basePath: PortalBasePath = '/doi-search') {
+    return render(<PortalResultCard resource={resource} basePath={basePath} />);
+}
+
 describe('PortalResultCard', () => {
-    describe('Basic Rendering', () => {
-        it('renders resource title', () => {
-            const resource = createMockResource({ title: 'Climate Data for Europe 2024' });
-            render(<PortalResultCard resource={resource} />);
+    beforeEach(() => {
+        server.use(http.get('/doi-search/resources/:resourceId/preview', () => HttpResponse.json(preview)));
+    });
+
+    describe('compact result content', () => {
+        it('renders title, DOI, type, year, and the landing-page link', () => {
+            renderCard(createMockResource({ title: 'Climate Data for Europe 2024' }));
 
             expect(screen.getByText('Climate Data for Europe 2024')).toBeInTheDocument();
-        });
-
-        it('renders resource DOI', () => {
-            const resource = createMockResource({ doi: '10.5880/GFZ.SAMPLE.2024' });
-            render(<PortalResultCard resource={resource} />);
-
-            expect(screen.getByText('10.5880/GFZ.SAMPLE.2024')).toBeInTheDocument();
-        });
-
-        it('renders resource type badge', () => {
-            const resource = createMockResource({ isIgsn: false, resourceType: 'Dataset' });
-            render(<PortalResultCard resource={resource} />);
-
-            // Badge shows resourceType for non-IGSN resources
+            expect(screen.getByText('10.5880/GFZ.TEST.2024.001')).toBeInTheDocument();
             expect(screen.getByText('Dataset')).toBeInTheDocument();
+            expect(screen.getByText('2024')).toBeInTheDocument();
+            expect(screen.getByRole('link')).toHaveAttribute('href', '/landing/test-slug');
+            expect(screen.getByRole('link')).toHaveAttribute('target', '_blank');
+            expect(screen.getByRole('link')).toHaveAttribute('rel', 'noopener noreferrer');
         });
 
-        it('renders publication year', () => {
-            const resource = createMockResource({ year: 2023, creators: [{ name: 'Test' }] });
-            render(<PortalResultCard resource={resource} />);
-
-            expect(screen.getByText(/2023/)).toBeInTheDocument();
-        });
-
-        it('handles missing DOI gracefully', () => {
-            const resource = createMockResource({ doi: null });
-            render(<PortalResultCard resource={resource} />);
+        it('handles missing DOI, year, and landing-page URL', () => {
+            renderCard(createMockResource({ doi: null, year: null, landingPageUrl: null }));
 
             expect(screen.queryByText(/10\.5880/)).not.toBeInTheDocument();
+            expect(screen.queryByText('2024')).not.toBeInTheDocument();
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /show citation and abstract/i })).toBeInTheDocument();
         });
 
-        it('handles missing year gracefully', () => {
-            const resource = createMockResource({ year: null });
-            render(<PortalResultCard resource={resource} />);
-
-            expect(screen.queryByText('•')).not.toBeInTheDocument();
-        });
-
-        it('keeps the title flexible and the metadata cluster fixed for long titles', () => {
-            const resource = createMockResource({
-                title: 'A very long dataset title that should truncate visually before pushing authors and publication year out of the visible result row area',
-            });
-
-            render(<PortalResultCard resource={resource} />);
+        it('keeps the title flexible, metadata fixed, and info action non-shrinking', () => {
+            renderCard(
+                createMockResource({
+                    title: 'A very long dataset title that must truncate before pushing fixed metadata out of a narrow result panel',
+                }),
+            );
 
             expect(screen.getByTestId('portal-result-title')).toHaveClass('min-w-0', 'flex-1', 'truncate');
             expect(screen.getByTestId('portal-result-meta')).toHaveClass('shrink-0');
+            expect(screen.getByRole('button', { name: /show citation and abstract/i })).toHaveClass('shrink-0');
+        });
+
+        it.each([
+            { creators: [{ name: 'Johnson' }], expected: 'Johnson' },
+            { creators: [{ name: 'Smith' }, { name: 'Jones' }], expected: 'Smith & Jones' },
+            { creators: [{ name: 'Miller' }, { name: 'Brown' }, { name: 'Wilson' }], expected: 'Miller et al.' },
+            { creators: [], expected: 'Unknown' },
+            { creators: [{ name: '' }], expected: 'Unknown' },
+        ] satisfies Array<{ creators: PortalCreator[]; expected: string }>)('formats creator summary as $expected', ({ creators, expected }) => {
+            renderCard(createMockResource({ creators, year: null }));
+
+            expect(screen.getByText(expected)).toBeInTheDocument();
+        });
+
+        it('uses the IGSN badge for physical samples', () => {
+            renderCard(createMockResource({ isIgsn: true, resourceType: 'PhysicalObject' }), '/igsn-search');
+
+            expect(screen.getByText('IGSN')).toBeInTheDocument();
         });
     });
 
-    describe('Author Formatting (Citation Style)', () => {
-        it('formats single author correctly', () => {
-            const creators: PortalCreator[] = [{ name: 'Johnson' }];
-            const resource = createMockResource({ creators, year: null });
-            render(<PortalResultCard resource={resource} />);
+    describe('separate interactions', () => {
+        it('places the info button before and outside the landing-page link', () => {
+            renderCard();
 
-            expect(screen.getByText('Johnson')).toBeInTheDocument();
-        });
-
-        it('formats two authors with ampersand', () => {
-            const creators: PortalCreator[] = [{ name: 'Smith' }, { name: 'Jones' }];
-            const resource = createMockResource({ creators, year: null });
-            render(<PortalResultCard resource={resource} />);
-
-            expect(screen.getByText('Smith & Jones')).toBeInTheDocument();
-        });
-
-        it('formats three or more authors as "et al."', () => {
-            const creators: PortalCreator[] = [{ name: 'Miller' }, { name: 'Brown' }, { name: 'Wilson' }];
-            const resource = createMockResource({ creators, year: null });
-            render(<PortalResultCard resource={resource} />);
-
-            expect(screen.getByText('Miller et al.')).toBeInTheDocument();
-        });
-
-        it('handles four authors with "et al."', () => {
-            const creators: PortalCreator[] = [{ name: 'Author1' }, { name: 'Author2' }, { name: 'Author3' }, { name: 'Author4' }];
-            const resource = createMockResource({ creators, year: null });
-            render(<PortalResultCard resource={resource} />);
-
-            expect(screen.getByText('Author1 et al.')).toBeInTheDocument();
-        });
-
-        it('displays "Unknown" when no creators', () => {
-            const resource = createMockResource({ creators: [], year: null });
-            render(<PortalResultCard resource={resource} />);
-
-            expect(screen.getByText('Unknown')).toBeInTheDocument();
-        });
-
-        it('handles creator with empty name', () => {
-            const creators: PortalCreator[] = [{ name: '' }];
-            const resource = createMockResource({ creators, year: null });
-            render(<PortalResultCard resource={resource} />);
-
-            // Component shows 'Unknown' for empty/falsy names via || 'Unknown' in formatName
-            expect(screen.getByText('Unknown')).toBeInTheDocument();
-        });
-    });
-
-    describe('Type Badge Variants', () => {
-        it('renders default badge variant for DOI resources', () => {
-            const resource = createMockResource({ isIgsn: false, resourceType: 'Dataset' });
-            render(<PortalResultCard resource={resource} />);
-
-            const badge = screen.getByText('Dataset');
-            expect(badge).toBeInTheDocument();
-            // Badge should not have secondary variant class
-            expect(badge).not.toHaveClass('bg-secondary');
-        });
-
-        it('renders secondary badge variant for IGSN resources', () => {
-            const resource = createMockResource({ isIgsn: true, resourceType: 'PhysicalObject' });
-            render(<PortalResultCard resource={resource} />);
-
-            const badge = screen.getByText('IGSN');
-            expect(badge).toBeInTheDocument();
-        });
-    });
-
-    describe('Landing Page Link', () => {
-        it('renders as clickable link when landingPageUrl exists', () => {
-            const resource = createMockResource({ landingPageUrl: '/landing/my-resource' });
-            render(<PortalResultCard resource={resource} />);
-
+            const button = screen.getByRole('button', { name: /show citation and abstract/i });
             const link = screen.getByRole('link');
-            expect(link).toHaveAttribute('href', '/landing/my-resource');
-            expect(link).toHaveAttribute('target', '_blank');
-            expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+            const card = button.closest('[data-slot="portal-result-card"]');
+
+            expect(button.closest('a')).toBeNull();
+            expect(card).not.toBeNull();
+            expect(card?.firstElementChild).toBe(button);
+            expect(button.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
 
-        it('renders without link when landingPageUrl is null', () => {
-            const resource = createMockResource({ landingPageUrl: null });
-            render(<PortalResultCard resource={resource} />);
-
-            expect(screen.queryByRole('link')).not.toBeInTheDocument();
-        });
-
-        it('card has hover styles when linked', () => {
-            const resource = createMockResource({ landingPageUrl: '/landing/test' });
-            render(<PortalResultCard resource={resource} />);
-
-            const link = screen.getByRole('link');
-            expect(link).toHaveClass('group');
-        });
-
-        it('shows full title, creators, and abstract in the hover preview', async () => {
+        it('does not open or request details on row hover or keyboard focus', async () => {
+            let requests = 0;
+            server.use(
+                http.get('/doi-search/resources/:resourceId/preview', () => {
+                    requests++;
+                    return HttpResponse.json(preview);
+                }),
+            );
             const user = userEvent.setup();
-            const resource = createMockResource({
-                title: 'A much longer full title than the row can comfortably show',
-                abstract: 'This abstract gives searchers more context without opening the landing page.',
-                creators: [{ name: 'Smith', givenName: 'Jane' }, { name: 'Jones', givenName: 'Max' }, { name: 'GFZ Data Services' }],
-            });
-
-            render(<PortalResultCard resource={resource} />);
+            renderCard();
 
             await user.hover(screen.getByRole('link'));
-
-            const preview = await screen.findByTestId('portal-result-preview');
-            const scoped = within(preview);
-
-            expect(scoped.getByText('A much longer full title than the row can comfortably show')).toBeInTheDocument();
-            expect(scoped.getByText('Jane Smith, Max Jones, GFZ Data Services')).toBeInTheDocument();
-            expect(scoped.getByText('This abstract gives searchers more context without opening the landing page.')).toBeInTheDocument();
-        });
-
-        it('limits hover-preview creators and appends non-interactive et al.', async () => {
-            const user = userEvent.setup();
-            const resource = createMockResource({
-                citationAuthorDisplayLimit: 2,
-                creators: [
-                    { name: 'Smith', givenName: 'Jane' },
-                    { name: 'Jones', givenName: 'Max' },
-                    { name: 'Miller', givenName: 'Ada' },
-                ],
-            });
-
-            render(<PortalResultCard resource={resource} />);
-            await user.hover(screen.getByRole('link'));
-
-            const preview = await screen.findByTestId('portal-result-preview');
-            expect(within(preview).getByText('Jane Smith, Max Jones, et al.')).toBeInTheDocument();
-            expect(within(preview).queryByText(/Ada Miller/)).not.toBeInTheDocument();
-            expect(within(preview).queryByRole('button', { name: /et al/i })).not.toBeInTheDocument();
-        });
-
-        it('uses the defensive default when the server limit is missing or invalid', async () => {
-            const user = userEvent.setup();
-            const creators = Array.from({ length: 51 }, (_, index) => ({ name: `Creator ${index + 1}` }));
-            const resource = createMockResource({ citationAuthorDisplayLimit: 0, creators });
-
-            render(<PortalResultCard resource={resource} />);
-            await user.hover(screen.getByRole('link'));
-
-            const preview = await screen.findByTestId('portal-result-preview');
-            expect(preview).toHaveTextContent('Creator 50, et al.');
-            expect(preview).not.toHaveTextContent('Creator 51');
-        });
-
-        it('shows the same preview on keyboard focus', async () => {
-            const user = userEvent.setup();
-            const resource = createMockResource({
-                abstract: 'Keyboard users should get the same preview.',
-            });
-
-            render(<PortalResultCard resource={resource} />);
-
+            await user.tab();
             await user.tab();
 
-            const preview = await screen.findByTestId('portal-result-preview');
-            expect(preview).toBeInTheDocument();
-            expect(within(preview).getByText('Keyboard users should get the same preview.')).toBeInTheDocument();
+            expect(screen.queryByTestId('portal-result-preview')).not.toBeInTheDocument();
+            expect(requests).toBe(0);
         });
 
-        it('omits the abstract block from the preview when no abstract is available', async () => {
+        it('opens only from the info button and loads the DOI preview on demand', async () => {
+            let requestedId = '';
+            server.use(
+                http.get('/doi-search/resources/:resourceId/preview', ({ params }) => {
+                    requestedId = String(params.resourceId);
+                    return HttpResponse.json(preview);
+                }),
+            );
             const user = userEvent.setup();
-            const resource = createMockResource({ abstract: null });
+            renderCard();
 
-            render(<PortalResultCard resource={resource} />);
+            expect(screen.queryByTestId('portal-result-preview')).not.toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: /show citation and abstract/i }));
 
-            await user.hover(screen.getByRole('link'));
+            const popover = await screen.findByTestId('portal-result-preview');
+            expect(requestedId).toBe('1');
+            expect(within(popover).getByText('Citation (APA 7)')).toBeInTheDocument();
+            expect(within(popover).getByTestId('portal-preview-citation')).toHaveTextContent(preview.citation.text);
+            expect(within(popover).getByText(preview.abstract!)).toBeInTheDocument();
+        });
 
-            const preview = await screen.findByTestId('portal-result-preview');
-            expect(within(preview).queryByText('Abstract')).not.toBeInTheDocument();
+        it.each(['{Enter}', ' '] as const)('supports the %s keyboard activation', async (key) => {
+            const user = userEvent.setup();
+            renderCard();
+
+            await user.tab();
+            expect(screen.getByRole('button', { name: /show citation and abstract/i })).toHaveFocus();
+            await user.keyboard(key);
+
+            expect(await screen.findByTestId('portal-result-preview')).toBeInTheDocument();
+        });
+
+        it('closes with Escape and returns focus to the info button', async () => {
+            const user = userEvent.setup();
+            renderCard();
+            const button = screen.getByRole('button', { name: /show citation and abstract/i });
+
+            await user.click(button);
+            expect(await screen.findByTestId('portal-result-preview')).toBeInTheDocument();
+            await user.keyboard('{Escape}');
+
+            await waitFor(() => expect(screen.queryByTestId('portal-result-preview')).not.toBeInTheDocument());
+            expect(button).toHaveFocus();
+        });
+
+        it('requests the scoped IGSN endpoint for a physical sample', async () => {
+            let requests = 0;
+            server.use(
+                http.get('/igsn-search/resources/:resourceId/preview', () => {
+                    requests++;
+                    return HttpResponse.json({ ...preview, citation: { ...preview.citation, text: 'IGSN citation' } });
+                }),
+            );
+            const user = userEvent.setup();
+            renderCard(createMockResource({ isIgsn: true, resourceType: 'PhysicalObject' }), '/igsn-search');
+
+            await user.click(screen.getByRole('button', { name: /show citation and abstract/i }));
+
+            expect(await screen.findByText('IGSN citation')).toBeInTheDocument();
+            expect(requests).toBe(1);
         });
     });
 
-    describe('Complex Resources', () => {
-        it('renders fully populated resource', () => {
-            const resource = createMockResource({
-                id: 99,
-                title: 'Comprehensive Geoscience Dataset',
-                doi: '10.5880/GFZ.FULL.001',
-                resourceType: 'Dataset',
-                isIgsn: false,
-                year: 2024,
-                landingPageUrl: '/landing/full-resource',
-                creators: [{ name: 'Harrison' }, { name: 'Martinez' }, { name: 'Chen' }],
-            });
-            render(<PortalResultCard resource={resource} />);
+    describe('preview states and actions', () => {
+        it('shows a loading state while the request is pending', async () => {
+            server.use(
+                http.get(
+                    '/doi-search/resources/:resourceId/preview',
+                    async ({ request }) =>
+                        new Promise<HttpResponse<{ message: string }>>((resolve) => {
+                            request.signal.addEventListener('abort', () => resolve(HttpResponse.json({ message: 'Aborted' }, { status: 499 })));
+                        }),
+                ),
+            );
+            const user = userEvent.setup();
+            renderCard();
 
-            expect(screen.getByText('Comprehensive Geoscience Dataset')).toBeInTheDocument();
-            expect(screen.getByText('10.5880/GFZ.FULL.001')).toBeInTheDocument();
-            expect(screen.getByText('Dataset')).toBeInTheDocument();
-            // Year appears in the author row
-            expect(screen.getByText('2024')).toBeInTheDocument();
-            expect(screen.getByText('Harrison et al.')).toBeInTheDocument();
-            expect(screen.getByRole('link')).toHaveAttribute('href', '/landing/full-resource');
+            await user.click(screen.getByRole('button', { name: /show citation and abstract/i }));
+
+            expect(await screen.findByLabelText('Loading citation and abstract')).toBeInTheDocument();
         });
 
-        it('renders IGSN physical object resource', () => {
-            const resource = createMockResource({
-                title: 'Rock Core Sample XYZ',
-                doi: null,
-                resourceType: 'PhysicalObject',
-                isIgsn: true,
-                year: null,
-                landingPageUrl: null,
-                creators: [{ name: 'Geology Lab' }],
-            });
-            render(<PortalResultCard resource={resource} />);
+        it('shows a defined empty state when no abstract exists', async () => {
+            server.use(http.get('/doi-search/resources/:resourceId/preview', () => HttpResponse.json({ ...preview, abstract: null })));
+            const user = userEvent.setup();
+            renderCard();
 
-            expect(screen.getByText('Rock Core Sample XYZ')).toBeInTheDocument();
-            expect(screen.getByText('IGSN')).toBeInTheDocument();
-            expect(screen.getByText('Geology Lab')).toBeInTheDocument();
-            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: /show citation and abstract/i }));
+
+            expect(await screen.findByText('No abstract is available for this resource.')).toBeInTheDocument();
+        });
+
+        it('renders metadata as text rather than executable markup', async () => {
+            server.use(
+                http.get('/doi-search/resources/:resourceId/preview', () =>
+                    HttpResponse.json({
+                        ...preview,
+                        citation: { ...preview.citation, text: '<img src=x onerror=alert(1)> Citation' },
+                        abstract: '<script>window.hacked = true</script> Abstract',
+                    }),
+                ),
+            );
+            const user = userEvent.setup();
+            renderCard();
+
+            await user.click(screen.getByRole('button', { name: /show citation and abstract/i }));
+            const popover = await screen.findByTestId('portal-result-preview');
+
+            expect(within(popover).getByText('<img src=x onerror=alert(1)> Citation')).toBeInTheDocument();
+            expect(within(popover).getByText('<script>window.hacked = true</script> Abstract')).toBeInTheDocument();
+            expect(popover.querySelector('img')).toBeNull();
+            expect(popover.querySelector('script')).toBeNull();
+        });
+
+        it('offers retry after a non-retriable request failure', async () => {
+            let attempts = 0;
+            let releaseRetry: (() => void) | undefined;
+            const retryBarrier = new Promise<void>((resolve) => {
+                releaseRetry = resolve;
+            });
+            server.use(
+                http.get('/doi-search/resources/:resourceId/preview', async () => {
+                    attempts++;
+                    if (attempts === 1) {
+                        return HttpResponse.json({ message: 'Missing' }, { status: 404 });
+                    }
+
+                    await retryBarrier;
+
+                    return HttpResponse.json(preview);
+                }),
+            );
+            const user = userEvent.setup();
+            renderCard();
+
+            await user.click(screen.getByRole('button', { name: /show citation and abstract/i }));
+            expect(await screen.findByRole('alert')).toHaveTextContent('Citation and abstract could not be loaded.');
+            const retryButton = screen.getByRole('button', { name: 'Retry' });
+            expect(retryButton).toHaveAttribute('aria-busy', 'false');
+            await user.click(retryButton);
+            await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toHaveAttribute('aria-busy', 'true'));
+            expect(screen.getByRole('button', { name: 'Retry' })).toBeDisabled();
+
+            releaseRetry?.();
+
+            expect(await screen.findByTestId('portal-preview-citation')).toHaveTextContent(preview.citation.text);
+            expect(attempts).toBe(2);
+        });
+
+        it('copies exactly the delivered citation text', async () => {
+            const user = userEvent.setup();
+            const clipboardSpy = vi.spyOn(navigator.clipboard, 'writeText');
+            renderCard();
+
+            await user.click(screen.getByRole('button', { name: /show citation and abstract/i }));
+            await user.click(await screen.findByRole('button', { name: 'Copy citation to clipboard' }));
+
+            expect(clipboardSpy).toHaveBeenCalledWith(preview.citation.text);
+            expect(await screen.findByRole('status')).toHaveTextContent('Citation copied to clipboard');
+        });
+
+        it('clears the pending copied-state timeout when the preview closes', async () => {
+            const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+            const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+            try {
+                const user = userEvent.setup();
+                renderCard();
+
+                await user.click(screen.getByRole('button', { name: /show citation and abstract/i }));
+                await user.click(await screen.findByRole('button', { name: 'Copy citation to clipboard' }));
+
+                const resetCallIndex = setTimeoutSpy.mock.calls.findIndex(([, delay]) => delay === 2000);
+                expect(resetCallIndex).toBeGreaterThanOrEqual(0);
+                const resetTimeout = setTimeoutSpy.mock.results[resetCallIndex]?.value;
+
+                await user.keyboard('{Escape}');
+
+                expect(clearTimeoutSpy).toHaveBeenCalledWith(resetTimeout);
+                expect(screen.queryByTestId('portal-result-preview')).not.toBeInTheDocument();
+            } finally {
+                setTimeoutSpy.mockRestore();
+                clearTimeoutSpy.mockRestore();
+            }
         });
     });
 });
