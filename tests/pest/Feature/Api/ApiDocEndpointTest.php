@@ -302,7 +302,31 @@ it('returns the OpenAPI documentation as JSON', function () {
     expect(collect(data_get($spec, 'paths./{portal}-search/count.get.parameters'))->pluck('name')->all())
         ->toContain(...$igsnFilterParameters)
         ->and(collect(data_get($spec, 'paths./{portal}-search/map.get.parameters'))->pluck('name')->all())
-        ->toContain('portal', 'viewport[north]', 'viewport[width]', 'zoom', 'include_extent', 'type[]', 'north', 'date_type', ...$igsnFilterParameters);
+        ->toContain('portal', 'viewport[north]', 'viewport[width]', 'zoom', 'include_extent', 'type[]', 'north', 'date_type', ...$igsnFilterParameters)
+        ->and(collect(data_get($spec, 'paths./{portal}-search/map/clusters/{clusterId}.get.parameters'))->pluck('name')->all())
+        ->toContain(
+            'portal',
+            'clusterId',
+            'viewport[north]',
+            'viewport[width]',
+            'zoom',
+            'page',
+            'q',
+            'type',
+            'type[]',
+            'datacenter[]',
+            'keywords[]',
+            'free_keywords[]',
+            'thesaurus_keywords[]',
+            'north',
+            'south',
+            'east',
+            'west',
+            'date_type',
+            'year_from',
+            'year_to',
+            ...$igsnFilterParameters,
+        );
 });
 
 it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {

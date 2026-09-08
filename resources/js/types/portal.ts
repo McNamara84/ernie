@@ -12,6 +12,10 @@ export interface PortalContext {
     showResourceTypeFilter: boolean;
 }
 
+export interface PortalMapConfig {
+    maxZoom: number;
+}
+
 /**
  * Creator information in citation format.
  */
@@ -153,6 +157,7 @@ export interface PortalThesaurusFacet {
  */
 export interface PortalPageProps {
     portal: PortalContext;
+    mapConfig: PortalMapConfig;
     resources: PortalResource[];
     pagination: PortalPagination;
     filters: PortalFilters;

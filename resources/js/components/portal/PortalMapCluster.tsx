@@ -8,15 +8,14 @@ import type { PortalMapFeature, PortalMapResourceFeature, PortalResource } from 
 
 interface ClusterLayerProps {
     features: PortalMapFeature[];
+    maxZoom: number;
     interactive?: boolean;
     onExpandCluster?: (feature: Extract<PortalMapFeature, { kind: 'cluster' }>) => void;
 }
 
-export const PORTAL_MAP_MAX_ZOOM = 18;
-
-export function navigateIntoCluster(map: L.Map, feature: Extract<PortalMapFeature, { kind: 'cluster' }>): boolean {
+export function navigateIntoCluster(map: L.Map, feature: Extract<PortalMapFeature, { kind: 'cluster' }>, maxZoom: number): boolean {
     const currentZoom = map.getZoom();
-    if (currentZoom >= PORTAL_MAP_MAX_ZOOM) return false;
+    if (currentZoom >= maxZoom) return false;
 
     const referenceLongitude = map.getCenter().lng;
     const navigationBounds = feature.navigationBounds ?? feature.bounds;
@@ -24,8 +23,8 @@ export function navigateIntoCluster(map: L.Map, feature: Extract<PortalMapFeatur
     const bounds = L.latLngBounds([navigationBounds.south, displayBounds.west], [navigationBounds.north, displayBounds.east]);
     const isPoint = bounds.isValid() && bounds.getNorthEast().equals(bounds.getSouthWest());
     const fittedZoom = bounds.isValid() && !isPoint ? map.getBoundsZoom(bounds, false, L.point(30, 30)) : currentZoom + 2;
-    const minimumZoom = Math.min(PORTAL_MAP_MAX_ZOOM, currentZoom + 1);
-    const maximumZoom = Math.min(PORTAL_MAP_MAX_ZOOM, currentZoom + 4);
+    const minimumZoom = Math.min(maxZoom, currentZoom + 1);
+    const maximumZoom = Math.min(maxZoom, currentZoom + 4);
     const finiteFittedZoom = Number.isFinite(fittedZoom) ? fittedZoom : maximumZoom;
     const targetZoom = Math.max(minimumZoom, Math.min(maximumZoom, finiteFittedZoom));
     const displayLongitude = rebaseLongitude(feature.position.lng, referenceLongitude);
@@ -56,7 +55,7 @@ export function portalMapPopupResource(feature: PortalMapResourceFeature): Porta
 }
 
 /** Render the bounded server clusters and individual point markers. */
-export function ClusterLayer({ features, interactive = true, onExpandCluster }: ClusterLayerProps) {
+export function ClusterLayer({ features, maxZoom, interactive = true, onExpandCluster }: ClusterLayerProps) {
     const map = useMap();
 
     useEffect(() => {
@@ -83,7 +82,7 @@ export function ClusterLayer({ features, interactive = true, onExpandCluster }: 
 
                 if (interactive) {
                     marker.on('click', () => {
-                        if (!navigateIntoCluster(map, feature)) onExpandCluster?.(feature);
+                        if (!navigateIntoCluster(map, feature, maxZoom)) onExpandCluster?.(feature);
                     });
                 }
 
@@ -112,7 +111,7 @@ export function ClusterLayer({ features, interactive = true, onExpandCluster }: 
         return () => {
             map.removeLayer(layer);
         };
-    }, [features, interactive, map, onExpandCluster]);
+    }, [features, interactive, map, maxZoom, onExpandCluster]);
 
     return null;
 }

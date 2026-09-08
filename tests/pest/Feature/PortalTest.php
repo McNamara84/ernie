@@ -77,6 +77,16 @@ describe('Portal Page Display', function () {
             ->assertInertia(fn (Assert $page) => $page->component('portal'));
     });
 
+    it('exposes the configured map zoom limit to the frontend', function () {
+        config(['portal_map.max_zoom' => 7]);
+
+        $this->get(route('portal.doi'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('mapConfig.maxZoom', 7)
+            );
+    });
+
     it('strongly throttles known ai bots without throttling normal visitors on the same ip', function () {
         config([
             'bot_protection.enabled' => true,

@@ -51,9 +51,7 @@ describe('usePortalMapClusterMembers', () => {
             }),
         );
 
-        const { result } = renderHookWithQueryClient(() =>
-            usePortalMapClusterMembers(filters, viewport, null, 1, '/doi-search'),
-        );
+        const { result } = renderHookWithQueryClient(() => usePortalMapClusterMembers(filters, viewport, null, 1, '/doi-search', 18));
 
         expect(result.current.fetchStatus).toBe('idle');
         expect(requests).toBe(0);
@@ -73,9 +71,7 @@ describe('usePortalMapClusterMembers', () => {
             }),
         );
 
-        const { result } = renderHookWithQueryClient(() =>
-            usePortalMapClusterMembers(filters, viewport, payload.clusterId, 2, '/doi-search'),
-        );
+        const { result } = renderHookWithQueryClient(() => usePortalMapClusterMembers(filters, viewport, payload.clusterId, 2, '/doi-search', 18));
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
         const url = new URL(requestUrl);

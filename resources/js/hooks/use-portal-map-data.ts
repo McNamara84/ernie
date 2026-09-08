@@ -9,9 +9,10 @@ export function usePortalMapData(
     filters: PortalFilters,
     viewport: PortalMapViewport | null,
     includeExtent: boolean,
-    basePath: PortalBasePath = '/doi-search',
+    basePath: PortalBasePath,
+    maxZoom: number,
 ) {
-    const url = viewport ? buildPortalMapUrl(filters, viewport, includeExtent, basePath) : null;
+    const url = viewport ? buildPortalMapUrl(filters, viewport, includeExtent, basePath, maxZoom) : null;
 
     return useQuery({
         queryKey: queryKeys.portal.map(url ?? 'waiting-for-viewport'),

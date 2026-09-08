@@ -9,6 +9,7 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\TitleType;
+use App\Services\PortalMapService;
 use Illuminate\Support\Facades\RateLimiter;
 
 function createPublishedPortalMapResource(ResourceType $type, string $title = 'Mapped resource'): Resource
@@ -85,6 +86,18 @@ it('returns a lightweight resource feature for a published point in the viewport
         ->assertJsonPath('meta.visibleLocations', 1)
         ->assertJsonPath('meta.totalLocations', 1)
         ->assertJsonPath('meta.returnedFeatures', 1);
+});
+
+it('drops resource candidates whose locations disappear before hydration', function (): void {
+    $hydrate = new ReflectionMethod(PortalMapService::class, 'hydrateResourceCandidates');
+    $features = [[
+        'kind' => 'resource-candidate',
+        'locationId' => PHP_INT_MAX,
+        'position' => ['lat' => 52.5, 'lng' => 13.4],
+        'bounds' => ['north' => 52.5, 'south' => 52.5, 'east' => 13.4, 'west' => 13.4],
+    ]];
+
+    expect($hydrate->invoke(app(PortalMapService::class), $features, 'resource-type'))->toBe([]);
 });
 
 it('infers legacy geometry details when geo type is missing', function (): void {

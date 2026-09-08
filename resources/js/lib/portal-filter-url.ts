@@ -113,8 +113,9 @@ export function buildPortalCountUrl(currentSearch: string, basePath: PortalBaseP
 export function buildPortalMapUrl(
     filters: PortalFilters,
     viewport: PortalMapViewport,
-    includeExtent = false,
-    basePath: PortalBasePath = '/doi-search',
+    includeExtent: boolean,
+    basePath: PortalBasePath,
+    maxZoom: number,
 ): string {
     const filterUrl = buildPortalFilterUrl(filters, basePath);
     const queryString = filterUrl.includes('?') ? filterUrl.slice(filterUrl.indexOf('?') + 1) : '';
@@ -126,7 +127,7 @@ export function buildPortalMapUrl(
     params.set('viewport[west]', viewport.west.toFixed(6));
     params.set('viewport[width]', String(Math.max(1, Math.round(viewport.width))));
     params.set('viewport[height]', String(Math.max(1, Math.round(viewport.height))));
-    params.set('zoom', String(Math.max(0, Math.min(18, Math.round(viewport.zoom)))));
+    params.set('zoom', String(Math.max(0, Math.min(maxZoom, Math.round(viewport.zoom)))));
 
     if (includeExtent) {
         params.set('include_extent', '1');
@@ -140,10 +141,11 @@ export function buildPortalMapClusterMembersUrl(
     filters: PortalFilters,
     viewport: PortalMapViewport,
     clusterId: string,
-    page = 1,
-    basePath: PortalBasePath = '/doi-search',
+    page: number,
+    basePath: PortalBasePath,
+    maxZoom: number,
 ): string {
-    const mapUrl = buildPortalMapUrl(filters, viewport, false, basePath);
+    const mapUrl = buildPortalMapUrl(filters, viewport, false, basePath, maxZoom);
     const queryString = mapUrl.slice(mapUrl.indexOf('?') + 1);
     const params = new URLSearchParams(queryString);
     params.set('page', String(Math.max(1, Math.round(page))));

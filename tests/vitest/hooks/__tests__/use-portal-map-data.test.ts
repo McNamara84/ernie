@@ -57,7 +57,7 @@ describe('usePortalMapData', () => {
             }),
         );
 
-        const { result } = renderHookWithQueryClient(() => usePortalMapData(filters, null, false));
+        const { result } = renderHookWithQueryClient(() => usePortalMapData(filters, null, false, '/doi-search', 18));
 
         expect(result.current.fetchStatus).toBe('idle');
         expect(requests).toBe(0);
@@ -72,7 +72,7 @@ describe('usePortalMapData', () => {
             }),
         );
 
-        const { result } = renderHookWithQueryClient(() => usePortalMapData(filters, viewport, true));
+        const { result } = renderHookWithQueryClient(() => usePortalMapData(filters, viewport, true, '/doi-search', 18));
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
         const url = new URL(requestUrl);
@@ -85,7 +85,7 @@ describe('usePortalMapData', () => {
     it('surfaces endpoint errors without replacing them with empty data', async () => {
         server.use(http.get('/doi-search/map', () => HttpResponse.json({ message: 'Map unavailable' }, { status: 500 })));
 
-        const { result } = renderHookWithQueryClient(() => usePortalMapData(filters, viewport, false));
+        const { result } = renderHookWithQueryClient(() => usePortalMapData(filters, viewport, false, '/doi-search', 18));
         await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5_000 });
 
         expect(result.current.data).toBeUndefined();
@@ -114,6 +114,7 @@ describe('usePortalMapData', () => {
                 viewport,
                 false,
                 '/igsn-search',
+                18,
             ),
         );
         await waitFor(() => expect(result.current.isSuccess).toBe(true));

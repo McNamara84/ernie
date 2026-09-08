@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
-it('forwards the IGSN material map flag to the app container', function (string $composeFile): void {
+it('forwards the portal map settings to the app container', function (string $composeFile): void {
     $compose = Yaml::parseFile(base_path($composeFile));
 
     expect($compose)->toBeArray()
         ->and($compose['services']['app']['environment'] ?? null)
         ->toBeArray()
+        ->toContain('PORTAL_MAP_MAX_ZOOM=${PORTAL_MAP_MAX_ZOOM:-18}')
+        ->toContain('PORTAL_MAP_CLUSTER_MEMBERS_PER_PAGE=${PORTAL_MAP_CLUSTER_MEMBERS_PER_PAGE:-50}')
         ->toContain('PORTAL_IGSN_MAP_MATERIAL_VISUALIZATION_ENABLED=${PORTAL_IGSN_MAP_MATERIAL_VISUALIZATION_ENABLED:-true}');
 })->with([
     'development' => 'docker-compose.dev.yml',
@@ -17,9 +19,11 @@ it('forwards the IGSN material map flag to the app container', function (string 
     'production' => 'docker-compose.prod.yml',
 ]);
 
-it('documents the IGSN material map flag for Docker deployments', function (): void {
+it('documents the portal map settings for Docker deployments', function (): void {
     $environment = file_get_contents(base_path('.env.docker.example'));
 
     expect($environment)->toBeString()
+        ->toContain('PORTAL_MAP_MAX_ZOOM=18')
+        ->toContain('PORTAL_MAP_CLUSTER_MEMBERS_PER_PAGE=50')
         ->toContain('PORTAL_IGSN_MAP_MATERIAL_VISUALIZATION_ENABLED=true');
 });

@@ -28,10 +28,12 @@ const clusterLayerMock = vi.hoisted(() =>
     vi.fn(
         ({
             features,
+            maxZoom,
             interactive,
             onExpandCluster,
         }: {
             features: PortalMapFeature[];
+            maxZoom: number;
             interactive?: boolean;
             onExpandCluster?: (feature: Extract<PortalMapFeature, { kind: 'cluster' }>) => void;
         }) => {
@@ -41,6 +43,7 @@ const clusterLayerMock = vi.hoisted(() =>
                 <button
                     type="button"
                     data-testid="cluster-layer"
+                    data-max-zoom={maxZoom}
                     data-interactive={String(interactive)}
                     onClick={() => cluster?.kind === 'cluster' && onExpandCluster?.(cluster)}
                 >
@@ -75,7 +78,7 @@ const mockMap = vi.hoisted(() => ({
 
 vi.mock('@/hooks/use-portal-map-data', () => ({ usePortalMapData: usePortalMapDataMock }));
 vi.mock('@/hooks/use-portal-map-cluster-members', () => ({ usePortalMapClusterMembers: usePortalMapClusterMembersMock }));
-vi.mock('@/components/portal/PortalMapCluster', () => ({ ClusterLayer: clusterLayerMock, PORTAL_MAP_MAX_ZOOM: 18 }));
+vi.mock('@/components/portal/PortalMapCluster', () => ({ ClusterLayer: clusterLayerMock }));
 vi.mock('@/components/portal/PortalMapClusterMembers', () => ({
     ClusterMembersLayer: ({ members, total }: { members: unknown[]; total: number }) => (
         <div data-testid="cluster-members-layer">{`${members.length}/${total}`}</div>
@@ -119,8 +122,14 @@ vi.mock('leaflet', () => ({
     },
 }));
 vi.mock('react-leaflet', () => ({
-    MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="leaflet-map">{children}</div>,
-    TileLayer: () => <div data-testid="tile-layer" />,
+    MapContainer: ({ children, maxZoom, zoom }: { children: React.ReactNode; maxZoom: number; zoom: number }) => (
+        <div data-testid="leaflet-map" data-max-zoom={maxZoom} data-initial-zoom={zoom}>
+            {children}
+        </div>
+    ),
+    TileLayer: ({ maxZoom, maxNativeZoom }: { maxZoom: number; maxNativeZoom: number }) => (
+        <div data-testid="tile-layer" data-max-zoom={maxZoom} data-max-native-zoom={maxNativeZoom} />
+    ),
     Popup: ({ children }: { children: React.ReactNode }) => <div data-testid="popup">{children}</div>,
     Rectangle: ({ children, bounds, pathOptions }: { children: React.ReactNode; bounds: unknown; pathOptions: unknown }) => (
         <div data-testid="rectangle" data-bounds={JSON.stringify(bounds)} data-path-options={JSON.stringify(pathOptions)}>
@@ -193,7 +202,7 @@ describe('PortalMap', () => {
     });
 
     it('requests map data only after Leaflet reports a visible viewport', async () => {
-        render(<PortalMap filters={filters} />);
+        render(<PortalMap filters={filters} maxZoom={18} />);
 
         await waitFor(() =>
             expect(usePortalMapDataMock).toHaveBeenCalledWith(
@@ -201,7 +210,19 @@ describe('PortalMap', () => {
                 expect.objectContaining({ north: 53, south: 51, east: 14, west: 12, width: 800, height: 600, zoom: 4 }),
                 false,
                 '/doi-search',
+                18,
             ),
+        );
+    });
+
+    it('uses the configured zoom limit for the map, clusters, and requests', async () => {
+        render(<PortalMap filters={filters} maxZoom={7} />);
+
+        expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-max-zoom', '7');
+        expect(screen.getAllByTestId('tile-layer')[0]).toHaveAttribute('data-max-zoom', '7');
+        expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-max-zoom', '7');
+        await waitFor(() =>
+            expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), false, '/doi-search', 7),
         );
     });
 
@@ -219,7 +240,7 @@ describe('PortalMap', () => {
             ],
         });
 
-        render(<PortalMap filters={filters} />);
+        render(<PortalMap filters={filters} maxZoom={18} />);
 
         expect(screen.getAllByTestId('cluster-layer')[0]).toHaveTextContent('1');
         expect(screen.getAllByTestId('map-legend')[0]).toHaveTextContent('1');
@@ -261,7 +282,7 @@ describe('PortalMap', () => {
             ],
         });
 
-        render(<PortalMap filters={filters} />);
+        render(<PortalMap filters={filters} maxZoom={18} />);
 
         const renderedGeometry = screen.getAllByTestId(testId)[0];
         expect(renderedGeometry).toBeInTheDocument();
@@ -311,7 +332,7 @@ describe('PortalMap', () => {
             ],
         });
 
-        render(<PortalMap filters={filters} basePath="/igsn-search" />);
+        render(<PortalMap filters={filters} maxZoom={18} basePath="/igsn-search" />);
 
         const renderedGeometry = screen.getAllByTestId(testId)[0];
         expect(JSON.parse(renderedGeometry.getAttribute('data-path-options') ?? '{}')).toMatchObject({
@@ -341,7 +362,7 @@ describe('PortalMap', () => {
             ],
         });
 
-        render(<PortalMap filters={filters} />);
+        render(<PortalMap filters={filters} maxZoom={18} />);
 
         expect(screen.getAllByTestId('rectangle')[0]).toHaveAttribute(
             'data-bounds',
@@ -380,7 +401,7 @@ describe('PortalMap', () => {
             ],
         });
 
-        render(<PortalMap filters={filters} />);
+        render(<PortalMap filters={filters} maxZoom={18} />);
 
         expect(screen.getAllByTestId('polygon')[0]).toHaveAttribute(
             'data-positions',
@@ -394,20 +415,26 @@ describe('PortalMap', () => {
 
     it('reports move-end bounds to the spatial filter while always refreshing technical map data', async () => {
         const onViewportChange = vi.fn();
-        render(<PortalMap filters={filters} geoFilterEnabled onViewportChange={onViewportChange} />);
+        render(<PortalMap filters={filters} maxZoom={18} geoFilterEnabled onViewportChange={onViewportChange} />);
 
         await waitFor(() => expect(mapEvents.has('moveend')).toBe(true));
         act(() => mapEvents.get('moveend')?.());
 
         expect(onViewportChange).toHaveBeenCalledWith({ north: 53, south: 51, east: 14, west: 12 });
-        expect(usePortalMapDataMock).toHaveBeenLastCalledWith(filters, expect.objectContaining({ width: 800, height: 600 }), false, '/doi-search');
+        expect(usePortalMapDataMock).toHaveBeenLastCalledWith(
+            filters,
+            expect.objectContaining({ width: 800, height: 600 }),
+            false,
+            '/doi-search',
+            18,
+        );
     });
 
     it('debounces resize-driven technical viewport requests', () => {
         vi.useFakeTimers();
 
         try {
-            render(<PortalMap filters={filters} hideHeader />);
+            render(<PortalMap filters={filters} maxZoom={18} hideHeader />);
             act(() => vi.runOnlyPendingTimers());
             usePortalMapDataMock.mockClear();
 
@@ -428,6 +455,7 @@ describe('PortalMap', () => {
                 expect.objectContaining({ north: 53, south: 51, east: 14, west: 12, width: 800, height: 600, zoom: 4 }),
                 false,
                 '/doi-search',
+                18,
             );
         } finally {
             vi.useRealTimers();
@@ -437,7 +465,7 @@ describe('PortalMap', () => {
     it('shows loading, empty, and recoverable error feedback', () => {
         mapQueryState.result.data = response();
         mapQueryState.result.isFetching = true;
-        const { rerender } = render(<PortalMap filters={filters} />);
+        const { rerender } = render(<PortalMap filters={filters} maxZoom={18} />);
         expect(screen.getAllByRole('status')[0]).toHaveTextContent('Updating map');
         expect(screen.getAllByTestId('leaflet-map')[0].parentElement).toHaveAttribute('aria-busy', 'true');
         expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-interactive', 'false');
@@ -445,7 +473,7 @@ describe('PortalMap', () => {
 
         mapQueryState.result.isFetching = false;
         mapQueryState.result.isError = true;
-        rerender(<PortalMap filters={filters} />);
+        rerender(<PortalMap filters={filters} maxZoom={18} />);
         const retryButton = screen.getAllByRole('button', { name: /try again/i })[0];
         expect(retryButton).toHaveAttribute('data-slot', 'button');
         fireEvent.click(retryButton);
@@ -471,9 +499,9 @@ describe('PortalMap', () => {
             pagination: { currentPage: 1, lastPage: 1, perPage: 50 },
         };
 
-        render(<PortalMap filters={filters} hideHeader />);
+        render(<PortalMap filters={filters} maxZoom={18} hideHeader />);
         await waitFor(() =>
-            expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), true, '/doi-search'),
+            expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), true, '/doi-search', 18),
         );
 
         fireEvent.click(screen.getByTestId('cluster-layer'));
@@ -485,24 +513,25 @@ describe('PortalMap', () => {
                 cluster.id,
                 1,
                 '/doi-search',
+                18,
             ),
         );
         expect(screen.getByTestId('cluster-members-panel')).toHaveTextContent(cluster.id);
         expect(screen.getByTestId('cluster-members-layer')).toHaveTextContent('0/2');
 
         fireEvent.click(screen.getByRole('button', { name: 'page 2' }));
-        expect(usePortalMapClusterMembersMock).toHaveBeenLastCalledWith(filters, expect.anything(), cluster.id, 2, '/doi-search');
+        expect(usePortalMapClusterMembersMock).toHaveBeenLastCalledWith(filters, expect.anything(), cluster.id, 2, '/doi-search', 18);
 
         fireEvent.click(screen.getByRole('button', { name: 'close' }));
         expect(screen.queryByTestId('cluster-members-panel')).not.toBeInTheDocument();
-        expect(usePortalMapClusterMembersMock).toHaveBeenLastCalledWith(filters, null, null, 1, '/doi-search');
+        expect(usePortalMapClusterMembersMock).toHaveBeenLastCalledWith(filters, null, null, 1, '/doi-search', 18);
     });
 
     it('reports the total location count returned with an extent request', () => {
         const onLocationCountChange = vi.fn();
         mapQueryState.result.data = response({ meta: { ...response().meta, totalLocations: 35_638, visibleLocations: 120 } });
 
-        render(<PortalMap filters={filters} onLocationCountChange={onLocationCountChange} />);
+        render(<PortalMap filters={filters} maxZoom={18} onLocationCountChange={onLocationCountChange} />);
 
         expect(onLocationCountChange).toHaveBeenCalledWith(35_638);
         expect(screen.getAllByText(/35[.,]638 locations/)[0]).toBeInTheDocument();

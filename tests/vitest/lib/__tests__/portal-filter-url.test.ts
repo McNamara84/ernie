@@ -56,6 +56,8 @@ describe('portal filter URL builders', () => {
                     zoom: 11.6,
                 },
                 true,
+                '/doi-search',
+                18,
             ),
             'https://ernie.test',
         );
@@ -78,6 +80,7 @@ describe('portal filter URL builders', () => {
                 'z18-t2:140812:-37114',
                 3,
                 '/igsn-search',
+                18,
             ),
             'https://ernie.test',
         );
@@ -107,7 +110,7 @@ describe('portal filter URL builders', () => {
             'https://ernie.test',
         );
         const mapUrl = new URL(
-            buildPortalMapUrl(filters, { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 8 }, false, '/igsn-search'),
+            buildPortalMapUrl(filters, { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 8 }, false, '/igsn-search', 18),
             'https://ernie.test',
         );
 
@@ -135,20 +138,35 @@ describe('portal filter URL builders', () => {
     it('preserves the legacy DOI exclusion filter for map requests', () => {
         const legacyFilters = { ...filters, type: [], exclude_type: 'physical-object' };
         const url = new URL(
-            buildPortalMapUrl(legacyFilters, {
-                north: 90,
-                south: -90,
-                east: 180,
-                west: -180,
-                width: 800,
-                height: 600,
-                zoom: 2,
-            }),
+            buildPortalMapUrl(
+                legacyFilters,
+                {
+                    north: 90,
+                    south: -90,
+                    east: 180,
+                    west: -180,
+                    width: 800,
+                    height: 600,
+                    zoom: 2,
+                },
+                false,
+                '/doi-search',
+                18,
+            ),
             'https://ernie.test',
         );
 
         expect(url.searchParams.get('type')).toBe('doi');
         expect(url.searchParams.has('include_extent')).toBe(false);
+    });
+
+    it('clamps map and member requests to the configured zoom limit', () => {
+        const viewport = { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 18 };
+        const mapUrl = new URL(buildPortalMapUrl(filters, viewport, false, '/doi-search', 7), 'https://ernie.test');
+        const membersUrl = new URL(buildPortalMapClusterMembersUrl(filters, viewport, 'z7:1:2', 1, '/doi-search', 7), 'https://ernie.test');
+
+        expect(mapUrl.searchParams.get('zoom')).toBe('7');
+        expect(membersUrl.searchParams.get('zoom')).toBe('7');
     });
 
     it('clears the legacy exclusion when a new explicit type selection is merged', () => {

@@ -28,11 +28,15 @@ class PortalController extends Controller
     public function index(PortalSearchRequest $request, string $portalScope): Response
     {
         $scope = PortalScope::from($portalScope);
-
-        return Inertia::render('portal', $this->pageCache->remember(
+        $payload = $this->pageCache->remember(
             $request,
             fn (): array => $this->payloadService->build($request, $scope),
             $scope,
-        ));
+        );
+        $payload['mapConfig'] = [
+            'maxZoom' => max(0, (int) config('portal_map.max_zoom', 18)),
+        ];
+
+        return Inertia::render('portal', $payload);
     }
 }

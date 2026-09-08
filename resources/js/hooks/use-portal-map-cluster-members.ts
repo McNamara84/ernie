@@ -11,8 +11,9 @@ export function usePortalMapClusterMembers(
     clusterId: string | null,
     page: number,
     basePath: PortalBasePath,
+    maxZoom: number,
 ) {
-    const url = viewport && clusterId ? buildPortalMapClusterMembersUrl(filters, viewport, clusterId, page, basePath) : null;
+    const url = viewport && clusterId ? buildPortalMapClusterMembersUrl(filters, viewport, clusterId, page, basePath, maxZoom) : null;
 
     return useQuery({
         queryKey: queryKeys.portal.mapClusterMembers(url ?? 'closed'),

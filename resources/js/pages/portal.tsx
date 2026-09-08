@@ -33,6 +33,7 @@ const DESKTOP_QUERY = '(min-width: 1280px)';
 
 export default function Portal({
     portal,
+    mapConfig,
     resources,
     pagination,
     filters,
@@ -261,6 +262,7 @@ export default function Portal({
         <PortalMap
             basePath={portal.basePath}
             filters={filters}
+            maxZoom={mapConfig.maxZoom}
             hideHeader
             geoFilterEnabled={geoFilterEnabled}
             onViewportChange={handleViewportChange}

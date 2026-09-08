@@ -23,13 +23,14 @@ import type {
     PortalMapViewport,
 } from '@/types/portal';
 
-import { ClusterLayer, PORTAL_MAP_MAX_ZOOM } from './PortalMapCluster';
+import { ClusterLayer } from './PortalMapCluster';
 import { ClusterMembersLayer, ClusterMembersPanel } from './PortalMapClusterMembers';
 import { PortalMapLegend } from './PortalMapLegend';
 
 interface PortalMapProps {
     basePath?: PortalBasePath;
     filters: PortalFilters;
+    maxZoom: number;
     className?: string;
     hideHeader?: boolean;
     geoFilterEnabled?: boolean;
@@ -39,6 +40,7 @@ interface PortalMapProps {
 }
 
 const VIEWPORT_RESIZE_DEBOUNCE_MS = 250;
+const OPENSTREETMAP_MAX_NATIVE_ZOOM = 18;
 
 function MapResizeHandler() {
     const map = useMap();
@@ -289,6 +291,7 @@ function filterSignature(filters: PortalFilters): string {
 export function PortalMap({
     basePath = '/doi-search',
     filters,
+    maxZoom,
     className,
     hideHeader = false,
     geoFilterEnabled = false,
@@ -330,7 +333,7 @@ export function PortalMap({
         [geoFilterEnabled],
     );
 
-    const mapQuery = usePortalMapData(filters, request?.viewport ?? null, request?.includeExtent ?? false, basePath);
+    const mapQuery = usePortalMapData(filters, request?.viewport ?? null, request?.includeExtent ?? false, basePath, maxZoom);
     const features = mapQuery.data?.features ?? [];
     const clusterMembersQuery = usePortalMapClusterMembers(
         filters,
@@ -338,6 +341,7 @@ export function PortalMap({
         expandedCluster?.feature.id ?? null,
         expandedCluster?.page ?? 1,
         basePath,
+        maxZoom,
     );
     const handleExpandCluster = useCallback(
         (feature: PortalMapClusterFeature) => {
@@ -363,11 +367,11 @@ export function PortalMap({
 
     const mapContent = (
         <div className="relative h-full w-full" aria-busy={mapQuery.isFetching}>
-            <MapContainer center={[30, 0]} zoom={2} maxZoom={PORTAL_MAP_MAX_ZOOM} className="h-full w-full">
+            <MapContainer center={[30, 0]} zoom={Math.min(2, maxZoom)} maxZoom={maxZoom} className="h-full w-full">
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    maxNativeZoom={PORTAL_MAP_MAX_ZOOM}
-                    maxZoom={PORTAL_MAP_MAX_ZOOM}
+                    maxNativeZoom={Math.min(maxZoom, OPENSTREETMAP_MAX_NATIVE_ZOOM)}
+                    maxZoom={maxZoom}
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <MapResizeHandler />
@@ -378,7 +382,7 @@ export function PortalMap({
                 />
                 {!geoFilterEnabled && <FitExtentControl extent={extent} skipFilterUpdate={skipFilterUpdate} />}
                 <MapBoundsUpdater bounds={flyToBounds ?? null} skipFilterUpdate={skipFilterUpdate} />
-                <ClusterLayer features={features} interactive={!mapQuery.isFetching} onExpandCluster={handleExpandCluster} />
+                <ClusterLayer features={features} maxZoom={maxZoom} interactive={!mapQuery.isFetching} onExpandCluster={handleExpandCluster} />
                 {clusterMembersQuery.data && (
                     <ClusterMembersLayer members={clusterMembersQuery.data.members} total={clusterMembersQuery.data.total} />
                 )}

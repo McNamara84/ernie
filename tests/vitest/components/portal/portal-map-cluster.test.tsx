@@ -85,7 +85,7 @@ describe('PortalMapCluster', () => {
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
 
         expect(leafletState.markers).toHaveLength(1);
         expect(String((leafletState.markers[0].options.icon as { html: string }).html)).toContain('25');
@@ -119,7 +119,7 @@ describe('PortalMapCluster', () => {
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
 
         const html = String((leafletState.markers[0].options.icon as { html: string }).html);
         expect(html).toContain('#6F4E37');
@@ -140,7 +140,7 @@ describe('PortalMapCluster', () => {
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
         expect(leafletState.markers[0].position).toEqual([0, 181]);
         leafletState.markers[0].events.click();
 
@@ -167,7 +167,7 @@ describe('PortalMapCluster', () => {
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
         leafletState.markers[0].events.click();
 
         const [center, zoom, options] = mapMock.setView.mock.calls.at(-1)!;
@@ -191,18 +191,18 @@ describe('PortalMapCluster', () => {
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
         leafletState.markers[0].events.click();
 
         expect(mapMock.setView).toHaveBeenCalledWith([52, 13], 9, { animate: true });
     });
 
-    it('opens terminal cluster members at maximum zoom', () => {
-        mapMock.getZoom.mockReturnValue(18);
+    it('opens terminal cluster members at the configured maximum zoom', () => {
+        mapMock.getZoom.mockReturnValue(7);
         const onExpandCluster = vi.fn();
         const feature: PortalMapFeature = {
             kind: 'cluster',
-            id: 'z18:terminal',
+            id: 'z7:terminal',
             position: { lat: 52, lng: 13 },
             bounds: { north: 52, south: 52, east: 13, west: 13 },
             navigationBounds: { north: 52, south: 52, east: 13, west: 13 },
@@ -210,7 +210,7 @@ describe('PortalMapCluster', () => {
             resourceTypeCounts: { dataset: 2 },
         };
 
-        render(<ClusterLayer features={[feature]} onExpandCluster={onExpandCluster} />);
+        render(<ClusterLayer features={[feature]} maxZoom={7} onExpandCluster={onExpandCluster} />);
         leafletState.markers[0].events.click();
 
         expect(onExpandCluster).toHaveBeenCalledWith(feature);
@@ -229,7 +229,7 @@ describe('PortalMapCluster', () => {
             },
         ];
 
-        render(<ClusterLayer features={features} interactive={false} />);
+        render(<ClusterLayer features={features} maxZoom={18} interactive={false} />);
 
         expect(leafletState.markers[0].options.interactive).toBe(false);
         expect(leafletState.markers[0].events.click).toBeUndefined();
@@ -254,7 +254,7 @@ describe('PortalMapCluster', () => {
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
 
         expect(leafletState.markers).toHaveLength(1);
         expect(leafletState.markers[0].position).toEqual([52.5, 181]);
@@ -285,7 +285,7 @@ describe('PortalMapCluster', () => {
             },
         ];
 
-        render(<ClusterLayer features={features} />);
+        render(<ClusterLayer features={features} maxZoom={18} />);
 
         const html = String((leafletState.markers[0].options.icon as { html: string }).html);
         expect(html).toContain('#0072B2');

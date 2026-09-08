@@ -859,34 +859,23 @@ class PortalMapService
             ->get()
             ->keyBy('id');
 
-        return array_map(function (array $feature) use ($dimension, $locations): array {
+        $hydrated = [];
+
+        foreach ($features as $feature) {
             if ($feature['kind'] !== 'resource-candidate') {
-                return $feature;
+                $hydrated[] = $feature;
+
+                continue;
             }
 
             /** @var GeoLocation|null $location */
             $location = $locations->get($feature['locationId']);
 
             if ($location === null) {
-                return [
-                    'kind' => 'cluster',
-                    'id' => 'missing-'.$feature['locationId'],
-                    'position' => $feature['position'],
-                    'bounds' => $feature['bounds'],
-                    'count' => 1,
-                    'resourceTypeCounts' => ['other' => 1],
-                    'composition' => [
-                        'dimension' => $dimension,
-                        'counts' => [
-                            $dimension === IgsnMapPresentationService::DIMENSION
-                                ? IgsnMapPresentationService::MISSING_KEY
-                                : 'other' => 1,
-                        ],
-                    ],
-                ];
+                continue;
             }
 
-            return [
+            $hydrated[] = [
                 'kind' => 'resource',
                 'id' => (string) $location->id,
                 'position' => $feature['position'],
@@ -894,7 +883,9 @@ class PortalMapService
                 'geometry' => $this->formatGeometry($location),
                 'resource' => $this->formatResource($location->resource, $dimension),
             ];
-        }, $features);
+        }
+
+        return $hydrated;
     }
 
     /**

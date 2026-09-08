@@ -20,7 +20,7 @@ export function ClusterMembersLayer({ members, total }: { members: PortalMapReso
     const map = useMap();
 
     useEffect(() => {
-        if (members.length === 0 || total > PORTAL_MAP_SPIDERFY_LIMIT) return;
+        if (members.length === 0 || members.length !== total || total > PORTAL_MAP_SPIDERFY_LIMIT) return;
 
         const group = L.markerClusterGroup({
             maxClusterRadius: 40,

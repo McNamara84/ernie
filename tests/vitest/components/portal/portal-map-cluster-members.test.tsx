@@ -121,13 +121,16 @@ describe('ClusterMembersLayer', () => {
         expect(mapMock.removeLayer).toHaveBeenCalledWith(leafletState.groups[0]);
     });
 
-    it('opens a single marker directly and does not render more than the spiderfy limit', () => {
+    it('opens a single marker directly and does not render incomplete or oversized member sets', () => {
         leafletState.visibleParentMode = 'none';
         const { rerender } = render(<ClusterMembersLayer members={[member(1)]} total={1} />);
         vi.runOnlyPendingTimers();
         expect(leafletState.markers[0].openPopup).toHaveBeenCalledOnce();
 
         mapMock.addLayer.mockClear();
+        rerender(<ClusterMembersLayer members={Array.from({ length: 20 }, (_, index) => member(index + 1))} total={39} />);
+        expect(mapMock.addLayer).not.toHaveBeenCalled();
+
         rerender(<ClusterMembersLayer members={Array.from({ length: 50 }, (_, index) => member(index + 1))} total={51} />);
         expect(mapMock.addLayer).not.toHaveBeenCalled();
     });
@@ -152,9 +155,7 @@ describe('ClusterMembersPanel', () => {
             ],
         });
 
-        render(
-            <ClusterMembersPanel result={panelResult} isLoading={false} isError={false} onClose={onClose} onPageChange={onPageChange} />,
-        );
+        render(<ClusterMembersPanel result={panelResult} isLoading={false} isError={false} onClose={onClose} onPageChange={onPageChange} />);
 
         const panel = screen.getByRole('region', { name: 'Records at this map location' });
         expect(panel).toHaveFocus();
