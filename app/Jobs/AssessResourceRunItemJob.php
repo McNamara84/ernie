@@ -269,9 +269,10 @@ final class AssessResourceRunItemJob implements ShouldQueue
                 );
             }
 
+            $resolvedIdentifier = $currentResource?->doi;
             $lockedItem->forceFill([
                 'status' => $status,
-                'identifier' => $currentResource->doi ?? $lockedItem->identifier,
+                'identifier' => $resolvedIdentifier ?? $lockedItem->identifier,
                 'last_http_status' => $httpStatus,
                 'error_message' => $error === null ? null : $this->sanitize($error),
                 'available_at' => null,

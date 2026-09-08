@@ -532,6 +532,7 @@ test('a resource deleted during assessment is skipped without storing the stale 
 
     expect($item->fresh()->status)->toBe(AssessmentRunItemStatus::SKIPPED)
         ->and($item->fresh()->resource_id)->toBeNull()
+        ->and($item->fresh()->identifier)->toBe('10.5880/assessment.deleted')
         ->and($run->fresh()->processed)->toBe(1)
         ->and($run->fresh()->skipped)->toBe(1)
         ->and(ResourceAssessment::query()->where('resource_id', $resource->id)->exists())->toBeFalse();
