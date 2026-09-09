@@ -161,6 +161,47 @@ it('reports invalid and duplicate legacy rows while adding only the valid unique
     expect($resource->relatedIdentifiers()->pluck('identifier')->all())->toBe(['10.5880/valid-target']);
 });
 
+it('recovers DOI-prefixed legacy relations before validation and normalization', function (): void {
+    $doi = '10.5880/legacy.prefixed-doi';
+    versionNoticeLegacyResource(503, $doi);
+    versionNoticeLegacyRelation(503, 'doi:10.5880/PREFIXED-TARGET');
+    $resource = Resource::factory()->create(['doi' => $doi]);
+
+    $result = app(LegacyRelatedIdentifierReconciliationService::class)->run(apply: true, dois: [$doi]);
+
+    expect($result)
+        ->relations_found->toBe(1)
+        ->relations_added->toBe(1)
+        ->invalid_relations->toBe(0)
+        ->errors->toBe(0);
+    expect($resource->relatedIdentifiers()->sole()->identifier)->toBe('10.5880/prefixed-target');
+});
+
+it('treats differently cased URL paths as distinct reconciliation targets', function (): void {
+    $doi = '10.5880/legacy.case-sensitive-url';
+    versionNoticeLegacyResource(504, $doi);
+    versionNoticeLegacyRelation(504, 'https://example.test/record', 'URL', 'References');
+    $resource = Resource::factory()->create(['doi' => $doi]);
+    $resource->relatedIdentifiers()->create([
+        'identifier' => 'https://example.test/Record',
+        'identifier_type_id' => IdentifierType::query()->where('slug', 'URL')->value('id'),
+        'relation_type_id' => RelationType::query()->where('slug', 'References')->value('id'),
+        'position' => 0,
+    ]);
+
+    $result = app(LegacyRelatedIdentifierReconciliationService::class)->run(apply: true, dois: [$doi]);
+
+    expect($result)
+        ->relations_found->toBe(1)
+        ->relations_added->toBe(1)
+        ->invalid_relations->toBe(0)
+        ->errors->toBe(0);
+    expect($resource->relatedIdentifiers()->orderBy('position')->pluck('identifier')->all())->toBe([
+        'https://example.test/Record',
+        'https://example.test/record',
+    ]);
+});
+
 it('reports missing and ambiguous legacy resources without changing ERNIE', function (): void {
     $missing = Resource::factory()->create(['doi' => '10.5880/no-legacy-match']);
     $ambiguous = Resource::factory()->create(['doi' => '10.5880/ambiguous-match']);

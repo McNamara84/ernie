@@ -45,9 +45,7 @@ function relatedItem(overrides: Partial<LandingPageRelatedItem> = {}): LandingPa
 
 describe('VersionNotice', () => {
     it('does not render without a newer-version relation', () => {
-        const { container } = render(
-            <VersionNotice relatedIdentifiers={[relatedIdentifier({ relation_type: 'References' })]} relatedItems={[]} />,
-        );
+        const { container } = render(<VersionNotice relatedIdentifiers={[relatedIdentifier({ relation_type: 'References' })]} relatedItems={[]} />);
 
         expect(container.firstChild).toBeNull();
     });
@@ -66,10 +64,7 @@ describe('VersionNotice', () => {
 
         expect(screen.getByRole('heading', { name: 'There is a newer version of this resource.' })).toBeInTheDocument();
         expect(screen.getByTestId('version-notice')).toHaveAttribute('data-severity', 'info');
-        expect(screen.getByRole('link', { name: /New dataset version/ })).toHaveAttribute(
-            'href',
-            'https://doi.org/10.5880/GFZ.NEW.001',
-        );
+        expect(screen.getByRole('link', { name: /New dataset version/ })).toHaveAttribute('href', 'https://doi.org/10.5880/GFZ.NEW.001');
     });
 
     it('uses the stronger superseded state and lists targets without identifiers as text', () => {
@@ -109,18 +104,35 @@ describe('VersionNotice', () => {
         );
 
         expect(screen.getAllByRole('listitem')).toHaveLength(1);
-        expect(screen.getByRole('link', { name: /Canonical successor title/ })).toHaveAttribute(
-            'href',
-            'https://doi.org/10.5880/GFZ.NEW.001',
+        expect(screen.getByRole('link', { name: /Canonical successor title/ })).toHaveAttribute('href', 'https://doi.org/10.5880/GFZ.NEW.001');
+    });
+
+    it('preserves distinct version targets whose case-sensitive URL paths differ', () => {
+        render(
+            <VersionNotice
+                relatedIdentifiers={[
+                    relatedIdentifier({
+                        identifier: 'https://example.test/Record',
+                        identifier_type: 'URL',
+                        citation_label: 'Uppercase path',
+                    }),
+                    relatedIdentifier({
+                        id: 2,
+                        identifier: 'https://example.test/record',
+                        identifier_type: 'URL',
+                        citation_label: 'Lowercase path',
+                    }),
+                ]}
+            />,
         );
+
+        expect(screen.getAllByRole('listitem')).toHaveLength(2);
+        expect(screen.getByRole('link', { name: /Uppercase path/ })).toHaveAttribute('href', 'https://example.test/Record');
+        expect(screen.getByRole('link', { name: /Lowercase path/ })).toHaveAttribute('href', 'https://example.test/record');
     });
 
     it('renders an unsupported identifier as plain text without a broken link', () => {
-        render(
-            <VersionNotice
-                relatedIdentifiers={[relatedIdentifier({ identifier: '123456', identifier_type: 'PMID', citation_label: null })]}
-            />,
-        );
+        render(<VersionNotice relatedIdentifiers={[relatedIdentifier({ identifier: '123456', identifier_type: 'PMID', citation_label: null })]} />);
 
         expect(screen.getByText('PMID: 123456')).toBeInTheDocument();
         expect(screen.queryByRole('link')).not.toBeInTheDocument();

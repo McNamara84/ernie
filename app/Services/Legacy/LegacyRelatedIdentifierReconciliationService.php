@@ -225,6 +225,8 @@ final class LegacyRelatedIdentifierReconciliationService
             }
 
             if ($identifierType === 'DOI') {
+                $identifier = preg_replace('/^doi:\s*/i', '', $identifier) ?? $identifier;
+
                 if (! $this->doiSuggestionService->isValidDoiFormat($identifier)) {
                     $invalid++;
 

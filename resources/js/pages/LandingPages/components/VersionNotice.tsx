@@ -20,9 +20,10 @@ interface VersionTarget {
 }
 
 function normalizedIdentifierKey(identifier: string, identifierType: string): string {
-    const normalized = identifierType === 'DOI' ? normalizeDoiKey(identifier) : identifier.trim();
+    const normalizedType = identifierType.trim().toLowerCase();
+    const normalized = normalizedType === 'doi' ? normalizeDoiKey(identifier).toLowerCase() : identifier.trim();
 
-    return `${identifierType.trim().toLowerCase()}:${normalized.toLowerCase()}`;
+    return `${normalizedType}:${normalized}`;
 }
 
 function identifierLabel(identifier: string, identifierType: string): string {

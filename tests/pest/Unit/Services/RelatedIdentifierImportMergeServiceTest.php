@@ -62,6 +62,42 @@ it('merges JSON, XML, and legacy values in priority order without duplicates', f
         ->and($merged[2]['relatedIdentifier'])->toBe('https://example.org/legacy-only');
 });
 
+it('case-folds DOI identities but preserves case-sensitive non-DOI identifiers', function (): void {
+    $merged = $this->service->merge(
+        [
+            [
+                'relatedIdentifier' => 'https://example.org/Record',
+                'relatedIdentifierType' => 'URL',
+                'relationType' => 'References',
+            ],
+            [
+                'relatedIdentifier' => '10.5880/CASE-INSENSITIVE',
+                'relatedIdentifierType' => 'DOI',
+                'relationType' => 'References',
+            ],
+        ],
+        [],
+        [
+            [
+                'identifier' => 'https://example.org/record',
+                'identifierType' => 'URL',
+                'relationType' => 'References',
+            ],
+            [
+                'identifier' => 'doi:10.5880/case-insensitive',
+                'identifierType' => 'DOI',
+                'relationType' => 'References',
+            ],
+        ],
+    );
+
+    expect(array_column($merged, 'relatedIdentifier'))->toBe([
+        'https://example.org/Record',
+        '10.5880/CASE-INSENSITIVE',
+        'https://example.org/record',
+    ]);
+});
+
 it('repairs the three incomplete JSON entries from issue 1077 by XML position', function (): void {
     $json = array_fill(0, 3, [
         'relatedIdentifierType' => 'DOI',

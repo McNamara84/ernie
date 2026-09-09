@@ -587,6 +587,28 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             cursor for the following batch so unresolved URLs do not cause later rows to be selected repeatedly.
                         </p>
 
+                        <h4>Reconcile Missing Legacy Related Identifiers</h4>
+                        <p>
+                            This administrator command audits migrated SUMARIO resources for related identifiers that are still present in the legacy
+                            database but absent from ERNIE. It is additive and runs as a dry run by default: existing curated relations are never
+                            changed or deleted. Start with one or more repeatable <code>--doi</code> filters and write a CSV report for review.
+                        </p>
+                        <DocsCodeBlock code="php artisan resources:reconcile-legacy-related-identifiers --doi=10.5880/example --report=/path/to/related-work-audit.csv" />
+                        <p className="text-sm text-muted-foreground">
+                            The report distinguishes missing legacy records, relations that would be added, invalid identifiers, collapsed legacy
+                            duplicates, and lookup errors. DOI resolver URLs and <code>doi:</code>-prefixed values are normalized as the same DOI;
+                            non-DOI identifiers retain their casing because URL paths and other identifier schemes may be case-sensitive. Resolve
+                            unexpected invalid rows and errors before applying the reviewed scope.
+                        </p>
+                        <DocsCodeBlock code="php artisan resources:reconcile-legacy-related-identifiers --doi=10.5880/example --apply --report=/path/to/related-work-apply.csv" />
+                        <p className="text-sm text-muted-foreground">
+                            Apply mode appends only relations that are still missing and invalidates affected published landing-page caches. It does
+                            not publish metadata changes to DataCite unless <code>--sync-datacite</code> is explicitly added. Without that option,
+                            synchronize the reported Resource IDs later through the established metadata-update workflow. Run the same dry-run scope
+                            again afterwards; an idempotent reconciliation proposes no further additions.
+                        </p>
+                        <DocsCodeBlock code="php artisan resources:reconcile-legacy-related-identifiers --doi=10.5880/example --apply --sync-datacite --report=/path/to/related-work-sync.csv" />
+
                         <h4>Audit Legacy IGSN Handles</h4>
                         <DocsCodeBlock code="php artisan igsn:audit-legacy-handles" />
                         <DocsCodeBlock code="php artisan igsn:audit-legacy-handles --batch=20 --output=/path/to/report.json" />
@@ -1951,6 +1973,34 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
+                        <h4>Adding a Forthcoming Publication without a DOI</h4>
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Use the Forthcoming Preset">
+                                <p>
+                                    Select <strong>Add forthcoming publication</strong>. ERNIE starts the regular Related Item form with{' '}
+                                    <em>JournalArticle</em> and <em>IsSupplementTo</em> preselected; both values remain editable.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Enter the Available Metadata">
+                                <p>
+                                    Add at least the publication&apos;s <em>MainTitle</em> and any authors or bibliographic details already known.
+                                    Leave the identifier and identifier type empty instead of inventing a placeholder DOI.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Save and Review">
+                                <p>
+                                    Save the item normally. ERNIE marks it as <strong>Identifier not yet available</strong> in the manager, review,
+                                    and landing-page Related Work display, while valid DataCite exports omit the optional identifier.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={4} title="Add the DOI Later">
+                                <p>
+                                    Edit the same Related Item when the DOI has been registered, then add the DOI and identifier type. Updating the
+                                    existing item preserves its metadata and avoids a duplicate relation.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+
                         <h4>Export &amp; Import</h4>
                         <p>
                             Related items are included in all DataCite exports (XML, JSON, JSON-LD) as <code>&lt;relatedItems&gt;</code>/
@@ -2130,6 +2180,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Landing pages are public-facing pages for your datasets. A published landing page is <strong>required</strong> before DOI
                             registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow; deleting
                             draft landing pages remains available only to Curators and above.
+                        </p>
+                        <h4>Newer-Version and Superseded Notices</h4>
+                        <p>
+                            Resource and IGSN landing pages show a prominent notice below the page header when the metadata contains{' '}
+                            <code>IsPreviousVersionOf</code> or <code>IsObsoletedBy</code>. The notice links every identified target and uses a
+                            stronger warning when the current record has been superseded. It remains visible even when Related Work is collapsed or
+                            the relation type is hidden in the landing-page template; the complete relation can still also appear in Related Work.
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            If a version relation points to a Related Item without an identifier, ERNIE shows its title as plain text until an
+                            identifier is added. DOI targets are deduplicated across equivalent bare, resolver-URL, and case variants, while non-DOI
+                            identifiers preserve their original casing.
                         </p>
                         <p>
                             Controlled thesaurus keywords on GFZ-hosted landing pages keep their hierarchy. ERNIE shows a compact breadcrumb on the

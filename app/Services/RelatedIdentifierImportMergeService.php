@@ -267,13 +267,15 @@ final readonly class RelatedIdentifierImportMergeService
     {
         $identifier = trim($identifier);
 
-        if ($identifierType === 'DOI') {
-            $identifier = preg_replace(
-                '/^(?:doi:\s*|https?:\/\/(?:doi\.org|dx\.doi\.org)\/)/i',
-                '',
-                $identifier,
-            ) ?? $identifier;
+        if (strcasecmp($identifierType, 'DOI') !== 0) {
+            return $identifier;
         }
+
+        $identifier = preg_replace(
+            '/^(?:doi:\s*|https?:\/\/(?:doi\.org|dx\.doi\.org)\/)/i',
+            '',
+            $identifier,
+        ) ?? $identifier;
 
         return mb_strtolower(trim($identifier));
     }
