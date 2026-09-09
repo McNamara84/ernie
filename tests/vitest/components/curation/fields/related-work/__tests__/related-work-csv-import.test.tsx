@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -14,8 +14,17 @@ describe('RelatedWorkCsvImport', () => {
         vi.clearAllMocks();
     });
 
-    function renderComponent() {
-        return render(<RelatedWorkCsvImport onImport={onImport} onClose={onClose} />);
+    function renderComponent({ onSubmit }: { onSubmit?: () => void } = {}) {
+        return render(
+            <form
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    onSubmit?.();
+                }}
+            >
+                <RelatedWorkCsvImport onImport={onImport} onClose={onClose} />
+            </form>,
+        );
     }
 
     function getImportButton() {
@@ -35,18 +44,31 @@ describe('RelatedWorkCsvImport', () => {
         expect(screen.getByRole('button', { name: /download example/i })).toBeInTheDocument();
     });
 
+    it('marks every local importer action as a non-submit button', () => {
+        renderComponent();
+
+        expect(screen.getByRole('button', { name: /close csv import/i })).toHaveAttribute('type', 'button');
+        expect(screen.getByRole('button', { name: /download example/i })).toHaveAttribute('type', 'button');
+        expect(screen.getByRole('button', { name: /cancel/i })).toHaveAttribute('type', 'button');
+        expect(getImportButton()).toHaveAttribute('type', 'button');
+    });
+
     it('calls onClose when close button is clicked', async () => {
         const user = userEvent.setup();
-        renderComponent();
+        const onSubmit = vi.fn();
+        renderComponent({ onSubmit });
         await user.click(screen.getByRole('button', { name: /close csv import/i }));
         expect(onClose).toHaveBeenCalledTimes(1);
+        expect(onSubmit).not.toHaveBeenCalled();
     });
 
     it('calls onClose when cancel button is clicked', async () => {
         const user = userEvent.setup();
-        renderComponent();
+        const onSubmit = vi.fn();
+        renderComponent({ onSubmit });
         await user.click(screen.getByRole('button', { name: /cancel/i }));
         expect(onClose).toHaveBeenCalledTimes(1);
+        expect(onSubmit).not.toHaveBeenCalled();
     });
 
     it('has import button disabled initially', () => {
@@ -69,6 +91,7 @@ describe('RelatedWorkCsvImport', () => {
 
     it('downloads example CSV on button click', async () => {
         const user = userEvent.setup();
+        const onSubmit = vi.fn();
         const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
         const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
         const clickSpy = vi.fn();
@@ -81,14 +104,42 @@ describe('RelatedWorkCsvImport', () => {
             return originalCreateElement(tag);
         });
 
-        renderComponent();
+        renderComponent({ onSubmit });
         await user.click(screen.getByRole('button', { name: /download example/i }));
 
         expect(createObjectURLSpy).toHaveBeenCalled();
         expect(clickSpy).toHaveBeenCalled();
         expect(revokeObjectURLSpy).toHaveBeenCalled();
+        expect(onSubmit).not.toHaveBeenCalled();
 
         vi.restoreAllMocks();
+    });
+
+    it('imports valid CSV rows without submitting the enclosing editor form', async () => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn();
+        const file = new File(['identifier,relation_type\n10.1234/example,Cites'], 'related-works.csv', { type: 'text/csv' });
+
+        Object.defineProperty(file, 'text', {
+            value: vi.fn().mockResolvedValue('identifier,relation_type\n10.1234/example,Cites'),
+        });
+
+        renderComponent({ onSubmit });
+        await user.upload(document.getElementById('csv-upload') as HTMLInputElement, file);
+
+        const importButton = screen.getByRole('button', { name: /import 1 items/i });
+        await waitFor(() => expect(importButton).toBeEnabled());
+        await user.click(importButton);
+
+        expect(onImport).toHaveBeenCalledWith([
+            {
+                identifier: '10.1234/example',
+                identifierType: 'DOI',
+                relationType: 'Cites',
+            },
+        ]);
+        expect(onClose).toHaveBeenCalledTimes(1);
+        expect(onSubmit).not.toHaveBeenCalled();
     });
 
     describe('drag and drop visual feedback', () => {

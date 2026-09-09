@@ -55,6 +55,44 @@ test.describe('Editor Form', () => {
         await expect(page).toHaveURL(/\/editor/);
     });
 
+    test('downloading the Related Work CSV example does not validate or submit the editor form', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        await expect(page.getByTestId('resource-info-section')).toBeVisible({ timeout: 30_000 });
+
+        const relatedWorkSection = page.getByTestId('related-work-section');
+        const relatedWorkTrigger = page.getByTestId('related-work-accordion-trigger');
+        await expect(relatedWorkSection).toBeVisible();
+
+        if ((await relatedWorkSection.getAttribute('data-state')) !== 'open') {
+            await relatedWorkTrigger.click();
+            await expect(relatedWorkSection).toHaveAttribute('data-state', 'open');
+        }
+
+        await page.getByTestId('related-work-empty-state').getByRole('button', { name: 'Import CSV' }).click();
+
+        const csvImporter = page.getByText('CSV Bulk Import', { exact: true });
+        const validationAlert = page.getByTestId('global-validation-alert');
+        const invalidFields = page.locator('[aria-invalid="true"]');
+        await expect(csvImporter).toBeVisible();
+        await expect(validationAlert).toBeHidden();
+        const invalidFieldCountBeforeDownload = await invalidFields.count();
+
+        const downloadPromise = page.waitForEvent('download');
+        await page.getByRole('button', { name: 'Download Example' }).click();
+        const download = await downloadPromise;
+
+        expect(download.suggestedFilename()).toBe('related-works-example.csv');
+        await expect(csvImporter).toBeVisible();
+        await expect(validationAlert).toBeHidden();
+        await expect(invalidFields).toHaveCount(invalidFieldCountBeforeDownload);
+    });
+
     test('a license near the end of a large catalog can be found and selected', async ({ page }) => {
         const targetLicense = {
             id: 600,

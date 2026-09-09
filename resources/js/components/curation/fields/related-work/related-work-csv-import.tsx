@@ -350,7 +350,7 @@ https://example.org/dataset/123,IsSupplementTo
                     <Label className="text-base font-semibold">CSV Bulk Import</Label>
                     <p className="text-sm text-muted-foreground">Import multiple related works from a CSV file</p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close CSV import">
+                <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close CSV import">
                     <X className="h-4 w-4" />
                 </Button>
             </div>
@@ -360,7 +360,7 @@ https://example.org/dataset/123,IsSupplementTo
                 <Info className="h-4 w-4" />
                 <AlertDescription className="flex items-center justify-between">
                     <span className="text-sm">Need a template? Download our example CSV file</span>
-                    <Button variant="outline" size="sm" onClick={downloadExample}>
+                    <Button type="button" variant="outline" size="sm" onClick={downloadExample}>
                         <FileUp className="mr-2 h-3 w-3" />
                         Download Example
                     </Button>
@@ -452,10 +452,10 @@ https://example.org/dataset/123,IsSupplementTo
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={onClose}>
+                <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                 </Button>
-                <Button onClick={handleImport} disabled={parsedData.length === 0 || errors.length > 0 || isProcessing}>
+                <Button type="button" onClick={handleImport} disabled={parsedData.length === 0 || errors.length > 0 || isProcessing}>
                     Import {parsedData.length > 0 && `${parsedData.length} Items`}
                 </Button>
             </div>
