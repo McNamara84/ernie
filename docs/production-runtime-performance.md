@@ -80,8 +80,10 @@ The Logs page aggregates estimated unique signed-out visitors for published
 landing pages and both public portals. Production and Stage default
 `PUBLIC_TRAFFIC_ENABLED` to `true`. Visitor deduplication uses short-lived Redis
 keys scoped to the current UTC hour. MySQL receives only three hourly counters:
-landing pages, portal, and a separately deduplicated combined value. Never log
-or persist the source IP, user agent, or HMAC value.
+landing pages, portal, and a separately deduplicated combined value. The raw
+source IP and user agent are never stored or logged by the analytics recorder.
+The HMAC identifier exists only in short-lived Redis key names and expires
+shortly after its UTC hour; it is never written to MySQL or application logs.
 
 The scheduler requests `PUBLIC_TRAFFIC_HEALTH_URL` once per minute and only
 marks that minute after the public endpoint, Redis, and MySQL path succeed. A

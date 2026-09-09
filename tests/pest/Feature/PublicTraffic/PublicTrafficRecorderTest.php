@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Enums\PublicTrafficSurface;
 use App\Models\PublicTrafficHourlyStatistic;
 use App\Models\User;
@@ -184,6 +185,28 @@ it('fails safely and logs no visitor data when fingerprinting cannot be secured'
                     && ! str_contains($encoded, 'Mozilla');
             }),
         );
+});
+
+it('uses the centralized warning key and one-hour throttle', function (): void {
+    Log::spy();
+    Cache::shouldReceive('add')
+        ->once()
+        ->with(
+            CacheKey::PUBLIC_TRAFFIC_WARNING->key('recording'),
+            true,
+            CacheKey::PUBLIC_TRAFFIC_WARNING->ttl(),
+        )
+        ->andReturnTrue();
+
+    app(PublicTrafficWarningLoggerService::class)->warning(
+        'recording',
+        'Failed to record anonymous public traffic.',
+        new RuntimeException('test failure'),
+    );
+
+    Log::shouldHaveReceived('warning')
+        ->once()
+        ->with('Failed to record anonymous public traffic.', ['exception_class' => RuntimeException::class]);
 });
 
 it('removes deduplication keys after a database failure so a later retry can count', function (): void {

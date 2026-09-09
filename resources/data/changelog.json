@@ -21,6 +21,10 @@
                 "description": "Administrators can now review CPU and memory utilization for the entire host VM directly above the application logs. Minute-level host samples provide responsive charts for the last 24 hours and 7 days, while clear collecting, stale, disabled, gap, and retry states keep the history honest across deployments and scheduler interruptions. Only the scheduler receives read-only access to the two required Linux proc files; no Docker socket or privileged container is exposed."
             },
             {
+                "title": "Public Traffic Maintenance Planning",
+                "description": "Administrators can now compare estimated signed-out visitor activity for published landing pages and the public portals by weekday and hour on the Logs page. Four-, twelve-, and fifty-two-week views, separate quietest and busiest windows, coverage indicators, and an accessible heatmap help identify safer maintenance periods without retaining raw IP addresses or user agents."
+            },
+            {
                 "title": "Material-Aware IGSN Portal Map",
                 "description": "The public IGSN Portal map now colors samples, geographic shapes, and cluster segments by top-level Material instead of the redundant Physical Object resource type. Its ordered legend and marker details show exact Material and Sample Type metadata, explicitly distinguish not-applicable, missing, and unrecognized legacy values, and leave the Data Portal's Resource Type visualization unchanged."
             },

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\PublicTraffic;
 
+use App\Enums\CacheKey;
 use App\Enums\PublicTrafficSurface;
 use App\Services\BotProtection\BotClassifierService;
 use Carbon\CarbonImmutable;
@@ -40,9 +41,9 @@ final readonly class PublicTrafficRecorderService
             $expiresAt = $bucketStartedAt
                 ->addHour()
                 ->addSeconds((int) config('public_traffic.deduplication_grace_seconds', 300));
-            $keyPrefix = 'public-traffic:visitor:'.$bucketStartedAt->format('YmdH');
-            $surfaceKey = "{$keyPrefix}:{$surface->value}:{$fingerprint}";
-            $combinedKey = "{$keyPrefix}:combined:{$fingerprint}";
+            $bucketSuffix = $bucketStartedAt->format('YmdH');
+            $surfaceKey = CacheKey::PUBLIC_TRAFFIC_VISITOR->key("{$bucketSuffix}:{$surface->value}:{$fingerprint}");
+            $combinedKey = CacheKey::PUBLIC_TRAFFIC_VISITOR->key("{$bucketSuffix}:combined:{$fingerprint}");
 
             $incrementSurface = Cache::add($surfaceKey, true, $expiresAt);
             if ($incrementSurface) {

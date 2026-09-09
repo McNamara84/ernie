@@ -265,9 +265,11 @@ The administrator-only `/logs` page also shows the typical number of unique
 signed-out visitors by weekday and hour for published landing pages and the DOI
 and IGSN portals. The application deduplicates visitors for the current UTC
 hour in the shared cache using a bucket-specific HMAC of IP address and user
-agent. Only hourly counters are persisted; no IP address, user agent, cookie,
-session identifier, or visitor hash is stored in MySQL. Authenticated users,
-empty user agents, and recognizable crawlers are excluded. Extend the built-in
+agent. This HMAC identifier exists only in short-lived cache key names and
+expires shortly after its UTC hour. Only hourly counters are persisted; no IP
+address, user agent, cookie, session identifier, or visitor hash is stored in
+MySQL or application logs. Authenticated users, empty user agents, and
+recognizable crawlers are excluded. Extend the built-in
 heuristic list with a comma-separated
 `BOT_PROTECTION_ADDITIONAL_CRAWLER_USER_AGENTS` value when required.
 

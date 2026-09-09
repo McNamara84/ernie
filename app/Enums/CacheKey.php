@@ -76,6 +76,11 @@ enum CacheKey: string
     // System metrics collection warning throttle
     case SYSTEM_METRICS_COLLECTION_WARNING = 'system:metrics_collection_warning';
 
+    // Anonymous public traffic deduplication and operational checks
+    case PUBLIC_TRAFFIC_VISITOR = 'public-traffic:visitor';
+    case PUBLIC_TRAFFIC_HEALTH_PROBE = 'public-traffic:health';
+    case PUBLIC_TRAFFIC_WARNING = 'public-traffic:warning';
+
     // Assistance suggestion counts
     case ASSISTANCE_TOTAL_PENDING_COUNT = 'assistance:total_pending_count';
 
@@ -185,6 +190,17 @@ enum CacheKey: string
             // System metrics collection warnings - 1 hour
             self::SYSTEM_METRICS_COLLECTION_WARNING => 3600,
 
+            // Visitor keys use the absolute end of the current UTC hour at their call site.
+            // This value is the maximum lifetime and a safe default for other callers.
+            self::PUBLIC_TRAFFIC_VISITOR => 3600 + max(
+                0,
+                (int) config('public_traffic.deduplication_grace_seconds', 300),
+            ),
+
+            // Health probes are ephemeral; warning logs are throttled for 1 hour.
+            self::PUBLIC_TRAFFIC_HEALTH_PROBE => 10,
+            self::PUBLIC_TRAFFIC_WARNING => 3600,
+
             // Assistance total pending count - 2 minutes (changes after discovery jobs)
             self::ASSISTANCE_TOTAL_PENDING_COUNT => 120,
 
@@ -275,6 +291,10 @@ enum CacheKey: string
             self::CACHE_STATS => ['system'],
 
             self::SYSTEM_METRICS_COLLECTION_WARNING => ['system', 'system_metrics'],
+
+            self::PUBLIC_TRAFFIC_VISITOR,
+            self::PUBLIC_TRAFFIC_HEALTH_PROBE,
+            self::PUBLIC_TRAFFIC_WARNING => [],
 
             self::ASSISTANCE_TOTAL_PENDING_COUNT => ['assistance'],
 

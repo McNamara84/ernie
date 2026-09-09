@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Console\Commands\ObservePublicTrafficAvailability;
 use App\Console\Commands\PrunePublicTraffic;
+use App\Enums\CacheKey;
 use App\Models\PublicTrafficHourlyStatistic;
 use App\Services\PublicTraffic\PublicTrafficAvailabilityService;
 use Carbon\CarbonImmutable;
@@ -91,9 +92,28 @@ it('fails without recording when the shared cache is unavailable', function (): 
     Http::fake([
         'https://ernie.example.test/health' => Http::response(['status' => 'ok']),
     ]);
-    Cache::shouldReceive('put')->once()->andThrow(new RuntimeException('cache unavailable'));
-    Cache::shouldReceive('forget')->once()->andReturnTrue();
-    Cache::shouldReceive('add')->once()->andReturnTrue();
+    Cache::shouldReceive('put')
+        ->once()
+        ->withArgs(static fn (string $key, string $value, int $ttl): bool => str_starts_with(
+            $key,
+            CacheKey::PUBLIC_TRAFFIC_HEALTH_PROBE->key().':',
+        ) && strlen($value) === 24 && $ttl === CacheKey::PUBLIC_TRAFFIC_HEALTH_PROBE->ttl())
+        ->andThrow(new RuntimeException('cache unavailable'));
+    Cache::shouldReceive('forget')
+        ->once()
+        ->with(Mockery::on(static fn (string $key): bool => str_starts_with(
+            $key,
+            CacheKey::PUBLIC_TRAFFIC_HEALTH_PROBE->key().':',
+        )))
+        ->andReturnTrue();
+    Cache::shouldReceive('add')
+        ->once()
+        ->with(
+            CacheKey::PUBLIC_TRAFFIC_WARNING->key('availability'),
+            true,
+            CacheKey::PUBLIC_TRAFFIC_WARNING->ttl(),
+        )
+        ->andReturnTrue();
 
     $this->artisan('public-traffic:observe-availability')->assertFailed();
 

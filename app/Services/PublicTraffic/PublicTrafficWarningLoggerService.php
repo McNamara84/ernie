@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\PublicTraffic;
 
+use App\Enums\CacheKey;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -16,13 +17,14 @@ final class PublicTrafficWarningLoggerService
     public function warning(string $key, string $message, Throwable $exception): void
     {
         $now = time();
+        $cacheKey = CacheKey::PUBLIC_TRAFFIC_WARNING;
 
         try {
-            if (! Cache::add("public-traffic:warning:{$key}", true, 3600)) {
+            if (! Cache::add($cacheKey->key($key), true, $cacheKey->ttl())) {
                 return;
             }
         } catch (Throwable) {
-            if (($now - (self::$fallbackLastLoggedAt[$key] ?? 0)) < 3600) {
+            if (($now - (self::$fallbackLastLoggedAt[$key] ?? 0)) < $cacheKey->ttl()) {
                 return;
             }
 

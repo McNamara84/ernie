@@ -83,20 +83,20 @@ function cellLabel(cell: PublicTrafficCell): string {
 
 function intensityClass(cell: PublicTrafficCell, maximum: number): string {
     if (cell.combinedAverage === null) {
-        return 'bg-muted/60 text-muted-foreground';
+        return 'bg-muted/60 text-muted-foreground hover:bg-muted/80';
     }
 
     if (cell.combinedAverage === 0 || maximum === 0) {
-        return 'bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100';
+        return 'bg-emerald-50 text-emerald-950 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-950/60';
     }
 
     const ratio = cell.combinedAverage / maximum;
-    if (ratio <= 0.2) return 'bg-sky-100 text-sky-950 dark:bg-sky-950/50 dark:text-sky-100';
-    if (ratio <= 0.4) return 'bg-sky-200 text-sky-950 dark:bg-sky-900/60 dark:text-sky-50';
-    if (ratio <= 0.6) return 'bg-blue-300 text-blue-950 dark:bg-blue-800 dark:text-blue-50';
-    if (ratio <= 0.8) return 'bg-blue-500 text-white dark:bg-blue-700';
+    if (ratio <= 0.2) return 'bg-sky-100 text-sky-950 hover:bg-sky-200 dark:bg-sky-950/50 dark:text-sky-100 dark:hover:bg-sky-950/70';
+    if (ratio <= 0.4) return 'bg-sky-200 text-sky-950 hover:bg-sky-300 dark:bg-sky-900/60 dark:text-sky-50 dark:hover:bg-sky-900/80';
+    if (ratio <= 0.6) return 'bg-blue-300 text-blue-950 hover:bg-blue-400 dark:bg-blue-800 dark:text-blue-50 dark:hover:bg-blue-700';
+    if (ratio <= 0.8) return 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600';
 
-    return 'bg-blue-700 text-white dark:bg-blue-500 dark:text-blue-950';
+    return 'bg-blue-700 text-white hover:bg-blue-800 dark:bg-blue-500 dark:text-blue-950 dark:hover:bg-blue-400';
 }
 
 function RankingCard({
@@ -180,16 +180,18 @@ function TrafficHeatmap({ cells }: { cells: PublicTrafficCell[] }) {
                                             <td key={cell.hour} className="p-0.5 text-center">
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <button
+                                                        <Button
                                                             type="button"
+                                                            variant="ghost"
+                                                            size="icon-sm"
                                                             aria-label={cellLabel(cell)}
                                                             className={cn(
-                                                                'flex size-8 items-center justify-center rounded-sm text-[10px] font-medium tabular-nums ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                                                                'rounded-sm text-[10px] font-medium tabular-nums ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                                                                 intensityClass(cell, maximum),
                                                             )}
                                                         >
                                                             {cell.combinedAverage === null ? '—' : formatAverage(cell.combinedAverage)}
-                                                        </button>
+                                                        </Button>
                                                     </TooltipTrigger>
                                                     <TooltipContent className="max-w-72" side="top">
                                                         <p className="font-medium">{formatWindow(cell)}</p>
@@ -219,7 +221,7 @@ function TrafficHeatmap({ cells }: { cells: PublicTrafficCell[] }) {
                         'bg-emerald-50 dark:bg-emerald-950/40',
                         'bg-sky-200 dark:bg-sky-900/60',
                         'bg-blue-300 dark:bg-blue-800',
-                        'bg-blue-500 dark:bg-blue-700',
+                        'bg-blue-600 dark:bg-blue-700',
                         'bg-blue-700 dark:bg-blue-500',
                     ].map((className) => (
                         <span key={className} aria-hidden="true" className={cn('size-5 rounded-sm border', className)} />
@@ -391,8 +393,9 @@ export default function PublicTrafficPanel({ refreshKey = 0 }: PublicTrafficPane
                     )}
                     {traffic.status !== 'disabled' && <TrafficHeatmap cells={traffic.cells} />}
                     <p className="text-xs text-muted-foreground">
-                        Visitors are estimated from an hourly, short-lived hash of IP address and user agent. No visitor identifier is stored. Landing
-                        page and portal values may overlap and must not be added together.
+                        The analytics recorder stores a short-lived HMAC identifier only in shared-cache key names; it expires shortly after its UTC
+                        hour. Raw IP addresses and user agents are not stored, and only hourly aggregate counts persist in MySQL. Landing page and
+                        portal values may overlap and must not be added together.
                     </p>
                 </div>
             )}

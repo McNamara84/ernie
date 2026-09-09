@@ -62,6 +62,7 @@ describe('PublicTrafficPanel', () => {
         const heatmapCells = within(heatmap).getAllByRole('button');
         expect(heatmapCells).toHaveLength(168);
         expect(heatmapCells[0]).toHaveClass('bg-emerald-50');
+        expect(heatmapCells[120]).toHaveClass('bg-blue-600');
         expect(heatmapCells[167]).toHaveClass('bg-blue-700');
         expect(within(heatmap).getByRole('button', { name: /Monday, 00:00–01:00: 0 estimated visitors/ })).toBeInTheDocument();
         expect(
@@ -70,6 +71,16 @@ describe('PublicTrafficPanel', () => {
             }),
         ).toBeInTheDocument();
         expect(mockedGet).toHaveBeenCalledWith('/logs/public-traffic', expect.objectContaining({ params: { period: '12w' } }));
+    });
+
+    it('explains the short-lived cache identifier and persistent privacy boundary', async () => {
+        render(<PublicTrafficPanel />);
+
+        const privacyNotice = await screen.findByText(/short-lived HMAC identifier only in shared-cache key names/);
+
+        expect(privacyNotice.textContent).toMatch(
+            /Raw IP addresses and user agents are not stored, and only hourly aggregate counts persist in MySQL/,
+        );
     });
 
     it.each([

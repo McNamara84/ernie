@@ -677,6 +677,44 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             measurements remain visible as gaps.
                         </p>
 
+                        <h4>Plan maintenance with public traffic</h4>
+                        <p>
+                            <strong>Public traffic by weekday and hour</strong> estimates unique signed-out, non-bot visitors to published landing
+                            pages and the DOI and IGSN portals. The values are historical averages in <strong>Europe/Berlin</strong>, not a live count
+                            of currently active visitors.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                Choose <strong>Last 4 weeks</strong>, <strong>Last 12 weeks</strong>, or <strong>Last 52 weeks</strong>. Twelve weeks
+                                is the default. Collection starts without a historical backfill, so the effective period can initially be shorter.
+                            </li>
+                            <li>
+                                Each heatmap cell is the average combined visitor estimate for one weekday and local-hour window. The landing-page and
+                                portal values can overlap and must not be added together.
+                            </li>
+                            <li>
+                                <strong>Collecting</strong> means that at least one complete observation is still missing from the 168 weekly cells;
+                                quietest and busiest recommendations remain hidden until that coverage exists. <strong>Disabled</strong> means no new
+                                traffic is being collected.
+                            </li>
+                            <li>
+                                Unavailable or incomplete hours are excluded instead of treated as zero. Review the complete-hour count, excluded-hour
+                                count, and low-sample warning before scheduling downtime from a developing pattern.
+                            </li>
+                        </ul>
+                        <p>
+                            Prefer a recurring window from <strong>Quietest windows</strong> and avoid the listed peaks, while still accounting for
+                            one-off events that historical averages cannot predict.
+                        </p>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Privacy:</strong> The analytics recorder does not store raw IP addresses or user agents. A derived HMAC
+                                identifier exists only in short-lived shared-cache key names and expires shortly after its UTC hour; only hourly
+                                aggregate counts persist in MySQL.
+                            </p>
+                        </div>
+
                         <h4>Download a rolling log period</h4>
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Open the download menu">

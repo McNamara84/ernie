@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\PublicTraffic;
 
+use App\Enums\CacheKey;
 use App\Models\PublicTrafficHourlyStatistic;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -37,11 +38,12 @@ final readonly class PublicTrafficAvailabilityService
 
     private function assertCacheIsWritable(): void
     {
-        $key = 'public-traffic:health:'.Str::random(24);
+        $cacheKey = CacheKey::PUBLIC_TRAFFIC_HEALTH_PROBE;
+        $key = $cacheKey->key(Str::random(24));
         $value = Str::random(24);
 
         try {
-            Cache::put($key, $value, 10);
+            Cache::put($key, $value, $cacheKey->ttl());
 
             if (! hash_equals($value, (string) Cache::get($key))) {
                 throw new RuntimeException('The public traffic deduplication cache is not readable and writable.');
