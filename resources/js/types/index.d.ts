@@ -185,6 +185,8 @@ export interface RelatedIdentifier {
     id?: number;
     identifier: string;
     identifier_type: string;
+    /** Client-only editor state; deliberately omitted from save payloads. */
+    identifier_type_manually_selected?: boolean;
     relation_type: string;
     relation_type_information?: string | null;
     citation_label?: string | null;

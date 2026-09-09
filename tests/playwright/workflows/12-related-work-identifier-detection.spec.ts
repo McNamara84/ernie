@@ -13,13 +13,28 @@ import { loginAsTestUser } from '../helpers/test-helpers';
  * - tests/vitest/__tests__/identifier-type-detection.test.ts
  *
  * Test Strategy:
- * 1. Enter an identifier in the input field
- * 2. Wait for validation to complete (button becomes enabled)
- * 3. Click Add and verify the correct type badge appears
+ * 1. Create a complete Related Work card
+ * 2. Enter an identifier and leave the input field
+ * 3. Verify the detected type and blur-driven enrichment in that card
  */
 
 test.describe('Related Work Identifier Type Detection', () => {
     test.beforeEach(async ({ page }) => {
+        await page.route('**/api/v1/related-identifiers/citation-label*', async (route) => {
+            const requestUrl = new URL(route.request().url());
+            const identifier = requestUrl.searchParams.get('identifier') ?? '';
+
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    citation: `Resolved citation for ${identifier}`,
+                    identifier,
+                    identifier_type: requestUrl.searchParams.get('identifierType'),
+                }),
+            });
+        });
+
         await loginAsTestUser(page);
         await page.goto('/editor');
         await page.waitForLoadState('networkidle');
@@ -39,27 +54,51 @@ test.describe('Related Work Identifier Type Detection', () => {
         const emptyState = page.getByTestId('related-work-empty-state');
         await expect(emptyState).toBeVisible({ timeout: 10000 });
         await emptyState.getByRole('button', { name: 'Add Related Work' }).click();
-        await expect(page.getByTestId('related-identifier-input')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByTestId('related-work-identifier-input')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByLabel('Citation label')).toBeVisible();
     });
 
     /**
      * Helper function to add a related work and verify its identifier type
      */
     async function addRelatedWorkAndVerifyType(page: import('@playwright/test').Page, identifier: string, expectedType: string) {
-        const identifierInput = page.getByTestId('related-identifier-input');
+        const identifierInput = page.getByTestId('related-work-identifier-input');
         await identifierInput.fill(identifier);
-
-        const addButton = page.getByTestId('add-related-work-button');
-        await expect(addButton).toBeEnabled({ timeout: 15000 });
-        await addButton.click();
+        await identifierInput.press('Tab');
 
         const typeBadge = page.getByTestId('identifier-type-badge').filter({ hasText: expectedType });
         await expect(typeBadge.first()).toBeVisible({ timeout: 5000 });
     }
 
+    test('keeps the complete empty card when the Related Work section is collapsed and reopened', async ({ page }) => {
+        await expect(page.getByRole('button', { name: 'Add Related Work' })).toBeDisabled();
+
+        const trigger = page.getByTestId('related-work-accordion-trigger');
+        await trigger.click();
+        await expect(page.getByTestId('related-work-identifier-input')).toBeHidden();
+
+        await trigger.click();
+        await expect(page.getByTestId('related-work-identifier-input')).toBeVisible();
+        await expect(page.getByLabel('Citation label')).toBeVisible();
+    });
+
+    test('resolves a DOI citation label and shows its preview after identifier blur', async ({ page }) => {
+        const identifierInput = page.getByTestId('related-work-identifier-input');
+        await identifierInput.fill('https://doi.org/10.5880/fidgeo.2025.072');
+        await identifierInput.press('Tab');
+
+        await expect(identifierInput).toHaveValue('10.5880/fidgeo.2025.072');
+        await expect(page.getByLabel('Citation label')).toHaveValue('Resolved citation for 10.5880/fidgeo.2025.072');
+        await expect(page.getByRole('link', { name: /10\.5880\/fidgeo\.2025\.072/i })).toHaveAttribute(
+            'href',
+            'https://doi.org/10.5880/fidgeo.2025.072',
+        );
+        await expect(page.getByText(/Did you mean .* instead\?/i)).toHaveCount(0);
+    });
+
     test('keeps the long relation-type dropdown stable in a compact viewport', async ({ page }) => {
         await page.setViewportSize({ width: 988, height: 676 });
-        const trigger = page.locator('#relation-type');
+        const trigger = page.locator('#related-work-0-relation-type');
         await trigger.scrollIntoViewIfNeeded();
         await trigger.click();
 

@@ -5,9 +5,16 @@ import type { RelatedIdentifier } from '@/types';
 
 import RelatedWorkItem from './related-work-item';
 
+export interface CitationResolutionState {
+    status: 'resolving' | 'resolved' | 'unavailable';
+    message?: string;
+}
+
 interface RelatedWorkListProps {
     items: RelatedIdentifier[];
+    completedItemCount?: number;
     onItemChange: (index: number, item: RelatedIdentifier) => void;
+    onIdentifierBlur?: (index: number) => void;
     onRemove: (index: number) => void;
     onReorder: (items: RelatedIdentifier[]) => void;
     activeRelationTypes?: string[];
@@ -19,6 +26,7 @@ interface RelatedWorkListProps {
             message?: string;
         }
     >;
+    citationResolutionStates?: Map<number, CitationResolutionState>;
 }
 
 /**
@@ -28,12 +36,15 @@ interface RelatedWorkListProps {
  */
 export default function RelatedWorkList({
     items,
+    completedItemCount = items.filter((item) => item.identifier.trim() !== '').length,
     onItemChange,
+    onIdentifierBlur,
     onRemove,
     onReorder,
     activeRelationTypes,
     activeIdentifierTypes,
     validationStatuses,
+    citationResolutionStates,
 }: RelatedWorkListProps) {
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -68,7 +79,7 @@ export default function RelatedWorkList({
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-foreground">Added Relations ({items.length})</h4>
+                <h4 className="text-sm font-medium text-foreground">Added Relations ({completedItemCount})</h4>
                 {items.length > 1 && <span className="text-xs text-muted-foreground">Drag cards to reorder them</span>}
             </div>
 
@@ -77,6 +88,7 @@ export default function RelatedWorkList({
                     <div className="space-y-3" role="list" aria-label="Related works">
                         {items.map((item, index) => {
                             const validation = validationStatuses?.get(index);
+                            const citationResolution = citationResolutionStates?.get(index);
 
                             return (
                                 <RelatedWorkItem
@@ -85,11 +97,14 @@ export default function RelatedWorkList({
                                     item={item}
                                     index={index}
                                     onChange={(updatedItem) => onItemChange(index, updatedItem)}
+                                    onIdentifierBlur={() => onIdentifierBlur?.(index)}
                                     onRemove={onRemove}
                                     activeRelationTypes={activeRelationTypes}
                                     activeIdentifierTypes={activeIdentifierTypes}
                                     validationStatus={validation?.status}
                                     validationMessage={validation?.message}
+                                    citationResolutionStatus={citationResolution?.status}
+                                    citationResolutionMessage={citationResolution?.message}
                                 />
                             );
                         })}

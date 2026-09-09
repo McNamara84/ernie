@@ -8,6 +8,7 @@ import type { RelatedIdentifier } from '@/types';
 
 describe('RelatedWorkItem', () => {
     const mockOnChange = vi.fn();
+    const mockOnIdentifierBlur = vi.fn();
     const mockOnRemove = vi.fn();
 
     const defaultItem: RelatedIdentifier = {
@@ -21,6 +22,7 @@ describe('RelatedWorkItem', () => {
         item: defaultItem,
         index: 0,
         onChange: mockOnChange,
+        onIdentifierBlur: mockOnIdentifierBlur,
         onRemove: mockOnRemove,
     };
 
@@ -116,6 +118,84 @@ describe('RelatedWorkItem', () => {
         );
     });
 
+    it('auto-detects the identifier type while editing a new card', () => {
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    identifier: '',
+                    identifier_type: 'DOI',
+                    identifier_type_manually_selected: false,
+                    relation_type: 'Cites',
+                }}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText('Identifier'), { target: { value: 'https://example.org/resource' } });
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                identifier: 'https://example.org/resource',
+                identifier_type: 'URL',
+                identifier_type_manually_selected: false,
+            }),
+        );
+    });
+
+    it('preserves a manually selected identifier type while editing', () => {
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    identifier: 'ambiguous',
+                    identifier_type: 'DOI',
+                    identifier_type_manually_selected: true,
+                    relation_type: 'Cites',
+                }}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText('Identifier'), { target: { value: 'https://example.org/resource' } });
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                identifier_type: 'DOI',
+                identifier_type_manually_selected: true,
+            }),
+        );
+    });
+
+    it('resets the manual identifier type override after clearing the identifier', () => {
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    identifier: 'ambiguous',
+                    identifier_type: 'DOI',
+                    identifier_type_manually_selected: true,
+                    relation_type: 'Cites',
+                }}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText('Identifier'), { target: { value: '' } });
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                identifier: '',
+                identifier_type_manually_selected: false,
+            }),
+        );
+    });
+
+    it('notifies the parent when the identifier field loses focus', () => {
+        render(<RelatedWorkItem {...defaultProps} />);
+
+        fireEvent.blur(screen.getByLabelText('Identifier'));
+
+        expect(mockOnIdentifierBlur).toHaveBeenCalledTimes(1);
+    });
+
     it('calls onChange when the identifier type is edited', async () => {
         const user = userEvent.setup();
         render(<RelatedWorkItem {...defaultProps} />);
@@ -141,6 +221,31 @@ describe('RelatedWorkItem', () => {
                 citation_label: 'Smith, J. (2024). Test Dataset.',
             }),
         );
+    });
+
+    it('announces citation resolution progress and outcomes', () => {
+        const { rerender } = render(<RelatedWorkItem {...defaultProps} citationResolutionStatus="resolving" />);
+
+        expect(screen.getByText('Resolving citation label…')).toBeInTheDocument();
+        expect(screen.getByText('Resolving citation label…').parentElement).toHaveAttribute('aria-live', 'polite');
+
+        rerender(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{ ...defaultItem, citation_label: 'Resolved citation' }}
+                citationResolutionStatus="resolved"
+            />,
+        );
+        expect(screen.getByText('Citation label resolved automatically.')).toBeInTheDocument();
+
+        rerender(
+            <RelatedWorkItem
+                {...defaultProps}
+                citationResolutionStatus="unavailable"
+                citationResolutionMessage="No cached URL citation found."
+            />,
+        );
+        expect(screen.getByText('No cached URL citation found.')).toBeInTheDocument();
     });
 
     it('does not render the removed resolved title helper UI', () => {

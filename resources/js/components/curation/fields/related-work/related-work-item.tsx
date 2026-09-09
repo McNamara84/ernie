@@ -8,8 +8,10 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { detectIdentifierType } from '@/lib/identifier-type-detection';
 import { isRepositoryCurationRelatedIdentifier } from '@/lib/related-identifier-provenance';
 import { formatRelationTypeLabel, getAllRelationTypes, MOST_USED_RELATION_TYPES, RELATION_TYPE_DESCRIPTIONS } from '@/lib/related-identifiers';
 import { cn } from '@/lib/utils';
@@ -22,11 +24,14 @@ interface RelatedWorkItemProps {
     item: RelatedIdentifier;
     index: number;
     onChange: (item: RelatedIdentifier) => void;
+    onIdentifierBlur?: () => void;
     onRemove: (index: number) => void;
     activeRelationTypes?: string[];
     activeIdentifierTypes?: string[];
     validationStatus?: 'validating' | 'valid' | 'invalid' | 'warning';
     validationMessage?: string;
+    citationResolutionStatus?: 'resolving' | 'resolved' | 'unavailable';
+    citationResolutionMessage?: string;
 }
 
 /**
@@ -44,11 +49,14 @@ export default function RelatedWorkItem({
     item,
     index,
     onChange,
+    onIdentifierBlur,
     onRemove,
     activeRelationTypes,
     activeIdentifierTypes,
     validationStatus,
     validationMessage,
+    citationResolutionStatus,
+    citationResolutionMessage,
 }: RelatedWorkItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sortableId });
 
@@ -76,6 +84,30 @@ export default function RelatedWorkItem({
         onChange({
             ...item,
             ...patch,
+        });
+    };
+    const identifierTypeWasManuallySelected =
+        item.identifier_type_manually_selected ??
+        (item.identifier.trim() !== '' && detectIdentifierType(item.identifier) !== item.identifier_type);
+
+    const handleIdentifierChange = (value: string) => {
+        const shouldResetManualSelection = value.trim() === '';
+        let nextIdentifierType = item.identifier_type;
+
+        if (shouldResetManualSelection || !identifierTypeWasManuallySelected) {
+            const detectedIdentifierType = detectIdentifierType(value);
+
+            if (!activeIdentifierTypes || activeIdentifierTypes.includes(detectedIdentifierType)) {
+                nextIdentifierType = detectedIdentifierType;
+            } else {
+                nextIdentifierType = filteredIdentifierTypes[0] ?? item.identifier_type;
+            }
+        }
+
+        updateItem({
+            identifier: value,
+            identifier_type: nextIdentifierType,
+            identifier_type_manually_selected: shouldResetManualSelection ? false : identifierTypeWasManuallySelected,
         });
     };
 
@@ -183,9 +215,11 @@ export default function RelatedWorkItem({
                         <Label htmlFor={`related-work-${index}-identifier`}>Identifier</Label>
                         <Input
                             id={`related-work-${index}-identifier`}
+                            data-testid="related-work-identifier-input"
                             type="text"
                             value={item.identifier}
-                            onChange={(event) => updateItem({ identifier: event.target.value })}
+                            onChange={(event) => handleIdentifierChange(event.target.value)}
+                            onBlur={onIdentifierBlur}
                             placeholder="e.g., 10.5194/nhess-15-1463-2015"
                             className="font-mono text-sm"
                         />
@@ -193,7 +227,15 @@ export default function RelatedWorkItem({
 
                     <div className="md:col-span-2">
                         <Label htmlFor={`related-work-${index}-identifier-type`}>Type</Label>
-                        <Select value={item.identifier_type} onValueChange={(value) => updateItem({ identifier_type: value })}>
+                        <Select
+                            value={item.identifier_type}
+                            onValueChange={(value) =>
+                                updateItem({
+                                    identifier_type: value,
+                                    identifier_type_manually_selected: true,
+                                })
+                            }
+                        >
                             <SelectTrigger id={`related-work-${index}-identifier-type`}>
                                 <SelectValue />
                             </SelectTrigger>
@@ -284,8 +326,21 @@ export default function RelatedWorkItem({
                             placeholder="Optional formatted citation shown on landing pages"
                         />
                         <p className="mt-1 text-xs text-muted-foreground">
-                            This text is preferred on landing pages and in relation graphs. Leave it empty to let the backend resolve a DOI citation.
+                            This text is preferred on landing pages and in relation graphs. Leave it empty to resolve a DOI or cached URL citation
+                            after leaving the identifier field.
                         </p>
+                        <div className="mt-1 min-h-4 text-xs text-muted-foreground" aria-live="polite">
+                            {citationResolutionStatus === 'resolving' && (
+                                <span className="inline-flex items-center gap-1.5">
+                                    <Spinner size="xs" aria-hidden="true" />
+                                    Resolving citation label…
+                                </span>
+                            )}
+                            {citationResolutionStatus === 'resolved' && item.citation_label?.trim() && <span>Citation label resolved automatically.</span>}
+                            {citationResolutionStatus === 'unavailable' && (
+                                <span>{citationResolutionMessage ?? 'No automatic citation label found.'}</span>
+                            )}
+                        </div>
                     </div>
                 </div>
 

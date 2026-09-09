@@ -1157,9 +1157,12 @@ describe('Docs page', () => {
 
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes('Cancel') && text.includes('discard its unsaved values') && text.includes('Removing the final entry');
+                return text.includes('collapse and reopen') && text.includes('Only one card without an identifier') && text.includes('not saved');
             }),
         ).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'DOI and URL Citation Labels', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/URL labels are available only when that exact URL already exists/i)).toBeInTheDocument();
+        expect(screen.getByText(/ERNIE never overwrites a label you entered manually/i)).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'CSV Bulk Import', level: 4 })).toBeInTheDocument();
         expect(
             screen.getByText((_, element) => {

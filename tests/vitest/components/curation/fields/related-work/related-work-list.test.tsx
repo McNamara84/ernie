@@ -47,21 +47,30 @@ vi.mock('@/components/curation/fields/related-work/related-work-item', () => ({
         index,
         onRemove,
         onChange,
+        onIdentifierBlur,
         validationStatus,
         validationMessage,
+        citationResolutionStatus,
+        citationResolutionMessage,
     }: {
         item: RelatedIdentifier;
         index: number;
         onRemove: (index: number) => void;
         onChange: (item: RelatedIdentifier) => void;
+        onIdentifierBlur?: () => void;
         validationStatus?: string;
         validationMessage?: string;
+        citationResolutionStatus?: string;
+        citationResolutionMessage?: string;
     }) => (
         <div data-testid={`related-work-item-${index}`} role="listitem">
             <span>{item.identifier}</span>
             {validationStatus && <span data-testid={`validation-status-${index}`}>{validationStatus}</span>}
             {validationMessage && <span data-testid={`validation-message-${index}`}>{validationMessage}</span>}
+            {citationResolutionStatus && <span data-testid={`citation-resolution-status-${index}`}>{citationResolutionStatus}</span>}
+            {citationResolutionMessage && <span data-testid={`citation-resolution-message-${index}`}>{citationResolutionMessage}</span>}
             <button onClick={() => onChange({ ...item, identifier: `${item.identifier}-edited` })}>Edit</button>
+            <button onClick={onIdentifierBlur}>Blur identifier</button>
             <button onClick={() => onRemove(index)}>Remove</button>
         </div>
     ),
@@ -141,6 +150,40 @@ describe('RelatedWorkList', () => {
 
         expect(screen.getByTestId('validation-status-0')).toHaveTextContent('valid');
         expect(screen.getByTestId('validation-message-1')).toHaveTextContent('Not found');
+    });
+
+    it('passes citation resolution state to items', () => {
+        render(
+            <RelatedWorkList
+                items={[createItem()]}
+                onItemChange={mockOnItemChange}
+                onRemove={mockOnRemove}
+                onReorder={mockOnReorder}
+                citationResolutionStates={new Map([[0, { status: 'unavailable', message: 'No citation found' }]])}
+            />,
+        );
+
+        expect(screen.getByTestId('citation-resolution-status-0')).toHaveTextContent('unavailable');
+        expect(screen.getByTestId('citation-resolution-message-0')).toHaveTextContent('No citation found');
+    });
+
+    it('forwards identifier blur events with the item index', async () => {
+        const user = userEvent.setup();
+        const onIdentifierBlur = vi.fn();
+
+        render(
+            <RelatedWorkList
+                items={[createItem()]}
+                onItemChange={mockOnItemChange}
+                onIdentifierBlur={onIdentifierBlur}
+                onRemove={mockOnRemove}
+                onReorder={mockOnReorder}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Blur identifier' }));
+
+        expect(onIdentifierBlur).toHaveBeenCalledWith(0);
     });
 
     it('forwards child edits to onItemChange', async () => {

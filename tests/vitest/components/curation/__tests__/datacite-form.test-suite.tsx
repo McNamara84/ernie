@@ -337,6 +337,16 @@ describe('DataCiteForm', () => {
         return datesTrigger;
     };
 
+    const ensureRelatedWorkOpen = async (user: ReturnType<typeof userEvent.setup>) => {
+        const buttons = screen.getAllByRole('button', { name: /Related Work/i });
+        const relatedWorkTrigger = buttons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
+        if (!relatedWorkTrigger) throw new Error('Related Work accordion trigger not found');
+        if (relatedWorkTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(relatedWorkTrigger);
+        }
+        return relatedWorkTrigger;
+    };
+
     // Helper to get accordion trigger by section name
     const getAccordionTrigger = (sectionName: RegExp | string): HTMLElement => {
         const buttons = screen.getAllByRole('button', { name: sectionName });
@@ -7750,7 +7760,71 @@ describe('DataCiteForm', () => {
             });
         });
 
-        it('includes related work citation labels in the save payload', { timeout: 60000 }, async () => {
+        it('keeps an empty Related Work card when the section is collapsed and reopened', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderForm();
+
+            const relatedWorkTrigger = await ensureRelatedWorkOpen(user);
+            await user.click(screen.getByRole('button', { name: 'Add Related Work' }));
+
+            expect(screen.getByTestId('related-work-identifier-input')).toHaveValue('');
+            expect(screen.getByRole('textbox', { name: /Citation label/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Add Related Work' })).toBeDisabled();
+            expect(relatedWorkTrigger.textContent).not.toContain('(1)');
+
+            await user.click(relatedWorkTrigger);
+            expect(screen.queryByTestId('related-work-identifier-input')).not.toBeInTheDocument();
+
+            await user.click(relatedWorkTrigger);
+            expect(screen.getByTestId('related-work-identifier-input')).toHaveValue('');
+            expect(screen.getByRole('textbox', { name: /Citation label/i })).toBeInTheDocument();
+        });
+
+        it('keeps Related Work card values when the section is collapsed and reopened', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderForm();
+
+            const relatedWorkTrigger = await ensureRelatedWorkOpen(user);
+            await user.click(screen.getByRole('button', { name: 'Add Related Work' }));
+            await user.type(screen.getByTestId('related-work-identifier-input'), 'ark:12148/btv1b8449691v/f29');
+            await user.type(screen.getByRole('textbox', { name: /Citation label/i }), 'Curated related work');
+
+            await waitFor(() => expect(relatedWorkTrigger).toHaveTextContent('(1)'));
+            await user.click(relatedWorkTrigger);
+            await user.click(relatedWorkTrigger);
+
+            expect(screen.getByTestId('related-work-identifier-input')).toHaveValue('ark:12148/btv1b8449691v/f29');
+            expect(screen.getByRole('textbox', { name: /Citation label/i })).toHaveValue('Curated related work');
+        });
+
+        it('excludes an empty Related Work card from the draft payload', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderForm({
+                initialTitles: [{ title: 'Draft with empty Related Work card', titleType: 'main-title' }],
+                initialRelatedWorks: [
+                    {
+                        identifier: '',
+                        identifier_type: 'DOI',
+                        relation_type: 'Cites',
+                        citation_label: null,
+                    },
+                ],
+            });
+
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledWith('/editor/resources/draft', expect.any(Object), expect.any(Object)));
+            const draftCall = mockedAxios.post.mock.calls.find((call) => call[0] === '/editor/resources/draft');
+            const body = draftCall?.[1] as { relatedIdentifiers: unknown[] };
+
+            expect(body.relatedIdentifiers).toEqual([]);
+        });
+
+        it('includes complete Related Work cards and excludes empty cards from the save payload', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
@@ -7784,6 +7858,13 @@ describe('DataCiteForm', () => {
                             citation_label: 'Doe, J. (2024): Manual citation. Publisher.',
                             source: 'relation_suggestion_assistant',
                             is_repository_curation: true,
+                        },
+                        {
+                            identifier: '   ',
+                            identifier_type: 'DOI',
+                            relation_type: 'Cites',
+                            relation_type_information: null,
+                            citation_label: '',
                         },
                     ]}
                     descriptionTypes={descriptionTypes}
