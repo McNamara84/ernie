@@ -1844,8 +1844,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Label field, or choose <strong>Import CSV</strong> to start a bulk import immediately.
                         </p>
                         <p>
-                            Card values remain available when you collapse and reopen the section. Only one card without an identifier can exist at
-                            a time, so <strong>Add Related Work</strong> remains disabled until you enter an identifier or remove the empty card. An
+                            Card values remain available when you collapse and reopen the section. Only one card without an identifier can exist at a
+                            time, so <strong>Add Related Work</strong> remains disabled until you enter an identifier or remove the empty card. An
                             empty card is not saved and therefore disappears when the editor page is reloaded. Removing the final card returns the
                             section to the same empty state.
                         </p>
@@ -1872,8 +1872,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Refine and Reorder">
                                 <p>
-                                    Adjust the identifier, relation type, and Citation Label directly in the card. Drag completed cards into the
-                                    order you want; this order is preserved in the editor and reused on the landing page.
+                                    Adjust the identifier, relation type, and Citation Label directly in the card. Drag completed cards into the order
+                                    you want; this order is preserved in the editor and reused on the landing page.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
@@ -1893,11 +1893,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>DOI and URL Citation Labels</h4>
                         <p>
-                            When you leave a valid DOI or URL identifier field, ERNIE tries to resolve a formatted Citation Label. DOI metadata may
-                            be retrieved from DataCite; URL labels are available only when that exact URL already exists in ERNIE's metadata cache.
-                            An unavailable label never prevents editing or saving, and ERNIE never overwrites a label you entered manually. Stored
-                            labels are reused on landing pages and in the relation browser, so no third-party citation lookup is needed at page-load
-                            time.
+                            When you leave a valid DOI or URL identifier field, ERNIE tries to resolve a formatted Citation Label. DOI metadata may be
+                            retrieved from DataCite; URL labels are available only when that exact URL already exists in ERNIE's metadata cache. An
+                            unavailable label never prevents editing or saving, and ERNIE never overwrites a label you entered manually. Stored labels
+                            are reused on landing pages and in the relation browser, so no third-party citation lookup is needed at page-load time.
                         </p>
 
                         <h4>Common Relation Types</h4>

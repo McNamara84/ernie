@@ -87,8 +87,7 @@ export default function RelatedWorkItem({
         });
     };
     const identifierTypeWasManuallySelected =
-        item.identifier_type_manually_selected ??
-        (item.identifier.trim() !== '' && detectIdentifierType(item.identifier) !== item.identifier_type);
+        item.identifier_type_manually_selected ?? (item.identifier.trim() !== '' && detectIdentifierType(item.identifier) !== item.identifier_type);
 
     const handleIdentifierChange = (value: string) => {
         const shouldResetManualSelection = value.trim() === '';
@@ -336,7 +335,9 @@ export default function RelatedWorkItem({
                                     Resolving citation label…
                                 </span>
                             )}
-                            {citationResolutionStatus === 'resolved' && item.citation_label?.trim() && <span>Citation label resolved automatically.</span>}
+                            {citationResolutionStatus === 'resolved' && item.citation_label?.trim() && (
+                                <span>Citation label resolved automatically.</span>
+                            )}
                             {citationResolutionStatus === 'unavailable' && (
                                 <span>{citationResolutionMessage ?? 'No automatic citation label found.'}</span>
                             )}

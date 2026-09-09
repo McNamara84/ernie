@@ -538,6 +538,23 @@ describe('RelatedWorkField', () => {
         expect(screen.getByTestId('item-identifier-0')).toHaveValue('');
     });
 
+    it('preserves an empty card while appending and positioning CSV rows', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        render(<StatefulField />);
+        await addFirstCard(user);
+        await user.click(screen.getByRole('button', { name: /import from csv/i }));
+        await user.click(screen.getByTestId('csv-import-submit'));
+        await flushLookup();
+
+        expect(screen.getByTestId('item-identifier-0')).toHaveValue('');
+        expect(screen.getByTestId('item-identifier-1')).toHaveValue('10.1234/csv1');
+        expect(screen.getByTestId('item-identifier-2')).toHaveValue('https://example.org/csv2');
+        expect(screen.getByTestId('position-0')).toHaveTextContent('0');
+        expect(screen.getByTestId('position-1')).toHaveTextContent('1');
+        expect(screen.getByTestId('position-2')).toHaveTextContent('2');
+    });
+
     it('imports DOI and URL rows and hydrates both supported citation types', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         global.fetch = vi
