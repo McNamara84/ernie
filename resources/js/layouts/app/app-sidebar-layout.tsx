@@ -24,7 +24,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWi
         <TooltipProvider delayDuration={0}>
             <AppShell variant="sidebar">
                 <AppSidebar />
-                <AppContent variant="sidebar" className="overflow-x-clip">
+                <AppContent variant="sidebar" className="min-w-0 overflow-x-clip">
                     <AppSidebarHeader breadcrumbs={breadcrumbs} />
                     <ErrorBoundary>
                         <PageTransition>{children}</PageTransition>

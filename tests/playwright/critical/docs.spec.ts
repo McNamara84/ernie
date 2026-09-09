@@ -140,6 +140,7 @@ test.describe('Documentation Page - Interactive Features', () => {
         test('tabs remain functional on mobile', async ({ page }) => {
             // Tabs should still work on mobile
             const datasetsTab = page.getByTestId('tab-datasets');
+            await expect(datasetsTab).toBeInViewport();
             await datasetsTab.click();
 
             await expect(datasetsTab).toHaveAttribute('data-state', 'active');

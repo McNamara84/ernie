@@ -238,6 +238,26 @@ describe('RelatedWorkSection', () => {
         expect(screen.queryByRole('link', { name: /Forthcoming paper/i })).not.toBeInTheDocument();
     });
 
+    it('marks a related item with an identifier but no type as incomplete', () => {
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[]}
+                relatedItems={[
+                    makeRelatedItem({
+                        identifier: 'legacy-record',
+                        identifier_type: null,
+                        titles: [{ id: 3, title: 'Incomplete legacy paper', title_type: 'MainTitle', language: 'en' }],
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('Incomplete legacy paper')).toBeInTheDocument();
+        expect(screen.getByText('Identifier type not yet available')).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /Incomplete legacy paper/i })).not.toBeInTheDocument();
+    });
+
     it('does not render when all identifiers use unsupported types', () => {
         const { container } = render(
             <RelatedWorkSection

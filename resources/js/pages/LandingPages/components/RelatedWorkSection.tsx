@@ -468,11 +468,18 @@ export function RelatedWorkSection({
                                 .sort((a, b) => a.position - b.position)
                                 .map((item) => {
                                     const mainTitle = item.titles.find((t) => t.title_type === 'MainTitle')?.title ?? item.titles[0]?.title ?? '';
+                                    const identifier = item.identifier?.trim() ?? '';
+                                    const identifierType = item.identifier_type?.trim() ?? '';
                                     // Only resolve when a type is set: defaulting to 'DOI'
                                     // would generate bogus doi.org links for URL/Handle/etc.
                                     // identifiers if a legacy record ever lacked a type.
-                                    const url =
-                                        item.identifier && item.identifier_type ? resolveIdentifierUrl(item.identifier, item.identifier_type) : null;
+                                    const url = identifier && identifierType ? resolveIdentifierUrl(identifier, identifierType) : null;
+                                    const identifierStatus =
+                                        identifier === ''
+                                            ? 'Identifier not yet available'
+                                            : identifierType === ''
+                                              ? 'Identifier type not yet available'
+                                              : null;
                                     const authorList = item.creators
                                         .map((c) => c.family_name || c.name)
                                         .filter(Boolean)
@@ -505,8 +512,8 @@ export function RelatedWorkSection({
                                                     )}
                                                 </div>
                                                 {descriptor && <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{descriptor}</div>}
-                                                {!item.identifier?.trim() && (
-                                                    <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">Identifier not yet available</div>
+                                                {identifierStatus && (
+                                                    <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{identifierStatus}</div>
                                                 )}
                                             </div>
                                             {url && (

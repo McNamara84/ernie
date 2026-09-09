@@ -3459,7 +3459,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Documentation" />
-            <div className="mx-auto max-w-7xl p-6">
+            <div className="mx-auto w-full max-w-7xl min-w-0 p-6">
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold">Documentation</h1>
