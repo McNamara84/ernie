@@ -9,7 +9,12 @@
                 "description": "Resource and IGSN landing pages now show prominent links to newer or superseding versions, independently of collapsed or configured Related Work details. Curators can add a forthcoming journal article as rich DataCite related-item metadata without inventing a DOI, clearly review its pending identifier, and add the DOI to the same item later. A dry-run-first, additive administration command can also recover related identifiers omitted from migrated SUMARIO records without overwriting curated ERNIE metadata, with DOI validation, deduplication, CSV reporting, targeted cache invalidation, and optional DataCite synchronization."
             }
         ],
-        "fixes": []
+        "fixes": [
+            {
+                "title": "Validation-Free Related Work CSV Downloads",
+                "description": "Downloading the example CSV from the Data Editor's Related Work importer now only saves the template file. The download, close, cancel, and import controls no longer submit the surrounding editor form or trigger unrelated required-field validation."
+            }
+        ]
     },
     {
         "version": "1.0.8",
