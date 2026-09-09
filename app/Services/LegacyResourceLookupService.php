@@ -31,6 +31,44 @@ class LegacyResourceLookupService
     }
 
     /**
+     * Resolve only the legacy identity and related identifiers needed by the
+     * additive reconciliation command, without loading unrelated metadata.
+     *
+     * @return array{
+     *     found: bool,
+     *     legacyResourceId: int|null,
+     *     relatedIdentifiers: list<array{identifier: string, identifierType: string, relationType: string, position: int}>
+     * }
+     */
+    public function relatedIdentifierMetadataByDoi(string $doi): array
+    {
+        return $this->relatedIdentifierMetadata($doi);
+    }
+
+    /**
+     * Prefer an already persisted SUMARIO identity when available; otherwise
+     * use the DOI lookup and its ambiguity protection.
+     *
+     * @return array{
+     *     found: bool,
+     *     legacyResourceId: int|null,
+     *     relatedIdentifiers: list<array{identifier: string, identifierType: string, relationType: string, position: int}>
+     * }
+     */
+    public function relatedIdentifierMetadata(string $doi, ?int $legacyResourceId = null): array
+    {
+        $resource = $legacyResourceId !== null
+            ? OldDataset::query()->find($legacyResourceId)
+            : $this->findByDoi($doi);
+
+        return [
+            'found' => $resource !== null,
+            'legacyResourceId' => $resource !== null ? (int) $resource->id : null,
+            'relatedIdentifiers' => array_values($resource?->getRelatedIdentifiers() ?? []),
+        ];
+    }
+
+    /**
      * @return array{
      *     relatedIdentifiers: list<array{identifier: string, identifierType: string, relationType: string, position: int}>,
      *     subjects: list<array<string, string>>,

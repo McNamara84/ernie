@@ -68,6 +68,11 @@ export function CitationCard({
                             Inline metadata
                         </Badge>
                     ) : null}
+                    {!item.identifier?.trim() ? (
+                        <Badge variant="outline" data-slot="citation-identifier-status" className="text-xs text-muted-foreground">
+                            Identifier not yet available
+                        </Badge>
+                    ) : null}
 
                     <div className="ml-auto flex items-center gap-1">
                         <ToggleGroup

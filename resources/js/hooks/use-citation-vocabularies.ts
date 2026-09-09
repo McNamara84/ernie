@@ -4,7 +4,7 @@ import { apiRequest } from '@/lib/api-client';
 
 export interface CitationVocabularies {
     resourceTypes: { value: string; label: string }[];
-    relationTypes: { id: number; label: string }[];
+    relationTypes: { id: number; slug: string; label: string }[];
     contributorTypes: { value: string; label: string }[];
 }
 

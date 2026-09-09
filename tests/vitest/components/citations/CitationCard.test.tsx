@@ -66,6 +66,13 @@ describe('CitationCard', () => {
         expect(link).toHaveAttribute('href', 'https://doi.org/10.1234/abcd');
     });
 
+    it('marks a forthcoming item when no identifier is available', () => {
+        render(<CitationCard item={makeItem({ identifier: null, identifier_type: null })} />);
+
+        expect(screen.getByText('Identifier not yet available')).toBeInTheDocument();
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
     it('renders the relation badge when a label is provided', () => {
         render(<CitationCard item={makeItem()} relationLabel="Cites" />);
         expect(screen.getByText('Cites')).toBeInTheDocument();

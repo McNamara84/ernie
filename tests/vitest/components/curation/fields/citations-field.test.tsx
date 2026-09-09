@@ -26,7 +26,7 @@ describe('CitationsField', () => {
             http.get('/related-items/vocabularies', () =>
                 HttpResponse.json({
                     resourceTypes: [{ value: 'JournalArticle', label: 'Journal Article' }],
-                    relationTypes: [{ id: 1, label: 'Cites' }],
+                    relationTypes: [{ id: 1, slug: 'Cites', label: 'Cites' }],
                     contributorTypes: [],
                 }),
             ),
@@ -75,7 +75,7 @@ describe('CitationsField', () => {
             http.get('/related-items/vocabularies', () =>
                 HttpResponse.json({
                     resourceTypes: [{ value: 'JournalArticle', label: 'Journal Article' }],
-                    relationTypes: [{ id: 1, label: 'Cites' }],
+                    relationTypes: [{ id: 1, slug: 'Cites', label: 'Cites' }],
                     contributorTypes: [],
                 }),
             ),
@@ -97,7 +97,7 @@ describe('CitationsField', () => {
             http.get('/related-items/vocabularies', () =>
                 HttpResponse.json({
                     resourceTypes: [{ value: 'JournalArticle', label: 'Journal Article' }],
-                    relationTypes: [{ id: 1, label: 'Cites' }],
+                    relationTypes: [{ id: 1, slug: 'Cites', label: 'Cites' }],
                     contributorTypes: [],
                 }),
             ),

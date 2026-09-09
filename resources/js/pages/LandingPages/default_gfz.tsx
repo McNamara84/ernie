@@ -23,6 +23,7 @@ import { LocationSection } from './components/LocationSection';
 import { ModelDescriptionSection } from './components/ModelDescriptionSection';
 import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { ResourceHero } from './components/ResourceHero';
+import { VersionNotice } from './components/VersionNotice';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
 import { type MetadataSectionKey } from './lib/metadata-sections';
@@ -216,6 +217,7 @@ export default function DefaultGfzTemplate() {
                         citationPresentation={citationPresentation}
                     />
                 }
+                notice={<VersionNotice relatedIdentifiers={resource.related_identifiers || []} relatedItems={resource.related_items || []} />}
                 rightColumnSections={rightColumnSections}
                 leftColumnSections={leftColumnSections}
             />

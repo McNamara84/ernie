@@ -13,8 +13,8 @@ const resourceTypes = [
     { value: 'Book', label: 'Book' },
 ];
 const relationTypes = [
-    { id: 1, label: 'Cites' },
-    { id: 2, label: 'IsSupplementTo' },
+    { id: 1, slug: 'Cites', label: 'Cites' },
+    { id: 2, slug: 'IsSupplementTo', label: 'IsSupplementTo' },
 ];
 const contributorTypes = [{ value: 'Editor', label: 'Editor' }];
 

@@ -19,6 +19,7 @@ export interface RelatedItemFormOption {
 }
 export interface RelationTypeOption {
     id: number;
+    slug: string;
     label: string;
 }
 

@@ -9,7 +9,10 @@ import { http, HttpResponse, server } from '../../helpers/msw-server';
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 const resourceTypes = [{ value: 'JournalArticle', label: 'Journal Article' }];
-const relationTypes = [{ id: 1, label: 'Cites' }];
+const relationTypes = [
+    { id: 1, slug: 'Cites', label: 'Cites' },
+    { id: 2, slug: 'IsSupplementTo', label: 'Is Supplement To' },
+];
 const contributorTypes = [{ value: 'Editor', label: 'Editor' }];
 
 const resourceId = 99;
@@ -80,6 +83,64 @@ describe('CitationManagerModal', () => {
 
         await user.click(screen.getByRole('button', { name: /^Cancel$/ }));
         expect(screen.queryByText('Type *')).toBeNull();
+    });
+
+    it('opens a forthcoming publication form with stable preset values', async () => {
+        server.use(http.get(base, () => HttpResponse.json({ data: [] })));
+        const user = userEvent.setup();
+        renderModal();
+
+        await waitFor(() => expect(screen.getByText(/No related items yet/i)).toBeInTheDocument());
+        await user.click(screen.getByRole('button', { name: /Add forthcoming publication/i }));
+
+        expect(screen.getByText(/identifier is optional and can be added to this item later/i)).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: /^Type \*$/i })).toHaveTextContent('Journal Article');
+        expect(screen.getByRole('combobox', { name: /Relation type \*/i })).toHaveTextContent('Is Supplement To');
+        expect(screen.getByPlaceholderText(/10\.1234\/abcd/)).toHaveValue('');
+    });
+
+    it('creates a forthcoming publication without sending a placeholder identifier', async () => {
+        let payload: Record<string, unknown> | null = null;
+        server.use(
+            http.get(base, () => HttpResponse.json({ data: [] })),
+            http.post(base, async ({ request }) => {
+                payload = (await request.json()) as Record<string, unknown>;
+                return HttpResponse.json({ data: { ...sampleItem, id: 2, ...payload } }, { status: 201 });
+            }),
+        );
+        const user = userEvent.setup();
+        renderModal();
+
+        await waitFor(() => expect(screen.getByText(/No related items yet/i)).toBeInTheDocument());
+        await user.click(screen.getByRole('button', { name: /Add forthcoming publication/i }));
+        await user.type(screen.getByPlaceholderText('Title'), 'Paper to be published');
+        await user.click(screen.getByRole('button', { name: /^Save$/ }));
+
+        await waitFor(() => expect(payload).not.toBeNull());
+        expect(payload).toMatchObject({
+            related_item_type: 'JournalArticle',
+            relation_type_id: 2,
+            identifier: null,
+            identifier_type: null,
+        });
+    });
+
+    it('disables the forthcoming preset when IsSupplementTo is unavailable', async () => {
+        server.use(http.get(base, () => HttpResponse.json({ data: [] })));
+        render(
+            <CitationManagerModal
+                open
+                onOpenChange={() => {}}
+                resourceId={resourceId}
+                resourceTypes={resourceTypes}
+                relationTypes={[{ id: 1, slug: 'Cites', label: 'Cites' }]}
+                contributorTypes={contributorTypes}
+            />,
+        );
+
+        const button = await screen.findByRole('button', { name: /Add forthcoming publication/i });
+        expect(button).toBeDisabled();
+        expect(button).toHaveAccessibleDescription(/required vocabularies are missing/i);
     });
 
     it('creates a new related item and returns to the list', async () => {

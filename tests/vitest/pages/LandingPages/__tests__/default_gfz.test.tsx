@@ -73,6 +73,36 @@ describe('DefaultGfzTemplate', () => {
         expect(screen.getByText('Abstract')).toBeInTheDocument();
     });
 
+    it('renders the version notice independently of Related Work visibility settings', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: {
+                    ...mockResource,
+                    related_identifiers: [
+                        {
+                            id: 40,
+                            identifier: '10.5880/gfz.new-version',
+                            identifier_type: 'DOI',
+                            relation_type: 'IsPreviousVersionOf',
+                            citation_label: 'New resource version',
+                        },
+                    ],
+                },
+                landingPage: mockLandingPage,
+                isPreview: false,
+                typeVisibility: { excludedDateTypes: [], excludedRelationTypes: ['IsPreviousVersionOf'] },
+            },
+        } as unknown as ReturnType<typeof usePage>);
+
+        render(<DefaultGfzTemplate />);
+
+        const notice = screen.getByTestId('version-notice');
+        expect(notice).toBeInTheDocument();
+        expect(screen.getByText('New resource version')).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Related Work' })).not.toBeInTheDocument();
+        expect(notice.compareDocumentPosition(screen.getByTestId('landing-page-right-column')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     it('renders the server-provided document title through Inertia Head', () => {
         mockUsePage.mockReturnValue({
             props: {

@@ -10,6 +10,7 @@ interface LandingPageShellProps {
     mainAriaLabel: string;
     customLogoUrl?: string | null;
     hero: ReactNode;
+    notice?: ReactNode;
     leftColumnSections: ReactNode[];
     rightColumnSections: ReactNode[];
 }
@@ -20,6 +21,7 @@ export function LandingPageShell({
     mainAriaLabel,
     customLogoUrl,
     hero,
+    notice,
     leftColumnSections,
     rightColumnSections,
 }: LandingPageShellProps) {
@@ -74,6 +76,8 @@ export function LandingPageShell({
 
                     <main id="main-content" aria-label={mainAriaLabel} tabIndex={-1}>
                         {hero}
+
+                        {notice ? <div className="mx-8 mb-6">{notice}</div> : null}
 
                         <div className="mx-8 mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
                             <div data-testid="landing-page-right-column" className="order-1 space-y-6 lg:order-2 lg:col-span-2">

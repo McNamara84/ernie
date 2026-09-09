@@ -112,6 +112,32 @@ describe('RelatedItemController', function () {
         expect(RelatedItem::count())->toBe(1);
     });
 
+    test('store and update support a forthcoming publication without a placeholder identifier', function () {
+        [$resourceType, $relationType] = seedRelatedItemPrereqs();
+        $user = User::factory()->create();
+        $resource = Resource::factory()->create();
+        $payload = validStorePayload($relationType->id);
+        $payload['identifier'] = null;
+        $payload['identifier_type'] = null;
+
+        $response = $this->actingAs($user)
+            ->postJson("/resources/{$resource->id}/related-items", $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.identifier', null)
+            ->assertJsonPath('data.identifier_type', null);
+
+        $payload['identifier'] = '10.1234/published-later';
+        $payload['identifier_type'] = 'DOI';
+
+        $this->actingAs($user)
+            ->putJson("/resources/{$resource->id}/related-items/{$response->json('data.id')}", $payload)
+            ->assertOk()
+            ->assertJsonPath('data.identifier', '10.1234/published-later')
+            ->assertJsonPath('data.identifier_type', 'DOI');
+
+        expect(RelatedItem::count())->toBe(1);
+    });
+
     test('store rejects payloads without a MainTitle', function () {
         [$resourceType, $relationType] = seedRelatedItemPrereqs();
         $user = User::factory()->create();
@@ -234,13 +260,14 @@ describe('RelatedItemController', function () {
             ->assertOk()
             ->assertJsonStructure([
                 'resourceTypes' => [['value', 'label']],
-                'relationTypes' => [['id', 'label']],
+                'relationTypes' => [['id', 'slug', 'label']],
                 'contributorTypes',
             ]);
 
         $body = $response->json();
         expect($body['resourceTypes'])->not->toBeEmpty();
         expect($body['relationTypes'])->not->toBeEmpty();
+        expect($body['relationTypes'][0])->toHaveKey('slug');
     });
 
     test('vocabularies requires authentication', function () {

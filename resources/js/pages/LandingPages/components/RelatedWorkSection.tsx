@@ -31,7 +31,10 @@ const normalizeTypeSlug = (value: string | null | undefined): string => value?.t
  * e.g. "IsDocumentedBy" -> "Is Documented By"
  */
 function formatRelationType(type: string): string {
-    return type.replace(/([A-Z])/g, ' $1').trim();
+    return type
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 function getRelatedIdentifierLabel(relatedIdentifier: LandingPageRelatedIdentifier, useIgsnHandles: boolean): string {
@@ -493,8 +496,18 @@ export function RelatedWorkSection({
                                                 aria-hidden="true"
                                             />
                                             <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-                                                <div className="font-medium">{mainTitle}</div>
+                                                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 [overflow-wrap:anywhere]">
+                                                    <span className="font-medium">{mainTitle}</span>
+                                                    {(item.relation_type || item.relation_type_slug) && (
+                                                        <Badge variant="outline" className="text-[10px] font-normal">
+                                                            {formatRelationType(item.relation_type || item.relation_type_slug || '')}
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                                 {descriptor && <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{descriptor}</div>}
+                                                {!item.identifier?.trim() && (
+                                                    <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">Identifier not yet available</div>
+                                                )}
                                             </div>
                                             {url && (
                                                 <ExternalLink

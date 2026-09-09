@@ -211,7 +211,31 @@ describe('RelatedWorkSection', () => {
         expect(screen.getByTestId('related-items-list')).toBeInTheDocument();
         expect(screen.getByText('Inline metadata')).toBeInTheDocument();
         expect(screen.getByText('Cited Paper Title')).toBeInTheDocument();
+        expect(screen.getByText('Is Cited By')).toBeInTheDocument();
         expect(screen.getByText(/Doe/)).toBeInTheDocument();
+    });
+
+    it('renders a forthcoming related item without turning it into a link', () => {
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[]}
+                relatedItems={[
+                    makeRelatedItem({
+                        identifier: null,
+                        identifier_type: null,
+                        relation_type: 'Is Supplement To',
+                        relation_type_slug: 'IsSupplementTo',
+                        titles: [{ id: 2, title: 'Forthcoming paper', title_type: 'MainTitle', language: 'en' }],
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('Forthcoming paper')).toBeInTheDocument();
+        expect(screen.getByText('Is Supplement To')).toBeInTheDocument();
+        expect(screen.getByText('Identifier not yet available')).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /Forthcoming paper/i })).not.toBeInTheDocument();
     });
 
     it('does not render when all identifiers use unsupported types', () => {
