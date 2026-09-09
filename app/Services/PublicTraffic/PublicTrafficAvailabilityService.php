@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 final readonly class PublicTrafficAvailabilityService
 {
@@ -49,7 +50,11 @@ final readonly class PublicTrafficAvailabilityService
                 throw new RuntimeException('The public traffic deduplication cache is not readable and writable.');
             }
         } finally {
-            Cache::forget($key);
+            try {
+                Cache::forget($key);
+            } catch (Throwable) {
+                // Cleanup must not hide the original cache probe failure.
+            }
         }
     }
 }

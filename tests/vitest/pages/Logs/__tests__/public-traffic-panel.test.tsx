@@ -62,8 +62,16 @@ describe('PublicTrafficPanel', () => {
         const heatmapCells = within(heatmap).getAllByRole('button');
         expect(heatmapCells).toHaveLength(168);
         expect(heatmapCells[0]).toHaveClass('bg-emerald-50');
+        expect(heatmapCells[1]).toHaveClass('bg-sky-100');
+        expect(heatmapCells[34]).toHaveClass('bg-sky-200');
         expect(heatmapCells[120]).toHaveClass('bg-blue-600');
         expect(heatmapCells[167]).toHaveClass('bg-blue-700');
+
+        const legend = screen.getByLabelText('Traffic intensity legend');
+        const legendSwatches = legend.querySelectorAll('span[aria-hidden="true"]');
+        expect(legendSwatches).toHaveLength(7);
+        expect(legendSwatches[1]).toHaveClass('bg-sky-100');
+        expect(legendSwatches[2]).toHaveClass('bg-sky-200');
         expect(within(heatmap).getByRole('button', { name: /Monday, 00:00–01:00: 0 estimated visitors/ })).toBeInTheDocument();
         expect(
             within(heatmap).getByRole('button', {
@@ -81,6 +89,15 @@ describe('PublicTrafficPanel', () => {
         expect(privacyNotice.textContent).toMatch(
             /Raw IP addresses and user agents are not stored, and only hourly aggregate counts persist in MySQL/,
         );
+    });
+
+    it('uses the API-provided timezone in the subtitle', async () => {
+        mockedGet.mockResolvedValue({ data: { ...response, timezone: 'America/New_York' } });
+
+        render(<PublicTrafficPanel />);
+
+        expect(await screen.findByText(/Landing pages and DOI\/IGSN portals · America\/New_York/)).toBeInTheDocument();
+        expect(screen.queryByText(/Landing pages and DOI\/IGSN portals · Europe\/Berlin/)).not.toBeInTheDocument();
     });
 
     it.each([

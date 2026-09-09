@@ -120,6 +120,41 @@ it('fails without recording when the shared cache is unavailable', function (): 
     expect(PublicTrafficHourlyStatistic::query()->count())->toBe(0);
 });
 
+it('preserves the original cache probe failure when cleanup also fails', function (): void {
+    Http::fake([
+        'https://ernie.example.test/health' => Http::response(['status' => 'ok']),
+    ]);
+    Cache::shouldReceive('put')
+        ->once()
+        ->andThrow(new RuntimeException('primary cache probe failure'));
+    Cache::shouldReceive('forget')
+        ->once()
+        ->andThrow(new RuntimeException('cleanup cache failure'));
+
+    expect(fn () => app(PublicTrafficAvailabilityService::class)->observe())
+        ->toThrow(RuntimeException::class, 'primary cache probe failure');
+    expect(PublicTrafficHourlyStatistic::query()->count())->toBe(0);
+});
+
+it('preserves the original cache read failure when cleanup also fails', function (): void {
+    Http::fake([
+        'https://ernie.example.test/health' => Http::response(['status' => 'ok']),
+    ]);
+    Cache::shouldReceive('put')
+        ->once()
+        ->andReturnTrue();
+    Cache::shouldReceive('get')
+        ->once()
+        ->andThrow(new RuntimeException('primary cache read failure'));
+    Cache::shouldReceive('forget')
+        ->once()
+        ->andThrow(new RuntimeException('cleanup cache failure'));
+
+    expect(fn () => app(PublicTrafficAvailabilityService::class)->observe())
+        ->toThrow(RuntimeException::class, 'primary cache read failure');
+    expect(PublicTrafficHourlyStatistic::query()->count())->toBe(0);
+});
+
 it('ignores an older minute after a newer minute has already been observed', function (): void {
     Http::fake([
         'https://ernie.example.test/health' => Http::response(['status' => 'ok']),

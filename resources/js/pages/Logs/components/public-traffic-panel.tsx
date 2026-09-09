@@ -219,6 +219,7 @@ function TrafficHeatmap({ cells }: { cells: PublicTrafficCell[] }) {
                     <span>Quieter</span>
                     {[
                         'bg-emerald-50 dark:bg-emerald-950/40',
+                        'bg-sky-100 dark:bg-sky-950/50',
                         'bg-sky-200 dark:bg-sky-900/60',
                         'bg-blue-300 dark:bg-blue-800',
                         'bg-blue-600 dark:bg-blue-700',
@@ -305,7 +306,8 @@ export default function PublicTrafficPanel({ refreshKey = 0 }: PublicTrafficPane
                         )}
                     </div>
                     <p className="mt-1 max-w-4xl text-sm text-muted-foreground">
-                        Estimated unique signed-out visitors · Landing pages and DOI/IGSN portals · Europe/Berlin
+                        Estimated unique signed-out visitors · Landing pages and DOI/IGSN portals
+                        {traffic ? ` · ${traffic.timezone}` : ''}
                     </p>
                 </div>
 
