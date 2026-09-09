@@ -66,6 +66,21 @@ describe('CitationCard', () => {
         expect(link).toHaveAttribute('href', 'https://doi.org/10.1234/abcd');
     });
 
+    it('marks a forthcoming item when no identifier is available', () => {
+        render(<CitationCard item={makeItem({ identifier: null, identifier_type: null })} />);
+
+        expect(screen.getByText('Identifier not yet available')).toBeInTheDocument();
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('marks an identifier without a type as incomplete without creating a link', () => {
+        render(<CitationCard item={makeItem({ identifier: 'legacy-record', identifier_type: null })} />);
+
+        expect(screen.getByText('Identifier type not yet available')).toBeInTheDocument();
+        expect(screen.getByText('Identifier: legacy-record')).toBeInTheDocument();
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
     it('renders the relation badge when a label is provided', () => {
         render(<CitationCard item={makeItem()} relationLabel="Cites" />);
         expect(screen.getByText('Cites')).toBeInTheDocument();
@@ -75,19 +90,10 @@ describe('CitationCard', () => {
         const onEdit = vi.fn();
         const onDelete = vi.fn();
 
-        const { rerender } = render(
-            <CitationCard item={makeItem()} onEdit={onEdit} onDelete={onDelete} />,
-        );
+        const { rerender } = render(<CitationCard item={makeItem()} onEdit={onEdit} onDelete={onDelete} />);
         expect(screen.queryByRole('button', { name: /edit related item/i })).toBeNull();
 
-        rerender(
-            <CitationCard
-                item={makeItem()}
-                editable
-                onEdit={onEdit}
-                onDelete={onDelete}
-            />,
-        );
+        rerender(<CitationCard item={makeItem()} editable onEdit={onEdit} onDelete={onDelete} />);
         expect(screen.getByRole('button', { name: /edit related item/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /delete related item/i })).toBeInTheDocument();
     });
@@ -97,14 +103,7 @@ describe('CitationCard', () => {
         const onEdit = vi.fn();
         const onDelete = vi.fn();
 
-        render(
-            <CitationCard
-                item={makeItem({ id: 42 })}
-                editable
-                onEdit={onEdit}
-                onDelete={onDelete}
-            />,
-        );
+        render(<CitationCard item={makeItem({ id: 42 })} editable onEdit={onEdit} onDelete={onDelete} />);
 
         await user.click(screen.getByRole('button', { name: /edit related item/i }));
         await user.click(screen.getByRole('button', { name: /delete related item/i }));
@@ -117,9 +116,7 @@ describe('CitationCard', () => {
         const user = userEvent.setup();
         render(<CitationCard item={makeItem()} />);
 
-        const writeSpy = vi
-            .spyOn(navigator.clipboard, 'writeText')
-            .mockResolvedValue(undefined);
+        const writeSpy = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
 
         await user.click(screen.getByRole('button', { name: /copy citation/i }));
 

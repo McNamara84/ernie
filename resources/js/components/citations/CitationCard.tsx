@@ -43,6 +43,9 @@ export function CitationCard({
 }: CitationCardProps) {
     const [style, setStyle] = useState<CitationStyle>(defaultStyle);
     const citation = formatCitation(item, style);
+    const identifier = item.identifier?.trim() ?? '';
+    const identifierType = item.identifier_type?.trim() ?? '';
+    const identifierStatus = identifier === '' ? 'Identifier not yet available' : identifierType === '' ? 'Identifier type not yet available' : null;
 
     const handleCopy = useCallback(async () => {
         try {
@@ -66,6 +69,11 @@ export function CitationCard({
                     {!hideBadge ? (
                         <Badge variant="outline" className="text-xs">
                             Inline metadata
+                        </Badge>
+                    ) : null}
+                    {identifierStatus ? (
+                        <Badge variant="outline" data-slot="citation-identifier-status" className="text-xs text-muted-foreground">
+                            {identifierStatus}
                         </Badge>
                     ) : null}
 
@@ -114,13 +122,13 @@ export function CitationCard({
                     {citation}
                 </p>
 
-                {item.identifier ? (
+                {identifier ? (
                     <div className="text-xs wrap-break-word text-muted-foreground">
-                        {item.identifier_type === 'DOI' ? (
+                        {identifierType === 'DOI' ? (
                             (() => {
                                 // Strip any resolver URL or `doi:` prefix the user may have
                                 // pasted, so we never end up with `https://doi.org/https://…`.
-                                const bare = normalizeIdentifier(item.identifier, 'DOI');
+                                const bare = normalizeIdentifier(identifier, 'DOI');
                                 const href = `https://doi.org/${encodeURI(bare)}`;
                                 return (
                                     <a
@@ -133,10 +141,12 @@ export function CitationCard({
                                     </a>
                                 );
                             })()
-                        ) : (
+                        ) : identifierType ? (
                             <span>
-                                {item.identifier_type}: {item.identifier}
+                                {identifierType}: {identifier}
                             </span>
+                        ) : (
+                            <span>Identifier: {identifier}</span>
                         )}
                     </div>
                 ) : null}

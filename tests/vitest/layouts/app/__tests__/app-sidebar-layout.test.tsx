@@ -41,7 +41,7 @@ describe('AppSidebarLayout', () => {
         expect(AppSidebarMock).toHaveBeenCalled();
         const content = screen.getByTestId('app-content');
         expect(content).toHaveAttribute('data-variant', 'sidebar');
-        expect(content).toHaveClass('overflow-x-clip');
+        expect(content).toHaveClass('min-w-0', 'overflow-x-clip');
         expect(content).not.toHaveClass('overflow-x-hidden');
         expect(screen.getByTestId('app-sidebar-header')).toHaveTextContent('Settings');
         expect(screen.getByText('Child')).toBeInTheDocument();

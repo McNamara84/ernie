@@ -86,6 +86,33 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(document.head.querySelector('meta[name="robots"]')).not.toBeInTheDocument();
         });
 
+        it('renders a superseded notice for an IGSN landing page', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        related_identifiers: [
+                            {
+                                id: 41,
+                                identifier: '10.60510/new-igsn-version',
+                                identifier_type: 'DOI',
+                                relation_type: 'IsObsoletedBy',
+                                citation_label: 'Replacement sample record',
+                            },
+                        ],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            const notice = screen.getByTestId('version-notice');
+            expect(notice).toHaveAttribute('data-severity', 'warning');
+            expect(within(notice).getByText('Replacement sample record')).toBeInTheDocument();
+        });
+
         it('renders the server-provided preview title through Inertia Head', () => {
             mockUsePage.mockReturnValue({
                 props: {

@@ -236,9 +236,11 @@ final readonly class RelatedIdentifierImportMergeService
             return;
         }
 
-        $key = $record['relatedIdentifierType'].'|'
-            .$this->normalizedIdentifier($identifier, (string) $record['relatedIdentifierType']).'|'
-            .$record['relationType'];
+        $key = $this->normalizedKey(
+            $identifier,
+            (string) $record['relatedIdentifierType'],
+            (string) $record['relationType'],
+        );
 
         if (isset($keyIndexes[$key])) {
             $existingIndex = $keyIndexes[$key];
@@ -265,15 +267,28 @@ final readonly class RelatedIdentifierImportMergeService
     {
         $identifier = trim($identifier);
 
-        if ($identifierType === 'DOI') {
-            $identifier = preg_replace(
-                '/^(?:doi:\s*|https?:\/\/(?:doi\.org|dx\.doi\.org)\/)/i',
-                '',
-                $identifier,
-            ) ?? $identifier;
+        if (strcasecmp($identifierType, 'DOI') !== 0) {
+            return $identifier;
         }
 
+        $identifier = preg_replace(
+            '/^(?:doi:\s*|https?:\/\/(?:doi\.org|dx\.doi\.org)\/)/i',
+            '',
+            $identifier,
+        ) ?? $identifier;
+
         return mb_strtolower(trim($identifier));
+    }
+
+    /**
+     * Build the canonical identity used to compare related identifiers across
+     * DataCite JSON, XML, SUMARIO and already persisted ERNIE records.
+     */
+    public function normalizedKey(string $identifier, string $identifierType, string $relationType): string
+    {
+        return $identifierType.'|'
+            .$this->normalizedIdentifier($identifier, $identifierType).'|'
+            .$relationType;
     }
 
     private function valueIsBlank(mixed $value): bool

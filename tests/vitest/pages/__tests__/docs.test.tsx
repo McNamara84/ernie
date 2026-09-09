@@ -205,6 +205,21 @@ describe('Docs page', () => {
         expect(screen.queryByText(/igsn:backfill-classifications/)).not.toBeInTheDocument();
     });
 
+    it('documents legacy related-identifier reconciliation only for admins', () => {
+        const { unmount } = render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByRole('heading', { name: 'Reconcile Missing Legacy Related Identifiers', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/resources:reconcile-legacy-related-identifiers --doi=.*related-work-audit\.csv/)).toBeInTheDocument();
+        expect(screen.getByText(/runs as a dry run by default/i)).toBeInTheDocument();
+        expect(screen.getByText(/does not publish metadata changes to DataCite unless/i)).toBeInTheDocument();
+
+        unmount();
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.queryByRole('heading', { name: 'Reconcile Missing Legacy Related Identifiers' })).not.toBeInTheDocument();
+        expect(screen.queryByText(/resources:reconcile-legacy-related-identifiers/)).not.toBeInTheDocument();
+    });
+
     it('shows the complete DataCite landing-page URL migration workflow only to admins', async () => {
         const { user } = renderDocsPage('admin');
         await openDatasetsTab(user);
@@ -812,6 +827,19 @@ describe('Docs page', () => {
         expect(screen.getByText(/Contact messages still use the email and route of the actual contact row/i)).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'License Display', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/Creative Commons Attribution 4\.0 International \(CC BY 4\.0\)/i)).toBeInTheDocument();
+    });
+
+    it('documents forthcoming publications and independent version notices for dataset users', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Adding a Forthcoming Publication without a DOI', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/Add forthcoming publication/i)).toBeInTheDocument();
+        expect(screen.getByText(/Leave the identifier and identifier type empty instead of inventing a placeholder DOI/i)).toBeInTheDocument();
+        expect(screen.getByText(/Updating the existing item preserves its metadata and avoids a duplicate relation/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Newer-Version and Superseded Notices', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/It remains visible even when Related Work is collapsed/i)).toBeInTheDocument();
     });
 
     it('shows landing pages documentation for curator', async () => {

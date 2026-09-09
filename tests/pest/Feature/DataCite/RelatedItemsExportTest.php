@@ -13,6 +13,7 @@ use App\Models\Resource;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteXmlExporter;
+use App\Services\JsonSchemaValidator;
 use App\Services\SchemaOrgJsonLdExporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -123,6 +124,17 @@ describe('DataCiteXmlExporter — relatedItems', function () {
         expect($xml)->not->toContain('<relatedItems>');
     });
 
+    test('exports a forthcoming related item without an identifier element', function () {
+        $resource = makeResourceWithRelatedItem();
+        $resource->relatedItems[0]->update(['identifier' => null, 'identifier_type' => null]);
+
+        $xml = (new DataCiteXmlExporter)->export($resource->fresh());
+
+        expect($xml)->toContain('<relatedItem relatedItemType="JournalArticle" relationType="Cites">')
+            ->toContain('<title>The Main Title</title>')
+            ->not->toContain('<relatedItemIdentifier');
+    });
+
     test('emits relatedMetadataScheme/schemeURI/schemeType attributes on <relatedItemIdentifier>', function () {
         $resource = makeResourceWithRelatedItem();
         $item = $resource->relatedItems[0];
@@ -179,6 +191,32 @@ describe('DataCiteJsonExporter — relatedItems', function () {
         $json = (new DataCiteJsonExporter)->export($resource);
 
         expect($json['data']['attributes'])->not->toHaveKey('relatedItems');
+    });
+
+    test('exports a forthcoming related item without an identifier property', function () {
+        $resource = makeResourceWithRelatedItem();
+        $resource->relatedItems[0]->update(['identifier' => null, 'identifier_type' => null]);
+
+        $attributes = (new DataCiteJsonExporter)->export($resource->fresh())['data']['attributes'];
+        $relatedItem = $attributes['relatedItems'][0];
+
+        expect($relatedItem)->toMatchArray([
+            'relatedItemType' => 'JournalArticle',
+            'relationType' => 'Cites',
+            'titles' => [['title' => 'The Main Title'], ['title' => 'A Subtitle', 'titleType' => 'Subtitle']],
+        ])->not->toHaveKey('relatedItemIdentifier');
+        $schemaErrors = [];
+        $schemaPayload = [
+            'identifiers' => [['identifier' => '10.5880/test.2026.001', 'identifierType' => 'DOI']],
+            'creators' => [['name' => 'Test Author']],
+            'titles' => [['title' => 'Test Resource']],
+            'publisher' => 'GFZ Data Services',
+            'publicationYear' => '2026',
+            'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
+            'relatedItems' => $attributes['relatedItems'],
+        ];
+        expect((new JsonSchemaValidator)->isValid($schemaPayload, $schemaErrors))
+            ->toBeTrue(json_encode($schemaErrors, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     });
 
     test('omits person identifiers and affiliations unsupported by DataCite relatedItem', function () {

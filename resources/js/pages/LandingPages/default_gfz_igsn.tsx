@@ -30,6 +30,7 @@ import { RepositoriesSection } from './components/RepositoriesSection';
 import { ResourceHero } from './components/ResourceHero';
 import { SampleFamilySection } from './components/SampleFamilySection';
 import { SampleImageSection } from './components/SampleImageSection';
+import { VersionNotice } from './components/VersionNotice';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { replaceIgsnIdentifierText } from './lib/igsn-display';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
@@ -224,6 +225,7 @@ export default function DefaultGfzIgsnTemplate() {
                         useIgsnIcon={true}
                     />
                 }
+                notice={<VersionNotice relatedIdentifiers={resource.related_identifiers || []} relatedItems={resource.related_items || []} />}
                 rightColumnSections={orders.right.map((key) => sectionRegistry[key]).filter(Boolean)}
                 leftColumnSections={orders.left.map((key) => sectionRegistry[key]).filter(Boolean)}
             />

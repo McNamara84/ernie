@@ -29,7 +29,7 @@ interface CitationManagerModalProps {
     contributorTypes: RelatedItemFormOption[];
 }
 
-type Mode = { type: 'list' } | { type: 'create' } | { type: 'edit'; item: RelatedItem };
+type Mode = { type: 'list' } | { type: 'create'; preset?: 'forthcoming' } | { type: 'edit'; item: RelatedItem };
 
 /**
  * Modal wrapper that manages the list of related items for a resource.
@@ -43,6 +43,9 @@ export function CitationManagerModal({ open, onOpenChange, resourceId, resourceT
     const [submitting, setSubmitting] = useState(false);
     const [pendingDelete, setPendingDelete] = useState<RelatedItem | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const forthcomingRelation = relationTypes.find((relation) => relation.slug === 'IsSupplementTo');
+    const hasJournalArticleType = resourceTypes.some((resourceType) => resourceType.value === 'JournalArticle');
+    const canCreateForthcoming = forthcomingRelation !== undefined && hasJournalArticleType;
 
     const relationLabelOf = (item: RelatedItem): string | undefined => relationTypes.find((r) => r.id === item.relation_type_id)?.label;
 
@@ -127,12 +130,40 @@ export function CitationManagerModal({ open, onOpenChange, resourceId, resourceT
                             <Button variant="outline" onClick={() => onOpenChange(false)}>
                                 Close
                             </Button>
-                            <Button onClick={() => setMode({ type: 'create' })}>Add related item</Button>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <Button
+                                    variant="outline"
+                                    disabled={!canCreateForthcoming}
+                                    aria-describedby={!canCreateForthcoming ? 'forthcoming-preset-unavailable' : undefined}
+                                    onClick={() => setMode({ type: 'create', preset: 'forthcoming' })}
+                                >
+                                    Add forthcoming publication
+                                </Button>
+                                <Button onClick={() => setMode({ type: 'create' })}>Add related item</Button>
+                            </div>
+                            {!canCreateForthcoming ? (
+                                <p id="forthcoming-preset-unavailable" className="sr-only">
+                                    The forthcoming publication preset is unavailable because its required vocabularies are missing.
+                                </p>
+                            ) : null}
                         </DialogFooter>
                     </div>
                 ) : mode.type === 'create' ? (
                     <div data-slot="citation-manager-create">
+                        {mode.preset === 'forthcoming' ? (
+                            <p className="mb-4 text-sm text-muted-foreground" data-slot="forthcoming-publication-help">
+                                Add the publication title now. The identifier is optional and can be added to this item later.
+                            </p>
+                        ) : null}
                         <RelatedItemForm
+                            initialValue={
+                                mode.preset === 'forthcoming' && forthcomingRelation
+                                    ? {
+                                          related_item_type: 'JournalArticle',
+                                          relation_type_id: forthcomingRelation.id,
+                                      }
+                                    : undefined
+                            }
                             resourceTypes={resourceTypes}
                             relationTypes={relationTypes}
                             contributorTypes={contributorTypes}

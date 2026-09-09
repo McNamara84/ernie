@@ -109,8 +109,8 @@ class RelatedItemController extends Controller
         $relationTypes = RelationType::query()
             ->where('is_active', true)
             ->orderByName()
-            ->get(['id', 'name'])
-            ->map(fn (RelationType $t): array => ['id' => $t->id, 'label' => $t->name])
+            ->get(['id', 'slug', 'name'])
+            ->map(fn (RelationType $t): array => ['id' => $t->id, 'slug' => $t->slug, 'label' => $t->name])
             ->all();
 
         $contributorTypes = ContributorType::query()
