@@ -188,10 +188,14 @@ export function RelatedWorkSection({
     const [browserOpen, setBrowserOpen] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [copiedRelatedIdentifierId, setCopiedRelatedIdentifierId] = useState<number | null>(null);
+    const [copyAnnouncementOperationId, setCopyAnnouncementOperationId] = useState<number | null>(null);
     const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const copyOperationRef = useRef(0);
 
     useEffect(() => {
         return () => {
+            copyOperationRef.current += 1;
+
             if (copyTimeoutRef.current) {
                 clearTimeout(copyTimeoutRef.current);
             }
@@ -205,6 +209,7 @@ export function RelatedWorkSection({
         }
 
         setCopiedRelatedIdentifierId(null);
+        setCopyAnnouncementOperationId(null);
     };
 
     const handleCopyCitation = async (relatedIdentifier: LandingPageRelatedIdentifier) => {
@@ -214,13 +219,21 @@ export function RelatedWorkSection({
             return;
         }
 
+        const operationId = ++copyOperationRef.current;
+
         try {
             if (!navigator.clipboard?.writeText) {
                 throw new Error('Clipboard API unavailable');
             }
 
             await navigator.clipboard.writeText(citation);
+
+            if (operationId !== copyOperationRef.current) {
+                return;
+            }
+
             setCopiedRelatedIdentifierId(relatedIdentifier.id);
+            setCopyAnnouncementOperationId(operationId);
             toast.success('Citation copied to clipboard');
 
             if (copyTimeoutRef.current) {
@@ -229,9 +242,14 @@ export function RelatedWorkSection({
 
             copyTimeoutRef.current = setTimeout(() => {
                 setCopiedRelatedIdentifierId(null);
+                setCopyAnnouncementOperationId(null);
                 copyTimeoutRef.current = null;
             }, 2000);
         } catch {
+            if (operationId !== copyOperationRef.current) {
+                return;
+            }
+
             clearCopiedState();
             toast.error('Failed to copy citation');
         }
@@ -531,7 +549,7 @@ export function RelatedWorkSection({
             )}
 
             <span className="sr-only" aria-live="polite" role="status">
-                {copiedRelatedIdentifierId !== null ? 'Citation copied to clipboard' : ''}
+                {copyAnnouncementOperationId !== null ? <span key={copyAnnouncementOperationId}>Citation copied to clipboard</span> : null}
             </span>
 
             {browserOpen && (

@@ -47,6 +47,17 @@ function setClipboard(clipboardWriteText: typeof writeText) {
     });
 }
 
+function createDeferredClipboardWrite() {
+    let resolve!: () => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<void>((resolvePromise, rejectPromise) => {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+    });
+
+    return { promise, resolve, reject };
+}
+
 const mockResource: LandingPageResource = {
     id: 1,
     identifier: '10.5880/GFZ.1.2.2024.001',
@@ -440,6 +451,120 @@ describe('RelatedWorkSection', () => {
         act(() => vi.advanceTimersByTime(1));
         expect(secondButton).toHaveAttribute('title', 'Copy citation');
         expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    });
+
+    it('reinserts the live-region message for every successful copy', async () => {
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[makeRelatedIdentifier({ id: 1, citation_label: 'Repeated citation' })]}
+            />,
+        );
+
+        const copyButton = within(screen.getByTestId('related-work-entry-1')).getByRole('button', { name: 'Copy citation to clipboard' });
+        const status = screen.getByRole('status');
+
+        await act(async () => {
+            fireEvent.click(copyButton);
+            await Promise.resolve();
+        });
+
+        const firstAnnouncement = status.firstElementChild;
+        expect(firstAnnouncement).toHaveTextContent('Citation copied to clipboard');
+
+        await act(async () => {
+            fireEvent.click(copyButton);
+            await Promise.resolve();
+        });
+
+        expect(status.firstElementChild).toHaveTextContent('Citation copied to clipboard');
+        expect(status.firstElementChild).not.toBe(firstAnnouncement);
+        expect(writeText).toHaveBeenCalledTimes(2);
+        expect(mockToastSuccess).toHaveBeenCalledTimes(2);
+    });
+
+    it('ignores a stale success when an earlier clipboard write finishes last', async () => {
+        const firstWrite = createDeferredClipboardWrite();
+        const secondWrite = createDeferredClipboardWrite();
+        writeText.mockImplementationOnce(() => firstWrite.promise).mockImplementationOnce(() => secondWrite.promise);
+
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[
+                    makeRelatedIdentifier({ id: 1, citation_label: 'Slow first citation' }),
+                    makeRelatedIdentifier({ id: 2, identifier: '10.5880/second', citation_label: 'Fast second citation' }),
+                ]}
+            />,
+        );
+
+        const firstButton = within(screen.getByTestId('related-work-entry-1')).getByRole('button', { name: 'Copy citation to clipboard' });
+        const secondButton = within(screen.getByTestId('related-work-entry-2')).getByRole('button', { name: 'Copy citation to clipboard' });
+
+        fireEvent.click(firstButton);
+        fireEvent.click(secondButton);
+
+        await act(async () => {
+            secondWrite.resolve();
+            await secondWrite.promise;
+        });
+
+        expect(firstButton).toHaveAttribute('title', 'Copy citation');
+        expect(secondButton).toHaveAttribute('title', 'Copied!');
+        expect(mockToastSuccess).toHaveBeenCalledTimes(1);
+        expect(mockToastError).not.toHaveBeenCalled();
+        const currentAnnouncement = screen.getByRole('status').firstElementChild;
+
+        await act(async () => {
+            firstWrite.resolve();
+            await firstWrite.promise;
+        });
+
+        expect(firstButton).toHaveAttribute('title', 'Copy citation');
+        expect(secondButton).toHaveAttribute('title', 'Copied!');
+        expect(mockToastSuccess).toHaveBeenCalledTimes(1);
+        expect(mockToastError).not.toHaveBeenCalled();
+        expect(screen.getByRole('status').firstElementChild).toBe(currentAnnouncement);
+    });
+
+    it('ignores a stale rejection after the latest clipboard write succeeds', async () => {
+        const firstWrite = createDeferredClipboardWrite();
+        const secondWrite = createDeferredClipboardWrite();
+        writeText.mockImplementationOnce(() => firstWrite.promise).mockImplementationOnce(() => secondWrite.promise);
+
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[
+                    makeRelatedIdentifier({ id: 1, citation_label: 'First citation that will fail' }),
+                    makeRelatedIdentifier({ id: 2, identifier: '10.5880/second', citation_label: 'Latest successful citation' }),
+                ]}
+            />,
+        );
+
+        const firstButton = within(screen.getByTestId('related-work-entry-1')).getByRole('button', { name: 'Copy citation to clipboard' });
+        const secondButton = within(screen.getByTestId('related-work-entry-2')).getByRole('button', { name: 'Copy citation to clipboard' });
+
+        fireEvent.click(firstButton);
+        fireEvent.click(secondButton);
+
+        await act(async () => {
+            secondWrite.resolve();
+            await secondWrite.promise;
+        });
+
+        const currentAnnouncement = screen.getByRole('status').firstElementChild;
+
+        await act(async () => {
+            firstWrite.reject(new Error('Stale permission failure'));
+            await firstWrite.promise.catch(() => undefined);
+        });
+
+        expect(firstButton).toHaveAttribute('title', 'Copy citation');
+        expect(secondButton).toHaveAttribute('title', 'Copied!');
+        expect(mockToastSuccess).toHaveBeenCalledTimes(1);
+        expect(mockToastError).not.toHaveBeenCalled();
+        expect(screen.getByRole('status').firstElementChild).toBe(currentAnnouncement);
     });
 
     it('reports rejected clipboard writes without leaving stale copied feedback', async () => {
