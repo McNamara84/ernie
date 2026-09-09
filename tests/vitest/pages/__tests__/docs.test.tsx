@@ -1076,6 +1076,19 @@ describe('Docs page', () => {
                 );
             }),
         ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes(
+                    'Related Identifiers with a stored citation label show a Copy citation action beside the entry. Visitors can use it to copy the complete stored citation without opening the linked resource.',
+                );
+            }),
+        ).toBeInTheDocument();
     });
 
     it('documents the empty Related Work and CSV import workflows for curators', async () => {

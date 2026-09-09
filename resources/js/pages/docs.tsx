@@ -1927,6 +1927,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <em>Inline metadata</em> badge. If the related item has a DOI or URL identifier, the card links out to the external
                             resource.
                         </p>
+                        <p>
+                            Related Identifiers with a stored citation label show a <strong>Copy citation</strong> action beside the entry. Visitors
+                            can use it to copy the complete stored citation without opening the linked resource.
+                        </p>
                     </>
                 ),
             },
