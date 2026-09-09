@@ -101,6 +101,12 @@ it('runs a self-contained Laravel scheduler in every Docker environment', functi
         'CACHE_STORE',
         'QUEUE_CONNECTION',
         'DATACITE_QUEUE',
+        'PUBLIC_TRAFFIC_ENABLED',
+        'PUBLIC_TRAFFIC_HEALTH_URL',
+        'PUBLIC_TRAFFIC_HEALTH_CONNECT_TIMEOUT_SECONDS',
+        'PUBLIC_TRAFFIC_HEALTH_TIMEOUT_SECONDS',
+        'PUBLIC_TRAFFIC_RETENTION_DAYS',
+        'PUBLIC_TRAFFIC_DEDUPLICATION_GRACE_SECONDS',
     ] as $variable) {
         expect($schedulerEnvironment)
             ->toHaveKey($variable, $appEnvironment[$variable] ?? null);
@@ -169,5 +175,43 @@ it('keeps local host metric collection disabled without host proc mounts', funct
             ->pluck('source');
 
         expect($sources)->not->toContain('/proc/stat', '/proc/meminfo');
+    }
+});
+
+it('enables public traffic collection with the deployment health endpoint', function (
+    string $composeFile,
+    string $healthUrl,
+): void {
+    $services = schedulerCompose($composeFile)['services'];
+
+    foreach (['app', 'scheduler'] as $serviceName) {
+        $environment = schedulerEnvironment($services[$serviceName]['environment'] ?? null);
+
+        expect($environment['PUBLIC_TRAFFIC_ENABLED'] ?? null)->toBe('${PUBLIC_TRAFFIC_ENABLED:-true}')
+            ->and($environment['PUBLIC_TRAFFIC_HEALTH_URL'] ?? null)->toBe("\${PUBLIC_TRAFFIC_HEALTH_URL:-{$healthUrl}}")
+            ->and($environment['PUBLIC_TRAFFIC_HEALTH_CONNECT_TIMEOUT_SECONDS'] ?? null)
+            ->toBe('${PUBLIC_TRAFFIC_HEALTH_CONNECT_TIMEOUT_SECONDS:-2}')
+            ->and($environment['PUBLIC_TRAFFIC_HEALTH_TIMEOUT_SECONDS'] ?? null)
+            ->toBe('${PUBLIC_TRAFFIC_HEALTH_TIMEOUT_SECONDS:-4}')
+            ->and($environment['PUBLIC_TRAFFIC_RETENTION_DAYS'] ?? null)
+            ->toBe('${PUBLIC_TRAFFIC_RETENTION_DAYS:-400}')
+            ->and($environment['PUBLIC_TRAFFIC_DEDUPLICATION_GRACE_SECONDS'] ?? null)
+            ->toBe('${PUBLIC_TRAFFIC_DEDUPLICATION_GRACE_SECONDS:-300}');
+    }
+})->with([
+    'stage' => ['docker-compose.stage.yml', 'https://ernie.rz-vm182.gfz.de/health'],
+    'production' => ['docker-compose.prod.yml', 'https://dataservices.gfz.de/health'],
+]);
+
+it('keeps local public traffic collection disabled by default', function (): void {
+    $services = schedulerCompose('docker-compose.dev.yml')['services'];
+
+    foreach (['app', 'scheduler'] as $serviceName) {
+        $environment = schedulerEnvironment($services[$serviceName]['environment'] ?? null);
+
+        expect($environment['PUBLIC_TRAFFIC_ENABLED'] ?? null)->toBe('${PUBLIC_TRAFFIC_ENABLED:-false}')
+            ->and($environment['PUBLIC_TRAFFIC_HEALTH_URL'] ?? null)->toBe('${PUBLIC_TRAFFIC_HEALTH_URL:-}')
+            ->and($environment['PUBLIC_TRAFFIC_RETENTION_DAYS'] ?? null)
+            ->toBe('${PUBLIC_TRAFFIC_RETENTION_DAYS:-400}');
     }
 });

@@ -98,3 +98,25 @@ it('prunes system metrics daily without overlapping', function (): void {
         ->and($event->withoutOverlapping)->toBeTrue()
         ->and($event->expiresAt)->toBe(10);
 });
+
+it('observes public traffic availability every minute without overlapping', function (): void {
+    $event = collect(app(Schedule::class)->events())
+        ->first(fn ($event) => str_contains($event->command, 'public-traffic:observe-availability'));
+
+    expect($event)->not->toBeNull()
+        ->and($event->expression)->toBe('* * * * *')
+        ->and($event->description)->toBe('observe-public-traffic-availability')
+        ->and($event->withoutOverlapping)->toBeTrue()
+        ->and($event->expiresAt)->toBe(2);
+});
+
+it('prunes public traffic daily without overlapping', function (): void {
+    $event = collect(app(Schedule::class)->events())
+        ->first(fn ($event) => str_contains($event->command, 'public-traffic:prune'));
+
+    expect($event)->not->toBeNull()
+        ->and($event->expression)->toBe('40 3 * * *')
+        ->and($event->description)->toBe('prune-public-traffic')
+        ->and($event->withoutOverlapping)->toBeTrue()
+        ->and($event->expiresAt)->toBe(10);
+});

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\PortalScope;
+use App\Enums\PublicTrafficSurface;
 use App\Http\Requests\PortalSearchRequest;
 use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\PortalPayloadService;
+use App\Services\PublicTraffic\PublicTrafficRecorderService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,6 +25,7 @@ class PortalController extends Controller
     public function __construct(
         private readonly PortalPageCacheService $pageCache,
         private readonly PortalPayloadService $payloadService,
+        private readonly PublicTrafficRecorderService $publicTrafficRecorder,
     ) {}
 
     public function index(PortalSearchRequest $request, string $portalScope): Response
@@ -37,6 +40,9 @@ class PortalController extends Controller
             'maxZoom' => max(0, (int) config('portal_map.max_zoom', 18)),
         ];
 
-        return Inertia::render('portal', $payload);
+        $response = Inertia::render('portal', $payload);
+        $this->publicTrafficRecorder->record($request, PublicTrafficSurface::PORTAL);
+
+        return $response;
     }
 }

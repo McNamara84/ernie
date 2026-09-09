@@ -765,6 +765,18 @@ erDiagram
         timestamp updated_at
     }
 
+    public_traffic_hourly_statistics {
+        bigint id PK
+        timestamp bucket_started_at UK
+        int landing_page_unique_visitor_count "default 0"
+        int portal_unique_visitor_count "default 0"
+        int combined_unique_visitor_count "default 0"
+        tinyint observed_minute_count "default 0"
+        timestamp last_observed_minute_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     settings {
         bigint id PK
         varchar key UK

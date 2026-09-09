@@ -157,6 +157,23 @@ describe('Docs page', () => {
         expect(screen.getAllByText('API Documentation').length).toBeGreaterThan(0);
     });
 
+    it('documents public traffic maintenance planning only for administrators', () => {
+        const { unmount } = render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        const heading = screen.getByRole('heading', { name: 'Plan maintenance with public traffic' });
+        const sectionContent = heading.parentElement;
+
+        expect(sectionContent?.textContent).toMatch(/Last 4 weeks.*Last 12 weeks.*Last 52 weeks/s);
+        expect(sectionContent?.textContent).toMatch(/Collecting.*168 weekly cells.*quietest and busiest recommendations remain hidden/s);
+        expect(sectionContent?.textContent).toMatch(/Unavailable or incomplete hours are excluded.*low-sample warning/s);
+        expect(sectionContent?.textContent).toMatch(/derived HMAC identifier exists only in short-lived shared-cache key names/s);
+
+        unmount();
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.queryByRole('heading', { name: 'Plan maintenance with public traffic' })).not.toBeInTheDocument();
+    });
+
     it('documents the legacy IGSN Handle audit command only for admins', () => {
         const { unmount } = render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
@@ -1110,9 +1127,7 @@ describe('Docs page', () => {
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
                 return (
-                    text.includes('identifier and relation_type') &&
-                    text.includes('identifier_type is optional') &&
-                    text.includes('Download Example')
+                    text.includes('identifier and relation_type') && text.includes('identifier_type is optional') && text.includes('Download Example')
                 );
             }),
         ).toBeInTheDocument();

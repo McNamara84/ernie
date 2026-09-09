@@ -13,6 +13,10 @@ it('generates correct cache keys without suffix', function () {
     expect(CacheKey::IGSN_LISTING_COUNT->key())->toBe('igsns:listing_count');
     expect(CacheKey::PORTAL_LISTING_COUNT->key())->toBe('portal:listing_count');
     expect(CacheKey::SYSTEM_METRICS_COLLECTION_WARNING->key())->toBe('system:metrics_collection_warning');
+    expect(CacheKey::PUBLIC_TRAFFIC_VISITOR->key('2026090912:portal:fingerprint'))
+        ->toBe('public-traffic:visitor:2026090912:portal:fingerprint');
+    expect(CacheKey::PUBLIC_TRAFFIC_HEALTH_PROBE->key('nonce'))->toBe('public-traffic:health:nonce');
+    expect(CacheKey::PUBLIC_TRAFFIC_WARNING->key('recording'))->toBe('public-traffic:warning:recording');
     expect(CacheKey::GCMD_SCIENCE_KEYWORDS->key())->toBe('vocabularies:gcmd:science_keywords');
     expect(CacheKey::RAID_PROJECTS->key())->toBe('vocabularies:raid:projects');
     expect(CacheKey::ROR_AFFILIATION->key())->toBe('ror:affiliation');
@@ -125,6 +129,17 @@ it('returns correct tags for system', function () {
     expect(CacheKey::CACHE_STATS->tags())->toBe(['system'])
         ->and(CacheKey::SYSTEM_METRICS_COLLECTION_WARNING->ttl())->toBe(3600)
         ->and(CacheKey::SYSTEM_METRICS_COLLECTION_WARNING->tags())->toBe(['system', 'system_metrics']);
+});
+
+it('centralizes public traffic cache lifetimes and tags', function () {
+    config(['public_traffic.deduplication_grace_seconds' => 300]);
+
+    expect(CacheKey::PUBLIC_TRAFFIC_VISITOR->ttl())->toBe(3900)
+        ->and(CacheKey::PUBLIC_TRAFFIC_HEALTH_PROBE->ttl())->toBe(10)
+        ->and(CacheKey::PUBLIC_TRAFFIC_WARNING->ttl())->toBe(3600)
+        ->and(CacheKey::PUBLIC_TRAFFIC_VISITOR->tags())->toBe([])
+        ->and(CacheKey::PUBLIC_TRAFFIC_HEALTH_PROBE->tags())->toBe([])
+        ->and(CacheKey::PUBLIC_TRAFFIC_WARNING->tags())->toBe([]);
 });
 
 it('returns correct tags for public page payload caches', function () {

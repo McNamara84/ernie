@@ -82,6 +82,16 @@ Schedule::command('system-metrics:prune')
     ->name('prune-system-metrics')
     ->withoutOverlapping(10);
 
+Schedule::command('public-traffic:observe-availability')
+    ->everyMinute()
+    ->name('observe-public-traffic-availability')
+    ->withoutOverlapping(2);
+
+Schedule::command('public-traffic:prune')
+    ->dailyAt('03:40')
+    ->name('prune-public-traffic')
+    ->withoutOverlapping(10);
+
 Schedule::call(function (): void {
     AssessmentRun::query()
         ->whereNotNull('active_scope')

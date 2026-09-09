@@ -74,6 +74,36 @@ After the next scheduled minute, compare the displayed percentages with `top`
 and `free` on the VM. Never expose raw CPU counters or host paths through a web
 endpoint.
 
+## Anonymous public traffic history
+
+The Logs page aggregates estimated unique signed-out visitors for published
+landing pages and both public portals. Production and Stage default
+`PUBLIC_TRAFFIC_ENABLED` to `true`. Visitor deduplication uses short-lived Redis
+keys scoped to the current UTC hour. MySQL receives only three hourly counters:
+landing pages, portal, and a separately deduplicated combined value. The raw
+source IP and user agent are never stored or logged by the analytics recorder.
+The HMAC identifier exists only in short-lived Redis key names and expires
+shortly after its UTC hour; it is never written to MySQL or application logs.
+
+The scheduler requests `PUBLIC_TRAFFIC_HEALTH_URL` once per minute and only
+marks that minute after the public endpoint, Redis, and MySQL path succeed. A
+completed hour must have all 60 observations before it enters the Berlin-time
+heatmap. Missing observations are excluded rather than interpreted as zero
+traffic. `PUBLIC_TRAFFIC_RETENTION_DAYS` defaults to 400, which covers the
+52-week view with operational margin; pruning runs daily.
+
+Validate collection after deployment:
+
+```bash
+docker compose -f docker-compose.prod.yml exec scheduler php artisan public-traffic:observe-availability
+docker compose -f docker-compose.prod.yml exec app php artisan tinker --execute="dump(App\\Models\\PublicTrafficHourlyStatistic::query()->latest('bucket_started_at')->first()?->only(['bucket_started_at', 'observed_minute_count']));"
+```
+
+If `/logs` reports gaps, check the scheduler, the externally routed health URL,
+Redis, and MySQL. Changing `APP_URL`, DNS, TLS, reverse-proxy routing, or
+`/health` can invalidate availability observations even when the scheduler
+container itself is running.
+
 ## Public portal caches
 
 Portal page payloads use a configurable fresh/stale window and an atomic cold-miss lock:

@@ -33,6 +33,31 @@ class BotClassifierService
         return false;
     }
 
+    public function isKnownBot(Request|string|null $requestOrUserAgent): bool
+    {
+        $userAgent = $requestOrUserAgent instanceof Request
+            ? $requestOrUserAgent->userAgent()
+            : $requestOrUserAgent;
+
+        if ($userAgent === null || trim($userAgent) === '') {
+            return false;
+        }
+
+        $normalizedUserAgent = strtolower($userAgent);
+        $needles = array_unique([
+            ...$this->aiUserAgentNeedles(),
+            ...$this->crawlerUserAgentNeedles(),
+        ]);
+
+        foreach ($needles as $needle) {
+            if (str_contains($normalizedUserAgent, strtolower($needle))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function rateLimitKey(Request $request, string $surface): string
     {
         $classification = $this->isKnownAiBot($request) ? 'ai-bot' : 'public';
@@ -47,6 +72,24 @@ class BotClassifierService
     private function aiUserAgentNeedles(): array
     {
         $configuredNeedles = config('bot_protection.ai_user_agents', []);
+
+        if (! is_array($configuredNeedles)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map(
+                static fn (mixed $needle): string => is_string($needle) ? trim($needle) : '',
+                $configuredNeedles,
+            ),
+            static fn (string $needle): bool => $needle !== '',
+        ));
+    }
+
+    /** @return list<string> */
+    private function crawlerUserAgentNeedles(): array
+    {
+        $configuredNeedles = config('bot_protection.crawler_user_agents', []);
 
         if (! is_array($configuredNeedles)) {
             return [];

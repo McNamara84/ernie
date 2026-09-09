@@ -44,6 +44,7 @@ use App\Http\Controllers\PortalMapController;
 use App\Http\Controllers\PortalResourcePreviewController;
 use App\Http\Controllers\PortalSearchAnalyticsController;
 use App\Http\Controllers\PublicMetadataExportController;
+use App\Http\Controllers\PublicTrafficController;
 use App\Http\Controllers\RelatedItemController;
 use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\ResourceDoiRegistrationController;
@@ -362,6 +363,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('logs/system-metrics', SystemMetricsController::class)
             ->name('logs.system-metrics');
+
+        Route::get('logs/public-traffic', PublicTrafficController::class)
+            ->name('logs.public-traffic');
 
         Route::get('logs/download/{period}', [LogController::class, 'download'])
             ->name('logs.download');

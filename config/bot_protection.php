@@ -23,6 +23,56 @@ $defaultAiUserAgents = implode(',', [
     'YouBot',
 ]);
 
+$defaultCrawlerUserAgents = [
+    'AhrefsBot',
+    'Applebot/',
+    'archive.org_bot',
+    'Baiduspider',
+    'Barkrowler',
+    'bingbot',
+    'BingPreview',
+    'BLEXBot',
+    'Chrome-Lighthouse',
+    'curl/',
+    'DataForSeoBot',
+    'Datadog/Synthetics',
+    'Discordbot',
+    'DotBot',
+    'DuckDuckBot',
+    'ELB-HealthChecker',
+    'Exabot',
+    'facebookexternalhit',
+    'Google-InspectionTool',
+    'GoogleOther',
+    'Googlebot',
+    'Go-http-client',
+    'HeadlessChrome',
+    'ia_archiver',
+    'kube-probe',
+    'LinkedInBot',
+    'MJ12bot',
+    'PetalBot',
+    'Pingdom',
+    'Prometheus',
+    'python-requests',
+    'SemrushBot',
+    'SeznamBot',
+    'Site24x7',
+    'Slackbot',
+    'Sogou',
+    'StatusCake',
+    'Twitterbot',
+    'UptimeRobot',
+    'WhatsApp',
+    'wget/',
+    'YandexBot',
+];
+
+$additionalCrawlerUserAgents = array_values(array_filter(array_map(
+    static fn (string $userAgent): string => trim($userAgent),
+    explode(',', (string) env('BOT_PROTECTION_ADDITIONAL_CRAWLER_USER_AGENTS', '')),
+)));
+
 return [
     'enabled' => (bool) env('BOT_PROTECTION_ENABLED', env('APP_ENV') !== 'testing'),
 
@@ -30,6 +80,11 @@ return [
         static fn (string $userAgent): string => trim($userAgent),
         explode(',', (string) env('BOT_PROTECTION_AI_USER_AGENTS', $defaultAiUserAgents)),
     ))),
+
+    'crawler_user_agents' => array_values(array_unique([
+        ...$defaultCrawlerUserAgents,
+        ...$additionalCrawlerUserAgents,
+    ])),
 
     'limits' => [
         'ai_bot_public_per_minute' => (int) env('BOT_PROTECTION_AI_BOT_PUBLIC_PER_MINUTE', 6),
