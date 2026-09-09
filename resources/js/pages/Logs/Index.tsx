@@ -40,6 +40,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
+import PublicTrafficPanel from '@/pages/Logs/components/public-traffic-panel';
 import SystemMetricsPanel from '@/pages/Logs/components/system-metrics-panel';
 import { type BreadcrumbItem } from '@/types';
 
@@ -226,6 +227,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
             <Head title="Logs" />
 
             <div className="flex h-full min-w-0 flex-1 flex-col gap-4 p-4">
+                <PublicTrafficPanel refreshKey={systemMetricsRefreshKey} />
                 <SystemMetricsPanel refreshKey={systemMetricsRefreshKey} />
 
                 <Card className="min-w-0 overflow-hidden">

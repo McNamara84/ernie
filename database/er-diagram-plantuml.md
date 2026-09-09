@@ -839,6 +839,19 @@ entity "portal_search_daily_statistics" as portal_search_daily_statistics {
     updated_at : TIMESTAMP
 }
 
+entity "public_traffic_hourly_statistics" as public_traffic_hourly_statistics {
+    * **id** : BIGINT <<PK>>
+    --
+    * bucket_started_at : TIMESTAMP <<UK>>
+    * landing_page_unique_visitor_count : INT = 0
+    * portal_unique_visitor_count : INT = 0
+    * combined_unique_visitor_count : INT = 0
+    * observed_minute_count : TINYINT = 0
+    last_observed_minute_at : TIMESTAMP <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 entity "landing_page_domains" as landing_page_domains {
     * **id** : BIGINT <<PK>>
     --

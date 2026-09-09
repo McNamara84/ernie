@@ -11,7 +11,44 @@ beforeEach(function (): void {
     config([
         'bot_protection.enabled' => true,
         'bot_protection.ai_user_agents' => ['GPTBot', 'ClaudeBot'],
+        'bot_protection.crawler_user_agents' => ['Googlebot', 'facebookexternalhit', 'SemrushBot', 'UptimeRobot', 'curl/'],
     ]);
+});
+
+it('detects configured general crawlers together with ai bots', function (): void {
+    $service = new BotClassifierService;
+
+    expect($service->isKnownBot('Mozilla/5.0 (compatible; Googlebot/2.1)'))->toBeTrue()
+        ->and($service->isKnownBot('facebookexternalhit/1.1'))->toBeTrue()
+        ->and($service->isKnownBot('SemrushBot/7~bl'))->toBeTrue()
+        ->and($service->isKnownBot('UptimeRobot/2.0'))->toBeTrue()
+        ->and($service->isKnownBot('curl/8.12.1'))->toBeTrue()
+        ->and($service->isKnownBot('GPTBot'))->toBeTrue()
+        ->and($service->isKnownBot('Mozilla/5.0'))->toBeFalse()
+        ->and($service->isKnownBot(''))->toBeFalse();
+});
+
+it('accepts a request when checking for general crawlers', function (): void {
+    $request = Request::create('/doi-search', 'GET', server: [
+        'HTTP_USER_AGENT' => 'Googlebot/2.1',
+    ]);
+
+    expect((new BotClassifierService)->isKnownBot($request))->toBeTrue();
+});
+
+it('ignores malformed crawler configuration', function (): void {
+    config(['bot_protection.crawler_user_agents' => 'Googlebot']);
+    expect((new BotClassifierService)->isKnownBot('Googlebot'))->toBeFalse();
+});
+
+it('keeps analytics bot classification active when rate-limit protection is disabled', function (): void {
+    config([
+        'bot_protection.crawler_user_agents' => ['Googlebot'],
+        'bot_protection.enabled' => false,
+    ]);
+
+    expect((new BotClassifierService)->isKnownBot('Googlebot'))->toBeTrue()
+        ->and((new BotClassifierService)->isKnownBot('Mozilla/5.0'))->toBeFalse();
 });
 
 it('detects configured ai bot user agents case insensitively', function (): void {

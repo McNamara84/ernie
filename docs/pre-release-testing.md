@@ -861,6 +861,24 @@ reason.
 - [ ] A newly enabled or restarted collector explains the initial CPU baseline
       instead of displaying a false zero value.
 
+- [ ] Public traffic defaults to `Last 12 weeks`; the 4-, 12-, and 52-week
+      controls reload the heatmap without reloading the log table.
+
+- [ ] The traffic heatmap exposes seven weekdays and 24 hourly cells, labels
+      the timezone as `Europe/Berlin`, and provides combined, Landing Page, and
+      Portal values without implying that the two surface values can be added.
+
+- [ ] Before all 168 weekday/hour slots have data, the panel reports
+      `Collecting` and does not show premature quietest/busiest recommendations.
+
+- [ ] A fully observed hour with no visits appears as a valid zero, while an
+      hour with a missed availability observation appears as missing and is
+      listed in excluded coverage.
+
+- [ ] Signed-in requests and representative browser, search-crawler, social-
+      preview, and AI-crawler user agents produce the expected inclusion or
+      exclusion without exposing visitor identifiers.
+
 - [ ] Search, filters, sorting, and detail view work where provided.
 
 - [ ] A harmless error intentionally triggered during the test can be correlated

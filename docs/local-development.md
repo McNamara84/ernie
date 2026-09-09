@@ -259,6 +259,40 @@ mount is required. Override `SYSTEM_METRICS_RETENTION_DAYS` only with a positive
 number. Disabling collection preserves existing history until normal retention
 removes it.
 
+### Anonymous public traffic history
+
+The administrator-only `/logs` page also shows the typical number of unique
+signed-out visitors by weekday and hour for published landing pages and the DOI
+and IGSN portals. The application deduplicates visitors for the current UTC
+hour in the shared cache using a bucket-specific HMAC of IP address and user
+agent. Only hourly counters are persisted; no IP address, user agent, cookie,
+session identifier, or visitor hash is stored in MySQL. Authenticated users,
+empty user agents, and recognizable crawlers are excluded. Extend the built-in
+heuristic list with a comma-separated
+`BOT_PROTECTION_ADDITIONAL_CRAWLER_USER_AGENTS` value when required.
+
+`PUBLIC_TRAFFIC_ENABLED` defaults to `false` locally. Stage and Production
+enable it in Compose. Their scheduler runs
+`public-traffic:observe-availability` every minute against the configured
+public `/health` URL and verifies the shared cache before marking the minute as
+observed. Only completed hours with all 60 minutes observed contribute to the
+heatmap. This keeps a healthy zero-visitor hour distinct from an application or
+analytics outage. Aggregates are retained for 400 days by default and pruned
+daily.
+
+For a controlled local check, enable the feature and point the probe at a
+trusted reachable health URL before running:
+
+```bash
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan public-traffic:observe-availability
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan public-traffic:prune
+```
+
+The UI groups UTC buckets in `Europe/Berlin`, including daylight-saving time,
+and offers rolling 4-, 12-, and 52-week views. Recommendations remain in the
+collecting state until every weekday/hour cell has at least one complete
+observation.
+
 ### DataCite import mode
 
 Keep `DATACITE_TEST_MODE=true` for local development and Stage. Eligible imported resources and every newly imported IGSN receive their local landing page, but the import never writes metadata to either DataCite API in this mode.

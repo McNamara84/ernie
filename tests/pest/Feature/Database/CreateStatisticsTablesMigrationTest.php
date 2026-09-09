@@ -24,6 +24,14 @@ function loadPortalSearchDailyStatisticsMigration(): Migration
     return $migration;
 }
 
+function loadPublicTrafficHourlyStatisticsMigration(): Migration
+{
+    /** @var Migration $migration */
+    $migration = require database_path('migrations/2026_09_09_000001_create_public_traffic_hourly_statistics_table.php');
+
+    return $migration;
+}
+
 function statisticsMigrationTableHasIndex(string $table, array $columns, bool $unique = false): bool
 {
     $expectedColumns = array_values($columns);
@@ -69,6 +77,40 @@ it('creates and drops the landing_page_daily_statistics table through up and dow
             'page_view_count',
             'file_download_click_count',
         ]))->toBeTrue();
+});
+
+it('creates and drops the public traffic hourly statistics table through up and down', function (): void {
+    expect(Schema::hasTable('public_traffic_hourly_statistics'))->toBeTrue()
+        ->and(Schema::hasColumns('public_traffic_hourly_statistics', [
+            'bucket_started_at',
+            'landing_page_unique_visitor_count',
+            'portal_unique_visitor_count',
+            'combined_unique_visitor_count',
+            'observed_minute_count',
+            'last_observed_minute_at',
+            'created_at',
+            'updated_at',
+        ]))->toBeTrue()
+        ->and(statisticsMigrationTableHasIndex('public_traffic_hourly_statistics', ['bucket_started_at'], unique: true))->toBeTrue();
+
+    $migration = loadPublicTrafficHourlyStatisticsMigration();
+    /** @phpstan-ignore method.notFound */
+    $migration->down();
+    expect(Schema::hasTable('public_traffic_hourly_statistics'))->toBeFalse();
+
+    /** @phpstan-ignore method.notFound */
+    $migration->up();
+    DB::table('public_traffic_hourly_statistics')->insert([
+        'bucket_started_at' => '2026-09-09 12:00:00',
+    ]);
+    $row = DB::table('public_traffic_hourly_statistics')->sole();
+
+    expect(Schema::hasTable('public_traffic_hourly_statistics'))->toBeTrue()
+        ->and((int) $row->landing_page_unique_visitor_count)->toBe(0)
+        ->and((int) $row->portal_unique_visitor_count)->toBe(0)
+        ->and((int) $row->combined_unique_visitor_count)->toBe(0)
+        ->and((int) $row->observed_minute_count)->toBe(0)
+        ->and($row->last_observed_minute_at)->toBeNull();
 });
 
 it('repairs an existing landing_page_daily_statistics table without dropping rows', function (): void {

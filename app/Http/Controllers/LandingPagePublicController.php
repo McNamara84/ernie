@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\PublicTrafficSurface;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
@@ -16,6 +17,7 @@ use App\Services\LandingPageMachineMetadataService;
 use App\Services\LandingPageMetadataLinkService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
+use App\Services\PublicTraffic\PublicTrafficRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,6 +33,8 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
  */
 class LandingPagePublicController extends Controller
 {
+    public function __construct(private readonly ?PublicTrafficRecorder $publicTrafficRecorder = null) {}
+
     /**
      * Regex pattern for valid slug characters.
      * Must match the route constraint in web.php.
@@ -314,7 +318,13 @@ class LandingPagePublicController extends Controller
                 ? HttpResponse::HTTP_FOUND
                 : HttpResponse::HTTP_MOVED_PERMANENTLY;
 
-            return redirect()->to($externalUrl, $statusCode);
+            $response = redirect()->to($externalUrl, $statusCode);
+
+            if (! $isPreview) {
+                $this->trafficRecorder()->record($request, PublicTrafficSurface::LANDING_PAGE);
+            }
+
+            return $response;
         }
 
         // Published requests remain public even when an irrelevant preview query is present.
@@ -424,7 +434,16 @@ class LandingPagePublicController extends Controller
             $response->headers->set('Link', $linkHeader, false);
         }
 
+        if (! $isPreview) {
+            $this->trafficRecorder()->record($request, PublicTrafficSurface::LANDING_PAGE);
+        }
+
         return $response;
+    }
+
+    private function trafficRecorder(): PublicTrafficRecorder
+    {
+        return $this->publicTrafficRecorder ?? app(PublicTrafficRecorder::class);
     }
 
     /**

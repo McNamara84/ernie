@@ -22,6 +22,10 @@ vi.mock('@/pages/Logs/components/system-metrics-panel', () => ({
     default: ({ refreshKey }: { refreshKey: number }) => <div data-testid="system-metrics-panel" data-refresh-key={refreshKey} />,
 }));
 
+vi.mock('@/pages/Logs/components/public-traffic-panel', () => ({
+    default: ({ refreshKey }: { refreshKey: number }) => <div data-testid="public-traffic-panel" data-refresh-key={refreshKey} />,
+}));
+
 vi.mock('sonner', () => ({
     toast: {
         success: vi.fn(),
@@ -86,6 +90,7 @@ describe('Logs/Index', () => {
         render(<Index {...defaultProps} />);
 
         expect(screen.getByTestId('system-metrics-panel')).toBeInTheDocument();
+        expect(screen.getByTestId('public-traffic-panel')).toBeInTheDocument();
         expect(screen.getByText('Application Logs')).toBeInTheDocument();
     });
 
@@ -94,9 +99,11 @@ describe('Logs/Index', () => {
         render(<Index {...defaultProps} />);
 
         expect(screen.getByTestId('system-metrics-panel')).toHaveAttribute('data-refresh-key', '0');
+        expect(screen.getByTestId('public-traffic-panel')).toHaveAttribute('data-refresh-key', '0');
         await user.click(screen.getByRole('button', { name: /Refresh/i }));
 
         expect(screen.getByTestId('system-metrics-panel')).toHaveAttribute('data-refresh-key', '1');
+        expect(screen.getByTestId('public-traffic-panel')).toHaveAttribute('data-refresh-key', '1');
     });
 
     it('displays log count', () => {
