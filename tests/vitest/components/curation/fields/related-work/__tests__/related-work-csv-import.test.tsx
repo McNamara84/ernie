@@ -127,7 +127,7 @@ describe('RelatedWorkCsvImport', () => {
         renderComponent({ onSubmit });
         await user.upload(document.getElementById('csv-upload') as HTMLInputElement, file);
 
-        const importButton = screen.getByRole('button', { name: /import 1 items/i });
+        const importButton = await screen.findByRole('button', { name: /import 1 items/i });
         await waitFor(() => expect(importButton).toBeEnabled());
         await user.click(importButton);
 
