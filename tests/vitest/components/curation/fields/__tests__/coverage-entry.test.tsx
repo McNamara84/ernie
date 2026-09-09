@@ -196,14 +196,11 @@ describe('CoverageEntry', () => {
         const user = userEvent.setup();
         render(<CoverageEntry {...defaultProps} />);
 
-        // Card is expanded by default, find the trash/remove button
-        const removeButton = screen.getAllByRole('button').find(btn => 
-            btn.querySelector('.lucide-trash2')
-        );
+        const removeButton = screen.getByRole('button', {
+            name: /remove coverage entry/i,
+        });
 
-        expect(removeButton).toBeDefined();
-
-        await user.click(removeButton!);
+        await user.click(removeButton);
 
         expect(mockOnRemove).toHaveBeenCalledTimes(1);
     });
