@@ -1,9 +1,21 @@
 import userEvent from '@testing-library/user-event';
-import { fireEvent, render, screen } from '@tests/vitest/utils/render';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RelatedWorkSection } from '@/pages/LandingPages/components/RelatedWorkSection';
 import type { LandingPageRelatedIdentifier, LandingPageRelatedItem, LandingPageResource } from '@/types/landing-page';
+
+const { mockToastSuccess, mockToastError } = vi.hoisted(() => ({
+    mockToastSuccess: vi.fn(),
+    mockToastError: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({
+    toast: {
+        success: mockToastSuccess,
+        error: mockToastError,
+    },
+}));
 
 vi.mock('@/pages/LandingPages/components/relation-browser/RelationBrowserGraph', () => ({
     RelationBrowserGraph: ({ relatedIdentifiers }: { relatedIdentifiers: LandingPageRelatedIdentifier[] }) => (
@@ -24,6 +36,16 @@ Object.defineProperty(window, 'matchMedia', {
         dispatchEvent: vi.fn(),
     })),
 });
+
+const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+const writeText = vi.fn();
+
+function setClipboard(clipboardWriteText: typeof writeText) {
+    Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: clipboardWriteText },
+    });
+}
 
 const mockResource: LandingPageResource = {
     id: 1,
@@ -94,6 +116,8 @@ describe('RelatedWorkSection', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         global.fetch = vi.fn();
+        writeText.mockResolvedValue(undefined);
+        setClipboard(writeText);
 
         Object.defineProperty(window, 'matchMedia', {
             writable: true,
@@ -108,6 +132,16 @@ describe('RelatedWorkSection', () => {
                 dispatchEvent: vi.fn(),
             })),
         });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+
+        if (originalClipboardDescriptor) {
+            Object.defineProperty(navigator, 'clipboard', originalClipboardDescriptor);
+        } else {
+            Reflect.deleteProperty(navigator, 'clipboard');
+        }
     });
 
     it('returns null when there are no renderable related identifiers or related items', () => {
@@ -311,8 +345,9 @@ describe('RelatedWorkSection', () => {
         expect(curationHeadingIndex).toBeGreaterThan(initialIndex);
         expect(curatedIndex).toBeGreaterThan(curationHeadingIndex);
         expect(screen.getByTestId('repository-curation-related-identifiers')).toHaveTextContent('Added by repository curation');
-        expect(screen.getByRole('link', { name: /Curated citation/i })).toHaveClass('bg-cyan-50/70');
+        expect(screen.getByTestId('related-work-entry-2')).toHaveClass('bg-cyan-50/70');
     });
+
     it('renders persisted citation labels for DOI links and synchronous DOI fallbacks when missing', () => {
         render(
             <RelatedWorkSection
@@ -327,6 +362,180 @@ describe('RelatedWorkSection', () => {
         expect(screen.getByText('Smith, J. (2024). Persisted Citation.')).toBeInTheDocument();
         expect(screen.getByText('DOI: 10.5880/no-label')).toBeInTheDocument();
         expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('copies the complete trimmed citation while preserving the independent related-work link', async () => {
+        const citation = 'Smith, J. (2024). A complete citation. https://doi.org/10.5880/test';
+
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[makeRelatedIdentifier({ id: 17, citation_label: `  ${citation}  ` })]}
+            />,
+        );
+
+        const row = screen.getByTestId('related-work-entry-17');
+        const link = within(row).getByRole('link', { name: citation });
+        const copyButton = within(row).getByRole('button', { name: 'Copy citation to clipboard' });
+
+        expect(link).toHaveAttribute('href', 'https://doi.org/10.5880/test');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(link).not.toContainElement(copyButton);
+        expect(row).toContainElement(copyButton);
+        expect(copyButton).toHaveAttribute('title', 'Copy citation');
+        expect(copyButton).toHaveAttribute('aria-describedby', 'related-work-label-17');
+        expect(copyButton).toHaveAttribute('data-print', 'hide');
+        expect(copyButton).toHaveClass('min-h-11', 'min-w-11');
+
+        await act(async () => {
+            fireEvent.click(copyButton);
+            await Promise.resolve();
+        });
+
+        await waitFor(() => expect(writeText).toHaveBeenCalledWith(citation));
+        expect(mockToastSuccess).toHaveBeenCalledWith('Citation copied to clipboard');
+        expect(mockToastError).not.toHaveBeenCalled();
+        expect(copyButton).toHaveAttribute('title', 'Copied!');
+        expect(screen.getByRole('status')).toHaveTextContent('Citation copied to clipboard');
+    });
+
+    it('shows copied feedback only on the latest entry and resets it after two seconds', async () => {
+        vi.useFakeTimers();
+
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[
+                    makeRelatedIdentifier({ id: 1, citation_label: 'First citation' }),
+                    makeRelatedIdentifier({ id: 2, identifier: '10.5880/second', citation_label: 'Second citation' }),
+                ]}
+            />,
+        );
+
+        const firstButton = within(screen.getByTestId('related-work-entry-1')).getByRole('button', { name: 'Copy citation to clipboard' });
+        const secondButton = within(screen.getByTestId('related-work-entry-2')).getByRole('button', { name: 'Copy citation to clipboard' });
+
+        await act(async () => {
+            fireEvent.click(firstButton);
+            await Promise.resolve();
+        });
+
+        expect(firstButton).toHaveAttribute('title', 'Copied!');
+        expect(secondButton).toHaveAttribute('title', 'Copy citation');
+
+        await act(async () => {
+            fireEvent.click(secondButton);
+            await Promise.resolve();
+        });
+
+        expect(firstButton).toHaveAttribute('title', 'Copy citation');
+        expect(secondButton).toHaveAttribute('title', 'Copied!');
+        expect(writeText).toHaveBeenNthCalledWith(1, 'First citation');
+        expect(writeText).toHaveBeenNthCalledWith(2, 'Second citation');
+
+        act(() => vi.advanceTimersByTime(1999));
+        expect(secondButton).toHaveAttribute('title', 'Copied!');
+
+        act(() => vi.advanceTimersByTime(1));
+        expect(secondButton).toHaveAttribute('title', 'Copy citation');
+        expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    });
+
+    it('reports rejected clipboard writes without leaving stale copied feedback', async () => {
+        writeText.mockRejectedValueOnce(new Error('Permission denied'));
+
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[makeRelatedIdentifier({ id: 4, citation_label: 'Citation that cannot be copied' })]}
+            />,
+        );
+
+        const copyButton = within(screen.getByTestId('related-work-entry-4')).getByRole('button', { name: 'Copy citation to clipboard' });
+
+        await act(async () => {
+            fireEvent.click(copyButton);
+            await Promise.resolve();
+        });
+
+        expect(mockToastError).toHaveBeenCalledWith('Failed to copy citation');
+        expect(mockToastSuccess).not.toHaveBeenCalled();
+        expect(copyButton).toHaveAttribute('title', 'Copy citation');
+        expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    });
+
+    it('reports unavailable clipboard access as a copy failure', async () => {
+        Reflect.deleteProperty(navigator, 'clipboard');
+
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[makeRelatedIdentifier({ id: 5, citation_label: 'Citation requiring clipboard access' })]}
+            />,
+        );
+
+        const copyButton = within(screen.getByTestId('related-work-entry-5')).getByRole('button', { name: 'Copy citation to clipboard' });
+
+        await act(async () => {
+            fireEvent.click(copyButton);
+            await Promise.resolve();
+        });
+
+        expect(mockToastError).toHaveBeenCalledWith('Failed to copy citation');
+        expect(writeText).not.toHaveBeenCalled();
+        expect(copyButton).toHaveAttribute('title', 'Copy citation');
+    });
+
+    it('does not offer citation copying for fallback labels or structured inline metadata', () => {
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[
+                    makeRelatedIdentifier({ id: 1, citation_label: '   ' }),
+                    makeRelatedIdentifier({ id: 2, identifier: '10.5880/title', related_title: 'Related title fallback' }),
+                    makeRelatedIdentifier({ id: 3, identifier_type: 'URL', identifier: 'https://example.com/related' }),
+                    makeRelatedIdentifier({ id: 4, identifier_type: 'Handle', identifier: '10013/epic.12345' }),
+                    makeRelatedIdentifier({ id: 5, identifier_type: 'IGSN', identifier: '10273/GFBNO7002EXZ3001' }),
+                ]}
+                relatedItems={[makeRelatedItem()]}
+            />,
+        );
+
+        expect(screen.getByText('DOI: 10.5880/test')).toBeInTheDocument();
+        expect(screen.getByText('Related title fallback')).toBeInTheDocument();
+        expect(screen.getByText('Inline reference')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Copy citation to clipboard' })).not.toBeInTheDocument();
+    });
+
+    it('copies persisted citations from repository-curated entries with the same feedback', async () => {
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[
+                    makeRelatedIdentifier({
+                        id: 9,
+                        citation_label: 'Repository-curated citation',
+                        source: 'relation_suggestion_assistant',
+                        is_repository_curation: true,
+                    }),
+                ]}
+            />,
+        );
+
+        const row = screen.getByTestId('related-work-entry-9');
+        const copyButton = within(row).getByRole('button', { name: 'Copy citation to clipboard' });
+
+        expect(row).toHaveClass('border-cyan-200', 'bg-cyan-50/70');
+
+        await act(async () => {
+            fireEvent.click(copyButton);
+            await Promise.resolve();
+        });
+
+        await waitFor(() => expect(writeText).toHaveBeenCalledWith('Repository-curated citation'));
+        expect(copyButton).toHaveAttribute('title', 'Copied!');
+        expect(mockToastSuccess).toHaveBeenCalledWith('Citation copied to clipboard');
     });
 
     it('renders typed related IGSNs as handles on an IGSN landing page', () => {

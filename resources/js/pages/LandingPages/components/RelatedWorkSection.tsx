@@ -1,5 +1,6 @@
-import { ChevronDown, ChevronUp, ExternalLink, Network, Quote } from 'lucide-react';
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { Check, ChevronDown, ChevronUp, Copy, ExternalLink, Network, Quote } from 'lucide-react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -56,8 +57,26 @@ function getRelatedIdentifierLabel(relatedIdentifier: LandingPageRelatedIdentifi
     return relatedIdentifier.identifier;
 }
 
-function RelatedIdentifierLabel({ relatedIdentifier, useIgsnHandles }: { relatedIdentifier: LandingPageRelatedIdentifier; useIgsnHandles: boolean }) {
-    return <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{getRelatedIdentifierLabel(relatedIdentifier, useIgsnHandles)}</span>;
+function getCopyableCitation(relatedIdentifier: LandingPageRelatedIdentifier): string | null {
+    const citation = relatedIdentifier.citation_label?.trim();
+
+    return citation || null;
+}
+
+function RelatedIdentifierLabel({
+    id,
+    relatedIdentifier,
+    useIgsnHandles,
+}: {
+    id?: string;
+    relatedIdentifier: LandingPageRelatedIdentifier;
+    useIgsnHandles: boolean;
+}) {
+    return (
+        <span id={id} className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+            {getRelatedIdentifierLabel(relatedIdentifier, useIgsnHandles)}
+        </span>
+    );
 }
 
 /** Number of renderable relations before collapsing on mobile */
@@ -84,19 +103,72 @@ function hasDisplayableIdentifier(rel: LandingPageRelatedIdentifier): boolean {
     return hasResolvableIdentifier(rel) || (rel.identifier_type === 'IGSN' && rel.identifier.trim() !== '');
 }
 
-function getRelatedIdentifierLinkClassName(rel: LandingPageRelatedIdentifier): string {
+function getRelatedIdentifierRowClassName(rel: LandingPageRelatedIdentifier, hasLink: boolean): string {
     return cn(
-        'group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700/50',
+        'group flex items-stretch rounded-lg border border-gray-200 text-sm text-gray-700 transition-colors dark:border-gray-700 dark:text-gray-300',
+        hasLink && 'hover:border-gray-300 hover:bg-gray-50 dark:hover:border-gray-600 dark:hover:bg-gray-700/50',
         isRepositoryCurationRelatedIdentifier(rel) &&
-            'border-cyan-200 bg-cyan-50/70 text-cyan-950 hover:border-cyan-300 hover:bg-cyan-100/80 dark:border-cyan-800 dark:bg-cyan-950/20 dark:text-cyan-100 dark:hover:border-cyan-700 dark:hover:bg-cyan-950/40',
+            'border-cyan-200 bg-cyan-50/70 text-cyan-950 dark:border-cyan-800 dark:bg-cyan-950/20 dark:text-cyan-100',
+        hasLink &&
+            isRepositoryCurationRelatedIdentifier(rel) &&
+            'hover:border-cyan-300 hover:bg-cyan-100/80 dark:hover:border-cyan-700 dark:hover:bg-cyan-950/40',
     );
 }
 
-function getRelatedIdentifierPlainClassName(rel: LandingPageRelatedIdentifier): string {
-    return cn(
-        'flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-300',
-        isRepositoryCurationRelatedIdentifier(rel) &&
-            'border-cyan-200 bg-cyan-50/70 text-cyan-950 dark:border-cyan-800 dark:bg-cyan-950/20 dark:text-cyan-100',
+interface RelatedIdentifierRowProps {
+    relatedIdentifier: LandingPageRelatedIdentifier;
+    url: string | null;
+    useIgsnHandles: boolean;
+    copied: boolean;
+    onCopy: (relatedIdentifier: LandingPageRelatedIdentifier) => void;
+}
+
+function RelatedIdentifierRow({ relatedIdentifier, url, useIgsnHandles, copied, onCopy }: RelatedIdentifierRowProps) {
+    const citation = getCopyableCitation(relatedIdentifier);
+    const labelId = `related-work-label-${relatedIdentifier.id}`;
+    const isRepositoryCuration = isRepositoryCurationRelatedIdentifier(relatedIdentifier);
+
+    return (
+        <div className={getRelatedIdentifierRowClassName(relatedIdentifier, url !== null)} data-testid={`related-work-entry-${relatedIdentifier.id}`}>
+            {url ? (
+                <a href={url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 flex-1 items-start gap-2 rounded-lg p-3 text-inherit">
+                    <ExternalLink
+                        className={cn(
+                            'mt-0.5 h-4 w-4 shrink-0 transition-colors',
+                            isRepositoryCuration
+                                ? 'text-cyan-500 group-hover:text-cyan-700 dark:text-cyan-300 dark:group-hover:text-cyan-100'
+                                : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300',
+                        )}
+                        aria-hidden="true"
+                    />
+                    <RelatedIdentifierLabel id={labelId} relatedIdentifier={relatedIdentifier} useIgsnHandles={useIgsnHandles} />
+                </a>
+            ) : (
+                <div className="flex min-w-0 flex-1 items-start gap-2 p-3" data-testid={`unresolved-related-identifier-${relatedIdentifier.id}`}>
+                    <RelatedIdentifierLabel id={labelId} relatedIdentifier={relatedIdentifier} useIgsnHandles={useIgsnHandles} />
+                </div>
+            )}
+
+            {citation && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onCopy(relatedIdentifier)}
+                    className="min-h-11 min-w-11 shrink-0 self-start"
+                    title={copied ? 'Copied!' : 'Copy citation'}
+                    aria-label="Copy citation to clipboard"
+                    aria-describedby={labelId}
+                    data-print="hide"
+                >
+                    {copied ? (
+                        <Check className="h-4 w-4 text-green-600 dark:text-green-400" aria-hidden="true" />
+                    ) : (
+                        <Copy className="h-4 w-4 text-gray-600 dark:text-gray-400" aria-hidden="true" />
+                    )}
+                </Button>
+            )}
+        </div>
     );
 }
 
@@ -115,6 +187,55 @@ export function RelatedWorkSection({
 }: RelatedWorkSectionProps) {
     const [browserOpen, setBrowserOpen] = useState(false);
     const [expanded, setExpanded] = useState(false);
+    const [copiedRelatedIdentifierId, setCopiedRelatedIdentifierId] = useState<number | null>(null);
+    const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (copyTimeoutRef.current) {
+                clearTimeout(copyTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    const clearCopiedState = () => {
+        if (copyTimeoutRef.current) {
+            clearTimeout(copyTimeoutRef.current);
+            copyTimeoutRef.current = null;
+        }
+
+        setCopiedRelatedIdentifierId(null);
+    };
+
+    const handleCopyCitation = async (relatedIdentifier: LandingPageRelatedIdentifier) => {
+        const citation = getCopyableCitation(relatedIdentifier);
+
+        if (!citation) {
+            return;
+        }
+
+        try {
+            if (!navigator.clipboard?.writeText) {
+                throw new Error('Clipboard API unavailable');
+            }
+
+            await navigator.clipboard.writeText(citation);
+            setCopiedRelatedIdentifierId(relatedIdentifier.id);
+            toast.success('Citation copied to clipboard');
+
+            if (copyTimeoutRef.current) {
+                clearTimeout(copyTimeoutRef.current);
+            }
+
+            copyTimeoutRef.current = setTimeout(() => {
+                setCopiedRelatedIdentifierId(null);
+                copyTimeoutRef.current = null;
+            }, 2000);
+        } catch {
+            clearCopiedState();
+            toast.error('Failed to copy citation');
+        }
+    };
 
     const excludedTypeSlugs = useMemo(() => new Set(excludedRelationTypes.map(normalizeTypeSlug).filter(Boolean)), [excludedRelationTypes]);
     const visibleRelatedIdentifiers = useMemo(
@@ -248,27 +369,13 @@ export function RelatedWorkSection({
 
                                     return (
                                         <li key={rel.id} className={isHiddenOnMobile ? 'collapsible-print-only hidden md:list-item' : ''}>
-                                            {url ? (
-                                                <a
-                                                    href={url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className={getRelatedIdentifierLinkClassName(rel)}
-                                                >
-                                                    <ExternalLink
-                                                        className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <RelatedIdentifierLabel relatedIdentifier={rel} useIgsnHandles={useIgsnHandles} />
-                                                </a>
-                                            ) : (
-                                                <div
-                                                    className={getRelatedIdentifierPlainClassName(rel)}
-                                                    data-testid={`unresolved-related-identifier-${rel.id}`}
-                                                >
-                                                    <RelatedIdentifierLabel relatedIdentifier={rel} useIgsnHandles={useIgsnHandles} />
-                                                </div>
-                                            )}
+                                            <RelatedIdentifierRow
+                                                relatedIdentifier={rel}
+                                                url={url}
+                                                useIgsnHandles={useIgsnHandles}
+                                                copied={copiedRelatedIdentifierId === rel.id}
+                                                onCopy={handleCopyCitation}
+                                            />
                                         </li>
                                     );
                                 })}
@@ -308,27 +415,13 @@ export function RelatedWorkSection({
 
                                                 return (
                                                     <li key={rel.id} className={isHiddenOnMobile ? 'collapsible-print-only hidden md:list-item' : ''}>
-                                                        {url ? (
-                                                            <a
-                                                                href={url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className={getRelatedIdentifierLinkClassName(rel)}
-                                                            >
-                                                                <ExternalLink
-                                                                    className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500 transition-colors group-hover:text-cyan-700 dark:text-cyan-300 dark:group-hover:text-cyan-100"
-                                                                    aria-hidden="true"
-                                                                />
-                                                                <RelatedIdentifierLabel relatedIdentifier={rel} useIgsnHandles={useIgsnHandles} />
-                                                            </a>
-                                                        ) : (
-                                                            <div
-                                                                className={getRelatedIdentifierPlainClassName(rel)}
-                                                                data-testid={`unresolved-related-identifier-${rel.id}`}
-                                                            >
-                                                                <RelatedIdentifierLabel relatedIdentifier={rel} useIgsnHandles={useIgsnHandles} />
-                                                            </div>
-                                                        )}
+                                                        <RelatedIdentifierRow
+                                                            relatedIdentifier={rel}
+                                                            url={url}
+                                                            useIgsnHandles={useIgsnHandles}
+                                                            copied={copiedRelatedIdentifierId === rel.id}
+                                                            onCopy={handleCopyCitation}
+                                                        />
                                                     </li>
                                                 );
                                             })}
@@ -436,6 +529,10 @@ export function RelatedWorkSection({
                     </Button>
                 </div>
             )}
+
+            <span className="sr-only" aria-live="polite" role="status">
+                {copiedRelatedIdentifierId !== null ? 'Citation copied to clipboard' : ''}
+            </span>
 
             {browserOpen && (
                 <Suspense fallback={null}>
