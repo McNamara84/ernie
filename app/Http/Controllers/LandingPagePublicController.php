@@ -17,7 +17,7 @@ use App\Services\LandingPageMachineMetadataService;
 use App\Services\LandingPageMetadataLinkService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
-use App\Services\PublicTraffic\PublicTrafficRecorder;
+use App\Services\PublicTraffic\PublicTrafficRecorderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,7 +33,7 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
  */
 class LandingPagePublicController extends Controller
 {
-    public function __construct(private readonly ?PublicTrafficRecorder $publicTrafficRecorder = null) {}
+    public function __construct(private readonly ?PublicTrafficRecorderService $publicTrafficRecorder = null) {}
 
     /**
      * Regex pattern for valid slug characters.
@@ -441,9 +441,9 @@ class LandingPagePublicController extends Controller
         return $response;
     }
 
-    private function trafficRecorder(): PublicTrafficRecorder
+    private function trafficRecorder(): PublicTrafficRecorderService
     {
-        return $this->publicTrafficRecorder ?? app(PublicTrafficRecorder::class);
+        return $this->publicTrafficRecorder ?? app(PublicTrafficRecorderService::class);
     }
 
     /**

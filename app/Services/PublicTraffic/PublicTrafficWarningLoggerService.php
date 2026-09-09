@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-final class PublicTrafficWarningLogger
+final class PublicTrafficWarningLoggerService
 {
     /** @var array<string, int> */
     private static array $fallbackLastLoggedAt = [];

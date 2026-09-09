@@ -9,7 +9,7 @@ use App\Enums\PublicTrafficSurface;
 use App\Http\Requests\PortalSearchRequest;
 use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\PortalPayloadService;
-use App\Services\PublicTraffic\PublicTrafficRecorder;
+use App\Services\PublicTraffic\PublicTrafficRecorderService;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,7 +25,7 @@ class PortalController extends Controller
     public function __construct(
         private readonly PortalPageCacheService $pageCache,
         private readonly PortalPayloadService $payloadService,
-        private readonly PublicTrafficRecorder $publicTrafficRecorder,
+        private readonly PublicTrafficRecorderService $publicTrafficRecorder,
     ) {}
 
     public function index(PortalSearchRequest $request, string $portalScope): Response

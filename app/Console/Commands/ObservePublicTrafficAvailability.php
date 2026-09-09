@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\PublicTraffic\PublicTrafficAvailabilityService;
-use App\Services\PublicTraffic\PublicTrafficWarningLogger;
+use App\Services\PublicTraffic\PublicTrafficWarningLoggerService;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -17,7 +17,7 @@ final class ObservePublicTrafficAvailability extends Command
 
     public function handle(
         PublicTrafficAvailabilityService $availability,
-        PublicTrafficWarningLogger $warningLogger,
+        PublicTrafficWarningLoggerService $warningLogger,
     ): int {
         if (! config('public_traffic.enabled')) {
             $this->components->info('Public traffic analytics are disabled.');

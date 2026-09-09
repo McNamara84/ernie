@@ -13,7 +13,7 @@ use RuntimeException;
 
 final readonly class PublicTrafficAvailabilityService
 {
-    public function __construct(private PublicTrafficAggregateStore $store) {}
+    public function __construct(private PublicTrafficAggregateStoreService $store) {}
 
     public function observe(): ?PublicTrafficHourlyStatistic
     {

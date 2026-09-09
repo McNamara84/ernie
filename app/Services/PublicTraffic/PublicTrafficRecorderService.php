@@ -12,12 +12,12 @@ use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 use Throwable;
 
-final readonly class PublicTrafficRecorder
+final readonly class PublicTrafficRecorderService
 {
     public function __construct(
         private BotClassifierService $botClassifier,
-        private PublicTrafficAggregateStore $store,
-        private PublicTrafficWarningLogger $warningLogger,
+        private PublicTrafficAggregateStoreService $store,
+        private PublicTrafficWarningLoggerService $warningLogger,
     ) {}
 
     public function record(Request $request, PublicTrafficSurface $surface): void

@@ -5,9 +5,9 @@ declare(strict_types=1);
 use App\Enums\PublicTrafficSurface;
 use App\Models\PublicTrafficHourlyStatistic;
 use App\Models\User;
-use App\Services\PublicTraffic\PublicTrafficAggregateStore;
-use App\Services\PublicTraffic\PublicTrafficRecorder;
-use App\Services\PublicTraffic\PublicTrafficWarningLogger;
+use App\Services\PublicTraffic\PublicTrafficAggregateStoreService;
+use App\Services\PublicTraffic\PublicTrafficRecorderService;
+use App\Services\PublicTraffic\PublicTrafficWarningLoggerService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -16,9 +16,9 @@ use Illuminate\Support\Facades\Log;
 covers(
     PublicTrafficSurface::class,
     PublicTrafficHourlyStatistic::class,
-    PublicTrafficAggregateStore::class,
-    PublicTrafficRecorder::class,
-    PublicTrafficWarningLogger::class,
+    PublicTrafficAggregateStoreService::class,
+    PublicTrafficRecorderService::class,
+    PublicTrafficWarningLoggerService::class,
 );
 
 beforeEach(function (): void {
@@ -52,9 +52,9 @@ function publicTrafficRequest(
     return $request;
 }
 
-function publicTrafficRecorder(): PublicTrafficRecorder
+function publicTrafficRecorder(): PublicTrafficRecorderService
 {
-    return app(PublicTrafficRecorder::class);
+    return app(PublicTrafficRecorderService::class);
 }
 
 it('records one surface and one combined visitor for a normal signed-out browser', function (): void {

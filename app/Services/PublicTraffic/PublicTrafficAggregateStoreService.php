@@ -7,10 +7,11 @@ namespace App\Services\PublicTraffic;
 use App\Enums\PublicTrafficSurface;
 use App\Models\PublicTrafficHourlyStatistic;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-final class PublicTrafficAggregateStore
+final class PublicTrafficAggregateStoreService
 {
     public function increment(
         CarbonImmutable $bucketStartedAt,
@@ -65,7 +66,7 @@ final class PublicTrafficAggregateStore
             }
 
             $statistic->observed_minute_count = min(60, $statistic->observed_minute_count + 1);
-            $statistic->last_observed_minute_at = $minute->toMutable();
+            $statistic->last_observed_minute_at = Carbon::instance($minute);
             $statistic->save();
 
             return $statistic;
