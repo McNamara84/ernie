@@ -6,7 +6,6 @@ namespace App\Http\Requests\RelatedIdentifier;
 
 use App\Services\DoiSuggestionService;
 use Closure;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,7 +17,7 @@ class ResolveCitationLabelRequest extends FormRequest
     }
 
     /**
-     * @return array<string, array<int, ValidationRule|string|Closure>>
+     * @return array<string, array<int, mixed>>
      */
     public function rules(): array
     {
