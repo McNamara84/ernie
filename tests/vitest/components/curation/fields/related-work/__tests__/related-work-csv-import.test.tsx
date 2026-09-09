@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RelatedWorkCsvImport from '@/components/curation/fields/related-work/related-work-csv-import';
