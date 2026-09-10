@@ -7,6 +7,10 @@
             {
                 "title": "Visible Version Guidance and Forthcoming Publications",
                 "description": "Resource and IGSN landing pages now show prominent links to newer or superseding versions, independently of collapsed or configured Related Work details. Curators can add a forthcoming journal article as rich DataCite related-item metadata without inventing a DOI, clearly review its pending identifier, and add the DOI to the same item later. A dry-run-first, additive administration command can also recover related identifiers omitted from migrated SUMARIO records without overwriting curated ERNIE metadata, with DOI validation, deduplication, CSV reporting, targeted cache invalidation, and optional DataCite synchronization."
+            },
+            {
+                "title": "Streamlined Main Navigation",
+                "description": "The authenticated main menu now labels the resource overview as Resources List and places the IGSN Portal directly after IGSNs List. The superseded standalone IGSNs Map, Old Datasets, and Statistics (old) pages have been retired, together with the Legacy menu section; IGSN discovery remains available through the IGSN Portal and current statistics remain available through the Statistics page."
             }
         ],
         "fixes": [

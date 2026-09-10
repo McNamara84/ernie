@@ -32,14 +32,14 @@ import { test } from '@playwright/test';
 import { loginAsTestUser } from './helpers/test-helpers';
 import { DashboardPage, CurationPage } from './helpers/page-objects';
 
-test('user can navigate from dashboard to curation', async ({ page }) => {
+test('user can navigate from dashboard to the data editor', async ({ page }) => {
   // Login using helper
   await loginAsTestUser(page);
   
   // Use page objects for interactions
   const dashboard = new DashboardPage(page);
   await dashboard.verifyOnDashboard();
-  await dashboard.navigateTo('Curation');
+  await dashboard.navigateTo('Data Editor');
   
   const curation = new CurationPage(page);
   await curation.verifyOnCurationPage();
