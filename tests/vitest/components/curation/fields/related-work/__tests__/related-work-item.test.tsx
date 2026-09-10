@@ -155,6 +155,54 @@ describe('RelatedWorkItem', () => {
         );
     });
 
+    it('does not infer a manual override from a type mismatch when the explicit flag is missing', () => {
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    identifier: '10.5880/original',
+                    identifier_type: 'URL',
+                    relation_type: 'Cites',
+                }}
+                activeIdentifierTypes={['DOI', 'URL']}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText('Identifier'), { target: { value: '10.5880/updated' } });
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                identifier: '10.5880/updated',
+                identifier_type: 'DOI',
+                identifier_type_manually_selected: false,
+            }),
+        );
+    });
+
+    it('keeps an active fallback type auto-detectable when the explicit flag is missing', () => {
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    identifier: '10.5880/original',
+                    identifier_type: 'URL',
+                    relation_type: 'Cites',
+                }}
+                activeIdentifierTypes={['URL']}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText('Identifier'), { target: { value: '10.5880/updated' } });
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                identifier: '10.5880/updated',
+                identifier_type: 'URL',
+                identifier_type_manually_selected: false,
+            }),
+        );
+    });
+
     it('preserves a manually selected identifier type while editing', () => {
         render(
             <RelatedWorkItem

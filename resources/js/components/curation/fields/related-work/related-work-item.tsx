@@ -86,8 +86,7 @@ export default function RelatedWorkItem({
             ...patch,
         });
     };
-    const identifierTypeWasManuallySelected =
-        item.identifier_type_manually_selected ?? (item.identifier.trim() !== '' && detectIdentifierType(item.identifier) !== item.identifier_type);
+    const identifierTypeWasManuallySelected = item.identifier_type_manually_selected === true;
 
     const handleIdentifierChange = (value: string) => {
         const isEmpty = value.trim() === '';
