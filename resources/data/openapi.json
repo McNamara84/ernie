@@ -1321,6 +1321,134 @@
                 }
             }
         },
+        "/api/v1/related-identifiers/citation-label": {
+            "get": {
+                "tags": ["DataCite"],
+                "summary": "Resolve a citation label for a related identifier",
+                "description": "Resolves a citation label for a DOI or retrieves the exact cached label for a URL. Used by the Related Work editor after an identifier field loses focus. A 404 response is an authoritative miss and may be cached by clients; rate-limit and other transient failures should remain retryable. Requires an authenticated, verified ERNIE browser session and is rate-limited to 30 requests per minute per user.",
+                "security": [
+                    {
+                        "LaravelSession": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "identifier",
+                        "in": "query",
+                        "required": true,
+                        "description": "A valid DOI (bare or resolver URL) or an absolute HTTP(S) URL, according to `identifierType`.",
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2183,
+                            "example": "10.5880/GFZ.TEST.2026"
+                        }
+                    },
+                    {
+                        "name": "identifierType",
+                        "in": "query",
+                        "required": true,
+                        "description": "The identifier registry used to validate and resolve the citation label.",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["DOI", "URL"],
+                            "example": "DOI"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Citation label resolved successfully.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RelatedIdentifierCitationLabelResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required. The request must include a valid ERNIE session.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                },
+                                "example": {
+                                    "message": "Unauthenticated."
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No citation label could be resolved for the identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                },
+                                "example": {
+                                    "error": "No citation label could be resolved for this identifier."
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The identifier or identifier type is missing, unsupported, or invalid.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ValidationErrorResponse"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ErrorResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded (30 requests per minute).",
+                        "headers": {
+                            "Retry-After": {
+                                "description": "Seconds until the client may retry.",
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
+                            },
+                            "X-RateLimit-Limit": {
+                                "description": "Maximum requests allowed in the current window.",
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                }
+                            },
+                            "X-RateLimit-Remaining": {
+                                "description": "Requests remaining in the current window.",
+                                "schema": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                },
+                                "example": {
+                                    "message": "Too Many Attempts."
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/datacite/citation": {
             "get": {
                 "tags": ["DataCite"],
@@ -2742,6 +2870,43 @@
             }
         },
         "schemas": {
+            "RelatedIdentifierCitationLabelResponse": {
+                "type": "object",
+                "description": "Resolved citation label and the normalized identifier used for the lookup.",
+                "properties": {
+                    "citation": {
+                        "type": "string",
+                        "minLength": 1,
+                        "example": "Doe, J. (2026): Resolved DOI citation."
+                    },
+                    "identifier": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2183,
+                        "example": "10.5880/gfz.test.2026"
+                    },
+                    "identifier_type": {
+                        "type": "string",
+                        "enum": ["DOI", "URL"],
+                        "example": "DOI"
+                    }
+                },
+                "required": ["citation", "identifier", "identifier_type"],
+                "additionalProperties": false
+            },
+            "ErrorResponse": {
+                "type": "object",
+                "description": "Generic JSON response containing an error description.",
+                "properties": {
+                    "error": {
+                        "type": "string",
+                        "minLength": 1,
+                        "example": "No citation label could be resolved for this identifier."
+                    }
+                },
+                "required": ["error"],
+                "additionalProperties": false
+            },
             "PortalKeywordSuggestion": {
                 "type": "object",
                 "description": "An uncontrolled keyword used by one or more published records.",

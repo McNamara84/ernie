@@ -5,6 +5,10 @@
         "features": [],
         "improvements": [
             {
+                "title": "Direct Related Work Editing",
+                "description": "Add Related Work now creates the complete editable card immediately, including its Citation Label field, without a separate plus-button confirmation. Unfinished cards and their values remain visible across Related Work section toggles while empty cards stay out of saved payloads, and leaving a DOI or URL identifier now shows its safe preview and resolves an available citation label without overwriting curator text. The confusing opposite-relation suggestion has also been removed."
+            },
+            {
                 "title": "Visible Version Guidance and Forthcoming Publications",
                 "description": "Resource and IGSN landing pages now show prominent links to newer or superseding versions, independently of collapsed or configured Related Work details. Curators can add a forthcoming journal article as rich DataCite related-item metadata without inventing a DOI, clearly review its pending identifier, and add the DOI to the same item later. A dry-run-first, additive administration command can also recover related identifiers omitted from migrated SUMARIO records without overwriting curated ERNIE metadata, with DOI validation, deduplication, CSV reporting, targeted cache invalidation, and optional DataCite synchronization."
             }

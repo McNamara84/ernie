@@ -2323,15 +2323,22 @@ export default function DataCiteForm({
                 timezone: coverage.timezone,
                 description: coverage.description,
             })),
-            relatedIdentifiers: relatedWorks.map((rw) => ({
-                ...(rw.id !== undefined ? { id: rw.id } : {}),
-                identifier: rw.identifier,
-                identifierType: rw.identifier_type,
-                relationType: rw.relation_type,
-                ...(rw.relation_type_information ? { relationTypeInformation: rw.relation_type_information } : {}),
-                ...(rw.citation_label ? { citationLabel: rw.citation_label } : {}),
-                ...(rw.source ? { source: rw.source } : {}),
-            })),
+            relatedIdentifiers: relatedWorks
+                .filter((rw) => rw.identifier.trim() !== '')
+                .map((rw) => {
+                    const relationTypeInformation = rw.relation_type_information?.trim();
+                    const citationLabel = rw.citation_label?.trim();
+
+                    return {
+                        ...(rw.id !== undefined ? { id: rw.id } : {}),
+                        identifier: rw.identifier.trim(),
+                        identifierType: rw.identifier_type,
+                        relationType: rw.relation_type,
+                        ...(relationTypeInformation ? { relationTypeInformation } : {}),
+                        ...(citationLabel ? { citationLabel } : {}),
+                        ...(rw.source ? { source: rw.source } : {}),
+                    };
+                }),
             // Pass-through for XML-imported inline citations; the backend
             // persists these on first save, after which the REST-based
             // CitationManagerModal owns the data.
@@ -3789,7 +3796,7 @@ export default function DataCiteForm({
                         <AccordionSectionHeader
                             label="Related Work"
                             description="Links to related publications and datasets."
-                            counter={relatedWorks.length}
+                            counter={relatedWorks.filter((relatedWork) => relatedWork.identifier.trim() !== '').length}
                             status={renderStatusBadge(relatedWorkStatus)}
                         />
                     </AccordionTrigger>

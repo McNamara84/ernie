@@ -8,6 +8,7 @@ import type { RelatedIdentifier } from '@/types';
 
 describe('RelatedWorkItem', () => {
     const mockOnChange = vi.fn();
+    const mockOnIdentifierBlur = vi.fn();
     const mockOnRemove = vi.fn();
 
     const defaultItem: RelatedIdentifier = {
@@ -21,6 +22,7 @@ describe('RelatedWorkItem', () => {
         item: defaultItem,
         index: 0,
         onChange: mockOnChange,
+        onIdentifierBlur: mockOnIdentifierBlur,
         onRemove: mockOnRemove,
     };
 
@@ -34,6 +36,19 @@ describe('RelatedWorkItem', () => {
         expect(screen.getByRole('heading', { name: /related work 1/i })).toBeInTheDocument();
         expect(screen.getByRole('combobox', { name: /relation type/i })).toHaveTextContent('References');
         expect(screen.getByTestId('identifier-type-badge')).toHaveTextContent('DOI');
+    });
+
+    it('gives every identifier input an index-scoped test id', () => {
+        render(
+            <>
+                <RelatedWorkItem {...defaultProps} sortableId="related-work-0" index={0} />
+                <RelatedWorkItem {...defaultProps} sortableId="related-work-1" index={1} />
+            </>,
+        );
+
+        expect(screen.getByTestId('related-work-0-identifier-input')).toBeInTheDocument();
+        expect(screen.getByTestId('related-work-1-identifier-input')).toBeInTheDocument();
+        expect(screen.queryByTestId('related-work-identifier-input')).not.toBeInTheDocument();
     });
 
     it('renders DOI identifiers as clickable preview links', () => {
@@ -116,6 +131,133 @@ describe('RelatedWorkItem', () => {
         );
     });
 
+    it('auto-detects the identifier type while editing a new card', () => {
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    identifier: '',
+                    identifier_type: 'DOI',
+                    identifier_type_manually_selected: false,
+                    relation_type: 'Cites',
+                }}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText('Identifier'), { target: { value: 'https://example.org/resource' } });
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                identifier: 'https://example.org/resource',
+                identifier_type: 'URL',
+                identifier_type_manually_selected: false,
+            }),
+        );
+    });
+
+    it('does not infer a manual override from a type mismatch when the explicit flag is missing', () => {
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    identifier: '10.5880/original',
+                    identifier_type: 'URL',
+                    relation_type: 'Cites',
+                }}
+                activeIdentifierTypes={['DOI', 'URL']}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText('Identifier'), { target: { value: '10.5880/updated' } });
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                identifier: '10.5880/updated',
+                identifier_type: 'DOI',
+                identifier_type_manually_selected: false,
+            }),
+        );
+    });
+
+    it('keeps an active fallback type auto-detectable when the explicit flag is missing', () => {
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    identifier: '10.5880/original',
+                    identifier_type: 'URL',
+                    relation_type: 'Cites',
+                }}
+                activeIdentifierTypes={['URL']}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText('Identifier'), { target: { value: '10.5880/updated' } });
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                identifier: '10.5880/updated',
+                identifier_type: 'URL',
+                identifier_type_manually_selected: false,
+            }),
+        );
+    });
+
+    it('preserves a manually selected identifier type while editing', () => {
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    identifier: 'ambiguous',
+                    identifier_type: 'DOI',
+                    identifier_type_manually_selected: true,
+                    relation_type: 'Cites',
+                }}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText('Identifier'), { target: { value: 'https://example.org/resource' } });
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                identifier_type: 'DOI',
+                identifier_type_manually_selected: true,
+            }),
+        );
+    });
+
+    it('resets the manual identifier type override without changing the type after clearing the identifier', () => {
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    identifier: 'ambiguous',
+                    identifier_type: 'DOI',
+                    identifier_type_manually_selected: true,
+                    relation_type: 'Cites',
+                }}
+            />,
+        );
+
+        fireEvent.change(screen.getByLabelText('Identifier'), { target: { value: '' } });
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                identifier: '',
+                identifier_type: 'DOI',
+                identifier_type_manually_selected: false,
+            }),
+        );
+    });
+
+    it('notifies the parent when the identifier field loses focus', () => {
+        render(<RelatedWorkItem {...defaultProps} />);
+
+        fireEvent.blur(screen.getByLabelText('Identifier'));
+
+        expect(mockOnIdentifierBlur).toHaveBeenCalledTimes(1);
+    });
+
     it('calls onChange when the identifier type is edited', async () => {
         const user = userEvent.setup();
         render(<RelatedWorkItem {...defaultProps} />);
@@ -141,6 +283,31 @@ describe('RelatedWorkItem', () => {
                 citation_label: 'Smith, J. (2024). Test Dataset.',
             }),
         );
+    });
+
+    it('announces citation resolution progress and outcomes', () => {
+        const { rerender } = render(<RelatedWorkItem {...defaultProps} citationResolutionStatus="resolving" />);
+
+        expect(screen.getByText('Resolving citation label…')).toBeInTheDocument();
+        expect(screen.getByText('Resolving citation label…').parentElement).toHaveAttribute('aria-live', 'polite');
+
+        rerender(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{ ...defaultItem, citation_label: 'Resolved citation' }}
+                citationResolutionStatus="resolved"
+            />,
+        );
+        expect(screen.getByText('Citation label resolved automatically.')).toBeInTheDocument();
+
+        rerender(
+            <RelatedWorkItem
+                {...defaultProps}
+                citationResolutionStatus="unavailable"
+                citationResolutionMessage="No cached URL citation found."
+            />,
+        );
+        expect(screen.getByText('No cached URL citation found.')).toBeInTheDocument();
     });
 
     it('does not render the removed resolved title helper UI', () => {

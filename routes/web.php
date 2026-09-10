@@ -2,6 +2,7 @@
 
 use App\Enums\PortalScope;
 use App\Http\Controllers\Api\CitationLookupController;
+use App\Http\Controllers\Api\RelatedIdentifierCitationLabelController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\BatchIgsnController;
 use App\Http\Controllers\BatchIgsnRegistrationController;
@@ -267,6 +268,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('feedback', UserFeedbackController::class)
         ->middleware('throttle:user-feedback')
         ->name('user-feedback.store');
+
+    Route::get('api/v1/related-identifiers/citation-label', [RelatedIdentifierCitationLabelController::class, 'resolve'])
+        ->middleware('throttle:30,1')
+        ->name('api.related-identifiers.citation-label');
 
     Route::middleware(['can:access-assessment'])->group(function () {
         Route::get('assessment', [AssessmentController::class, 'index'])

@@ -446,8 +446,16 @@ verify them after reopening:
 - [ ] Enter temporal coverage and at least one date with a date type; single value
       and range render correctly.
 
-- [ ] Add related work using a DOI and URL; save type and relation. Test DOI
-      detection or citation lookup where available.
+- [ ] Choose `Add Related Work`; confirm that the complete card, including Citation
+      Label, appears immediately and remains populated after collapsing and reopening
+      the section. Confirm that a second empty card cannot be added and that an empty
+      card is omitted after saving and reloading.
+
+- [ ] Enter related work using a DOI and URL, then leave the Identifier field. Confirm
+      type detection, a safe Preview link, and best-effort Citation Label resolution
+      (URL labels require an exact cached URL). Confirm that a manually entered label
+      is not overwritten and that no `Did you mean ... instead?` relation prompt is
+      shown.
 
 - [ ] Save a funding reference with funder, identifier, award number, and title;
       lookup suggestions are plausible.

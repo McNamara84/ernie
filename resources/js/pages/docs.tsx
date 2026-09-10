@@ -1840,39 +1840,40 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Starting with an Empty Related Work List</h4>
                         <p>
                             When the <strong>Related Work</strong> section has no entries, the Data Editor presents two actions instead of an empty
-                            form. Choose <strong>Add Related Work</strong> to open the first manual entry form, or choose <strong>Import CSV</strong>{' '}
-                            to start a bulk import immediately.
+                            form. Choose <strong>Add Related Work</strong> to create a complete editable card immediately, including the Citation
+                            Label field, or choose <strong>Import CSV</strong> to start a bulk import immediately.
                         </p>
                         <p>
-                            While creating the first manual entry, use <strong>Cancel</strong> to discard its unsaved values and return to the empty
-                            state. After the first entry is added, the quick-add form and the related-work list remain visible. Removing the final
-                            entry returns the section to the same empty state.
+                            Card values remain available when you collapse and reopen the section. Only one card without an identifier can exist at a
+                            time, so <strong>Add Related Work</strong> remains disabled until you enter an identifier or remove the empty card. An
+                            empty card is not saved and therefore disappears when the editor page is reloaded. Removing the final card returns the
+                            section to the same empty state.
                         </p>
 
                         <h4>Adding Related Identifiers</h4>
                         <WorkflowSteps>
-                            <WorkflowSteps.Step number={1} title="Enter the Identifier">
+                            <WorkflowSteps.Step number={1} title="Add a Card and Enter the Identifier">
                                 <p>
-                                    Paste a DOI, URL, Handle, IGSN, URN, or another supported identifier. ERNIE auto-detects the type and still lets
-                                    you override it manually when needed.
+                                    Choose <strong>Add Related Work</strong>, then paste a DOI, URL, Handle, IGSN, URN, or another supported
+                                    identifier into the new card. ERNIE auto-detects the type and still lets you override it manually when needed.
                                 </p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={2} title="Pick the Relation Type">
+                            <WorkflowSteps.Step number={2} title="Leave the Identifier Field">
+                                <p>
+                                    When you leave the field, ERNIE normalizes DOI input, shows a safe preview link, and tries to fill an empty
+                                    Citation Label for DOI and URL identifiers. You can continue editing while the best-effort lookup runs.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Pick the Relation Type">
                                 <p>
                                     The relation menu keeps the most frequently used DataCite relation types in a dedicated <em>Most used</em> block,
                                     with the full schema available below it.
                                 </p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={3} title="Refine the Card">
+                            <WorkflowSteps.Step number={4} title="Refine and Reorder">
                                 <p>
-                                    After adding an entry, edit the related-work card directly. You can adjust the identifier, change the relation
-                                    type, and add a custom citation label for landing pages.
-                                </p>
-                            </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={4} title="Reorder the List">
-                                <p>
-                                    Drag related-work cards into the order you want. This order is preserved in the editor and reused on the landing
-                                    page.
+                                    Adjust the identifier, relation type, and Citation Label directly in the card. Drag completed cards into the order
+                                    you want; this order is preserved in the editor and reused on the landing page.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
@@ -1880,7 +1881,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>CSV Bulk Import</h4>
                         <p>
                             Start the importer with <strong>Import CSV</strong> in the empty state or <strong>Import from CSV</strong> beside the
-                            quick-add form. Drop a CSV file onto the upload area or select one from your device. The required columns are{' '}
+                            related-work cards. Drop a CSV file onto the upload area or select one from your device. The required columns are{' '}
                             <code>identifier</code> and <code>relation_type</code>; <code>identifier_type</code> is optional and is auto-detected when
                             omitted. An example file is available from <strong>Download Example</strong> in the importer.
                         </p>
@@ -1890,11 +1891,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             relation type. Use <strong>Cancel</strong> or close the importer to return without adding any rows.
                         </p>
 
-                        <h4>DOI Citation Labels</h4>
+                        <h4>DOI and URL Citation Labels</h4>
                         <p>
-                            When you add a DOI, ERNIE tries to resolve a formatted citation label immediately and stores it with the related
-                            identifier. The same citation label is reused on landing pages and in the relation browser, so no third-party citation
-                            lookup is needed at page-load time. You can overwrite the label manually whenever you need a curated citation string.
+                            When you leave a valid DOI or URL identifier field, ERNIE tries to resolve a formatted Citation Label. DOI metadata may be
+                            retrieved from DataCite; URL labels are available only when that exact URL already exists in ERNIE's metadata cache. An
+                            unavailable label never prevents editing or saving, and ERNIE never overwrites a label you entered manually. Stored labels
+                            are reused on landing pages and in the relation browser, so no third-party citation lookup is needed at page-load time.
                         </p>
 
                         <h4>Common Relation Types</h4>
