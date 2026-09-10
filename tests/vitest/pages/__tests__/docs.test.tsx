@@ -132,7 +132,7 @@ describe('Docs page', () => {
         expect(sectionContent?.textContent).toMatch(/Screenshots, form contents, IP addresses, and global server logs are not collected/i);
     });
 
-    it('documents changelog GitHub references for every role', () => {
+    it('documents changelog GitHub references for beginner users', () => {
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         const heading = screen.getByRole('heading', { name: 'Review Release Changes and Their GitHub Context' });
