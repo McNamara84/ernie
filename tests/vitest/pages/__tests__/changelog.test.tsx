@@ -197,6 +197,32 @@ describe('Changelog', () => {
                                     },
                                 ],
                             },
+                            {
+                                title: 'Unsafe reference metadata',
+                                description: 'Invalid reference URLs must remain plain text.',
+                                references: [
+                                    {
+                                        type: 'issue',
+                                        number: 1,
+                                        url: 'javascript:alert(1)',
+                                    },
+                                    {
+                                        type: 'pull_request',
+                                        number: 2,
+                                        url: 'https://example.com/McNamara84/ernie/pull/2',
+                                    },
+                                    {
+                                        type: 'issue',
+                                        number: 3,
+                                        url: 'https://github.com/McNamara84/ernie/pull/3',
+                                    },
+                                    {
+                                        type: 'issue',
+                                        number: 4,
+                                        url: 'not a URL',
+                                    },
+                                ],
+                            },
                         ],
                     },
                     {
@@ -303,6 +329,7 @@ describe('Changelog', () => {
         expect(issueLink).toHaveAttribute('href', 'https://github.com/McNamara84/ernie/issues/1285');
         expect(secondPullRequestLink).toHaveAttribute('href', 'https://github.com/McNamara84/ernie/pull/1301');
         expect(within(multipleReferenceGroup).getAllByRole('link')).toHaveLength(2);
+        expect(screen.queryByRole('group', { name: 'Related GitHub references for Unsafe reference metadata' })).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: /version 0\.1\.1/i }));
 

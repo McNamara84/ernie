@@ -52,10 +52,48 @@
             "name": "Portal",
             "summary": "Public data portal endpoints",
             "description": "Public endpoints used to discover published ERNIE resources."
+        },
+        {
+            "name": "Changelog",
+            "summary": "Public release history endpoint",
+            "description": "Endpoint for retrieving ERNIE releases and their related GitHub context."
         }
     ],
     "security": [],
     "paths": {
+        "/api/changelog": {
+            "get": {
+                "tags": ["Changelog"],
+                "summary": "List changelog releases",
+                "description": "Returns ERNIE releases and their feature, improvement, and fix entries. Any changelog entry may include related GitHub issue and pull-request references.",
+                "security": [],
+                "responses": {
+                    "200": {
+                        "description": "Changelog releases in reverse chronological order.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ChangelogRelease"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "The changelog data is malformed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/resource-types/elmo": {
             "get": {
                 "tags": ["Editor Configuration"],
@@ -2870,6 +2908,88 @@
             }
         },
         "schemas": {
+            "ChangelogReference": {
+                "type": "object",
+                "description": "A related GitHub issue or pull request.",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["issue", "pull_request"]
+                    },
+                    "number": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "example": 1285
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "pattern": "^https://github\\.com/[^/]+/[^/]+/(issues|pull)/[1-9][0-9]*$",
+                        "example": "https://github.com/McNamara84/ernie/issues/1285"
+                    }
+                },
+                "required": ["type", "number", "url"],
+                "additionalProperties": false
+            },
+            "ChangelogEntry": {
+                "type": "object",
+                "description": "A feature, improvement, or fix included in a release.",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "description": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "references": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                            "$ref": "#/components/schemas/ChangelogReference"
+                        }
+                    }
+                },
+                "required": ["title", "description"],
+                "additionalProperties": false
+            },
+            "ChangelogRelease": {
+                "type": "object",
+                "description": "A versioned ERNIE release grouped by change category.",
+                "properties": {
+                    "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "example": "1.0.9"
+                    },
+                    "date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-09-16"
+                    },
+                    "features": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ChangelogEntry"
+                        }
+                    },
+                    "improvements": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ChangelogEntry"
+                        }
+                    },
+                    "fixes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ChangelogEntry"
+                        }
+                    }
+                },
+                "required": ["version", "date", "features", "improvements", "fixes"],
+                "additionalProperties": false
+            },
             "RelatedIdentifierCitationLabelResponse": {
                 "type": "object",
                 "description": "Resolved citation label and the normalized identifier used for the lookup.",
