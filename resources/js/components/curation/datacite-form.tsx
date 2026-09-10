@@ -2331,7 +2331,7 @@ export default function DataCiteForm({
 
                     return {
                         ...(rw.id !== undefined ? { id: rw.id } : {}),
-                        identifier: rw.identifier,
+                        identifier: rw.identifier.trim(),
                         identifierType: rw.identifier_type,
                         relationType: rw.relation_type,
                         ...(relationTypeInformation ? { relationTypeInformation } : {}),

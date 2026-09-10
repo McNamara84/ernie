@@ -7824,7 +7824,7 @@ describe('DataCiteForm', () => {
             expect(body.relatedIdentifiers).toEqual([]);
         });
 
-        it('includes complete Related Work cards and excludes empty cards from the save payload', { timeout: 60000 }, async () => {
+        it('trims Related Work payload values, omits whitespace metadata, and excludes empty cards', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
@@ -7851,7 +7851,7 @@ describe('DataCiteForm', () => {
                     initialRelatedWorks={[
                         {
                             id: 12,
-                            identifier: '10.1234/example',
+                            identifier: '  10.1234/example  ',
                             identifier_type: 'DOI',
                             relation_type: 'IsReferencedBy',
                             relation_type_information: '  Journal article  ',
