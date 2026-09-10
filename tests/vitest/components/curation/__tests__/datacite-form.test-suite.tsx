@@ -7768,16 +7768,16 @@ describe('DataCiteForm', () => {
             const relatedWorkTrigger = await ensureRelatedWorkOpen(user);
             await user.click(screen.getByRole('button', { name: 'Add Related Work' }));
 
-            expect(screen.getByTestId('related-work-identifier-input')).toHaveValue('');
+            expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('');
             expect(screen.getByRole('textbox', { name: /Citation label/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: 'Add Related Work' })).toBeDisabled();
             expect(relatedWorkTrigger.textContent).not.toContain('(1)');
 
             await user.click(relatedWorkTrigger);
-            expect(screen.queryByTestId('related-work-identifier-input')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('related-work-0-identifier-input')).not.toBeInTheDocument();
 
             await user.click(relatedWorkTrigger);
-            expect(screen.getByTestId('related-work-identifier-input')).toHaveValue('');
+            expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('');
             expect(screen.getByRole('textbox', { name: /Citation label/i })).toBeInTheDocument();
         });
 
@@ -7788,14 +7788,14 @@ describe('DataCiteForm', () => {
 
             const relatedWorkTrigger = await ensureRelatedWorkOpen(user);
             await user.click(screen.getByRole('button', { name: 'Add Related Work' }));
-            await user.type(screen.getByTestId('related-work-identifier-input'), 'ark:12148/btv1b8449691v/f29');
+            await user.type(screen.getByTestId('related-work-0-identifier-input'), 'ark:12148/btv1b8449691v/f29');
             await user.type(screen.getByRole('textbox', { name: /Citation label/i }), 'Curated related work');
 
             await waitFor(() => expect(relatedWorkTrigger).toHaveTextContent('(1)'));
             await user.click(relatedWorkTrigger);
             await user.click(relatedWorkTrigger);
 
-            expect(screen.getByTestId('related-work-identifier-input')).toHaveValue('ark:12148/btv1b8449691v/f29');
+            expect(screen.getByTestId('related-work-0-identifier-input')).toHaveValue('ark:12148/btv1b8449691v/f29');
             expect(screen.getByRole('textbox', { name: /Citation label/i })).toHaveValue('Curated related work');
         });
 

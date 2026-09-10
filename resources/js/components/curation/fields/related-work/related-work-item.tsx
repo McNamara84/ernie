@@ -214,7 +214,7 @@ export default function RelatedWorkItem({
                         <Label htmlFor={`related-work-${index}-identifier`}>Identifier</Label>
                         <Input
                             id={`related-work-${index}-identifier`}
-                            data-testid="related-work-identifier-input"
+                            data-testid={`related-work-${index}-identifier-input`}
                             type="text"
                             value={item.identifier}
                             onChange={(event) => handleIdentifierChange(event.target.value)}

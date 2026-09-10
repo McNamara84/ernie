@@ -38,6 +38,19 @@ describe('RelatedWorkItem', () => {
         expect(screen.getByTestId('identifier-type-badge')).toHaveTextContent('DOI');
     });
 
+    it('gives every identifier input an index-scoped test id', () => {
+        render(
+            <>
+                <RelatedWorkItem {...defaultProps} sortableId="related-work-0" index={0} />
+                <RelatedWorkItem {...defaultProps} sortableId="related-work-1" index={1} />
+            </>,
+        );
+
+        expect(screen.getByTestId('related-work-0-identifier-input')).toBeInTheDocument();
+        expect(screen.getByTestId('related-work-1-identifier-input')).toBeInTheDocument();
+        expect(screen.queryByTestId('related-work-identifier-input')).not.toBeInTheDocument();
+    });
+
     it('renders DOI identifiers as clickable preview links', () => {
         render(<RelatedWorkItem {...defaultProps} />);
 

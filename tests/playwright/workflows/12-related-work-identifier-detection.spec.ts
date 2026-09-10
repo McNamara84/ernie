@@ -54,7 +54,7 @@ test.describe('Related Work Identifier Type Detection', () => {
         const emptyState = page.getByTestId('related-work-empty-state');
         await expect(emptyState).toBeVisible({ timeout: 10000 });
         await emptyState.getByRole('button', { name: 'Add Related Work' }).click();
-        await expect(page.getByTestId('related-work-identifier-input')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByTestId('related-work-0-identifier-input')).toBeVisible({ timeout: 10000 });
         await expect(page.getByLabel('Citation label')).toBeVisible();
     });
 
@@ -62,7 +62,7 @@ test.describe('Related Work Identifier Type Detection', () => {
      * Helper function to add a related work and verify its identifier type
      */
     async function addRelatedWorkAndVerifyType(page: import('@playwright/test').Page, identifier: string, expectedType: string) {
-        const identifierInput = page.getByTestId('related-work-identifier-input');
+        const identifierInput = page.getByTestId('related-work-0-identifier-input');
         await identifierInput.fill(identifier);
         await identifierInput.press('Tab');
 
@@ -75,15 +75,15 @@ test.describe('Related Work Identifier Type Detection', () => {
 
         const trigger = page.getByTestId('related-work-accordion-trigger');
         await trigger.click();
-        await expect(page.getByTestId('related-work-identifier-input')).toBeHidden();
+        await expect(page.getByTestId('related-work-0-identifier-input')).toBeHidden();
 
         await trigger.click();
-        await expect(page.getByTestId('related-work-identifier-input')).toBeVisible();
+        await expect(page.getByTestId('related-work-0-identifier-input')).toBeVisible();
         await expect(page.getByLabel('Citation label')).toBeVisible();
     });
 
     test('resolves a DOI citation label and shows its preview after identifier blur', async ({ page }) => {
-        const identifierInput = page.getByTestId('related-work-identifier-input');
+        const identifierInput = page.getByTestId('related-work-0-identifier-input');
         await identifierInput.fill('https://doi.org/10.5880/fidgeo.2025.072');
         await identifierInput.press('Tab');
 
