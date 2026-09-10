@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bug, Sparkles, TrendingUp } from 'lucide-react';
+import { Bug, ExternalLink, Sparkles, TrendingUp } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ChangelogTimelineNav } from '@/components/changelog-timeline-nav';
@@ -16,9 +16,16 @@ declare global {
     }
 }
 
+type GitHubReference = {
+    type: 'issue' | 'pull_request';
+    number: number;
+    url: string;
+};
+
 type Change = {
     title: string;
     description: string;
+    references?: GitHubReference[];
 };
 
 type Release = {
@@ -36,6 +43,35 @@ const sectionConfig: Record<
     features: { label: 'Features', color: 'text-green-700', icon: Sparkles },
     improvements: { label: 'Improvements', color: 'text-blue-700', icon: TrendingUp },
     fixes: { label: 'Fixes', color: 'text-red-700', icon: Bug },
+};
+
+const getReferenceLabel = (reference: GitHubReference): string => `${reference.type === 'pull_request' ? 'PR' : 'Issue'} #${reference.number}`;
+
+const isSafeGitHubReference = (reference: GitHubReference): boolean => {
+    if (!['issue', 'pull_request'].includes(reference.type) || !Number.isInteger(reference.number) || reference.number <= 0) {
+        return false;
+    }
+
+    try {
+        const url = new URL(reference.url);
+        const pathSegments = url.pathname.split('/').filter(Boolean);
+        const expectedReferenceType = reference.type === 'pull_request' ? 'pull' : 'issues';
+
+        return (
+            url.protocol === 'https:' &&
+            url.hostname === 'github.com' &&
+            url.port === '' &&
+            url.username === '' &&
+            url.password === '' &&
+            url.search === '' &&
+            url.hash === '' &&
+            pathSegments.length === 4 &&
+            pathSegments[2] === expectedReferenceType &&
+            pathSegments[3] === String(reference.number)
+        );
+    } catch {
+        return false;
+    }
 };
 
 export const browserNavigation = {
@@ -528,12 +564,47 @@ export default function Changelog() {
                                                                 {sectionConfig[key].label}
                                                             </h3>
                                                             <ul className="space-y-1">
-                                                                {items.map((item) => (
-                                                                    <li key={item.title}>
-                                                                        <p className="font-medium">{item.title}</p>
-                                                                        <p>{item.description}</p>
-                                                                    </li>
-                                                                ))}
+                                                                {items.map((item) => {
+                                                                    const safeReferences = (item.references ?? []).filter(isSafeGitHubReference);
+
+                                                                    return (
+                                                                        <li key={item.title}>
+                                                                            <p className="font-medium">{item.title}</p>
+                                                                            <p>{item.description}</p>
+                                                                            {safeReferences.length > 0 && (
+                                                                                <div
+                                                                                    className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+                                                                                    role="group"
+                                                                                    aria-label={`Related GitHub references for ${item.title}`}
+                                                                                >
+                                                                                    <span className="font-medium text-gray-600 dark:text-gray-400">
+                                                                                        Related:
+                                                                                    </span>
+                                                                                    {safeReferences.map((reference) => {
+                                                                                        const label = getReferenceLabel(reference);
+
+                                                                                        return (
+                                                                                            <a
+                                                                                                key={`${reference.type}-${reference.number}-${reference.url}`}
+                                                                                                href={reference.url}
+                                                                                                target="_blank"
+                                                                                                rel="noopener noreferrer"
+                                                                                                aria-label={`Open ${label} on GitHub (opens in a new tab)`}
+                                                                                                className="inline-flex items-center gap-1 rounded-sm font-medium text-blue-700 underline underline-offset-2 hover:text-blue-900 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:text-blue-300 dark:hover:text-blue-200 dark:focus-visible:ring-offset-gray-900"
+                                                                                            >
+                                                                                                {label}
+                                                                                                <ExternalLink
+                                                                                                    className="h-3 w-3 shrink-0"
+                                                                                                    aria-hidden="true"
+                                                                                                />
+                                                                                            </a>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            )}
+                                                                        </li>
+                                                                    );
+                                                                })}
                                                             </ul>
                                                         </section>
                                                     );

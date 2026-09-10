@@ -36,9 +36,42 @@ test.describe('Changelog Page', () => {
         // Check if content is visible (any section: Features, Improvements, Fixes)
         const firstPanel = page.locator('#release-0');
         await expect(firstPanel).toBeVisible();
-        await expect(
-            firstPanel.getByRole('heading', { name: /(Features|Improvements|Fixes)/i }).first(),
-        ).toBeVisible();
+        await expect(firstPanel.getByRole('heading', { name: /(Features|Improvements|Fixes)/i }).first()).toBeVisible();
+    });
+
+    test('links changelog entries to their related GitHub context in a new tab', async ({ page }) => {
+        const currentRelease = page.locator('#release-0');
+        const issueGroup = currentRelease.getByRole('group', {
+            name: 'Related GitHub references for Traceable Changelog Entries',
+        });
+        const issueLink = issueGroup.getByRole('link', {
+            name: 'Open Issue #1285 on GitHub (opens in a new tab)',
+        });
+        const implementationLink = issueGroup.getByRole('link', {
+            name: 'Open PR #1305 on GitHub (opens in a new tab)',
+        });
+        const pullRequestGroup = currentRelease.getByRole('group', {
+            name: 'Related GitHub references for Direct Related Work Editing',
+        });
+        const pullRequestLink = pullRequestGroup.getByRole('link', {
+            name: 'Open PR #1297 on GitHub (opens in a new tab)',
+        });
+
+        await expect(issueLink).toBeVisible();
+        await expect(issueLink).toHaveAttribute('href', 'https://github.com/McNamara84/ernie/issues/1285');
+        await expect(issueLink).toHaveAttribute('target', '_blank');
+        await expect(issueLink).toHaveAttribute('rel', /\bnoopener\b/);
+        await expect(issueLink).toHaveAttribute('rel', /\bnoreferrer\b/);
+        await expect(implementationLink).toBeVisible();
+        await expect(implementationLink).toHaveAttribute('href', 'https://github.com/McNamara84/ernie/pull/1305');
+        await expect(implementationLink).toHaveAttribute('target', '_blank');
+        await expect(issueGroup.getByRole('link')).toHaveCount(2);
+
+        await expect(pullRequestLink).toBeVisible();
+        await expect(pullRequestLink).toHaveAttribute('href', 'https://github.com/McNamara84/ernie/pull/1297');
+        await expect(pullRequestLink).toHaveAttribute('target', '_blank');
+        await expect(pullRequestLink).toHaveAttribute('rel', /\bnoopener\b/);
+        await expect(pullRequestLink).toHaveAttribute('rel', /\bnoreferrer\b/);
     });
 
     test('can manually expand and collapse versions by clicking', async ({ page }) => {
@@ -150,11 +183,11 @@ test.describe('Changelog Page', () => {
     test('shows "New" badge for recent releases', async ({ page }) => {
         // The first version (0.8.0) has a recent date (2025-10-14), so it should have a "New" badge
         const firstButton = page.getByRole('button', { name: /version 0\.8\.0/i });
-        
+
         // Look for a "New" badge near the first button
         const buttonContainer = firstButton.locator('..');
         const newBadge = buttonContainer.getByText('New');
-        
+
         // Note: This test might fail if the release is older than 30 days
         // We're testing the functionality exists, not the specific data
         const badgeCount = await newBadge.count();
@@ -186,13 +219,13 @@ test.describe('Changelog Page', () => {
     test('supports deep linking with hash URLs', async ({ page }) => {
         // Navigate directly to the hash URL (realistic user scenario)
         await page.goto('/changelog#v0.7.0');
-        
+
         // Wait for the page to load
         await page.waitForSelector('[aria-label="Changelog Timeline"]', { timeout: 5000 });
-        
+
         // Wait a bit for hash processing (100ms setTimeout in code + React render)
         await page.waitForTimeout(200);
-        
+
         // The version 0.7.0 should be expanded (do not rely on array index)
         const targetButton = page.getByRole('button', { name: /^Version 0\.7\.0\b/i });
         await expect(targetButton).toBeVisible();
@@ -299,7 +332,10 @@ test.describe('Changelog Page', () => {
             await page.waitForTimeout(500);
 
             // Menu should close after selection
-            const isMenuVisible = await menuItems.first().isVisible().catch(() => false);
+            const isMenuVisible = await menuItems
+                .first()
+                .isVisible()
+                .catch(() => false);
             expect(isMenuVisible).toBe(false);
         }
     });

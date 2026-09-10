@@ -132,6 +132,19 @@ describe('Docs page', () => {
         expect(sectionContent?.textContent).toMatch(/Screenshots, form contents, IP addresses, and global server logs are not collected/i);
     });
 
+    it('documents changelog GitHub references for beginner users', () => {
+        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        const heading = screen.getByRole('heading', { name: 'Review Release Changes and Their GitHub Context' });
+        const sectionContent = heading.parentElement;
+
+        expect(sectionContent?.textContent).toMatch(/changelog is public/i);
+        expect(sectionContent?.textContent).toMatch(/Related row lists every associated issue and pull request/i);
+        expect(sectionContent?.textContent).toMatch(/Issue # link to review the original requirement or problem report/i);
+        expect(sectionContent?.textContent).toMatch(/PR # link to review the implementation and code discussion/i);
+        expect(sectionContent?.textContent).toMatch(/open in a new browser tab/i);
+    });
+
     it('hides user management section for beginners', () => {
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // User Management should not be visible for beginners
