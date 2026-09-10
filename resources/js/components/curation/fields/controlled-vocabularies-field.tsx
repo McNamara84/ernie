@@ -1,5 +1,5 @@
 import { Earth, FlaskConical, Layers3, Leaf, Library, type LucideIcon, Microscope, Mountain, Network, Satellite, Search, X } from 'lucide-react';
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -160,6 +160,8 @@ export default function ControlledVocabulariesField({
         simple_lithology: false,
     },
 }: ControlledVocabulariesFieldProps) {
+    const keywordStatusIdPrefix = useId();
+
     // Determine which tabs are available based on enabled thesauri
     const showScienceTab = enabledThesauri.science_keywords;
     const showPlatformsTab = enabledThesauri.platforms;
@@ -469,6 +471,8 @@ export default function ControlledVocabulariesField({
                         >
                             {visibleVocabularyTypes.map((type) => {
                                 const { label, icon: Icon } = VOCABULARY_TAB_DEFINITIONS[type];
+                                const hasSelectedKeywords = hasKeywords(type);
+                                const keywordStatusId = `${keywordStatusIdPrefix}-${type}-has-keywords`;
 
                                 return (
                                     <TabsTrigger
@@ -476,6 +480,7 @@ export default function ControlledVocabulariesField({
                                         value={type}
                                         className="controlled-vocabulary-tab relative min-w-0"
                                         aria-label={label}
+                                        aria-describedby={hasSelectedKeywords ? keywordStatusId : undefined}
                                         title={label}
                                         data-vocabulary-type={type}
                                     >
@@ -485,12 +490,18 @@ export default function ControlledVocabulariesField({
                                             data-testid={`controlled-vocabulary-icon-${type}`}
                                         />
                                         <span className="controlled-vocabulary-tab-label">{label}</span>
-                                        {hasKeywords(type) && (
-                                            <span
-                                                className="absolute top-1 right-1 inline-block h-1.5 w-1.5 rounded-full bg-green-500"
-                                                aria-label="Has keywords"
-                                                title="This vocabulary has selected keywords"
-                                            />
+                                        {hasSelectedKeywords && (
+                                            <>
+                                                <span id={keywordStatusId} className="sr-only">
+                                                    Has keywords
+                                                </span>
+                                                <span
+                                                    className="absolute top-1 right-1 inline-block h-1.5 w-1.5 rounded-full bg-green-500"
+                                                    aria-hidden="true"
+                                                    title="This vocabulary has selected keywords"
+                                                    data-testid={`controlled-vocabulary-keyword-indicator-${type}`}
+                                                />
+                                            </>
                                         )}
                                     </TabsTrigger>
                                 );

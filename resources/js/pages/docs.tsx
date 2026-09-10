@@ -1628,6 +1628,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Controlled Vocabularies</h3>
                         <p>ERNIE supports multiple controlled vocabulary systems for standardized keywords:</p>
+                        <p>
+                            The vocabulary tab row adapts to the available editor width. On smaller screens, inactive vocabularies use distinct icons
+                            instead of their full names, while the active vocabulary remains named beside its icon. On very narrow screens, the active
+                            vocabulary name appears directly below the icon row. Hover over an icon to see its full name, or use the arrow keys to
+                            move between tabs. A green dot marks vocabularies that contain selected keywords.
+                        </p>
 
                         {editorSettings.features.hasActiveGcmd && (
                             <>

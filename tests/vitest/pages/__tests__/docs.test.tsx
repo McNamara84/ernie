@@ -719,6 +719,17 @@ describe('Docs page', () => {
         expect(screen.queryByText('NASA GCMD Keywords')).not.toBeInTheDocument();
     });
 
+    it('documents the responsive controlled vocabulary tabs', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText(/On smaller screens, inactive vocabularies use distinct icons/i)).toHaveTextContent(
+            'On very narrow screens, the active vocabulary name appears directly below the icon row.',
+        );
+        expect(screen.getByText(/A green dot marks vocabularies that contain selected keywords/i)).toBeInTheDocument();
+    });
+
     it('shows editor settings for group_leader', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // 'Editor Configuration' is the unique h3 inside the Editor Settings section

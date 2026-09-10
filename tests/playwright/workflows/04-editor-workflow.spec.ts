@@ -9,6 +9,7 @@ const CONTROLLED_VOCABULARY_LABELS = [
     'Science Keywords',
     'Platforms',
     'Instruments',
+    'MSL Vocabulary',
     'Chronostratigraphy',
     'GEMET',
     'Analytical Methods',
@@ -92,6 +93,11 @@ test.describe('Editor Form', () => {
                 return;
             }
 
+            if (pathname === '/vocabularies/msl') {
+                await route.fulfill({ json: [] });
+                return;
+            }
+
             if (pathname.startsWith('/vocabularies/')) {
                 await route.fulfill({ json: { data: [] } });
                 return;
@@ -102,6 +108,16 @@ test.describe('Editor Form', () => {
 
         await gotoWithLocalTlsRetry(page, '/editor');
         await expect(page.getByTestId('resource-info-section')).toBeVisible({ timeout: 30_000 });
+
+        const freeKeywordsTrigger = page.locator('[data-slot="accordion-trigger"]', { hasText: 'Free Keywords' });
+        if ((await freeKeywordsTrigger.getAttribute('aria-expanded')) !== 'true') {
+            await freeKeywordsTrigger.click();
+        }
+
+        const freeKeywordsInput = page.getByTestId('free-keywords-tagify').locator('.tagify__input');
+        await freeKeywordsInput.fill('EPOS');
+        await freeKeywordsInput.press('Enter');
+        await expect(page.getByTestId('free-keywords-tagify').locator('.tagify__tag-text').first()).toContainText('EPOS');
 
         const controlledVocabulariesTrigger = page.locator('[data-slot="accordion-trigger"]', {
             hasText: 'Controlled Vocabularies',
@@ -114,6 +130,7 @@ test.describe('Editor Form', () => {
         await expect(tabList).toBeVisible();
         const tabs = tabList.getByRole('tab');
         await expect(tabs).toHaveCount(CONTROLLED_VOCABULARY_LABELS.length);
+        await tabList.getByRole('tab', { name: 'Science Keywords', exact: true }).click();
 
         for (const label of CONTROLLED_VOCABULARY_LABELS) {
             await expect(tabList.getByRole('tab', { name: label, exact: true })).toHaveAccessibleName(label);

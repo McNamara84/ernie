@@ -204,10 +204,12 @@ describe('ControlledVocabulariesField - MSL Tab Auto-Switch', () => {
             />,
         );
 
-        const mslTab = screen.getByRole('tab', { name: /MSL Vocabulary/i });
-        // Check for the green indicator (aria-label or title)
-        const indicator = mslTab.querySelector('[aria-label="Has keywords"]');
+        const mslTab = screen.getByRole('tab', { name: 'MSL Vocabulary' });
+        const indicator = within(mslTab).getByTestId('controlled-vocabulary-keyword-indicator-msl');
+
+        expect(mslTab).toHaveAccessibleDescription('Has keywords');
         expect(indicator).toBeInTheDocument();
+        expect(indicator).toHaveAttribute('aria-hidden', 'true');
     });
 
     it('should show selected MSL keywords in the display area', () => {
@@ -523,9 +525,12 @@ describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
             />,
         );
 
-        const euroSciVocTab = screen.getByRole('tab', { name: /EuroSciVoc/i });
-        const indicator = euroSciVocTab.querySelector('[aria-label="Has keywords"]');
+        const euroSciVocTab = screen.getByRole('tab', { name: 'EuroSciVoc' });
+        const indicator = within(euroSciVocTab).getByTestId('controlled-vocabulary-keyword-indicator-euroscivoc');
+
+        expect(euroSciVocTab).toHaveAccessibleDescription('Has keywords');
         expect(indicator).toBeInTheDocument();
+        expect(indicator).toHaveAttribute('aria-hidden', 'true');
     });
     it('should show selected EuroSciVoc keywords in the display area', () => {
         const selectedEuroSciVocKeywords: SelectedKeyword[] = [
@@ -764,9 +769,16 @@ describe('ControlledVocabulariesField - responsive tab metadata', () => {
         ]);
 
         const scienceTab = screen.getByRole('tab', { name: 'Science Keywords' });
-        const indicator = scienceTab.querySelector('[aria-label="Has keywords"]');
+        const indicator = within(scienceTab).getByTestId('controlled-vocabulary-keyword-indicator-science');
+        const statusId = scienceTab.getAttribute('aria-describedby');
 
+        expect(scienceTab).toHaveAccessibleName('Science Keywords');
+        expect(scienceTab).toHaveAccessibleDescription('Has keywords');
+        expect(statusId).not.toBeNull();
+        expect(document.getElementById(statusId!)).toHaveTextContent('Has keywords');
         expect(indicator).toHaveClass('absolute');
         expect(indicator).toHaveClass('h-1.5', 'w-1.5');
+        expect(indicator).toHaveAttribute('aria-hidden', 'true');
+        expect(screen.getByRole('tab', { name: 'Platforms' })).not.toHaveAttribute('aria-describedby');
     });
 });
