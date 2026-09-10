@@ -29,7 +29,7 @@ Decision defaults:
 - Fast Mode is the daily default. Optional Docker profiles are opt-in.
 - On Windows, prefer a WSL2 checkout with VS Code Remote - WSL.
 - Keep PHP, Composer, Artisan, Pest, and PHPStan container-first.
-- Keep ESLint, TypeScript, Vitest, and Playwright on the host.
+- Keep Oxlint, Oxfmt, TypeScript, Vitest, and Playwright on the host.
 - Use [docs/local-development.md](docs/local-development.md) and [docs/testing.md](docs/testing.md) for operational details.
 
 Canonical commands:
@@ -289,7 +289,7 @@ it('validates DOI on blur', function () {
 - Cache keys defined in `app/Enums/CacheKey.php`
 
 ### React/TypeScript
-- Import sorting enforced via `eslint-plugin-simple-import-sort`
+- Import and export sorting are enforced by `eslint-plugin-simple-import-sort` through Oxlint's JavaScript plugin bridge.
 - Types in `resources/js/types/` – share with backend via Inertia props
 - Session warmup pattern (`lib/session-warmup.ts`) prevents CSRF issues on fresh containers
 
@@ -750,7 +750,7 @@ npm run check:backend                        # Pest plus PHPStan
 
 # Frontend (Vitest)
 npm run test:run                              # One-shot run
-npm run check:frontend                        # ESLint plus TS plus Vitest
+npm run check:frontend                        # Oxlint plus TS plus Vitest
 
 # E2E (Legacy Playwright - JS)
 npm run test:e2e:devstack                     # Against Docker devstack
@@ -802,7 +802,7 @@ PHPStan is configured at **level 8** (strictest). All errors must be resolved be
 
 **CI/CD Integration (Backend):** PHPStan runs automatically in the GitHub Actions workflow. If PHPStan fails locally, the PR workflow will also fail. Always verify locally before pushing.
 
-⚠️ **MANDATORY:** Before completing any frontend code changes in TypeScript, JavaScript, TSX, JSX, or frontend tests, always run ESLint and resolve all reported issues:
+⚠️ **MANDATORY:** Before completing any frontend code changes in TypeScript, JavaScript, TSX, JSX, or frontend tests, always run Oxlint and resolve all reported issues:
 
 ```bash
 npm run lint:check
@@ -820,7 +820,7 @@ This applies to:
 - Vitest test files in `tests/vitest/`
 - any other JavaScript or TypeScript files touched by the change
 
-**CI/CD Integration (Frontend):** ESLint runs automatically in CI for frontend changes. If ESLint fails locally, the PR workflow can also fail. Always verify locally before pushing frontend updates.
+**CI/CD Integration (Frontend):** Oxlint runs automatically in CI for frontend changes. If Oxlint fails locally, the PR workflow can also fail. Always verify locally before pushing frontend updates.
 
 Do NOT skip these steps or mark a task as complete if any required local check reports errors.
 

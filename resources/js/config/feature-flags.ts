@@ -166,7 +166,7 @@ export function getFeatureFlagStatus(): Record<FeatureFlag, { default: boolean; 
 
 // Expose helpers to window for easy console access in development
 if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     (window as any).featureFlags = {
         enable: enableFeature,
         disable: disableFeature,

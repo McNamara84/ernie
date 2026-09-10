@@ -111,7 +111,7 @@ export default function SpatialTemporalCoverageField({ coverages, apiKey, onChan
             const normalized = coverages.map(normalizeCoverage);
             onChange(normalized);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // oxlint-disable-next-line react/exhaustive-deps
     }, []); // Intentionally empty: only normalize initial prop value on mount
 
     const handleEntryChange = (index: number, field: keyof SpatialTemporalCoverageEntry, value: string) => {

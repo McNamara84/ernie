@@ -126,7 +126,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
             setLandingPageTemplateId(null);
             setTemplateInheritance(null);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // oxlint-disable-next-line react/exhaustive-deps
     }, [applyConfigState, existingConfig, isOpen, resource.id]);
 
     const loadAvailableDomains = async () => {

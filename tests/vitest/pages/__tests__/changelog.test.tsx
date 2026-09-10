@@ -59,7 +59,7 @@ type MotionLiProps = React.HTMLAttributes<HTMLLIElement> & {
 
 const consumeMotionOnlyProps = (...values: unknown[]) => {
     values.forEach(() => {
-        // Accessing via forEach keeps eslint satisfied without mutating output.
+        // Accessing via forEach keeps Oxlint satisfied without mutating output.
     });
 };
 

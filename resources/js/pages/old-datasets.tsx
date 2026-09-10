@@ -53,7 +53,7 @@ interface Dataset {
     publisher?: string;
     publicationyear?: number;
     first_author?: Author | null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     [key: string]: any;
 }
 

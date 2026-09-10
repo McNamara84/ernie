@@ -539,7 +539,7 @@ export default function DataCiteForm({
         );
 
         hasInitialMslTriggers.current = hasMslLaboratoryTrigger(initialFreeKeywords ?? [], hasInitialControlledMslKeywords);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // oxlint-disable-next-line react/exhaustive-deps
     }, []); // Run only once on mount - initialFreeKeywords intentionally excluded
     const [spatialTemporalCoverages, setSpatialTemporalCoverages] = useState<SpatialTemporalCoverageEntry[]>(() => {
         if (initialSpatialTemporalCoverages && initialSpatialTemporalCoverages.length > 0) {
@@ -1129,7 +1129,8 @@ export default function DataCiteForm({
     const updateOpenAccordionItems = useCallback(
         (
             nextItemsOrUpdater:
-                readonly CurationAccordionItemValue[] | ((currentItems: CurationAccordionItemValue[]) => readonly CurationAccordionItemValue[]),
+                | readonly CurationAccordionItemValue[]
+                | ((currentItems: CurationAccordionItemValue[]) => readonly CurationAccordionItemValue[]),
             options: { immediate?: boolean; persist?: boolean; persistHiddenItems?: boolean } = {},
         ) => {
             const nextItems = typeof nextItemsOrUpdater === 'function' ? nextItemsOrUpdater(openAccordionItemsRef.current) : nextItemsOrUpdater;

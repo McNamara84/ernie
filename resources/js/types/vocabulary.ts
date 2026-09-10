@@ -19,7 +19,15 @@ export interface VocabularyData {
 }
 
 export type VocabularyType =
-    'science' | 'platforms' | 'instruments' | 'msl' | 'chronostratigraphy' | 'gemet' | 'analytical_methods' | 'euroscivoc' | 'simple_lithology';
+    | 'science'
+    | 'platforms'
+    | 'instruments'
+    | 'msl'
+    | 'chronostratigraphy'
+    | 'gemet'
+    | 'analytical_methods'
+    | 'euroscivoc'
+    | 'simple_lithology';
 
 export interface SelectedKeyword {
     id: string;

@@ -70,7 +70,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
             setOrcidBlockers([]);
             setOrcidWarnings([]);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // oxlint-disable-next-line react/exhaustive-deps
     }, [isOpen]);
 
     const loadPrefixConfiguration = async () => {

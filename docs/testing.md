@@ -5,7 +5,7 @@
 ERNIE uses a split local validation workflow.
 
 - PHP, Composer, Artisan, Pest, and PHPStan are container-first.
-- Vitest, ESLint, TypeScript, and Playwright run from the host shell.
+- Vitest, Oxlint, Oxfmt, TypeScript, and Playwright run from the host shell.
 - Host-side frontend checks require local `node_modules` in the repository checkout.
 - The default PHP path stays fast by using SQLite in memory.
 - MySQL-specific verification stays targeted and explicit.
@@ -32,13 +32,15 @@ Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm in
 | Vitest one-shot            | Host shell                 | `npm run test:run`                          | Preferred for focused frontend validation                      |
 | Vitest coverage            | Host shell                 | `npm run test:coverage`                     | Use only when coverage detail is needed                        |
 | Vitest performance doctor  | Host shell                 | `npm run test:doctor`                       | Runs the suite repeatedly; use for measured tuning only        |
-| ESLint check               | Host shell                 | `npm run lint:check`                        | Non-mutating validation                                        |
-| ESLint auto-fix            | Host shell                 | `npm run lint`                              | Applies ESLint fixes                                           |
+| Oxlint check               | Host shell                 | `npm run lint:check`                        | Non-mutating validation                                        |
+| Oxlint auto-fix            | Host shell                 | `npm run lint`                              | Applies safe Oxlint fixes                                      |
+| Oxfmt check                | Host shell                 | `npm run format:check`                      | Checks frontend formatting without mutations                   |
+| Oxfmt write                | Host shell                 | `npm run format`                            | Formats frontend sources                                       |
 | TypeScript                 | Host shell                 | `npm run types`                             | Runs app and test TS checks                                    |
 | Playwright dev stack       | Host shell                 | `npm run test:e2e:devstack`                 | Requires the Docker dev stack                                  |
 | Playwright stage           | Host shell                 | `npm run test:e2e:stage`                    | Use only for stage-specific bug reproduction                   |
 | Backend umbrella check     | Host shell                 | `npm run check:backend`                     | Pest plus PHPStan                                              |
-| Frontend umbrella check    | Host shell                 | `npm run check:frontend`                    | ESLint plus OpenAPI lint plus TypeScript plus one-shot Vitest  |
+| Frontend umbrella check    | Host shell                 | `npm run check:frontend`                    | Oxlint plus OpenAPI lint plus TypeScript plus one-shot Vitest  |
 | Parity umbrella check      | Host shell                 | `npm run check:parity`                      | Parity profile plus MySQL slice plus Playwright                |
 
 ## PHP Test Database Strategy
@@ -162,6 +164,7 @@ Recommended commands:
 
 ```bash
 npm run lint:check
+npm run format:check
 npm run types
 npm run test:run
 ```

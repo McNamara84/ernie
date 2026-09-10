@@ -43,7 +43,7 @@ function TableWrapper({
                                 <th key={h.id}>
                                     {h.isPlaceholder ? null : h.column.columnDef.header
                                         ? typeof h.column.columnDef.header === 'function'
-                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                            // oxlint-disable-next-line typescript/no-explicit-any
                                             ? (h.column.columnDef.header as any)(h.getContext())
                                             : h.column.columnDef.header
                                         : null}
@@ -123,7 +123,7 @@ describe('SimpleSortableHeader', () => {
                                         {h.isPlaceholder
                                             ? null
                                             : typeof h.column.columnDef.header === 'function'
-                                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                              // oxlint-disable-next-line typescript/no-explicit-any
                                               ? (h.column.columnDef.header as any)(h.getContext())
                                               : h.column.columnDef.header}
                                     </th>

@@ -28,7 +28,7 @@ global.IntersectionObserver = class IntersectionObserver {
     root = null;
     rootMargin = '';
     thresholds = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
 } as any;
 
 // Default editor settings for tests
