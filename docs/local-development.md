@@ -16,7 +16,7 @@ Host-side frontend commands require local `node_modules` in the repository check
 | Assessment profile | Start F-UJI and the dedicated persistent assessment workers; also set `FUJI_ENABLED=true` in `.env.docker`                                         | `npm run docker:dev:assessment` |
 | Parity profile     | Start the parity stack including F-UJI and the dedicated persistent assessment workers; also set `FUJI_ENABLED=true` in `.env.docker`                | `npm run docker:dev:parity`     |
 
-Fast Mode is the default because it keeps the profile-gated F-UJI service out of the normal startup path.
+Fast Mode is the default because it keeps the profile-gated F-UJI service out of the normal local startup path. These profiles apply only to `docker-compose.dev.yml`; the Portainer-oriented Stage and Production Compose files include the assessment services by default.
 
 ## Windows Recommendation
 
@@ -126,6 +126,8 @@ Optional profiles:
 
 - `assessment` starts F-UJI plus the dedicated `assessment-queue` workers; set `FUJI_ENABLED=true` in `.env.docker` when the app should use it
 - `parity` starts the same assessment services together with the parity profile; set `FUJI_ENABLED=true` in `.env.docker` when the app should use it
+
+These are development profiles only. Stage and Production deploy F-UJI and the assessment workers as regular services so Portainer creates the complete runtime stack without profile activation.
 
 Common startup commands:
 

@@ -206,8 +206,6 @@ services:
     image: ghcr.io/pangaea-data-publisher/fuji@sha256:a75a9c88fb46918afafb09593aa52aecc1adb12eb9f19a2fc2ebb8740be03d97
     container_name: ernie-fuji-stage
     restart: unless-stopped
-    profiles:
-      - assessment
     entrypoint:
       - "/bin/sh"
       - "-c"
@@ -334,8 +332,6 @@ services:
       target: app
     pull_policy: build
     restart: unless-stopped
-    profiles:
-      - assessment
     deploy:
       replicas: ${FUJI_ASSESSMENT_CONCURRENCY:-2}
     command: php artisan queue:work ${FUJI_ASSESSMENT_QUEUE_CONNECTION:-assessment} --queue=${FUJI_ASSESSMENT_QUEUE:-assessments} --verbose --tries=1 --timeout=${FUJI_ASSESSMENT_ITEM_TIMEOUT:-150}

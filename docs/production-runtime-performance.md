@@ -2,18 +2,22 @@
 
 This document covers the runtime settings introduced for the resource, PHP/Laravel, and public-portal cache optimizations. The values in Compose are conservative starting points. Validate them on Stage with a production-sized data set before changing Production.
 
-## Service profiles
+## FAIR assessment services
 
-F-UJI is excluded from a normal Stage or Production start. Start it only when assessments are enabled in the application:
+F-UJI and the dedicated `assessment-queue` workers are standard services in the Stage and Production Compose files. A normal Portainer stack deployment therefore creates them without a Compose profile. Before deploying an environment in which assessments should be available, configure `FUJI_ENABLED=true`, `FUJI_USERNAME`, and `FUJI_PASSWORD` in the Portainer stack environment. `FUJI_BASE_URL` normally remains at its internal default, `http://fuji:1071`.
+
+The equivalent CLI starts do not require `--profile`:
 
 ```bash
-FUJI_ENABLED=true docker compose -f docker-compose.stage.yml --profile assessment up -d
-FUJI_ENABLED=true docker compose -f docker-compose.prod.yml --profile assessment up -d
+docker compose -f docker-compose.stage.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-The profile creates both F-UJI and two dedicated `assessment-queue` workers. Without `--profile assessment`, Compose creates neither service. Setting `FUJI_ENABLED=true` without starting the profile leaves the application configured for an unavailable service and its persistent assessment queue without consumers, so it is not a valid deployment configuration.
+Compose profiles remain a local-development concern in `docker-compose.dev.yml`; do not depend on `COMPOSE_PROFILES` to make runtime services appear in a Portainer deployment. Setting `FUJI_ENABLED=false` disables new assessments in the application but does not remove the runtime containers from the Stage or Production stack.
 
 The workers process one resource per job and share a Redis-backed limiter. The conservative defaults are concurrency `2`, at most `80` request starts per rolling minute, and at least `750` ms between starts. `FUJI_ASSESSMENT_ITEM_TIMEOUT=150` must remain above the F-UJI HTTP timeout; `FUJI_ASSESSMENT_LEASE_SECONDS=210` and `FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=210` must remain above the item timeout. Validate F-UJI latency, 429 responses, errors, CPU, and memory on Stage before changing these values. Reduce concurrency to `1` first when F-UJI is under pressure.
+
+After updating a Portainer stack, verify that `fuji` is healthy and that the configured number of `assessment-queue` containers is running. The application caches the F-UJI health result for up to 30 seconds, and the scheduler recovers active persistent runs every minute. Leave an existing `preparing`, `queued`, or `running` run in place: once the workers are available, it resumes without deleting its snapshot or results. If progress does not advance after those two windows, inspect the F-UJI and assessment-worker logs for authentication failures, HTTP 429 responses, timeouts, restarts, or memory pressure.
 
 ## Initial runtime budgets
 

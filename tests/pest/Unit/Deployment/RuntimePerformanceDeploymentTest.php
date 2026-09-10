@@ -44,10 +44,10 @@ it('keeps MySQL 9.7 and explicit resource tuning in stage and production', funct
     'production' => 'docker-compose.prod.yml',
 ]);
 
-it('starts F-UJI only through the assessment profile', function (string $filename): void {
+it('starts F-UJI as part of every runtime stack without an optional profile', function (string $filename): void {
     $compose = runtimeDeploymentCompose($filename);
 
-    expect($compose['services']['fuji']['profiles'] ?? null)->toBe(['assessment']);
+    expect($compose['services']['fuji'])->not->toHaveKey('profiles');
 })->with([
     'stage' => 'docker-compose.stage.yml',
     'production' => 'docker-compose.prod.yml',

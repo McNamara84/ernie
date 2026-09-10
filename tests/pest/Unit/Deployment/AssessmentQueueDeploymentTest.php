@@ -50,6 +50,36 @@ it('isolates FAIR assessments in two configurable persistent workers', function 
     'production' => 'docker-compose.prod.yml',
 ]);
 
+it('includes FAIR assessment services in runtime stacks without optional profiles', function (string $composeFile): void {
+    $services = assessmentCompose($composeFile)['services'];
+
+    expect($services)->toHaveKeys(['fuji', 'assessment-queue'])
+        ->and($services['fuji'])->not->toHaveKey('profiles')
+        ->and($services['assessment-queue'])->not->toHaveKey('profiles');
+})->with([
+    'stage' => 'docker-compose.stage.yml',
+    'production' => 'docker-compose.prod.yml',
+]);
+
+it('keeps local FAIR assessment services behind explicit development profiles', function (): void {
+    $services = assessmentCompose('docker-compose.dev.yml')['services'];
+
+    expect($services['fuji']['profiles'] ?? null)->toBe(['assessment', 'parity'])
+        ->and($services['assessment-queue']['profiles'] ?? null)->toBe(['assessment', 'parity']);
+});
+
+it('does not let the general worker bypass assessment concurrency and rate limits', function (string $composeFile): void {
+    $command = assessmentCompose($composeFile)['services']['queue']['command'] ?? null;
+
+    expect($command)->toBeString()
+        ->not->toContain('assessments')
+        ->not->toContain('FUJI_ASSESSMENT_QUEUE');
+})->with([
+    'development' => 'docker-compose.dev.yml',
+    'stage' => 'docker-compose.stage.yml',
+    'production' => 'docker-compose.prod.yml',
+]);
+
 it('forwards the assessment queue identity and limiter settings to every app container', function (string $composeFile): void {
     $compose = assessmentCompose($composeFile);
     $environment = $compose['services']['app']['environment'] ?? [];

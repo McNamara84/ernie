@@ -789,6 +789,10 @@ reason.
 - [ ] External suggestion services display loading, success, empty, and error
       states clearly.
 
+- [ ] The Stage or Production Portainer stack contains a healthy `fuji` service
+      and the configured number of running `assessment-queue` workers without
+      requiring a Compose profile.
+
 - [ ] `Assessment` loads the summary and resources without a persistent loading
       state.
 
@@ -826,8 +830,10 @@ reason.
       asks for reassessment. Complete and unavailable results show the same neutral
       dash but provide distinct accessible explanations.
 
-- [ ] A single test resource and the intended batch run can be assessed; progress
-      and result update.
+- [ ] A single test resource and the intended batch run can be assessed. A batch
+      run leaves `preparing`, reports a non-zero total for a non-empty scope, and
+      increments its processed count; page reloads retain the same run and its
+      progress.
 
 - [ ] If the F-UJI service is unavailable, an understandable message appears
       instead of an endless loading indicator or blank page.
