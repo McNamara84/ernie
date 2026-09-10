@@ -76,7 +76,7 @@ If the repository stays under `D:\` or another NTFS path:
     npm ci
     ```
 
-    This installs the local `node_modules` required by ESLint, TypeScript, Vitest, OpenAPI linting, and Playwright.
+    This installs the local `node_modules` required by Oxlint, Oxfmt, TypeScript, Vitest, OpenAPI linting, and Playwright.
 
 4. Start Fast Mode.
 
@@ -173,8 +173,10 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml --profile assess
 | PHPStan                                          | Host shell via npm wrapper     | `npm run phpstan:check`                             |
 | Vitest                                           | Host shell                     | `npm run test:run`                                  |
 | Vitest performance diagnosis                     | Host shell                     | `npm run test:doctor`                               |
-| ESLint check                                     | Host shell                     | `npm run lint:check`                                |
-| ESLint auto-fix                                  | Host shell                     | `npm run lint`                                      |
+| Oxlint check                                     | Host shell                     | `npm run lint:check`                                |
+| Oxlint auto-fix                                  | Host shell                     | `npm run lint`                                      |
+| Oxfmt check                                      | Host shell                     | `npm run format:check`                              |
+| Oxfmt write                                      | Host shell                     | `npm run format`                                    |
 | TypeScript                                       | Host shell                     | `npm run types`                                     |
 | TypeScript application watcher                   | Host shell                     | `npm run types:watch`                               |
 | TypeScript test watcher                          | Host shell                     | `npm run types:watch:test`                          |

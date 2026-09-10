@@ -154,7 +154,7 @@ function renderPage(propsOverrides: Record<string, unknown> = {}) {
         sort: defaultSort,
         ...propsOverrides,
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     return render(<ResourcesPage {...(props as any)} />);
 }
 

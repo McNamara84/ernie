@@ -130,7 +130,7 @@ composer install
    npm ci
 ```
 
-   This installs the local `node_modules` required by ESLint, TypeScript, Vitest, OpenAPI linting, and Playwright.
+   This installs the local `node_modules` required by Oxlint, Oxfmt, TypeScript, Vitest, OpenAPI linting, and Playwright.
 
 5. Start the default development stack:
 
@@ -270,7 +270,7 @@ Host-side frontend commands in this repository require local `node_modules` in y
 | `npm run artisan -- <command>`  | Run a Laravel Artisan command inside the app container                                     |
 | `npm run composer:app -- <cmd>` | Run Composer inside the app container                                                      |
 | `npm run check:backend`         | Run optimized 2 GB Pest (parallel) and PHPStan against the Docker backend                  |
-| `npm run check:frontend`        | Run ESLint, OpenAPI linting, TypeScript checks, and one-shot Vitest on the host            |
+| `npm run check:frontend`        | Run Oxlint, OpenAPI linting, TypeScript checks, and one-shot Vitest on the host            |
 | `npm run check:parity`          | Run the parity validation flow, including the MySQL-sensitive backend slice and Playwright |
 
 For example, create a controller with:
@@ -284,7 +284,7 @@ npm run artisan -- make:controller TestController
 ERNIE uses a split local validation workflow:
 
 - PHP, Composer, Artisan, Pest, and PHPStan run against the Docker development stack
-- ESLint, TypeScript, Vitest, and Playwright run from the host shell
+- Oxlint, Oxfmt, TypeScript, Vitest, and Playwright run from the host shell
 
 Host-side frontend validation requires local `node_modules` in the repository checkout. Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm install` only when intentionally adding or updating dependencies so npm can update the lockfile.
 

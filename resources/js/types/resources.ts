@@ -4,7 +4,16 @@
  */
 
 export type ResourceSortKey =
-    'id' | 'doi' | 'title' | 'resourcetypegeneral' | 'first_author' | 'year' | 'curator' | 'publicstatus' | 'created_at' | 'updated_at';
+    | 'id'
+    | 'doi'
+    | 'title'
+    | 'resourcetypegeneral'
+    | 'first_author'
+    | 'year'
+    | 'curator'
+    | 'publicstatus'
+    | 'created_at'
+    | 'updated_at';
 
 export type ResourceSortDirection = 'asc' | 'desc';
 

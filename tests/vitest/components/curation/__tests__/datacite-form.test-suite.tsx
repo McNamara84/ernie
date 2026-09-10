@@ -5739,7 +5739,7 @@ describe('DataCiteForm', () => {
 
             // Remove all keywords
             await act(async () => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                // oxlint-disable-next-line typescript/no-explicit-any
                 (tagify as any).removeAllTags();
             });
 
@@ -5779,7 +5779,7 @@ describe('DataCiteForm', () => {
             const tagify = getTagifyInstance(freeKeywordsInput);
 
             await act(async () => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                // oxlint-disable-next-line typescript/no-explicit-any
                 (tagify as any).removeAllTags();
             });
 

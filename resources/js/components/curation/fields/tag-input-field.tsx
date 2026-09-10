@@ -222,7 +222,7 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
         };
         // We intentionally exclude dependencies to avoid re-initialising Tagify
         // which manages its own DOM lifecycle.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // oxlint-disable-next-line react/exhaustive-deps
     }, []);
 
     useEffect(() => {

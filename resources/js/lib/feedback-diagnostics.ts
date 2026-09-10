@@ -24,7 +24,7 @@ export function sanitizeFeedbackDiagnosticMessage(value: string): string {
     return bounded(
         value
             // Deliberately strip non-printing control characters from user-visible diagnostics.
-            // eslint-disable-next-line no-control-regex
+            // oxlint-disable-next-line no-control-regex
             .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, '')
             .replace(/(https?:\/\/[^\s?#]+)[?#][^\s]*/giu, '$1')
             .replace(/(^|[^\w:/])(\/[^\s?#]*)[?#][^\s]*/gu, '$1$2')

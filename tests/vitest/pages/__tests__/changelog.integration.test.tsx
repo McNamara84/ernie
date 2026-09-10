@@ -44,7 +44,7 @@ type MotionLiProps = React.HTMLAttributes<HTMLLIElement> & {
 
 const consumeMotionOnlyProps = (...values: unknown[]) => {
     values.forEach(() => {
-        // Accessing the values is enough to satisfy eslint while discarding motion-only props.
+        // Accessing the values is enough to satisfy Oxlint while discarding motion-only props.
     });
 };
 
