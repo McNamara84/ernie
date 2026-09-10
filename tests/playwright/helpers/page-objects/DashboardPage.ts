@@ -55,7 +55,7 @@ export class DashboardPage {
    * Navigate to a specific page via the main navigation
    * @param pageName - Name of the page to navigate to
    */
-  async navigateTo(pageName: 'Old Datasets' | 'Curation' | 'Resources' | 'Settings') {
+  async navigateTo(pageName: 'Curation' | 'Resources List' | 'Settings') {
     const link = this.page.getByRole('link', { name: pageName });
     await link.click();
   }
@@ -68,7 +68,6 @@ export class DashboardPage {
     
     // Verify key navigation items are present (use first() to avoid strict mode violation with breadcrumbs)
     await expect(this.page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible();
-    await expect(this.page.getByRole('link', { name: 'Old Datasets' }).first()).toBeVisible();
     await expect(this.page.getByRole('link', { name: 'Curation' }).first()).toBeVisible();
   }
 }

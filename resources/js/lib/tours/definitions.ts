@@ -63,7 +63,7 @@ const guidedTourDefinitions: Record<string, GuidedTourDefinition> = {
             {
                 id: 'sidebar-resources',
                 element: '[data-tour="sidebar-resources"]',
-                title: 'Resources',
+                title: 'Resources List',
                 description: 'The Resources list shows your dataset records, including drafts that still need to be completed.',
                 side: 'right',
                 align: 'center',
@@ -73,14 +73,6 @@ const guidedTourDefinitions: Record<string, GuidedTourDefinition> = {
                 element: '[data-tour="sidebar-igsns-list"]',
                 title: 'IGSNs List',
                 description: 'Open this list to review physical sample records that use IGSNs.',
-                side: 'right',
-                align: 'center',
-            },
-            {
-                id: 'sidebar-igsns-map',
-                element: '[data-tour="sidebar-igsns-map"]',
-                title: 'IGSNs Map',
-                description: 'The map helps you explore sample locations visually when geographic data is available.',
                 side: 'right',
                 align: 'center',
             },

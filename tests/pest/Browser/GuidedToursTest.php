@@ -5,11 +5,18 @@ declare(strict_types=1);
 use App\Models\GuidedTour;
 use App\Models\User;
 use App\Models\UserGuidedTourAssignment;
+use Illuminate\Foundation\Vite;
 use Tests\TestCase;
 
 uses()->group('guided-tours', 'browser');
 
 describe('Guided tours', function (): void {
+    beforeEach(function (): void {
+        app(Vite::class)
+            ->useHotFile(storage_path('framework/testing-vite.hot'))
+            ->useBuildDirectory('build');
+    });
+
     it('autostarts the beginner dashboard tour on the first dashboard visit and persists completion', function (): void {
         /** @var TestCase $this */
         $user = User::factory()->beginner()->create([
@@ -46,22 +53,21 @@ describe('Guided tours', function (): void {
             ->assertSee('Hello Beginner Browser User!')
             ->assertPresent('.driver-popover')
             ->assertSeeIn('.driver-popover-title', 'Welcome to ERNIE')
-            ->assertSeeIn('.driver-popover-progress-text', 'Step 1 of 8');
+            ->assertSeeIn('.driver-popover-progress-text', 'Step 1 of 7');
 
         $expectedStepTitles = [
             'Main Menu',
             'Upload Area',
             'Data Editor',
-            'Resources',
+            'Resources List',
             'IGSNs List',
-            'IGSNs Map',
             'Documentation',
         ];
 
         foreach ($expectedStepTitles as $stepNumber => $stepTitle) {
             $page->click('.driver-popover-next-btn')
                 ->assertSeeIn('.driver-popover-title', $stepTitle)
-                ->assertSeeIn('.driver-popover-progress-text', 'Step '.($stepNumber + 2).' of 8');
+                ->assertSeeIn('.driver-popover-progress-text', 'Step '.($stepNumber + 2).' of 7');
         }
 
         $page->click('.driver-popover-next-btn')

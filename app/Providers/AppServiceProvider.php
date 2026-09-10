@@ -304,8 +304,8 @@ class AppServiceProvider extends ServiceProvider
      * They are used for global permissions that are not tied to a specific model.
      *
      * Role-based access control (Issue #379):
-     * - Admin: Full access to all areas (Logs, Old Datasets, Statistics, Users, Editor Settings)
-     * - Group Leader: Statistics, Users, Editor Settings (no Logs, no Old Datasets)
+     * - Admin: Full access to all areas (Logs, Statistics, Users, Editor Settings)
+     * - Group Leader: Statistics, Users, Editor Settings (no Logs)
      * - Curator: No access to any administrative features
      * - Beginner: Same as Curator, additionally restricted to test DOI registration only
      */
@@ -313,11 +313,6 @@ class AppServiceProvider extends ServiceProvider
     {
         // Access to Logs page (Admin only)
         Gate::define('access-logs', function (User $user): bool {
-            return $user->role === UserRole::ADMIN;
-        });
-
-        // Access to Old Datasets page (Admin only)
-        Gate::define('access-old-datasets', function (User $user): bool {
             return $user->role === UserRole::ADMIN;
         });
 

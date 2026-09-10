@@ -1,5 +1,4 @@
 import { escapeForRegExp } from '@/lib/regexp';
-import type { FilterState } from '@/types/old-datasets';
 import type { ResourceFilterState } from '@/types/resources';
 
 /**
@@ -72,68 +71,67 @@ function parseTrimmedString(params: URLSearchParams, paramName: string): string 
 }
 
 /**
- * Generic filter parser that works for both ResourceFilterState and FilterState.
- * These types have identical structure, so we can use a single implementation.
+ * Parse the filters shared by the Resources list controls.
  */
-function parseFiltersFromUrl<T extends ResourceFilterState | FilterState>(searchParams: string): T {
+function parseFiltersFromUrl(searchParams: string): ResourceFilterState {
     const params = new URLSearchParams(searchParams);
-    const filters: Partial<T> = {};
+    const filters: ResourceFilterState = {};
 
     // Parse array filters
     const resourceType = parseArrayParam(params, 'resource_type');
     if (resourceType) {
-        (filters as ResourceFilterState).resource_type = resourceType;
+        filters.resource_type = resourceType;
     }
 
     const status = parseArrayParam(params, 'status');
     if (status) {
-        (filters as ResourceFilterState).status = status;
+        filters.status = status;
     }
 
     const curator = parseArrayParam(params, 'curator');
     if (curator) {
-        (filters as ResourceFilterState).curator = curator;
+        filters.curator = curator;
     }
 
     // Parse numeric filters
     const yearFrom = parsePositiveInt(params, 'year_from');
     if (yearFrom !== undefined) {
-        (filters as ResourceFilterState).year_from = yearFrom;
+        filters.year_from = yearFrom;
     }
 
     const yearTo = parsePositiveInt(params, 'year_to');
     if (yearTo !== undefined) {
-        (filters as ResourceFilterState).year_to = yearTo;
+        filters.year_to = yearTo;
     }
 
     // Parse string filters
     const searchTerm = parseTrimmedString(params, 'search');
     if (searchTerm !== undefined) {
-        (filters as ResourceFilterState).search = searchTerm;
+        filters.search = searchTerm;
     }
 
     // Parse date filters
     const createdFrom = parseTrimmedString(params, 'created_from');
     if (createdFrom !== undefined) {
-        (filters as ResourceFilterState).created_from = createdFrom;
+        filters.created_from = createdFrom;
     }
 
     const createdTo = parseTrimmedString(params, 'created_to');
     if (createdTo !== undefined) {
-        (filters as ResourceFilterState).created_to = createdTo;
+        filters.created_to = createdTo;
     }
 
     const updatedFrom = parseTrimmedString(params, 'updated_from');
     if (updatedFrom !== undefined) {
-        (filters as ResourceFilterState).updated_from = updatedFrom;
+        filters.updated_from = updatedFrom;
     }
 
     const updatedTo = parseTrimmedString(params, 'updated_to');
     if (updatedTo !== undefined) {
-        (filters as ResourceFilterState).updated_to = updatedTo;
+        filters.updated_to = updatedTo;
     }
 
-    return filters as T;
+    return filters;
 }
 
 /**
@@ -150,7 +148,7 @@ function parseFiltersFromUrl<T extends ResourceFilterState | FilterState>(search
  * ```
  */
 export function parseResourceFiltersFromUrl(search: string): ResourceFilterState {
-    const filters = parseFiltersFromUrl<ResourceFilterState>(search);
+    const filters = parseFiltersFromUrl(search);
     const params = new URLSearchParams(search);
     const datacenterId = parsePositiveInt(params, 'datacenter_id');
 
@@ -168,21 +166,4 @@ export function parseResourceFiltersFromUrl(search: string): ResourceFilterState
     }
 
     return filters;
-}
-
-/**
- * Parse old dataset filters from URL search parameters.
- * Similar to parseResourceFiltersFromUrl but for old-datasets page.
- *
- * @param search - URL search string
- * @returns Parsed filter state object
- *
- * @example
- * ```typescript
- * const filters = parseOldDatasetFiltersFromUrl('?resource_type[]=dataset');
- * // Returns: { resource_type: ['dataset'] }
- * ```
- */
-export function parseOldDatasetFiltersFromUrl(search: string): FilterState {
-    return parseFiltersFromUrl<FilterState>(search);
 }

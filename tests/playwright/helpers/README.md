@@ -10,7 +10,6 @@ helpers/
 │   ├── LoginPage.ts       # Login page interactions
 │   ├── DashboardPage.ts   # Dashboard page interactions
 │   ├── DataCiteFormPage.ts # DataCite metadata form with validation
-│   ├── OldDatasetsPage.ts # Old datasets page interactions
 │   ├── CurationPage.ts    # Curation form interactions
 │   ├── ResourcesPage.ts   # Resources management interactions
 │   ├── SettingsPage.ts    # Settings pages interactions
@@ -64,18 +63,6 @@ Handles dashboard interactions:
 - `uploadXmlFile(filePath)` - Upload XML via dropzone
 - `navigateTo(pageName)` - Navigate via main menu
 - `verifyNavigationVisible()` - Check navigation menu
-
-### OldDatasetsPage
-Handles legacy datasets overview:
-- `goto()` - Navigate to old datasets
-- `verifyOnOldDatasetsPage()` - Verify we're on the page
-- `search(searchTerm)` - Apply search filter
-- `applyFilters(filters)` - Apply multiple filters
-- `sortBy(field)` - Sort by column
-- `loadAuthors(index)` - Load authors into curation form
-- `loadDates(index)` - Load dates into curation form
-- `loadDescriptions(index)` - Load descriptions into curation form
-- `verifyDatabaseError()` - Check for database connection error
 
 ### CurationPage
 Handles curation form:

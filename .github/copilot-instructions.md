@@ -48,7 +48,7 @@ npm run check:parity
 #### Controllers (`app/Http/Controllers/`)
 - **Resource CRUD:** `ResourceController` – List/store/update/delete resources
 - **Editor:** `EditorController` – Curation form with DataCite fields
-- **IGSN:** `IgsnController`, `BatchIgsnController`, `BatchIgsnRegistrationController`, `UploadIgsnCsvController`, `IgsnMapController`
+- **IGSN:** `IgsnController`, `BatchIgsnController`, `BatchIgsnRegistrationController`, `UploadIgsnCsvController`
 - **DataCite:** `DataCiteImportController`, `DoiValidationController`, `Api/DataCiteController`, `Api/DoiValidationController`
 - **Landing Pages:** `LandingPageController`, `LandingPageDomainController`, `LandingPagePreviewController`, `LandingPagePublicController`
 - **Portal:** `PortalController` – Public dataset search portal
@@ -57,7 +57,7 @@ npm run check:parity
 - **Upload:** `UploadXmlController`, `UploadIgsnCsvController`
 - **Vocabularies:** `VocabularyController`, `LanguageController`, `LicenseController`, `DateTypeController`, `TitleTypeController`, `ResourceTypeController`, `RelationTypeController`, `RelatedIdentifierTypeController`
 - **External APIs:** `OrcidController`, `RorAffiliationController`
-- **Other:** `ChangelogController`, `ContactMessageController`, `DocsController`, `LogController`, `OldDatasetController`, `OldDataStatisticsController`
+- **Other:** `ChangelogController`, `ContactMessageController`, `DocsController`, `LogController`
 - **Auth:** `Auth/` – Login, password reset, welcome, email verification
 
 #### Services (`app/Services/`)
@@ -78,7 +78,7 @@ npm run check:parity
 - **Status:** `Pid4instStatusService`, `ThesaurusStatusService`
 - **Logging:** `LogService`, `UploadLogService`
 - **Cache:** `ResourceCacheService`
-- **Legacy:** `OldDatasetEditorLoader` – Load old datasets into editor
+- **Legacy:** `OldDatasetEditorLoader` – Map old dataset metadata for automated imports
 - **Traits:** `Traits/DataCiteExporterHelpers` – Shared export logic
 
 #### Models (`app/Models/`)
@@ -101,7 +101,6 @@ npm run check:parity
 - **Policies:** `ResourcePolicy`, `UserPolicy`, `LandingPagePolicy` – Model-level authorization
 - **Gates** (defined in `AppServiceProvider`):
   - `access-logs` – Admin only
-  - `access-old-datasets` – Admin only
   - `access-statistics` – Admin, Group Leader
   - `access-users` – Admin, Group Leader
   - `access-editor-settings` – Admin, Group Leader

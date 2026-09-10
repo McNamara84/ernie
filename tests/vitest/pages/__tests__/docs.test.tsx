@@ -743,29 +743,6 @@ describe('Docs page', () => {
         expect(screen.queryByText('Editor Configuration')).not.toBeInTheDocument();
     });
 
-    it('hides legacy import for curator', async () => {
-        const user = userEvent.setup();
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-        // Switch to Datasets tab where Legacy Import lives
-        const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
-        await user.click(datasetsTab);
-        // Verify tab switched by checking Datasets-only content is rendered
-        expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
-        // Legacy Import requires admin role
-        expect(screen.queryByText('Importing from Old Datasets')).not.toBeInTheDocument();
-    });
-
-    it('shows legacy import for admin', async () => {
-        const user = userEvent.setup();
-        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
-        // Switch to Datasets tab
-        const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
-        await user.click(datasetsTab);
-        // Verify tab switched and admin sees Legacy Import
-        expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
-        expect(screen.getByText('Importing from Old Datasets')).toBeInTheDocument();
-    });
-
     it('documents the portal and legacy sources used by datacenter imports', async () => {
         const user = userEvent.setup();
         render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);

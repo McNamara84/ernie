@@ -88,7 +88,6 @@ export interface User {
     can_delete_published_resources?: boolean;
     // Granular access permissions (Issue #379)
     can_access_logs?: boolean;
-    can_access_old_datasets?: boolean;
     can_access_statistics?: boolean;
     can_access_users?: boolean;
     can_access_editor_settings?: boolean;

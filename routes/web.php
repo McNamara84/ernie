@@ -24,7 +24,6 @@ use App\Http\Controllers\GuidedTourAssignmentController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\IgsnController;
 use App\Http\Controllers\IgsnImportController;
-use App\Http\Controllers\IgsnMapController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPageDomainController;
 use App\Http\Controllers\LandingPageDownloadRedirectController;
@@ -34,8 +33,6 @@ use App\Http\Controllers\LandingPageTemplateController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\OaiPmh\OaiPmhController;
 use App\Http\Controllers\OaiPmh\OaiPmhDocsController;
-use App\Http\Controllers\OldDatasetController;
-use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\PortalCountController;
 use App\Http\Controllers\PortalKeywordSuggestionController;
@@ -299,58 +296,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('assessment.status');
     });
 
-    // Old Datasets routes (Admin only - Issue #379)
-    Route::middleware(['can:access-old-datasets'])->group(function () {
-        Route::get('old-datasets', [OldDatasetController::class, 'index'])
-            ->name('old-datasets');
-
-        Route::get('old-datasets/filter-options', [OldDatasetController::class, 'getFilterOptions'])
-            ->name('old-datasets.filter-options');
-
-        Route::get('old-datasets/load-more', [OldDatasetController::class, 'loadMore'])
-            ->name('old-datasets.load-more');
-
-        Route::get('old-datasets/{id}/authors', [OldDatasetController::class, 'getAuthors'])
-            ->name('old-datasets.authors');
-
-        Route::get('old-datasets/{id}/contributors', [OldDatasetController::class, 'getContributors'])
-            ->name('old-datasets.contributors');
-
-        Route::get('old-datasets/{id}/funding-references', [OldDatasetController::class, 'getFundingReferences'])
-            ->name('old-datasets.funding-references');
-
-        Route::get('old-datasets/{id}/descriptions', [OldDatasetController::class, 'getDescriptions'])
-            ->name('old-datasets.descriptions');
-
-        Route::get('old-datasets/{id}/dates', [OldDatasetController::class, 'getDates'])
-            ->name('old-datasets.dates');
-
-        Route::get('old-datasets/{id}/controlled-keywords', [OldDatasetController::class, 'getControlledKeywords'])
-            ->name('old-datasets.controlled-keywords');
-
-        Route::get('old-datasets/{id}/free-keywords', [OldDatasetController::class, 'getFreeKeywords'])
-            ->name('old-datasets.free-keywords');
-
-        Route::get('old-datasets/{id}/msl-keywords', [OldDatasetController::class, 'getMslKeywords'])
-            ->name('old-datasets.msl-keywords');
-
-        Route::get('old-datasets/{id}/coverages', [OldDatasetController::class, 'getCoverages'])
-            ->name('old-datasets.coverages');
-
-        Route::get('old-datasets/{id}/related-identifiers', [OldDatasetController::class, 'getRelatedIdentifiers'])
-            ->name('old-datasets.related-identifiers');
-
-        Route::get('old-datasets/{id}/msl-laboratories', [OldDatasetController::class, 'getMslLaboratories'])
-            ->name('old-datasets.msl-laboratories');
-    });
-
     // Statistics routes (Admin, Group Leader - Issue #379)
     Route::middleware(['can:access-statistics'])->group(function () {
         Route::get('statistics', [StatisticsController::class, 'index'])
             ->name('statistics');
-
-        Route::get('old-statistics', [OldDataStatisticsController::class, 'index'])
-            ->name('old-statistics');
     });
 
     // Logs routes (Admin only - Issue #379)
@@ -616,8 +565,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('igsns.filter-options');
     Route::get('igsns/count', [IgsnController::class, 'count'])
         ->name('igsns.count');
-    Route::get('igsns-map', [IgsnMapController::class, 'index'])
-        ->name('igsns.map');
     // IGSN Import from DataCite
     Route::post('igsns/import/start', [IgsnImportController::class, 'start'])
         ->name('igsns.import.start');
