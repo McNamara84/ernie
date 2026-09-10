@@ -655,4 +655,41 @@ describe('RelatedWorkField', () => {
         act(() => vi.advanceTimersByTime(8000));
         expect(screen.queryByText(/skipped 1 duplicate/i)).not.toBeInTheDocument();
     });
+
+    it('reports CSV rows with inactive options without calling them duplicates', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        render(<StatefulField activeIdentifierTypes={['DOI']} activeRelationTypes={['Cites']} />);
+
+        await user.click(screen.getByRole('button', { name: /^import csv$/i }));
+        await user.click(screen.getByTestId('csv-import-submit'));
+
+        const warning = screen.getByRole('alert');
+        expect(warning.textContent).toMatch(/skipped 1 CSV row using inactive options/i);
+        expect(warning.textContent).toMatch(/identifier type URL/i);
+        expect(warning.textContent).toMatch(/relation type References/i);
+        expect(warning.textContent).not.toMatch(/duplicate/i);
+        expect(screen.getByTestId('item-identifier-0')).toHaveValue('10.1234/csv1');
+        expect(screen.queryByDisplayValue('https://example.org/csv2')).not.toBeInTheDocument();
+    });
+
+    it('reports duplicate and inactive CSV rows as separate skip reasons', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        render(
+            <StatefulField
+                initialItems={[{ identifier: '10.1234/csv1', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]}
+                activeIdentifierTypes={['DOI']}
+                activeRelationTypes={['Cites']}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /import from csv/i }));
+        await user.click(screen.getByTestId('csv-import-submit'));
+
+        const warning = screen.getByRole('alert');
+        expect(warning.textContent).toMatch(/skipped 1 duplicate from CSV import/i);
+        expect(warning.textContent).toMatch(/skipped 1 CSV row using inactive options/i);
+        expect(screen.getAllByTestId(/item-identifier-/)).toHaveLength(1);
+    });
 });

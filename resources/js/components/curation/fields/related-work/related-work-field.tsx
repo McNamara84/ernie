@@ -294,13 +294,21 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         const combinedList = [...relatedWorksRef.current];
         const importedItems: RelatedIdentifier[] = [];
         const skippedDuplicates: string[] = [];
+        const skippedInactiveOptions: string[] = [];
 
         data.forEach((item) => {
-            if (
-                !isActiveOption(item.identifierType, activeIdentifierTypes) ||
-                !isActiveOption(item.relationType, activeRelationTypes) ||
-                isDuplicate(item.identifier, item.identifierType, item.relationType, combinedList)
-            ) {
+            const inactiveOptions = [
+                !isActiveOption(item.identifierType, activeIdentifierTypes) ? `identifier type ${item.identifierType}` : null,
+                !isActiveOption(item.relationType, activeRelationTypes) ? `relation type ${item.relationType}` : null,
+            ].filter((option): option is string => option !== null);
+
+            if (inactiveOptions.length > 0) {
+                skippedInactiveOptions.push(`${item.identifier} (${inactiveOptions.join(', ')})`);
+
+                return;
+            }
+
+            if (isDuplicate(item.identifier, item.identifierType, item.relationType, combinedList)) {
                 skippedDuplicates.push(`${item.identifier} (${item.relationType})`);
 
                 return;
@@ -326,10 +334,22 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         setShowCsvImport(false);
         void hydrateCitationLabelsForImportedItems(importedItems);
 
+        const importWarnings: string[] = [];
+
         if (skippedDuplicates.length > 0) {
-            setDuplicateError(
-                `Skipped ${skippedDuplicates.length} duplicate(s) from CSV import: ${skippedDuplicates.slice(0, 3).join(', ')}${skippedDuplicates.length > 3 ? '...' : ''}`,
+            importWarnings.push(
+                `Skipped ${skippedDuplicates.length} ${skippedDuplicates.length === 1 ? 'duplicate' : 'duplicates'} from CSV import: ${skippedDuplicates.slice(0, 3).join(', ')}${skippedDuplicates.length > 3 ? '...' : ''}`,
             );
+        }
+
+        if (skippedInactiveOptions.length > 0) {
+            importWarnings.push(
+                `Skipped ${skippedInactiveOptions.length} CSV ${skippedInactiveOptions.length === 1 ? 'row' : 'rows'} using inactive options: ${skippedInactiveOptions.slice(0, 3).join(', ')}${skippedInactiveOptions.length > 3 ? '...' : ''}`,
+            );
+        }
+
+        if (importWarnings.length > 0) {
+            setDuplicateError(importWarnings.join(' '));
             setTimeout(() => setDuplicateError(null), 8000);
         }
     };

@@ -165,7 +165,7 @@ describe('RelatedWorkItem', () => {
         );
     });
 
-    it('resets the manual identifier type override after clearing the identifier', () => {
+    it('resets the manual identifier type override without changing the type after clearing the identifier', () => {
         render(
             <RelatedWorkItem
                 {...defaultProps}
@@ -183,6 +183,7 @@ describe('RelatedWorkItem', () => {
         expect(mockOnChange).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 identifier: '',
+                identifier_type: 'DOI',
                 identifier_type_manually_selected: false,
             }),
         );

@@ -90,10 +90,10 @@ export default function RelatedWorkItem({
         item.identifier_type_manually_selected ?? (item.identifier.trim() !== '' && detectIdentifierType(item.identifier) !== item.identifier_type);
 
     const handleIdentifierChange = (value: string) => {
-        const shouldResetManualSelection = value.trim() === '';
+        const isEmpty = value.trim() === '';
         let nextIdentifierType = item.identifier_type;
 
-        if (shouldResetManualSelection || !identifierTypeWasManuallySelected) {
+        if (!isEmpty && !identifierTypeWasManuallySelected) {
             const detectedIdentifierType = detectIdentifierType(value);
 
             if (!activeIdentifierTypes || activeIdentifierTypes.includes(detectedIdentifierType)) {
@@ -106,7 +106,7 @@ export default function RelatedWorkItem({
         updateItem({
             identifier: value,
             identifier_type: nextIdentifierType,
-            identifier_type_manually_selected: shouldResetManualSelection ? false : identifierTypeWasManuallySelected,
+            identifier_type_manually_selected: isEmpty ? false : identifierTypeWasManuallySelected,
         });
     };
 
