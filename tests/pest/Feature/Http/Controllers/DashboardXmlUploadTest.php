@@ -261,20 +261,10 @@ XML;
     expect(Session::has($sessionKey))->toBeTrue();
 });
 
-it('rejects invalid oldDatasetId parameter', function () {
-    // Test negative ID
-    $response = $this->get('/editor?oldDatasetId=-1');
-    $response->assertStatus(400);
-    expect($response->exception->getMessage())->toBe('Invalid dataset ID');
-
-    // Test zero
-    $response = $this->get('/editor?oldDatasetId=0');
-    $response->assertStatus(400);
-
-    // Test non-numeric string
-    $response = $this->get('/editor?oldDatasetId=abc');
-    $response->assertStatus(400);
-});
+it('returns not found for the retired oldDatasetId editor workflow', function (string $oldDatasetId) {
+    $this->get('/editor?oldDatasetId='.urlencode($oldDatasetId))
+        ->assertNotFound();
+})->with(['1', '-1', '0', 'abc']);
 
 it('rejects tampered xml session data with invalid structure', function () {
     // Create a session with tampered data (wrong types)

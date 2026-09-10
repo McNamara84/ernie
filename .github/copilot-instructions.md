@@ -48,7 +48,7 @@ npm run check:parity
 #### Controllers (`app/Http/Controllers/`)
 - **Resource CRUD:** `ResourceController` – List/store/update/delete resources
 - **Editor:** `EditorController` – Curation form with DataCite fields
-- **IGSN:** `IgsnController`, `BatchIgsnController`, `BatchIgsnRegistrationController`, `UploadIgsnCsvController`, `IgsnMapController`
+- **IGSN:** `IgsnController`, `BatchIgsnController`, `BatchIgsnRegistrationController`, `UploadIgsnCsvController`
 - **DataCite:** `DataCiteImportController`, `DoiValidationController`, `Api/DataCiteController`, `Api/DoiValidationController`
 - **Landing Pages:** `LandingPageController`, `LandingPageDomainController`, `LandingPagePreviewController`, `LandingPagePublicController`
 - **Portal:** `PortalController` – Public dataset search portal
@@ -57,7 +57,7 @@ npm run check:parity
 - **Upload:** `UploadXmlController`, `UploadIgsnCsvController`
 - **Vocabularies:** `VocabularyController`, `LanguageController`, `LicenseController`, `DateTypeController`, `TitleTypeController`, `ResourceTypeController`, `RelationTypeController`, `RelatedIdentifierTypeController`
 - **External APIs:** `OrcidController`, `RorAffiliationController`
-- **Other:** `ChangelogController`, `ContactMessageController`, `DocsController`, `LogController`, `OldDatasetController`, `OldDataStatisticsController`
+- **Other:** `ChangelogController`, `ContactMessageController`, `DocsController`, `LogController`
 - **Auth:** `Auth/` – Login, password reset, welcome, email verification
 
 #### Services (`app/Services/`)
@@ -78,7 +78,7 @@ npm run check:parity
 - **Status:** `Pid4instStatusService`, `ThesaurusStatusService`
 - **Logging:** `LogService`, `UploadLogService`
 - **Cache:** `ResourceCacheService`
-- **Legacy:** `OldDatasetEditorLoader` – Load old datasets into editor
+- **Legacy:** `OldDatasetEditorLoader` – Map old dataset metadata for automated imports
 - **Traits:** `Traits/DataCiteExporterHelpers` – Shared export logic
 
 #### Models (`app/Models/`)
@@ -101,7 +101,6 @@ npm run check:parity
 - **Policies:** `ResourcePolicy`, `UserPolicy`, `LandingPagePolicy` – Model-level authorization
 - **Gates** (defined in `AppServiceProvider`):
   - `access-logs` – Admin only
-  - `access-old-datasets` – Admin only
   - `access-statistics` – Admin, Group Leader
   - `access-users` – Admin, Group Leader
   - `access-editor-settings` – Admin, Group Leader
@@ -145,11 +144,11 @@ npm run check:parity
 
 #### Pages (`resources/js/pages/`)
 - **Core:** `editor.tsx`, `resources.tsx`, `dashboard.tsx`
-- **IGSN:** `igsns/index.tsx`, `igsns/map.tsx`
+- **IGSN:** `igsns/index.tsx`
 - **Landing Pages:** `LandingPages/default_gfz.tsx`, `LandingPages/default_gfz_igsn.tsx`
 - **Portal:** `portal.tsx` – Public dataset search
 - **Settings:** `settings/index.tsx`, `settings/profile.tsx`, `settings/password.tsx`, `settings/appearance.tsx`
-- **Admin:** `Users/Index.tsx`, `Logs/Index.tsx`, `old-datasets.tsx`, `old-statistics.tsx`
+- **Admin:** `Users/Index.tsx`, `Logs/Index.tsx`, `statistics.tsx`
 - **Public:** `welcome.tsx`, `about.tsx`, `changelog.tsx`, `docs.tsx`, `legal-notice.tsx`
 - **Auth:** `auth/login.tsx`, `auth/forgot-password.tsx`, `auth/reset-password.tsx`, `auth/welcome.tsx`, etc.
 
@@ -187,7 +186,7 @@ npm run check:parity
 
 #### Types (`resources/js/types/`)
 - `index.d.ts` – Shared Inertia page props
-- Feature-specific: `resources.ts`, `portal.ts`, `landing-page.ts`, `affiliations.ts`, `gcmd.ts`, `upload.ts`, `old-datasets.ts`, `docs.ts`
+- Feature-specific: `resources.ts`, `portal.ts`, `landing-page.ts`, `affiliations.ts`, `gcmd.ts`, `upload.ts`, `docs.ts`
 
 ### Data Flow
 1. **XML Upload** → `UploadXmlController` → Session storage → Editor page

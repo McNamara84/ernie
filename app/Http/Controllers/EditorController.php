@@ -9,7 +9,6 @@ use App\Models\Resource;
 use App\Models\User;
 use App\Services\Editor\EditorDataTransformer;
 use App\Services\Editor\EditorLoadProgressService;
-use App\Services\OldDatasetEditorLoader;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -22,7 +21,6 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
  *
  * Handles multiple data sources for editor initialization:
  * - XML session data from file uploads
- * - Legacy database (OldDataset) via OldDatasetEditorLoader
  * - Existing Resource from new database
  * - Query parameters for import/new mode
  */
@@ -52,7 +50,6 @@ class EditorController extends Controller
 
     public function __construct(
         private readonly EditorDataTransformer $transformer,
-        private readonly OldDatasetEditorLoader $oldDatasetLoader,
         private readonly EditorLoadProgressService $progressTracker,
     ) {}
 
@@ -65,8 +62,11 @@ class EditorController extends Controller
     {
         $xmlSessionKey = $request->query('xmlSession');
         $jsonSessionKey = $request->query('jsonSession');
-        $oldDatasetId = $request->query('oldDatasetId');
         $resourceId = $request->query('resourceId');
+
+        if ($request->query->has('oldDatasetId')) {
+            abort(HttpResponse::HTTP_NOT_FOUND);
+        }
 
         // Priority 1: XML session data
         if ($xmlSessionKey !== null && is_string($xmlSessionKey)) {
@@ -78,17 +78,12 @@ class EditorController extends Controller
             return $this->loadFromUploadSession($jsonSessionKey, 'json_upload_', 'JSON');
         }
 
-        // Priority 2: Legacy database
-        if ($oldDatasetId !== null) {
-            return $this->loadFromOldDataset($oldDatasetId);
-        }
-
-        // Priority 3: Existing resource
+        // Priority 2: Existing resource
         if ($resourceId !== null) {
             return $this->loadExistingResource($request, $resourceId);
         }
 
-        // Priority 4: Query parameters (import/new mode)
+        // Priority 3: Query parameters (import/new mode)
         return $this->loadFromQueryParams($request);
     }
 
@@ -219,37 +214,6 @@ class EditorController extends Controller
                 'mslLaboratories' => $sessionData['mslLaboratories'] ?? [],
             ]
         ));
-    }
-
-    /**
-     * Load editor data from legacy SUMARIOPMD database.
-     *
-     * @param  mixed  $oldDatasetId  Dataset ID (will be validated)
-     */
-    private function loadFromOldDataset(mixed $oldDatasetId): Response|RedirectResponse
-    {
-        // Validate oldDatasetId
-        if (! is_numeric($oldDatasetId) || (int) $oldDatasetId <= 0) {
-            abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid dataset ID');
-        }
-
-        try {
-            $editorData = $this->oldDatasetLoader->loadForEditor((int) $oldDatasetId);
-
-            return Inertia::render('editor', array_merge(
-                $this->transformer->getCommonProps(),
-                $editorData
-            ));
-        } catch (\Exception $e) {
-            // Log error and redirect back with error message
-            Log::error('Failed to load old dataset in editor', [
-                'old_dataset_id' => $oldDatasetId,
-                'error' => $e->getMessage(),
-            ]);
-
-            return redirect()->route('old-datasets')
-                ->with('error', 'Failed to load dataset from legacy database. Please try again or contact support.');
-        }
     }
 
     /**

@@ -12,7 +12,6 @@ import {
     Layers,
     LayoutGrid,
     LayoutTemplate,
-    MapPin,
     ScrollText,
     Search,
     Settings,
@@ -104,7 +103,7 @@ export function AppSidebar() {
             tourId: 'sidebar-data-editor',
         },
         {
-            title: 'Resources',
+            title: 'Resources List',
             href: '/resources',
             icon: Layers,
             badge: inventory?.dataResourceCount,
@@ -125,14 +124,6 @@ export function AppSidebar() {
     // IGSN CURATION section
     const igsnCurationItems: NavItem[] = [
         {
-            title: 'IGSN Portal',
-            href: '/igsn-search',
-            icon: Search,
-            openInNewTab: true,
-            rel: 'noopener noreferrer',
-            tourId: 'sidebar-igsn-portal',
-        },
-        {
             title: 'IGSNs List',
             href: '/igsns',
             icon: FlaskConical,
@@ -142,10 +133,12 @@ export function AppSidebar() {
             tourId: 'sidebar-igsns-list',
         },
         {
-            title: 'IGSNs Map',
-            href: '/igsns-map',
-            icon: MapPin,
-            tourId: 'sidebar-igsns-map',
+            title: 'IGSN Portal',
+            href: '/igsn-search',
+            icon: Search,
+            openInNewTab: true,
+            rel: 'noopener noreferrer',
+            tourId: 'sidebar-igsn-portal',
         },
         {
             title: 'IGSN Editor',
@@ -158,7 +151,6 @@ export function AppSidebar() {
     const teamItems: NavItem[] = [];
     const configurationItems: NavItem[] = [];
     const operationsItems: NavItem[] = [];
-    const legacyItems: NavItem[] = [];
     const administrationItems: NavItem[] = [];
     const toolsItems: NavItem[] = [];
 
@@ -197,17 +189,6 @@ export function AppSidebar() {
         administrationItems.push(databaseDumpsItem);
         operationsItems.push(databaseDumpsItem);
     }
-    if (auth.user?.can_access_old_datasets) {
-        const oldDatasetsItem: NavItem = {
-            title: 'Old Datasets',
-            href: '/old-datasets',
-            icon: Database,
-        };
-
-        administrationItems.push(oldDatasetsItem);
-        legacyItems.push(oldDatasetsItem);
-    }
-
     if (auth.user?.can_access_statistics) {
         const statisticsItem: NavItem = {
             title: 'Statistics',
@@ -215,15 +196,8 @@ export function AppSidebar() {
             icon: BarChart3,
         };
 
-        const legacyStatisticsItem: NavItem = {
-            title: 'Statistics (old)',
-            href: '/old-statistics',
-            icon: History,
-        };
-
         administrationItems.push(statisticsItem);
         operationsItems.push(statisticsItem);
-        legacyItems.push(legacyStatisticsItem);
     }
 
     if (auth.user?.can_access_users) {
@@ -280,7 +254,6 @@ export function AppSidebar() {
         { label: 'Team', items: teamItems },
         { label: 'Configuration', items: configurationItems },
         { label: 'Operations', items: operationsItems },
-        { label: 'Legacy', items: legacyItems },
     ]);
 
     const workspacePaths = {

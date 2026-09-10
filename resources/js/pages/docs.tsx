@@ -9,7 +9,6 @@ import {
     Database,
     Edit3,
     FileText,
-    FolderOpen,
     Globe,
     HelpCircle,
     Layers,
@@ -122,7 +121,7 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Sidebar Counters:</strong> The main menu shows total counts on <strong>Resources</strong> and{' '}
+                                <strong>Sidebar Counters:</strong> The main menu shows total counts on <strong>Resources List</strong> and{' '}
                                 <strong>IGSNs List</strong>. The <strong>Assistance</strong> entry continues to show the number of pending
                                 suggestions. For Admins, Group Leaders, and Curators, the <strong>Assessment</strong> entry also shows the current
                                 average FAIR score summary in the format <strong>Resources / IGSNs</strong>.
@@ -133,10 +132,10 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             <p className="text-sm text-violet-900 dark:text-violet-100">
                                 <strong>Workspace Switcher:</strong> Admins and Group Leaders now see a <strong>Curation</strong> /{' '}
                                 <strong>Administration</strong> switcher at the top of the sidebar. Use <strong>Curation</strong> for day-to-day
-                                metadata work such as the Dashboard, Resources, and IGSN tools. Use <strong>Administration</strong> for privileged
-                                destinations such as Users, Statistics, Editor Settings, Landing Pages, Assistance, Assessment, Logs, and legacy
-                                maintenance pages. Curators do not use this workspace switcher and reach Assessment from their <strong>Tools</strong>
-                                section instead. ERNIE remembers the last selected workspace locally.
+                                metadata work such as the Dashboard, Resources List, and IGSN tools. Use <strong>Administration</strong> for
+                                privileged destinations such as Users, Statistics, Editor Settings, Landing Pages, Assistance, Assessment, and Logs.
+                                Curators do not use this workspace switcher and reach Assessment from their <strong>Tools</strong> section instead.
+                                ERNIE remembers the last selected workspace locally.
                             </p>
                         </div>
 
@@ -2081,9 +2080,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Searching Published Records in the Portal</h3>
                         <p>
                             The public Data Portal at <code>/doi-search</code> lets you explore published DOI resources, while the IGSN Portal at{' '}
-                            <code>/igsn-search</code> is dedicated to published physical samples. Both support text, free-keyword, spatial, temporal,
-                            and datacenter filters. Each portal also offers filters tailored to its records. Every filter state is stored in the URL,
-                            so filtered views can be bookmarked and shared.
+                            <code>/igsn-search</code> is the supported search and map interface for published physical samples. Both support text,
+                            free-keyword, spatial, temporal, and datacenter filters. Each portal also offers filters tailored to its records. Every
+                            filter state is stored in the URL, so filtered views can be bookmarked and shared.
                         </p>
 
                         <h4>Exploring Results on the Map</h4>
@@ -2657,46 +2656,6 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Production safety:</strong> Start only after DNS, TLS, the new public landing pages, a persistent queue
                                 worker, shared cache, and the intended DataCite environment have been verified. Only one migration run can be active
                                 at a time.
-                            </p>
-                        </div>
-                    </>
-                ),
-            },
-            {
-                id: 'legacy-import',
-                title: 'Legacy Dataset Import',
-                icon: FolderOpen,
-                minRole: 'admin',
-                content: (
-                    <>
-                        <h3>Importing from Old Datasets</h3>
-                        <p>
-                            The Legacy Dataset Browser at <code>/old-datasets</code> allows you to import metadata from the previous database.
-                        </p>
-
-                        <h4>How to Import</h4>
-                        <WorkflowSteps>
-                            <WorkflowSteps.Step number={1} title="Browse Old Datasets">
-                                <p>
-                                    Navigate to <code>/old-datasets</code> and search for the dataset.
-                                </p>
-                            </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={2} title="Select Dataset">
-                                <p>Click on a dataset to view its metadata preview.</p>
-                            </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={3} title="Import to Editor">
-                                <p>
-                                    Click <strong>"Import"</strong> to load the metadata into the Data Editor.
-                                </p>
-                            </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={4} title="Review & Save">
-                                <p>Review the imported data, make corrections, and save to the new database.</p>
-                            </WorkflowSteps.Step>
-                        </WorkflowSteps>
-
-                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
-                            <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Note:</strong> Some fields may require manual mapping or verification during import.
                             </p>
                         </div>
                     </>
@@ -3311,31 +3270,6 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Warning:</strong> Deleting IGSNs is permanent and cannot be undone.
                             </p>
                         </div>
-                    </>
-                ),
-            },
-            {
-                id: 'igsn-map',
-                title: 'Map View',
-                icon: MapPin,
-                minRole: 'beginner',
-                content: (
-                    <>
-                        <h3>Geographic Visualization</h3>
-                        <p>
-                            The IGSNs Map at <code>/igsns-map</code> displays all samples with coordinate data.
-                        </p>
-
-                        <h4>Map Features</h4>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>Markers for each IGSN with coordinates</li>
-                            <li>Automatic viewport adjustment</li>
-                            <li>Clickable markers with popup info (title, creator, year)</li>
-                        </ul>
-
-                        <p className="mt-4">
-                            Access via sidebar: <strong>IGSN Curation → IGSNs Map</strong>
-                        </p>
                     </>
                 ),
             },

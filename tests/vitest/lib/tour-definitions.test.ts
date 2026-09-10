@@ -11,15 +11,16 @@ describe('guided tour definitions', () => {
             key: 'beginner-dashboard-main-menu',
             version: 1,
         });
-        expect(definition?.steps).toHaveLength(8);
+        expect(definition?.steps).toHaveLength(7);
         expect(definition?.steps[0]).toMatchObject({
             id: 'dashboard-welcome',
             title: 'Welcome to ERNIE',
         });
-        expect(definition?.steps[7]).toMatchObject({
+        expect(definition?.steps[6]).toMatchObject({
             id: 'sidebar-documentation',
             align: 'end',
         });
+        expect(definition?.steps.map((step) => step.id)).not.toContain('sidebar-igsns-map');
     });
 
     it('returns null for unknown guided tour versions', () => {

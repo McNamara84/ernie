@@ -149,7 +149,6 @@ export default defineConfig(({ command }) => {
                     'resources/js/**/*.d.ts',
                     'resources/js/types/affiliations.ts',
                     'resources/js/types/docs.ts',
-                    'resources/js/types/old-datasets.ts',
                     'resources/js/types/portal.ts',
                     'resources/js/types/resources.ts',
                 ],

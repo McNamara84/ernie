@@ -72,7 +72,6 @@ class HandleInertiaRequests extends Middleware
                     'can_delete_published_resources' => $request->user()->can('delete-published-resources'),
                     // Granular access permissions (Issue #379)
                     'can_access_logs' => $request->user()->can('access-logs'),
-                    'can_access_old_datasets' => $request->user()->can('access-old-datasets'),
                     'can_access_statistics' => $request->user()->can('access-statistics'),
                     'can_access_users' => $request->user()->can('access-users'),
                     'can_access_editor_settings' => $request->user()->can('access-editor-settings'),
