@@ -144,11 +144,11 @@ npm run check:parity
 
 #### Pages (`resources/js/pages/`)
 - **Core:** `editor.tsx`, `resources.tsx`, `dashboard.tsx`
-- **IGSN:** `igsns/index.tsx`, `igsns/map.tsx`
+- **IGSN:** `igsns/index.tsx`
 - **Landing Pages:** `LandingPages/default_gfz.tsx`, `LandingPages/default_gfz_igsn.tsx`
 - **Portal:** `portal.tsx` – Public dataset search
 - **Settings:** `settings/index.tsx`, `settings/profile.tsx`, `settings/password.tsx`, `settings/appearance.tsx`
-- **Admin:** `Users/Index.tsx`, `Logs/Index.tsx`, `old-datasets.tsx`, `old-statistics.tsx`
+- **Admin:** `Users/Index.tsx`, `Logs/Index.tsx`, `statistics.tsx`
 - **Public:** `welcome.tsx`, `about.tsx`, `changelog.tsx`, `docs.tsx`, `legal-notice.tsx`
 - **Auth:** `auth/login.tsx`, `auth/forgot-password.tsx`, `auth/reset-password.tsx`, `auth/welcome.tsx`, etc.
 
@@ -186,7 +186,7 @@ npm run check:parity
 
 #### Types (`resources/js/types/`)
 - `index.d.ts` – Shared Inertia page props
-- Feature-specific: `resources.ts`, `portal.ts`, `landing-page.ts`, `affiliations.ts`, `gcmd.ts`, `upload.ts`, `old-datasets.ts`, `docs.ts`
+- Feature-specific: `resources.ts`, `portal.ts`, `landing-page.ts`, `affiliations.ts`, `gcmd.ts`, `upload.ts`, `docs.ts`
 
 ### Data Flow
 1. **XML Upload** → `UploadXmlController` → Session storage → Editor page
