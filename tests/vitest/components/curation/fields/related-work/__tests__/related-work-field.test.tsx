@@ -312,8 +312,13 @@ describe('RelatedWorkField', () => {
         expect(screen.getByLabelText('Citation label 1')).toHaveValue('Manually curated citation');
     });
 
-    it('caches unsuccessful lookups for repeated blur events', async () => {
+    it('caches authoritative not-found lookups for repeated blur events', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: false,
+            status: 404,
+            json: vi.fn().mockResolvedValue({ error: 'No citation label could be resolved for this identifier.' }),
+        }) as unknown as typeof fetch;
 
         render(<StatefulField />);
         await addFirstCard(user);
@@ -326,6 +331,66 @@ describe('RelatedWorkField', () => {
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
         expect(screen.getByTestId('resolution-status-0')).toHaveTextContent('unavailable');
+    });
+
+    it.each([429, 503])('retries a citation lookup after a transient HTTP %i response', async (status) => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        global.fetch = vi
+            .fn()
+            .mockResolvedValueOnce({
+                ok: false,
+                status,
+                json: vi.fn().mockResolvedValue({ message: 'Temporarily unavailable.' }),
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: vi.fn().mockResolvedValue({ citation: 'Citation resolved after retry' }),
+            }) as unknown as typeof fetch;
+
+        render(<StatefulField />);
+        await addFirstCard(user);
+        await user.type(screen.getByTestId('item-identifier-0'), '10.5880/retry-http');
+        await user.tab();
+        await flushLookup();
+
+        expect(screen.getByTestId('resolution-status-0')).toHaveTextContent('unavailable');
+
+        await user.click(screen.getByTestId('item-identifier-0'));
+        await user.tab();
+        await flushLookup();
+
+        expect(global.fetch).toHaveBeenCalledTimes(2);
+        expect(screen.getByLabelText('Citation label 1')).toHaveValue('Citation resolved after retry');
+        expect(screen.getByTestId('resolution-status-0')).toHaveTextContent('resolved');
+    });
+
+    it('retries a citation lookup after a network failure', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        global.fetch = vi
+            .fn()
+            .mockRejectedValueOnce(new TypeError('Network request failed'))
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: vi.fn().mockResolvedValue({ citation: 'Citation resolved after reconnecting' }),
+            }) as unknown as typeof fetch;
+
+        render(<StatefulField />);
+        await addFirstCard(user);
+        await user.type(screen.getByTestId('item-identifier-0'), '10.5880/retry-network');
+        await user.tab();
+        await flushLookup();
+
+        expect(screen.getByTestId('resolution-status-0')).toHaveTextContent('unavailable');
+
+        await user.click(screen.getByTestId('item-identifier-0'));
+        await user.tab();
+        await flushLookup();
+
+        expect(global.fetch).toHaveBeenCalledTimes(2);
+        expect(screen.getByLabelText('Citation label 1')).toHaveValue('Citation resolved after reconnecting');
+        expect(screen.getByTestId('resolution-status-0')).toHaveTextContent('resolved');
     });
 
     it('reuses successful lookups without another request', async () => {

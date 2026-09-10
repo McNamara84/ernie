@@ -21,6 +21,11 @@ interface RelatedWorkFieldProps {
 const BULK_IMPORT_CITATION_HYDRATION_CONCURRENCY = 3;
 const CITATION_RESOLUTION_IDENTIFIER_TYPES = new Set(['DOI', 'URL']);
 
+interface CitationLookupResult {
+    citation: string | null;
+    cacheable: boolean;
+}
+
 function normalizeIdentifier(identifier: string, identifierType: string): string {
     return identifierType === 'DOI' ? normalizeDOI(identifier) : identifier.trim();
 }
@@ -167,22 +172,37 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                 },
             },
         )
-            .then(async (response): Promise<string | null> => {
+            .then(async (response): Promise<CitationLookupResult> => {
+                if (response.status === 404) {
+                    return { citation: null, cacheable: true };
+                }
+
                 if (!response.ok) {
-                    return null;
+                    return { citation: null, cacheable: false };
                 }
 
                 const payload = (await response.json()) as { citation?: unknown };
                 const citation = typeof payload.citation === 'string' ? payload.citation.trim() : '';
 
-                return citation === '' ? null : citation;
+                return {
+                    citation: citation === '' ? null : citation,
+                    cacheable: citation !== '',
+                };
             })
-            .catch(() => null)
-            .then((citation) => {
-                citationCacheRef.current.set(lookupKey, citation);
+            .catch((): CitationLookupResult => ({ citation: null, cacheable: false }))
+            .then(({ citation, cacheable }) => {
+                if (cacheable) {
+                    citationCacheRef.current.set(lookupKey, citation);
+                }
+
                 setCitationResolutionState(lookupKey, {
                     status: citation === null ? 'unavailable' : 'resolved',
-                    message: citation === null ? 'No automatic citation label found.' : undefined,
+                    message:
+                        citation === null
+                            ? cacheable
+                                ? 'No automatic citation label found.'
+                                : 'Automatic citation lookup failed. Leave the identifier again to retry.'
+                            : undefined,
                 });
 
                 return citation;
