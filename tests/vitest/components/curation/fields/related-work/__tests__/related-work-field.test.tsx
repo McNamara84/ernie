@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -609,6 +609,80 @@ describe('RelatedWorkField', () => {
         await user.click(screen.getByTestId('set-references-0'));
         expect(screen.getByText(/this exact relation already exists/i)).toBeInTheDocument();
         expect(screen.getByTestId('relation-type-0')).toHaveTextContent('Cites');
+    });
+
+    it('allows URL identifiers that differ by case in the path or query', () => {
+        render(
+            <StatefulField
+                initialItems={[
+                    {
+                        identifier: 'https://example.org/Related?Token=ABC',
+                        identifier_type: 'URL',
+                        relation_type: 'Cites',
+                        position: 0,
+                    },
+                    {
+                        identifier: 'https://example.org/other',
+                        identifier_type: 'URL',
+                        relation_type: 'Cites',
+                        position: 1,
+                    },
+                ]}
+            />,
+        );
+
+        fireEvent.change(screen.getByTestId('item-identifier-1'), {
+            target: { value: 'https://example.org/related?token=abc' },
+        });
+
+        expect(screen.getByTestId('item-identifier-1')).toHaveValue('https://example.org/related?token=abc');
+        expect(screen.queryByText(/this exact relation already exists/i)).not.toBeInTheDocument();
+    });
+
+    it('rejects exact URL duplicates after trimming surrounding whitespace', () => {
+        render(
+            <StatefulField
+                initialItems={[
+                    {
+                        identifier: 'https://example.org/Related?Token=ABC',
+                        identifier_type: 'URL',
+                        relation_type: 'Cites',
+                        position: 0,
+                    },
+                    {
+                        identifier: 'https://example.org/other',
+                        identifier_type: 'URL',
+                        relation_type: 'Cites',
+                        position: 1,
+                    },
+                ]}
+            />,
+        );
+
+        fireEvent.change(screen.getByTestId('item-identifier-1'), {
+            target: { value: '  https://example.org/Related?Token=ABC  ' },
+        });
+
+        expect(screen.getByText(/this exact relation already exists/i)).toBeInTheDocument();
+        expect(screen.getByTestId('item-identifier-1')).toHaveValue('https://example.org/other');
+    });
+
+    it('rejects DOI duplicates case-insensitively after DOI normalization', () => {
+        render(
+            <StatefulField
+                initialItems={[
+                    { identifier: '10.5880/GFZ.TEST', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
+                    { identifier: '10.5880/other', identifier_type: 'DOI', relation_type: 'Cites', position: 1 },
+                ]}
+            />,
+        );
+
+        fireEvent.change(screen.getByTestId('item-identifier-1'), {
+            target: { value: 'https://doi.org/10.5880/gfz.test' },
+        });
+
+        expect(screen.getByText(/this exact relation already exists/i)).toBeInTheDocument();
+        expect(screen.getByTestId('item-identifier-1')).toHaveValue('10.5880/other');
     });
 
     it('does not show an opposite-relation suggestion after a relation type change (Issue #1293)', async () => {

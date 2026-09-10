@@ -56,7 +56,8 @@ function isValidCitationIdentifier(identifier: string, identifierType: string): 
 
 /**
  * A duplicate is only present when identifier, identifier type, and relation
- * type all match. The empty editor card is never considered a duplicate.
+ * type all match. DOI normalization is case-insensitive, while other identifier
+ * types retain case after trimming. The empty editor card is never a duplicate.
  */
 function isDuplicate(identifier: string, identifierType: string, relationType: string, existingItems: RelatedIdentifier[]): boolean {
     const normalized = normalizeIdentifier(identifier, identifierType);
@@ -72,7 +73,7 @@ function isDuplicate(identifier: string, identifierType: string, relationType: s
 
         const existingNormalized = normalizeIdentifier(item.identifier, item.identifier_type);
 
-        return existingNormalized.toLowerCase() === normalized.toLowerCase();
+        return existingNormalized === normalized;
     });
 }
 
