@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
@@ -96,13 +96,18 @@ vi.mock('framer-motion', () => ({
                 return <li {...rest}>{children}</li>;
             }
 
-            return <li ref={ref} {...rest}>{children}</li>;
+            return (
+                <li ref={ref} {...rest}>
+                    {children}
+                </li>
+            );
         },
     },
 }));
 
 vi.mock('lucide-react', () => ({
     Bug: () => <svg data-testid="bug-icon" />,
+    ExternalLink: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="external-link-icon" {...props} />,
     Sparkles: () => <svg data-testid="sparkles-icon" />,
     TrendingUp: () => <svg data-testid="trending-up-icon" />,
 }));
@@ -168,10 +173,29 @@ describe('Changelog', () => {
                             {
                                 title: 'Resources workspace',
                                 description: 'Browse curated resources with metadata badges and quick actions.',
+                                references: [
+                                    {
+                                        type: 'pull_request',
+                                        number: 1297,
+                                        url: 'https://github.com/McNamara84/ernie/pull/1297',
+                                    },
+                                ],
                             },
                             {
                                 title: 'Dashboard overview',
                                 description: 'Surface key statistics like the total resource count.',
+                                references: [
+                                    {
+                                        type: 'issue',
+                                        number: 1285,
+                                        url: 'https://github.com/McNamara84/ernie/issues/1285',
+                                    },
+                                    {
+                                        type: 'pull_request',
+                                        number: 1301,
+                                        url: 'https://github.com/McNamara84/ernie/pull/1301',
+                                    },
+                                ],
                             },
                         ],
                     },
@@ -197,7 +221,7 @@ describe('Changelog', () => {
                     },
                 ]),
         }) as unknown as typeof fetch;
-        
+
         // Mock scrollTo and scrollIntoView
         window.scrollTo = vi.fn();
         Element.prototype.scrollIntoView = vi.fn();
@@ -205,7 +229,7 @@ describe('Changelog', () => {
 
         // Reset hash between tests (handleNavigate uses pushState which persists)
         window.history.replaceState(null, '', window.location.pathname);
-        
+
         // Mock IntersectionObserver without automatic callbacks so tests can
         // drive visibility changes explicitly through the test helper.
         global.IntersectionObserver = vi.fn().mockImplementation(function (this: IntersectionObserver, callback: IntersectionObserverCallback) {
@@ -225,7 +249,7 @@ describe('Changelog', () => {
     it('renders releases on a timeline, expands the latest by default, and toggles grouped details', async () => {
         const user = userEvent.setup();
         render(<Changelog />);
-        
+
         const list = await screen.findByRole('list', { name: /changelog timeline/i });
         expect(list).toBeInTheDocument();
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
@@ -244,6 +268,45 @@ describe('Changelog', () => {
         await vi.waitFor(() => {
             expect(screen.queryByText(/Minor improvements/i)).not.toBeInTheDocument();
         });
+    });
+
+    it('renders optional GitHub references as safe external links with accessible labels', async () => {
+        const user = userEvent.setup();
+        render(<Changelog />);
+
+        await screen.findByRole('list', { name: /changelog timeline/i });
+
+        const singleReferenceGroup = screen.getByRole('group', {
+            name: 'Related GitHub references for Resources workspace',
+        });
+        const pullRequestLink = within(singleReferenceGroup).getByRole('link', {
+            name: 'Open PR #1297 on GitHub (opens in a new tab)',
+        });
+
+        expect(pullRequestLink).toHaveTextContent('PR #1297');
+        expect(pullRequestLink).toHaveAttribute('href', 'https://github.com/McNamara84/ernie/pull/1297');
+        expect(pullRequestLink).toHaveAttribute('target', '_blank');
+        expect(pullRequestLink).toHaveAttribute('rel', expect.stringContaining('noopener'));
+        expect(pullRequestLink).toHaveAttribute('rel', expect.stringContaining('noreferrer'));
+        expect(within(pullRequestLink).getByTestId('external-link-icon')).toHaveAttribute('aria-hidden', 'true');
+
+        const multipleReferenceGroup = screen.getByRole('group', {
+            name: 'Related GitHub references for Dashboard overview',
+        });
+        const issueLink = within(multipleReferenceGroup).getByRole('link', {
+            name: 'Open Issue #1285 on GitHub (opens in a new tab)',
+        });
+        const secondPullRequestLink = within(multipleReferenceGroup).getByRole('link', {
+            name: 'Open PR #1301 on GitHub (opens in a new tab)',
+        });
+
+        expect(issueLink).toHaveAttribute('href', 'https://github.com/McNamara84/ernie/issues/1285');
+        expect(secondPullRequestLink).toHaveAttribute('href', 'https://github.com/McNamara84/ernie/pull/1301');
+        expect(within(multipleReferenceGroup).getAllByRole('link')).toHaveLength(2);
+
+        await user.click(screen.getByRole('button', { name: /version 0\.1\.1/i }));
+
+        expect(screen.queryByRole('group', { name: 'Related GitHub references for Hotfix' })).not.toBeInTheDocument();
     });
 
     it('colors anchors based on version changes', async () => {

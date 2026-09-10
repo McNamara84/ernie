@@ -5,26 +5,72 @@
         "features": [],
         "improvements": [
             {
+                "title": "Traceable Changelog Entries",
+                "description": "Changelog entries from version 1.0.9 onward can now link directly to all related GitHub issues and pull requests, giving testers quick access to the original requirements and implementation context. Entries without a related GitHub reference remain unchanged.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1285,
+                        "url": "https://github.com/McNamara84/ernie/issues/1285"
+                    }
+                ]
+            },
+            {
                 "title": "Direct Related Work Editing",
-                "description": "Add Related Work now creates the complete editable card immediately, including its Citation Label field, without a separate plus-button confirmation. Unfinished cards and their values remain visible across Related Work section toggles while empty cards stay out of saved payloads, and leaving a DOI or URL identifier now shows its safe preview and resolves an available citation label without overwriting curator text. The confusing opposite-relation suggestion has also been removed."
+                "description": "Add Related Work now creates the complete editable card immediately, including its Citation Label field, without a separate plus-button confirmation. Unfinished cards and their values remain visible across Related Work section toggles while empty cards stay out of saved payloads, and leaving a DOI or URL identifier now shows its safe preview and resolves an available citation label without overwriting curator text. The confusing opposite-relation suggestion has also been removed.",
+                "references": [
+                    {
+                        "type": "pull_request",
+                        "number": 1297,
+                        "url": "https://github.com/McNamara84/ernie/pull/1297"
+                    }
+                ]
             },
             {
                 "title": "Visible Version Guidance and Forthcoming Publications",
-                "description": "Resource and IGSN landing pages now show prominent links to newer or superseding versions, independently of collapsed or configured Related Work details. Curators can add a forthcoming journal article as rich DataCite related-item metadata without inventing a DOI, clearly review its pending identifier, and add the DOI to the same item later. A dry-run-first, additive administration command can also recover related identifiers omitted from migrated SUMARIO records without overwriting curated ERNIE metadata, with DOI validation, deduplication, CSV reporting, targeted cache invalidation, and optional DataCite synchronization."
+                "description": "Resource and IGSN landing pages now show prominent links to newer or superseding versions, independently of collapsed or configured Related Work details. Curators can add a forthcoming journal article as rich DataCite related-item metadata without inventing a DOI, clearly review its pending identifier, and add the DOI to the same item later. A dry-run-first, additive administration command can also recover related identifiers omitted from migrated SUMARIO records without overwriting curated ERNIE metadata, with DOI validation, deduplication, CSV reporting, targeted cache invalidation, and optional DataCite synchronization.",
+                "references": [
+                    {
+                        "type": "pull_request",
+                        "number": 1290,
+                        "url": "https://github.com/McNamara84/ernie/pull/1290"
+                    }
+                ]
             },
             {
                 "title": "Streamlined Main Navigation",
-                "description": "The authenticated main menu now labels the resource overview as Resources List and places the IGSN Portal directly after IGSNs List. The superseded standalone IGSNs Map, Old Datasets, and Statistics (old) pages have been retired, together with the Legacy menu section; IGSN discovery remains available through the IGSN Portal and current statistics remain available through the Statistics page."
+                "description": "The authenticated main menu now labels the resource overview as Resources List and places the IGSN Portal directly after IGSNs List. The superseded standalone IGSNs Map, Old Datasets, and Statistics (old) pages have been retired, together with the Legacy menu section; IGSN discovery remains available through the IGSN Portal and current statistics remain available through the Statistics page.",
+                "references": [
+                    {
+                        "type": "pull_request",
+                        "number": 1298,
+                        "url": "https://github.com/McNamara84/ernie/pull/1298"
+                    }
+                ]
             }
         ],
         "fixes": [
             {
                 "title": "Readable Controlled Vocabulary Tabs",
-                "description": "Controlled Vocabulary tabs in the Data Editor now adapt to the available editor width instead of overlapping or being cut off. Compact layouts use distinct icons while keeping the active vocabulary clearly named, with accessible labels, hover hints, and full keyboard navigation at every size."
+                "description": "Controlled Vocabulary tabs in the Data Editor now adapt to the available editor width instead of overlapping or being cut off. Compact layouts use distinct icons while keeping the active vocabulary clearly named, with accessible labels, hover hints, and full keyboard navigation at every size.",
+                "references": [
+                    {
+                        "type": "pull_request",
+                        "number": 1301,
+                        "url": "https://github.com/McNamara84/ernie/pull/1301"
+                    }
+                ]
             },
             {
                 "title": "Validation-Free Related Work CSV Downloads",
-                "description": "Downloading the example CSV from the Data Editor's Related Work importer now only saves the template file. The download, close, cancel, and import controls no longer submit the surrounding editor form or trigger unrelated required-field validation."
+                "description": "Downloading the example CSV from the Data Editor's Related Work importer now only saves the template file. The download, close, cancel, and import controls no longer submit the surrounding editor form or trigger unrelated required-field validation.",
+                "references": [
+                    {
+                        "type": "pull_request",
+                        "number": 1294,
+                        "url": "https://github.com/McNamara84/ernie/pull/1294"
+                    }
+                ]
             }
         ]
     },

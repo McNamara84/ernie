@@ -313,6 +313,10 @@ disabled functions as `N/A` and provide a reason.
 - [ ] The `Changelog` shows the current version, meaningful categories, and
       expandable/collapsible entries.
 
+- [ ] Changelog entries with related GitHub issues or pull requests show every
+      expected reference; each link opens the correct GitHub page safely in a new
+      tab, while entries without references retain their normal layout.
+
 - [ ] The changelog timeline/jump navigation works with mouse and keyboard.
 
 - [ ] A known public landing page opens directly and does not request

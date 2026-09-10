@@ -76,13 +76,18 @@ vi.mock('framer-motion', () => ({
         },
         li: ({ children, ref, ...props }: MotionLiProps & { children?: React.ReactNode; ref?: React.Ref<HTMLLIElement> }) => {
             const rest = sanitizeLiMotionProps(props);
-            return <li ref={ref} {...rest}>{children}</li>;
+            return (
+                <li ref={ref} {...rest}>
+                    {children}
+                </li>
+            );
         },
     },
 }));
 
 vi.mock('lucide-react', () => ({
     Bug: () => <svg data-testid="bug-icon" />,
+    ExternalLink: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="external-link-icon" {...props} />,
     Sparkles: () => <svg data-testid="sparkles-icon" />,
     TrendingUp: () => <svg data-testid="trending-up-icon" />,
 }));
@@ -93,7 +98,7 @@ describe('Changelog integration', () => {
         global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) }) as unknown as typeof fetch;
         window.scrollTo = vi.fn();
         Element.prototype.scrollIntoView = vi.fn();
-        
+
         // Mock IntersectionObserver
         global.IntersectionObserver = vi.fn().mockImplementation(() => ({
             observe: vi.fn(),

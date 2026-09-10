@@ -677,7 +677,24 @@ Format for entries:
 {
     "version": "1.0.0",
     "date": "YYYY-MM-DD",
-    "features": [{ "title": "...", "description": "..." }],
+    "features": [
+        {
+            "title": "...",
+            "description": "...",
+            "references": [
+                {
+                    "type": "issue",
+                    "number": 123,
+                    "url": "https://github.com/McNamara84/ernie/issues/123"
+                },
+                {
+                    "type": "pull_request",
+                    "number": 456,
+                    "url": "https://github.com/McNamara84/ernie/pull/456"
+                }
+            ]
+        }
+    ],
     "improvements": [{ "title": "...", "description": "..." }],
     "fixes": [{ "title": "...", "description": "..." }]
 }
@@ -686,6 +703,10 @@ Format for entries:
 - **features**: New functionality
 - **improvements**: Enhancements to existing features
 - **fixes**: Bug fixes
+- **references**: Optional related GitHub issues and pull requests. Before adding
+  an entry, check for both and include every relevant known reference. Use
+  `issue` or `pull_request` as the type, the GitHub number as an integer, and the
+  complete HTTPS URL. Omit the field when no related GitHub reference exists.
 
 Add new releases at the **top** of the array. Include only the relevant categories (all three are optional).
 
