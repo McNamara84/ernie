@@ -7854,10 +7854,17 @@ describe('DataCiteForm', () => {
                             identifier: '10.1234/example',
                             identifier_type: 'DOI',
                             relation_type: 'IsReferencedBy',
-                            relation_type_information: null,
-                            citation_label: 'Doe, J. (2024): Manual citation. Publisher.',
+                            relation_type_information: '  Journal article  ',
+                            citation_label: '  Doe, J. (2024): Manual citation. Publisher.  ',
                             source: 'relation_suggestion_assistant',
                             is_repository_curation: true,
+                        },
+                        {
+                            identifier: 'https://example.org/related-work',
+                            identifier_type: 'URL',
+                            relation_type: 'References',
+                            relation_type_information: '   ',
+                            citation_label: ' \t ',
                         },
                         {
                             identifier: '   ',
@@ -7889,8 +7896,14 @@ describe('DataCiteForm', () => {
                     identifier: '10.1234/example',
                     identifierType: 'DOI',
                     relationType: 'IsReferencedBy',
+                    relationTypeInformation: 'Journal article',
                     citationLabel: 'Doe, J. (2024): Manual citation. Publisher.',
                     source: 'relation_suggestion_assistant',
+                },
+                {
+                    identifier: 'https://example.org/related-work',
+                    identifierType: 'URL',
+                    relationType: 'References',
                 },
             ]);
         });
