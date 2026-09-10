@@ -37,9 +37,8 @@ final class FilterOptionsResource extends JsonResource
 
         // Mirror ResourceFilterController::loadYearRange(): when no usable
         // year range is available we fall back to the current year so the
-        // documented {min:int, max:int} contract holds and frontend consumers
-        // (resources.ts, OldDatasetsFilters) never receive nulls they would
-        // crash on.
+        // documented {min:int, max:int} contract holds and the Resources list
+        // never receives nulls that would break its range controls.
         $currentYear = (int) now()->year;
 
         return [

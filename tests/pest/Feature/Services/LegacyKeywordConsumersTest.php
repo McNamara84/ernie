@@ -2,12 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\OldDatasetController;
 use App\Models\OldDataset;
 use App\Services\LegacyKeywordService;
 use App\Services\OldDatasetEditorLoader;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -82,31 +80,4 @@ it('uses the shared keyword service in the old dataset editor loader', function 
             'Crustal deformation',
         ])
         ->and($loadControlledKeywords->invoke($loader, 999999))->toBe([]);
-});
-
-it('uses the shared keyword service in both legacy keyword endpoints', function (): void {
-    $controller = new OldDatasetController(new LegacyKeywordService);
-    $request = Request::create('/old-datasets/keywords', 'GET');
-
-    $controlledResponse = $controller->getControlledKeywords($request, $this->resourceId);
-    $freeResponse = $controller->getFreeKeywords($request, $this->resourceId);
-
-    expect($controlledResponse->getStatusCode())->toBe(200)
-        ->and($controlledResponse->getData(true)['keywords'])->toHaveCount(1)
-        ->and($controlledResponse->getData(true)['keywords'][0])->toMatchArray([
-            'path' => 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
-            'scheme' => 'Science Keywords',
-        ])
-        ->and($freeResponse->getStatusCode())->toBe(200)
-        ->and($freeResponse->getData(true))->toBe([
-            'keywords' => ['GNSS', 'Crustal deformation'],
-        ]);
-});
-
-it('keeps both legacy keyword endpoints at 404 for missing resources', function (): void {
-    $controller = new OldDatasetController(new LegacyKeywordService);
-    $request = Request::create('/old-datasets/keywords', 'GET');
-
-    expect($controller->getControlledKeywords($request, 999999)->getStatusCode())->toBe(404)
-        ->and($controller->getFreeKeywords($request, 999999)->getStatusCode())->toBe(404);
 });

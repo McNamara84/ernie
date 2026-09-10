@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseOldDatasetFiltersFromUrl, parseResourceFiltersFromUrl } from '@/utils/filter-parser';
+import { parseResourceFiltersFromUrl } from '@/utils/filter-parser';
 
 describe('parseResourceFiltersFromUrl', () => {
     it('should return empty object for empty search string', () => {
@@ -210,66 +210,5 @@ describe('parseResourceFiltersFromUrl', () => {
         expect(result).toEqual({
             resource_type: ['dataset'],
         });
-    });
-});
-
-describe('parseOldDatasetFiltersFromUrl', () => {
-    it('should return empty object for empty search string', () => {
-        const result = parseOldDatasetFiltersFromUrl('');
-        expect(result).toEqual({});
-    });
-
-    it('should parse resource_type filter', () => {
-        const result = parseOldDatasetFiltersFromUrl('?resource_type[]=dataset');
-        expect(result).toEqual({
-            resource_type: ['dataset'],
-        });
-    });
-
-    it('should parse multiple filters', () => {
-        const result = parseOldDatasetFiltersFromUrl(
-            '?resource_type[]=dataset&status[]=published&year_from=2020&search=test'
-        );
-        expect(result).toEqual({
-            resource_type: ['dataset'],
-            status: ['published'],
-            year_from: 2020,
-            search: 'test',
-        });
-    });
-
-    it('should parse curator filter', () => {
-        const result = parseOldDatasetFiltersFromUrl('?curator[]=Jane+Smith');
-        expect(result).toEqual({
-            curator: ['Jane Smith'],
-        });
-    });
-
-    it('should parse year range', () => {
-        const result = parseOldDatasetFiltersFromUrl('?year_from=2015&year_to=2025');
-        expect(result).toEqual({
-            year_from: 2015,
-            year_to: 2025,
-        });
-    });
-
-    it('should parse date ranges', () => {
-        const result = parseOldDatasetFiltersFromUrl(
-            '?created_from=2023-01-01&created_to=2023-12-31&updated_from=2023-06-01&updated_to=2023-06-30'
-        );
-        expect(result).toEqual({
-            created_from: '2023-01-01',
-            created_to: '2023-12-31',
-            updated_from: '2023-06-01',
-            updated_to: '2023-06-30',
-        });
-    });
-
-    it('should handle both array and single value notation', () => {
-        const result1 = parseOldDatasetFiltersFromUrl('?resource_type[]=dataset');
-        const result2 = parseOldDatasetFiltersFromUrl('?resource_type=dataset');
-        
-        expect(result1).toEqual({ resource_type: ['dataset'] });
-        expect(result2).toEqual({ resource_type: ['dataset'] });
     });
 });

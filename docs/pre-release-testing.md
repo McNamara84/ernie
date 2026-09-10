@@ -220,8 +220,9 @@ Stop immediately if:
 - [ ] Dashboard metrics and recent resources render without a persistent loading
       state.
 
-- [ ] The navigation opens `Data Editor`, `Resources`, `IGSNs List`, `IGSNs Map`,
-      `Documentation`, and `Changelog`.
+- [ ] The navigation opens `Data Editor`, `Resources List`, `IGSNs List`,
+      `IGSN Portal`, `Documentation`, and `Changelog`; `IGSNs List` appears
+      immediately before `IGSN Portal`.
 
 - [ ] `IGSN Editor` remains visibly disabled while that function has not been
       released.
@@ -574,7 +575,7 @@ verify them after reopening:
 
 - [ ] A search result opens the correct public landing page.
 
-### 3.11 IGSN Lists, Map, and Registration
+### 3.11 IGSN List, Portal, and Registration
 
 - [ ] `IGSNs List` loads count, status, table, and filters without errors.
 
@@ -613,9 +614,6 @@ verify them after reopening:
 - [ ] Request cancellation between items and verify remaining items become cancelled.
       For one controlled test failure, resolve its cause and use `Retry failed`; already
       successful items must not be sent again.
-
-- [ ] `IGSNs Map` shows test samples with coordinates; markers, clusters, and
-      details agree with the list.
 
 - [ ] `IGSN Editor` remains disabled unless it has explicitly been enabled for the
       release.
@@ -672,8 +670,8 @@ Run as administrator.
       appropriate navigation groups.
 
 - [ ] The administrator sees `Users`, `Editor Settings`, `Landing Pages`,
-      `Assistance`, `Assessment`, `Database`, `Statistics`, `Statistics (old)`,
-      `Logs`, and `Old Datasets` where those modules are enabled on stage.
+      `Assistance`, `Assessment`, `Database`, `Statistics`, and `Logs` where those
+      modules are enabled on stage; no `Legacy` section is present.
 
 - [ ] Switching between administration and curation pages does not unexpectedly
       lose the session or workspace state.
@@ -834,23 +832,12 @@ reason.
 - [ ] If the F-UJI service is unavailable, an understandable message appears
       instead of an endless loading indicator or blank page.
 
-### 3.18 Statistics and Legacy Data
+### 3.18 Statistics
 
 - [ ] `Statistics` loads all visible metrics, charts, and tables; values, legends,
       and tooltips are plausible.
 
 - [ ] Empty or small datasets do not produce broken charts.
-
-- [ ] `Statistics (old)` opens without server errors and shows plausible
-      comparison data or an explained empty state.
-
-- [ ] `Old Datasets` loads the list, search, filters, and load-more behaviour.
-
-- [ ] Detail data such as creators, contributors, funding, descriptions, dates,
-      keywords, spatial coverage, and related identifiers can be loaded.
-
-- [ ] Transferring a synthetic legacy dataset into the editor populates the
-      related fields plausibly without changing the source.
 
 ### 3.19 Logs – Read Only
 

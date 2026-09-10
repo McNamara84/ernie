@@ -190,7 +190,6 @@ describe('HandleInertiaRequests', function () {
             'can_send_review_links',
             'can_delete_logs',
             'can_access_logs',
-            'can_access_old_datasets',
             'can_access_statistics',
             'can_access_users',
             'can_access_editor_settings',

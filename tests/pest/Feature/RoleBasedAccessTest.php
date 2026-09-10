@@ -17,7 +17,6 @@ use Inertia\Testing\AssertableInertia as Assert;
  * | Area            | Admin | Group Leader | Curator | Beginner |
  * |-----------------|-------|--------------|---------|----------|
  * | Logs            | ✅    | ❌           | ❌      | ❌       |
- * | Old Datasets    | ✅    | ❌           | ❌      | ❌       |
  * | Statistics      | ✅    | ✅           | ❌      | ❌       |
  * | Users           | ✅    | ✅           | ❌      | ❌       |
  * | Editor Settings | ✅    | ✅           | ❌      | ❌       |
@@ -36,18 +35,10 @@ describe('Admin Access', function () {
             ->assertOk();
     });
 
-    it('can access old datasets page', function () {
-        $this->actingAs($this->admin)
-            ->get('/old-datasets')
-            ->assertOk();
-    });
-
     it('can access statistics page', function () {
-        // Note: The statistics page uses an external database connection (metaworks)
-        // which may not be available in the test environment. We only test that
-        // the user is NOT forbidden (403), which proves the gate allows access.
-        $response = $this->actingAs($this->admin)->get('/old-statistics');
-        expect($response->status())->not->toBe(403);
+        $this->actingAs($this->admin)
+            ->get('/statistics')
+            ->assertOk();
     });
 
     it('can access users page', function () {
@@ -110,18 +101,10 @@ describe('Group Leader Access', function () {
             ->assertForbidden();
     });
 
-    it('cannot access old datasets page', function () {
-        $this->actingAs($this->groupLeader)
-            ->get('/old-datasets')
-            ->assertForbidden();
-    });
-
     it('can access statistics page', function () {
-        // Note: The statistics page uses an external database connection (metaworks)
-        // which may not be available in the test environment. We only test that
-        // the user is NOT forbidden (403), which proves the gate allows access.
-        $response = $this->actingAs($this->groupLeader)->get('/old-statistics');
-        expect($response->status())->not->toBe(403);
+        $this->actingAs($this->groupLeader)
+            ->get('/statistics')
+            ->assertOk();
     });
 
     it('can access users page', function () {
@@ -184,15 +167,9 @@ describe('Curator Access', function () {
             ->assertForbidden();
     });
 
-    it('cannot access old datasets page', function () {
-        $this->actingAs($this->curator)
-            ->get('/old-datasets')
-            ->assertForbidden();
-    });
-
     it('cannot access statistics page', function () {
         $this->actingAs($this->curator)
-            ->get('/old-statistics')
+            ->get('/statistics')
             ->assertForbidden();
     });
 
@@ -268,15 +245,9 @@ describe('Beginner Access', function () {
             ->assertForbidden();
     });
 
-    it('cannot access old datasets page', function () {
-        $this->actingAs($this->beginner)
-            ->get('/old-datasets')
-            ->assertForbidden();
-    });
-
     it('cannot access statistics page', function () {
         $this->actingAs($this->beginner)
-            ->get('/old-statistics')
+            ->get('/statistics')
             ->assertForbidden();
     });
 
@@ -352,18 +323,6 @@ describe('Gate Definitions', function () {
         expect($groupLeader->can('access-logs'))->toBeFalse();
         expect($curator->can('access-logs'))->toBeFalse();
         expect($beginner->can('access-logs'))->toBeFalse();
-    });
-
-    it('access-old-datasets gate allows only admin', function () {
-        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
-        $groupLeader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
-        $curator = User::factory()->create(['role' => UserRole::CURATOR]);
-        $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
-
-        expect($admin->can('access-old-datasets'))->toBeTrue();
-        expect($groupLeader->can('access-old-datasets'))->toBeFalse();
-        expect($curator->can('access-old-datasets'))->toBeFalse();
-        expect($beginner->can('access-old-datasets'))->toBeFalse();
     });
 
     it('access-statistics gate allows admin and group leader', function () {
@@ -477,13 +436,8 @@ describe('Unauthenticated Access', function () {
             ->assertRedirect('/login');
     });
 
-    it('redirects to login for old datasets page', function () {
-        $this->get('/old-datasets')
-            ->assertRedirect('/login');
-    });
-
     it('redirects to login for statistics page', function () {
-        $this->get('/old-statistics')
+        $this->get('/statistics')
             ->assertRedirect('/login');
     });
 

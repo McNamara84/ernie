@@ -41,7 +41,7 @@ describe('Sidebar Workspace Screenshots', function (): void {
         $this->actingAs($admin);
 
         visit('/settings')
-            ->waitForText('Old Datasets')
+            ->waitForText('Statistics')
             ->assertNoSmoke()
             ->assertScreenshotMatches();
     });

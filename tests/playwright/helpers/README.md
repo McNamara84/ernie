@@ -10,7 +10,6 @@ helpers/
 │   ├── LoginPage.ts       # Login page interactions
 │   ├── DashboardPage.ts   # Dashboard page interactions
 │   ├── DataCiteFormPage.ts # DataCite metadata form with validation
-│   ├── OldDatasetsPage.ts # Old datasets page interactions
 │   ├── CurationPage.ts    # Curation form interactions
 │   ├── ResourcesPage.ts   # Resources management interactions
 │   ├── SettingsPage.ts    # Settings pages interactions
@@ -33,14 +32,14 @@ import { test } from '@playwright/test';
 import { loginAsTestUser } from './helpers/test-helpers';
 import { DashboardPage, CurationPage } from './helpers/page-objects';
 
-test('user can navigate from dashboard to curation', async ({ page }) => {
+test('user can navigate from dashboard to the data editor', async ({ page }) => {
   // Login using helper
   await loginAsTestUser(page);
   
   // Use page objects for interactions
   const dashboard = new DashboardPage(page);
   await dashboard.verifyOnDashboard();
-  await dashboard.navigateTo('Curation');
+  await dashboard.navigateTo('Data Editor');
   
   const curation = new CurationPage(page);
   await curation.verifyOnCurationPage();
@@ -64,18 +63,6 @@ Handles dashboard interactions:
 - `uploadXmlFile(filePath)` - Upload XML via dropzone
 - `navigateTo(pageName)` - Navigate via main menu
 - `verifyNavigationVisible()` - Check navigation menu
-
-### OldDatasetsPage
-Handles legacy datasets overview:
-- `goto()` - Navigate to old datasets
-- `verifyOnOldDatasetsPage()` - Verify we're on the page
-- `search(searchTerm)` - Apply search filter
-- `applyFilters(filters)` - Apply multiple filters
-- `sortBy(field)` - Sort by column
-- `loadAuthors(index)` - Load authors into curation form
-- `loadDates(index)` - Load dates into curation form
-- `loadDescriptions(index)` - Load descriptions into curation form
-- `verifyDatabaseError()` - Check for database connection error
 
 ### CurationPage
 Handles curation form:
