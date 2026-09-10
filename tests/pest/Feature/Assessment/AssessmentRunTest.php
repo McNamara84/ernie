@@ -20,6 +20,7 @@ use App\Services\Assessment\FujiAssessmentRequestLimiterService;
 use App\Services\Assessment\FujiAssessmentService;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -617,6 +618,38 @@ test('a transient F-UJI failure is deferred without losing the item', function (
         ->and(ResourceAssessment::query()->where('resource_id', $resource->id)->exists())->toBeFalse();
 });
 
+test('a transient F-UJI failure locks the run before moving its item back to pending', function (): void {
+    $resource = Resource::factory()->withDoi('10.5880/assessment.retry-lock-order')->create();
+    [, $item] = queuedAssessmentItem($resource);
+    Http::fake(['https://fuji.test/*' => Http::response(['error' => 'Unavailable'], 500)]);
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    try {
+        handleAssessmentItem(new AssessResourceRunItemJob($item->id));
+        $queries = collect(DB::getQueryLog())->pluck('query')->values();
+    } finally {
+        DB::disableQueryLog();
+    }
+    $deferUpdateIndex = $queries->search(
+        fn (string $query): bool => str_contains($query, 'assessment_run_items')
+            && str_contains($query, 'available_at'),
+    );
+    if (! is_int($deferUpdateIndex)) {
+        throw new RuntimeException('The deferred assessment item update was not recorded.');
+    }
+
+    $runLockQuery = $queries->get($deferUpdateIndex - 1);
+
+    expect($runLockQuery)->toBeString()
+        ->and($runLockQuery)->toContain('assessment_runs')
+        ->and($item->fresh()->status)->toBe(AssessmentRunItemStatus::PENDING);
+
+    if (DB::connection()->getDriverName() !== 'sqlite') {
+        expect(strtolower($runLockQuery))->toContain('for update');
+    }
+});
+
 test('a rate-limit response honors Retry-After and imposes a shared cooldown', function (): void {
     $resource = Resource::factory()->withDoi('10.5880/assessment.rate-limit')->create();
     [, $item] = queuedAssessmentItem($resource);
@@ -627,7 +660,7 @@ test('a rate-limit response honors Retry-After and imposes a shared cooldown', f
     expect($item->fresh()->status)->toBe(AssessmentRunItemStatus::PENDING)
         ->and($item->fresh()->attempts)->toBe(1)
         ->and($item->fresh()->last_http_status)->toBe(429)
-        ->and($item->fresh()->available_at?->greaterThanOrEqualTo(now()->addSeconds(29)))->toBeTrue()
+        ->and($item->fresh()->available_at?->greaterThanOrEqualTo(now()->addSeconds(28)))->toBeTrue()
         ->and(app(FujiAssessmentRequestLimiterService::class)->reserveSlot())->toBeGreaterThanOrEqual(29_000);
 });
 

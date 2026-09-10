@@ -29,6 +29,8 @@ final class AssessResourceRunItemJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    private const TRANSACTION_ATTEMPTS = 3;
+
     public int $tries = 1;
 
     public int $timeout = 150;
@@ -131,9 +133,15 @@ final class AssessResourceRunItemJob implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        DB::transaction(function () use ($exception): void {
+        $runId = AssessmentRunItem::query()->whereKey($this->itemId)->value('run_id');
+        if (! is_string($runId)) {
+            return;
+        }
+
+        DB::transaction(function () use ($exception, $runId): void {
+            $run = AssessmentRun::query()->lockForUpdate()->find($runId);
             $item = AssessmentRunItem::query()->lockForUpdate()->find($this->itemId);
-            if ($item === null || $item->status->isTerminal()) {
+            if ($run === null || $item === null || $item->status->isTerminal()) {
                 return;
             }
 
@@ -145,15 +153,14 @@ final class AssessResourceRunItemJob implements ShouldQueue
                 'error_message' => $this->sanitize($exception?->getMessage() ?? 'Unknown queue failure.'),
             ])->save();
 
-            $run = AssessmentRun::query()->lockForUpdate()->find($item->run_id);
-            if ($run !== null && ! $run->status->isTerminal()) {
+            if (! $run->status->isTerminal()) {
                 app(AssessmentRunService::class)->pause(
                     $run,
                     'The assessment worker failed unexpectedly. Resume the run after checking the logs.',
                     $exception?->getMessage(),
                 );
             }
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 
     private function claim(): ?AssessmentRunItem
@@ -175,7 +182,7 @@ final class AssessResourceRunItemJob implements ShouldQueue
             ])->save();
 
             return $item->load(['run', 'resource']);
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 
     private function skipReason(AssessmentRun $run, ?Resource $resource, ResourceCacheService $resourceCache): ?string
@@ -291,22 +298,29 @@ final class AssessResourceRunItemJob implements ShouldQueue
             };
 
             $run->save();
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 
     private function defer(AssessmentRunItem $item, int $delaySeconds, ?Throwable $exception = null): void
     {
-        AssessmentRunItem::query()
-            ->whereKey($item->id)
-            ->where('status', AssessmentRunItemStatus::PROCESSING)
-            ->update([
-                'status' => AssessmentRunItemStatus::PENDING,
-                'available_at' => now()->addSeconds(max(1, $delaySeconds)),
-                'processing_started_at' => null,
-                'lease_expires_at' => null,
-                'last_http_status' => $exception instanceof FujiAssessmentException ? $exception->httpStatus : null,
-                'error_message' => $exception === null ? null : $this->sanitize($exception->getMessage()),
-            ]);
+        DB::transaction(function () use ($item, $delaySeconds, $exception): void {
+            // The dispatcher and terminal item updates lock the run before its
+            // items. Use the same order here so parallel deferrals cannot
+            // deadlock while moving rows back into the pending index.
+            AssessmentRun::query()->lockForUpdate()->find($item->run_id);
+
+            AssessmentRunItem::query()
+                ->whereKey($item->id)
+                ->where('status', AssessmentRunItemStatus::PROCESSING)
+                ->update([
+                    'status' => AssessmentRunItemStatus::PENDING,
+                    'available_at' => now()->addSeconds(max(1, $delaySeconds)),
+                    'processing_started_at' => null,
+                    'lease_expires_at' => null,
+                    'last_http_status' => $exception instanceof FujiAssessmentException ? $exception->httpStatus : null,
+                    'error_message' => $exception === null ? null : $this->sanitize($exception->getMessage()),
+                ]);
+        }, self::TRANSACTION_ATTEMPTS);
     }
 
     private function retryDelay(int $attempts, ?int $retryAfterSeconds): int
