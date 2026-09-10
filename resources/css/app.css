@@ -354,6 +354,91 @@
     }
 }
 
+/* Controlled vocabulary tabs adapt to their editor column rather than the viewport.
+ * This keeps long vocabulary names readable alongside the persistent app sidebar. */
+.controlled-vocabulary-tabs {
+    container-name: controlled-vocabulary-tabs;
+    container-type: inline-size;
+    min-width: 0;
+}
+
+.controlled-vocabulary-tabs-list {
+    display: grid;
+    grid-template-columns: repeat(var(--vocabulary-tab-count), minmax(0, 1fr));
+    min-width: 0;
+    overflow: visible;
+}
+
+.controlled-vocabulary-tab {
+    min-width: 0;
+    transition-property: color, background-color, border-color, box-shadow, opacity;
+}
+
+.controlled-vocabulary-tab-icon,
+.controlled-vocabulary-active-label {
+    display: none;
+}
+
+@container controlled-vocabulary-tabs (max-width: 63.999rem) {
+    .controlled-vocabulary-tabs-list {
+        display: flex;
+        justify-content: flex-start;
+    }
+
+    .controlled-vocabulary-tab {
+        width: 2.25rem;
+        min-width: 2.25rem;
+        flex: 0 0 2.25rem;
+        padding-inline: 0.5rem;
+    }
+
+    .controlled-vocabulary-tab[aria-selected='true'] {
+        width: auto;
+        flex-basis: auto;
+    }
+
+    .controlled-vocabulary-tab-icon {
+        display: block;
+    }
+
+    .controlled-vocabulary-tab-label {
+        display: none;
+    }
+
+    .controlled-vocabulary-tab[aria-selected='true'] .controlled-vocabulary-tab-label {
+        display: inline;
+    }
+}
+
+@container controlled-vocabulary-tabs (max-width: 29.999rem) {
+    .controlled-vocabulary-tabs-list {
+        /* Avoid WebKit rounding nine fractional grid tracks beyond the container. */
+        display: flex;
+    }
+
+    .controlled-vocabulary-tab,
+    .controlled-vocabulary-tab[aria-selected='true'] {
+        width: 0;
+        min-width: 0;
+        flex: 1 1 0;
+        padding-inline: 0.25rem;
+    }
+
+    .controlled-vocabulary-tab[aria-selected='true'] .controlled-vocabulary-tab-label {
+        display: none;
+    }
+
+    .controlled-vocabulary-active-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        color: var(--color-foreground);
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+}
+
 /* ── Landing Page: GFZ-branded focus ring ──
  * Overrides the shadcn/ui ring color variable so interactive components
  * (Button, Dialog, etc.) use GFZ blue for their built-in focus ring.

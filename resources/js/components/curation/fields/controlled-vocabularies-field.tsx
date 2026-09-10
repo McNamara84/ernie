@@ -1,5 +1,5 @@
-import { Search, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Earth, FlaskConical, Layers3, Leaf, Library, type LucideIcon, Microscope, Mountain, Network, Satellite, Search, X } from 'lucide-react';
+import { type CSSProperties, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,23 @@ import { GCMDTree } from './gcmd-tree';
  * - Prevents UI lag from rendering thousands of tree nodes
  */
 const MIN_SEARCH_LENGTH = 3;
+
+interface VocabularyTabDefinition {
+    label: string;
+    icon: LucideIcon;
+}
+
+const VOCABULARY_TAB_DEFINITIONS = {
+    science: { label: 'Science Keywords', icon: Earth },
+    platforms: { label: 'Platforms', icon: Satellite },
+    instruments: { label: 'Instruments', icon: Microscope },
+    msl: { label: 'MSL Vocabulary', icon: Network },
+    chronostratigraphy: { label: 'Chronostratigraphy', icon: Layers3 },
+    gemet: { label: 'GEMET', icon: Leaf },
+    analytical_methods: { label: 'Analytical Methods', icon: FlaskConical },
+    euroscivoc: { label: 'EuroSciVoc', icon: Library },
+    simple_lithology: { label: 'Simple Lithology', icon: Mountain },
+} satisfies Record<VocabularyType, VocabularyTabDefinition>;
 
 /**
  * Identifies the persisted Subject represented by a selected keyword.
@@ -143,6 +160,8 @@ export default function ControlledVocabulariesField({
         simple_lithology: false,
     },
 }: ControlledVocabulariesFieldProps) {
+    const keywordStatusIdPrefix = useId();
+
     // Determine which tabs are available based on enabled thesauri
     const showScienceTab = enabledThesauri.science_keywords;
     const showPlatformsTab = enabledThesauri.platforms;
@@ -338,6 +357,8 @@ export default function ControlledVocabulariesField({
 
     // Check if any thesauri are available
     const hasAnyThesaurus = visibleVocabularyTypes.length > 0;
+    const activeTabDefinition = VOCABULARY_TAB_DEFINITIONS[activeTab];
+    const ActiveTabIcon = activeTabDefinition.icon;
 
     return (
         <div className="space-y-4">
@@ -355,18 +376,6 @@ export default function ControlledVocabulariesField({
                         const keywords = keywordsByVocabulary[type];
                         if (keywords.length === 0) return null;
 
-                        const typeLabels: Record<VocabularyType, string> = {
-                            science: 'Science Keywords',
-                            platforms: 'Platforms',
-                            instruments: 'Instruments',
-                            msl: 'MSL Vocabulary',
-                            chronostratigraphy: 'Chronostratigraphy',
-                            gemet: 'GEMET',
-                            analytical_methods: 'Analytical Methods',
-                            euroscivoc: 'EuroSciVoc',
-                            simple_lithology: 'Simple Lithology',
-                        };
-
                         // Check if there are any legacy keywords
                         const legacyKeywords = keywords.filter((kw) => kw.isLegacy);
                         const hasLegacyKeywords = legacyKeywords.length > 0;
@@ -374,7 +383,7 @@ export default function ControlledVocabulariesField({
                         return (
                             <div key={type}>
                                 <Label className="mb-2 block text-xs font-medium text-muted-foreground">
-                                    {typeLabels[type]}:
+                                    {VOCABULARY_TAB_DEFINITIONS[type].label}:
                                     {hasLegacyKeywords && (
                                         <span
                                             className="ml-2 text-xs font-semibold text-amber-600 dark:text-amber-400"
@@ -454,147 +463,55 @@ export default function ControlledVocabulariesField({
                     </div>
 
                     {/* Tabs for vocabulary types */}
-                    <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as VocabularyType)}>
+                    <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as VocabularyType)} className="controlled-vocabulary-tabs">
                         <TabsList
-                            className={cn(
-                                'grid w-full',
-                                // Dynamically calculate grid columns based on visible tabs
-                                (() => {
-                                    const visibleCount = visibleVocabularyTypes.length;
-                                    switch (visibleCount) {
-                                        case 1:
-                                            return 'grid-cols-1';
-                                        case 2:
-                                            return 'grid-cols-2';
-                                        case 3:
-                                            return 'grid-cols-3';
-                                        case 4:
-                                            return 'grid-cols-4';
-                                        case 5:
-                                            return 'grid-cols-5';
-                                        case 6:
-                                            return 'grid-cols-6';
-                                        case 7:
-                                            return 'grid-cols-7';
-                                        case 8:
-                                            return 'grid-cols-8';
-                                        case 9:
-                                            return 'grid-cols-9';
-                                        default:
-                                            return 'grid-cols-3';
-                                    }
-                                })(),
-                            )}
+                            className="controlled-vocabulary-tabs-list w-full"
+                            aria-label="Controlled vocabularies"
+                            style={{ '--vocabulary-tab-count': visibleVocabularyTypes.length } as CSSProperties}
                         >
-                            {showScienceTab && (
-                                <TabsTrigger value="science" className="relative">
-                                    Science Keywords
-                                    {hasKeywords('science') && (
-                                        <span
-                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                            aria-label="Has keywords"
-                                            title="This vocabulary has selected keywords"
+                            {visibleVocabularyTypes.map((type) => {
+                                const { label, icon: Icon } = VOCABULARY_TAB_DEFINITIONS[type];
+                                const hasSelectedKeywords = hasKeywords(type);
+                                const keywordStatusId = `${keywordStatusIdPrefix}-${type}-has-keywords`;
+
+                                return (
+                                    <TabsTrigger
+                                        key={type}
+                                        value={type}
+                                        className="controlled-vocabulary-tab relative min-w-0"
+                                        aria-label={label}
+                                        aria-describedby={hasSelectedKeywords ? keywordStatusId : undefined}
+                                        title={label}
+                                        data-vocabulary-type={type}
+                                    >
+                                        <Icon
+                                            className="controlled-vocabulary-tab-icon h-4 w-4 shrink-0"
+                                            aria-hidden="true"
+                                            data-testid={`controlled-vocabulary-icon-${type}`}
                                         />
-                                    )}
-                                </TabsTrigger>
-                            )}
-                            {showPlatformsTab && (
-                                <TabsTrigger value="platforms" className="relative">
-                                    Platforms
-                                    {hasKeywords('platforms') && (
-                                        <span
-                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                            aria-label="Has keywords"
-                                            title="This vocabulary has selected keywords"
-                                        />
-                                    )}
-                                </TabsTrigger>
-                            )}
-                            {showInstrumentsTab && (
-                                <TabsTrigger value="instruments" className="relative">
-                                    Instruments
-                                    {hasKeywords('instruments') && (
-                                        <span
-                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                            aria-label="Has keywords"
-                                            title="This vocabulary has selected keywords"
-                                        />
-                                    )}
-                                </TabsTrigger>
-                            )}
-                            {showMslTab && (
-                                <TabsTrigger value="msl" className="relative">
-                                    MSL Vocabulary
-                                    {hasKeywords('msl') && (
-                                        <span
-                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                            aria-label="Has keywords"
-                                            title="This vocabulary has selected keywords"
-                                        />
-                                    )}
-                                </TabsTrigger>
-                            )}
-                            {showChronostrat && (
-                                <TabsTrigger value="chronostratigraphy" className="relative">
-                                    Chronostratigraphy
-                                    {hasKeywords('chronostratigraphy') && (
-                                        <span
-                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                            aria-label="Has keywords"
-                                            title="This vocabulary has selected keywords"
-                                        />
-                                    )}
-                                </TabsTrigger>
-                            )}
-                            {showGemet && (
-                                <TabsTrigger value="gemet" className="relative">
-                                    GEMET
-                                    {hasKeywords('gemet') && (
-                                        <span
-                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                            aria-label="Has keywords"
-                                            title="This vocabulary has selected keywords"
-                                        />
-                                    )}
-                                </TabsTrigger>
-                            )}
-                            {showAnalyticalMethods && (
-                                <TabsTrigger value="analytical_methods" className="relative">
-                                    Analytical Methods
-                                    {hasKeywords('analytical_methods') && (
-                                        <span
-                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                            aria-label="Has keywords"
-                                            title="This vocabulary has selected keywords"
-                                        />
-                                    )}
-                                </TabsTrigger>
-                            )}
-                            {showEuroSciVoc && (
-                                <TabsTrigger value="euroscivoc" className="relative">
-                                    EuroSciVoc
-                                    {hasKeywords('euroscivoc') && (
-                                        <span
-                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                            aria-label="Has keywords"
-                                            title="This vocabulary has selected keywords"
-                                        />
-                                    )}
-                                </TabsTrigger>
-                            )}
-                            {showSimpleLithology && (
-                                <TabsTrigger value="simple_lithology" className="relative">
-                                    Simple Lithology
-                                    {hasKeywords('simple_lithology') && (
-                                        <span
-                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                            aria-label="Has keywords"
-                                            title="This vocabulary has selected keywords"
-                                        />
-                                    )}
-                                </TabsTrigger>
-                            )}
+                                        <span className="controlled-vocabulary-tab-label">{label}</span>
+                                        {hasSelectedKeywords && (
+                                            <>
+                                                <span id={keywordStatusId} className="sr-only">
+                                                    Has keywords
+                                                </span>
+                                                <span
+                                                    className="absolute top-1 right-1 inline-block h-1.5 w-1.5 rounded-full bg-green-500"
+                                                    aria-hidden="true"
+                                                    title="This vocabulary has selected keywords"
+                                                    data-testid={`controlled-vocabulary-keyword-indicator-${type}`}
+                                                />
+                                            </>
+                                        )}
+                                    </TabsTrigger>
+                                );
+                            })}
                         </TabsList>
+
+                        <div className="controlled-vocabulary-active-label" aria-hidden="true" data-testid="controlled-vocabulary-active-label">
+                            <ActiveTabIcon className="h-4 w-4 shrink-0" />
+                            <span>{activeTabDefinition.label}</span>
+                        </div>
 
                         <TabsContent value={activeTab} className="mt-4 space-y-4">
                             {/* Tree View */}
