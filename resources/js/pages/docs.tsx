@@ -159,6 +159,29 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                 ),
             },
             {
+                id: 'changelog',
+                title: 'Changelog',
+                icon: BookOpen,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Review Release Changes and Their GitHub Context</h3>
+                        <p>
+                            Open <strong>Changelog</strong> from the ERNIE navigation or visit <code>/changelog</code> to review the changes in each
+                            release. The changelog is public, so it is also available without signing in.
+                        </p>
+
+                        <h4>Related GitHub References</h4>
+                        <p>
+                            When a changelog entry has known GitHub context, its <strong>Related</strong> row lists every associated issue and pull
+                            request. Select an <strong>Issue #</strong> link to review the original requirement or problem report, or a{' '}
+                            <strong>PR #</strong> link to review the implementation and code discussion. GitHub references open in a new browser tab
+                            so your place in the changelog remains available. Entries without known references do not show a Related row.
+                        </p>
+                    </>
+                ),
+            },
+            {
                 id: 'in-app-feedback',
                 title: 'Giving Feedback',
                 icon: MessageSquarePlus,

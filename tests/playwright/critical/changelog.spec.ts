@@ -47,6 +47,9 @@ test.describe('Changelog Page', () => {
         const issueLink = issueGroup.getByRole('link', {
             name: 'Open Issue #1285 on GitHub (opens in a new tab)',
         });
+        const implementationLink = issueGroup.getByRole('link', {
+            name: 'Open PR #1305 on GitHub (opens in a new tab)',
+        });
         const pullRequestGroup = currentRelease.getByRole('group', {
             name: 'Related GitHub references for Direct Related Work Editing',
         });
@@ -59,6 +62,10 @@ test.describe('Changelog Page', () => {
         await expect(issueLink).toHaveAttribute('target', '_blank');
         await expect(issueLink).toHaveAttribute('rel', /\bnoopener\b/);
         await expect(issueLink).toHaveAttribute('rel', /\bnoreferrer\b/);
+        await expect(implementationLink).toBeVisible();
+        await expect(implementationLink).toHaveAttribute('href', 'https://github.com/McNamara84/ernie/pull/1305');
+        await expect(implementationLink).toHaveAttribute('target', '_blank');
+        await expect(issueGroup.getByRole('link')).toHaveCount(2);
 
         await expect(pullRequestLink).toBeVisible();
         await expect(pullRequestLink).toHaveAttribute('href', 'https://github.com/McNamara84/ernie/pull/1297');

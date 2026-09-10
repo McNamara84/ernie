@@ -12,6 +12,11 @@
                         "type": "issue",
                         "number": 1285,
                         "url": "https://github.com/McNamara84/ernie/issues/1285"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1305,
+                        "url": "https://github.com/McNamara84/ernie/pull/1305"
                     }
                 ]
             },
@@ -19,6 +24,11 @@
                 "title": "Direct Related Work Editing",
                 "description": "Add Related Work now creates the complete editable card immediately, including its Citation Label field, without a separate plus-button confirmation. Unfinished cards and their values remain visible across Related Work section toggles while empty cards stay out of saved payloads, and leaving a DOI or URL identifier now shows its safe preview and resolves an available citation label without overwriting curator text. The confusing opposite-relation suggestion has also been removed.",
                 "references": [
+                    {
+                        "type": "issue",
+                        "number": 1293,
+                        "url": "https://github.com/McNamara84/ernie/issues/1293"
+                    },
                     {
                         "type": "pull_request",
                         "number": 1297,
@@ -55,6 +65,11 @@
                 "description": "Controlled Vocabulary tabs in the Data Editor now adapt to the available editor width instead of overlapping or being cut off. Compact layouts use distinct icons while keeping the active vocabulary clearly named, with accessible labels, hover hints, and full keyboard navigation at every size.",
                 "references": [
                     {
+                        "type": "issue",
+                        "number": 1291,
+                        "url": "https://github.com/McNamara84/ernie/issues/1291"
+                    },
+                    {
                         "type": "pull_request",
                         "number": 1301,
                         "url": "https://github.com/McNamara84/ernie/pull/1301"
@@ -65,6 +80,11 @@
                 "title": "Validation-Free Related Work CSV Downloads",
                 "description": "Downloading the example CSV from the Data Editor's Related Work importer now only saves the template file. The download, close, cancel, and import controls no longer submit the surrounding editor form or trigger unrelated required-field validation.",
                 "references": [
+                    {
+                        "type": "issue",
+                        "number": 1282,
+                        "url": "https://github.com/McNamara84/ernie/issues/1282"
+                    },
                     {
                         "type": "pull_request",
                         "number": 1294,

@@ -91,8 +91,18 @@ it('returns the related GitHub references for every version 1.0.9 changelog entr
                 'number' => 1285,
                 'url' => 'https://github.com/McNamara84/ernie/issues/1285',
             ],
+            [
+                'type' => 'pull_request',
+                'number' => 1305,
+                'url' => 'https://github.com/McNamara84/ernie/pull/1305',
+            ],
         ],
         'Direct Related Work Editing' => [
+            [
+                'type' => 'issue',
+                'number' => 1293,
+                'url' => 'https://github.com/McNamara84/ernie/issues/1293',
+            ],
             [
                 'type' => 'pull_request',
                 'number' => 1297,
@@ -115,12 +125,22 @@ it('returns the related GitHub references for every version 1.0.9 changelog entr
         ],
         'Readable Controlled Vocabulary Tabs' => [
             [
+                'type' => 'issue',
+                'number' => 1291,
+                'url' => 'https://github.com/McNamara84/ernie/issues/1291',
+            ],
+            [
                 'type' => 'pull_request',
                 'number' => 1301,
                 'url' => 'https://github.com/McNamara84/ernie/pull/1301',
             ],
         ],
         'Validation-Free Related Work CSV Downloads' => [
+            [
+                'type' => 'issue',
+                'number' => 1282,
+                'url' => 'https://github.com/McNamara84/ernie/issues/1282',
+            ],
             [
                 'type' => 'pull_request',
                 'number' => 1294,
