@@ -81,6 +81,8 @@ vi.mock('@/components/curation/fields/related-work/related-work-list', () => ({
                     <span data-testid={`identifier-type-${index}`}>{item.identifier_type}</span>
                     <span data-testid={`relation-type-${index}`}>{item.relation_type}</span>
                     <span data-testid={`position-${index}`}>{item.position}</span>
+                    <span data-testid={`related-title-${index}`}>{item.related_title ?? ''}</span>
+                    <span data-testid={`related-metadata-${index}`}>{item.related_metadata ? JSON.stringify(item.related_metadata) : ''}</span>
                     <span data-testid={`resolution-status-${index}`}>{citationResolutionStates?.get(index)?.status ?? ''}</span>
                     <button type="button" data-testid={`set-url-${index}`} onClick={() => onItemChange(index, { ...item, identifier_type: 'URL' })}>
                         Set URL
@@ -248,6 +250,35 @@ describe('RelatedWorkField', () => {
         );
         expect(screen.getByLabelText('Citation label 1')).toHaveValue('Doe, J. (2026). Resolved DOI citation.');
         expect(screen.getByTestId('resolution-status-0')).toHaveTextContent('resolved');
+    });
+
+    it('preserves curator metadata when identifier blur only normalizes the logical DOI', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        render(
+            <StatefulField
+                initialItems={[
+                    {
+                        identifier: 'https://doi.org/10.5880/GFZ.TEST',
+                        identifier_type: 'DOI',
+                        relation_type: 'Cites',
+                        citation_label: 'Curated citation',
+                        related_title: 'Curated title',
+                        related_metadata: { publisher: 'GFZ' },
+                        position: 0,
+                    },
+                ]}
+            />,
+        );
+
+        await user.click(screen.getByTestId('item-identifier-0'));
+        await user.tab();
+
+        expect(screen.getByTestId('item-identifier-0')).toHaveValue('10.5880/gfz.test');
+        expect(screen.getByLabelText('Citation label 1')).toHaveValue('Curated citation');
+        expect(screen.getByTestId('related-title-0')).toHaveTextContent('Curated title');
+        expect(screen.getByTestId('related-metadata-0')).toHaveTextContent('{"publisher":"GFZ"}');
+        expect(global.fetch).not.toHaveBeenCalled();
     });
 
     it('resolves an exact cached URL citation on identifier blur', async () => {
@@ -527,7 +558,36 @@ describe('RelatedWorkField', () => {
         await user.type(screen.getByTestId('item-identifier-0'), '10.5880/updated');
 
         expect(screen.getByLabelText('Citation label 1')).toHaveValue('');
+        expect(screen.getByTestId('related-title-0')).toBeEmptyDOMElement();
+        expect(screen.getByTestId('related-metadata-0')).toBeEmptyDOMElement();
         expect(screen.getByTestId('item-0')).toBeInTheDocument();
+    });
+
+    it('clears stale resolved data when the identifier type changes', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        render(
+            <StatefulField
+                initialItems={[
+                    {
+                        identifier: '10.5880/same-value',
+                        identifier_type: 'DOI',
+                        relation_type: 'Cites',
+                        citation_label: 'Old citation',
+                        related_title: 'Old title',
+                        related_metadata: { publisher: 'GFZ' },
+                        position: 0,
+                    },
+                ]}
+            />,
+        );
+
+        await user.click(screen.getByTestId('set-url-0'));
+
+        expect(screen.getByTestId('identifier-type-0')).toHaveTextContent('URL');
+        expect(screen.getByLabelText('Citation label 1')).toHaveValue('');
+        expect(screen.getByTestId('related-title-0')).toBeEmptyDOMElement();
+        expect(screen.getByTestId('related-metadata-0')).toBeEmptyDOMElement();
     });
 
     it('rejects exact duplicates but allows the same identifier with another relation type', async () => {

@@ -387,7 +387,10 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
             return false;
         }
 
-        const identifierChanged = previousItem.identifier !== updatedItem.identifier || previousItem.identifier_type !== updatedItem.identifier_type;
+        const identifierChanged =
+            previousItem.identifier_type !== updatedItem.identifier_type ||
+            normalizeIdentifier(previousItem.identifier, previousItem.identifier_type) !==
+                normalizeIdentifier(updatedItem.identifier, updatedItem.identifier_type);
         const updated = currentItems.map((item, itemIndex) => {
             if (itemIndex !== index) {
                 return item;
