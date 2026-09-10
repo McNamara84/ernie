@@ -411,15 +411,15 @@
 
 @container controlled-vocabulary-tabs (max-width: 29.999rem) {
     .controlled-vocabulary-tabs-list {
-        display: grid;
-        grid-template-columns: repeat(var(--vocabulary-tab-count), minmax(0, 1fr));
+        /* Avoid WebKit rounding nine fractional grid tracks beyond the container. */
+        display: flex;
     }
 
     .controlled-vocabulary-tab,
     .controlled-vocabulary-tab[aria-selected='true'] {
-        width: auto;
+        width: 0;
         min-width: 0;
-        flex: none;
+        flex: 1 1 0;
         padding-inline: 0.25rem;
     }
 

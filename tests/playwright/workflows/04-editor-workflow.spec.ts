@@ -73,37 +73,26 @@ test.describe('Editor Form', () => {
         await page.getByRole('button', { name: 'Log in' }).click();
         await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
-        await page.route('**/*', async (route) => {
+        await page.route('**/api/v1/vocabularies/thesauri-availability', async (route) => {
+            await route.fulfill({
+                json: {
+                    science_keywords: { available: true },
+                    platforms: { available: true },
+                    instruments: { available: true },
+                    chronostratigraphy: { available: true },
+                    gemet: { available: true },
+                    analytical_methods: { available: true },
+                    euroscivoc: { available: true },
+                    msl_laboratories: { available: true },
+                    simple_lithology: { available: true },
+                },
+            });
+        });
+
+        await page.route(/^https?:\/\/[^/]+\/vocabularies\/[^/?]+(?:\?.*)?$/, async (route) => {
             const pathname = new URL(route.request().url()).pathname;
 
-            if (pathname === '/api/v1/vocabularies/thesauri-availability') {
-                await route.fulfill({
-                    json: {
-                        science_keywords: { available: true },
-                        platforms: { available: true },
-                        instruments: { available: true },
-                        chronostratigraphy: { available: true },
-                        gemet: { available: true },
-                        analytical_methods: { available: true },
-                        euroscivoc: { available: true },
-                        msl_laboratories: { available: true },
-                        simple_lithology: { available: true },
-                    },
-                });
-                return;
-            }
-
-            if (pathname === '/vocabularies/msl') {
-                await route.fulfill({ json: [] });
-                return;
-            }
-
-            if (pathname.startsWith('/vocabularies/')) {
-                await route.fulfill({ json: { data: [] } });
-                return;
-            }
-
-            await route.continue();
+            await route.fulfill({ json: pathname === '/vocabularies/msl' ? [] : { data: [] } });
         });
 
         await gotoWithLocalTlsRetry(page, '/editor');
