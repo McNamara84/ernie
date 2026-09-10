@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import { describe, expect, it, vi } from 'vitest';
 
 import ControlledVocabulariesField from '@/components/curation/fields/controlled-vocabularies-field';
@@ -473,7 +473,16 @@ describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
                 selectedKeywords={[]}
                 onChange={mockOnChange}
                 showEuroSciVocTab={true}
-                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true, simple_lithology: true }}
+                enabledThesauri={{
+                    science_keywords: true,
+                    platforms: true,
+                    instruments: true,
+                    chronostratigraphy: true,
+                    gemet: true,
+                    analytical_methods: true,
+                    euroscivoc: true,
+                    simple_lithology: true,
+                }}
             />,
         );
 
@@ -501,7 +510,16 @@ describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
                 selectedKeywords={selectedEuroSciVocKeywords}
                 onChange={mockOnChange}
                 showEuroSciVocTab={true}
-                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true, simple_lithology: true }}
+                enabledThesauri={{
+                    science_keywords: true,
+                    platforms: true,
+                    instruments: true,
+                    chronostratigraphy: true,
+                    gemet: true,
+                    analytical_methods: true,
+                    euroscivoc: true,
+                    simple_lithology: true,
+                }}
             />,
         );
 
@@ -530,7 +548,16 @@ describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
                 selectedKeywords={selectedEuroSciVocKeywords}
                 onChange={mockOnChange}
                 showEuroSciVocTab={true}
-                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true, simple_lithology: true }}
+                enabledThesauri={{
+                    science_keywords: true,
+                    platforms: true,
+                    instruments: true,
+                    chronostratigraphy: true,
+                    gemet: true,
+                    analytical_methods: true,
+                    euroscivoc: true,
+                    simple_lithology: true,
+                }}
             />,
         );
 
@@ -552,7 +579,16 @@ describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
                 selectedKeywords={[]}
                 onChange={mockOnChange}
                 showEuroSciVocTab={true}
-                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true, simple_lithology: true }}
+                enabledThesauri={{
+                    science_keywords: true,
+                    platforms: true,
+                    instruments: true,
+                    chronostratigraphy: true,
+                    gemet: true,
+                    analytical_methods: true,
+                    euroscivoc: true,
+                    simple_lithology: true,
+                }}
             />,
         );
 
@@ -564,15 +600,17 @@ describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
 });
 
 describe('ControlledVocabulariesField - CGI Simple Lithology Tab', () => {
-    const simpleLithologyVocabulary: VocabularyKeyword[] = [{
-        id: 'http://resource.geosciml.org/classifier/cgi/lithology/rock',
-        text: 'Rock',
-        language: 'en',
-        scheme: 'CGI Simple Lithology',
-        schemeURI: 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
-        description: '',
-        children: [],
-    }];
+    const simpleLithologyVocabulary: VocabularyKeyword[] = [
+        {
+            id: 'http://resource.geosciml.org/classifier/cgi/lithology/rock',
+            text: 'Rock',
+            language: 'en',
+            scheme: 'CGI Simple Lithology',
+            schemeURI: 'http://resource.geosciml.org/classifierscheme/cgi/2016.01/simplelithology',
+            description: '',
+            children: [],
+        },
+    ];
 
     it('shows the tab only when the vocabulary is enabled and available', () => {
         const props = {
@@ -593,15 +631,11 @@ describe('ControlledVocabulariesField - CGI Simple Lithology Tab', () => {
                 simple_lithology: true,
             },
         };
-        const { rerender } = render(
-            <ControlledVocabulariesField {...props} showSimpleLithologyTab={false} />,
-        );
+        const { rerender } = render(<ControlledVocabulariesField {...props} showSimpleLithologyTab={false} />);
 
         expect(screen.queryByRole('tab', { name: /Simple Lithology/i })).not.toBeInTheDocument();
 
-        rerender(
-            <ControlledVocabulariesField {...props} showSimpleLithologyTab={true} />,
-        );
+        rerender(<ControlledVocabulariesField {...props} showSimpleLithologyTab={true} />);
 
         expect(screen.getByRole('tab', { name: /Simple Lithology/i })).toBeInTheDocument();
     });
@@ -631,5 +665,108 @@ describe('ControlledVocabulariesField - CGI Simple Lithology Tab', () => {
 
         expect(screen.getByText('Rock > Historical rock')).toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /Simple Lithology/i })).not.toBeInTheDocument();
+    });
+});
+
+describe('ControlledVocabulariesField - responsive tab metadata', () => {
+    const enabledThesauri = {
+        science_keywords: true,
+        platforms: true,
+        instruments: true,
+        chronostratigraphy: true,
+        gemet: true,
+        analytical_methods: true,
+        euroscivoc: true,
+        simple_lithology: true,
+    };
+    const expectedTabs = [
+        ['science', 'Science Keywords', 'lucide-earth'],
+        ['platforms', 'Platforms', 'lucide-satellite'],
+        ['instruments', 'Instruments', 'lucide-microscope'],
+        ['msl', 'MSL Vocabulary', 'lucide-network'],
+        ['chronostratigraphy', 'Chronostratigraphy', 'lucide-layers-3'],
+        ['gemet', 'GEMET', 'lucide-leaf'],
+        ['analytical_methods', 'Analytical Methods', 'lucide-flask-conical'],
+        ['euroscivoc', 'EuroSciVoc', 'lucide-library'],
+        ['simple_lithology', 'Simple Lithology', 'lucide-mountain'],
+    ] as const;
+
+    function renderAllTabs(selectedKeywords: SelectedKeyword[] = []) {
+        return render(
+            <ControlledVocabulariesField
+                scienceKeywords={[]}
+                platforms={[]}
+                instruments={[]}
+                selectedKeywords={selectedKeywords}
+                onChange={vi.fn()}
+                showMslTab
+                showChronostratTab
+                showGemetTab
+                showAnalyticalMethodsTab
+                showEuroSciVocTab
+                showSimpleLithologyTab
+                enabledThesauri={enabledThesauri}
+            />,
+        );
+    }
+
+    it('renders a distinct decorative icon and accessible name for every possible tab', () => {
+        renderAllTabs();
+
+        const tabList = screen.getByRole('tablist', { name: 'Controlled vocabularies' });
+        expect(tabList).toHaveStyle('--vocabulary-tab-count: 9');
+
+        for (const [type, label, iconClass] of expectedTabs) {
+            const tab = within(tabList).getByRole('tab', { name: label });
+            const icon = within(tab).getByTestId(`controlled-vocabulary-icon-${type}`);
+
+            expect(tab).toHaveAttribute('data-vocabulary-type', type);
+            expect(icon).toHaveClass(iconClass);
+            expect(icon).toHaveAttribute('aria-hidden', 'true');
+        }
+    });
+
+    it('keeps the separate narrow-layout label synchronized with mouse tab selection', async () => {
+        const user = userEvent.setup();
+        renderAllTabs();
+
+        const activeLabel = screen.getByTestId('controlled-vocabulary-active-label');
+        expect(activeLabel).toHaveTextContent('Science Keywords');
+        expect(within(activeLabel).getByText('Science Keywords')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('tab', { name: 'Analytical Methods' }));
+
+        expect(screen.getByRole('tab', { name: 'Analytical Methods' })).toHaveAttribute('aria-selected', 'true');
+        expect(activeLabel).toHaveTextContent('Analytical Methods');
+        expect(within(activeLabel).getByText('Analytical Methods')).toBeInTheDocument();
+    });
+
+    it('exposes the full inactive tab name as a native pointer tooltip', () => {
+        renderAllTabs();
+
+        const platformsTab = screen.getByRole('tab', { name: 'Platforms' });
+
+        expect(platformsTab).toHaveAttribute('title', 'Platforms');
+        expect(platformsTab).toHaveAttribute('aria-selected', 'false');
+        expect(screen.getByRole('tab', { name: 'Science Keywords' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('keeps the selected-keyword marker outside the icon and label flow', () => {
+        renderAllTabs([
+            {
+                id: 'science-1',
+                text: 'Earth Science',
+                path: 'Earth Science',
+                language: 'en',
+                scheme: 'GCMD Science Keywords',
+                schemeURI: 'https://example.test/science',
+            },
+        ]);
+
+        const scienceTab = screen.getByRole('tab', { name: 'Science Keywords' });
+        const indicator = scienceTab.querySelector('[aria-label="Has keywords"]');
+
+        expect(indicator).toHaveClass('absolute');
+        expect(indicator).toHaveClass('h-1.5', 'w-1.5');
     });
 });

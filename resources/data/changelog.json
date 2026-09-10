@@ -19,6 +19,10 @@
         ],
         "fixes": [
             {
+                "title": "Readable Controlled Vocabulary Tabs",
+                "description": "Controlled Vocabulary tabs in the Data Editor now adapt to the available editor width instead of overlapping or being cut off. Compact layouts use distinct icons while keeping the active vocabulary clearly named, with accessible labels, hover hints, and full keyboard navigation at every size."
+            },
+            {
                 "title": "Validation-Free Related Work CSV Downloads",
                 "description": "Downloading the example CSV from the Data Editor's Related Work importer now only saves the template file. The download, close, cancel, and import controls no longer submit the surrounding editor form or trigger unrelated required-field validation."
             }

@@ -5,6 +5,16 @@ import { ResourcesPage } from '../helpers/page-objects/ResourcesPage';
 
 const SEEDED_RESOURCE_DOI = '10.1234/playwright-published';
 const EDITOR_RELOAD_MODAL_MARKER = '__playwrightEditorReloadModalSeen';
+const CONTROLLED_VOCABULARY_LABELS = [
+    'Science Keywords',
+    'Platforms',
+    'Instruments',
+    'Chronostratigraphy',
+    'GEMET',
+    'Analytical Methods',
+    'EuroSciVoc',
+    'Simple Lithology',
+] as const;
 
 function waitForAccordionPreferenceUpdate(page: Page) {
     return page.waitForResponse((response) => {
@@ -53,6 +63,183 @@ test.describe('Editor Form', () => {
 
         // Should be accessible (even if empty without XML upload)
         await expect(page).toHaveURL(/\/editor/);
+    });
+
+    test('keeps controlled vocabulary tabs readable at every responsive layout', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await page.route('**/*', async (route) => {
+            const pathname = new URL(route.request().url()).pathname;
+
+            if (pathname === '/api/v1/vocabularies/thesauri-availability') {
+                await route.fulfill({
+                    json: {
+                        science_keywords: { available: true },
+                        platforms: { available: true },
+                        instruments: { available: true },
+                        chronostratigraphy: { available: true },
+                        gemet: { available: true },
+                        analytical_methods: { available: true },
+                        euroscivoc: { available: true },
+                        msl_laboratories: { available: true },
+                        simple_lithology: { available: true },
+                    },
+                });
+                return;
+            }
+
+            if (pathname.startsWith('/vocabularies/')) {
+                await route.fulfill({ json: { data: [] } });
+                return;
+            }
+
+            await route.continue();
+        });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        await expect(page.getByTestId('resource-info-section')).toBeVisible({ timeout: 30_000 });
+
+        const controlledVocabulariesTrigger = page.locator('[data-slot="accordion-trigger"]', {
+            hasText: 'Controlled Vocabularies',
+        });
+        if ((await controlledVocabulariesTrigger.getAttribute('aria-expanded')) !== 'true') {
+            await controlledVocabulariesTrigger.click();
+        }
+
+        const tabList = page.getByRole('tablist', { name: 'Controlled vocabularies' });
+        await expect(tabList).toBeVisible();
+        const tabs = tabList.getByRole('tab');
+        await expect(tabs).toHaveCount(CONTROLLED_VOCABULARY_LABELS.length);
+
+        for (const label of CONTROLLED_VOCABULARY_LABELS) {
+            await expect(tabList.getByRole('tab', { name: label, exact: true })).toHaveAccessibleName(label);
+        }
+
+        const readLayout = () =>
+            tabList.evaluate((list) => {
+                const tabElements = Array.from(list.querySelectorAll<HTMLElement>('[role="tab"]'));
+                const listRect = list.getBoundingClientRect();
+                const visibleContent = tabElements.map((tab) => {
+                    const parts = [
+                        tab.querySelector<HTMLElement>('.controlled-vocabulary-tab-icon'),
+                        tab.querySelector<HTMLElement>('.controlled-vocabulary-tab-label'),
+                    ].filter((part): part is HTMLElement => part !== null && getComputedStyle(part).display !== 'none');
+                    const partRects = parts.map((part) => part.getBoundingClientRect());
+
+                    return {
+                        label: tab.getAttribute('aria-label') ?? '',
+                        left: Math.min(...partRects.map((rect) => rect.left)),
+                        right: Math.max(...partRects.map((rect) => rect.right)),
+                        top: Math.min(...partRects.map((rect) => rect.top)),
+                        bottom: Math.max(...partRects.map((rect) => rect.bottom)),
+                        visibleLabel: getComputedStyle(tab.querySelector<HTMLElement>('.controlled-vocabulary-tab-label')!).display !== 'none',
+                        visibleIcon: getComputedStyle(tab.querySelector<HTMLElement>('.controlled-vocabulary-tab-icon')!).display !== 'none',
+                    };
+                });
+                const overlaps: string[] = [];
+
+                for (let index = 0; index < visibleContent.length; index += 1) {
+                    for (let nextIndex = index + 1; nextIndex < visibleContent.length; nextIndex += 1) {
+                        const current = visibleContent[index];
+                        const next = visibleContent[nextIndex];
+                        const overlapsHorizontally = current.left < next.right - 0.5 && next.left < current.right - 0.5;
+                        const overlapsVertically = current.top < next.bottom - 0.5 && next.top < current.bottom - 0.5;
+
+                        if (overlapsHorizontally && overlapsVertically) {
+                            overlaps.push(`${current.label} -> ${next.label}`);
+                        }
+                    }
+                }
+
+                const activeLabel = document.querySelector<HTMLElement>('.controlled-vocabulary-active-label');
+                const activeLabelVisible = activeLabel !== null && getComputedStyle(activeLabel).display !== 'none';
+
+                return {
+                    viewportWidth: window.innerWidth,
+                    documentWidth: document.documentElement.scrollWidth,
+                    listClientWidth: list.clientWidth,
+                    listScrollWidth: list.scrollWidth,
+                    clippedContent: visibleContent
+                        .filter((content) => content.left < listRect.left - 0.5 || content.right > listRect.right + 0.5)
+                        .map((content) => content.label),
+                    overlaps,
+                    visibleIcons: visibleContent.filter((content) => content.visibleIcon).map((content) => content.label),
+                    visibleLabels: visibleContent.filter((content) => content.visibleLabel).map((content) => content.label),
+                    activeLabelVisible,
+                    activeLabelText: activeLabelVisible ? (activeLabel?.textContent?.trim() ?? '') : '',
+                };
+            });
+
+        const viewports = [
+            { width: 1607, height: 900, mode: 'wide' },
+            { width: 948, height: 700, mode: 'compact' },
+            { width: 768, height: 700, mode: 'narrow' },
+            { width: 393, height: 852, mode: 'narrow' },
+            { width: 320, height: 568, mode: 'narrow' },
+        ] as const;
+
+        for (const viewport of viewports) {
+            await page.setViewportSize({ width: viewport.width, height: viewport.height });
+            const layout = await readLayout();
+
+            expect(layout.overlaps, `${viewport.width}px tab content overlaps`).toEqual([]);
+            expect(layout.clippedContent, `${viewport.width}px tab content is clipped`).toEqual([]);
+            expect(layout.listScrollWidth, `${viewport.width}px tab list scroll width`).toBeLessThanOrEqual(layout.listClientWidth);
+            expect(layout.documentWidth, `${viewport.width}px document width`).toBeLessThanOrEqual(layout.viewportWidth);
+
+            if (viewport.mode === 'wide') {
+                expect(layout.visibleLabels).toEqual(CONTROLLED_VOCABULARY_LABELS);
+                expect(layout.visibleIcons).toEqual([]);
+                expect(layout.activeLabelVisible).toBe(false);
+            } else if (viewport.mode === 'compact') {
+                expect(layout.visibleLabels).toEqual(['Science Keywords']);
+                expect(layout.visibleIcons).toEqual(CONTROLLED_VOCABULARY_LABELS);
+                expect(layout.activeLabelVisible).toBe(false);
+            } else {
+                expect(layout.visibleLabels).toEqual([]);
+                expect(layout.visibleIcons).toEqual(CONTROLLED_VOCABULARY_LABELS);
+                expect(layout.activeLabelVisible).toBe(true);
+                expect(layout.activeLabelText).toBe('Science Keywords');
+            }
+        }
+
+        await page.setViewportSize({ width: 948, height: 700 });
+        const scienceTab = tabList.getByRole('tab', { name: 'Science Keywords', exact: true });
+        const platformsTab = tabList.getByRole('tab', { name: 'Platforms', exact: true });
+        const analyticalMethodsTab = tabList.getByRole('tab', { name: 'Analytical Methods', exact: true });
+
+        await expect(platformsTab).toHaveAttribute('title', 'Platforms');
+
+        await analyticalMethodsTab.click();
+        await expect(analyticalMethodsTab).toHaveAttribute('aria-selected', 'true');
+        expect((await readLayout()).visibleLabels).toEqual(['Analytical Methods']);
+
+        await scienceTab.focus();
+        await page.keyboard.press('ArrowRight');
+        await expect(platformsTab).toHaveAttribute('aria-selected', 'true');
+        expect((await readLayout()).visibleLabels).toEqual(['Platforms']);
+
+        await page.setViewportSize({ width: 393, height: 852 });
+        await analyticalMethodsTab.click();
+        await expect(page.getByTestId('controlled-vocabulary-active-label')).toContainText('Analytical Methods');
+
+        await page.evaluate(() => document.documentElement.classList.add('font-large'));
+        for (const viewport of [
+            { width: 948, height: 700 },
+            { width: 393, height: 852 },
+            { width: 320, height: 568 },
+        ]) {
+            await page.setViewportSize(viewport);
+            const layout = await readLayout();
+
+            expect(layout.overlaps, `${viewport.width}px large-font tab content overlaps`).toEqual([]);
+            expect(layout.clippedContent, `${viewport.width}px large-font tab content is clipped`).toEqual([]);
+            expect(layout.listScrollWidth, `${viewport.width}px large-font tab list scroll width`).toBeLessThanOrEqual(layout.listClientWidth);
+        }
     });
 
     test('downloading the Related Work CSV example does not validate or submit the editor form', async ({ page }) => {
