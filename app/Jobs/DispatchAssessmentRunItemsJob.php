@@ -101,7 +101,7 @@ final class DispatchAssessmentRunItemsJob implements ShouldQueue
                     ->limit($slots)
                     ->get();
 
-            $leaseExpiresAt = now()->addSeconds(max(30, (int) config('fuji.assessment.lease_seconds', 210)));
+            $leaseExpiresAt = now()->addSeconds(max(30, (int) config('fuji.assessment.lease_seconds', 390)));
             foreach ($items as $item) {
                 $item->forceFill([
                     'status' => AssessmentRunItemStatus::QUEUED,
@@ -169,6 +169,7 @@ final class DispatchAssessmentRunItemsJob implements ShouldQueue
             'processed' => $run->processed,
             'assessed' => $run->assessed,
             'failed' => $run->failed,
+            'service_errors' => $run->service_errors,
             'skipped' => $run->skipped,
             'pending' => $run->pending,
             'duration_seconds' => $durationSeconds,

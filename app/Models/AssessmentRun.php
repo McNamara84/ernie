@@ -35,6 +35,7 @@ use Illuminate\Support\Carbon;
  * @property int $processed
  * @property int $assessed
  * @property int $failed
+ * @property int $service_errors
  * @property int $skipped
  * @property int $pending
  * @property string|null $pause_reason
@@ -73,6 +74,7 @@ class AssessmentRun extends Model
         'processed',
         'assessed',
         'failed',
+        'service_errors',
         'skipped',
         'pending',
         'pause_reason',
@@ -101,6 +103,7 @@ class AssessmentRun extends Model
             'processed' => 'integer',
             'assessed' => 'integer',
             'failed' => 'integer',
+            'service_errors' => 'integer',
             'skipped' => 'integer',
             'pending' => 'integer',
             'started_at' => 'datetime',

@@ -109,6 +109,7 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
             total: 10,
             assessed: 6,
             failed: 1,
+            serviceErrors: 0,
             skipped: 1,
             unassessed: 2,
         },
@@ -116,6 +117,7 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
             total: 4,
             assessed: 2,
             failed: 0,
+            serviceErrors: 0,
             skipped: 1,
             unassessed: 1,
         },
@@ -171,6 +173,7 @@ describe('Assessment page', () => {
                 total: 0,
                 assessed: 0,
                 failed: 0,
+                serviceErrors: 0,
                 skipped: 0,
                 unassessed: 0,
             },
@@ -181,6 +184,7 @@ describe('Assessment page', () => {
                 total: 5,
                 assessed: 0,
                 failed: 0,
+                serviceErrors: 0,
                 skipped: 0,
                 unassessed: 5,
             },
@@ -191,6 +195,7 @@ describe('Assessment page', () => {
                 total: 5,
                 assessed: 0,
                 failed: 1,
+                serviceErrors: 0,
                 skipped: 1,
                 unassessed: 3,
             },
@@ -201,6 +206,7 @@ describe('Assessment page', () => {
                 total: 5,
                 assessed: 1,
                 failed: 0,
+                serviceErrors: 0,
                 skipped: 0,
                 unassessed: 4,
             },
@@ -324,8 +330,8 @@ describe('Assessment page', () => {
                     filters: { doi: '10.5880/missing', datacenter_id: null },
                     resourcesNeedingAttention: [],
                     igsnsNeedingAttention: [],
-                    resourceAssessmentSummary: { total: 0, assessed: 0, failed: 0, skipped: 0, unassessed: 0 },
-                    igsnAssessmentSummary: { total: 0, assessed: 0, failed: 0, skipped: 0, unassessed: 0 },
+                    resourceAssessmentSummary: { total: 0, assessed: 0, failed: 0, serviceErrors: 0, skipped: 0, unassessed: 0 },
+                    igsnAssessmentSummary: { total: 0, assessed: 0, failed: 0, serviceErrors: 0, skipped: 0, unassessed: 0 },
                 })}
             />,
         );
@@ -340,7 +346,7 @@ describe('Assessment page', () => {
                 {...makeProps({
                     filters: { doi: '10.5880/failed', datacenter_id: null },
                     resourcesNeedingAttention: [],
-                    resourceAssessmentSummary: { total: 1, assessed: 0, failed: 1, skipped: 0, unassessed: 0 },
+                    resourceAssessmentSummary: { total: 1, assessed: 0, failed: 1, serviceErrors: 0, skipped: 0, unassessed: 0 },
                 })}
             />,
         );
@@ -492,6 +498,7 @@ describe('Assessment page', () => {
                         total: 5,
                         assessed: 0,
                         failed: 0,
+                        serviceErrors: 0,
                         skipped: 0,
                         unassessed: 5,
                     },
@@ -698,6 +705,7 @@ describe('Assessment page', () => {
                         processedResources: 7,
                         assessedResources: 6,
                         failedResources: 1,
+                        serviceErrorResources: 0,
                         skippedResources: 0,
                         pendingResources: 3,
                     },
@@ -706,7 +714,7 @@ describe('Assessment page', () => {
         );
 
         expect(screen.getByText('Assessing resources 7 of 10...')).toBeInTheDocument();
-        expect(screen.getByText('7/10 processed; 6 assessed, 1 failed, 0 skipped, 3 pending.')).toBeInTheDocument();
+        expect(screen.getByText('7/10 processed; 6 assessed, 1 failed, 0 service errors, 0 skipped, 3 pending.')).toBeInTheDocument();
         expect(screen.getAllByRole('button', { name: 'Checking...' }).every((button) => button.getAttribute('aria-busy') === 'true')).toBe(true);
 
         await act(async () => {
@@ -836,6 +844,7 @@ describe('Assessment page', () => {
                 progress: 'Resources assessment completed.',
                 assessedResources: 8,
                 failedResources: 2,
+                serviceErrorResources: 0,
             },
         });
 
@@ -846,8 +855,50 @@ describe('Assessment page', () => {
             await vi.runAllTimersAsync();
         });
 
-        expect(mockToast.warning).toHaveBeenCalledWith('Resources assessment completed with 2 failed resources.');
+        expect(mockToast.warning).toHaveBeenCalledWith('Resources assessment completed with 2 failed resources and 0 service errors.');
         expect(mockToast.success).not.toHaveBeenCalled();
+    });
+
+    it('retries service errors without starting a complete new run', async () => {
+        mockAxiosPost.mockResolvedValueOnce({
+            data: {
+                jobId: '11111111-1111-4111-8111-111111111111',
+                scope: 'resource',
+                status: 'queued',
+                progress: 'Resources assessment is waiting to start.',
+                serviceErrorResources: 0,
+                pendingResources: 2,
+            },
+        });
+
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    resourceAssessmentRun: {
+                        jobId: '11111111-1111-4111-8111-111111111111',
+                        scope: 'resource',
+                        status: 'completed',
+                        progress: 'Resources assessment completed.',
+                        totalResources: 10,
+                        processedResources: 10,
+                        assessedResources: 8,
+                        failedResources: 0,
+                        serviceErrorResources: 2,
+                        skippedResources: 0,
+                        pendingResources: 0,
+                    },
+                })}
+            />,
+        );
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Retry service errors' }));
+        });
+
+        expect(mockAxiosPost).toHaveBeenCalledWith(
+            '/assessment/check/resource/11111111-1111-4111-8111-111111111111/retry-service-failures',
+        );
+        expect(mockToast.success).toHaveBeenCalledWith('Resources service errors queued for retry.');
     });
 
     it('clears active polling timers when the page unmounts', async () => {

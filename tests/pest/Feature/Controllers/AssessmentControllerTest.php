@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AssessmentFailureType;
 use App\Enums\AssessmentRunItemStatus;
 use App\Enums\AssessmentRunStatus;
 use App\Enums\AssessmentScope;
@@ -253,12 +254,24 @@ describe('index', function () {
         ResourceAssessment::query()->create([
             'resource_id' => $failedResource->id,
             'status' => ResourceAssessment::STATUS_FAILED,
+            'failure_type' => AssessmentFailureType::RESOURCE,
             'error_message' => 'Request failed.',
             'assessed_identifier' => $failedResource->doi,
             'assessed_at' => now(),
         ]);
 
         Resource::factory()->withDoi('10.5880/test.resource.004')->create();
+
+        $serviceErrorResource = Resource::factory()->withDoi('10.5880/test.resource.005')->create();
+        ResourceAssessment::query()->create([
+            'resource_id' => $serviceErrorResource->id,
+            'status' => ResourceAssessment::STATUS_FAILED,
+            'failure_type' => AssessmentFailureType::SERVICE,
+            'error_code' => 'curl_28',
+            'error_message' => 'F-UJI is currently unavailable.',
+            'assessed_identifier' => $serviceErrorResource->doi,
+            'assessed_at' => now(),
+        ]);
 
         $lowestIgsn = Resource::factory()->withDoi('10.5880/test.igsn.001')->create([
             'resource_type_id' => $physicalObjectType->id,
@@ -315,14 +328,16 @@ describe('index', function () {
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('assessment')
-                ->where('resourceAssessmentSummary.total', 4)
+                ->where('resourceAssessmentSummary.total', 5)
                 ->where('resourceAssessmentSummary.assessed', 2)
                 ->where('resourceAssessmentSummary.failed', 1)
+                ->where('resourceAssessmentSummary.serviceErrors', 1)
                 ->where('resourceAssessmentSummary.skipped', 0)
                 ->where('resourceAssessmentSummary.unassessed', 1)
                 ->where('igsnAssessmentSummary.total', 4)
                 ->where('igsnAssessmentSummary.assessed', 2)
                 ->where('igsnAssessmentSummary.failed', 0)
+                ->where('igsnAssessmentSummary.serviceErrors', 0)
                 ->where('igsnAssessmentSummary.skipped', 1)
                 ->where('igsnAssessmentSummary.unassessed', 1)
                 ->where('resourcesNeedingAttention.0.mainTitle', 'Lowest resource')
@@ -1284,6 +1299,37 @@ describe('run controls', function () {
         expect($run->fresh()->fuji_base_url)->toBe('https://fuji.test')
             ->and($run->fresh()->last_controlled_by_user_id)->toBe($user->id)
             ->and($run->items()->firstOrFail()->status)->toBe(AssessmentRunItemStatus::PENDING);
+        Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 1);
+    });
+
+    it('retries only service errors from a completed run', function () {
+        Queue::fake();
+        $user = User::factory()->admin()->create();
+        $resource = Resource::factory()->withDoi('10.5880/controller.retry-service')->create();
+        $run = AssessmentRun::factory()->create([
+            'status' => AssessmentRunStatus::COMPLETED,
+            'active_scope' => null,
+            'total' => 1,
+            'processed' => 1,
+            'service_errors' => 1,
+            'pending' => 0,
+            'completed_at' => now(),
+        ]);
+        AssessmentRunItem::factory()->for($run, 'run')->for($resource)->create([
+            'status' => AssessmentRunItemStatus::FAILED,
+            'failure_type' => AssessmentFailureType::SERVICE,
+            'error_code' => 'curl_28',
+            'processed_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->post("/assessment/check/resource/{$run->id}/retry-service-failures")
+            ->assertOk()
+            ->assertJsonPath('jobId', $run->id)
+            ->assertJsonPath('status', 'queued')
+            ->assertJsonPath('serviceErrorResources', 0)
+            ->assertJsonPath('pendingResources', 1);
+
         Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 1);
     });
 

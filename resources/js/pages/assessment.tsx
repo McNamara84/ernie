@@ -41,6 +41,7 @@ type ScopeState = {
     processedResources?: number;
     assessedResources?: number;
     failedResources?: number;
+    serviceErrorResources?: number;
     skippedResources?: number;
     pendingResources?: number;
     startedAt?: string | null;
@@ -100,7 +101,7 @@ function getAssessmentErrorMessage(error: unknown, fallback: string): string {
 }
 
 function summaryText(summary: AssessmentSummary): string {
-    return `${summary.assessed} assessed, ${summary.failed} failed, ${summary.skipped} skipped, ${summary.unassessed} remaining.`;
+    return `${summary.assessed} assessed, ${summary.failed} failed, ${summary.serviceErrors} service errors, ${summary.skipped} skipped, ${summary.unassessed} remaining.`;
 }
 
 function assessmentLabel(scope: AssessmentScope): string {
@@ -133,6 +134,7 @@ function initialScopeState(run?: AssessmentJobStatus | null): ScopeState {
         processedResources: run.processedResources,
         assessedResources: run.assessedResources,
         failedResources: run.failedResources,
+        serviceErrorResources: run.serviceErrorResources,
         skippedResources: run.skippedResources,
         pendingResources: run.pendingResources,
         startedAt: run.startedAt,
@@ -233,7 +235,7 @@ function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope, c
         return `No ${scopeNoun(scope)} are available.`;
     }
 
-    if (summary.assessed === 0 && summary.failed === 0 && summary.skipped === 0) {
+    if (summary.assessed === 0 && summary.failed === 0 && summary.serviceErrors === 0 && summary.skipped === 0) {
         return canRunAssessments
             ? `No assessment results available yet. Run Check ${scopeLabel(scope)} to populate this list.`
             : `No assessment results are available yet. Ask an Admin or Group Leader to run Check ${scopeLabel(scope)}.`;
@@ -401,8 +403,10 @@ export default function Assessment({
                 if (data.status === 'completed') {
                     stopPolling(scope);
                     patchState(scope, stateFromStatus(data, jobId, scope));
-                    if ((data.failedResources ?? 0) > 0) {
-                        toast.warning(`${scopeLabel(scope)} assessment completed with ${data.failedResources} failed resources.`);
+                    if ((data.failedResources ?? 0) > 0 || (data.serviceErrorResources ?? 0) > 0) {
+                        toast.warning(
+                            `${scopeLabel(scope)} assessment completed with ${data.failedResources ?? 0} failed resources and ${data.serviceErrorResources ?? 0} service errors.`,
+                        );
                     } else {
                         toast.success(`${scopeLabel(scope)} assessment completed.`);
                     }
@@ -496,6 +500,26 @@ export default function Assessment({
         } catch (error) {
             patchState(scope, { isCancelling: false });
             toast.error(getAssessmentErrorMessage(error, `Failed to cancel ${scopeLabel(scope)} assessment.`));
+        }
+    }
+
+    async function handleRetryServiceErrors(scope: AssessmentScope) {
+        const jobId = states[scope].jobId;
+        if (!jobId) {
+            return;
+        }
+
+        patchState(scope, { isChecking: true });
+
+        try {
+            const { data } = await axios.post<AssessmentJobStatus>(`/assessment/check/${scope}/${jobId}/retry-service-failures`);
+            patchState(scope, stateFromStatus(data, jobId, scope));
+            startPolling(scope, jobId);
+            router.reload({ only: [...RELOAD_KEYS] });
+            toast.success(`${scopeLabel(scope)} service errors queued for retry.`);
+        } catch (error) {
+            patchState(scope, { isChecking: false });
+            toast.error(getAssessmentErrorMessage(error, `Failed to retry ${scopeLabel(scope)} service errors.`));
         }
     }
 
@@ -649,8 +673,8 @@ export default function Assessment({
                                 {state.totalResources !== undefined && (
                                     <p className="text-xs">
                                         {state.processedResources ?? 0}/{state.totalResources} processed; {state.assessedResources ?? 0} assessed,{' '}
-                                        {state.failedResources ?? 0} failed, {state.skippedResources ?? 0} skipped, {state.pendingResources ?? 0}{' '}
-                                        pending.
+                                        {state.failedResources ?? 0} failed, {state.serviceErrorResources ?? 0} service errors,{' '}
+                                        {state.skippedResources ?? 0} skipped, {state.pendingResources ?? 0} pending.
                                     </p>
                                 )}
                                 {state.error && state.error !== state.progress && (
@@ -683,6 +707,20 @@ export default function Assessment({
                                     {state.isCancelling ? 'Cancelling...' : `Cancel ${scopeLabel(scope)}`}
                                 </LoadingButton>
                             )}
+                            {canRunAssessments &&
+                                state.jobId &&
+                                state.status === 'completed' &&
+                                (state.serviceErrorResources ?? 0) > 0 && (
+                                    <LoadingButton
+                                        variant="outline"
+                                        size="sm"
+                                        loading={state.isChecking}
+                                        disabled={state.isChecking || !fujiConfiguredForActions}
+                                        onClick={() => handleRetryServiceErrors(scope)}
+                                    >
+                                        {state.isChecking ? 'Retrying...' : 'Retry service errors'}
+                                    </LoadingButton>
+                                )}
                         </div>
                     );
                 })}

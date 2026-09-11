@@ -26,6 +26,7 @@ const summary: AssessmentSummary = {
     total: 1,
     assessed: 1,
     failed: 0,
+    serviceErrors: 0,
     skipped: 0,
     unassessed: 0,
 };

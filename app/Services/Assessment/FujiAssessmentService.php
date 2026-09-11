@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Assessment;
 
+use App\Enums\AssessmentFailureType;
 use App\Exceptions\FujiAssessmentException;
+use GuzzleHttp\Exception\RequestException as GuzzleRequestException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -88,8 +90,14 @@ class FujiAssessmentService
     public function assessIdentifier(string $identifier): array
     {
         if (! $this->isConfigured()) {
-            throw new FujiAssessmentException('F-UJI is not configured.', retryable: false);
+            throw new FujiAssessmentException(
+                'F-UJI is not configured.',
+                retryable: false,
+                errorCode: 'not_configured',
+            );
         }
+
+        $started = microtime(true);
 
         try {
             $response = $this->baseRequest()
@@ -97,23 +105,49 @@ class FujiAssessmentService
                 ->asJson()
                 ->post($this->endpoint(), $this->buildPayload($identifier));
         } catch (ConnectionException $exception) {
-            $this->logAssessmentTransportFailureOnce($exception, $identifier);
+            $durationMs = $this->transportDurationMs($exception, $this->durationMs($started));
+            $curlError = $this->curlErrorCode($exception);
+            $errorCode = $curlError === null ? 'connection_error' : "curl_{$curlError}";
+            $this->logAssessmentTransportFailureOnce($exception, $identifier, $errorCode, $durationMs);
 
-            throw new FujiAssessmentException(self::UNAVAILABLE_MESSAGE, retryable: true, previous: $exception);
+            throw new FujiAssessmentException(
+                self::UNAVAILABLE_MESSAGE,
+                retryable: $this->shouldRetryTransportFailure($curlError, $durationMs),
+                errorCode: $errorCode,
+                errorDetail: $exception->getMessage(),
+                durationMs: $durationMs,
+                previous: $exception,
+            );
         } catch (\Throwable $exception) {
-            $this->logAssessmentTransportFailureOnce($exception, $identifier);
+            $durationMs = $this->durationMs($started);
+            $this->logAssessmentTransportFailureOnce($exception, $identifier, 'unexpected_error', $durationMs);
 
-            throw new FujiAssessmentException(self::UNAVAILABLE_MESSAGE, retryable: true, previous: $exception);
+            throw new FujiAssessmentException(
+                self::UNAVAILABLE_MESSAGE,
+                retryable: false,
+                errorCode: 'unexpected_error',
+                errorDetail: $exception->getMessage(),
+                durationMs: $durationMs,
+                previous: $exception,
+            );
         }
+
+        $durationMs = $this->durationMs($started);
 
         if (! $response->successful()) {
             $this->logAssessmentUnsuccessfulResponseOnce($response, $identifier);
 
+            $retryable = $response->status() === 429 || $response->serverError();
+
             throw new FujiAssessmentException(
                 self::UNAVAILABLE_MESSAGE,
-                retryable: $response->status() === 429 || $response->serverError(),
+                retryable: $retryable,
                 httpStatus: $response->status(),
                 retryAfterSeconds: $this->retryAfterSeconds($response),
+                failureType: $retryable ? AssessmentFailureType::SERVICE : AssessmentFailureType::RESOURCE,
+                errorCode: "http_{$response->status()}",
+                errorDetail: $this->responseBodyExcerpt($response),
+                durationMs: $durationMs,
             );
         }
 
@@ -139,6 +173,9 @@ class FujiAssessmentService
                 self::UNAVAILABLE_MESSAGE,
                 retryable: true,
                 httpStatus: $response->status(),
+                errorCode: 'invalid_payload',
+                errorDetail: $exception->getMessage(),
+                durationMs: $durationMs,
                 previous: $exception,
             );
         }
@@ -211,7 +248,7 @@ class FujiAssessmentService
 
     private function timeout(): int
     {
-        return max(1, (int) Config::get('fuji.timeout', 60));
+        return max(1, (int) Config::get('fuji.timeout', 300));
     }
 
     private function connectTimeout(): int
@@ -277,7 +314,12 @@ class FujiAssessmentService
         ]);
     }
 
-    private function logAssessmentTransportFailureOnce(\Throwable $exception, string $identifier): void
+    private function logAssessmentTransportFailureOnce(
+        \Throwable $exception,
+        string $identifier,
+        string $errorCode,
+        int $durationMs,
+    ): void
     {
         $fingerprint = sprintf('transport:%s:%s', $exception::class, $exception->getMessage());
 
@@ -287,7 +329,65 @@ class FujiAssessmentService
 
         $this->logTransportFailure('assessment', $exception, [
             'identifier' => $identifier,
+            'error_code' => $errorCode,
+            'duration_ms' => $durationMs,
         ]);
+    }
+
+    private function durationMs(float $started): int
+    {
+        return max(0, (int) round((microtime(true) - $started) * 1000));
+    }
+
+    private function curlErrorCode(\Throwable $exception): ?int
+    {
+        $current = $exception;
+
+        do {
+            if ($current instanceof GuzzleRequestException) {
+                $errno = $current->getHandlerContext()['errno'] ?? null;
+
+                if (is_numeric($errno) && (int) $errno > 0) {
+                    return (int) $errno;
+                }
+            }
+
+            if (preg_match('/cURL error (\d+)/i', $current->getMessage(), $matches) === 1) {
+                return (int) $matches[1];
+            }
+
+            $current = $current->getPrevious();
+        } while ($current instanceof \Throwable);
+
+        return null;
+    }
+
+    private function shouldRetryTransportFailure(?int $curlError, int $durationMs): bool
+    {
+        if ($curlError !== 28) {
+            return true;
+        }
+
+        // A cURL 28 raised near the short connect timeout is cheap and likely
+        // transient. Once the request has outlived that window, repeating the
+        // complete F-UJI evaluation only blocks the worker for another full
+        // HTTP timeout without adding useful resilience.
+        return $durationMs <= ($this->connectTimeout() + 2) * 1000;
+    }
+
+    private function transportDurationMs(\Throwable $exception, int $measuredDurationMs): int
+    {
+        $current = $exception;
+
+        do {
+            if (preg_match('/after\s+(\d+)\s+milliseconds/i', $current->getMessage(), $matches) === 1) {
+                return max($measuredDurationMs, (int) $matches[1]);
+            }
+
+            $current = $current->getPrevious();
+        } while ($current instanceof \Throwable);
+
+        return $measuredDurationMs;
     }
 
     private function logAssessmentUnsuccessfulResponseOnce(Response $response, string $identifier): void
