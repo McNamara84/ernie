@@ -346,12 +346,12 @@ export function ResourcesFilters({
                     <Input
                         ref={searchInputRef}
                         type="search"
-                        placeholder={`Search title or DOI (min. ${MIN_SEARCH_LENGTH} characters)...`}
+                        placeholder={`Search DOI, title, author, contributor, or email (min. ${MIN_SEARCH_LENGTH} characters)...`}
                         value={searchInput}
                         onChange={(e) => handleSearchChange(e.target.value)}
                         className="pl-9"
                         disabled={isLoading}
-                        aria-label="Search resources by title or DOI"
+                        aria-label="Search resources by DOI, title, author, contributor, or email"
                     />
                 </div>
 

@@ -5,6 +5,17 @@
         "features": [],
         "improvements": [
             {
+                "title": "Search Resources by Authors and Contributors",
+                "description": "The Resources search now finds case-insensitive partial matches across creator and contributor names, institutions, and email addresses in addition to titles and DOIs. Matching rows identify the relevant name or email and combine compact CP, Author, and Contributor labels when the same identity has multiple roles.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1296,
+                        "url": "https://github.com/McNamara84/ernie/issues/1296"
+                    }
+                ]
+            },
+            {
                 "title": "Traceable Changelog Entries",
                 "description": "Changelog entries from version 1.0.9 onward can now link directly to all related GitHub issues and pull requests, giving testers quick access to the original requirements and implementation context. Entries without a related GitHub reference remain unchanged.",
                 "references": [

@@ -21,29 +21,13 @@ const defaultFilterOptions: ResourceFilterOptions = {
 
 describe('ResourcesFilters', () => {
     it('renders search input', () => {
-        render(
-            <ResourcesFilters
-                filters={{}}
-                onFilterChange={vi.fn()}
-                filterOptions={defaultFilterOptions}
-                resultCount={10}
-                totalCount={10}
-            />,
-        );
+        render(<ResourcesFilters filters={{}} onFilterChange={vi.fn()} filterOptions={defaultFilterOptions} resultCount={10} totalCount={10} />);
 
-        expect(screen.getByLabelText('Search resources by title or DOI')).toBeInTheDocument();
+        expect(screen.getByLabelText('Search resources by DOI, title, author, contributor, or email')).toBeInTheDocument();
     });
 
     it('renders filter selects', () => {
-        render(
-            <ResourcesFilters
-                filters={{}}
-                onFilterChange={vi.fn()}
-                filterOptions={defaultFilterOptions}
-                resultCount={10}
-                totalCount={10}
-            />,
-        );
+        render(<ResourcesFilters filters={{}} onFilterChange={vi.fn()} filterOptions={defaultFilterOptions} resultCount={10} totalCount={10} />);
 
         expect(screen.getByLabelText('Filter by resource type')).toBeInTheDocument();
         expect(screen.getByLabelText('Filter by datacenter')).toBeInTheDocument();
@@ -56,13 +40,7 @@ describe('ResourcesFilters', () => {
         const onFilterChange = vi.fn();
 
         render(
-            <ResourcesFilters
-                filters={{}}
-                onFilterChange={onFilterChange}
-                filterOptions={defaultFilterOptions}
-                resultCount={10}
-                totalCount={10}
-            />,
+            <ResourcesFilters filters={{}} onFilterChange={onFilterChange} filterOptions={defaultFilterOptions} resultCount={10} totalCount={10} />,
         );
 
         await user.click(screen.getByLabelText('Filter by datacenter'));
@@ -284,34 +262,18 @@ describe('ResourcesFilters', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Search resources by title or DOI')).toBeDisabled();
+        expect(screen.getByLabelText('Search resources by DOI, title, author, contributor, or email')).toBeDisabled();
         expect(screen.getByRole('switch', { name: 'Without SPDX License' })).toBeDisabled();
     });
 
     it('shows year range button', () => {
-        render(
-            <ResourcesFilters
-                filters={{}}
-                onFilterChange={vi.fn()}
-                filterOptions={defaultFilterOptions}
-                resultCount={10}
-                totalCount={10}
-            />,
-        );
+        render(<ResourcesFilters filters={{}} onFilterChange={vi.fn()} filterOptions={defaultFilterOptions} resultCount={10} totalCount={10} />);
 
         expect(screen.getByLabelText('Filter by publication year range')).toBeInTheDocument();
     });
 
     it('renders date range filter popovers', () => {
-        render(
-            <ResourcesFilters
-                filters={{}}
-                onFilterChange={vi.fn()}
-                filterOptions={defaultFilterOptions}
-                resultCount={10}
-                totalCount={10}
-            />,
-        );
+        render(<ResourcesFilters filters={{}} onFilterChange={vi.fn()} filterOptions={defaultFilterOptions} resultCount={10} totalCount={10} />);
 
         expect(screen.getByLabelText('Filter by creation date range')).toBeInTheDocument();
         expect(screen.getByLabelText('Filter by last update date range')).toBeInTheDocument();
@@ -323,16 +285,10 @@ describe('ResourcesFilters', () => {
         const onFilterChange = vi.fn();
 
         render(
-            <ResourcesFilters
-                filters={{}}
-                onFilterChange={onFilterChange}
-                filterOptions={defaultFilterOptions}
-                resultCount={10}
-                totalCount={10}
-            />,
+            <ResourcesFilters filters={{}} onFilterChange={onFilterChange} filterOptions={defaultFilterOptions} resultCount={10} totalCount={10} />,
         );
 
-        const searchInput = screen.getByLabelText('Search resources by title or DOI');
+        const searchInput = screen.getByLabelText('Search resources by DOI, title, author, contributor, or email');
         await user.type(searchInput, 'climate data');
 
         // Should not have triggered yet (debounce is 1000ms)
@@ -340,9 +296,7 @@ describe('ResourcesFilters', () => {
 
         // Advance timer past debounce
         vi.advanceTimersByTime(1100);
-        expect(onFilterChange).toHaveBeenCalledWith(
-            expect.objectContaining({ search: 'climate data' }),
-        );
+        expect(onFilterChange).toHaveBeenCalledWith(expect.objectContaining({ search: 'climate data' }));
 
         vi.useRealTimers();
     });

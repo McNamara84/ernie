@@ -304,6 +304,7 @@ entity "resource_listing_projections" as resource_listing_projections {
     * created_sort : VARCHAR(40) //indexed//
     * updated_sort : VARCHAR(40) //indexed//
     * search_text : TEXT
+    party_search_text : TEXT <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }

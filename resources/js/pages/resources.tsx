@@ -68,6 +68,8 @@ import {
     type ResourceFilterOptions,
     type ResourceFilterState,
     type ResourceListItem as Resource,
+    type ResourcePartySearchMatch,
+    type ResourcePartySearchRole,
     type ResourceSortDirection,
     type ResourceSortKey,
     type ResourceSortState,
@@ -470,6 +472,45 @@ function OverflowTooltipText({ value, className, tooltipClassName, testId }: Ove
             <TooltipTrigger asChild>{text}</TooltipTrigger>
             <TooltipContent className={cn('max-w-sm text-left break-words normal-case', tooltipClassName)}>{value}</TooltipContent>
         </Tooltip>
+    );
+}
+
+const RESOURCE_PARTY_ROLE_LABELS: Record<ResourcePartySearchRole, string> = {
+    contact_person: 'CP',
+    author: 'Author',
+    contributor: 'Contributor',
+};
+
+function formatResourcePartySearchRoles(roles: ResourcePartySearchRole[]): string {
+    const roleSet = new Set(roles);
+
+    return (['contact_person', 'author', 'contributor'] as const)
+        .filter((role) => roleSet.has(role))
+        .map((role) => RESOURCE_PARTY_ROLE_LABELS[role])
+        .join(' & ');
+}
+
+function ResourcePartySearchMatches({ matches }: { matches: ResourcePartySearchMatch[] }) {
+    if (matches.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="space-y-0.5" data-testid="resource-party-search-matches">
+            {matches.map((match, index) => {
+                const roleLabel = formatResourcePartySearchRoles(match.roles);
+
+                return (
+                    <div
+                        key={`${match.matched_field}-${match.display_value}-${index}`}
+                        className="flex min-w-0 items-baseline gap-1 text-xs text-gray-600 dark:text-gray-300"
+                    >
+                        <span className="shrink-0 font-semibold text-gray-800 dark:text-gray-100">{roleLabel}:</span>
+                        <OverflowTooltipText value={match.display_value} className="min-w-0 flex-1" />
+                    </div>
+                );
+            })}
+        </div>
     );
 }
 
@@ -2010,9 +2051,15 @@ function ResourcesPage({
                 // Dark mode uses lighter shade (400) for better readability on dark backgrounds
                 const identifierClasses = doi ? 'text-sm text-gray-600 dark:text-gray-300' : 'text-sm text-gray-500 dark:text-gray-400 italic';
                 const isCopied = copiedDoi === doi;
+                const searchMatches = resource.search_matches ?? [];
+                const searchMatchLabel = searchMatches
+                    .map((match) => `${formatResourcePartySearchRoles(match.roles)}: ${match.display_value}`)
+                    .join('. ');
+                const accessibleLabel = [searchMatchLabel, `DOI: ${identifierValue}`, `Title: ${title}`].filter(Boolean).join('. ');
 
                 return (
-                    <div className="flex min-w-0 flex-col gap-1 text-left" aria-label={`DOI: ${identifierValue}. Title: ${title}`}>
+                    <div className="flex min-w-0 flex-col gap-1 text-left" aria-label={accessibleLabel}>
+                        <ResourcePartySearchMatches matches={searchMatches} />
                         <div className="flex min-w-0 items-center gap-1">
                             <OverflowTooltipText value={identifierValue} className={cn(identifierClasses, 'min-w-0 flex-1')} />
                             {hasValidDoi && (
@@ -2807,4 +2854,4 @@ function ResourcesPage({
 
 export default ResourcesPage;
 
-export { deriveResourceRowKey, OverflowTooltipText };
+export { deriveResourceRowKey, formatResourcePartySearchRoles, OverflowTooltipText };

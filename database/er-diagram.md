@@ -273,6 +273,7 @@ erDiagram
         varchar created_sort "40, indexed"
         varchar updated_sort "40, indexed"
         text search_text
+        text party_search_text "nullable"
         timestamp created_at
         timestamp updated_at
     }

@@ -7,10 +7,11 @@ namespace App\Http\Controllers;
 use App\Enums\CacheKey;
 use App\Http\Requests\Resource\LoadMoreResourcesRequest;
 use App\Http\Resources\FilterOptionsResource;
-use App\Http\Resources\ResourceListItemResource;
 use App\Models\Datacenter;
+use App\Models\Resource;
 use App\Models\ResourceListingProjection;
 use App\Models\ResourceType;
+use App\Services\Resources\ResourceListingPayloadService;
 use App\Services\Resources\ResourceQueryBuilder;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +24,7 @@ class ResourceFilterController extends Controller
 
     public function __construct(
         private readonly ResourceQueryBuilder $queryBuilder,
+        private readonly ResourceListingPayloadService $listingPayloadService,
     ) {}
 
     /**
@@ -36,8 +38,11 @@ class ResourceFilterController extends Controller
         /** @var array<int, Resource> $items */
         $items = $resources->items();
         $itemCount = count($items);
-        $resourcesData = ResourceListItemResource::collection(collect($items))
-            ->resolve($request);
+        $resourcesData = $this->listingPayloadService->resolve(
+            $items,
+            $request,
+            isset($criteria['filters']['search']) ? (string) $criteria['filters']['search'] : null,
+        );
 
         return response()->json([
             'resources' => $resourcesData,

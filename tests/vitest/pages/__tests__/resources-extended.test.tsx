@@ -104,6 +104,11 @@ interface TestResource {
     title?: string;
     first_author?: { givenName?: string | null; familyName?: string | null; name?: string } | null;
     landingPage?: { id: number; is_published: boolean; public_url: string; preview_url?: string | null } | null;
+    search_matches?: Array<{
+        display_value: string;
+        matched_field: 'name' | 'email';
+        roles: Array<'contact_person' | 'author' | 'contributor'>;
+    }>;
     [key: string]: unknown;
 }
 
@@ -328,6 +333,40 @@ describe('ResourcesPage - extended', () => {
             });
             expect(screen.getByRole('separator', { name: /resize id and resource type column/i })).toBeInTheDocument();
             expect(screen.getByRole('separator', { name: /resize doi and title column/i })).toBeInTheDocument();
+        });
+
+        it('renders normalized party matches above the DOI with roles in canonical order', () => {
+            renderPage({
+                resources: [
+                    makeResource({
+                        search_matches: [
+                            {
+                                display_value: 'Hans, Peter',
+                                matched_field: 'name',
+                                roles: ['contributor', 'contact_person', 'author'],
+                            },
+                            {
+                                display_value: 'team@example.test',
+                                matched_field: 'email',
+                                roles: ['contributor'],
+                            },
+                        ],
+                    }),
+                ],
+            });
+
+            const matches = screen.getByTestId('resource-party-search-matches');
+            expect(within(matches).getByText('CP & Author & Contributor:')).toBeInTheDocument();
+            expect(within(matches).getByText('Hans, Peter')).toBeInTheDocument();
+            expect(within(matches).getByText('Contributor:')).toBeInTheDocument();
+            expect(within(matches).getByText('team@example.test')).toBeInTheDocument();
+            expect(screen.getByLabelText(/CP & Author & Contributor: Hans, Peter.*DOI:/i)).toBeInTheDocument();
+        });
+
+        it('does not render a party hint for empty matches', () => {
+            renderPage({ resources: [makeResource({ search_matches: [] })] });
+
+            expect(screen.queryByTestId('resource-party-search-matches')).not.toBeInTheDocument();
         });
     });
 
