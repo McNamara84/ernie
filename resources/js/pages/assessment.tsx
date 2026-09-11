@@ -707,20 +707,17 @@ export default function Assessment({
                                     {state.isCancelling ? 'Cancelling...' : `Cancel ${scopeLabel(scope)}`}
                                 </LoadingButton>
                             )}
-                            {canRunAssessments &&
-                                state.jobId &&
-                                state.status === 'completed' &&
-                                (state.serviceErrorResources ?? 0) > 0 && (
-                                    <LoadingButton
-                                        variant="outline"
-                                        size="sm"
-                                        loading={state.isChecking}
-                                        disabled={state.isChecking || !fujiConfiguredForActions}
-                                        onClick={() => handleRetryServiceErrors(scope)}
-                                    >
-                                        {state.isChecking ? 'Retrying...' : 'Retry service errors'}
-                                    </LoadingButton>
-                                )}
+                            {canRunAssessments && state.jobId && state.status === 'completed' && (state.serviceErrorResources ?? 0) > 0 && (
+                                <LoadingButton
+                                    variant="outline"
+                                    size="sm"
+                                    loading={state.isChecking}
+                                    disabled={state.isChecking || !fujiConfiguredForActions}
+                                    onClick={() => handleRetryServiceErrors(scope)}
+                                >
+                                    {state.isChecking ? 'Retrying...' : 'Retry service errors'}
+                                </LoadingButton>
+                            )}
                         </div>
                     );
                 })}
