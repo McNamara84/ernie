@@ -11,14 +11,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (! Schema::hasTable('resource_listing_projections')
-            || Schema::hasColumn('resource_listing_projections', 'party_search_text')) {
+        if (! Schema::hasTable('resource_listing_projections')) {
             return;
         }
 
-        Schema::table('resource_listing_projections', function (Blueprint $table): void {
-            $table->text('party_search_text')->nullable()->after('search_text');
-        });
+        if (! Schema::hasColumn('resource_listing_projections', 'party_search_text')) {
+            Schema::table('resource_listing_projections', function (Blueprint $table): void {
+                $table->text('party_search_text')->nullable()->after('search_text');
+            });
+        }
 
         app(ResourceListingProjectorService::class)->rebuildAll();
     }

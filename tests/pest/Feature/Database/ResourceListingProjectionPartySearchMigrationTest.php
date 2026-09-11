@@ -50,3 +50,22 @@ it('adds and backfills the party search projection and removes it on rollback', 
         $migration->up();
     }
 });
+
+it('retries the backfill when the party search column already exists', function (): void {
+    $resource = Resource::factory()->create();
+    $person = Person::factory()->create(['given_name' => 'Retry', 'family_name' => 'Backfill']);
+    ResourceCreator::factory()->forPerson($person)->create([
+        'resource_id' => $resource->id,
+        'email' => 'retry@example.test',
+    ]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    ResourceListingProjection::query()->whereKey($resource->id)->update(['party_search_text' => null]);
+
+    resourceListingProjectionPartySearchMigration()->up();
+
+    expect(Schema::hasColumn('resource_listing_projections', 'party_search_text'))->toBeTrue()
+        ->and(ResourceListingProjection::query()->findOrFail($resource->id)->party_search_text)
+        ->toContain('retry backfill')
+        ->toContain('retry@example.test');
+});
