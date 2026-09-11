@@ -5,6 +5,17 @@
         "features": [],
         "improvements": [
             {
+                "title": "Compact Landing Page Headers",
+                "description": "Resource and IGSN landing pages now devote more space to their research information with a shorter 9:1 header, no empty space above the page, and no gap before the title and citation card. New and replacement custom header logos use the documented 9:1 format, while existing logos remain fully supported without cropping or distortion and are identified as legacy formats in template management.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1292,
+                        "url": "https://github.com/McNamara84/ernie/issues/1292"
+                    }
+                ]
+            },
+            {
                 "title": "Traceable Changelog Entries",
                 "description": "Changelog entries from version 1.0.9 onward can now link directly to all related GitHub issues and pull requests, giving testers quick access to the original requirements and implementation context. Entries without a related GitHub reference remain unchanged.",
                 "references": [

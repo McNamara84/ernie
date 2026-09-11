@@ -22,21 +22,21 @@ class UploadLandingPageTemplateLogoRequest extends FormRequest
      */
     public const MAX_LOGO_SIZE_KB = 2048;
 
-    public const MIN_LOGO_WIDTH = 960;
+    public const MIN_LOGO_WIDTH = 1080;
 
-    public const MIN_LOGO_HEIGHT = 192;
+    public const MIN_LOGO_HEIGHT = 120;
 
-    public const RECOMMENDED_LOGO_WIDTH = 1200;
+    public const RECOMMENDED_LOGO_WIDTH = 1800;
 
-    public const RECOMMENDED_LOGO_HEIGHT = 240;
+    public const RECOMMENDED_LOGO_HEIGHT = 200;
 
-    public const MAX_LOGO_WIDTH = 1920;
+    public const MAX_LOGO_WIDTH = 2700;
 
-    public const MAX_LOGO_HEIGHT = 384;
+    public const MAX_LOGO_HEIGHT = 300;
 
-    public const LOGO_ASPECT_RATIO = 5;
+    public const LOGO_ASPECT_RATIO = 9;
 
-    public const LOGO_ASPECT_RATIO_LABEL = '5:1';
+    public const LOGO_ASPECT_RATIO_LABEL = '9:1';
 
     /**
      * Allowed logo upload file extensions and their user-facing labels.
@@ -107,6 +107,7 @@ class UploadLandingPageTemplateLogoRequest extends FormRequest
      *     maxWidth: int,
      *     maxHeight: int,
      *     aspectRatio: string,
+     *     aspectRatioValue: int,
      *     maxSizeKb: int,
      *     formats: list<string>
      * }
@@ -121,6 +122,7 @@ class UploadLandingPageTemplateLogoRequest extends FormRequest
             'maxWidth' => self::MAX_LOGO_WIDTH,
             'maxHeight' => self::MAX_LOGO_HEIGHT,
             'aspectRatio' => self::LOGO_ASPECT_RATIO_LABEL,
+            'aspectRatioValue' => self::LOGO_ASPECT_RATIO,
             'maxSizeKb' => self::MAX_LOGO_SIZE_KB,
             'formats' => array_values(self::ALLOWED_LOGO_EXTENSIONS),
         ];

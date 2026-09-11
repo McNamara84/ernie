@@ -25,12 +25,12 @@ export function LandingPageShell({
     leftColumnSections,
     rightColumnSections,
 }: LandingPageShellProps) {
-    const headerLogoClassName = 'h-auto w-auto max-w-full object-contain';
+    const headerLogoClassName = 'h-full w-full object-contain';
     const defaultHeaderLogoClassName = `${headerLogoClassName} dark:grayscale dark:invert dark:mix-blend-screen`;
 
     return (
         <>
-            <div data-landing-page className="min-h-screen bg-gfz-primary pt-6 dark:bg-gray-950">
+            <div data-landing-page className="min-h-screen bg-gfz-primary dark:bg-gray-950">
                 <a
                     href="#main-content"
                     className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-gfz-primary focus:shadow-lg"
@@ -45,7 +45,7 @@ export function LandingPageShell({
                 )}
 
                 <div className="mx-auto max-w-7xl rounded-xl bg-white dark:bg-gray-900">
-                    <header aria-label="GFZ Data Services" className="px-4 py-2">
+                    <header aria-label="GFZ Data Services" className="px-4 pt-2">
                         <div className="mb-1 flex items-center justify-end gap-3">
                             <a
                                 href="/legal-notice"
@@ -65,11 +65,11 @@ export function LandingPageShell({
                                 Data Protection
                             </a>
                         </div>
-                        <div className="flex justify-center">
+                        <div data-testid="landing-page-header-media" className="aspect-[9/1] w-full">
                             {customLogoUrl ? (
                                 <img src={customLogoUrl} alt="GFZ Data Services" className={headerLogoClassName} />
                             ) : (
-                                <img src="/images/GFZ-Header_2026.webp" alt="GFZ Data Services" className={defaultHeaderLogoClassName} />
+                                <img src="/images/GFZ-Header_2026-9x1.webp" alt="GFZ Data Services" className={defaultHeaderLogoClassName} />
                             )}
                         </div>
                     </header>

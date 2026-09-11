@@ -244,13 +244,14 @@ let mockDatacenters: LandingPageTemplateDatacenter[] = [];
 let mockDateTypes: LandingPageTypeOption[] = [];
 let mockRelationTypes: LandingPageTypeOption[] = [];
 const mockLogoUploadConstraints = {
-    minWidth: 960,
-    minHeight: 192,
-    recommendedWidth: 1200,
-    recommendedHeight: 240,
-    maxWidth: 1920,
-    maxHeight: 384,
-    aspectRatio: '5:1',
+    minWidth: 1080,
+    minHeight: 120,
+    recommendedWidth: 1800,
+    recommendedHeight: 200,
+    maxWidth: 2700,
+    maxHeight: 300,
+    aspectRatio: '9:1',
+    aspectRatioValue: 9,
     maxSizeKb: 2048,
     formats: ['PNG', 'JPG', 'JPEG', 'WebP'],
 };
@@ -291,7 +292,7 @@ describe('LandingPageTemplatesPage', () => {
             render(<LandingPageTemplatesPage />);
 
             expect(screen.getByTestId('landing-page-logo-size-hint')).toHaveTextContent(
-                'Header logo: use a 5:1 image. Recommended: 1200 × 240 px. Accepted range: 960 × 192 to 1920 × 384 px. PNG, JPG, JPEG, WebP, max. 2 MB.',
+                'New and replacement header logos: use a 9:1 image. Recommended: 1800 × 200 px. Accepted range: 1080 × 120 to 2700 × 300 px. PNG, JPG, JPEG, WebP, max. 2 MB. Existing logos remain supported until replaced.',
             );
         });
 

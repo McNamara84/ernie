@@ -4,10 +4,11 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { Copy, GripVertical, ImagePlus, LayoutTemplate, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Copy, GripVertical, ImagePlus, LayoutTemplate, Pencil, Plus, Trash2 } from 'lucide-react';
 import { type ChangeEvent, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { HeaderLogoPreview } from '@/components/landing-pages/HeaderLogoPreview';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -54,6 +55,7 @@ interface LogoUploadConstraints {
     maxWidth: number;
     maxHeight: number;
     aspectRatio: string;
+    aspectRatioValue: number;
     maxSizeKb: number;
     formats: string[];
 }
@@ -656,10 +658,11 @@ export default function LandingPageTemplatesPage() {
                             order and logo.
                         </p>
                         <p data-testid="landing-page-logo-size-hint" className="mt-2 text-sm text-muted-foreground">
-                            Header logo: use a {logoUploadConstraints.aspectRatio} image. Recommended: {logoUploadConstraints.recommendedWidth} ×{' '}
-                            {logoUploadConstraints.recommendedHeight} px. Accepted range: {logoUploadConstraints.minWidth} ×{' '}
-                            {logoUploadConstraints.minHeight} to {logoUploadConstraints.maxWidth} × {logoUploadConstraints.maxHeight} px.{' '}
-                            {logoUploadConstraints.formats.join(', ')}, max. {maxLogoSizeMb} MB.
+                            New and replacement header logos: use a {logoUploadConstraints.aspectRatio} image. Recommended:{' '}
+                            {logoUploadConstraints.recommendedWidth} × {logoUploadConstraints.recommendedHeight} px. Accepted range:{' '}
+                            {logoUploadConstraints.minWidth} × {logoUploadConstraints.minHeight} to {logoUploadConstraints.maxWidth} ×{' '}
+                            {logoUploadConstraints.maxHeight} px. {logoUploadConstraints.formats.join(', ')}, max. {maxLogoSizeMb} MB. Existing logos
+                            remain supported until replaced.
                         </p>
                     </div>
                     <Button onClick={() => openClone('resource')}>
@@ -711,21 +714,14 @@ export default function LandingPageTemplatesPage() {
                             <CardContent className="space-y-3">
                                 {/* Logo Preview */}
                                 {tmpl.logo_url && (
-                                    <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-2">
-                                        <img src={tmpl.logo_url} alt={`${tmpl.name} logo`} className="h-10 max-w-40 object-contain" />
-                                        <span className="flex-1 truncate text-xs text-muted-foreground">{tmpl.logo_filename}</span>
-                                        {!tmpl.is_default && (
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="size-7"
-                                                onClick={() => handleDeleteLogo(tmpl.id)}
-                                                aria-label="Remove logo"
-                                            >
-                                                <X className="size-3.5" />
-                                            </Button>
-                                        )}
-                                    </div>
+                                    <HeaderLogoPreview
+                                        src={tmpl.logo_url}
+                                        alt={`${tmpl.name} logo`}
+                                        filename={tmpl.logo_filename}
+                                        expectedAspectRatio={logoUploadConstraints.aspectRatioValue}
+                                        expectedAspectRatioLabel={logoUploadConstraints.aspectRatio}
+                                        onRemove={tmpl.is_default ? undefined : () => handleDeleteLogo(tmpl.id)}
+                                    />
                                 )}
 
                                 <div className="grid grid-cols-3 gap-2 rounded-md border bg-muted/20 p-2 text-xs">

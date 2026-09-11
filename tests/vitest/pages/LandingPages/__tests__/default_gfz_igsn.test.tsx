@@ -171,8 +171,8 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             const logo = screen.getByAltText('GFZ Data Services');
             expect(logo).toBeInTheDocument();
-            expect(logo).toHaveAttribute('src', '/images/GFZ-Header_2026.webp');
-            expect(logo).toHaveClass('h-auto', 'w-auto', 'max-w-full', 'object-contain', 'dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
+            expect(logo).toHaveAttribute('src', '/images/GFZ-Header_2026-9x1.webp');
+            expect(logo).toHaveClass('h-full', 'w-full', 'object-contain', 'dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
             expect(logo).not.toHaveClass('h-24');
         });
 
@@ -768,7 +768,7 @@ describe('DefaultGfzIgsnTemplate', () => {
             const logo = screen.getByAltText('GFZ Data Services');
 
             expect(logo).toHaveAttribute('src', 'https://cdn.example/custom.png');
-            expect(logo).toHaveClass('h-auto', 'w-auto', 'max-w-full', 'object-contain');
+            expect(logo).toHaveClass('h-full', 'w-full', 'object-contain');
             expect(logo).not.toHaveClass('h-24');
             expect(logo).not.toHaveClass('dark:grayscale');
             expect(logo).not.toHaveClass('dark:invert');
