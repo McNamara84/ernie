@@ -21,6 +21,7 @@ export class LandingPage {
   // Header section
   readonly title: Locator;
   readonly doi: Locator;
+  readonly heroCitation: Locator;
   readonly citationSection: Locator;
   readonly citationStyleSelect: Locator;
   readonly citationContent: Locator;
@@ -87,6 +88,7 @@ export class LandingPage {
     // Header elements
     this.title = page.locator('h1').first();
     this.doi = page.locator('[data-testid="doi-badge"], a[href*="doi.org"]').first();
+    this.heroCitation = page.getByTestId('hero-citation');
     this.citationSection = page.getByTestId('citation-section');
     this.citationStyleSelect = this.citationSection.getByLabel('Citation style');
     this.citationContent = this.citationSection.getByTestId('citation-content');

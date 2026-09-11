@@ -11,6 +11,7 @@ test.describe('Landing Page - Citation Standards', () => {
     await landingPage.goto('playwright-published');
     await landingPage.verifyPageLoaded();
 
+    await expect(landingPage.heroCitation).toContainText('Playwright: Published Resource. V. 1.0. GFZ Data Services.');
     await expect(landingPage.citationSection).toBeVisible();
     await expect(landingPage.citationStyleSelect).toHaveAttribute('data-citation-style', 'apa-7');
     await expect(landingPage.citationStyleSelect).toHaveText('APA 7');
@@ -49,23 +50,37 @@ test.describe('Landing Page - Citation Standards', () => {
     expect(citationIndex).toBe(licensesIndex + 1);
 
     const apaText = normalizeVisibleText(await landingPage.citationContent.innerText());
+    expect(apaText).toContain('Version 1.0');
+    expect(apaText).not.toContain('V. 1.0.');
     await landingPage.selectCitationStyle('harvard');
     await expect(landingPage.citationContent).toHaveAttribute('data-citation-style', 'harvard');
     const harvardText = normalizeVisibleText(await landingPage.citationContent.innerText());
     expect(harvardText).not.toBe(apaText);
+    expect(harvardText).not.toContain('1.0');
 
     await landingPage.copyCitation();
     await expect
       .poll(async () => normalizeVisibleText((await landingPage.copiedCitationText()) ?? ''))
       .toBe(harvardText);
+
+    await landingPage.selectCitationStyle('gfz');
+    const gfzText = normalizeVisibleText(await landingPage.citationContent.innerText());
+    expect(gfzText).toContain('Playwright: Published Resource. V. 1.0. GFZ Data Services.');
+
+    await landingPage.copyCitation();
+    await expect
+      .poll(async () => normalizeVisibleText((await landingPage.copiedCitationText()) ?? ''))
+      .toBe(gfzText);
   });
 
   test('renders the citation module after License & Rights in an IGSN preview', async ({ page }) => {
     const landingPage = new LandingPage(page);
+    await landingPage.installCitationClipboardStub();
     await landingPage.gotoPreview('playwright-igsn-preview');
     await landingPage.verifyPageLoaded();
 
     await expect(page.getByText('Preview Mode')).toBeVisible();
+    await expect(landingPage.heroCitation).toContainText('Playwright: IGSN Citation Preview. V. 1.0. GFZ Data Services.');
     await expect(landingPage.citationSection).toBeVisible();
     await expect(landingPage.citationStyleSelect).toHaveAttribute('data-citation-style', 'apa-7');
     await expect(landingPage.citationStyleSelect).toHaveText('APA 7');
@@ -87,6 +102,15 @@ test.describe('Landing Page - Citation Standards', () => {
     await page.setViewportSize({ width: 390, height: 720 });
     await expect(acquisition).toBeVisible();
     expect(await acquisition.evaluate((section) => section.scrollWidth <= section.clientWidth)).toBe(true);
+
+    await landingPage.selectCitationStyle('gfz');
+    const gfzText = normalizeVisibleText(await landingPage.citationContent.innerText());
+    expect(gfzText).toContain('Playwright: IGSN Citation Preview. V. 1.0. GFZ Data Services.');
+
+    await landingPage.copyCitation();
+    await expect
+      .poll(async () => normalizeVisibleText((await landingPage.copiedCitationText()) ?? ''))
+      .toBe(gfzText);
   });
 
   test('keeps the DOI-less note outside the copied GFZ citation', async ({ page }) => {
@@ -99,6 +123,7 @@ test.describe('Landing Page - Citation Standards', () => {
     await landingPage.selectCitationStyle('gfz');
 
     const visibleCitation = await landingPage.citationContent.innerText();
+    expect(visibleCitation).toContain('Playwright: Curation Resource (no DOI). V. 1.0. GFZ Data Services.');
     expect(visibleCitation).not.toContain('doi.org');
     expect(visibleCitation).not.toContain('DOI not available');
 
@@ -106,6 +131,7 @@ test.describe('Landing Page - Citation Standards', () => {
     await expect.poll(async () => landingPage.copiedCitationText()).not.toBeNull();
     const copied = (await landingPage.copiedCitationText()) ?? '';
 
+    expect(copied).toBe(visibleCitation);
     expect(copied).not.toContain('doi.org');
     expect(copied).not.toContain('DOI not available');
     expect(copied).not.toContain('DOI not yet available.');

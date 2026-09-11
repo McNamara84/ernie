@@ -68,6 +68,17 @@
                         "url": "https://github.com/McNamara84/ernie/pull/1298"
                     }
                 ]
+            },
+            {
+                "title": "Versioned Landing Page Citations",
+                "description": "Resource and IGSN landing pages now include an available resource version in the Hero citation and the GFZ Data Services citation option using the DataCite-recommended format and position. Citations without version metadata remain unchanged, while the five official CSL citation styles continue to control their own version output.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1299,
+                        "url": "https://github.com/McNamara84/ernie/issues/1299"
+                    }
+                ]
             }
         ],
         "fixes": [

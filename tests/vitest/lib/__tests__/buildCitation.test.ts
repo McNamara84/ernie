@@ -498,6 +498,49 @@ describe('buildCitation', () => {
         );
     });
 
+    it('renders a trimmed version in the DataCite-recommended position', () => {
+        const resource: CitationResource = {
+            creators: [{ creatorable: { type: 'Person', given_name: 'Karina', family_name: 'Loviknes' } }],
+            titles: [{ title: 'Processed Ground Motions', title_type: 'MainTitle' }],
+            year: 2026,
+            version: '  0003  ',
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/gfz.lkut.2026.003',
+        };
+
+        expect(buildCitation(resource)).toBe(
+            'Loviknes, K. (2026): Processed Ground Motions. V. 0003. GFZ Data Services. https://doi.org/10.5880/gfz.lkut.2026.003',
+        );
+    });
+
+    it.each([undefined, null, '', '   \n  '])('omits an absent version value without changing punctuation (%s)', (version) => {
+        const resource: CitationResource = {
+            creators: [{ creatorable: { type: 'Person', given_name: 'Test', family_name: 'Author' } }],
+            titles: [{ title: 'Unversioned Dataset', title_type: 'MainTitle' }],
+            year: 2026,
+            version,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.UNVERSIONED.2026',
+        };
+
+        expect(buildCitation(resource)).toBe(
+            'Author, T. (2026): Unversioned Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.UNVERSIONED.2026',
+        );
+    });
+
+    it('keeps a version when the unavailable DOI segment is omitted', () => {
+        const resource: CitationResource = {
+            creators: [{ creatorable: { type: 'Institution', name: 'GFZ' } }],
+            titles: [{ title: 'Versioned Draft', title_type: 'MainTitle' }],
+            year: 2026,
+            version: '1.0',
+            publisher: 'GFZ Data Services',
+            doi: null,
+        };
+
+        expect(buildCitation(resource, { omitDoiWhenMissing: true })).toBe('GFZ (2026): Versioned Draft. V. 1.0. GFZ Data Services.');
+    });
+
     it('provides compact and expanded citation variants around a structured et al. marker', () => {
         const resource: CitationResource = {
             creators: [
@@ -507,15 +550,16 @@ describe('buildCitation', () => {
             ],
             titles: [{ title: 'Long Author Dataset', title_type: 'MainTitle' }],
             year: 2026,
+            version: '3.2',
             doi: '10.5880/GFZ.LONG.2026',
         };
 
         expect(buildCitationPresentation(resource, { creatorLimit: 2 })).toEqual({
-            compact: 'Doe, J.; Smith, J.; et al. (2026): Long Author Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026',
-            expanded: 'Doe, J.; Smith, J.; GFZ (2026): Long Author Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026',
+            compact: 'Doe, J.; Smith, J.; et al. (2026): Long Author Dataset. V. 3.2. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026',
+            expanded: 'Doe, J.; Smith, J.; GFZ (2026): Long Author Dataset. V. 3.2. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026',
             isTruncated: true,
             compactPrefix: 'Doe, J.; Smith, J.; ',
-            compactSuffix: ' (2026): Long Author Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026',
+            compactSuffix: ' (2026): Long Author Dataset. V. 3.2. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026',
         });
     });
 
