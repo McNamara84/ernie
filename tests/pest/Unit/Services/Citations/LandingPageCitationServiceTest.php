@@ -156,6 +156,20 @@ it('renders a physical object fixture through every official style', function ()
     }
 });
 
+it('does not invent version output for official styles when version metadata is absent', function () {
+    $styles = app(LandingPageCitationService::class)->format(
+        landingPageCitationServiceTestFixture(overrides: ['version' => null]),
+    );
+
+    foreach ($styles as $style) {
+        expect($style)
+            ->available->toBeTrue()
+            ->text->not->toContain('1.0')
+            ->text->not->toContain('Version 1.0')
+            ->text->not->toContain('(1.0)');
+    }
+});
+
 it('omits DOI output without making any official style unavailable', function () {
     $styles = app(LandingPageCitationService::class)->format(
         landingPageCitationServiceTestFixture(overrides: ['doi' => null]),

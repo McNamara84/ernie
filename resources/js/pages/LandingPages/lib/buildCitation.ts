@@ -30,6 +30,7 @@ interface Resource {
     publisher?: string;
     doi?: string | null;
     publication_year?: number;
+    version?: string | null;
     year?: number; // Actual database field name
 }
 
@@ -104,6 +105,12 @@ function formatCreatorList(creators: Creator[] | undefined, creatorLimit?: numbe
     return shouldLimit ? `${visibleCreatorNames.join('; ')}; et al.` : visibleCreatorNames.join('; ');
 }
 
+function formatVersion(version: string | null | undefined): string {
+    const normalizedVersion = version?.trim();
+
+    return normalizedVersion ? ` V. ${normalizedVersion}.` : '';
+}
+
 function buildCitationSuffix(resource: Resource, options: BuildCitationOptions): string {
     // Extract year (check both field names for compatibility)
     const year = resource.year || resource.publication_year || 'n.d.';
@@ -115,7 +122,7 @@ function buildCitationSuffix(resource: Resource, options: BuildCitationOptions):
     // Extract publisher (default to GFZ Data Services)
     const publisher = resource.publisher || 'GFZ Data Services';
 
-    const citationSuffixWithoutDoi = ` (${year}): ${mainTitle}. ${publisher}.`;
+    const citationSuffixWithoutDoi = ` (${year}): ${mainTitle}.${formatVersion(resource.version)} ${publisher}.`;
 
     if (!resource.doi && options.omitDoiWhenMissing) {
         return citationSuffixWithoutDoi;

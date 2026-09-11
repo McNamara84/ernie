@@ -251,7 +251,7 @@ describe('CiteThisResourceSection', () => {
                 .every((option) => option.getAttribute('aria-disabled') === 'true'),
         ).toBe(true);
         expect(screen.getByTestId('citation-content')).toHaveTextContent(
-            'Lovelace, A.; et al. (2026): A Test Dataset. GFZ Data Services. https://doi.org/10.5880/example.2026',
+            'Lovelace, A.; et al. (2026): A Test Dataset. V. 1.0. GFZ Data Services. https://doi.org/10.5880/example.2026',
         );
     });
 
@@ -262,8 +262,31 @@ describe('CiteThisResourceSection', () => {
 
         await chooseCitationStyle('GFZ Data Services (legacy)');
 
-        expect(screen.getByTestId('citation-content')).toHaveTextContent('Lovelace, A.; et al.');
-        expect(screen.getByTestId('citation-content')).not.toHaveTextContent('Hopper, G.');
+        const content = screen.getByTestId('citation-content');
+        expect(content).toHaveTextContent('Lovelace, A.; et al.');
+        expect(content).toHaveTextContent('A Test Dataset. V. 1.0. GFZ Data Services.');
+        expect(content).not.toHaveTextContent('Hopper, G.');
+    });
+
+    it('copies the complete versioned GFZ citation', async () => {
+        writeText.mockResolvedValueOnce(undefined);
+        render(<CiteThisResourceSection resource={resource} citationStyles={citationStyles} />);
+
+        await chooseCitationStyle('GFZ Data Services (legacy)');
+        fireEvent.click(screen.getByRole('button', { name: 'Copy citation to clipboard' }));
+
+        const expectedCitation = 'Lovelace, A.; Hopper, G. (2026): A Test Dataset. V. 1.0. GFZ Data Services. https://doi.org/10.5880/example.2026';
+        await waitFor(() => expect(writeText).toHaveBeenCalledWith(expectedCitation));
+        expect(screen.getByTestId('citation-content')).toHaveTextContent(expectedCitation);
+    });
+
+    it('does not append the resource version to an official server-rendered style', () => {
+        render(<CiteThisResourceSection resource={resource} citationStyles={citationStyles} />);
+
+        const content = screen.getByTestId('citation-content');
+        expect(content).toHaveTextContent('Lovelace, A., & Hopper, G. (2026). A Test Dataset.');
+        expect(content).not.toHaveTextContent('V. 1.0.');
+        expect(content).not.toHaveTextContent('Version 1.0');
     });
 
     it('copies the selected plain text instead of its HTML representation', async () => {
@@ -286,7 +309,7 @@ describe('CiteThisResourceSection', () => {
         render(<CiteThisResourceSection resource={{ ...resource, doi: null }} citationStyles={[]} />);
 
         const content = screen.getByTestId('citation-content');
-        expect(content).toHaveTextContent('Lovelace, A.; Hopper, G. (2026): A Test Dataset. GFZ Data Services.');
+        expect(content).toHaveTextContent('Lovelace, A.; Hopper, G. (2026): A Test Dataset. V. 1.0. GFZ Data Services.');
         expect(content).not.toHaveTextContent('DOI');
         expect(content).not.toHaveTextContent('doi.org');
         expect(screen.getByTestId('citation-doi-note')).toHaveTextContent('DOI not yet available.');
@@ -294,8 +317,18 @@ describe('CiteThisResourceSection', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Copy citation to clipboard' }));
 
         await waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+        expect(writeText).toHaveBeenCalledWith('Lovelace, A.; Hopper, G. (2026): A Test Dataset. V. 1.0. GFZ Data Services.');
         expect(writeText.mock.calls[0][0]).not.toContain('DOI');
         expect(writeText.mock.calls[0][0]).not.toContain('not yet available');
+    });
+
+    it('keeps an unversioned GFZ citation free of placeholders and extra punctuation', () => {
+        render(<CiteThisResourceSection resource={{ ...resource, version: null }} citationStyles={[]} />);
+
+        expect(screen.getByTestId('citation-content')).toHaveTextContent(
+            'Lovelace, A.; Hopper, G. (2026): A Test Dataset. GFZ Data Services. https://doi.org/10.5880/example.2026',
+        );
+        expect(screen.getByTestId('citation-content')).not.toHaveTextContent('V.');
     });
 
     it('clears success feedback after two seconds and cancels the timer on unmount', async () => {
@@ -356,7 +389,7 @@ describe('CiteThisResourceSection', () => {
         expect(copyButton).toHaveClass('min-h-11', 'min-w-11');
     });
 
-    it('shows an IGSN handle in citation text while retaining the DOI resolver href', () => {
+    it('shows an IGSN handle in official and versioned GFZ citation text while retaining the DOI resolver href', async () => {
         const igsnResource = { ...resource, doi: '10.60510/gflmu0020' };
         const igsnStyles: LandingPageCitationStyle[] = [
             {
@@ -372,6 +405,11 @@ describe('CiteThisResourceSection', () => {
 
         const link = screen.getByRole('link', { name: 'GFLMU0020' });
         expect(link).toHaveAttribute('href', 'https://doi.org/10.60510/gflmu0020');
+        expect(screen.getByTestId('citation-content')).not.toHaveTextContent('10.60510');
+
+        await chooseCitationStyle('GFZ Data Services (legacy)');
+
+        expect(screen.getByTestId('citation-content')).toHaveTextContent('A Test Dataset. V. 1.0. GFZ Data Services. GFLMU0020');
         expect(screen.getByTestId('citation-content')).not.toHaveTextContent('10.60510');
     });
 });
