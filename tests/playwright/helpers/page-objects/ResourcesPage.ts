@@ -19,7 +19,7 @@ export class ResourcesPage {
     this.heading = page.getByRole('heading', { name: 'Resources' });
     // Use data-testid for stable selectors, fallback to role for compatibility
     this.resourceTable = page.getByTestId('resources-table');
-    this.searchInput = page.getByRole('searchbox', { name: 'Search resources by title or DOI' });
+    this.searchInput = page.getByRole('searchbox', { name: 'Search resources by DOI, title, author, contributor, or email' });
     this.createButton = page.getByRole('button', { name: 'Create Resource' });
     this.noResourcesMessage = page.getByText('No resources found');
   }

@@ -11,7 +11,7 @@ use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Institution;
 use App\Models\Person;
-use App\Models\ResourceCreator;
+use App\Models\Resource;
 use App\Models\ResourceDate;
 use App\Models\ResourceListingProjection;
 use App\Models\ResourceRight;
@@ -193,14 +193,20 @@ final class RefreshResourceListingProjectionsForDependencyJob implements ShouldQ
                 ->orderBy('resource_id')
                 ->limit(self::BATCH_SIZE)
                 ->pluck('resource_id'),
-            Person::class, Institution::class => ResourceCreator::query()
-                ->where('creatorable_type', $this->dependencyType)
-                ->where('creatorable_id', $this->dependencyId)
-                ->where('resource_id', '>', $this->afterResourceId)
-                ->orderBy('resource_id')
-                ->distinct()
+            Person::class, Institution::class => Resource::query()
+                ->where('resources.id', '>', $this->afterResourceId)
+                ->where(function ($query): void {
+                    $query
+                        ->whereHas('creators', fn ($creatorQuery) => $creatorQuery
+                            ->where('creatorable_type', $this->dependencyType)
+                            ->where('creatorable_id', $this->dependencyId))
+                        ->orWhereHas('contributors', fn ($contributorQuery) => $contributorQuery
+                            ->where('contributorable_type', $this->dependencyType)
+                            ->where('contributorable_id', $this->dependencyId));
+                })
+                ->orderBy('resources.id')
                 ->limit(self::BATCH_SIZE)
-                ->pluck('resource_id'),
+                ->pluck('resources.id'),
             TitleType::class => Title::query()
                 ->where('title_type_id', $this->dependencyId)
                 ->where('resource_id', '>', $this->afterResourceId)

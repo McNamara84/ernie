@@ -960,6 +960,22 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('documents resource party search and its result labels for beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Searching by Title, DOI, or People', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/case-insensitive partial matches in DOIs, titles, authors, contributors, institutions/i)).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return element?.tagName === 'P' && text.includes('CP & Author & Contributor') && text.includes('same identity has several roles');
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('documents the DOI and SPDX semantics of the resource filter for beginners', async () => {
         const { user } = renderDocsPage('beginner');
 

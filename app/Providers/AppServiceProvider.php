@@ -35,6 +35,7 @@ use App\Models\Person;
 use App\Models\RelatedIdentifier;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
+use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\ResourceRight;
@@ -129,6 +130,7 @@ class AppServiceProvider extends ServiceProvider
         Description::observe(PortalResourceDependencyObserver::class);
         ResourceCreator::observe(ResourceListingProjectionObserver::class);
         ResourceCreator::observe(PortalResourceDependencyObserver::class);
+        ResourceContributor::observe(ResourceListingProjectionObserver::class);
         ResourceDate::observe(ResourceListingProjectionObserver::class);
         ResourceDate::observe(PortalResourceDependencyObserver::class);
         ResourceRight::observe(ResourceListingProjectionObserver::class);

@@ -373,8 +373,7 @@ final class AssessResourceRunItemJob implements ShouldQueue
         float $started,
         ?FujiAssessmentException $exception = null,
         ?int $httpStatus = null,
-    ): void
-    {
+    ): void {
         Log::info('Resource assessment item finished', [
             'run_id' => $run->id,
             'item_id' => $item->id,
@@ -383,10 +382,10 @@ final class AssessResourceRunItemJob implements ShouldQueue
             'identifier' => $item->identifier,
             'attempt' => $item->attempts,
             'status' => $status,
-            'http_status' => $exception?->httpStatus ?? $httpStatus,
+            'http_status' => $exception->httpStatus ?? $httpStatus,
             'failure_type' => $exception?->failureType->value,
             'error_code' => $exception?->errorCode,
-            'duration_ms' => $exception?->durationMs ?? $this->durationMs($started),
+            'duration_ms' => $exception->durationMs ?? $this->durationMs($started),
         ]);
     }
 

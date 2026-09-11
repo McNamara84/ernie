@@ -2725,6 +2725,21 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                         </ul>
 
+                        <h4>Searching by Title, DOI, or People</h4>
+                        <p>
+                            The Resources search finds case-insensitive partial matches in DOIs, titles, authors, contributors, institutions, and
+                            their stored email addresses. Person names can be entered in either given-name/family-name order and without spaces or
+                            punctuation. For example, <code>Hans Peter</code>, <code>Peter Hans</code>, and <code>HansPeter</code> can find the same
+                            person; the search does not correct spelling mistakes.
+                        </p>
+                        <p>
+                            A matching row shows the relevant name or email above its DOI. <strong>Author</strong> identifies a creator,{' '}
+                            <strong>Contributor</strong> identifies a non-contact contributor role, and <strong>CP</strong> identifies a contact
+                            person. Combined labels such as <strong>CP &amp; Author &amp; Contributor</strong> mean the same identity has several
+                            roles on that resource. Search continues to combine with all active filters, cursor-based loading, and the separately
+                            calculated exact result count.
+                        </p>
+
                         <h4>Filtering by Datacenter</h4>
                         <p>
                             Use the <strong>Datacenter</strong> dropdown to show resources assigned to one datacenter. The dropdown lists only

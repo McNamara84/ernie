@@ -25,6 +25,7 @@ final readonly class ResourceQueryBuilder
         private ListingCountService $countService,
         private ResourceListingProjectionRefreshService $projectionRefreshScheduler,
         private ResourceListingCursorCodecService $cursorCodec,
+        private ResourcePartySearchNormalizerService $partySearchNormalizer,
     ) {}
 
     /**
@@ -197,7 +198,20 @@ final readonly class ResourceQueryBuilder
         }
 
         if (! empty($filters['search'])) {
-            $query->where('listing.search_text', 'like', '%'.mb_strtolower((string) $filters['search']).'%');
+            $search = (string) $filters['search'];
+            $queryTerms = $this->partySearchNormalizer->queryTerms($search);
+            $literalPattern = $this->partySearchNormalizer->likePattern(mb_strtolower(trim($search)));
+
+            $query->where(function (Builder $searchQuery) use ($literalPattern, $queryTerms): void {
+                $searchQuery->whereRaw("listing.search_text LIKE ? ESCAPE '!'", [$literalPattern]);
+
+                foreach ($queryTerms as $term) {
+                    $searchQuery->orWhereRaw(
+                        "listing.party_search_text LIKE ? ESCAPE '!'",
+                        [$this->partySearchNormalizer->likePattern($term)],
+                    );
+                }
+            });
         }
 
         if (! empty($filters['created_from'])) {

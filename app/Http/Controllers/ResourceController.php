@@ -12,13 +12,13 @@ use App\Http\Requests\Resource\DestroyResourcesRequest;
 use App\Http\Requests\Resource\IndexResourcesRequest;
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
-use App\Http\Resources\ResourceListItemResource;
 use App\Models\DataCiteUrlUpdateRun;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteUrlUpdateRunPresenter;
 use App\Services\Editor\EditorResourceSaveService;
 use App\Services\Resources\DeleteAllResourcesService;
+use App\Services\Resources\ResourceListingPayloadService;
 use App\Services\Resources\ResourceQueryBuilder;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
@@ -39,6 +39,7 @@ class ResourceController extends Controller
         private readonly EditorResourceSaveService $editorResourceSaveService,
         private readonly DeleteAllResourcesService $deleteAllResourcesService,
         private readonly DataCiteUrlUpdateRunPresenter $dataCiteUrlUpdateRunPresenter,
+        private readonly ResourceListingPayloadService $listingPayloadService,
     ) {}
 
     /**
@@ -52,8 +53,11 @@ class ResourceController extends Controller
         /** @var array<int, Resource> $items */
         $items = $resources->items();
         $itemCount = count($items);
-        $resourcesData = ResourceListItemResource::collection(collect($items))
-            ->resolve($request);
+        $resourcesData = $this->listingPayloadService->resolve(
+            $items,
+            $request,
+            isset($criteria['filters']['search']) ? (string) $criteria['filters']['search'] : null,
+        );
 
         $canUpdateDataCiteLandingPageUrls = $request->user()?->can('update-datacite-landing-page-urls') ?? false;
         $urlUpdateRun = $canUpdateDataCiteLandingPageUrls

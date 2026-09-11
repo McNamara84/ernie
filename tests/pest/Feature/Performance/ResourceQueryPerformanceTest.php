@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Resources\ResourceListItemResource;
+use App\Models\ContributorType;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\Title;
@@ -213,6 +214,46 @@ it('does not eager-load contributors on list endpoints (Issue: PR #679 review)',
     expect($loaded)->not->toBeNull();
     expect($loaded->relationLoaded('contributors'))
         ->toBeFalse('contributors must not be eager-loaded by the list query builder');
+});
+
+it('loads party-search match details with a constant number of contributor queries', function () {
+    $contributorType = ContributorType::query()->create([
+        'name' => 'Researcher',
+        'slug' => 'Researcher',
+    ]);
+
+    Resource::factory()->count(30)->create()->each(function (Resource $resource) use ($contributorType): void {
+        $person = Person::factory()->create([
+            'given_name' => 'Bounded',
+            'family_name' => 'Partysearch',
+        ]);
+        $contributor = $resource->contributors()->create([
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
+            'position' => 0,
+        ]);
+        $contributor->contributorTypes()->sync([$contributorType->id]);
+    });
+
+    $user = User::factory()->create();
+    $partyQueryCount = function (int $perPage) use ($user): int {
+        $queries = [];
+        DB::listen(function (QueryExecuted $query) use (&$queries): void {
+            $sql = mb_strtolower($query->sql);
+            if (str_contains($sql, 'resource_contributors') || str_contains($sql, ' from "persons"')) {
+                $queries[] = $sql;
+            }
+        });
+
+        $this->actingAs($user)
+            ->get("/resources?search=BoundedPartysearch&per_page={$perPage}")
+            ->assertOk();
+
+        return count($queries);
+    };
+
+    expect($partyQueryCount(1))->toBeLessThanOrEqual(3)
+        ->and($partyQueryCount(30))->toBeLessThanOrEqual(3);
 });
 
 it('does not count resources while loading an infinite-scroll page', function () {

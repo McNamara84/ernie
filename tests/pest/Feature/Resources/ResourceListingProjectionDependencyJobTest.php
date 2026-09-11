@@ -241,8 +241,8 @@ it('chunks resources affected by a deleted catalog right into bounded jobs', fun
         ->toBe($resourceIds->all());
 });
 
-it('refreshes at most 500 dependent resources per job and chains the remaining cursor', function (): void {
-    $person = Person::factory()->create(['family_name' => 'Chunked Creator']);
+it('refreshes at most 500 mixed creator and contributor dependencies without duplicate ids', function (): void {
+    $person = Person::factory()->create(['family_name' => 'Chunked Party']);
     $now = now();
 
     collect(range(1, RefreshResourceListingProjectionsForDependencyJob::BATCH_SIZE + 1))
@@ -253,13 +253,23 @@ it('refreshes at most 500 dependent resources per job and chains the remaining c
         ])->all()));
 
     $resourceIds = Resource::query()->orderBy('id')->pluck('id');
-    $resourceIds->chunk(100)->each(fn ($chunk) => DB::table('resource_creators')->insert(
+    $resourceIds->take(251)->chunk(100)->each(fn ($chunk) => DB::table('resource_creators')->insert(
         $chunk->map(fn (int $resourceId): array => [
             'resource_id' => $resourceId,
             'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 0,
             'is_contact' => false,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all(),
+    ));
+    $resourceIds->slice(250)->chunk(100)->each(fn ($chunk) => DB::table('resource_contributors')->insert(
+        $chunk->map(fn (int $resourceId): array => [
+            'resource_id' => $resourceId,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
+            'position' => 0,
             'created_at' => $now,
             'updated_at' => $now,
         ])->all(),

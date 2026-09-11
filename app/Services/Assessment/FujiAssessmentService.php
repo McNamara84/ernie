@@ -6,7 +6,6 @@ namespace App\Services\Assessment;
 
 use App\Enums\AssessmentFailureType;
 use App\Exceptions\FujiAssessmentException;
-use GuzzleHttp\Exception\RequestException as GuzzleRequestException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -319,8 +318,7 @@ class FujiAssessmentService
         string $identifier,
         string $errorCode,
         int $durationMs,
-    ): void
-    {
+    ): void {
         $fingerprint = sprintf('transport:%s:%s', $exception::class, $exception->getMessage());
 
         if (! $this->shouldLogAssessmentFailure($fingerprint)) {
@@ -344,14 +342,6 @@ class FujiAssessmentService
         $current = $exception;
 
         do {
-            if ($current instanceof GuzzleRequestException) {
-                $errno = $current->getHandlerContext()['errno'] ?? null;
-
-                if (is_numeric($errno) && (int) $errno > 0) {
-                    return (int) $errno;
-                }
-            }
-
             if (preg_match('/cURL error (\d+)/i', $current->getMessage(), $matches) === 1) {
                 return (int) $matches[1];
             }

@@ -26,6 +26,7 @@ final class ResourceListingProjectorService
 
     public function __construct(
         private readonly DashboardMetricsCacheInvalidationService $metricsCacheInvalidationService,
+        private readonly ResourcePartySearchNormalizerService $partySearchNormalizer,
     ) {}
 
     public function refresh(int $resourceId): void
@@ -44,7 +45,7 @@ final class ResourceListingProjectorService
 
         ResourceListingProjection::query()->updateOrCreate(
             ['resource_id' => $resourceId],
-            $this->values($resource),
+            $this->valuesForCurrentSchema($resource),
         );
         $this->metricsCacheInvalidationService->scheduleAfterCommit();
     }
@@ -118,6 +119,10 @@ final class ResourceListingProjectorService
                 ->select(['id', 'resource_id', 'date_type_id', 'date_value', 'start_date'])
                 ->with('dateType:id,slug'),
             'creators' => fn ($query) => $query->with('creatorable')->orderBy('position')->orderBy('id'),
+            'contributors' => fn ($query) => $query
+                ->with('contributorable')
+                ->orderBy('position')
+                ->orderBy('id'),
         ]);
     }
 
@@ -130,11 +135,12 @@ final class ResourceListingProjectorService
 
         /** @var Resource $firstResource */
         $firstResource = $resources->first();
+        $hasPartySearchColumn = Schema::hasColumn('resource_listing_projections', 'party_search_text');
 
         $now = now();
         $rows = $resources->map(fn (Resource $resource): array => [
             'resource_id' => $resource->id,
-            ...$this->values($resource),
+            ...$this->valuesForSchema($resource, $hasPartySearchColumn),
             'created_at' => $now,
             'updated_at' => $now,
         ])->all();
@@ -142,7 +148,7 @@ final class ResourceListingProjectorService
         ResourceListingProjection::query()->upsert(
             $rows,
             ['resource_id'],
-            array_keys($this->values($firstResource)),
+            array_keys($this->valuesForSchema($firstResource, $hasPartySearchColumn)),
         );
         $this->metricsCacheInvalidationService->scheduleAfterCommit();
     }
@@ -206,7 +212,57 @@ final class ResourceListingProjectorService
                 $resource->doi,
                 ...$resource->titles->pluck('value')->all(),
             ]))),
+            'party_search_text' => implode("\n", $this->partySearchTerms($resource)),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private function valuesForCurrentSchema(Resource $resource): array
+    {
+        return $this->valuesForSchema(
+            $resource,
+            Schema::hasColumn('resource_listing_projections', 'party_search_text'),
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function valuesForSchema(Resource $resource, bool $hasPartySearchColumn): array
+    {
+        $values = $this->values($resource);
+        if (! $hasPartySearchColumn) {
+            unset($values['party_search_text']);
+        }
+
+        return $values;
+    }
+
+    /** @return list<string> */
+    private function partySearchTerms(Resource $resource): array
+    {
+        $terms = [];
+
+        foreach ($resource->creators as $creator) {
+            $party = $this->searchableParty($creator->creatorable);
+            if ($party !== null) {
+                array_push($terms, ...$this->partySearchNormalizer->entityTerms($party));
+            }
+            array_push($terms, ...$this->partySearchNormalizer->emailTerms($creator->email));
+        }
+
+        foreach ($resource->contributors as $contributor) {
+            $party = $this->searchableParty($contributor->contributorable);
+            if ($party !== null) {
+                array_push($terms, ...$this->partySearchNormalizer->entityTerms($party));
+            }
+            array_push($terms, ...$this->partySearchNormalizer->emailTerms($contributor->email));
+        }
+
+        return array_values(array_unique($terms));
+    }
+
+    private function searchableParty(mixed $party): Person|Institution|null
+    {
+        return $party instanceof Person || $party instanceof Institution ? $party : null;
     }
 
     private function tableExists(): bool

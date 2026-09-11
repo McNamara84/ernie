@@ -61,17 +61,11 @@ describe('ResourcesPage - Filter Visibility', () => {
     };
 
     it('shows filters even when no resources are found', () => {
-        render(
-            <ResourcesPage
-                resources={[]}
-                pagination={mockPagination}
-                sort={mockSort}
-            />
-        );
+        render(<ResourcesPage resources={[]} pagination={mockPagination} sort={mockSort} />);
 
         // Search input should be visible
-        expect(screen.getByPlaceholderText(/search title or doi/i)).toBeInTheDocument();
-        
+        expect(screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i)).toBeInTheDocument();
+
         // No results message should be shown
         expect(screen.getByText(/no resources found matching your filters/i)).toBeInTheDocument();
     });
@@ -94,47 +88,29 @@ describe('ResourcesPage - Filter Visibility', () => {
             to: 1,
         };
 
-        render(
-            <ResourcesPage
-                resources={mockResources}
-                pagination={mockPaginationWithData}
-                sort={mockSort}
-            />
-        );
+        render(<ResourcesPage resources={mockResources} pagination={mockPaginationWithData} sort={mockSort} />);
 
         // Search input should be visible
-        expect(screen.getByPlaceholderText(/search title or doi/i)).toBeInTheDocument();
-        
+        expect(screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i)).toBeInTheDocument();
+
         // Resource should be shown
         expect(screen.getByText('Test Resource')).toBeInTheDocument();
     });
 
     it('shows helpful message when filters return no results', () => {
-        render(
-            <ResourcesPage
-                resources={[]}
-                pagination={mockPagination}
-                sort={mockSort}
-            />
-        );
+        render(<ResourcesPage resources={[]} pagination={mockPagination} sort={mockSort} />);
 
         // Message should guide users to adjust filters
         expect(screen.getByText(/no resources found matching your filters/i)).toBeInTheDocument();
-        
+
         // Filters should still be accessible to modify
-        expect(screen.getByPlaceholderText(/search title or doi/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i)).toBeInTheDocument();
     });
 
     it('shows filters during loading state', () => {
-        render(
-            <ResourcesPage
-                resources={[]}
-                pagination={mockPagination}
-                sort={mockSort}
-            />
-        );
+        render(<ResourcesPage resources={[]} pagination={mockPagination} sort={mockSort} />);
 
         // Filters should be present (even if disabled during loading)
-        expect(screen.getByPlaceholderText(/search title or doi/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i)).toBeInTheDocument();
     });
 });
