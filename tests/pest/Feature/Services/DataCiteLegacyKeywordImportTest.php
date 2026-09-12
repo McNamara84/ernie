@@ -203,6 +203,71 @@ it('imports Issue 1318 creator spelling per resource and all Issue 1319 legacy M
         ))->toBe([]);
 });
 
+it('persists identical MSL paths from distinct WP16 source categories', function (): void {
+    $doi = '10.5880/distinct-wp16-import-categories';
+    $legacyResourceId = DB::connection('metaworks')->table('resource')->insertGetId([
+        'identifier' => $doi,
+        'keywords' => null,
+    ]);
+    $legacySubjects = [
+        [
+            'scheme' => 'EPOS WP16 Analogue Material',
+            'uri' => 'http://epos/WP16Vocabulary/AnalogueMaterial/Granite',
+        ],
+        [
+            'scheme' => 'EPOS WP16 Rock Physics Material',
+            'uri' => 'http://epos/WP16Vocabulary/RockPhysicsMaterial/Granite',
+        ],
+    ];
+    foreach ($legacySubjects as $legacySubject) {
+        DB::connection('metaworks')->table('thesauruskeyword')->insert([
+            'resource_id' => $legacyResourceId,
+            'keyword' => 'Granite',
+            'thesaurus' => $legacySubject['scheme'],
+        ]);
+        DB::connection('metaworks')->table('thesaurusvalue')->insert([
+            'keyword' => 'Granite',
+            'thesaurus' => $legacySubject['scheme'],
+            'uri' => $legacySubject['uri'],
+            'description' => null,
+        ]);
+    }
+    $record = [
+        'id' => $doi,
+        'attributes' => [
+            'doi' => $doi,
+            'publicationYear' => 2026,
+            'titles' => [['title' => 'Distinct WP16 category identities']],
+            'creators' => [[
+                'name' => 'Importer, Test',
+                'givenName' => 'Test',
+                'familyName' => 'Importer',
+                'nameType' => 'Personal',
+            ]],
+            'subjects' => [],
+        ],
+    ];
+
+    $legacyMetadata = (new LegacyResourceLookupService(new LegacyKeywordService))
+        ->importMetadataByDoi($doi);
+    $mergedRecord = (new DataCiteSubjectMergeService)->mergeIntoDoiRecord(
+        $record,
+        $legacyMetadata['subjects'],
+    );
+    $resource = (new DataCiteToResourceTransformer)->transform(
+        $mergedRecord,
+        User::factory()->create()->id,
+    );
+    $subjects = $resource->subjects()->orderBy('subject_scheme')->get();
+    $exportedSubjects = (new DataCiteJsonExporter)->export($resource->fresh())['data']['attributes']['subjects'];
+
+    expect($subjects)->toHaveCount(2)
+        ->and($subjects->pluck('subject_scheme')->all())->toBe(array_column($legacySubjects, 'scheme'))
+        ->and($subjects->pluck('value_uri')->all())->toBe(array_column($legacySubjects, 'uri'))
+        ->and(array_column($exportedSubjects, 'subjectScheme'))->toBe(array_column($legacySubjects, 'scheme'))
+        ->and(array_column($exportedSubjects, 'valueUri'))->toBe(array_column($legacySubjects, 'uri'));
+});
+
 it('persists the Issue 1091 keyword pattern and exposes it in the editor shape', function (): void {
     $doi = '10.5880/GFZ.LKUT.2026.004';
     $thesaurus = 'NASA/GCMD Earth Science Keywords';

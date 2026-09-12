@@ -172,7 +172,7 @@ final class ResourceListingProjectorService
         $firstCreatorSort = match (true) {
             $firstCreatorName !== null => $firstCreatorName['family_name']
                 ?? $firstCreatorName['given_name']
-                ?? '',
+                ?? $firstCreatorName['name'],
             $firstCreator instanceof Institution => $firstCreator->name,
             default => '',
         };

@@ -454,26 +454,21 @@ final class LegacyCreatorAndMslMetadataBackfillService
             $path = PortalSubjectNormalizer::normalizeControlledSubjectValue(
                 $this->filled($keyword['path'] ?? null),
             );
-            if (! LegacyMslScheme::isSupported($scheme) || $path === null) {
+            $identity = $this->legacyMslSubjectIdentity($scheme, $path);
+            if ($identity === null) {
                 continue;
             }
 
-            $identity = mb_strtolower(LegacyMslScheme::CANONICAL_SCHEME.'|'.$path);
             if (isset($seen[$identity])) {
                 continue;
             }
             $seen[$identity] = true;
 
-            $matches = $resource->subjects->filter(function (Subject $subject) use ($path): bool {
-                if (PortalSubjectNormalizer::normalizeScheme($subject->subject_scheme) !== LegacyMslScheme::CANONICAL_SCHEME) {
-                    return false;
-                }
-
+            $matches = $resource->subjects->filter(function (Subject $subject) use ($identity): bool {
                 $currentPath = SubjectBreadcrumbPath::preferredPath($subject->breadcrumb_path, $subject->value)
                     ?? $subject->value;
 
-                return mb_strtolower((string) PortalSubjectNormalizer::normalizeControlledSubjectValue($currentPath))
-                    === mb_strtolower($path);
+                return $this->legacyMslSubjectIdentity($subject->subject_scheme, $currentPath) === $identity;
             })->values();
 
             if ($matches->count() > 1) {
@@ -543,6 +538,20 @@ final class LegacyCreatorAndMslMetadataBackfillService
             'subject_conflicts' => $conflicts,
             'warnings' => $warnings,
         ];
+    }
+
+    private function legacyMslSubjectIdentity(?string $scheme, ?string $path): ?string
+    {
+        if (! LegacyMslScheme::isSupported($scheme)) {
+            return null;
+        }
+
+        $normalizedPath = PortalSubjectNormalizer::normalizeControlledSubjectValue($path);
+        if ($normalizedPath === null) {
+            return null;
+        }
+
+        return mb_strtolower(trim((string) $scheme).'|'.$normalizedPath);
     }
 
     /**

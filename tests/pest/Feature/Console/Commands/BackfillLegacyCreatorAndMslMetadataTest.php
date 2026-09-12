@@ -263,6 +263,65 @@ it('is dry-run-first, additive, resource-specific, and idempotent', function ():
         ->assertSuccessful();
 });
 
+it('keeps identical MSL paths from distinct WP16 categories during backfill', function (): void {
+    ['resource' => $resource, 'legacy_id' => $legacyId] = createLegacyCreatorBackfillFixture(
+        '10.5880/distinct-wp16-categories',
+    );
+    $legacySubjects = [
+        [
+            'scheme' => 'EPOS WP16 Analogue Material',
+            'uri' => 'http://epos/WP16Vocabulary/AnalogueMaterial/Granite',
+        ],
+        [
+            'scheme' => 'EPOS WP16 Rock Physics Material',
+            'uri' => 'http://epos/WP16Vocabulary/RockPhysicsMaterial/Granite',
+        ],
+    ];
+    foreach ($legacySubjects as $legacySubject) {
+        DB::connection('metaworks')->table('thesauruskeyword')->insert([
+            'resource_id' => $legacyId,
+            'keyword' => 'Granite',
+            'thesaurus' => $legacySubject['scheme'],
+        ]);
+        DB::connection('metaworks')->table('thesaurusvalue')->insert([
+            'keyword' => 'Granite',
+            'thesaurus' => $legacySubject['scheme'],
+            'uri' => $legacySubject['uri'],
+            'description' => null,
+        ]);
+    }
+    Subject::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Granite',
+        'subject_scheme' => 'EPOS WP16 Analogue Material',
+        'value_uri' => null,
+        'breadcrumb_path' => null,
+    ]);
+
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        apply: true,
+        dois: [$resource->doi],
+    );
+    $subjects = $resource->subjects()->orderBy('subject_scheme')->get();
+
+    expect($result)->toMatchArray([
+        'subjects_created' => 1,
+        'subjects_enriched' => 1,
+        'subject_conflicts' => 0,
+    ])->and($subjects)->toHaveCount(2)
+        ->and($subjects->pluck('subject_scheme')->all())->toBe(array_column($legacySubjects, 'scheme'))
+        ->and($subjects->pluck('value_uri')->all())->toBe(array_column($legacySubjects, 'uri'));
+
+    expect(app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        apply: true,
+        dois: [$resource->doi],
+    ))->toMatchArray([
+        'changed' => 0,
+        'subjects_created' => 0,
+        'subjects_enriched' => 0,
+    ]);
+});
+
 it('preserves an existing different snapshot and conflicting subject URI for manual review', function (): void {
     $doi = '10.5880/conflict';
     $legacyId = DB::connection('metaworks')->table('resource')->insertGetId(['identifier' => $doi]);
@@ -312,7 +371,7 @@ it('preserves an existing different snapshot and conflicting subject URI for man
     $subject = Subject::factory()->create([
         'resource_id' => $resource->id,
         'value' => 'lava flow',
-        'subject_scheme' => 'EPOS MSL vocabulary',
+        'subject_scheme' => 'EPOS WP16 Analogue Geologic Structure',
         'value_uri' => 'https://curated.example/value',
     ]);
 

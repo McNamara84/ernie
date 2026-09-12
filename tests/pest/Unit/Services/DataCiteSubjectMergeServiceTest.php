@@ -73,7 +73,7 @@ it('deduplicates controlled paths across scheme aliases, encoded separators, and
     expect($this->service->merge([$dataCiteSubject], [$legacySubject]))->toBe([$dataCiteSubject]);
 });
 
-it('deduplicates a legacy WP16 path against the canonical MSL presentation scheme', function (): void {
+it('keeps a legacy WP16 source category separate from the canonical MSL presentation scheme', function (): void {
     $dataCiteSubject = [
         'subject' => 'tectonic setting > intraplate tectonic setting',
         'subjectScheme' => 'EPOS MSL vocabulary',
@@ -84,7 +84,28 @@ it('deduplicates a legacy WP16 path against the canonical MSL presentation schem
         'subjectScheme' => 'EPOS WP16 Analogue Main Setting',
     ];
 
-    expect($this->service->merge([$dataCiteSubject], [$legacySubject]))->toBe([$dataCiteSubject]);
+    expect($this->service->merge([$dataCiteSubject], [$legacySubject]))->toBe([
+        $dataCiteSubject,
+        $legacySubject,
+    ]);
+});
+
+it('keeps identical WP16 paths from distinct source categories', function (): void {
+    $analogueMaterial = [
+        'subject' => 'Granite',
+        'subjectScheme' => 'EPOS WP16 Analogue Material',
+        'valueUri' => 'http://epos/WP16Vocabulary/AnalogueMaterial/Granite',
+    ];
+    $rockPhysicsMaterial = [
+        'subject' => 'Granite',
+        'subjectScheme' => 'EPOS WP16 Rock Physics Material',
+        'valueUri' => 'http://epos/WP16Vocabulary/RockPhysicsMaterial/Granite',
+    ];
+
+    expect($this->service->merge([], [$analogueMaterial, $rockPhysicsMaterial]))->toBe([
+        $analogueMaterial,
+        $rockPhysicsMaterial,
+    ]);
 });
 
 it('enriches an equivalent Issue 1115 GEMET subject with missing legacy metadata', function (): void {
