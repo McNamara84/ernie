@@ -2493,8 +2493,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={5} title="Upload Custom Logo (Optional)">
                                 <p>
-                                    Click the image icon on a template card to upload a custom header logo (PNG, JPG, SVG, or WebP, max 2 MB). The
-                                    logo replaces the default GFZ logo on landing pages using this template.
+                                    Click the image icon on a template card to upload a custom header logo. New and replacement logos must use an
+                                    exact 9:1 aspect ratio and measure between 1080 × 120 and 2700 × 300 px; the recommended size is 1800 × 200 px.
+                                    Accepted formats are PNG, JPG/JPEG, and WebP, with a maximum file size of 2 MB. The logo replaces the default GFZ
+                                    logo on landing pages using this template.
+                                </p>
+                                <p>
+                                    Existing custom logos with older proportions remain supported until they are replaced. ERNIE marks them as legacy
+                                    in template management and displays them proportionally without cropping or distortion. Any replacement must meet
+                                    the new 9:1 requirements.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={6} title="Use in Landing Pages">

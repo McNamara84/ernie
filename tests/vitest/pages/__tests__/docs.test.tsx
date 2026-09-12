@@ -1110,6 +1110,13 @@ describe('Docs page', () => {
         expect(sectionContent).toMatch(/On ICDP IGSN landing pages, a dedicated Drilling card/i);
         expect(sectionContent).toMatch(/Show Drilling card.*enabled by default.*built-in Templates IGSN copy template/i);
         expect(sectionContent).toMatch(/built-in IGSN copy template additionally allows the Show Drilling card setting/i);
+        expect(sectionContent).toMatch(/New and replacement logos must use an exact 9:1 aspect ratio/i);
+        expect(sectionContent).toMatch(/between 1080 × 120 and 2700 × 300 px.*recommended size is 1800 × 200 px/i);
+        expect(sectionContent).toMatch(/Accepted formats are PNG, JPG\/JPEG, and WebP.*maximum file size of 2 MB/i);
+        expect(sectionContent).toMatch(/Existing custom logos with older proportions remain supported until they are replaced/i);
+        expect(sectionContent).toMatch(/displays them proportionally without cropping or distortion/i);
+        expect(sectionContent).toMatch(/Any replacement must meet the new 9:1 requirements/i);
+        expect(sectionContent).not.toMatch(/PNG, JPG, SVG, or WebP/i);
     });
 
     it('hides landing page templates for curators', async () => {
