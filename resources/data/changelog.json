@@ -5,6 +5,17 @@
         "features": [],
         "improvements": [
             {
+                "title": "Compact Landing Page Headers",
+                "description": "Resource and IGSN landing pages now devote more space to their research information with a shorter 9:1 header, no empty space above the page, and no gap before the title and citation card. New and replacement custom header logos use the documented 9:1 format, while existing logos remain fully supported without cropping or distortion and are identified as legacy formats in template management.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1292,
+                        "url": "https://github.com/McNamara84/ernie/issues/1292"
+                    }
+                ]
+            },
+            {
                 "title": "Search Resources by Authors and Contributors",
                 "description": "The Resources search now finds case-insensitive partial matches across creator and contributor names, institutions, and email addresses in addition to titles and DOIs. Matching rows identify the relevant name or email and combine compact CP, Author, and Contributor labels when the same identity has multiple roles.",
                 "references": [

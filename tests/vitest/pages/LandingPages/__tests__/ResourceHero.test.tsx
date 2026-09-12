@@ -69,6 +69,15 @@ describe('ResourceHero', () => {
 
             expect(screen.getByText(/Doe, J\. \(2024\)\. Test Dataset\./)).toBeInTheDocument();
         });
+
+        it('sits flush below the header while retaining its lower spacing', () => {
+            render(<ResourceHero {...defaultProps} />);
+
+            const hero = screen.getByTestId('landing-page-resource-hero');
+            expect(hero).toHaveClass('mx-8', 'mb-6');
+            expect(hero).not.toHaveClass('mt-6', 'my-6');
+            expect(hero).not.toHaveClass('fade-in-on-scroll');
+        });
     });
 
     describe('resource type icon', () => {

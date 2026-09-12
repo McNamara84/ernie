@@ -68,7 +68,7 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
     };
 
     return (
-        <LandingPageCard aria-labelledby="heading-title" className="mx-8 my-6">
+        <LandingPageCard disableFadeIn data-testid="landing-page-resource-hero" aria-labelledby="heading-title" className="mx-8 mb-6">
             {/* Top Row: Resource Type, Title, Status */}
             <div className="mb-6 flex items-start justify-between gap-4">
                 {/* Left: Resource Type */}
