@@ -141,7 +141,7 @@ it('is dry-run-first, additive, resource-specific, and idempotent', function ():
     ]);
     foreach ([
         ['lava flow', 'EPOS WP16 Analogue Geologic Structure', 'http://epos/WP16Vocabulary/AnalogueGeologicStructure/lava-flow'],
-        ['volcano', 'EPOS WP16 Analogue Geologic Structure', null],
+        ['volcano', 'epos wp16 analogue geologic structure', null],
     ] as [$keyword, $scheme, $uri]) {
         DB::connection('metaworks')->table('thesauruskeyword')->insert([
             'resource_id' => $legacyId,
@@ -279,7 +279,10 @@ it('preserves an existing different snapshot and conflicting subject URI for man
         'value_uri' => 'https://curated.example/value',
     ]);
 
-    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(apply: true);
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        apply: true,
+        retainRecords: true,
+    );
 
     expect($result['manual_review'])->toBe(1)
         ->and($result['subject_conflicts'])->toBe(1)
@@ -305,7 +308,10 @@ it('rejects a creator or subject change made after the scan as concurrent', func
         ]);
     });
 
-    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(apply: true);
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        apply: true,
+        retainRecords: true,
+    );
 
     expect($changed)->toBeTrue()
         ->and($result)->toMatchArray([
@@ -325,7 +331,10 @@ it('reports a failed published landing-page cache invalidation without losing th
     $cache->shouldReceive('forgetById')->once()->with($landingPage->id)->andReturnFalse();
     app()->instance(LandingPageRenderDataCacheService::class, $cache);
 
-    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(apply: true);
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        apply: true,
+        retainRecords: true,
+    );
 
     expect($result)->toMatchArray([
         'changed' => 1,
@@ -343,11 +352,97 @@ it('uses DOI fallback only when explicitly enabled', function (): void {
 
     expect($service->run(dois: [$resource->doi])['scanned'])->toBe(0);
 
-    $result = $service->run(dois: [$resource->doi], matchByDoi: true);
+    $result = $service->run(
+        dois: [$resource->doi],
+        matchByDoi: true,
+        retainRecords: true,
+    );
 
     expect($result)->toMatchArray([
         'scanned' => 1,
         'changed' => 1,
         'creator_snapshots_written' => 1,
     ])->and($result['records'][0]['match_method'])->toBe('doi');
+});
+
+it('streams audit records without retaining the full result set', function (): void {
+    ['resource' => $resource] = createLegacyCreatorBackfillFixture('10.5880/streamed-report');
+    $records = [];
+
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        dois: [$resource->doi],
+        chunk: 1,
+        recordConsumer: function (array $record) use (&$records): void {
+            $records[] = $record;
+        },
+    );
+
+    expect($result['scanned'])->toBe(1)
+        ->and($result['records'])->toBe([])
+        ->and($records)->toHaveCount(1)
+        ->and($records[0]['resource_id'])->toBe($resource->id)
+        ->and($records[0]['status'])->toBe('would_update');
+});
+
+it('streams the command report to CSV while resources are processed', function (): void {
+    ['resource' => $resource] = createLegacyCreatorBackfillFixture('10.5880/streamed-command-report');
+    Config::set('datacite.test_mode', true);
+    $reportPath = sys_get_temp_dir().'/ernie-backfill-'.bin2hex(random_bytes(8)).'.csv';
+
+    try {
+        $this->artisan('resources:backfill-legacy-creator-and-msl-metadata', [
+            '--doi' => [$resource->doi],
+            '--apply' => true,
+            '--report' => $reportPath,
+        ])->expectsOutput('Backfill report written to '.$reportPath)
+            ->assertSuccessful();
+
+        $stream = fopen($reportPath, 'rb');
+        expect($stream)->not->toBeFalse();
+        if ($stream === false) {
+            return;
+        }
+
+        try {
+            $columns = fgetcsv($stream, escape: '');
+            $row = fgetcsv($stream, escape: '');
+            $end = fgetcsv($stream, escape: '');
+        } finally {
+            fclose($stream);
+        }
+
+        expect($columns)->toBeArray()
+            ->and($row)->toBeArray()
+            ->and($end)->toBeFalse();
+
+        if (! is_array($columns) || ! is_array($row)) {
+            return;
+        }
+
+        $record = array_combine($columns, $row);
+        expect($record)->toBeArray()
+            ->and($record['resource_id'] ?? null)->toBe((string) $resource->id)
+            ->and($record['status'] ?? null)->toBe('updated')
+            ->and($record['datacite_sync_status'] ?? null)->toBe('skipped_test_mode');
+    } finally {
+        if (file_exists($reportPath)) {
+            unlink($reportPath);
+        }
+    }
+});
+
+it('uses a bounded existence query for the legacy database preflight', function (): void {
+    ['resource' => $resource] = createLegacyCreatorBackfillFixture('10.5880/preflight-exists');
+    $preflightSql = null;
+
+    DB::listen(function (QueryExecuted $query) use (&$preflightSql): void {
+        if ($preflightSql === null && $query->connectionName === 'metaworks') {
+            $preflightSql = mb_strtolower($query->sql);
+        }
+    });
+
+    app(LegacyCreatorAndMslMetadataBackfillService::class)->run(dois: [$resource->doi]);
+
+    expect($preflightSql)->toContain('exists')
+        ->and($preflightSql)->not->toContain('count(');
 });

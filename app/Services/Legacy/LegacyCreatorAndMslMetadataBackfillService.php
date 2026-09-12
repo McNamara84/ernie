@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Legacy;
 
 use App\Exceptions\ConcurrentLegacyCreatorAndMslMetadataChangeException;
+use App\Exceptions\LegacyBackfillRecordConsumerException;
 use App\Models\Institution;
 use App\Models\OldDataset;
 use App\Models\Person;
@@ -41,6 +42,8 @@ final class LegacyCreatorAndMslMetadataBackfillService
     /**
      * @param  list<string>  $dois
      * @param  list<int>  $legacyIds
+     * @param  (callable(array<string, mixed>): void)|null  $recordConsumer
+     * @param  bool  $retainRecords  Retain emitted records only for explicitly bounded callers.
      * @return array<string, mixed>
      */
     public function run(
@@ -51,6 +54,8 @@ final class LegacyCreatorAndMslMetadataBackfillService
         array $dois = [],
         array $legacyIds = [],
         bool $matchByDoi = false,
+        ?callable $recordConsumer = null,
+        bool $retainRecords = false,
     ): array {
         $this->preflightLegacyDatabase();
 
@@ -106,13 +111,13 @@ final class LegacyCreatorAndMslMetadataBackfillService
                     [$oldDataset, $matchMethod] = $this->resolveLegacyResource($resource, $matchByDoi);
                     if ($oldDataset === null) {
                         $stats['missing_legacy']++;
-                        $stats['records'][] = $this->record(
+                        $this->emitRecord($stats, $this->record(
                             $resource,
                             $resource->legacy_source_id,
                             $matchMethod,
                             'missing_legacy',
                             message: 'No unique SUMARIO resource was found.',
-                        );
+                        ), $recordConsumer, $retainRecords);
 
                         continue;
                     }
@@ -128,7 +133,7 @@ final class LegacyCreatorAndMslMetadataBackfillService
                     $result = $apply
                         ? DB::transaction(function () use ($resource, $legacyCreators, $legacyMslKeywords, $originalMetadataFingerprint): array {
                             $locked = Resource::query()->lockForUpdate()->findOrFail($resource->id);
-                            $locked->load(['creators.creatorable', 'subjects', 'landingPage']);
+                            $this->lockMetadataRelations($locked);
                             if (! hash_equals($originalMetadataFingerprint, $this->resourceMetadataFingerprint($locked))) {
                                 throw new ConcurrentLegacyCreatorAndMslMetadataChangeException(
                                     'Creator or subject metadata changed concurrently; the resource was not modified.',
@@ -191,41 +196,43 @@ final class LegacyCreatorAndMslMetadataBackfillService
                         $result['warnings'] !== [] => 'manual_review',
                         default => 'unchanged',
                     };
-                    $stats['records'][] = $this->record(
+                    $this->emitRecord($stats, $this->record(
                         $resource,
                         (int) $oldDataset->id,
                         $matchMethod,
                         $status,
                         $result,
                         implode(' ', $result['warnings']),
-                    );
+                    ), $recordConsumer, $retainRecords);
+                } catch (LegacyBackfillRecordConsumerException $exception) {
+                    throw $exception;
                 } catch (ConcurrentLegacyCreatorAndMslMetadataChangeException $exception) {
                     $stats['concurrent_changes']++;
-                    $stats['records'][] = $this->record(
+                    $this->emitRecord($stats, $this->record(
                         $resource,
                         $resource->legacy_source_id,
                         $resource->legacy_source_id !== null ? 'legacy_source_id' : 'doi',
                         'concurrent_change',
                         message: $exception->getMessage(),
-                    );
+                    ), $recordConsumer, $retainRecords);
                 } catch (RuntimeException $exception) {
                     $stats['manual_review']++;
-                    $stats['records'][] = $this->record(
+                    $this->emitRecord($stats, $this->record(
                         $resource,
                         $resource->legacy_source_id,
                         $resource->legacy_source_id !== null ? 'legacy_source_id' : 'doi',
                         'manual_review',
                         message: $exception->getMessage(),
-                    );
+                    ), $recordConsumer, $retainRecords);
                 } catch (\Throwable $exception) {
                     $stats['errors']++;
-                    $stats['records'][] = $this->record(
+                    $this->emitRecord($stats, $this->record(
                         $resource,
                         $resource->legacy_source_id,
                         $resource->legacy_source_id !== null ? 'legacy_source_id' : 'doi',
                         'error',
                         message: $exception->getMessage(),
-                    );
+                    ), $recordConsumer, $retainRecords);
                     Log::warning('Legacy creator and MSL metadata backfill failed', [
                         'resource_id' => $resource->id,
                         'legacy_resource_id' => $resource->legacy_source_id,
@@ -244,8 +251,38 @@ final class LegacyCreatorAndMslMetadataBackfillService
     {
         DB::connection((new OldDataset)->getConnectionName())
             ->table((new OldDataset)->getTable())
-            ->limit(1)
-            ->count();
+            ->exists();
+    }
+
+    /**
+     * Lock mutable resource metadata in one deterministic order before checking
+     * the scan fingerprint. On MySQL, the indexed resource_id ranges also guard
+     * against matching inserts until the transaction commits.
+     */
+    private function lockMetadataRelations(Resource $resource): void
+    {
+        $creators = ResourceCreator::query()
+            ->where('resource_id', $resource->id)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+        $creators->load('creatorable');
+
+        $subjects = Subject::query()
+            ->where('resource_id', $resource->id)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        $resource->setRelation(
+            'creators',
+            $creators->sortBy([
+                ['position', 'asc'],
+                ['id', 'asc'],
+            ])->values(),
+        );
+        $resource->setRelation('subjects', $subjects);
+        $resource->load('landingPage');
     }
 
     /** @return array{0: OldDataset|null, 1: string} */
@@ -585,6 +622,35 @@ final class LegacyCreatorAndMslMetadataBackfillService
             'sync_resource_ids' => [],
             'records' => [],
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $stats
+     * @param  array<string, mixed>  $record
+     * @param  (callable(array<string, mixed>): void)|null  $recordConsumer
+     */
+    private function emitRecord(
+        array &$stats,
+        array $record,
+        ?callable $recordConsumer,
+        bool $retainRecords,
+    ): void {
+        if ($retainRecords) {
+            $stats['records'][] = $record;
+        }
+
+        if ($recordConsumer === null) {
+            return;
+        }
+
+        try {
+            $recordConsumer($record);
+        } catch (\Throwable $exception) {
+            throw new LegacyBackfillRecordConsumerException(
+                'Unable to stream a backfill report record: '.$exception->getMessage(),
+                previous: $exception,
+            );
+        }
     }
 
     /**

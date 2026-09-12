@@ -551,14 +551,23 @@ class PortalSearchService
                 })
                 // Search in creator names (persons)
                 ->orWhereHas('creators', function (Builder $creatorQuery) use ($searchTerm): void {
-                    $creatorQuery->whereHasMorph(
-                        'creatorable',
-                        [Person::class],
-                        function (Builder $personQuery) use ($searchTerm): void {
-                            $personQuery->where('family_name', 'like', $searchTerm)
-                                ->orWhere('given_name', 'like', $searchTerm);
-                        }
-                    );
+                    $creatorQuery->where(function (Builder $nameQuery) use ($searchTerm): void {
+                        $nameQuery
+                            ->where(function (Builder $snapshotQuery) use ($searchTerm): void {
+                                $snapshotQuery->where('name_snapshot', 'like', $searchTerm)
+                                    ->orWhere('given_name_snapshot', 'like', $searchTerm)
+                                    ->orWhere('family_name_snapshot', 'like', $searchTerm);
+                            })
+                            ->whereHasMorph('creatorable', [Person::class])
+                            ->orWhereHasMorph(
+                                'creatorable',
+                                [Person::class],
+                                function (Builder $personQuery) use ($searchTerm): void {
+                                    $personQuery->where('family_name', 'like', $searchTerm)
+                                        ->orWhere('given_name', 'like', $searchTerm);
+                                },
+                            );
+                    });
                 })
                 // Search in creator names (institutions)
                 ->orWhereHas('creators', function (Builder $creatorQuery) use ($searchTerm): void {

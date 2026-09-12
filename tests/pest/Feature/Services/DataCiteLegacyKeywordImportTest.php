@@ -134,7 +134,7 @@ it('imports Issue 1318 creator spelling per resource and all Issue 1319 legacy M
         ['volcano', 'EPOS WP16 Analogue Geologic Structure'],
         ['magmatic process', 'EPOS WP16 Analogue Process/Hazard'],
         ['tectonic uplift', 'EPOS WP16 Analogue Process/Hazard'],
-        ['tectonic setting > intraplate tectonic setting', 'EPOS WP16 Analogue Main Setting'],
+        ['tectonic setting > intraplate tectonic setting', 'epos wp16 analogue main setting'],
         ['volcanic features', 'EPOS WP16 Analogue Geologic Feature'],
     ];
     foreach ($legacySubjects as [$keyword, $scheme]) {

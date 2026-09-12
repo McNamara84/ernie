@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Exceptions\LegacyBackfillRecordConsumerException;
 use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use App\Services\Legacy\LegacyCreatorAndMslMetadataBackfillService;
@@ -27,6 +28,16 @@ use Throwable;
     {--retry-sync= : Retry failed DataCite synchronization for a prior sync run UUID}')]
 final class BackfillLegacyCreatorAndMslMetadata extends Command
 {
+    /** @var list<string> */
+    private const REPORT_COLUMNS = [
+        'resource_id', 'doi', 'legacy_resource_id', 'match_method', 'status',
+        'legacy_creators', 'ernie_creators', 'creator_match_methods',
+        'creator_snapshots_written', 'visible_creator_changes', 'legacy_msl_subjects',
+        'subjects_created', 'subjects_enriched', 'subject_conflicts',
+        'concurrent_change', 'cache_invalidation_failed',
+        'datacite_sync_status', 'message',
+    ];
+
     public function __construct(
         private readonly LegacyCreatorAndMslMetadataBackfillService $backfill,
         private readonly ImportedResourceDataCiteSyncDispatcherService $syncDispatcher,
@@ -42,9 +53,29 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
             return $this->retrySync(trim($retrySyncId));
         }
 
+        $apply = (bool) $this->option('apply');
+        $plannedSyncRunId = $apply ? Str::uuid()->toString() : null;
+        $reportPathOption = $this->option('report');
+        $reportPath = is_string($reportPathOption) && trim($reportPathOption) !== ''
+            ? trim($reportPathOption)
+            : null;
+        /** @var resource|null $reportStream */
+        $reportStream = null;
+
+        if ($reportPath !== null) {
+            try {
+                $reportStream = $this->openCsvReport($reportPath);
+            } catch (Throwable $exception) {
+                report($exception);
+                $this->error('Unable to write backfill report: '.$exception->getMessage());
+
+                return self::FAILURE;
+            }
+        }
+
         try {
             $result = $this->backfill->run(
-                apply: (bool) $this->option('apply'),
+                apply: $apply,
                 afterId: max(0, (int) $this->option('after-id')),
                 limit: max(0, (int) $this->option('limit')),
                 chunk: max(1, min(1000, (int) $this->option('chunk'))),
@@ -54,17 +85,40 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
                     static fn (int $id): bool => $id > 0,
                 )),
                 matchByDoi: (bool) $this->option('match-by-doi'),
+                recordConsumer: $reportStream === null
+                    ? null
+                    : function (array $record) use ($reportStream, $apply, $plannedSyncRunId): void {
+                        $record['datacite_sync_status'] = $this->dataCiteSyncStatus(
+                            $record,
+                            $apply,
+                            $plannedSyncRunId,
+                        );
+                        $this->writeCsvReportRecord($reportStream, $record);
+                    },
+                retainRecords: false,
             );
+        } catch (LegacyBackfillRecordConsumerException $exception) {
+            report($exception);
+            $this->error('Unable to write backfill report: '.$exception->getMessage());
+
+            return self::FAILURE;
         } catch (Throwable $exception) {
             report($exception);
             $this->error('Legacy SUMARIO preflight or backfill failed: '.$exception->getMessage());
 
             return self::FAILURE;
+        } finally {
+            if (is_resource($reportStream)) {
+                fclose($reportStream);
+            }
         }
 
         $syncRunId = null;
-        if ((bool) $this->option('apply') && $result['sync_resource_ids'] !== []) {
-            $syncRunId = Str::uuid()->toString();
+        if ($apply && $result['sync_resource_ids'] !== []) {
+            $syncRunId = $plannedSyncRunId;
+            if ($syncRunId === null) {
+                throw new RuntimeException('Unable to allocate a DataCite sync run ID.');
+            }
             $this->progressService->update(ImportProgressService::TYPE_RESOURCE, $syncRunId, [
                 'status' => 'running',
                 'phase' => 'syncing',
@@ -76,17 +130,9 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
                 $result['sync_resource_ids'],
                 fullMetadataResourceIds: $result['sync_resource_ids'],
             );
-            foreach ($result['records'] as &$record) {
-                if (in_array($record['resource_id'], $result['sync_resource_ids'], true)) {
-                    $record['datacite_sync_status'] = config('datacite.test_mode') !== false
-                        ? 'skipped_test_mode'
-                        : 'queued:'.$syncRunId;
-                }
-            }
-            unset($record);
         }
 
-        $this->info((bool) $this->option('apply')
+        $this->info($apply
             ? 'Legacy creator and MSL metadata backfill applied.'
             : 'Dry run only; no data was changed and no DataCite sync was queued.');
         $this->table(
@@ -123,20 +169,11 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
             $this->warn('Some landing-page caches could not be invalidated; metadata changes remain applied.');
         }
 
-        $reportFailed = false;
-        $reportPath = $this->option('report');
-        if (is_string($reportPath) && trim($reportPath) !== '') {
-            try {
-                $this->writeCsv(trim($reportPath), $result['records']);
-                $this->info('Backfill report written to '.$reportPath);
-            } catch (Throwable $exception) {
-                report($exception);
-                $reportFailed = true;
-                $this->error('Unable to write backfill report: '.$exception->getMessage());
-            }
+        if ($reportPath !== null) {
+            $this->info('Backfill report written to '.$reportPath);
         }
 
-        return $result['errors'] > 0 || $reportFailed ? self::FAILURE : self::SUCCESS;
+        return $result['errors'] > 0 ? self::FAILURE : self::SUCCESS;
     }
 
     private function retrySync(string $syncRunId): int
@@ -157,8 +194,8 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
         return self::SUCCESS;
     }
 
-    /** @param list<array<string, mixed>> $rows */
-    private function writeCsv(string $path, array $rows): void
+    /** @return resource */
+    private function openCsvReport(string $path)
     {
         $directory = dirname($path);
         if (file_exists($directory) && ! is_dir($directory)) {
@@ -173,26 +210,47 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
             throw new RuntimeException('Unable to write report: '.$path);
         }
 
-        $columns = [
-            'resource_id', 'doi', 'legacy_resource_id', 'match_method', 'status',
-            'legacy_creators', 'ernie_creators', 'creator_match_methods',
-            'creator_snapshots_written', 'visible_creator_changes', 'legacy_msl_subjects',
-            'subjects_created', 'subjects_enriched', 'subject_conflicts',
-            'concurrent_change', 'cache_invalidation_failed',
-            'datacite_sync_status', 'message',
-        ];
-
-        try {
-            fputcsv($stream, $columns, escape: '');
-            foreach ($rows as $row) {
-                fputcsv($stream, array_map(
-                    fn (string $column): string|int|null => $this->spreadsheetSafeCell($row[$column] ?? null),
-                    $columns,
-                ), escape: '');
-            }
-        } finally {
+        if (fputcsv($stream, self::REPORT_COLUMNS, escape: '') === false) {
             fclose($stream);
+            throw new RuntimeException('Unable to write report header: '.$path);
         }
+
+        return $stream;
+    }
+
+    /**
+     * @param  resource  $stream
+     * @param  array<string, mixed>  $record
+     */
+    private function writeCsvReportRecord($stream, array $record): void
+    {
+        $written = fputcsv($stream, array_map(
+            fn (string $column): string|int|null => $this->spreadsheetSafeCell($record[$column] ?? null),
+            self::REPORT_COLUMNS,
+        ), escape: '');
+
+        if ($written === false) {
+            throw new RuntimeException('Unable to stream a backfill report row.');
+        }
+    }
+
+    /** @param array<string, mixed> $record */
+    private function dataCiteSyncStatus(array $record, bool $apply, ?string $syncRunId): string
+    {
+        $requiresSync = trim((string) ($record['doi'] ?? '')) !== ''
+            && (
+                (int) ($record['visible_creator_changes'] ?? 0) > 0
+                || (int) ($record['subjects_created'] ?? 0) > 0
+                || (int) ($record['subjects_enriched'] ?? 0) > 0
+            );
+
+        if (! $apply || ! $requiresSync) {
+            return 'not_requested';
+        }
+
+        return config('datacite.test_mode') !== false
+            ? 'skipped_test_mode'
+            : 'queued:'.$syncRunId;
     }
 
     private function spreadsheetSafeCell(mixed $value): string|int|null

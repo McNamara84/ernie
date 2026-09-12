@@ -29,9 +29,18 @@ final class LegacyMslScheme
 
     public static function isSupported(?string $scheme): bool
     {
-        $scheme = trim((string) $scheme);
+        $scheme = mb_strtolower(trim((string) $scheme));
 
-        return $scheme !== '' && in_array($scheme, self::schemes(), true);
+        return $scheme !== '' && in_array($scheme, self::normalizedSchemes(), true);
+    }
+
+    /** @return list<string> */
+    public static function normalizedSchemes(): array
+    {
+        return array_map(
+            static fn (string $scheme): string => mb_strtolower($scheme),
+            self::schemes(),
+        );
     }
 
     /** @return list<string> */

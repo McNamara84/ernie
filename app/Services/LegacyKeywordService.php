@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\OldDataset;
+use App\Support\LegacyMslScheme;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -24,7 +25,10 @@ final class LegacyKeywordService
                     ->on('tk.thesaurus', '=', 'tv.thesaurus');
             })
             ->where('tk.resource_id', $dataset->id)
-            ->whereIn('tk.thesaurus', OldDatasetKeywordTransformer::getSupportedThesauri())
+            ->where(function ($query): void {
+                $query->whereIn('tk.thesaurus', OldDatasetKeywordTransformer::getSupportedThesauri())
+                    ->orWhereIn(DB::raw('LOWER(TRIM(tk.thesaurus))'), LegacyMslScheme::normalizedSchemes());
+            })
             ->select('tv.keyword', 'tv.thesaurus', 'tv.uri', 'tv.description')
             ->orderBy('tk.thesaurus')
             ->orderBy('tk.keyword')

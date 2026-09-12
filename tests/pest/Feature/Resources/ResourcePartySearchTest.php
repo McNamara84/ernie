@@ -91,6 +91,11 @@ it('indexes and displays the resource-specific creator name instead of the share
         ->assertInertia(fn (Assert $page) => $page
             ->has('resources', 1)
             ->where('resources.0.id', $resource->id)
+            ->where('resources.0.first_author', [
+                'name' => 'Sommer, Philipp S.',
+                'givenName' => 'Philipp S.',
+                'familyName' => 'Sommer',
+            ])
             ->where('resources.0.search_matches.0.display_value', 'Sommer, Philipp S.')
             ->where('resources.0.search_matches.0.roles', ['author']));
 });

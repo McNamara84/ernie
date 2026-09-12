@@ -48,6 +48,19 @@ describe('transform', function () {
             ->and($result['description'])->toBeNull();
     });
 
+    it('accepts supported scheme names case-insensitively', function () {
+        $result = MslKeywordTransformer::transform((object) [
+            'keyword' => 'Sand',
+            'thesaurus' => 'epos wp16 analogue material',
+            'uri' => '',
+            'description' => null,
+        ]);
+
+        expect($result)->not->toBeNull()
+            ->and($result['scheme'])->toBe('epos wp16 analogue material')
+            ->and($result['text'])->toBe('Sand');
+    });
+
     it('returns null for non-EPOS keywords', function () {
         $oldKeyword = (object) [
             'keyword' => 'Climate',

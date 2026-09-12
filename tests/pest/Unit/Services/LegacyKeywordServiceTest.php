@@ -139,6 +139,31 @@ it('loads all three Issue 1115 GEMET keywords from the legacy database', functio
         ]);
 });
 
+it('loads supported legacy MSL schemes case-insensitively', function (): void {
+    $thesaurus = 'epos wp16 analogue material';
+    DB::connection('metaworks')->table('thesauruskeyword')->insert([
+        'resource_id' => 9663,
+        'keyword' => 'Sand',
+        'thesaurus' => $thesaurus,
+    ]);
+    DB::connection('metaworks')->table('thesaurusvalue')->insert([
+        'keyword' => 'Sand',
+        'thesaurus' => $thesaurus,
+        'uri' => null,
+        'description' => null,
+    ]);
+
+    $keywords = $this->service->controlledKeywords($this->dataset);
+
+    expect($keywords)->toHaveCount(1)
+        ->and($keywords[0])->toMatchArray([
+            'text' => 'Sand',
+            'path' => 'Sand',
+            'scheme' => $thesaurus,
+            'isLegacy' => true,
+        ]);
+});
+
 it('resolves URI-less legacy CGI Simple Lithology paths against the current vocabulary', function (): void {
     Storage::fake('local');
     Storage::disk('local')->put('cgi-simple-lithology.json', json_encode([

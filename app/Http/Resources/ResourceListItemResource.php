@@ -9,6 +9,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\Right;
 use App\Models\Title;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -42,9 +43,11 @@ final class ResourceListItemResource extends JsonResource
         if ($firstCreator !== null) {
             $creatorable = $firstCreator->creatorable;
             if ($creatorable instanceof Person) {
+                $resolvedName = app(ResourceCreatorNameResolverService::class)->resolve($firstCreator, $creatorable);
                 $firstCreatorData = [
-                    'givenName' => $creatorable->given_name,
-                    'familyName' => $creatorable->family_name,
+                    'name' => $resolvedName['name'],
+                    'givenName' => $resolvedName['given_name'],
+                    'familyName' => $resolvedName['family_name'],
                 ];
             } elseif ($creatorable instanceof Institution) {
                 $firstCreatorData = [
