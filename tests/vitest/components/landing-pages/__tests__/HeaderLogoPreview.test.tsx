@@ -14,6 +14,7 @@ function loadImage(image: HTMLImageElement, width: number, height: number) {
 describe('HeaderLogoPreview', () => {
     it('classifies invalid and expected dimensions safely', () => {
         expect(isLegacyHeaderLogo(1200, 240, 9)).toBe(true);
+        expect(isLegacyHeaderLogo(1799, 200, 9)).toBe(true);
         expect(isLegacyHeaderLogo(1800, 200, 9)).toBe(false);
         expect(isLegacyHeaderLogo(0, 200, 9)).toBe(false);
         expect(isLegacyHeaderLogo(1800, 0, 9)).toBe(false);
@@ -39,6 +40,7 @@ describe('HeaderLogoPreview', () => {
     it.each([
         [1200, 240],
         [1000, 300],
+        [1799, 200],
     ])('warns without blocking when an existing logo is %d × %d', (width, height) => {
         render(
             <HeaderLogoPreview

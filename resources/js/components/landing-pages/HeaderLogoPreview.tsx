@@ -3,8 +3,6 @@ import { type SyntheticEvent, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 
-const ASPECT_RATIO_TOLERANCE = 0.01;
-
 interface HeaderLogoPreviewProps {
     src: string;
     alt: string;
@@ -23,7 +21,7 @@ interface LoadedImageDimensions {
 export function isLegacyHeaderLogo(width: number, height: number, expectedAspectRatio: number): boolean {
     if (width <= 0 || height <= 0 || expectedAspectRatio <= 0) return false;
 
-    return Math.abs(width / height - expectedAspectRatio) > ASPECT_RATIO_TOLERANCE;
+    return width !== height * expectedAspectRatio;
 }
 
 export function HeaderLogoPreview({ src, alt, filename, expectedAspectRatio, expectedAspectRatioLabel, onRemove }: HeaderLogoPreviewProps) {

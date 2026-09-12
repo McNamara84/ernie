@@ -1108,6 +1108,7 @@ describe('Logo Upload', function (): void {
         'below minimum at nine-to-one' => [1071, 119],
         'above maximum at nine-to-one' => [2709, 301],
         'legacy five-to-one ratio' => [1200, 240],
+        'near-miss ratio within size range' => [1799, 200],
         'wrong aspect ratio within size range' => [1800, 240],
     ]);
 
