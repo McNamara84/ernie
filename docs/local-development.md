@@ -141,7 +141,7 @@ npm run docker:dev:parity
 
 Resource and IGSN assessments use database-backed runs and one short queue job per resource. Closing the browser, restarting a worker, or deploying the application therefore does not discard the run snapshot or its progress. Opening `/assessment` again reconnects to an active run; pressing `Check` while a run is active returns that same run, and a paused run is resumed instead of replaced.
 
-The assessment profile starts two `assessment-queue` workers by default. Their shared Redis limiter permits at most 80 F-UJI requests per rolling 60-second window and spaces request starts by at least 750 ms. These defaults leave headroom below the local F-UJI limit of 100 requests per minute. To diagnose pressure, reduce `FUJI_ASSESSMENT_CONCURRENCY` to `1` before increasing any request limits.
+The assessment profile starts one `assessment-queue` worker by default. Its shared Redis limiter permits at most 80 F-UJI requests per rolling 60-second window and spaces request starts by at least 750 ms. This avoids overlapping CPU-intensive F-UJI evaluations on single-CPU hosts. Increase `FUJI_ASSESSMENT_CONCURRENCY` only after measuring F-UJI latency and resource use.
 
 The relevant settings are documented in `.env.docker.example`. Keep these relationships intact when changing them:
 
@@ -149,6 +149,8 @@ The relevant settings are documented in `.env.docker.example`. Keep these relati
 - `FUJI_ASSESSMENT_LEASE_SECONDS` and `FUJI_ASSESSMENT_QUEUE_RETRY_AFTER` must remain higher than the item timeout.
 - `FUJI_ASSESSMENT_QUEUE_CONNECTION` must use a persistent driver; `sync` and `null` are rejected.
 - Every web and assessment-worker process must use the same Redis cache so request limiting and start locks are shared.
+
+The default HTTP timeout is 300 seconds. A cURL 28 response timeout that consumes this full window becomes a service error after one attempt instead of blocking the worker for three identical attempts. Short DNS/connect failures and retryable HTTP responses remain bounded by `FUJI_ASSESSMENT_MAX_ATTEMPTS`. The run UI reports service errors separately and can retry only those items after a run completes.
 
 For a one-worker local load comparison, run:
 

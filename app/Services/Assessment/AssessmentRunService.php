@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Assessment;
 
+use App\Enums\AssessmentFailureType;
 use App\Enums\AssessmentRunItemStatus;
 use App\Enums\AssessmentRunStatus;
 use App\Enums\AssessmentScope;
@@ -199,6 +200,110 @@ final class AssessmentRunService
         }, 3);
     }
 
+    public function retryServiceFailures(AssessmentRun $run, User $user): AssessmentRun
+    {
+        $this->ensurePersistentQueue();
+        $lock = Cache::lock(CacheKey::ASSESSMENT_RUN_START_LOCK->key($run->scope->value), 120);
+
+        try {
+            $lock->block(15);
+        } catch (LockTimeoutException) {
+            throw ValidationException::withMessages([
+                'run' => ["The {$run->scope->singularLabel()} assessment is currently being controlled by another request."],
+            ]);
+        }
+
+        try {
+            $retried = DB::transaction(function () use ($run, $user): AssessmentRun {
+                $locked = AssessmentRun::query()->lockForUpdate()->findOrFail($run->id);
+
+                if ($locked->status !== AssessmentRunStatus::COMPLETED) {
+                    throw ValidationException::withMessages([
+                        'run' => ['Only a completed assessment run can retry service errors.'],
+                    ]);
+                }
+
+                $otherActiveRunExists = AssessmentRun::query()
+                    ->where('active_scope', $locked->scope->value)
+                    ->where('id', '!=', $locked->id)
+                    ->exists();
+
+                if ($otherActiveRunExists) {
+                    throw ValidationException::withMessages([
+                        'run' => ["Another {$locked->scope->singularLabel()} assessment is already active."],
+                    ]);
+                }
+
+                $serviceItems = AssessmentRunItem::query()
+                    ->where('run_id', $locked->id)
+                    ->where('status', AssessmentRunItemStatus::FAILED)
+                    ->where('failure_type', AssessmentFailureType::SERVICE)
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($serviceItems->isEmpty()) {
+                    throw ValidationException::withMessages([
+                        'run' => ['This assessment run has no service errors to retry.'],
+                    ]);
+                }
+
+                $resourceIds = $serviceItems->pluck('resource_id')->filter()->values();
+                if ($resourceIds->isNotEmpty()) {
+                    ResourceAssessment::query()
+                        ->whereIn('resource_id', $resourceIds)
+                        ->where('failure_type', AssessmentFailureType::SERVICE)
+                        ->delete();
+                }
+
+                AssessmentRunItem::query()
+                    ->whereKey($serviceItems->modelKeys())
+                    ->update([
+                        'status' => AssessmentRunItemStatus::PENDING,
+                        'attempts' => 0,
+                        'last_http_status' => null,
+                        'failure_type' => null,
+                        'error_code' => null,
+                        'error_message' => null,
+                        'error_detail' => null,
+                        'last_attempt_duration_ms' => null,
+                        'available_at' => null,
+                        'processing_started_at' => null,
+                        'lease_expires_at' => null,
+                        'processed_at' => null,
+                    ]);
+
+                $this->recalculate($locked);
+                $locked->refresh();
+                $locked->forceFill([
+                    ...$this->configurationSnapshot(requireConfigured: true),
+                    'status' => AssessmentRunStatus::QUEUED,
+                    'active_scope' => $locked->scope,
+                    'last_controlled_by_user_id' => $user->id,
+                    'pause_reason' => null,
+                    'last_error' => null,
+                    'started_at' => now(),
+                    'paused_at' => null,
+                    'cancelled_at' => null,
+                    'completed_at' => null,
+                ])->save();
+
+                Log::info(sprintf('%s assessment service errors queued for retry', $locked->scope->singularLabel()), [
+                    'run_id' => $locked->id,
+                    'scope' => $locked->scope->value,
+                    'retry_count' => $serviceItems->count(),
+                ]);
+
+                return $locked;
+            }, 3);
+        } finally {
+            $lock->release();
+        }
+
+        $this->dispatch($retried);
+
+        return $retried->refresh();
+    }
+
     public function pause(AssessmentRun $run, string $reason, ?string $error = null): void
     {
         if ($run->status->isTerminal()) {
@@ -226,23 +331,32 @@ final class AssessmentRunService
     {
         $counts = AssessmentRunItem::query()
             ->where('run_id', $run->id)
-            ->selectRaw('status, COUNT(*) as aggregate')
-            ->groupBy('status')
-            ->pluck('aggregate', 'status');
+            ->selectRaw('status, failure_type, COUNT(*) as aggregate')
+            ->groupBy('status', 'failure_type')
+            ->get();
 
-        $assessed = (int) ($counts[AssessmentRunItemStatus::ASSESSED->value] ?? 0);
-        $failed = (int) ($counts[AssessmentRunItemStatus::FAILED->value] ?? 0);
-        $skipped = (int) ($counts[AssessmentRunItemStatus::SKIPPED->value] ?? 0)
-            + (int) ($counts[AssessmentRunItemStatus::CANCELLED->value] ?? 0);
-        $processed = $assessed + $failed + $skipped;
+        $countStatus = static fn (AssessmentRunItemStatus $status): int => (int) $counts
+            ->where('status', $status->value)
+            ->sum('aggregate');
+        $assessed = $countStatus(AssessmentRunItemStatus::ASSESSED);
+        $allFailures = $countStatus(AssessmentRunItemStatus::FAILED);
+        $serviceErrors = (int) $counts
+            ->where('status', AssessmentRunItemStatus::FAILED->value)
+            ->where('failure_type', AssessmentFailureType::SERVICE->value)
+            ->sum('aggregate');
+        $failed = max(0, $allFailures - $serviceErrors);
+        $skipped = $countStatus(AssessmentRunItemStatus::SKIPPED)
+            + $countStatus(AssessmentRunItemStatus::CANCELLED);
+        $processed = $assessed + $failed + $serviceErrors + $skipped;
 
         $run->forceFill([
-            'total' => (int) $counts->sum(),
+            'total' => (int) $counts->sum('aggregate'),
             'processed' => $processed,
             'assessed' => $assessed,
             'failed' => $failed,
+            'service_errors' => $serviceErrors,
             'skipped' => $skipped,
-            'pending' => max((int) $counts->sum() - $processed, 0),
+            'pending' => max((int) $counts->sum('aggregate') - $processed, 0),
         ])->save();
     }
 

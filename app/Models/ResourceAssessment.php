@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\AssessmentFailureType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,6 +15,8 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $resource_id
  * @property string $status
+ * @property AssessmentFailureType|null $failure_type
+ * @property string|null $error_code
  * @property string|null $total_score Decimal string returned by the decimal:2 cast.
  * @property string|null $assessed_identifier
  * @property string|null $error_message
@@ -49,6 +52,8 @@ class ResourceAssessment extends Model
     protected $fillable = [
         'resource_id',
         'status',
+        'failure_type',
+        'error_code',
         'total_score',
         'assessed_identifier',
         'error_message',
@@ -60,6 +65,7 @@ class ResourceAssessment extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'failure_type' => AssessmentFailureType::class,
         'total_score' => 'decimal:2',
         'payload' => 'array',
         'assessed_at' => 'datetime',

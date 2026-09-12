@@ -43,13 +43,15 @@ test('the run presenter uses scope-appropriate capitalization in running progres
         'status' => AssessmentRunStatus::RUNNING,
         'total' => 10,
         'processed' => 4,
+        'service_errors' => 2,
         'pending' => 6,
         'started_at' => now(),
     ]);
 
     $presented = app(AssessmentRunPresenterService::class)->present($run);
 
-    expect($presented['progress'])->toBe($expectedProgress);
+    expect($presented['progress'])->toBe($expectedProgress)
+        ->and($presented['serviceErrorResources'])->toBe(2);
 })->with([
     'resources' => [AssessmentScope::RESOURCE, 'Assessing resources 4 of 10...'],
     'IGSNs' => [AssessmentScope::IGSN, 'Assessing IGSNs 4 of 10...'],

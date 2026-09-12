@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\AssessmentFailureType;
 use App\Enums\AssessmentScope;
 use App\Enums\CacheKey;
 use App\Enums\UserRole;
@@ -133,6 +134,23 @@ class AssessmentController extends Controller
         ));
     }
 
+    public function retryServiceFailures(string $scope, string $jobId): JsonResponse
+    {
+        $fujiUnavailableResponse = $this->fujiUnavailableResponse();
+        if ($fujiUnavailableResponse !== null) {
+            return $fujiUnavailableResponse;
+        }
+
+        $run = $this->findRun($scope, $jobId);
+        if ($run === null) {
+            return response()->json(['error' => 'Assessment run not found.'], 404);
+        }
+
+        return response()->json($this->assessmentRunPresenter->present(
+            $this->assessmentRuns->retryServiceFailures($run, $this->authenticatedUser()),
+        ));
+    }
+
     public function cancel(string $scope, string $jobId): JsonResponse
     {
         $run = $this->findRun($scope, $jobId);
@@ -177,9 +195,7 @@ class AssessmentController extends Controller
         return response()->json($status);
     }
 
-    /**
-     * @return array{total: int, assessed: int, failed: int, skipped: int, unassessed: int}
-     */
+    /** @return array{total: int, assessed: int, failed: int, serviceErrors: int, skipped: int, unassessed: int} */
     private function buildSummary(string $scope, ?int $physicalObjectTypeId, ResourceImpactFilter $filter): array
     {
         $total = $filter->isActive()
@@ -190,20 +206,29 @@ class AssessmentController extends Controller
 
         $statusCounts = $this->buildScopeQuery($scope, $physicalObjectTypeId, $filter)
             ->join('resource_assessments', 'resource_assessments.resource_id', '=', 'resources.id')
-            ->selectRaw('resource_assessments.status as status, COUNT(*) as aggregate')
-            ->groupBy('resource_assessments.status')
-            ->pluck('aggregate', 'status');
+            ->selectRaw('resource_assessments.status as status, resource_assessments.failure_type as failure_type, COUNT(*) as aggregate')
+            ->groupBy('resource_assessments.status', 'resource_assessments.failure_type')
+            ->get();
 
-        $assessed = (int) ($statusCounts[ResourceAssessment::STATUS_COMPLETED] ?? 0);
-        $failed = (int) ($statusCounts[ResourceAssessment::STATUS_FAILED] ?? 0);
-        $skipped = (int) ($statusCounts[ResourceAssessment::STATUS_SKIPPED] ?? 0);
+        $countStatus = static fn (string $status): int => (int) $statusCounts
+            ->where('status', $status)
+            ->sum('aggregate');
+        $assessed = $countStatus(ResourceAssessment::STATUS_COMPLETED);
+        $allFailures = $countStatus(ResourceAssessment::STATUS_FAILED);
+        $serviceErrors = (int) $statusCounts
+            ->where('status', ResourceAssessment::STATUS_FAILED)
+            ->where('failure_type', AssessmentFailureType::SERVICE->value)
+            ->sum('aggregate');
+        $failed = max(0, $allFailures - $serviceErrors);
+        $skipped = $countStatus(ResourceAssessment::STATUS_SKIPPED);
 
         return [
             'total' => $total,
             'assessed' => $assessed,
             'failed' => $failed,
+            'serviceErrors' => $serviceErrors,
             'skipped' => $skipped,
-            'unassessed' => max($total - $assessed - $failed - $skipped, 0),
+            'unassessed' => max($total - $assessed - $failed - $serviceErrors - $skipped, 0),
         ];
     }
 

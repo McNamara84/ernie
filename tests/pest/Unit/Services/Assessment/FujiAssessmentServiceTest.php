@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AssessmentFailureType;
 use App\Exceptions\FujiAssessmentException;
 use App\Services\Assessment\FujiAssessmentService;
 use Illuminate\Http\Client\ConnectionException;
@@ -234,7 +235,12 @@ describe('assessIdentifier', function (): void {
             );
     });
 
-    it('classifies HTTP failures for persistent queue retry decisions', function (int $status, bool $retryable, ?int $retryAfter): void {
+    it('classifies HTTP failures for persistent queue retry decisions', function (
+        int $status,
+        bool $retryable,
+        ?int $retryAfter,
+        AssessmentFailureType $failureType,
+    ): void {
         Http::fake([
             'https://fuji.test/fuji/api/v1/evaluate' => Http::response(
                 ['error' => 'Unavailable'],
@@ -248,16 +254,19 @@ describe('assessIdentifier', function (): void {
         } catch (FujiAssessmentException $exception) {
             expect($exception->retryable)->toBe($retryable)
                 ->and($exception->httpStatus)->toBe($status)
-                ->and($exception->retryAfterSeconds)->toBe($retryAfter);
+                ->and($exception->retryAfterSeconds)->toBe($retryAfter)
+                ->and($exception->failureType)->toBe($failureType)
+                ->and($exception->errorCode)->toBe("http_{$status}")
+                ->and($exception->durationMs)->toBeInt();
 
             return;
         }
 
         Assert::fail('Expected a typed F-UJI assessment exception.');
     })->with([
-        'rate limit with Retry-After' => [429, true, 30],
-        'server error' => [503, true, null],
-        'permanent client error' => [400, false, null],
+        'rate limit with Retry-After' => [429, true, 30, AssessmentFailureType::SERVICE],
+        'server error' => [503, true, null, AssessmentFailureType::SERVICE],
+        'permanent client error' => [400, false, null, AssessmentFailureType::RESOURCE],
     ]);
 
     it('throws a generic availability message when the F-UJI request cannot connect and logs the transport details once', function (): void {
@@ -279,6 +288,49 @@ describe('assessIdentifier', function (): void {
                 && $context['exception_class'] === ConnectionException::class
                 && is_string($context['error'])
             );
+    });
+
+    it('retries a short DNS failure and preserves its diagnostic details', function (): void {
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::failedConnection(
+                'cURL error 6: Could not resolve host: fuji.test',
+            ),
+        ]);
+
+        try {
+            makeFujiAssessmentService()->assessIdentifier('10.5880/test.001');
+        } catch (FujiAssessmentException $exception) {
+            expect($exception->retryable)->toBeTrue()
+                ->and($exception->failureType)->toBe(AssessmentFailureType::SERVICE)
+                ->and($exception->errorCode)->toBe('curl_6')
+                ->and($exception->errorDetail)->toContain('Could not resolve host')
+                ->and($exception->durationMs)->toBeInt();
+
+            return;
+        }
+
+        Assert::fail('Expected a typed F-UJI assessment exception.');
+    });
+
+    it('does not repeat a full response timeout', function (): void {
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::failedConnection(
+                'cURL error 28: Operation timed out after 300001 milliseconds with 0 bytes received',
+            ),
+        ]);
+
+        try {
+            makeFujiAssessmentService()->assessIdentifier('10.5880/test.001');
+        } catch (FujiAssessmentException $exception) {
+            expect($exception->retryable)->toBeFalse()
+                ->and($exception->failureType)->toBe(AssessmentFailureType::SERVICE)
+                ->and($exception->errorCode)->toBe('curl_28')
+                ->and($exception->durationMs)->toBe(300001);
+
+            return;
+        }
+
+        Assert::fail('Expected a typed F-UJI assessment exception.');
     });
 
     it('deduplicates identical transport failures within the same service instance', function (): void {

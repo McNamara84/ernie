@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\AssessmentFailureType;
 use App\Enums\AssessmentRunItemStatus;
 use App\Enums\AssessmentRunStatus;
 use App\Enums\AssessmentScope;
@@ -33,13 +34,13 @@ final class AssessResourceRunItemJob implements ShouldQueue
 
     public int $tries = 1;
 
-    public int $timeout = 150;
+    public int $timeout = 330;
 
     public bool $failOnTimeout = true;
 
     public function __construct(public readonly int $itemId)
     {
-        $this->timeout = max(30, (int) config('fuji.assessment.item_timeout_seconds', 150));
+        $this->timeout = max(30, (int) config('fuji.assessment.item_timeout_seconds', 330));
     }
 
     public function handle(
@@ -91,7 +92,7 @@ final class AssessResourceRunItemJob implements ShouldQueue
             if ($exception->retryable && $item->attempts < max(1, (int) config('fuji.assessment.max_attempts', 3))) {
                 $delay = $this->retryDelay($item->attempts, $exception->retryAfterSeconds);
                 $this->defer($item, $delay, $exception);
-                $this->logDeferred($run, $item, $delay, 'retryable_fuji_failure', $exception->httpStatus);
+                $this->logDeferred($run, $item, $delay, 'retryable_fuji_failure', $exception->httpStatus, $exception);
                 $runs->dispatch($run, $delay);
 
                 return;
@@ -104,11 +105,15 @@ final class AssessResourceRunItemJob implements ShouldQueue
                 $resourceCache,
                 error: $exception->getMessage(),
                 httpStatus: $exception->httpStatus,
+                failureType: $exception->failureType,
+                errorCode: $exception->errorCode,
+                errorDetail: $exception->errorDetail,
+                durationMs: $exception->durationMs ?? $this->durationMs($started),
                 expectedIdentifier: $identifier,
             );
             $item->refresh();
             if ($item->status->isTerminal()) {
-                $this->logFinished($run, $item, $item->status->value, $started, $exception->httpStatus);
+                $this->logFinished($run, $item, $item->status->value, $started, $exception);
             }
             $runs->dispatch($run);
 
@@ -122,11 +127,12 @@ final class AssessResourceRunItemJob implements ShouldQueue
             $resourceCache,
             $result,
             httpStatus: 200,
+            durationMs: $this->durationMs($started),
             expectedIdentifier: $identifier,
         );
         $item->refresh();
         if ($item->status->isTerminal()) {
-            $this->logFinished($run, $item, $item->status->value, $started, 200);
+            $this->logFinished($run, $item, $item->status->value, $started, httpStatus: 200);
         }
         $runs->dispatch($run);
     }
@@ -212,6 +218,10 @@ final class AssessResourceRunItemJob implements ShouldQueue
         ?array $result = null,
         ?string $error = null,
         ?int $httpStatus = null,
+        ?AssessmentFailureType $failureType = null,
+        ?string $errorCode = null,
+        ?string $errorDetail = null,
+        ?int $durationMs = null,
         ?string $expectedIdentifier = null,
     ): void {
         $runId = AssessmentRunItem::query()->whereKey($item->id)->value('run_id');
@@ -219,7 +229,7 @@ final class AssessResourceRunItemJob implements ShouldQueue
             return;
         }
 
-        DB::transaction(function () use ($runId, $item, $status, $resource, $resourceCache, $result, $error, $httpStatus, $expectedIdentifier): void {
+        DB::transaction(function () use ($runId, $item, $status, $resource, $resourceCache, $result, $error, $httpStatus, $failureType, $errorCode, $errorDetail, $durationMs, $expectedIdentifier): void {
             $run = AssessmentRun::query()->lockForUpdate()->find($runId);
             if ($run === null) {
                 return;
@@ -241,7 +251,11 @@ final class AssessResourceRunItemJob implements ShouldQueue
                         'status' => AssessmentRunItemStatus::PENDING,
                         'identifier' => $currentIdentifier,
                         'last_http_status' => $httpStatus,
+                        'failure_type' => null,
+                        'error_code' => null,
                         'error_message' => 'Resource DOI changed during assessment; retrying the current DOI.',
+                        'error_detail' => null,
+                        'last_attempt_duration_ms' => $durationMs,
                         'available_at' => null,
                         'processing_started_at' => null,
                         'lease_expires_at' => null,
@@ -256,6 +270,9 @@ final class AssessResourceRunItemJob implements ShouldQueue
                 $result = null;
                 $error = $currentSkipReason;
                 $httpStatus = null;
+                $failureType = null;
+                $errorCode = null;
+                $errorDetail = null;
             }
 
             if ($currentResource !== null) {
@@ -267,6 +284,8 @@ final class AssessResourceRunItemJob implements ShouldQueue
                             AssessmentRunItemStatus::FAILED => ResourceAssessment::STATUS_FAILED,
                             default => ResourceAssessment::STATUS_SKIPPED,
                         },
+                        'failure_type' => $status === AssessmentRunItemStatus::FAILED ? $failureType : null,
+                        'error_code' => $status === AssessmentRunItemStatus::FAILED ? $errorCode : null,
                         'total_score' => $result['score'] ?? null,
                         'assessed_identifier' => $currentResource->doi,
                         'error_message' => $error === null ? null : $this->sanitize($error),
@@ -281,7 +300,11 @@ final class AssessResourceRunItemJob implements ShouldQueue
                 'status' => $status,
                 'identifier' => $resolvedIdentifier ?? $lockedItem->identifier,
                 'last_http_status' => $httpStatus,
+                'failure_type' => $status === AssessmentRunItemStatus::FAILED ? $failureType : null,
+                'error_code' => $status === AssessmentRunItemStatus::FAILED ? $errorCode : null,
                 'error_message' => $error === null ? null : $this->sanitize($error),
+                'error_detail' => $errorDetail === null ? null : $this->sanitize($errorDetail),
+                'last_attempt_duration_ms' => $durationMs,
                 'available_at' => null,
                 'processing_started_at' => null,
                 'lease_expires_at' => null,
@@ -293,7 +316,9 @@ final class AssessResourceRunItemJob implements ShouldQueue
 
             match ($status) {
                 AssessmentRunItemStatus::ASSESSED => $run->assessed++,
-                AssessmentRunItemStatus::FAILED => $run->failed++,
+                AssessmentRunItemStatus::FAILED => $failureType === AssessmentFailureType::SERVICE
+                    ? $run->service_errors++
+                    : $run->failed++,
                 default => $run->skipped++,
             };
 
@@ -318,7 +343,13 @@ final class AssessResourceRunItemJob implements ShouldQueue
                     'processing_started_at' => null,
                     'lease_expires_at' => null,
                     'last_http_status' => $exception instanceof FujiAssessmentException ? $exception->httpStatus : null,
+                    'failure_type' => $exception instanceof FujiAssessmentException ? $exception->failureType : null,
+                    'error_code' => $exception instanceof FujiAssessmentException ? $exception->errorCode : null,
                     'error_message' => $exception === null ? null : $this->sanitize($exception->getMessage()),
+                    'error_detail' => $exception instanceof FujiAssessmentException && $exception->errorDetail !== null
+                        ? $this->sanitize($exception->errorDetail)
+                        : null,
+                    'last_attempt_duration_ms' => $exception instanceof FujiAssessmentException ? $exception->durationMs : null,
                 ]);
         }, self::TRANSACTION_ATTEMPTS);
     }
@@ -335,8 +366,14 @@ final class AssessResourceRunItemJob implements ShouldQueue
         return ($base * (2 ** max(0, $attempts - 1))) + ($jitter === 0 ? 0 : random_int(0, $jitter));
     }
 
-    private function logFinished(AssessmentRun $run, AssessmentRunItem $item, string $status, float $started, ?int $httpStatus): void
-    {
+    private function logFinished(
+        AssessmentRun $run,
+        AssessmentRunItem $item,
+        string $status,
+        float $started,
+        ?FujiAssessmentException $exception = null,
+        ?int $httpStatus = null,
+    ): void {
         Log::info('Resource assessment item finished', [
             'run_id' => $run->id,
             'item_id' => $item->id,
@@ -345,8 +382,10 @@ final class AssessResourceRunItemJob implements ShouldQueue
             'identifier' => $item->identifier,
             'attempt' => $item->attempts,
             'status' => $status,
-            'http_status' => $httpStatus,
-            'duration_ms' => (int) round((microtime(true) - $started) * 1000),
+            'http_status' => $exception->httpStatus ?? $httpStatus,
+            'failure_type' => $exception?->failureType->value,
+            'error_code' => $exception?->errorCode,
+            'duration_ms' => $exception->durationMs ?? $this->durationMs($started),
         ]);
     }
 
@@ -356,6 +395,7 @@ final class AssessResourceRunItemJob implements ShouldQueue
         int $delaySeconds,
         string $reason,
         ?int $httpStatus = null,
+        ?FujiAssessmentException $exception = null,
     ): void {
         Log::info('Resource assessment item deferred', [
             'run_id' => $run->id,
@@ -366,6 +406,9 @@ final class AssessResourceRunItemJob implements ShouldQueue
             'attempt' => $item->attempts,
             'reason' => $reason,
             'http_status' => $httpStatus,
+            'failure_type' => $exception?->failureType->value,
+            'error_code' => $exception?->errorCode,
+            'duration_ms' => $exception?->durationMs,
             'delay_seconds' => $delaySeconds,
         ]);
     }
@@ -373,5 +416,10 @@ final class AssessResourceRunItemJob implements ShouldQueue
     private function sanitize(string $message): string
     {
         return mb_substr(trim(preg_replace('/\s+/', ' ', $message) ?? $message), 0, 1000);
+    }
+
+    private function durationMs(float $started): int
+    {
+        return max(0, (int) round((microtime(true) - $started) * 1000));
     }
 }

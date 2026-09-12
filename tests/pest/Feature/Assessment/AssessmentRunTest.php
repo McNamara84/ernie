@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AssessmentFailureType;
 use App\Enums\AssessmentRunItemStatus;
 use App\Enums\AssessmentRunStatus;
 use App\Enums\AssessmentScope;
@@ -613,6 +614,8 @@ test('a transient F-UJI failure is deferred without losing the item', function (
     expect($item->fresh()->status)->toBe(AssessmentRunItemStatus::PENDING)
         ->and($item->fresh()->attempts)->toBe(1)
         ->and($item->fresh()->last_http_status)->toBe(500)
+        ->and($item->fresh()->failure_type)->toBe(AssessmentFailureType::SERVICE)
+        ->and($item->fresh()->error_code)->toBe('http_500')
         ->and($item->fresh()->available_at?->isFuture())->toBeTrue()
         ->and($run->fresh()->processed)->toBe(0)
         ->and(ResourceAssessment::query()->where('resource_id', $resource->id)->exists())->toBeFalse();
@@ -673,7 +676,10 @@ test('a permanent F-UJI failure becomes a terminal resource failure', function (
 
     expect($item->fresh()->status)->toBe(AssessmentRunItemStatus::FAILED)
         ->and($item->fresh()->attempts)->toBe(1)
+        ->and($item->fresh()->failure_type)->toBe(AssessmentFailureType::RESOURCE)
+        ->and($item->fresh()->error_code)->toBe('http_400')
         ->and($run->fresh()->failed)->toBe(1)
+        ->and($run->fresh()->service_errors)->toBe(0)
         ->and($run->fresh()->pending)->toBe(0)
         ->and(ResourceAssessment::query()->where('resource_id', $resource->id)->value('status'))
         ->toBe(ResourceAssessment::STATUS_FAILED);
@@ -689,7 +695,90 @@ test('a transient failure becomes terminal after the configured attempt limit', 
 
     expect($item->fresh()->status)->toBe(AssessmentRunItemStatus::FAILED)
         ->and($item->fresh()->attempts)->toBe(3)
-        ->and($run->fresh()->failed)->toBe(1);
+        ->and($item->fresh()->failure_type)->toBe(AssessmentFailureType::SERVICE)
+        ->and($run->fresh()->failed)->toBe(0)
+        ->and($run->fresh()->service_errors)->toBe(1);
+});
+
+test('a full response timeout becomes a service error without consuming every retry', function (): void {
+    $resource = Resource::factory()->withDoi('10.5880/assessment.timeout')->create();
+    [$run, $item] = queuedAssessmentItem($resource);
+    Http::fake([
+        'https://fuji.test/*' => Http::failedConnection(
+            'cURL error 28: Operation timed out after 300001 milliseconds with 0 bytes received',
+        ),
+    ]);
+
+    handleAssessmentItem(new AssessResourceRunItemJob($item->id));
+
+    $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->firstOrFail();
+    expect($item->fresh()->status)->toBe(AssessmentRunItemStatus::FAILED)
+        ->and($item->fresh()->attempts)->toBe(1)
+        ->and($item->fresh()->failure_type)->toBe(AssessmentFailureType::SERVICE)
+        ->and($item->fresh()->error_code)->toBe('curl_28')
+        ->and($item->fresh()->error_detail)->toContain('Operation timed out')
+        ->and($item->fresh()->last_attempt_duration_ms)->toBe(300001)
+        ->and($run->fresh()->failed)->toBe(0)
+        ->and($run->fresh()->service_errors)->toBe(1)
+        ->and($assessment->failure_type)->toBe(AssessmentFailureType::SERVICE)
+        ->and($assessment->error_code)->toBe('curl_28');
+});
+
+test('service errors can be retried without repeating successful or resource-failed items', function (): void {
+    $user = User::factory()->admin()->create();
+    $serviceResource = Resource::factory()->withDoi('10.5880/assessment.retry-service')->create();
+    $resourceFailure = Resource::factory()->withDoi('10.5880/assessment.keep-failed')->create();
+    $run = AssessmentRun::factory()->create([
+        'status' => AssessmentRunStatus::COMPLETED,
+        'active_scope' => null,
+        'total' => 2,
+        'processed' => 2,
+        'failed' => 1,
+        'service_errors' => 1,
+        'pending' => 0,
+        'completed_at' => now(),
+    ]);
+    $serviceItem = AssessmentRunItem::factory()->for($run, 'run')->for($serviceResource)->create([
+        'status' => AssessmentRunItemStatus::FAILED,
+        'attempts' => 1,
+        'failure_type' => AssessmentFailureType::SERVICE,
+        'error_code' => 'curl_28',
+        'error_message' => 'F-UJI is currently unavailable.',
+        'error_detail' => 'Operation timed out.',
+        'last_attempt_duration_ms' => 300000,
+        'processed_at' => now(),
+    ]);
+    $resourceItem = AssessmentRunItem::factory()->for($run, 'run')->for($resourceFailure)->create([
+        'status' => AssessmentRunItemStatus::FAILED,
+        'failure_type' => AssessmentFailureType::RESOURCE,
+        'error_code' => 'http_400',
+        'processed_at' => now(),
+    ]);
+    ResourceAssessment::query()->create([
+        'resource_id' => $serviceResource->id,
+        'status' => ResourceAssessment::STATUS_FAILED,
+        'failure_type' => AssessmentFailureType::SERVICE,
+        'error_code' => 'curl_28',
+        'error_message' => 'F-UJI is currently unavailable.',
+        'assessed_identifier' => $serviceResource->doi,
+        'assessed_at' => now(),
+    ]);
+
+    $retried = app(AssessmentRunService::class)->retryServiceFailures($run, $user);
+
+    expect($retried->status)->toBe(AssessmentRunStatus::QUEUED)
+        ->and($retried->active_scope)->toBe(AssessmentScope::RESOURCE)
+        ->and($retried->processed)->toBe(1)
+        ->and($retried->failed)->toBe(1)
+        ->and($retried->service_errors)->toBe(0)
+        ->and($retried->pending)->toBe(1)
+        ->and($serviceItem->fresh()->status)->toBe(AssessmentRunItemStatus::PENDING)
+        ->and($serviceItem->fresh()->attempts)->toBe(0)
+        ->and($serviceItem->fresh()->failure_type)->toBeNull()
+        ->and($serviceItem->fresh()->error_detail)->toBeNull()
+        ->and($resourceItem->fresh()->status)->toBe(AssessmentRunItemStatus::FAILED)
+        ->and(ResourceAssessment::query()->where('resource_id', $serviceResource->id)->exists())->toBeFalse();
+    Queue::assertPushed(DispatchAssessmentRunItemsJob::class, 1);
 });
 
 test('a saturated limiter defers an item without counting an assessment attempt', function (): void {

@@ -33,7 +33,18 @@ it('stores resumable snapshot preparation progress', function (): void {
         'snapshot_max_resource_id',
         'preparation_cursor',
         'prepared_at',
-    ]))->toBeTrue();
+        'service_errors',
+    ]))->toBeTrue()
+        ->and(Schema::hasColumns('assessment_run_items', [
+            'failure_type',
+            'error_code',
+            'error_detail',
+            'last_attempt_duration_ms',
+        ]))->toBeTrue()
+        ->and(Schema::hasColumns('resource_assessments', [
+            'failure_type',
+            'error_code',
+        ]))->toBeTrue();
 });
 
 it('allows only one active run per scope while retaining terminal run history', function (): void {

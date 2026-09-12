@@ -68,6 +68,14 @@ export interface ResourceListLandingPage {
     preview_url?: string | null;
 }
 
+export type ResourcePartySearchRole = 'contact_person' | 'author' | 'contributor';
+
+export interface ResourcePartySearchMatch {
+    display_value: string;
+    matched_field: 'name' | 'email';
+    roles: ResourcePartySearchRole[];
+}
+
 export interface ResourceListItem {
     id: number;
     doi?: string | null;
@@ -81,6 +89,7 @@ export interface ResourceListItem {
     title?: string;
     first_author?: ResourceListAuthor | null;
     landingPage?: ResourceListLandingPage | null;
+    search_matches?: ResourcePartySearchMatch[];
     [key: string]: unknown;
 }
 

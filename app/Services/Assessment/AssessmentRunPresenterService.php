@@ -23,6 +23,7 @@ final class AssessmentRunPresenterService
             'processedResources' => $run->processed,
             'assessedResources' => $run->assessed,
             'failedResources' => $run->failed,
+            'serviceErrorResources' => $run->service_errors,
             'skippedResources' => $run->skipped,
             'pendingResources' => $run->pending,
             'startedAt' => $run->started_at?->toIso8601String(),

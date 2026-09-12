@@ -25,14 +25,14 @@ it('isolates FAIR assessments in two configurable persistent workers', function 
     $service = $compose['services']['assessment-queue'] ?? null;
 
     expect($service)->toBeArray()
-        ->and($service['deploy']['replicas'] ?? null)->toBe('${FUJI_ASSESSMENT_CONCURRENCY:-2}');
+        ->and($service['deploy']['replicas'] ?? null)->toBe('${FUJI_ASSESSMENT_CONCURRENCY:-1}');
 
     $command = $service['command'] ?? null;
     expect($command)->toBeString()
         ->toContain('queue:work ${FUJI_ASSESSMENT_QUEUE_CONNECTION:-assessment}')
         ->toContain('--queue=${FUJI_ASSESSMENT_QUEUE:-assessments}')
         ->toContain('--tries=1')
-        ->toContain('--timeout=${FUJI_ASSESSMENT_ITEM_TIMEOUT:-150}');
+        ->toContain('--timeout=${FUJI_ASSESSMENT_ITEM_TIMEOUT:-330}');
 
     $environment = $service['environment'] ?? [];
     expect($environment)
@@ -40,8 +40,8 @@ it('isolates FAIR assessments in two configurable persistent workers', function 
         ->toContain('QUEUE_CONNECTION=database')
         ->toContain('CACHE_STORE=redis')
         ->toContain('FUJI_ASSESSMENT_QUEUE_CONNECTION=${FUJI_ASSESSMENT_QUEUE_CONNECTION:-assessment}')
-        ->toContain('FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-210}')
-        ->toContain('FUJI_ASSESSMENT_LEASE_SECONDS=${FUJI_ASSESSMENT_LEASE_SECONDS:-210}')
+        ->toContain('FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}')
+        ->toContain('FUJI_ASSESSMENT_LEASE_SECONDS=${FUJI_ASSESSMENT_LEASE_SECONDS:-390}')
         ->toContain('FUJI_ASSESSMENT_REQUESTS_PER_MINUTE=${FUJI_ASSESSMENT_REQUESTS_PER_MINUTE:-80}')
         ->toContain('FUJI_ASSESSMENT_MINIMUM_INTERVAL_MS=${FUJI_ASSESSMENT_MINIMUM_INTERVAL_MS:-750}');
 })->with([
@@ -89,7 +89,7 @@ it('forwards the assessment queue identity and limiter settings to every app con
         ->toBeArray()
         ->toContain('FUJI_ASSESSMENT_QUEUE_CONNECTION=${FUJI_ASSESSMENT_QUEUE_CONNECTION:-assessment}')
         ->toContain('FUJI_ASSESSMENT_QUEUE=${FUJI_ASSESSMENT_QUEUE:-assessments}')
-        ->toContain('FUJI_ASSESSMENT_CONCURRENCY=${FUJI_ASSESSMENT_CONCURRENCY:-2}')
+        ->toContain('FUJI_ASSESSMENT_CONCURRENCY=${FUJI_ASSESSMENT_CONCURRENCY:-1}')
         ->toContain('FUJI_ASSESSMENT_REQUESTS_PER_MINUTE=${FUJI_ASSESSMENT_REQUESTS_PER_MINUTE:-80}')
         ->toContain('FUJI_ASSESSMENT_WINDOW_SECONDS=${FUJI_ASSESSMENT_WINDOW_SECONDS:-60}')
         ->toContain('FUJI_ASSESSMENT_MINIMUM_INTERVAL_MS=${FUJI_ASSESSMENT_MINIMUM_INTERVAL_MS:-750}');

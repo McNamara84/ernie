@@ -58,14 +58,14 @@ describe('ResourcesFilters Component', () => {
 
     it('renders search input', () => {
         render(<ResourcesFilters {...defaultProps} />);
-        expect(screen.getByPlaceholderText(/search title or doi/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i)).toBeInTheDocument();
     });
 
     it('debounces search input with 1000ms delay', async () => {
         const user = userEvent.setup();
         render(<ResourcesFilters {...defaultProps} />);
 
-        const searchInput = screen.getByPlaceholderText(/search title or doi/i);
+        const searchInput = screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i);
 
         // Type first 3 characters (minimum length)
         await user.type(searchInput, 'test');
@@ -74,7 +74,7 @@ describe('ResourcesFilters Component', () => {
         expect(mockOnFilterChange).not.toHaveBeenCalled();
 
         // Wait for debounce delay (1000ms)
-        await new Promise(resolve => setTimeout(resolve, 1100));
+        await new Promise((resolve) => setTimeout(resolve, 1100));
 
         // Should have been called after debounce
         expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
@@ -83,7 +83,7 @@ describe('ResourcesFilters Component', () => {
         expect(mockOnFilterChange).toHaveBeenCalledWith(
             expect.objectContaining({
                 search: 'test',
-            })
+            }),
         );
     }, 15000);
 
@@ -91,14 +91,14 @@ describe('ResourcesFilters Component', () => {
         const user = userEvent.setup();
         render(<ResourcesFilters {...defaultProps} />);
 
-        const searchInput = screen.getByPlaceholderText(/search title or doi/i);
+        const searchInput = screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i);
 
         // Type only 2 characters
         await user.clear(searchInput); // Ensure it's empty first
         await user.type(searchInput, 'ab'); // Only 2 chars
 
         // Wait beyond debounce delay
-        await new Promise(resolve => setTimeout(resolve, 1200));
+        await new Promise((resolve) => setTimeout(resolve, 1200));
 
         // Should not trigger search (minimum is 3 characters)
         expect(mockOnFilterChange).not.toHaveBeenCalled();
@@ -108,14 +108,14 @@ describe('ResourcesFilters Component', () => {
         const user = userEvent.setup();
         render(<ResourcesFilters {...defaultProps} filters={{ search: 'existing' }} />);
 
-        const searchInput = screen.getByPlaceholderText(/search title or doi/i);
+        const searchInput = screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i);
 
         // Clear the input
         await user.clear(searchInput);
 
         // Wait for debounce
-        await new Promise(resolve => setTimeout(resolve, 1100));
-        
+        await new Promise((resolve) => setTimeout(resolve, 1100));
+
         // Last call should clear the search
         const calls = mockOnFilterChange.mock.calls;
         const lastCall = calls[calls.length - 1][0];
@@ -126,25 +126,25 @@ describe('ResourcesFilters Component', () => {
         const user = userEvent.setup();
         const { rerender } = render(<ResourcesFilters {...defaultProps} />);
 
-        const searchInput = screen.getByPlaceholderText(/search title or doi/i) as HTMLInputElement;
+        const searchInput = screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i) as HTMLInputElement;
 
         // Type to trigger search
         await user.type(searchInput, 'test');
 
         // Wait for debounce
-        await new Promise(resolve => setTimeout(resolve, 1100));
+        await new Promise((resolve) => setTimeout(resolve, 1100));
 
         // Verify debounce callback was called
         expect(mockOnFilterChange).toHaveBeenCalled();
 
         // Simulate filter change (as would happen from parent component)
         rerender(<ResourcesFilters {...defaultProps} filters={{ search: 'test' }} isLoading={true} />);
-        
+
         // Simulate loading finished
         rerender(<ResourcesFilters {...defaultProps} filters={{ search: 'test' }} isLoading={false} />);
 
         // Wait for focus restoration (100ms delay)
-        await new Promise(resolve => setTimeout(resolve, 150));
+        await new Promise((resolve) => setTimeout(resolve, 150));
 
         // Focus should be restored after loading completes
         expect(document.activeElement).toBe(searchInput);
@@ -152,7 +152,7 @@ describe('ResourcesFilters Component', () => {
 
     it('displays result count correctly when filtered', () => {
         render(<ResourcesFilters {...defaultProps} resultCount={5} totalCount={100} />);
-        
+
         // The result count shows up when resultCount !== totalCount
         // Look for the span containing "Showing" as direct text
         const spans = screen.getAllByText(/Showing/);
@@ -162,21 +162,21 @@ describe('ResourcesFilters Component', () => {
 
     it('shows clear all button when filters are active', () => {
         render(<ResourcesFilters {...defaultProps} filters={{ search: 'test', status: ['published'] }} />);
-        
+
         expect(screen.getByText(/clear all/i)).toBeInTheDocument();
     });
 
     it('allows removing individual filter badges', async () => {
         const user = userEvent.setup();
         render(<ResourcesFilters {...defaultProps} filters={{ search: 'test', status: ['published'] }} />);
-        
+
         // Find the X button on the search filter badge
         const badges = screen.getAllByRole('button', { name: /remove/i });
         expect(badges.length).toBeGreaterThan(0);
-        
+
         // Click to remove
         await user.click(badges[0]);
-        
+
         expect(mockOnFilterChange).toHaveBeenCalled();
     }, 15000);
 
@@ -318,8 +318,8 @@ describe('ResourcesFilters Component', () => {
 
     it('disables filters when loading', () => {
         render(<ResourcesFilters {...defaultProps} isLoading={true} />);
-        
-        const searchInput = screen.getByPlaceholderText(/search title or doi/i);
+
+        const searchInput = screen.getByPlaceholderText(/search doi, title, author, contributor, or email/i);
         expect(searchInput).toBeDisabled();
     });
 });

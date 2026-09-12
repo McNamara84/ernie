@@ -52,6 +52,7 @@ export interface AssessmentSummary {
     total: number;
     assessed: number;
     failed: number;
+    serviceErrors: number;
     skipped: number;
     unassessed: number;
 }
@@ -66,6 +67,7 @@ export interface AssessmentJobStatus {
     processedResources?: number;
     assessedResources?: number;
     failedResources?: number;
+    serviceErrorResources?: number;
     skippedResources?: number;
     pendingResources?: number;
     startedAt?: string | null;

@@ -48,7 +48,7 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('FUJI_ASSESSMENT_QUEUE', 'assessments'),
-            'retry_after' => (int) env('FUJI_ASSESSMENT_QUEUE_RETRY_AFTER', 210),
+            'retry_after' => (int) env('FUJI_ASSESSMENT_QUEUE_RETRY_AFTER', 390),
             'after_commit' => false,
         ],
 

@@ -289,6 +289,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->whereUuid('jobId')
                 ->name('assessment.resume');
 
+            Route::post('assessment/check/{scope}/{jobId}/retry-service-failures', [AssessmentController::class, 'retryServiceFailures'])
+                ->where('scope', 'resource|igsn')
+                ->whereUuid('jobId')
+                ->name('assessment.retry-service-failures');
+
             Route::delete('assessment/check/{scope}/{jobId}', [AssessmentController::class, 'cancel'])
                 ->where('scope', 'resource|igsn')
                 ->whereUuid('jobId')

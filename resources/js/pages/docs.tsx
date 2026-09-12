@@ -2266,6 +2266,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <strong>Show fewer authors</strong> and collapses the list again; keyboard focus stays on the control in both states. The
                             copy action uses whichever compact or expanded citation is currently visible.
                         </p>
+                        <h4>Versioned Landing-Page Citations</h4>
+                        <p>
+                            When version metadata is available, the citation in the landing-page Hero and the{' '}
+                            <strong>GFZ Data Services (legacy)</strong> option under <strong>Cite this Resource</strong> show it between the resource
+                            title and publisher, for example <code>V. 0003.</code> Resource and IGSN landing pages without version metadata keep the
+                            previous citation format without a version placeholder. The five official citation styles continue to determine their own
+                            version output.
+                        </p>
                         <h4>License Display</h4>
                         <p>
                             The independent <strong>License &amp; Rights</strong> section is available on Resource and IGSN landing pages, regardless
@@ -2724,6 +2732,21 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 filters, sorting, selection, or loaded results.
                             </li>
                         </ul>
+
+                        <h4>Searching by Title, DOI, or People</h4>
+                        <p>
+                            The Resources search finds case-insensitive partial matches in DOIs, titles, authors, contributors, institutions, and
+                            their stored email addresses. Person names can be entered in either given-name/family-name order and without spaces or
+                            punctuation. For example, <code>Hans Peter</code>, <code>Peter Hans</code>, and <code>HansPeter</code> can find the same
+                            person; the search does not correct spelling mistakes.
+                        </p>
+                        <p>
+                            A matching row shows the relevant name or email above its DOI. <strong>Author</strong> identifies a creator,{' '}
+                            <strong>Contributor</strong> identifies a non-contact contributor role, and <strong>CP</strong> identifies a contact
+                            person. Combined labels such as <strong>CP &amp; Author &amp; Contributor</strong> mean the same identity has several
+                            roles on that resource. Search continues to combine with all active filters, cursor-based loading, and the separately
+                            calculated exact result count.
+                        </p>
 
                         <h4>Filtering by Datacenter</h4>
                         <p>
