@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Legacy;
 
 use App\Exceptions\ConcurrentLegacyCreatorAndMslMetadataChangeException;
-use App\Exceptions\LegacyBackfillRecordConsumerException;
 use App\Models\Institution;
 use App\Models\OldDataset;
 use App\Models\Person;
@@ -111,13 +110,15 @@ final class LegacyCreatorAndMslMetadataBackfillService
                     [$oldDataset, $matchMethod] = $this->resolveLegacyResource($resource, $matchByDoi);
                     if ($oldDataset === null) {
                         $stats['missing_legacy']++;
-                        $this->emitRecord($stats, $this->record(
+                        if (! $this->emitRecord($stats, $this->record(
                             $resource,
                             $resource->legacy_source_id,
                             $matchMethod,
                             'missing_legacy',
                             message: 'No unique SUMARIO resource was found.',
-                        ), $recordConsumer, $retainRecords);
+                        ), $recordConsumer, $retainRecords)) {
+                            break 2;
+                        }
 
                         continue;
                     }
@@ -196,43 +197,49 @@ final class LegacyCreatorAndMslMetadataBackfillService
                         $result['warnings'] !== [] => 'manual_review',
                         default => 'unchanged',
                     };
-                    $this->emitRecord($stats, $this->record(
+                    if (! $this->emitRecord($stats, $this->record(
                         $resource,
                         (int) $oldDataset->id,
                         $matchMethod,
                         $status,
                         $result,
                         implode(' ', $result['warnings']),
-                    ), $recordConsumer, $retainRecords);
-                } catch (LegacyBackfillRecordConsumerException $exception) {
-                    throw $exception;
+                    ), $recordConsumer, $retainRecords)) {
+                        break 2;
+                    }
                 } catch (ConcurrentLegacyCreatorAndMslMetadataChangeException $exception) {
                     $stats['concurrent_changes']++;
-                    $this->emitRecord($stats, $this->record(
+                    if (! $this->emitRecord($stats, $this->record(
                         $resource,
                         $resource->legacy_source_id,
                         $resource->legacy_source_id !== null ? 'legacy_source_id' : 'doi',
                         'concurrent_change',
                         message: $exception->getMessage(),
-                    ), $recordConsumer, $retainRecords);
+                    ), $recordConsumer, $retainRecords)) {
+                        break 2;
+                    }
                 } catch (RuntimeException $exception) {
                     $stats['manual_review']++;
-                    $this->emitRecord($stats, $this->record(
+                    if (! $this->emitRecord($stats, $this->record(
                         $resource,
                         $resource->legacy_source_id,
                         $resource->legacy_source_id !== null ? 'legacy_source_id' : 'doi',
                         'manual_review',
                         message: $exception->getMessage(),
-                    ), $recordConsumer, $retainRecords);
+                    ), $recordConsumer, $retainRecords)) {
+                        break 2;
+                    }
                 } catch (\Throwable $exception) {
                     $stats['errors']++;
-                    $this->emitRecord($stats, $this->record(
+                    if (! $this->emitRecord($stats, $this->record(
                         $resource,
                         $resource->legacy_source_id,
                         $resource->legacy_source_id !== null ? 'legacy_source_id' : 'doi',
                         'error',
                         message: $exception->getMessage(),
-                    ), $recordConsumer, $retainRecords);
+                    ), $recordConsumer, $retainRecords)) {
+                        break 2;
+                    }
                     Log::warning('Legacy creator and MSL metadata backfill failed', [
                         'resource_id' => $resource->id,
                         'legacy_resource_id' => $resource->legacy_source_id,
@@ -621,6 +628,7 @@ final class LegacyCreatorAndMslMetadataBackfillService
             'last_scanned_resource_id' => null,
             'sync_resource_ids' => [],
             'records' => [],
+            'record_consumer_error' => null,
         ];
     }
 
@@ -634,23 +642,29 @@ final class LegacyCreatorAndMslMetadataBackfillService
         array $record,
         ?callable $recordConsumer,
         bool $retainRecords,
-    ): void {
+    ): bool {
         if ($retainRecords) {
             $stats['records'][] = $record;
         }
 
-        if ($recordConsumer === null) {
-            return;
+        if ($recordConsumer === null || $stats['record_consumer_error'] !== null) {
+            return $stats['record_consumer_error'] === null;
         }
 
         try {
             $recordConsumer($record);
         } catch (\Throwable $exception) {
-            throw new LegacyBackfillRecordConsumerException(
-                'Unable to stream a backfill report record: '.$exception->getMessage(),
-                previous: $exception,
-            );
+            $message = trim($exception->getMessage());
+            $stats['record_consumer_error'] = $message !== '' ? $message : $exception::class;
+            Log::warning('Legacy creator and MSL metadata backfill report streaming failed; processing stopped before the next resource', [
+                'resource_id' => $record['resource_id'] ?? null,
+                'error' => $stats['record_consumer_error'],
+            ]);
+
+            return false;
         }
+
+        return true;
     }
 
     /**

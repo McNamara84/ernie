@@ -9,13 +9,50 @@ use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\Subject;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\ImportProgressService;
 use App\Services\Legacy\LegacyCreatorAndMslMetadataBackfillService;
+use Illuminate\Console\Command;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
+
+final class LegacyBackfillFailingCsvStreamWrapper
+{
+    public mixed $context;
+
+    public static int $successfulWrites = 0;
+
+    private int $writes = 0;
+
+    public function stream_open(string $path, string $mode, int $options, ?string &$openedPath): bool
+    {
+        $this->writes = 0;
+
+        return true;
+    }
+
+    public function stream_write(string $data): int
+    {
+        if ($this->writes >= self::$successfulWrites) {
+            return 0;
+        }
+
+        $this->writes++;
+
+        return strlen($data);
+    }
+
+    /** @return array<string, int> */
+    public function stream_stat(): array
+    {
+        return [];
+    }
+}
 
 uses(RefreshDatabase::class);
 
@@ -83,8 +120,8 @@ afterEach(function (): void {
     DB::disconnect('metaworks');
 });
 
-/** @return array{resource: Resource, creator: ResourceCreator, legacy_id: int} */
-function createLegacyCreatorBackfillFixture(string $doi): array
+/** @return array{resource: Resource, creator: ResourceCreator, person: Person, legacy_id: int} */
+function createLegacyCreatorBackfillFixture(string $doi, ?Person $person = null): array
 {
     $legacyId = DB::connection('metaworks')->table('resource')->insertGetId(['identifier' => $doi]);
     DB::connection('metaworks')->table('resourceagent')->insert([
@@ -102,7 +139,7 @@ function createLegacyCreatorBackfillFixture(string $doi): array
         'role' => 'Creator',
     ]);
 
-    $person = Person::factory()->create([
+    $person ??= Person::factory()->create([
         'given_name' => 'Philipp',
         'family_name' => 'Sommer',
         'name_identifier' => '0000-0001-6171-7716',
@@ -116,7 +153,7 @@ function createLegacyCreatorBackfillFixture(string $doi): array
         'resource_id' => $resource->id,
     ]);
 
-    return compact('resource', 'creator') + ['legacy_id' => $legacyId];
+    return compact('resource', 'creator', 'person') + ['legacy_id' => $legacyId];
 }
 
 it('is dry-run-first, additive, resource-specific, and idempotent', function (): void {
@@ -382,6 +419,83 @@ it('streams audit records without retaining the full result set', function (): v
         ->and($records)->toHaveCount(1)
         ->and($records[0]['resource_id'])->toBe($resource->id)
         ->and($records[0]['status'])->toBe('would_update');
+});
+
+it('preserves all DataCite sync candidates when report streaming fails after applied rows', function (): void {
+    $first = createLegacyCreatorBackfillFixture('10.5880/report-failure-first');
+    $second = createLegacyCreatorBackfillFixture('10.5880/report-failure-second', $first['person']);
+    $third = createLegacyCreatorBackfillFixture('10.5880/report-failure-third', $first['person']);
+    $consumerCalls = 0;
+
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        apply: true,
+        chunk: 1,
+        recordConsumer: function (array $_record) use (&$consumerCalls): void {
+            $consumerCalls++;
+            if ($consumerCalls === 2) {
+                throw new RuntimeException('Simulated full report disk.');
+            }
+        },
+    );
+
+    expect($consumerCalls)->toBe(2)
+        ->and($result['record_consumer_error'])->toBe('Simulated full report disk.')
+        ->and($result['scanned'])->toBe(2)
+        ->and($result['changed'])->toBe(2)
+        ->and($result['sync_resource_ids'])->toBe([
+            $first['resource']->id,
+            $second['resource']->id,
+        ])
+        ->and($first['creator']->fresh()->given_name_snapshot)->toBe('Philipp S.')
+        ->and($second['creator']->fresh()->given_name_snapshot)->toBe('Philipp S.')
+        ->and($third['creator']->fresh()->hasNameSnapshot())->toBeFalse();
+});
+
+it('dispatches applied DataCite changes before failing for an incomplete CSV report', function (): void {
+    ['resource' => $resource, 'creator' => $creator] = createLegacyCreatorBackfillFixture(
+        '10.5880/incomplete-command-report',
+    );
+    Config::set('datacite.test_mode', true);
+    $scheme = 'legacy-backfill-failing-csv';
+    $wrapperDirectory = (string) getcwd().DIRECTORY_SEPARATOR.$scheme.':';
+    File::makeDirectory($wrapperDirectory);
+    expect(stream_wrapper_register($scheme, LegacyBackfillFailingCsvStreamWrapper::class))->toBeTrue();
+
+    try {
+        LegacyBackfillFailingCsvStreamWrapper::$successfulWrites = 1;
+        $exitCode = Artisan::call('resources:backfill-legacy-creator-and-msl-metadata', [
+            '--doi' => [$resource->doi],
+            '--apply' => true,
+            '--report' => $scheme.'://report.csv',
+        ]);
+        $output = Artisan::output();
+
+        expect($exitCode)->toBe(Command::FAILURE)
+            ->and($output)->toContain('DataCite full-metadata sync run:')
+            ->and($output)->toContain('Unable to write the complete backfill report:')
+            ->and($creator->fresh()->given_name_snapshot)->toBe('Philipp S.');
+
+        preg_match('/DataCite full-metadata sync run: ([0-9a-f-]+)/i', $output, $matches);
+        $syncRunId = $matches[1] ?? null;
+        expect($syncRunId)->toBeString();
+        if (! is_string($syncRunId)) {
+            return;
+        }
+
+        $progress = app(ImportProgressService::class)->get(
+            ImportProgressService::TYPE_RESOURCE,
+            $syncRunId,
+        );
+        expect($progress)->toMatchArray([
+            'status' => 'completed',
+            'sync_total' => 1,
+            'sync_full_metadata_total' => 1,
+            'sync_skipped_test_mode' => true,
+        ]);
+    } finally {
+        stream_wrapper_unregister($scheme);
+        File::deleteDirectory($wrapperDirectory);
+    }
 });
 
 it('streams the command report to CSV while resources are processed', function (): void {

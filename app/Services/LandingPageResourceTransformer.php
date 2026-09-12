@@ -493,11 +493,15 @@ final class LandingPageResourceTransformer
         ) use ($buildEntityName, $extractOrcid): array {
             $visibleEntity = $displayEntity ?? $entity;
             $isPerson = $visibleEntity instanceof Person;
-            $givenName = $isPerson ? ($resolvedPersonName['given_name'] ?? $visibleEntity->given_name) : null;
-            $familyName = $isPerson ? ($resolvedPersonName['family_name'] ?? $visibleEntity->family_name) : null;
+            $givenName = $isPerson
+                ? ($resolvedPersonName !== null ? $resolvedPersonName['given_name'] : $visibleEntity->given_name)
+                : null;
+            $familyName = $isPerson
+                ? ($resolvedPersonName !== null ? $resolvedPersonName['family_name'] : $visibleEntity->family_name)
+                : null;
             $orcid = $extractOrcid($visibleEntity) ?? $extractOrcid($entity);
             $resolvedDisplayName = $resolvedPersonName !== null && $isPerson
-                ? (trim(implode(' ', array_filter([$givenName, $familyName]))) ?: ($resolvedPersonName['name'] ?? null))
+                ? $resolvedPersonName['name']
                 : null;
 
             return [

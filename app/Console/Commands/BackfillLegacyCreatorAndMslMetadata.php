@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Exceptions\LegacyBackfillRecordConsumerException;
 use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use App\Services\Legacy\LegacyCreatorAndMslMetadataBackfillService;
@@ -97,11 +96,6 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
                     },
                 retainRecords: false,
             );
-        } catch (LegacyBackfillRecordConsumerException $exception) {
-            report($exception);
-            $this->error('Unable to write backfill report: '.$exception->getMessage());
-
-            return self::FAILURE;
         } catch (Throwable $exception) {
             report($exception);
             $this->error('Legacy SUMARIO preflight or backfill failed: '.$exception->getMessage());
@@ -169,11 +163,17 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
             $this->warn('Some landing-page caches could not be invalidated; metadata changes remain applied.');
         }
 
-        if ($reportPath !== null) {
+        $reportError = is_string($result['record_consumer_error'])
+            ? trim($result['record_consumer_error'])
+            : '';
+        if ($reportError !== '') {
+            report(new RuntimeException($reportError));
+            $this->error('Unable to write the complete backfill report: '.$reportError);
+        } elseif ($reportPath !== null) {
             $this->info('Backfill report written to '.$reportPath);
         }
 
-        return $result['errors'] > 0 ? self::FAILURE : self::SUCCESS;
+        return $result['errors'] > 0 || $reportError !== '' ? self::FAILURE : self::SUCCESS;
     }
 
     private function retrySync(string $syncRunId): int
@@ -210,7 +210,8 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
             throw new RuntimeException('Unable to write report: '.$path);
         }
 
-        if (fputcsv($stream, self::REPORT_COLUMNS, escape: '') === false) {
+        $written = fputcsv($stream, self::REPORT_COLUMNS, escape: '');
+        if ($written === false || $written === 0) {
             fclose($stream);
             throw new RuntimeException('Unable to write report header: '.$path);
         }
@@ -229,7 +230,7 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
             self::REPORT_COLUMNS,
         ), escape: '');
 
-        if ($written === false) {
+        if ($written === false || $written === 0) {
             throw new RuntimeException('Unable to stream a backfill report row.');
         }
     }
