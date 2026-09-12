@@ -8,7 +8,7 @@ import { Copy, GripVertical, ImagePlus, LayoutTemplate, Pencil, Plus, Trash2 } f
 import { type ChangeEvent, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { HeaderLogoPreview } from '@/components/landing-pages/HeaderLogoPreview';
+import { HeaderLogoPreview } from '@/components/landing-pages/header-logo-preview';
 import {
     AlertDialog,
     AlertDialogAction,

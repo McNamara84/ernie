@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { HeaderLogoPreview, isLegacyHeaderLogo } from '@/components/landing-pages/HeaderLogoPreview';
+import { HeaderLogoPreview, isLegacyHeaderLogo } from '@/components/landing-pages/header-logo-preview';
 
 function loadImage(image: HTMLImageElement, width: number, height: number) {
     Object.defineProperties(image, {
