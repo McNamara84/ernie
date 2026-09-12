@@ -9,11 +9,15 @@ use App\Models\Institution;
 use App\Models\Person;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\RorLookupService;
 
 final readonly class DataCitePartyMappingService
 {
-    public function __construct(private RorLookupService $rorLookup) {}
+    public function __construct(
+        private RorLookupService $rorLookup,
+        private ResourceCreatorNameResolverService $creatorNameResolver,
+    ) {}
 
     public function formatPersonName(Person $person): string
     {
@@ -35,6 +39,14 @@ final readonly class DataCitePartyMappingService
     public function formatInstitutionName(Institution $institution): string
     {
         return $institution->name ?? 'Unknown Institution';
+    }
+
+    /**
+     * @return array{name: string, given_name: string|null, family_name: string|null, source: 'snapshot'|'person'}
+     */
+    public function resolvePersonName(ResourceCreator|ResourceContributor $author, Person $person): array
+    {
+        return $this->creatorNameResolver->resolve($author, $person);
     }
 
     /**
@@ -134,17 +146,18 @@ final readonly class DataCitePartyMappingService
      */
     public function buildPersonCreatorData(ResourceCreator|ResourceContributor $author, Person $person): array
     {
+        $resolvedName = $this->resolvePersonName($author, $person);
         $data = [
-            'name' => $this->formatPersonName($person),
+            'name' => $resolvedName['name'],
             'nameType' => 'Personal',
         ];
 
-        if ($person->given_name) {
-            $data['givenName'] = $person->given_name;
+        if ($resolvedName['given_name'] !== null) {
+            $data['givenName'] = $resolvedName['given_name'];
         }
 
-        if ($person->family_name) {
-            $data['familyName'] = $person->family_name;
+        if ($resolvedName['family_name'] !== null) {
+            $data['familyName'] = $resolvedName['family_name'];
         }
 
         if ($nameIdentifier = $this->buildPersonNameIdentifier($person)) {

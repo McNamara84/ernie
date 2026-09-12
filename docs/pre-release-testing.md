@@ -579,6 +579,29 @@ verify them after reopening:
 
 - [ ] A search result opens the correct public landing page.
 
+#### 3.10.1 Legacy resource creator and MSL regression
+
+- [ ] Run a DOI-filtered dry run of
+      `resources:backfill-legacy-creator-and-msl-metadata` for
+      `10.5880/gfz.1.4.2021.008` and `10.5880/fidgeo.2024.038`; review the CSV
+      before applying the same scope.
+
+- [ ] Resource `10.5880/gfz.1.4.2021.008` shows and exports `Philipp S. Sommer`,
+      while `10.5880/gfz.1.4.2021.005` continues to show and export `Philipp
+      Sommer`; both retain the same ORCID identity.
+
+- [ ] Resource `10.5880/fidgeo.2024.038` displays and can be found by all six
+      legacy MSL terms: `lava flow`, `volcano`, `magmatic process`, `tectonic
+      uplift`, `tectonic setting > intraplate tectonic setting`, and `volcanic
+      features`.
+
+- [ ] The legacy `EPOS WP16 ...` scheme names remain traceable in stored and
+      exported metadata, no synthetic current-MSL URI is emitted, and a missing
+      legacy source URI remains empty.
+
+- [ ] Repeating the applied DOI-filtered backfill reports no further changes and
+      does not queue another DataCite synchronization.
+
 ### 3.11 IGSN List, Portal, and Registration
 
 - [ ] `IGSNs List` loads count, status, table, and filters without errors.

@@ -10,6 +10,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Support\OrcidNormalizer;
 use Illuminate\Support\Str;
 
@@ -22,6 +23,13 @@ use Illuminate\Support\Str;
 final class LandingPagePersonIdentityResolverService
 {
     private const MINIMUM_LEGACY_NAME_TOKENS = 3;
+
+    private readonly ResourceCreatorNameResolverService $creatorNameResolver;
+
+    public function __construct(?ResourceCreatorNameResolverService $creatorNameResolver = null)
+    {
+        $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
+    }
 
     /**
      * @return array{creators: array<int, string>, contributors: array<int, string>}
@@ -57,12 +65,12 @@ final class LandingPagePersonIdentityResolverService
                 continue;
             }
 
-            $structuredName = $this->structuredNameKey($creator->creatorable);
+            $structuredName = $this->structuredNameKey($creator->creatorable, $creator);
             if ($structuredName !== null) {
                 $creatorsByStructuredName[$structuredName][$group] ??= $creator;
             }
 
-            $legacyTokens = $this->legacyTokenKey($creator->creatorable);
+            $legacyTokens = $this->legacyTokenKey($creator->creatorable, $creator);
             if ($legacyTokens !== null) {
                 $creatorsByLegacyTokens[$legacyTokens][$group] ??= $creator;
             }
@@ -182,10 +190,13 @@ final class LandingPagePersonIdentityResolverService
         return 'orcid:'.strtolower($bareOrcid);
     }
 
-    private function structuredNameKey(Person $person): ?string
+    private function structuredNameKey(Person $person, ResourceCreator|ResourceContributor|null $author = null): ?string
     {
-        $givenName = $this->normalizeNamePart($person->given_name);
-        $familyName = $this->normalizeNamePart($person->family_name);
+        $resolvedName = $author !== null
+            ? $this->creatorNameResolver->resolve($author, $person)
+            : null;
+        $givenName = $this->normalizeNamePart($resolvedName['given_name'] ?? $person->given_name);
+        $familyName = $this->normalizeNamePart($resolvedName['family_name'] ?? $person->family_name);
 
         if ($givenName === null || $familyName === null) {
             return null;
@@ -194,10 +205,13 @@ final class LandingPagePersonIdentityResolverService
         return "given:{$givenName}|family:{$familyName}";
     }
 
-    private function legacyTokenKey(Person $person): ?string
+    private function legacyTokenKey(Person $person, ResourceCreator|ResourceContributor|null $author = null): ?string
     {
-        $givenName = $this->normalizeNamePart($person->given_name);
-        $familyName = $this->normalizeNamePart($person->family_name);
+        $resolvedName = $author !== null
+            ? $this->creatorNameResolver->resolve($author, $person)
+            : null;
+        $givenName = $this->normalizeNamePart($resolvedName['given_name'] ?? $person->given_name);
+        $familyName = $this->normalizeNamePart($resolvedName['family_name'] ?? $person->family_name);
 
         if ($givenName === null || $familyName === null) {
             return null;

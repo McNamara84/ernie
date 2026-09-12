@@ -8,6 +8,7 @@ use App\Models\ContributorType;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\LandingPagePersonIdentityResolverService;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -18,6 +19,7 @@ final readonly class ResourcePartySearchMatchService
     public function __construct(
         private ResourcePartySearchNormalizerService $normalizer,
         private LandingPagePersonIdentityResolverService $identityResolver,
+        private ResourceCreatorNameResolverService $creatorNameResolver,
     ) {}
 
     /**
@@ -78,7 +80,12 @@ final readonly class ResourcePartySearchMatchService
             }
 
             if ($party !== null) {
-                $this->addPartyMatch($groups[$groupKey], $party, $query);
+                if ($party instanceof Person) {
+                    $resolvedName = $this->creatorNameResolver->resolve($creator, $party);
+                    $this->addResolvedPersonMatch($groups[$groupKey], $resolvedName, $query);
+                } else {
+                    $this->addPartyMatch($groups[$groupKey], $party, $query);
+                }
             }
             $this->addEmailMatch($groups[$groupKey], $creator->email, $query);
         }
@@ -170,6 +177,27 @@ final readonly class ResourcePartySearchMatchService
         if (! $group['name_matched'] && $this->normalizer->partyMatches($party, $query)) {
             $group['name_matched'] = true;
             $group['display_value'] = $displayName;
+        }
+    }
+
+    /**
+     * @param  array{display_value:string, name_matched:bool, matched_email:?string, roles:array<string, bool>, sort:list<int>}  $group
+     * @param  array{name:string, given_name:string|null, family_name:string|null, source:'snapshot'|'person'}  $resolvedName
+     */
+    private function addResolvedPersonMatch(array &$group, array $resolvedName, string $query): void
+    {
+        if ($group['display_value'] === '') {
+            $group['display_value'] = $resolvedName['name'];
+        }
+
+        if (! $group['name_matched'] && $this->normalizer->personNameMatches(
+            $resolvedName['given_name'],
+            $resolvedName['family_name'],
+            $resolvedName['name'],
+            $query,
+        )) {
+            $group['name_matched'] = true;
+            $group['display_value'] = $resolvedName['name'];
         }
     }
 

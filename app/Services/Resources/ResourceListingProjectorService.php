@@ -11,6 +11,7 @@ use App\Models\Resource;
 use App\Models\ResourceListingProjection;
 use App\Models\Right;
 use App\Models\Title;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\DashboardMetricsCacheInvalidationService;
 use App\Services\Rights\CustomRightCatalogService;
 use Illuminate\Database\DatabaseManager;
@@ -24,10 +25,15 @@ final class ResourceListingProjectorService
 {
     private ?bool $tableExists = null;
 
+    private readonly ResourceCreatorNameResolverService $creatorNameResolver;
+
     public function __construct(
         private readonly DashboardMetricsCacheInvalidationService $metricsCacheInvalidationService,
         private readonly ResourcePartySearchNormalizerService $partySearchNormalizer,
-    ) {}
+        ?ResourceCreatorNameResolverService $creatorNameResolver = null,
+    ) {
+        $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
+    }
 
     public function refresh(int $resourceId): void
     {
@@ -158,9 +164,15 @@ final class ResourceListingProjectorService
     {
         $mainTitle = ($resource->titles->first(fn (Title $title): bool => $title->isMainTitle())
             ?? $resource->titles->first())->value ?? '';
-        $firstCreator = $resource->creators->first()?->creatorable;
+        $firstCreatorRow = $resource->creators->first();
+        $firstCreator = $firstCreatorRow?->creatorable;
+        $firstCreatorName = $firstCreatorRow !== null && $firstCreator instanceof Person
+            ? $this->creatorNameResolver->resolve($firstCreatorRow, $firstCreator)
+            : null;
         $firstCreatorSort = match (true) {
-            $firstCreator instanceof Person => $firstCreator->family_name ?? $firstCreator->given_name ?? '',
+            $firstCreatorName !== null => $firstCreatorName['family_name']
+                ?? $firstCreatorName['given_name']
+                ?? $firstCreatorName['name'],
             $firstCreator instanceof Institution => $firstCreator->name,
             default => '',
         };
@@ -243,7 +255,14 @@ final class ResourceListingProjectorService
 
         foreach ($resource->creators as $creator) {
             $party = $this->searchableParty($creator->creatorable);
-            if ($party !== null) {
+            if ($party instanceof Person) {
+                $resolvedName = $this->creatorNameResolver->resolve($creator, $party);
+                array_push($terms, ...$this->partySearchNormalizer->personNameTerms(
+                    $resolvedName['given_name'],
+                    $resolvedName['family_name'],
+                    $resolvedName['name'],
+                ));
+            } elseif ($party !== null) {
                 array_push($terms, ...$this->partySearchNormalizer->entityTerms($party));
             }
             array_push($terms, ...$this->partySearchNormalizer->emailTerms($creator->email));

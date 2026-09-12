@@ -27,6 +27,9 @@ use Illuminate\Support\Carbon;
  * @property bool $is_contact
  * @property string|null $email
  * @property string|null $website
+ * @property string|null $name_snapshot
+ * @property string|null $given_name_snapshot
+ * @property string|null $family_name_snapshot
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Resource $resource
@@ -35,7 +38,18 @@ use Illuminate\Support\Carbon;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/creator/
  */
-#[Fillable(['resource_id', 'creatorable_type', 'creatorable_id', 'position', 'is_contact', 'email', 'website'])]
+#[Fillable([
+    'resource_id',
+    'creatorable_type',
+    'creatorable_id',
+    'position',
+    'is_contact',
+    'email',
+    'website',
+    'name_snapshot',
+    'given_name_snapshot',
+    'family_name_snapshot',
+])]
 class ResourceCreator extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -87,5 +101,18 @@ class ResourceCreator extends Model
     public function isInstitution(): bool
     {
         return $this->creatorable_type === Institution::class;
+    }
+
+    /**
+     * Whether this relation carries the name asserted by this resource.
+     *
+     * Identity fields such as ORCID remain on the related Person. The snapshot
+     * only prevents another resource's spelling from leaking into this one.
+     */
+    public function hasNameSnapshot(): bool
+    {
+        return $this->name_snapshot !== null
+            || $this->given_name_snapshot !== null
+            || $this->family_name_snapshot !== null;
     }
 }

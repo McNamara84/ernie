@@ -32,6 +32,9 @@ export const SCHEME_EUROSCIVOC = 'European Science Vocabulary (EuroSciVoc)';
 /** CGI Simple Lithology scheme identifier */
 export const SCHEME_SIMPLE_LITHOLOGY = 'CGI Simple Lithology';
 
+const LEGACY_MSL_SCHEME_PATTERN =
+    /^epos wp16 (analogue|rock physics) (material|apparatus|monitoring|software|measured property|main setting|geologic feature|geologic structure|process\/hazard)$/;
+
 /** User-friendly display labels for each scheme */
 export const SCHEME_LABELS: Record<string, string> = {
     '': 'Free Keywords',
@@ -70,6 +73,10 @@ export function normalizeKeywordScheme(scheme: string | null): string | null {
     }
 
     if (normalized.includes('epos msl') || normalized.includes('msl vocabulary')) {
+        return SCHEME_MSL;
+    }
+
+    if (LEGACY_MSL_SCHEME_PATTERN.test(normalized)) {
         return SCHEME_MSL;
     }
 

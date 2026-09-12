@@ -17,6 +17,7 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
 use App\Support\PortalCacheNamespace;
 use App\Support\PortalSubjectNormalizer;
@@ -37,10 +38,15 @@ class PortalSearchService
 {
     use ChecksCacheTagging;
 
+    private readonly ResourceCreatorNameResolverService $creatorNameResolver;
+
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
         private readonly IgsnMaterialHierarchyService $materialHierarchyService,
-    ) {}
+        ?ResourceCreatorNameResolverService $creatorNameResolver = null,
+    ) {
+        $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
+    }
 
     private const DEFAULT_PER_PAGE = 20;
 
@@ -545,14 +551,23 @@ class PortalSearchService
                 })
                 // Search in creator names (persons)
                 ->orWhereHas('creators', function (Builder $creatorQuery) use ($searchTerm): void {
-                    $creatorQuery->whereHasMorph(
-                        'creatorable',
-                        [Person::class],
-                        function (Builder $personQuery) use ($searchTerm): void {
-                            $personQuery->where('family_name', 'like', $searchTerm)
-                                ->orWhere('given_name', 'like', $searchTerm);
-                        }
-                    );
+                    $creatorQuery->where(function (Builder $nameQuery) use ($searchTerm): void {
+                        $nameQuery
+                            ->where(function (Builder $snapshotQuery) use ($searchTerm): void {
+                                $snapshotQuery->where('name_snapshot', 'like', $searchTerm)
+                                    ->orWhere('given_name_snapshot', 'like', $searchTerm)
+                                    ->orWhere('family_name_snapshot', 'like', $searchTerm);
+                            })
+                            ->whereHasMorph('creatorable', [Person::class])
+                            ->orWhereHasMorph(
+                                'creatorable',
+                                [Person::class],
+                                function (Builder $personQuery) use ($searchTerm): void {
+                                    $personQuery->where('family_name', 'like', $searchTerm)
+                                        ->orWhere('given_name', 'like', $searchTerm);
+                                },
+                            );
+                    });
                 })
                 // Search in creator names (institutions)
                 ->orWhereHas('creators', function (Builder $creatorQuery) use ($searchTerm): void {
@@ -1244,9 +1259,11 @@ class PortalSearchService
                 $creatorable = $creator->creatorable;
 
                 if ($creatorable instanceof Person) {
+                    $resolvedName = $this->creatorNameResolver->resolve($creator, $creatorable);
+
                     return [
-                        'name' => $creatorable->family_name ?? 'Unknown',
-                        'givenName' => $creatorable->given_name,
+                        'name' => $resolvedName['family_name'] ?? $resolvedName['name'],
+                        'givenName' => $resolvedName['given_name'],
                     ];
                 }
 

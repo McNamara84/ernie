@@ -271,6 +271,29 @@ describe('full-text search', function () {
         expect($results->total())->toBe(1);
     });
 
+    it('finds and displays a resource-specific creator spelling', function () {
+        $resource = createPublishedResourceForSearch('Unrelated publication', $this->titleType);
+        $person = Person::factory()->create(['family_name' => 'Sommer', 'given_name' => 'Philipp']);
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $resource->id,
+            'position' => 0,
+            'name_snapshot' => 'Sommer, Philipp S.',
+            'given_name_snapshot' => 'Philipp S.',
+            'family_name_snapshot' => 'Sommer',
+        ]);
+
+        $results = $this->service->search(['query' => 'Philipp S.']);
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($resource->id);
+
+        $portalResource = $this->service->transformForPortal($results->items()[0]);
+
+        expect($portalResource['creators'])->toBe([[
+            'name' => 'Sommer',
+            'givenName' => 'Philipp S.',
+        ]]);
+    });
+
     it('finds resources by institution name', function () {
         $resource = createPublishedResourceForSearch('Test Paper', $this->titleType);
         $institution = Institution::factory()->create(['name' => 'GFZ Potsdam']);

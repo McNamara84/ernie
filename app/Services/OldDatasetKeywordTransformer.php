@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Support\GcmdUriHelper;
 use App\Support\GemetVocabularyParser;
+use App\Support\LegacyMslScheme;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 
@@ -55,6 +56,10 @@ class OldDatasetKeywordTransformer
      */
     public static function mapScheme(string $thesaurusName): ?string
     {
+        if (LegacyMslScheme::isSupported($thesaurusName)) {
+            return $thesaurusName;
+        }
+
         return self::SCHEME_MAP[$thesaurusName] ?? null;
     }
 
@@ -66,6 +71,10 @@ class OldDatasetKeywordTransformer
      */
     public static function transform(object $oldKeyword): ?array
     {
+        if (LegacyMslScheme::isSupported($oldKeyword->thesaurus ?? null)) {
+            return MslKeywordTransformer::transform($oldKeyword);
+        }
+
         // Map to scheme name
         $scheme = self::mapScheme($oldKeyword->thesaurus ?? '');
 
@@ -163,7 +172,7 @@ class OldDatasetKeywordTransformer
      */
     public static function getSupportedThesauri(): array
     {
-        return array_keys(self::SCHEME_MAP);
+        return [...array_keys(self::SCHEME_MAP), ...LegacyMslScheme::schemes()];
     }
 
     private static function schemeUriForScheme(string $scheme): ?string

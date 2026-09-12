@@ -31,6 +31,9 @@ class ResourceCreatorFactory extends Factory
             'position' => 1,
             'email' => null,
             'website' => null,
+            'name_snapshot' => null,
+            'given_name_snapshot' => null,
+            'family_name_snapshot' => null,
         ];
     }
 

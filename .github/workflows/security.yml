@@ -60,7 +60,7 @@ jobs:
           load: true
           tags: ernie-security-scan:${{ github.sha }}
           build-args: |
-            SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
+            SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}-${{ github.run_id }}-${{ github.run_attempt }}
           cache-from: type=gha,scope=security-app
           cache-to: type=gha,mode=max,scope=security-app
 

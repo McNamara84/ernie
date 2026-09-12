@@ -589,6 +589,8 @@ class ResourceStorageService
         $person = $this->personService->findOrCreate($data);
         $isContact = (bool) ($data['isContact'] ?? false);
         $contactInfo = $this->validatedContactInfo($data);
+        $givenName = $this->normalizeNullableString($data['firstName'] ?? null);
+        $familyName = $this->normalizeNullableString($data['lastName'] ?? null);
 
         return ResourceCreator::query()->create([
             'resource_id' => $resource->id,
@@ -598,6 +600,13 @@ class ResourceStorageService
             'is_contact' => $isContact,
             'email' => $isContact ? $contactInfo['email'] : null,
             'website' => $isContact ? $contactInfo['website'] : null,
+            'name_snapshot' => match (true) {
+                $familyName !== null && $givenName !== null => $familyName.', '.$givenName,
+                $familyName !== null => $familyName,
+                default => $givenName,
+            },
+            'given_name_snapshot' => $givenName,
+            'family_name_snapshot' => $familyName,
         ]);
     }
 

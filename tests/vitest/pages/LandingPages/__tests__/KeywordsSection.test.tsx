@@ -92,6 +92,41 @@ describe('KeywordsSection', () => {
         );
     });
 
+    it('renders all six Issue 1319 legacy MSL subjects as controlled keywords', () => {
+        const values = [
+            ['lava flow', 'EPOS WP16 Analogue Geologic Structure'],
+            ['volcano', 'EPOS WP16 Analogue Geologic Structure'],
+            ['magmatic process', 'EPOS WP16 Analogue Process/Hazard'],
+            ['tectonic uplift', 'EPOS WP16 Analogue Process/Hazard'],
+            ['intraplate tectonic setting', 'EPOS WP16 Analogue Main Setting'],
+            ['volcanic features', 'EPOS WP16 Analogue Geologic Feature'],
+        ];
+        render(
+            <KeywordsSection
+                subjects={values.map(([subject, subjectScheme], index) =>
+                    gcmdKeyword(index + 1, subject, {
+                        subject_scheme: subjectScheme,
+                        value_uri: null,
+                        breadcrumb_path:
+                            subject === 'intraplate tectonic setting'
+                                ? 'tectonic setting > intraplate tectonic setting'
+                                : null,
+                    }),
+                )}
+            />,
+        );
+
+        expect(screen.getByTestId('thesauri-keywords-list')).toBeInTheDocument();
+        for (const [subject] of values) {
+            expect(screen.getByText(new RegExp(subject, 'i'))).toBeInTheDocument();
+        }
+        expect(screen.queryByTestId('keywords-list')).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /^lava flow$/i })).toHaveAttribute(
+            'href',
+            '/doi-search?keywords%5B%5D=lava+flow',
+        );
+    });
+
     it('renders Analytical Methods and EuroSciVoc as controlled landing page keywords', () => {
         render(
             <KeywordsSection

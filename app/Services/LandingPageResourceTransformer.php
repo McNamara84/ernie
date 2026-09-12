@@ -31,6 +31,7 @@ use App\Models\ResourceRight;
 use App\Models\Right;
 use App\Models\Subject;
 use App\Models\Title;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnDescriptionNormalizerService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Support\IgsnIdentifier;
@@ -49,16 +50,20 @@ final class LandingPageResourceTransformer
 
     private readonly LandingPagePersonIdentityResolverService $personIdentityResolver;
 
+    private readonly ResourceCreatorNameResolverService $creatorNameResolver;
+
     public function __construct(
         ?IgsnSampleFamilyService $sampleFamilyService = null,
         ?IgsnDescriptionNormalizerService $igsnDescriptionNormalizer = null,
         ?IgsnRepositoryContactService $repositoryContactService = null,
         ?LandingPagePersonIdentityResolverService $personIdentityResolver = null,
+        ?ResourceCreatorNameResolverService $creatorNameResolver = null,
     ) {
         $this->sampleFamilyService = $sampleFamilyService ?? new IgsnSampleFamilyService;
         $this->igsnDescriptionNormalizer = $igsnDescriptionNormalizer ?? new IgsnDescriptionNormalizerService;
         $this->repositoryContactService = $repositoryContactService ?? new IgsnRepositoryContactService;
         $this->personIdentityResolver = $personIdentityResolver ?? new LandingPagePersonIdentityResolverService;
+        $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
     }
 
     /**
@@ -265,9 +270,12 @@ final class LandingPageResourceTransformer
             ->all();
 
         $resourceData['creators'] = $resource->creators
-            ->map(static function (ResourceCreator $creator) use ($displayIdentityKeys): array {
+            ->map(function (ResourceCreator $creator) use ($displayIdentityKeys): array {
                 /** @var Person|Institution|null $creatorable */
                 $creatorable = $creator->creatorable;
+                $resolvedName = $creatorable instanceof Person
+                    ? $this->creatorNameResolver->resolve($creator, $creatorable)
+                    : null;
 
                 return [
                     'id' => $creator->id,
@@ -284,11 +292,11 @@ final class LandingPageResourceTransformer
                     'creatorable' => [
                         'type' => class_basename($creator->creatorable_type),
                         'id' => $creatorable?->id,
-                        'given_name' => $creatorable instanceof Person ? $creatorable->given_name : null,
-                        'family_name' => $creatorable instanceof Person ? $creatorable->family_name : null,
+                        'given_name' => $resolvedName['given_name'] ?? null,
+                        'family_name' => $resolvedName['family_name'] ?? null,
                         'name_identifier' => $creatorable?->name_identifier,
                         'name_identifier_scheme' => $creatorable?->name_identifier_scheme,
-                        'name' => $creatorable instanceof Institution ? $creatorable->name : null,
+                        'name' => $creatorable instanceof Institution ? $creatorable->name : ($resolvedName['name'] ?? null),
                     ],
                 ];
             })
@@ -383,6 +391,7 @@ final class LandingPageResourceTransformer
         $resourceData['licenses'] = $this->transformLicenses($resource);
 
         $creatorEntitiesByIdentity = [];
+        $creatorNamesByIdentity = [];
 
         foreach ($resource->creators as $creator) {
             $identityKey = $displayIdentityKeys['creators'][$creator->id] ?? null;
@@ -392,6 +401,9 @@ final class LandingPageResourceTransformer
                 && ! isset($creatorEntitiesByIdentity[$identityKey])
                 && ($creatorable instanceof Person || $creatorable instanceof Institution)) {
                 $creatorEntitiesByIdentity[$identityKey] = $creatorable;
+                if ($creatorable instanceof Person) {
+                    $creatorNamesByIdentity[$identityKey] = $this->creatorNameResolver->resolve($creator, $creatorable);
+                }
             }
         }
 
@@ -477,16 +489,24 @@ final class LandingPageResourceTransformer
             array $affiliations,
             ?string $website,
             Person|Institution|null $displayEntity = null,
+            ?array $resolvedPersonName = null,
         ) use ($buildEntityName, $extractOrcid): array {
             $visibleEntity = $displayEntity ?? $entity;
             $isPerson = $visibleEntity instanceof Person;
-            $givenName = $isPerson ? $visibleEntity->given_name : null;
-            $familyName = $isPerson ? $visibleEntity->family_name : null;
+            $givenName = $isPerson
+                ? ($resolvedPersonName !== null ? $resolvedPersonName['given_name'] : $visibleEntity->given_name)
+                : null;
+            $familyName = $isPerson
+                ? ($resolvedPersonName !== null ? $resolvedPersonName['family_name'] : $visibleEntity->family_name)
+                : null;
             $orcid = $extractOrcid($visibleEntity) ?? $extractOrcid($entity);
+            $resolvedDisplayName = $resolvedPersonName !== null && $isPerson
+                ? $resolvedPersonName['name']
+                : null;
 
             return [
                 'id' => $id,
-                'name' => $buildEntityName($visibleEntity),
+                'name' => $resolvedDisplayName ?? $buildEntityName($visibleEntity),
                 'given_name' => $givenName,
                 'family_name' => $familyName,
                 'type' => $visibleEntity !== null ? class_basename($visibleEntity) : class_basename($morphType),
@@ -500,7 +520,7 @@ final class LandingPageResourceTransformer
 
         // 4. Map creator contact persons
         $mappedCreators = $creatorContactPersons
-            ->map(static fn (ResourceCreator $creator): array => $mapContactEntry(
+            ->map(fn (ResourceCreator $creator): array => $mapContactEntry(
                 $creator->id,
                 $creator->creatorable,
                 $creator->creatorable_type,
@@ -511,12 +531,16 @@ final class LandingPageResourceTransformer
                     'scheme' => $aff->identifier_scheme,
                 ])->all(),
                 $creator->website,
+                resolvedPersonName: $creator->creatorable instanceof Person
+                    ? $this->creatorNameResolver->resolve($creator, $creator->creatorable)
+                    : null,
             ));
 
         // 5. Map contributor contact persons
         $mappedContributors = $contributorContactPersons
             ->map(static function (ResourceContributor $contributor) use (
                 $creatorEntitiesByIdentity,
+                $creatorNamesByIdentity,
                 $displayIdentityKeys,
                 $mapContactEntry,
             ): array {
@@ -534,6 +558,7 @@ final class LandingPageResourceTransformer
                     ])->all(),
                     $contributor->website,
                     $identityKey !== null ? ($creatorEntitiesByIdentity[$identityKey] ?? null) : null,
+                    $identityKey !== null ? ($creatorNamesByIdentity[$identityKey] ?? null) : null,
                 );
             });
 
