@@ -14,6 +14,21 @@ use Illuminate\Support\Facades\Storage;
 // =========================================================================
 
 describe('transform', function () {
+    it('delegates legacy EPOS WP16 subjects without fabricating MSL 1.3 identifiers', function () {
+        $result = OldDatasetKeywordTransformer::transform((object) [
+            'keyword' => 'tectonic setting > intraplate tectonic setting',
+            'thesaurus' => 'EPOS WP16 Analogue Main Setting',
+            'uri' => null,
+            'description' => null,
+        ]);
+
+        expect($result)->not->toBeNull()
+            ->and($result['scheme'])->toBe('EPOS WP16 Analogue Main Setting')
+            ->and($result['path'])->toBe('tectonic setting > intraplate tectonic setting')
+            ->and($result['id'])->toStartWith('legacy:')
+            ->and($result['schemeURI'])->toBeNull();
+    });
+
     it('transforms a science keyword correctly', function () {
         $old = (object) [
             'keyword' => 'EARTH SCIENCE > Atmosphere > Clouds',
@@ -263,11 +278,13 @@ describe('getSupportedThesauri', function () {
     it('returns all supported thesaurus names', function () {
         $thesauri = OldDatasetKeywordTransformer::getSupportedThesauri();
 
-        expect($thesauri)->toHaveCount(8)
+        expect($thesauri)->toHaveCount(26)
             ->and($thesauri)->toContain('NASA/GCMD Earth Science Keywords')
             ->and($thesauri)->toContain('GCMD Instruments')
             ->and($thesauri)->toContain('GEMET - INSPIRE themes, version 1.0')
-            ->and($thesauri)->toContain('CGI Simple Lithology');
+            ->and($thesauri)->toContain('CGI Simple Lithology')
+            ->and($thesauri)->toContain('EPOS WP16 Analogue Process/Hazard')
+            ->and($thesauri)->toContain('EPOS WP16 Rock Physics Material');
     });
 });
 

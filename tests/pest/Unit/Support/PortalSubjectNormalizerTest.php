@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\LegacyMslScheme;
 use App\Support\PortalSubjectNormalizer;
 use Illuminate\Support\Facades\DB;
 
@@ -12,6 +13,29 @@ describe('PortalSubjectNormalizer::normalizeControlledSubjectValue()', function 
         expect(PortalSubjectNormalizer::normalizeControlledSubjectValue(
             '  EARTH SCIENCE &GT; SOLID EARTH &AMP;GT SEISMOLOGY  ',
         ))->toBe('EARTH SCIENCE > SOLID EARTH > SEISMOLOGY');
+    });
+});
+
+describe('PortalSubjectNormalizer::normalizeScheme()', function () {
+    it('normalizes all exact legacy EPOS WP16 schemes to the MSL presentation group', function (): void {
+        foreach (LegacyMslScheme::schemes() as $scheme) {
+            expect(PortalSubjectNormalizer::normalizeScheme($scheme))->toBe('EPOS MSL vocabulary');
+        }
+    });
+
+    it('does not claim similarly named unknown schemes as MSL', function (): void {
+        expect(PortalSubjectNormalizer::normalizeScheme('EPOS WP16 Analogue Unknown'))
+            ->toBe('EPOS WP16 Analogue Unknown');
+    });
+
+    it('normalizes exact legacy EPOS WP16 schemes in SQL with PHP parity', function (): void {
+        $sql = PortalSubjectNormalizer::normalizedSchemeSql('scheme');
+        $row = DB::selectOne(
+            "SELECT {$sql} AS normalized FROM (SELECT ? AS scheme)",
+            ['EPOS WP16 Rock Physics Process/Hazard'],
+        );
+
+        expect($row?->normalized)->toBe('epos msl vocabulary');
     });
 });
 

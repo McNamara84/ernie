@@ -25,10 +25,11 @@ describe('transform', function () {
             ->and($result['text'])->toBe('Quartz Sand')
             ->and($result['path'])->toBe('Sand > Quartz Sand')
             ->and($result['language'])->toBe('en')
-            ->and($result['scheme'])->toBe('EPOS MSL vocabulary')
-            ->and($result['schemeURI'])->toBe('https://epos-msl.uu.nl/voc')
+            ->and($result['scheme'])->toBe('EPOS WP16 Analogue Material')
+            ->and($result['schemeURI'])->toBeNull()
             ->and($result['description'])->toBe('Sample material description')
-            ->and($result['id'])->toContain('https://epos-msl.uu.nl/voc/materials/1.3/');
+            ->and($result['id'])->toBe('http://epos/WP16Vocabulary/AnalogueMaterial/Sand/Quartz')
+            ->and($result['isLegacy'])->toBeTrue();
     });
 
     it('transforms a Rock Physics keyword correctly', function () {
@@ -43,7 +44,7 @@ describe('transform', function () {
 
         expect($result)->not->toBeNull()
             ->and($result['text'])->toBe('Granite')
-            ->and($result['id'])->toContain('materials/1.3/')
+            ->and($result['id'])->toBe('http://epos/WP16Vocabulary/RockPhysicsMaterial/Granite')
             ->and($result['description'])->toBeNull();
     });
 
@@ -76,12 +77,10 @@ describe('transform', function () {
 
         $result = MslKeywordTransformer::transform($oldKeyword);
 
-        expect($result)->not->toBeNull()
-            ->and($result['text'])->toBe('')
-            ->and($result['path'])->toBe('');
+        expect($result)->toBeNull();
     });
 
-    it('constructs URI from keyword path when old URI is empty', function () {
+    it('uses a non-exportable legacy id when the source URI is empty', function () {
         $oldKeyword = (object) [
             'keyword' => 'Spring > Compression Spring',
             'thesaurus' => 'EPOS WP16 Analogue Apparatus',
@@ -92,10 +91,11 @@ describe('transform', function () {
         $result = MslKeywordTransformer::transform($oldKeyword);
 
         expect($result)->not->toBeNull()
-            ->and($result['id'])->toBe('https://epos-msl.uu.nl/voc/apparatus/1.3/spring-compression_spring');
+            ->and($result['id'])->toStartWith('legacy:')
+            ->and($result['id'])->not->toStartWith('http');
     });
 
-    it('maps each category to correct vocabulary path', function (string $thesaurus, string $expectedPath) {
+    it('preserves every supported legacy scheme without inventing a current URI', function (string $thesaurus) {
         $result = MslKeywordTransformer::transform((object) [
             'keyword' => 'Test',
             'thesaurus' => $thesaurus,
@@ -103,17 +103,19 @@ describe('transform', function () {
             'description' => null,
         ]);
 
-        expect($result['id'])->toContain("/{$expectedPath}/");
+        expect($result['scheme'])->toBe($thesaurus)
+            ->and($result['id'])->toStartWith('legacy:')
+            ->and($result['schemeURI'])->toBeNull();
     })->with([
-        ['EPOS WP16 Analogue Material', 'materials'],
-        ['EPOS WP16 Analogue Apparatus', 'apparatus'],
-        ['EPOS WP16 Analogue Monitoring', 'monitoring'],
-        ['EPOS WP16 Analogue Software', 'software'],
-        ['EPOS WP16 Analogue Measured Property', 'measured-properties'],
-        ['EPOS WP16 Analogue Main Setting', 'main-settings'],
-        ['EPOS WP16 Analogue Geologic Feature', 'geologic-features'],
-        ['EPOS WP16 Analogue Geologic Structure', 'geologic-structures'],
-        ['EPOS WP16 Analogue Process/Hazard', 'processes'],
+        ['EPOS WP16 Analogue Material'],
+        ['EPOS WP16 Analogue Apparatus'],
+        ['EPOS WP16 Analogue Monitoring'],
+        ['EPOS WP16 Analogue Software'],
+        ['EPOS WP16 Analogue Measured Property'],
+        ['EPOS WP16 Analogue Main Setting'],
+        ['EPOS WP16 Analogue Geologic Feature'],
+        ['EPOS WP16 Analogue Geologic Structure'],
+        ['EPOS WP16 Analogue Process/Hazard'],
     ]);
 });
 

@@ -184,6 +184,28 @@
         ],
         "fixes": [
             {
+                "title": "Resource-Specific Legacy Creator Names",
+                "description": "Legacy SUMARIO imports and a dry-run-first backfill now retain the creator spelling used by each resource without changing the shared person or ORCID identity. Landing pages, editors, resource lists and searches, citations, and metadata exports consistently use the resource-specific name, so Philipp S. Sommer can appear on the affected publication while other publications continue to use Philipp Sommer.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1318,
+                        "url": "https://github.com/McNamara84/ernie/issues/1318"
+                    }
+                ]
+            },
+            {
+                "title": "Visible Legacy EPOS MSL Keywords",
+                "description": "All eighteen retired EPOS WP16 Analogue and Rock Physics vocabulary schemes are now recognized as legacy MSL aliases in landing pages, portal filters, and search. New imports and the combined backfill preserve the original scheme and real source URI, leave missing URIs empty, avoid inventing current MSL 1.3 mappings, and restore the six reported FID GEO terms.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1319,
+                        "url": "https://github.com/McNamara84/ernie/issues/1319"
+                    }
+                ]
+            },
+            {
                 "title": "Resumable FAIR Assessment Runs",
                 "description": "Resource and IGSN assessments now prepare persistent snapshots in resumable background chunks and use short, idempotent per-resource jobs instead of one time-limited queue job. Browser reloads, worker restarts, deployments, transient F-UJI failures, and rate limits no longer discard progress; paused runs can continue with current service settings or be cancelled to release their scope, while dedicated workers, bounded retries, shared request limiting, and persistent progress details keep every remaining resource traceable until completion."
             },

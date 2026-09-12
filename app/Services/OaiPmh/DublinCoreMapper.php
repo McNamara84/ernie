@@ -7,6 +7,8 @@ namespace App\Services\OaiPmh;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 
 /**
  * Maps a Resource model to Dublin Core (DC) elements for OAI-PMH oai_dc format.
@@ -16,6 +18,13 @@ use App\Models\Resource;
  */
 class DublinCoreMapper
 {
+    private readonly ResourceCreatorNameResolverService $creatorNameResolver;
+
+    public function __construct(?ResourceCreatorNameResolverService $creatorNameResolver = null)
+    {
+        $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
+    }
+
     /**
      * Map a Resource to an associative array of DC elements.
      *
@@ -150,6 +159,12 @@ class DublinCoreMapper
 
         // Person: "LastName, FirstName"
         if ($entity instanceof Person) {
+            if ($author instanceof ResourceCreator) {
+                $resolvedName = $this->creatorNameResolver->resolve($author, $entity);
+
+                return $resolvedName['name'] !== 'Unknown' ? $resolvedName['name'] : null;
+            }
+
             $parts = array_filter([$entity->family_name, $entity->given_name]);
 
             return $parts !== [] ? implode(', ', $parts) : null;

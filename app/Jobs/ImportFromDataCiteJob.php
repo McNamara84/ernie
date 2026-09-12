@@ -10,6 +10,7 @@ use App\Exceptions\AmbiguousLegacyResourceException;
 use App\Models\Datacenter;
 use App\Models\Resource;
 use App\Services\Crc806LegacyRightsService;
+use App\Services\DataCiteCreatorNameMergeService;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteLandingPageImportService;
 use App\Services\DataCiteSubjectMergeService;
@@ -990,6 +991,7 @@ class ImportFromDataCiteJob implements ShouldQueue
             $legacyMetadata = [
                 'relatedIdentifiers' => [],
                 'subjects' => [],
+                'creators' => [],
                 'legacyResourceId' => null,
                 'legacyResourceStatus' => null,
             ];
@@ -1034,6 +1036,10 @@ class ImportFromDataCiteJob implements ShouldQueue
             $doiRecord = app(DataCiteSubjectMergeService::class)->mergeIntoDoiRecord(
                 $doiRecord,
                 $legacyMetadata['subjects'],
+            );
+            $doiRecord = app(DataCiteCreatorNameMergeService::class)->mergeIntoDoiRecord(
+                $doiRecord,
+                $legacyMetadata['creators'],
             );
 
             $legacyLandingPageUrl = $this->doiRecordLandingPageUrl($doiRecord);

@@ -50,8 +50,8 @@ enum CacheKey: string
     // Portal cache keys
     case PORTAL_FREE_KEYWORD_SUGGESTIONS = 'portal:free_keyword_suggestions';
     case PORTAL_KEYWORD_SUGGESTIONS = 'portal:keyword_suggestions';
-    case PORTAL_THESAURUS_FACETS = 'portal:thesaurus_facets';
-    case PORTAL_THESAURUS_SUBJECT_INDEX = 'portal:thesaurus_subject_index';
+    case PORTAL_THESAURUS_FACETS = 'portal:thesaurus_facets:v2';
+    case PORTAL_THESAURUS_SUBJECT_INDEX = 'portal:thesaurus_subject_index:v2';
     case PORTAL_TEMPORAL_RANGE = 'portal:temporal_range';
     case PORTAL_RESOURCE_TYPE_FACETS = 'portal:resource_type_facets';
     case PORTAL_DATACENTER_FACETS = 'portal:datacenter_facets';
@@ -97,7 +97,7 @@ enum CacheKey: string
     case FUJI_ASSESSMENT_LIMITER_LOCK = 'fuji:assessment:request-limiter-lock';
 
     // Published landing page render payloads
-    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v6';
+    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v7';
 
     // Landing page setup modal download URL suggestions
     case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions';

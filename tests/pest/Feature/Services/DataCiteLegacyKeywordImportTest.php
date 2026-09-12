@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Models\Person;
 use App\Models\User;
+use App\Services\DataCiteCreatorNameMergeService;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteSubjectMergeService;
 use App\Services\DataCiteToResourceTransformer;
@@ -65,14 +67,140 @@ beforeEach(function (): void {
         $table->string('uri')->nullable();
         $table->text('description')->nullable();
     });
+    Schema::connection('metaworks')->create('resourceagent', function (Blueprint $table): void {
+        $table->unsignedBigInteger('resource_id');
+        $table->unsignedInteger('order');
+        $table->string('firstname')->nullable();
+        $table->string('lastname')->nullable();
+        $table->string('name')->nullable();
+        $table->string('identifier')->nullable();
+        $table->string('identifiertype')->nullable();
+    });
+    Schema::connection('metaworks')->create('role', function (Blueprint $table): void {
+        $table->unsignedBigInteger('resourceagent_resource_id');
+        $table->unsignedInteger('resourceagent_order');
+        $table->string('role');
+    });
+    Schema::connection('metaworks')->create('affiliation', function (Blueprint $table): void {
+        $table->unsignedBigInteger('resourceagent_resource_id');
+        $table->unsignedInteger('resourceagent_order');
+        $table->unsignedInteger('order')->default(0);
+        $table->string('name')->nullable();
+        $table->string('identifier')->nullable();
+    });
+    Schema::connection('metaworks')->create('contactinfo', function (Blueprint $table): void {
+        $table->unsignedBigInteger('resourceagent_resource_id');
+        $table->unsignedInteger('resourceagent_order');
+        $table->string('email')->nullable();
+        $table->string('website')->nullable();
+    });
 });
 
 afterEach(function (): void {
+    Schema::connection('metaworks')->dropIfExists('contactinfo');
+    Schema::connection('metaworks')->dropIfExists('affiliation');
+    Schema::connection('metaworks')->dropIfExists('role');
+    Schema::connection('metaworks')->dropIfExists('resourceagent');
     Schema::connection('metaworks')->dropIfExists('thesaurusvalue');
     Schema::connection('metaworks')->dropIfExists('thesauruskeyword');
     Schema::connection('metaworks')->dropIfExists('relatedidentifier');
     Schema::connection('metaworks')->dropIfExists('resource');
     DB::disconnect('metaworks');
+});
+
+it('imports Issue 1318 creator spelling per resource and all Issue 1319 legacy MSL subjects', function (): void {
+    $doi = '10.5880/fidgeo.2024.038';
+    $legacyResourceId = DB::connection('metaworks')->table('resource')->insertGetId([
+        'identifier' => $doi,
+        'keywords' => null,
+    ]);
+    DB::connection('metaworks')->table('resourceagent')->insert([
+        'resource_id' => $legacyResourceId,
+        'order' => 0,
+        'firstname' => 'Philipp S.',
+        'lastname' => 'Sommer',
+        'name' => 'Sommer, Philipp S.',
+        'identifier' => '0000-0001-6171-7716',
+        'identifiertype' => 'ORCID',
+    ]);
+    DB::connection('metaworks')->table('role')->insert([
+        'resourceagent_resource_id' => $legacyResourceId,
+        'resourceagent_order' => 0,
+        'role' => 'Creator',
+    ]);
+
+    $legacySubjects = [
+        ['lava flow', 'EPOS WP16 Analogue Geologic Structure'],
+        ['volcano', 'EPOS WP16 Analogue Geologic Structure'],
+        ['magmatic process', 'EPOS WP16 Analogue Process/Hazard'],
+        ['tectonic uplift', 'EPOS WP16 Analogue Process/Hazard'],
+        ['tectonic setting > intraplate tectonic setting', 'EPOS WP16 Analogue Main Setting'],
+        ['volcanic features', 'EPOS WP16 Analogue Geologic Feature'],
+    ];
+    foreach ($legacySubjects as [$keyword, $scheme]) {
+        DB::connection('metaworks')->table('thesauruskeyword')->insert([
+            'resource_id' => $legacyResourceId,
+            'keyword' => $keyword,
+            'thesaurus' => $scheme,
+        ]);
+        DB::connection('metaworks')->table('thesaurusvalue')->insert([
+            'keyword' => $keyword,
+            'thesaurus' => $scheme,
+            'uri' => null,
+            'description' => null,
+        ]);
+    }
+
+    $person = Person::factory()->create([
+        'given_name' => 'Philipp',
+        'family_name' => 'Sommer',
+        'name_identifier' => 'https://orcid.org/0000-0001-6171-7716',
+        'name_identifier_scheme' => 'ORCID',
+        'scheme_uri' => 'https://orcid.org/',
+    ]);
+    $record = [
+        'id' => $doi,
+        'attributes' => [
+            'doi' => $doi,
+            'publicationYear' => 2024,
+            'titles' => [['title' => 'Legacy MSL regression dataset']],
+            'creators' => [[
+                'name' => 'Sommer, Philipp',
+                'givenName' => 'Philipp',
+                'familyName' => 'Sommer',
+                'nameType' => 'Personal',
+                'nameIdentifiers' => [[
+                    'nameIdentifier' => '0000-0001-6171-7716',
+                    'nameIdentifierScheme' => 'ORCID',
+                ]],
+            ]],
+            'subjects' => [],
+        ],
+    ];
+
+    $metadata = (new LegacyResourceLookupService(new LegacyKeywordService))->importMetadataByDoi($doi);
+    $record = (new DataCiteSubjectMergeService)->mergeIntoDoiRecord($record, $metadata['subjects']);
+    $record = (new DataCiteCreatorNameMergeService)->mergeIntoDoiRecord($record, $metadata['creators']);
+    $resource = (new DataCiteToResourceTransformer)->transform($record, User::factory()->create()->id);
+
+    $creator = $resource->creators()->firstOrFail();
+    expect($creator->creatorable_id)->toBe($person->id)
+        ->and($creator->name_snapshot)->toBe('Sommer, Philipp S.')
+        ->and($creator->given_name_snapshot)->toBe('Philipp S.')
+        ->and($person->fresh()->given_name)->toBe('Philipp')
+        ->and($resource->subjects()->count())->toBe(6)
+        ->and($resource->subjects()->pluck('subject_scheme')->unique()->values()->all())
+        ->toHaveCount(4)
+        ->and($resource->subjects()->whereNotNull('value_uri')->count())->toBe(0)
+        ->and($resource->subjects()->whereNotNull('scheme_uri')->count())->toBe(0);
+
+    $resource->load(['creators.creatorable', 'creators.affiliations', 'subjects']);
+    $export = (new DataCiteJsonExporter)->export($resource);
+    expect($export['data']['attributes']['creators'][0]['givenName'])->toBe('Philipp S.')
+        ->and($export['data']['attributes']['subjects'])->toHaveCount(6)
+        ->and(array_filter(
+            array_column($export['data']['attributes']['subjects'], 'valueUri'),
+        ))->toBe([]);
 });
 
 it('persists the Issue 1091 keyword pattern and exposes it in the editor shape', function (): void {

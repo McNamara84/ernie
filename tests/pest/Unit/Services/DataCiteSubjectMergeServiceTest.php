@@ -73,6 +73,20 @@ it('deduplicates controlled paths across scheme aliases, encoded separators, and
     expect($this->service->merge([$dataCiteSubject], [$legacySubject]))->toBe([$dataCiteSubject]);
 });
 
+it('deduplicates a legacy WP16 path against the canonical MSL presentation scheme', function (): void {
+    $dataCiteSubject = [
+        'subject' => 'tectonic setting > intraplate tectonic setting',
+        'subjectScheme' => 'EPOS MSL vocabulary',
+        'valueUri' => 'https://example.test/original-value',
+    ];
+    $legacySubject = [
+        'subject' => 'TECTONIC SETTING > INTRAPLATE TECTONIC SETTING',
+        'subjectScheme' => 'EPOS WP16 Analogue Main Setting',
+    ];
+
+    expect($this->service->merge([$dataCiteSubject], [$legacySubject]))->toBe([$dataCiteSubject]);
+});
+
 it('enriches an equivalent Issue 1115 GEMET subject with missing legacy metadata', function (): void {
     $dataCiteSubject = [
         'subject' => 'geodesy',

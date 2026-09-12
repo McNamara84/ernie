@@ -75,6 +75,26 @@ it('finds creator and contributor names in normalized partial forms', function (
             ]]));
 })->with(['Hans', 'HansPeter', 'peter', 'PETER HANS', 'Hans, Peter']);
 
+it('indexes and displays the resource-specific creator name instead of the shared person spelling', function (): void {
+    $resource = Resource::factory()->create();
+    $person = Person::factory()->create(['given_name' => 'Philipp', 'family_name' => 'Sommer']);
+    ResourceCreator::factory()->forPerson($person)->create([
+        'resource_id' => $resource->id,
+        'name_snapshot' => 'Sommer, Philipp S.',
+        'given_name_snapshot' => 'Philipp S.',
+        'family_name_snapshot' => 'Sommer',
+    ]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    get(route('resources', ['search' => 'PhilippS']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('resources', 1)
+            ->where('resources.0.id', $resource->id)
+            ->where('resources.0.search_matches.0.display_value', 'Sommer, Philipp S.')
+            ->where('resources.0.search_matches.0.roles', ['author']));
+});
+
 it('finds case-insensitive email substrings and shows the matching email', function (string $search): void {
     ['resource' => $resource] = createResourcePartySearchFixture();
 

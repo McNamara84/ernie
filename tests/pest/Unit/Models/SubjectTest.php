@@ -126,6 +126,22 @@ describe('isMsl', function () {
         expect($model->isMsl())->toBeTrue();
     });
 
+    it('returns true for canonical and exact legacy EPOS MSL schemes', function (string $scheme) {
+        $model = new Subject(['subject_scheme' => $scheme]);
+
+        expect($model->isMsl())->toBeTrue();
+    })->with([
+        'EPOS MSL vocabulary',
+        'EPOS WP16 Analogue Geologic Structure',
+        'EPOS WP16 Rock Physics Process/Hazard',
+    ]);
+
+    it('does not treat similar unknown WP16 schemes as MSL', function () {
+        $model = new Subject(['subject_scheme' => 'EPOS WP16 Other Geologic Structure']);
+
+        expect($model->isMsl())->toBeFalse();
+    });
+
     it('returns false for non-MSL scheme', function () {
         $model = new Subject(['subject_scheme' => 'GCMD Science Keywords']);
 

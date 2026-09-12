@@ -96,7 +96,10 @@ describe('ResourceStorageService', function () {
         expect($resource->creators()->count())->toBe(1);
         $creator = $resource->creators->first();
         expect($creator->creatorable->family_name)->toBe('Doe')
-            ->and($creator->creatorable->given_name)->toBe('John');
+            ->and($creator->creatorable->given_name)->toBe('John')
+            ->and($creator->name_snapshot)->toBe('Doe, John')
+            ->and($creator->given_name_snapshot)->toBe('John')
+            ->and($creator->family_name_snapshot)->toBe('Doe');
 
         // Check descriptions
         expect($resource->descriptions()->count())->toBe(1);

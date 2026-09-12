@@ -9,6 +9,9 @@ use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\TemporalCoverageValueService;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
@@ -125,6 +128,7 @@ class Iso19115XmlExporter
 
     public function __construct(
         private readonly Iso19115ResourceProfileService $profile,
+        private readonly ResourceCreatorNameResolverService $creatorNameResolver,
     ) {}
 
     #[\NoDiscard('Exported XML string must be used')]
@@ -369,7 +373,7 @@ class Iso19115XmlExporter
         }
 
         foreach ($resource->creators as $creator) {
-            $party = $this->partyData($creator->creatorable);
+            $party = $this->partyData($creator->creatorable, $creator);
             if ($party === null) {
                 continue;
             }
@@ -1472,10 +1476,12 @@ class Iso19115XmlExporter
     /**
      * @return array{name: string, organizational: bool, identifier: string|null, identifierScheme: string|null}|null
      */
-    private function partyData(?Model $party): ?array
+    private function partyData(?Model $party, ResourceCreator|ResourceContributor|null $author = null): ?array
     {
         if ($party instanceof Person) {
-            $name = trim($party->full_name);
+            $name = $author !== null
+                ? $this->creatorNameResolver->resolve($author, $party)['name']
+                : trim($party->full_name);
             if ($name === '') {
                 return null;
             }
