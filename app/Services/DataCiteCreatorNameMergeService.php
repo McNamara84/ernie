@@ -280,7 +280,7 @@ final class DataCiteCreatorNameMergeService
         $family = $this->normalize($creator['familyName'] ?? null);
         $given = $this->normalize($creator['givenName'] ?? null);
         if ($family !== null || $given !== null) {
-            return trim(($family ?? '').'|'.($given ?? ''), '|');
+            return ($family ?? '').'|'.($given ?? '');
         }
 
         return $this->normalize($creator['name'] ?? null);

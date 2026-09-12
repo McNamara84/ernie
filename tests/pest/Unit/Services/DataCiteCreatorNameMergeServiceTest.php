@@ -95,6 +95,26 @@ it('rejects ambiguous duplicate ORCID matches across one resource', function ():
         ->and(array_column($result['matches'], 'status'))->toBe(['ambiguous', 'ambiguous']);
 });
 
+it('preserves family and given name positions during fallback matching', function (): void {
+    $current = [[
+        'name' => 'Lee',
+        'familyName' => 'Lee',
+    ]];
+    $legacy = [[
+        'name' => 'Lee',
+        'givenName' => 'Lee',
+    ]];
+
+    $result = $this->service->mergeWithReport($current, $legacy);
+
+    expect($result['creators'])->toBe($current)
+        ->and($result['matches'][0])->toMatchArray([
+            'legacy_index' => null,
+            'method' => 'none',
+            'status' => 'unmatched',
+        ]);
+});
+
 it('merges wrapped and flat DOI records while preserving non-name metadata', function (): void {
     $legacy = [['name' => 'Sommer, Philipp S.', 'givenName' => 'Philipp S.', 'familyName' => 'Sommer']];
 
