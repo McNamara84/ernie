@@ -43,7 +43,7 @@ final class ResourceListItemResource extends JsonResource
         if ($firstCreator !== null) {
             $creatorable = $firstCreator->creatorable;
             if ($creatorable instanceof Person) {
-                $resolvedName = app(ResourceCreatorNameResolverService::class)->resolve($firstCreator, $creatorable);
+                $resolvedName = self::creatorNameResolver()->resolve($firstCreator, $creatorable);
                 $firstCreatorData = [
                     'name' => $resolvedName['name'],
                     'givenName' => $resolvedName['given_name'],
@@ -149,6 +149,14 @@ final class ResourceListItemResource extends JsonResource
                 ),
             ] : null,
         ];
+    }
+
+    private static function creatorNameResolver(): ResourceCreatorNameResolverService
+    {
+        /** @var ResourceCreatorNameResolverService|null $resolver */
+        static $resolver = null;
+
+        return $resolver ??= app(ResourceCreatorNameResolverService::class);
     }
 
     /**

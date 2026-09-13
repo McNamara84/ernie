@@ -57,6 +57,8 @@ class ResourceCreator extends Model
 
     public const MAX_NAME_SNAPSHOT_LENGTH = 1000;
 
+    public const MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH = 255;
+
     protected $casts = [
         'position' => 'integer',
         'is_contact' => 'boolean',

@@ -1387,9 +1387,18 @@ class DataCiteToResourceTransformer
      */
     private function creatorNameSnapshot(array $creatorData): array
     {
-        $givenName = $this->filledString($creatorData['givenName'] ?? null);
-        $familyName = $this->filledString($creatorData['familyName'] ?? null);
-        $name = $this->filledString($creatorData['name'] ?? null);
+        $givenName = $this->boundedCreatorNameSnapshot(
+            $creatorData['givenName'] ?? null,
+            ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH,
+        );
+        $familyName = $this->boundedCreatorNameSnapshot(
+            $creatorData['familyName'] ?? null,
+            ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH,
+        );
+        $name = $this->boundedCreatorNameSnapshot(
+            $creatorData['name'] ?? null,
+            ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH,
+        );
 
         if ($name === null) {
             $name = match (true) {
@@ -1404,6 +1413,13 @@ class DataCiteToResourceTransformer
             'given_name_snapshot' => $givenName,
             'family_name_snapshot' => $familyName,
         ];
+    }
+
+    private function boundedCreatorNameSnapshot(mixed $value, int $maxLength): ?string
+    {
+        $value = $this->filledString($value);
+
+        return $value === null ? null : mb_substr($value, 0, $maxLength);
     }
 
     /**
