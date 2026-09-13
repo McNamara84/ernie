@@ -6,6 +6,7 @@ import {
     authorsWithContactSchema,
     institutionAuthorSchema,
     personAuthorSchema,
+    RESOURCE_CREATOR_NAME_SNAPSHOT_MAX_LENGTH,
     validateContactAuthor,
 } from '@/schemas/author.schema';
 
@@ -46,6 +47,28 @@ describe('Author Schemas', () => {
             });
 
             expect(result.success).toBe(true);
+        });
+
+        it('aligns the unstructured snapshot limit with the database column', () => {
+            const author = {
+                id: '1',
+                type: 'person' as const,
+                firstName: '',
+                lastName: '',
+            };
+
+            expect(
+                personAuthorSchema.safeParse({
+                    ...author,
+                    nameSnapshot: 'a'.repeat(RESOURCE_CREATOR_NAME_SNAPSHOT_MAX_LENGTH),
+                }).success,
+            ).toBe(true);
+            expect(
+                personAuthorSchema.safeParse({
+                    ...author,
+                    nameSnapshot: 'a'.repeat(RESOURCE_CREATOR_NAME_SNAPSHOT_MAX_LENGTH + 1),
+                }).success,
+            ).toBe(false);
         });
 
         it('validates email format', () => {

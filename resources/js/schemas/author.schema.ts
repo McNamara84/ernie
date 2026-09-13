@@ -9,6 +9,8 @@ import { z } from 'zod';
 
 import { affiliationTagSchema, orcidSchema } from './common.schema';
 
+export const RESOURCE_CREATOR_NAME_SNAPSHOT_MAX_LENGTH = 1000;
+
 // =============================================================================
 // Person Author Schema
 // =============================================================================
@@ -21,7 +23,7 @@ export const personAuthorSchema = z
         orcid: orcidSchema,
         firstName: z.string(),
         lastName: z.string(),
-        nameSnapshot: z.string().optional(),
+        nameSnapshot: z.string().max(RESOURCE_CREATOR_NAME_SNAPSHOT_MAX_LENGTH).optional(),
         email: z.string().email('Invalid email address').optional().or(z.literal('')),
         website: z.string().url('Invalid URL').optional().or(z.literal('')),
         isContact: z.boolean().default(false),

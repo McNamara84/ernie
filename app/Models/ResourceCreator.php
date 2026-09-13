@@ -55,6 +55,8 @@ class ResourceCreator extends Model
     /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
+    public const MAX_NAME_SNAPSHOT_LENGTH = 1000;
+
     protected $casts = [
         'position' => 'integer',
         'is_contact' => 'boolean',

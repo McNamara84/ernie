@@ -10,6 +10,7 @@ use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
 use App\Models\ContributorType;
 use App\Models\RelatedIdentifier;
 use App\Models\RelatedItem;
+use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Rules\HasMainTitle;
@@ -92,7 +93,7 @@ class StoreResourceRequest extends FormRequest
             'authors.*.orcid' => ['nullable', 'string', 'max:255'],
             'authors.*.firstName' => ['nullable', 'string', 'max:255'],
             'authors.*.lastName' => ['nullable', 'string', 'max:255'],
-            'authors.*.nameSnapshot' => ['nullable', 'string', 'max:255'],
+            'authors.*.nameSnapshot' => ['nullable', 'string', 'max:'.ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH],
             'authors.*.email' => ['nullable', 'email', 'max:255'],
             'authors.*.website' => ['nullable', 'url', 'max:255'],
             'authors.*.isContact' => ['boolean'],

@@ -9,6 +9,7 @@ use App\Enums\EditorDraftSaveIntent;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
 use App\Models\RelatedIdentifier;
+use App\Models\ResourceCreator;
 use App\Models\TitleType;
 use App\Rules\SafeUrl;
 use App\Rules\TemporalCoverageDate;
@@ -101,7 +102,7 @@ class StoreDraftResourceRequest extends FormRequest
             'authors.*.orcid' => ['nullable', 'string', 'max:255'],
             'authors.*.firstName' => ['nullable', 'string', 'max:255'],
             'authors.*.lastName' => ['nullable', 'string', 'max:255'],
-            'authors.*.nameSnapshot' => ['nullable', 'string', 'max:255'],
+            'authors.*.nameSnapshot' => ['nullable', 'string', 'max:'.ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH],
             'authors.*.email' => ['nullable', 'email', 'max:255'],
             'authors.*.website' => ['nullable', 'url', 'max:255'],
             'authors.*.isContact' => ['boolean'],

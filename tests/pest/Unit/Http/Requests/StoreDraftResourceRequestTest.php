@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Models\RelatedIdentifier;
+use App\Models\ResourceCreator;
 use Illuminate\Support\Facades\Validator;
 
 covers(StoreDraftResourceRequest::class);
@@ -182,6 +183,25 @@ it('preserves unstructured creator snapshot metadata during request normalizatio
 })->with([
     'draft request' => [StoreDraftResourceRequest::class, '/editor/resources/draft'],
     'store request' => [StoreResourceRequest::class, '/editor/resources'],
+]);
+
+it('aligns creator snapshot validation with the database column length', function (string $requestClass): void {
+    /** @var StoreDraftResourceRequest|StoreResourceRequest $request */
+    $request = new $requestClass;
+    $rules = [
+        'authors' => ['array'],
+        'authors.*.nameSnapshot' => $request->rules()['authors.*.nameSnapshot'],
+    ];
+    $atLimit = str_repeat('a', ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH);
+    $overLimit = $atLimit.'a';
+
+    expect($rules['authors.*.nameSnapshot'])
+        ->toContain('max:'.ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH)
+        ->and(Validator::make(['authors' => [['nameSnapshot' => $atLimit]]], $rules)->passes())->toBeTrue()
+        ->and(Validator::make(['authors' => [['nameSnapshot' => $overLimit]]], $rules)->passes())->toBeFalse();
+})->with([
+    'draft request' => StoreDraftResourceRequest::class,
+    'store request' => StoreResourceRequest::class,
 ]);
 
 it('keeps related-work citation label limits aligned between draft and store requests', function (): void {
