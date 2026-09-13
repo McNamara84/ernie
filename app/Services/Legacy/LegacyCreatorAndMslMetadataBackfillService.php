@@ -137,7 +137,7 @@ final class LegacyCreatorAndMslMetadataBackfillService
                             $this->lockMetadataRelations($locked);
                             if (! hash_equals($originalMetadataFingerprint, $this->resourceMetadataFingerprint($locked))) {
                                 throw new ConcurrentLegacyCreatorAndMslMetadataChangeException(
-                                    'Creator or subject metadata changed concurrently; the resource was not modified.',
+                                    'Resource matching, creator, or subject metadata changed concurrently; the resource was not modified.',
                                 );
                             }
 
@@ -492,7 +492,7 @@ final class LegacyCreatorAndMslMetadataBackfillService
                 if ($apply) {
                     $createdSubject = Subject::create([
                         'resource_id' => $resource->id,
-                        'value' => $path,
+                        'value' => SubjectBreadcrumbPath::leaf($path) ?? $path,
                         'language' => $this->filled($keyword['language'] ?? null) ?? 'en',
                         'subject_scheme' => $scheme,
                         'scheme_uri' => $sourceSchemeUri,
@@ -584,6 +584,11 @@ final class LegacyCreatorAndMslMetadataBackfillService
 
     private function resourceMetadataFingerprint(Resource $resource): string
     {
+        $matchKeys = [
+            'doi' => $resource->doi,
+            'legacy_source' => $resource->legacy_source,
+            'legacy_source_id' => $resource->legacy_source_id,
+        ];
         $creators = $resource->creators
             ->map(static fn (ResourceCreator $creator): array => [
                 'id' => (int) $creator->id,
@@ -614,7 +619,7 @@ final class LegacyCreatorAndMslMetadataBackfillService
             ->values()
             ->all();
 
-        return hash('sha256', json_encode([$creators, $subjects], JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([$matchKeys, $creators, $subjects], JSON_THROW_ON_ERROR));
     }
 
     /** @return array<string, mixed> */

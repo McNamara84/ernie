@@ -263,28 +263,28 @@ it('is dry-run-first, additive, resource-specific, and idempotent', function ():
         ->assertSuccessful();
 });
 
-it('keeps identical MSL paths from distinct WP16 categories during backfill', function (): void {
+it('keeps hierarchical MSL paths from distinct WP16 categories in the canonical storage shape', function (): void {
     ['resource' => $resource, 'legacy_id' => $legacyId] = createLegacyCreatorBackfillFixture(
         '10.5880/distinct-wp16-categories',
     );
     $legacySubjects = [
         [
             'scheme' => 'EPOS WP16 Analogue Material',
-            'uri' => 'http://epos/WP16Vocabulary/AnalogueMaterial/Granite',
+            'uri' => 'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite',
         ],
         [
             'scheme' => 'EPOS WP16 Rock Physics Material',
-            'uri' => 'http://epos/WP16Vocabulary/RockPhysicsMaterial/Granite',
+            'uri' => 'http://epos/WP16Vocabulary/RockPhysicsMaterial/Rock/Granite',
         ],
     ];
     foreach ($legacySubjects as $legacySubject) {
         DB::connection('metaworks')->table('thesauruskeyword')->insert([
             'resource_id' => $legacyId,
-            'keyword' => 'Granite',
+            'keyword' => 'Rock > Granite',
             'thesaurus' => $legacySubject['scheme'],
         ]);
         DB::connection('metaworks')->table('thesaurusvalue')->insert([
-            'keyword' => 'Granite',
+            'keyword' => 'Rock > Granite',
             'thesaurus' => $legacySubject['scheme'],
             'uri' => $legacySubject['uri'],
             'description' => null,
@@ -295,7 +295,7 @@ it('keeps identical MSL paths from distinct WP16 categories during backfill', fu
         'value' => 'Granite',
         'subject_scheme' => 'EPOS WP16 Analogue Material',
         'value_uri' => null,
-        'breadcrumb_path' => null,
+        'breadcrumb_path' => 'Rock > Granite',
     ]);
 
     $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
@@ -309,6 +309,11 @@ it('keeps identical MSL paths from distinct WP16 categories during backfill', fu
         'subjects_enriched' => 1,
         'subject_conflicts' => 0,
     ])->and($subjects)->toHaveCount(2)
+        ->and($subjects->pluck('value')->all())->toBe(['Granite', 'Granite'])
+        ->and($subjects->pluck('breadcrumb_path')->all())->toBe([
+            'Rock > Granite',
+            'Rock > Granite',
+        ])
         ->and($subjects->pluck('subject_scheme')->all())->toBe(array_column($legacySubjects, 'scheme'))
         ->and($subjects->pluck('value_uri')->all())->toBe(array_column($legacySubjects, 'uri'));
 
@@ -419,6 +424,44 @@ it('rejects a creator or subject change made after the scan as concurrent', func
         ->and($creator->fresh()->given_name_snapshot)->toBe('Philipp C.')
         ->and($resource->subjects()->count())->toBe(0);
 });
+
+it('rejects changed resource match keys after resolving the legacy resource', function (
+    string $field,
+    mixed $newValue,
+): void {
+    ['resource' => $resource, 'creator' => $creator] = createLegacyCreatorBackfillFixture(
+        "10.5880/concurrent-{$field}",
+    );
+    $changed = false;
+
+    DB::listen(function (QueryExecuted $query) use ($resource, $field, $newValue, &$changed): void {
+        if ($changed || $query->connectionName !== 'metaworks' || ! str_contains($query->sql, 'resourceagent')) {
+            return;
+        }
+
+        $changed = true;
+        $resource->update([$field => $newValue]);
+    });
+
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        apply: true,
+        retainRecords: true,
+    );
+
+    expect($changed)->toBeTrue()
+        ->and($result)->toMatchArray([
+            'changed' => 0,
+            'unchanged' => 0,
+            'concurrent_changes' => 1,
+            'sync_resource_ids' => [],
+        ])->and($result['records'][0]['status'])->toBe('concurrent_change')
+        ->and($creator->fresh()->hasNameSnapshot())->toBeFalse()
+        ->and($resource->fresh()->getAttribute($field))->toBe($newValue);
+})->with([
+    'doi' => ['doi', '10.5880/concurrent-doi-relinked'],
+    'legacy source' => ['legacy_source', 'another-source'],
+    'legacy source id' => ['legacy_source_id', 999999],
+]);
 
 it('reports a failed published landing-page cache invalidation without losing the applied change', function (): void {
     ['resource' => $resource, 'creator' => $creator] = createLegacyCreatorBackfillFixture('10.5880/cache-failure');
