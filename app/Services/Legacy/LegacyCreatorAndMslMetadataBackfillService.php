@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Legacy;
 
+use App\Exceptions\AmbiguousLegacyResourceException;
 use App\Exceptions\ConcurrentLegacyCreatorAndMslMetadataChangeException;
 use App\Models\Institution;
 use App\Models\OldDataset;
@@ -218,7 +219,7 @@ final class LegacyCreatorAndMslMetadataBackfillService
                     ), $recordConsumer, $retainRecords)) {
                         break 2;
                     }
-                } catch (RuntimeException $exception) {
+                } catch (AmbiguousLegacyResourceException $exception) {
                     $stats['manual_review']++;
                     if (! $this->emitRecord($stats, $this->record(
                         $resource,
@@ -338,7 +339,7 @@ final class LegacyCreatorAndMslMetadataBackfillService
             ->get();
 
         if ($matches->count() > 1) {
-            throw new RuntimeException('Multiple SUMARIO resources have the same DOI; no automatic match is safe.');
+            throw new AmbiguousLegacyResourceException('Multiple SUMARIO resources have the same DOI; no automatic match is safe.');
         }
 
         return [$matches->first(), 'doi'];

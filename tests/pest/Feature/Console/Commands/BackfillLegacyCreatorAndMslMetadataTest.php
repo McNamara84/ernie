@@ -13,6 +13,7 @@ use App\Services\ImportProgressService;
 use App\Services\Legacy\LegacyCreatorAndMslMetadataBackfillService;
 use Illuminate\Console\Command;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -541,6 +542,77 @@ it('uses DOI fallback only when explicitly enabled', function (): void {
         'changed' => 1,
         'creator_snapshots_written' => 1,
     ])->and($result['records'][0]['match_method'])->toBe('doi');
+});
+
+it('reserves manual review for an ambiguous DOI fallback match', function (): void {
+    ['resource' => $resource] = createLegacyCreatorBackfillFixture('10.5880/ambiguous-doi-fallback');
+    $resource->update(['legacy_source' => null, 'legacy_source_id' => null]);
+    DB::connection('metaworks')->table('resource')->insert([
+        'identifier' => $resource->doi,
+    ]);
+
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        dois: [$resource->doi],
+        matchByDoi: true,
+        retainRecords: true,
+    );
+
+    expect($result)->toMatchArray([
+        'manual_review' => 1,
+        'errors' => 0,
+    ])->and($result['records'][0]['status'])->toBe('manual_review')
+        ->and($result['records'][0]['message'])->toContain('Multiple SUMARIO resources');
+});
+
+it('reports a storage query failure as an error and makes the command fail', function (): void {
+    ['resource' => $resource, 'creator' => $creator] = createLegacyCreatorBackfillFixture(
+        '10.5880/storage-query-failure',
+    );
+    $failed = false;
+
+    DB::listen(function (QueryExecuted $query) use (&$failed): void {
+        if ($failed
+            || $query->connectionName === 'metaworks'
+            || ! str_starts_with(mb_strtolower(ltrim($query->sql)), 'update')
+            || ! str_contains($query->sql, 'resource_creators')
+        ) {
+            return;
+        }
+
+        $failed = true;
+        throw new QueryException(
+            $query->connectionName,
+            $query->sql,
+            $query->bindings,
+            new PDOException('Simulated resource creator storage failure.'),
+        );
+    });
+
+    $service = app(LegacyCreatorAndMslMetadataBackfillService::class);
+    $result = $service->run(
+        apply: true,
+        dois: [$resource->doi],
+        retainRecords: true,
+    );
+
+    expect($failed)->toBeTrue()
+        ->and($result)->toMatchArray([
+            'changed' => 0,
+            'manual_review' => 0,
+            'errors' => 1,
+            'sync_resource_ids' => [],
+        ])->and($result['records'][0]['status'])->toBe('error')
+        ->and($creator->fresh()->hasNameSnapshot())->toBeFalse();
+
+    $failed = false;
+    $exitCode = Artisan::call('resources:backfill-legacy-creator-and-msl-metadata', [
+        '--apply' => true,
+        '--doi' => [$resource->doi],
+    ]);
+
+    expect($failed)->toBeTrue()
+        ->and($exitCode)->toBe(Command::FAILURE)
+        ->and($creator->fresh()->hasNameSnapshot())->toBeFalse();
 });
 
 it('streams audit records without retaining the full result set', function (): void {
