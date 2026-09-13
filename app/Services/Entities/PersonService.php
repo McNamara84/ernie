@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Entities;
 
 use App\Models\Person;
+use App\Support\OrcidNormalizer;
 
 /**
  * Service for finding or creating Person entities.
@@ -54,6 +55,18 @@ class PersonService
         $orcid = $orcid !== '' ? $orcid : null;
 
         if ($orcid !== null) {
+            $bareOrcid = strtoupper(OrcidNormalizer::extractBareId($orcid));
+            if (OrcidNormalizer::isValid($bareOrcid)) {
+                $existing = Person::query()
+                    ->whereIn('name_identifier', $this->orcidStorageVariants($bareOrcid))
+                    ->first();
+                if ($existing instanceof Person) {
+                    return $existing;
+                }
+
+                $orcid = OrcidNormalizer::toUrl($bareOrcid);
+            }
+
             return Person::query()->firstOrCreate(
                 ['name_identifier' => $orcid],
                 [
@@ -68,6 +81,33 @@ class PersonService
             'given_name' => null,
             'family_name' => '',
         ]);
+    }
+
+    /** @return list<string> */
+    private function orcidStorageVariants(string $bareOrcid): array
+    {
+        $bareVariants = array_values(array_unique([
+            strtoupper($bareOrcid),
+            strtolower($bareOrcid),
+        ]));
+        $prefixes = [
+            'https://orcid.org/',
+            'http://orcid.org/',
+            'https://www.orcid.org/',
+            'http://www.orcid.org/',
+            'orcid.org/',
+            'www.orcid.org/',
+            '',
+        ];
+        $variants = [];
+
+        foreach ($prefixes as $prefix) {
+            foreach ($bareVariants as $bareVariant) {
+                $variants[] = $prefix.$bareVariant;
+            }
+        }
+
+        return array_values(array_unique($variants));
     }
 
     /**

@@ -134,6 +134,31 @@ describe('ResourceStorageService', function () {
             ->and($creator->creatorable->family_name)->toBe('');
     });
 
+    it('stores a partial creator snapshot without requiring a global family name', function () {
+        $resourceType = ResourceType::firstOrFail();
+
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Partial creator', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'firstName' => 'A.',
+                'lastName' => null,
+                'nameSnapshot' => 'A.',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $creator = $resource->creators()->sole();
+        expect($creator->name_snapshot)->toBe('A.')
+            ->and($creator->given_name_snapshot)->toBe('A.')
+            ->and($creator->family_name_snapshot)->toBeNull()
+            ->and($creator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($creator->creatorable->given_name)->toBeNull()
+            ->and($creator->creatorable->family_name)->toBe('');
+    });
+
     it('keeps an unstructured snapshot out of a new ORCID person', function () {
         $resourceType = ResourceType::firstOrFail();
         $orcid = '0000-0002-1825-0097';
@@ -157,7 +182,41 @@ describe('ResourceStorageService', function () {
             ->and($creator->creatorable)->toBeInstanceOf(Person::class)
             ->and($creator->creatorable->given_name)->toBeNull()
             ->and($creator->creatorable->family_name)->toBe('')
-            ->and($creator->creatorable->name_identifier)->toBe($orcid);
+            ->and($creator->creatorable->name_identifier)->toBe('https://orcid.org/'.$orcid);
+    });
+
+    it('reuses a canonical ORCID person for a partial snapshot submitted with a bare ORCID', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $orcid = '0000-0002-1825-0097';
+        $person = Person::factory()->create([
+            'given_name' => 'Global',
+            'family_name' => 'Identity',
+            'name_identifier' => 'https://orcid.org/'.$orcid,
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Partial ORCID creator', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $orcid,
+                'firstName' => 'A.',
+                'lastName' => null,
+                'nameSnapshot' => 'A.',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $creator = $resource->creators()->sole();
+        expect($creator->creatorable_id)->toBe($person->id)
+            ->and($creator->name_snapshot)->toBe('A.')
+            ->and($creator->given_name_snapshot)->toBe('A.')
+            ->and($creator->family_name_snapshot)->toBeNull()
+            ->and($person->fresh()->given_name)->toBe('Global')
+            ->and($person->family_name)->toBe('Identity')
+            ->and(Person::query()->count())->toBe(1);
     });
 
     it('reuses an existing ORCID person without replacing its global name with a snapshot', function () {

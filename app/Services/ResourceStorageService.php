@@ -606,9 +606,7 @@ class ResourceStorageService
         $familyName = $this->normalizeNullableString($data['lastName'] ?? null);
         $nameSnapshot = $this->normalizeNullableString($data['nameSnapshot'] ?? null);
         $orcid = $this->normalizeNullableString($data['orcid'] ?? null);
-        $unstructuredNameSnapshot = $givenName === null && $familyName === null
-            ? $nameSnapshot
-            : null;
+        $usesUnstructuredPersonIdentity = $familyName === null && $nameSnapshot !== null;
         $existingCreatorId = is_numeric($data['resourceCreatorId'] ?? null)
             ? (int) $data['resourceCreatorId']
             : 0;
@@ -623,7 +621,7 @@ class ResourceStorageService
                 : null;
         if (! $person instanceof Person) {
             $person = match (true) {
-                $unstructuredNameSnapshot !== null => $this->personService->findOrCreateWithoutStructuredName($orcid),
+                $usesUnstructuredPersonIdentity => $this->personService->findOrCreateWithoutStructuredName($orcid),
                 $identityChanged && $orcid === null => $this->personService->createWithoutOrcid($givenName, $familyName),
                 default => $this->personService->findOrCreate($data),
             };

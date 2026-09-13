@@ -148,25 +148,36 @@ describe('PersonService', function () {
 
             expect($person->given_name)->toBeNull()
                 ->and($person->family_name)->toBe('')
-                ->and($person->name_identifier)->toBe($orcid)
+                ->and($person->name_identifier)->toBe('https://orcid.org/'.$orcid)
                 ->and($person->name_identifier_scheme)->toBe('ORCID');
         });
 
-        it('reuses an ORCID person without changing its global name', function () {
+        it('reuses stored ORCID variants without changing the global name', function (
+            string $storedOrcid,
+            string $submittedOrcid,
+        ) {
             $orcid = '0000-0002-1825-0097';
             $existing = Person::factory()->create([
                 'given_name' => 'Global',
                 'family_name' => 'Identity',
-                'name_identifier' => $orcid,
+                'name_identifier' => str_replace('{orcid}', $orcid, $storedOrcid),
                 'name_identifier_scheme' => 'ORCID',
             ]);
 
-            $found = $this->service->findOrCreateWithoutStructuredName($orcid);
+            $found = $this->service->findOrCreateWithoutStructuredName(
+                str_replace('{orcid}', $orcid, $submittedOrcid),
+            );
 
             expect($found->id)->toBe($existing->id)
                 ->and($found->given_name)->toBe('Global')
-                ->and($found->family_name)->toBe('Identity');
-        });
+                ->and($found->family_name)->toBe('Identity')
+                ->and(Person::query()->count())->toBe(1);
+        })->with([
+            'canonical stored and bare submitted' => ['https://orcid.org/{orcid}', '{orcid}'],
+            'bare stored and canonical submitted' => ['{orcid}', 'https://orcid.org/{orcid}'],
+            'HTTP www stored and bare submitted' => ['http://www.orcid.org/{orcid}', '{orcid}'],
+            'prefixless URL stored and canonical submitted' => ['orcid.org/{orcid}', 'https://orcid.org/{orcid}'],
+        ]);
     });
 
     it('creates a person without rediscovering an ORCID person by name', function () {
