@@ -396,6 +396,28 @@ describe('transformCreators', function (): void {
         ]);
     });
 
+    it('passes a structured creator snapshot through the editor payload', function (): void {
+        $person = Person::factory()->create([
+            'given_name' => 'Philipp',
+            'family_name' => 'Sommer',
+        ]);
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+            'name_snapshot' => 'Philipp Sommer',
+            'given_name_snapshot' => 'Philipp S.',
+            'family_name_snapshot' => 'Sommer',
+        ]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        expect($this->transformer->transformCreators($this->resource)['authors'][0])->toMatchArray([
+            'firstName' => 'Philipp S.',
+            'lastName' => 'Sommer',
+            'nameSnapshot' => 'Philipp Sommer',
+        ]);
+    });
+
     it('transforms person creator to author', function (): void {
         $person = Person::factory()->withOrcid('0000-0002-1825-0097')->create([
             'given_name' => 'John',

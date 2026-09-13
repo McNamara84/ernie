@@ -604,13 +604,14 @@ class ResourceStorageService
         $contactInfo = $this->validatedContactInfo($data);
         $givenName = $this->normalizeNullableString($data['firstName'] ?? null);
         $familyName = $this->normalizeNullableString($data['lastName'] ?? null);
+        $nameSnapshot = $this->normalizeNullableString($data['nameSnapshot'] ?? null);
         $unstructuredNameSnapshot = $givenName === null && $familyName === null
-            ? $this->normalizeNullableString($data['nameSnapshot'] ?? null)
+            ? $nameSnapshot
             : null;
         $existingCreatorId = is_numeric($data['resourceCreatorId'] ?? null)
             ? (int) $data['resourceCreatorId']
             : 0;
-        $person = $unstructuredNameSnapshot !== null
+        $person = $nameSnapshot !== null
             ? ($existingCreatorPeople[$existingCreatorId] ?? null)
             : null;
         if (! $person instanceof Person) {
@@ -630,7 +631,7 @@ class ResourceStorageService
             'email' => $isContact ? $contactInfo['email'] : null,
             'website' => $isContact ? $contactInfo['website'] : null,
             'name_snapshot' => match (true) {
-                $unstructuredNameSnapshot !== null => $unstructuredNameSnapshot,
+                $nameSnapshot !== null => $nameSnapshot,
                 $familyName !== null && $givenName !== null => $familyName.', '.$givenName,
                 $familyName !== null => $familyName,
                 default => $givenName,

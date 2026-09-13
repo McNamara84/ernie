@@ -2116,7 +2116,7 @@ export default function DataCiteForm({
                 const orcid = author.orcid.trim();
                 const firstName = author.firstName.trim();
                 const lastName = author.lastName.trim();
-                const nameSnapshot = !firstName && !lastName ? author.nameSnapshot?.trim() : undefined;
+                const nameSnapshot = author.nameSnapshot?.trim();
                 const email = author.email.trim();
                 const website = author.website.trim();
 

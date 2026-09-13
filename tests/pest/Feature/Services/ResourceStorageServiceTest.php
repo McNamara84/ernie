@@ -234,6 +234,47 @@ describe('ResourceStorageService', function () {
             ->and($storedCreator->family_name_snapshot)->toBeNull();
     });
 
+    it('preserves a structured snapshot and person link through an editor update', function () {
+        $resourceType = ResourceType::firstOrFail();
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Structured snapshot round-trip', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+        $originalCreator->forceFill([
+            'name_snapshot' => 'Philipp Sommer',
+            'given_name_snapshot' => 'Philipp S.',
+            'family_name_snapshot' => 'Sommer',
+        ])->save();
+        $resource->load([
+            'creators.creatorable', 'creators.affiliations',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
+        ]);
+        $author = app(EditorDataTransformer::class)->transformCreators($resource)['authors'][0];
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Structured snapshot round-trip', 'titleType' => 'MainTitle']],
+            'authors' => [$author],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->toBe($originalPersonId)
+            ->and($storedCreator->name_snapshot)->toBe('Philipp Sommer')
+            ->and($storedCreator->given_name_snapshot)->toBe('Philipp S.')
+            ->and($storedCreator->family_name_snapshot)->toBe('Sommer');
+    });
+
     it('includes IGSN facets in the manual relation-replacement invalidation', function () {
         $invalidation = Mockery::mock(PortalCacheInvalidationService::class)->shouldIgnoreMissing();
         $invalidation->shouldReceive('scheduleForResourceId')

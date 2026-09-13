@@ -312,10 +312,7 @@ class EditorDataTransformer
                 // Map to frontend field names
                 $data['firstName'] = $resolvedName['given_name'] ?? '';
                 $data['lastName'] = $resolvedName['family_name'] ?? '';
-                if ($resolvedName['source'] === 'snapshot'
-                    && $resolvedName['given_name'] === null
-                    && $resolvedName['family_name'] === null
-                ) {
+                if ($resolvedName['source'] === 'snapshot') {
                     $data['nameSnapshot'] = $resolvedName['name'];
                 }
                 $data['orcid'] = $creatorable->name_identifier ?? '';

@@ -3848,6 +3848,61 @@ describe('DataCiteForm', () => {
         ]);
     });
 
+    it('serializes a structured creator snapshot for a lossless editor save', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+        mockedAxios.post.mockResolvedValue({ data: { message: 'Stored' }, status: 200 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Structured Snapshot Dataset', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                initialAuthors={[
+                    {
+                        type: 'person',
+                        resourceCreatorId: 42,
+                        firstName: 'Philipp S.',
+                        lastName: 'Sommer',
+                        nameSnapshot: 'Philipp Sommer',
+                    },
+                ]}
+                availableDatacenters={availableDatacenters}
+                initialDatacenterId={1}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        await fillRequiredContributor(user);
+        await fillRequiredAbstract(user);
+        await user.click(screen.getByRole('button', { name: /^validate$/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(body.authors).toEqual([
+            expect.objectContaining({
+                type: 'person',
+                resourceCreatorId: 42,
+                firstName: 'Philipp S.',
+                lastName: 'Sommer',
+                nameSnapshot: 'Philipp Sommer',
+                position: 0,
+            }),
+        ]);
+    });
+
     it('shows validation feedback when saving fails', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 

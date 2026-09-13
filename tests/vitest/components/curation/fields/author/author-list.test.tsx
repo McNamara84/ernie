@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AuthorList from '@/components/curation/fields/author/author-list';
-import type { AuthorEntry } from '@/components/curation/fields/author/types';
+import type { AuthorEntry, PersonAuthorEntry } from '@/components/curation/fields/author/types';
 import type { ParsedAuthor } from '@/components/curation/fields/author-csv-import';
 
 const dndState = vi.hoisted(() => ({
@@ -20,7 +20,13 @@ const dndState = vi.hoisted(() => ({
 
 // Mock Drag & Drop
 vi.mock('@dnd-kit/core', () => ({
-    DndContext: ({ children, onDragEnd }: { children: ReactNode; onDragEnd: (event: { active: { id: string }; over: { id: string } | null }) => void }) => (
+    DndContext: ({
+        children,
+        onDragEnd,
+    }: {
+        children: ReactNode;
+        onDragEnd: (event: { active: { id: string }; over: { id: string } | null }) => void;
+    }) => (
         <div>
             <button data-testid="trigger-drag" onClick={() => onDragEnd(dndState.event)}>
                 Trigger drag
@@ -187,6 +193,28 @@ describe('AuthorList Component', () => {
         await user.click(removeButtons[0]);
 
         expect(mockProps.onRemove).toHaveBeenCalledWith(0);
+    });
+
+    it('clears a preserved name snapshot when a structured name is edited', async () => {
+        const user = userEvent.setup({ delay: null });
+        const authors: AuthorEntry[] = [
+            {
+                ...(mockAuthors[0] as PersonAuthorEntry),
+                nameSnapshot: 'John Doe',
+            },
+        ];
+
+        render(<AuthorList authors={authors} {...mockProps} />);
+
+        await user.type(screen.getByRole('textbox', { name: /First name/i }), 'n');
+
+        expect(mockProps.onAuthorChange).toHaveBeenCalledWith(
+            0,
+            expect.objectContaining({
+                firstName: 'Johnn',
+                nameSnapshot: undefined,
+            }),
+        );
     });
 
     it('handles bulk add via CSV import with collision-resistant ids', async () => {
