@@ -153,6 +153,37 @@ it('keeps non-array raw rights input unchanged for draft validation', function (
     expect($request->input('rawRights'))->toBe('not-an-array');
 });
 
+it('preserves unstructured creator snapshot metadata during request normalization', function (string $requestClass, string $uri): void {
+    /** @var StoreDraftResourceRequest|StoreResourceRequest $request */
+    $request = $requestClass::create($uri, 'POST', [
+        'titles' => [['title' => 'Snapshot resource', 'titleType' => 'main-title']],
+        'authors' => [[
+            'type' => 'person',
+            'resourceCreatorId' => '42',
+            'firstName' => ' ',
+            'lastName' => null,
+            'nameSnapshot' => '  The Artist  ',
+            'position' => 0,
+        ]],
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+    $validator = Validator::make($request->all(), $request->rules());
+    foreach ($request->after() as $callback) {
+        $validator->after($callback);
+    }
+    $validator->passes();
+
+    expect($request->input('authors.0.resourceCreatorId'))->toBe(42)
+        ->and($request->input('authors.0.firstName'))->toBeNull()
+        ->and($request->input('authors.0.lastName'))->toBeNull()
+        ->and($request->input('authors.0.nameSnapshot'))->toBe('The Artist')
+        ->and($validator->errors()->has('authors.0.lastName'))->toBeFalse();
+})->with([
+    'draft request' => [StoreDraftResourceRequest::class, '/editor/resources/draft'],
+    'store request' => [StoreResourceRequest::class, '/editor/resources'],
+]);
+
 it('keeps related-work citation label limits aligned between draft and store requests', function (): void {
     $draftRequest = new StoreDraftResourceRequest;
     $storeRequest = new StoreResourceRequest;

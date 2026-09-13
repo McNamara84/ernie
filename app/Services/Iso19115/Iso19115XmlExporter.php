@@ -539,6 +539,7 @@ class Iso19115XmlExporter
                 $creator->email,
                 $creator->website,
                 array_values($creator->affiliations->all()),
+                $creator,
             );
         }
 
@@ -567,8 +568,9 @@ class Iso19115XmlExporter
         ?string $email,
         ?string $website,
         array $affiliations,
+        ?ResourceCreator $creator = null,
     ): void {
-        $party = $this->partyData($partyModel);
+        $party = $this->partyData($partyModel, $creator);
         if ($party === null) {
             return;
         }

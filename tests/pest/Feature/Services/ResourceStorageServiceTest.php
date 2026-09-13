@@ -19,6 +19,7 @@ use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\Editor\EditorDataTransformer;
 use App\Services\KeywordSuggestionService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceStorageService;
@@ -105,6 +106,69 @@ describe('ResourceStorageService', function () {
         expect($resource->descriptions()->count())->toBe(1);
         $description = $resource->descriptions->first();
         expect($description->value)->toBe('Test abstract description.');
+    });
+
+    it('stores an unstructured creator snapshot without inventing structured name parts', function () {
+        $resourceType = ResourceType::firstOrFail();
+
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Unstructured creator', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'firstName' => null,
+                'lastName' => null,
+                'nameSnapshot' => 'The Artist',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $creator = $resource->creators()->sole();
+        expect($creator->name_snapshot)->toBe('The Artist')
+            ->and($creator->given_name_snapshot)->toBeNull()
+            ->and($creator->family_name_snapshot)->toBeNull();
+    });
+
+    it('preserves an unstructured snapshot and person link through an editor update', function () {
+        $resourceType = ResourceType::firstOrFail();
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Round-trip creator', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'firstName' => 'Global',
+                'lastName' => 'Identity',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+        $originalCreator->forceFill([
+            'name_snapshot' => 'The Artist',
+            'given_name_snapshot' => null,
+            'family_name_snapshot' => null,
+        ])->save();
+        $resource->load([
+            'creators.creatorable', 'creators.affiliations',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
+        ]);
+        $author = app(EditorDataTransformer::class)->transformCreators($resource)['authors'][0];
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Round-trip creator', 'titleType' => 'MainTitle']],
+            'authors' => [$author],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->toBe($originalPersonId)
+            ->and($storedCreator->name_snapshot)->toBe('The Artist')
+            ->and($storedCreator->given_name_snapshot)->toBeNull()
+            ->and($storedCreator->family_name_snapshot)->toBeNull();
     });
 
     it('includes IGSN facets in the manual relation-replacement invalidation', function () {

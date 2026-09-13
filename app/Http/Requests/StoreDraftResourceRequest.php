@@ -97,9 +97,11 @@ class StoreDraftResourceRequest extends FormRequest
             'authors' => ['nullable', 'array'],
             'authors.*.type' => ['required', Rule::in(['person', 'institution'])],
             'authors.*.position' => ['required', 'integer', 'min:0'],
+            'authors.*.resourceCreatorId' => ['nullable', 'integer', 'min:1'],
             'authors.*.orcid' => ['nullable', 'string', 'max:255'],
             'authors.*.firstName' => ['nullable', 'string', 'max:255'],
             'authors.*.lastName' => ['nullable', 'string', 'max:255'],
+            'authors.*.nameSnapshot' => ['nullable', 'string', 'max:255'],
             'authors.*.email' => ['nullable', 'email', 'max:255'],
             'authors.*.website' => ['nullable', 'url', 'max:255'],
             'authors.*.isContact' => ['boolean'],
@@ -424,9 +426,11 @@ class StoreDraftResourceRequest extends FormRequest
 
             $authors[$index] = [
                 'type' => 'person',
+                'resourceCreatorId' => $this->normalizeRelatedIdentifierId($author['resourceCreatorId'] ?? null),
                 'orcid' => $this->normalizeString($author['orcid'] ?? null),
                 'firstName' => $this->normalizeString($author['firstName'] ?? null),
                 'lastName' => $this->normalizeString($author['lastName'] ?? null),
+                'nameSnapshot' => $this->normalizeString($author['nameSnapshot'] ?? null),
                 'email' => $email,
                 'website' => $website,
                 'isContact' => $isContact,
@@ -1268,7 +1272,8 @@ class StoreDraftResourceRequest extends FormRequest
         $type = $author['type'] ?? null;
 
         if ($type === 'person') {
-            return $this->normalizeString($author['lastName'] ?? null) !== null;
+            return $this->normalizeString($author['lastName'] ?? null) !== null
+                || $this->normalizeString($author['nameSnapshot'] ?? null) !== null;
         }
 
         if ($type === 'institution') {

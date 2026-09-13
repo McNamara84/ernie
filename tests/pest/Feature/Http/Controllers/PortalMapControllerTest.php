@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Models\GeoLocation;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
+use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\TitleType;
@@ -97,6 +99,26 @@ it('returns a lightweight resource feature for a published point in the viewport
         ->assertJsonPath('meta.visibleLocations', 1)
         ->assertJsonPath('meta.totalLocations', 1)
         ->assertJsonPath('meta.returnedFeatures', 1);
+});
+
+it('uses resource-specific creator snapshots in map popups', function (): void {
+    $resource = createPublishedPortalMapResource($this->datasetType, 'Snapshot map resource');
+    $person = Person::factory()->create([
+        'given_name' => 'Philipp',
+        'family_name' => 'Sommer',
+    ]);
+    ResourceCreator::factory()->forPerson($person)->create([
+        'resource_id' => $resource->id,
+        'position' => 1,
+        'name_snapshot' => 'Sommer, Philipp S.',
+        'given_name_snapshot' => 'Philipp S.',
+        'family_name_snapshot' => 'Sommer',
+    ]);
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $resource->id]);
+
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery()))
+        ->assertOk()
+        ->assertJsonPath('features.0.resource.creators.0.name', 'Sommer, Philipp S.');
 });
 
 it('drops resource candidates whose locations disappear before hydration', function (): void {

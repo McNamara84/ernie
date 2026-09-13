@@ -13,21 +13,28 @@ import { affiliationTagSchema, orcidSchema } from './common.schema';
 // Person Author Schema
 // =============================================================================
 
-export const personAuthorSchema = z.object({
-    id: z.string(),
-    type: z.literal('person'),
-    orcid: orcidSchema,
-    firstName: z.string().min(1, 'First name is required'),
-    lastName: z.string().min(1, 'Last name is required'),
-    email: z.string().email('Invalid email address').optional().or(z.literal('')),
-    website: z.string().url('Invalid URL').optional().or(z.literal('')),
-    isContact: z.boolean().default(false),
-    affiliations: z.array(affiliationTagSchema).default([]),
-    affiliationsInput: z.string().default(''),
-    // ORCID verification status (optional, set by system)
-    orcidVerified: z.boolean().optional(),
-    orcidVerifiedAt: z.string().optional(),
-});
+export const personAuthorSchema = z
+    .object({
+        id: z.string(),
+        type: z.literal('person'),
+        resourceCreatorId: z.number().int().positive().optional(),
+        orcid: orcidSchema,
+        firstName: z.string(),
+        lastName: z.string(),
+        nameSnapshot: z.string().optional(),
+        email: z.string().email('Invalid email address').optional().or(z.literal('')),
+        website: z.string().url('Invalid URL').optional().or(z.literal('')),
+        isContact: z.boolean().default(false),
+        affiliations: z.array(affiliationTagSchema).default([]),
+        affiliationsInput: z.string().default(''),
+        // ORCID verification status (optional, set by system)
+        orcidVerified: z.boolean().optional(),
+        orcidVerifiedAt: z.string().optional(),
+    })
+    .refine((author) => author.lastName.trim() !== '' || (author.nameSnapshot?.trim() ?? '') !== '', {
+        message: 'Last name is required',
+        path: ['lastName'],
+    });
 
 export type PersonAuthorFormData = z.infer<typeof personAuthorSchema>;
 

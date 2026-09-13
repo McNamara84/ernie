@@ -294,6 +294,7 @@ class EditorDataTransformer
             $data = [
                 'position' => $firstEntry->position,
                 'isContact' => $isContact,
+                'resourceCreatorId' => $firstEntry->id,
             ];
 
             if ($isContact && $email !== null) {
@@ -311,6 +312,12 @@ class EditorDataTransformer
                 // Map to frontend field names
                 $data['firstName'] = $resolvedName['given_name'] ?? '';
                 $data['lastName'] = $resolvedName['family_name'] ?? '';
+                if ($resolvedName['source'] === 'snapshot'
+                    && $resolvedName['given_name'] === null
+                    && $resolvedName['family_name'] === null
+                ) {
+                    $data['nameSnapshot'] = $resolvedName['name'];
+                }
                 $data['orcid'] = $creatorable->name_identifier ?? '';
                 // Mark stored ORCIDs as already verified to skip re-validation on load.
                 // Only trust identifiers with ORCID scheme (or null for legacy data)

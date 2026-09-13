@@ -151,6 +151,7 @@ export default function AuthorList({ authors, onAdd, onRemove, onAuthorChange, o
         onAuthorChange(index, {
             ...author,
             [field]: value,
+            ...(field === 'firstName' || field === 'lastName' ? { nameSnapshot: undefined } : {}),
         });
     };
 

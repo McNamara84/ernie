@@ -21,6 +21,7 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\ResourceType;
 use App\Models\TitleType;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteRegistrationService;
@@ -52,6 +53,7 @@ class IgsnController extends Controller
         private readonly ListingCountService $listingCountService,
         private readonly IgsnRegistrationRunPresenterService $igsnRegistrationRunPresenter,
         private readonly IgsnRegistrationExclusionService $igsnRegistrationExclusion,
+        private readonly ResourceCreatorNameResolverService $creatorNameResolver,
     ) {}
 
     private const DEFAULT_SORT_KEY = 'updated_at';
@@ -746,11 +748,15 @@ class IgsnController extends Controller
             return null;
         }
 
-        if ($person->family_name && $person->given_name) {
-            return $person->family_name.', '.$person->given_name;
+        $resolvedName = $this->creatorNameResolver->resolve($creator, $person);
+        if ($resolvedName['source'] === 'person'
+            && $resolvedName['given_name'] === null
+            && $resolvedName['family_name'] === null
+        ) {
+            return null;
         }
 
-        return $person->family_name ?? $person->given_name ?? null;
+        return $resolvedName['name'];
     }
 
     /**

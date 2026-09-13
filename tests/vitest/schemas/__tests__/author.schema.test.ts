@@ -26,7 +26,7 @@ describe('Author Schemas', () => {
             expect(result.success).toBe(true);
         });
 
-        it('requires firstName and lastName', () => {
+        it('requires a last name when no unstructured snapshot exists', () => {
             const result = personAuthorSchema.safeParse({
                 id: '1',
                 type: 'person',
@@ -34,6 +34,18 @@ describe('Author Schemas', () => {
                 lastName: '',
             });
             expect(result.success).toBe(false);
+        });
+
+        it('accepts a preserved unstructured name snapshot', () => {
+            const result = personAuthorSchema.safeParse({
+                id: '1',
+                type: 'person',
+                firstName: '',
+                lastName: '',
+                nameSnapshot: 'The Artist',
+            });
+
+            expect(result.success).toBe(true);
         });
 
         it('validates email format', () => {
@@ -120,9 +132,7 @@ describe('Author Schemas', () => {
         });
 
         it('accepts array with authors', () => {
-            const result = authorsArraySchema.safeParse([
-                { id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe' },
-            ]);
+            const result = authorsArraySchema.safeParse([{ id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe' }]);
             expect(result.success).toBe(true);
         });
     });
@@ -145,26 +155,20 @@ describe('Author Schemas', () => {
         });
 
         it('returns false for institution-only authors', () => {
-            expect(
-                validateContactAuthor([
-                    { id: '1', type: 'institution', institutionName: 'GFZ', affiliations: [], affiliationsInput: '' },
-                ]),
-            ).toBe(false);
+            expect(validateContactAuthor([{ id: '1', type: 'institution', institutionName: 'GFZ', affiliations: [], affiliationsInput: '' }])).toBe(
+                false,
+            );
         });
     });
 
     describe('authorsWithContactSchema', () => {
         it('rejects authors without contact', () => {
-            const result = authorsWithContactSchema.safeParse([
-                { id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: false },
-            ]);
+            const result = authorsWithContactSchema.safeParse([{ id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: false }]);
             expect(result.success).toBe(false);
         });
 
         it('accepts authors with contact', () => {
-            const result = authorsWithContactSchema.safeParse([
-                { id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true },
-            ]);
+            const result = authorsWithContactSchema.safeParse([{ id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true }]);
             expect(result.success).toBe(true);
         });
     });

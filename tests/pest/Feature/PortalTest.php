@@ -10,6 +10,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
+use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -476,6 +477,25 @@ describe('Portal Resource Transformation', function () {
                 ->has('resources.0.creators', 1)
                 ->where('resources.0.creators.0.name', 'Smith')
                 ->where('resources.0.creators.0.givenName', 'John')
+            );
+    });
+
+    it('finds a URI-less legacy MSL subject through its generated legacy keyword filter', function () {
+        $matching = createPublishedResource($this->datasetType, 'Legacy MSL match');
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'lava flow',
+            'subject_scheme' => 'EPOS WP16 Analogue Geologic Structure',
+            'value_uri' => null,
+        ]);
+        createPublishedResource($this->datasetType, 'Unrelated resource');
+
+        $this->get(route('portal.doi', ['keywords' => ['lava flow']]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('resources', 1)
+                ->where('resources.0.id', $matching->id)
+                ->where('filters.keywords', ['lava flow'])
             );
     });
 });

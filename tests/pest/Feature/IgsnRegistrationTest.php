@@ -6,7 +6,9 @@ use App\Jobs\ProcessIgsnRegistrationRunJob;
 use App\Models\IgsnMetadata;
 use App\Models\IgsnRegistrationRun;
 use App\Models\LandingPage;
+use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
 use App\Models\User;
 use App\Services\DataCiteRegistrationService;
 use App\Services\IgsnRegistrationExclusionService;
@@ -609,6 +611,28 @@ describe('BatchIgsnRegistrationController@register', function () {
 // ============================================================================
 
 describe('IgsnController@index includes has_landing_page', function () {
+    test('uses the resource-specific creator snapshot for the collector', function () {
+        $resource = createIgsnWithMetadata();
+        $person = Person::factory()->create([
+            'given_name' => 'Philipp',
+            'family_name' => 'Sommer',
+        ]);
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $resource->id,
+            'position' => 1,
+            'name_snapshot' => 'Sommer, Philipp S.',
+            'given_name_snapshot' => 'Philipp S.',
+            'family_name_snapshot' => 'Sommer',
+        ]);
+
+        $response = $this->actingAs($this->user)->get('/igsns');
+
+        $response->assertOk();
+        $igsn = collect($response->original->getData()['page']['props']['igsns'])
+            ->firstWhere('id', $resource->id);
+        expect($igsn['collector'])->toBe('Sommer, Philipp S.');
+    });
+
     test('returns has_landing_page true when landing page exists', function () {
         $resource = createIgsnWithMetadata();
         LandingPage::factory()->create(['resource_id' => $resource->id]);

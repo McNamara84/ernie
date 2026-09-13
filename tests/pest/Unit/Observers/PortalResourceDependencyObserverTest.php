@@ -6,6 +6,7 @@ use App\Enums\PortalCacheArea;
 use App\Models\GeoLocation;
 use App\Models\IgsnClassification;
 use App\Models\IgsnMetadata;
+use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\Title;
 use App\Observers\PortalResourceDependencyObserver;
@@ -28,6 +29,19 @@ it('invalidates result and count caches for result-card dependencies', function 
     ]);
 
     $this->observer->saved($title);
+});
+
+it('invalidates the map payload when a resource creator changes', function (): void {
+    $creator = new ResourceCreator(['resource_id' => 42]);
+
+    $this->invalidation->shouldReceive('scheduleForResourceId')->once()->with(42, [
+        PortalCacheArea::PAGE,
+        PortalCacheArea::COUNT,
+        PortalCacheArea::IGSN_FACETS,
+        PortalCacheArea::MAP_PAYLOAD,
+    ]);
+
+    $this->observer->saved($creator);
 });
 
 it('invalidates map caches for geolocation changes', function (): void {

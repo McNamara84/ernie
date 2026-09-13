@@ -562,6 +562,15 @@ class ResourceStorageService
      */
     private function storeCreators(Resource $resource, array $data, bool $isUpdate): void
     {
+        /** @var array<int, Person> $existingCreatorPeople */
+        $existingCreatorPeople = $resource->creators()
+            ->with('creatorable')
+            ->get()
+            ->filter(fn (ResourceCreator $creator): bool => $creator->creatorable instanceof Person)
+            ->mapWithKeys(fn (ResourceCreator $creator): array => [
+                (int) $creator->id => $creator->creatorable,
+            ])
+            ->all();
         $resource->creators()->delete();
 
         $authors = $data['authors'] ?? [];
@@ -574,7 +583,7 @@ class ResourceStorageService
             if (($author['type'] ?? 'person') === 'institution') {
                 $resourceCreator = $this->storeInstitutionCreator($resource, $author, $position);
             } else {
-                $resourceCreator = $this->storePersonCreator($resource, $author, $position);
+                $resourceCreator = $this->storePersonCreator($resource, $author, $position, $existingCreatorPeople);
             }
 
             $this->affiliationService->syncForCreator($resourceCreator, $author);
@@ -583,14 +592,34 @@ class ResourceStorageService
 
     /**
      * @param  array<string, mixed>  $data
+     * @param  array<int, Person>  $existingCreatorPeople
      */
-    private function storePersonCreator(Resource $resource, array $data, int $position): ResourceCreator
-    {
-        $person = $this->personService->findOrCreate($data);
+    private function storePersonCreator(
+        Resource $resource,
+        array $data,
+        int $position,
+        array $existingCreatorPeople = [],
+    ): ResourceCreator {
         $isContact = (bool) ($data['isContact'] ?? false);
         $contactInfo = $this->validatedContactInfo($data);
         $givenName = $this->normalizeNullableString($data['firstName'] ?? null);
         $familyName = $this->normalizeNullableString($data['lastName'] ?? null);
+        $unstructuredNameSnapshot = $givenName === null && $familyName === null
+            ? $this->normalizeNullableString($data['nameSnapshot'] ?? null)
+            : null;
+        $existingCreatorId = is_numeric($data['resourceCreatorId'] ?? null)
+            ? (int) $data['resourceCreatorId']
+            : 0;
+        $person = $unstructuredNameSnapshot !== null
+            ? ($existingCreatorPeople[$existingCreatorId] ?? null)
+            : null;
+        if (! $person instanceof Person) {
+            $personData = $data;
+            if ($unstructuredNameSnapshot !== null) {
+                $personData['lastName'] = $unstructuredNameSnapshot;
+            }
+            $person = $this->personService->findOrCreate($personData);
+        }
 
         return ResourceCreator::query()->create([
             'resource_id' => $resource->id,
@@ -601,6 +630,7 @@ class ResourceStorageService
             'email' => $isContact ? $contactInfo['email'] : null,
             'website' => $isContact ? $contactInfo['website'] : null,
             'name_snapshot' => match (true) {
+                $unstructuredNameSnapshot !== null => $unstructuredNameSnapshot,
                 $familyName !== null && $givenName !== null => $familyName.', '.$givenName,
                 $familyName !== null => $familyName,
                 default => $givenName,
