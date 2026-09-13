@@ -505,6 +505,94 @@ describe('ResourceStorageService', function () {
             ->and($storedCreator->name_snapshot)->toBe('Philipp Sommer');
     });
 
+    it('does not reuse a snapshot-linked non-ORCID identity with the same identifier text', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $orcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Scheme-aware creator identity', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $orcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPerson = $originalCreator->creatorable;
+        expect($originalPerson)->toBeInstanceOf(Person::class);
+        $originalPerson->forceFill(['name_identifier_scheme' => 'ISNI'])->save();
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Scheme-aware creator identity', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => $orcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Sommer, Philipp',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->not->toBe($originalPerson->id)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBe('https://orcid.org/'.$orcid)
+            ->and($storedCreator->creatorable->name_identifier_scheme)->toBe('ORCID')
+            ->and($storedCreator->creatorable->hasOrcid())->toBeTrue()
+            ->and($originalPerson->fresh()->name_identifier_scheme)->toBe('ISNI');
+    });
+
+    it('reuses and classifies a snapshot-linked legacy ORCID with a null scheme', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $orcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Legacy ORCID scheme', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $orcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPerson = $originalCreator->creatorable;
+        expect($originalPerson)->toBeInstanceOf(Person::class);
+        $originalPerson->forceFill(['name_identifier_scheme' => null])->save();
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Legacy ORCID scheme', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => $orcid,
+                'firstName' => 'Philipp S.',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Sommer, Philipp',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->toBe($originalPerson->id)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier_scheme)->toBe('ORCID')
+            ->and($storedCreator->creatorable->hasOrcid())->toBeTrue();
+    });
+
     it('includes IGSN facets in the manual relation-replacement invalidation', function () {
         $invalidation = Mockery::mock(PortalCacheInvalidationService::class)->shouldIgnoreMissing();
         $invalidation->shouldReceive('scheduleForResourceId')

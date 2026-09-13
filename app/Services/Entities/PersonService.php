@@ -18,10 +18,13 @@ use App\Support\OrcidNormalizer;
  * 2. By given_name + family_name combination
  *
  * New persons are created with ORCID identifier if provided.
- * Existing persons are NOT updated to preserve data integrity.
+ * Existing names are not updated to preserve data integrity. A legacy ORCID
+ * with a null identifier scheme is classified as ORCID when it is reused.
  */
 class PersonService
 {
+    private const ORCID_SCHEME = 'ORCID';
+
     /**
      * Find an existing person or create a new one from the provided data.
      *
@@ -29,6 +32,17 @@ class PersonService
      */
     public function findOrCreate(array $data): Person
     {
+        if (! empty($data['orcid'])) {
+            $orcid = trim((string) $data['orcid']);
+            $existing = $this->findCompatibleOrcidPerson($orcid);
+
+            if ($existing instanceof Person) {
+                return $this->promoteLegacyOrcidScheme($existing);
+            }
+
+            $data['orcid'] = $this->availableOrcidStorageValue($orcid);
+        }
+
         $searchCriteria = $this->buildSearchCriteria($data);
         $person = Person::query()->firstOrNew($searchCriteria);
 
@@ -56,23 +70,26 @@ class PersonService
 
         if ($orcid !== null) {
             $bareOrcid = strtoupper(OrcidNormalizer::extractBareId($orcid));
-            if (OrcidNormalizer::isValid($bareOrcid)) {
-                $existing = Person::query()
-                    ->whereIn('name_identifier', $this->orcidStorageVariants($bareOrcid))
-                    ->first();
-                if ($existing instanceof Person) {
-                    return $existing;
-                }
+            $existing = $this->findCompatibleOrcidPerson($orcid);
 
-                $orcid = OrcidNormalizer::toUrl($bareOrcid);
+            if ($existing instanceof Person) {
+                return $this->promoteLegacyOrcidScheme($existing);
+            }
+
+            if (OrcidNormalizer::isValid($bareOrcid)) {
+                $orcid = $this->availableOrcidStorageValue(
+                    OrcidNormalizer::toUrl($bareOrcid),
+                );
             }
 
             return Person::query()->firstOrCreate(
-                ['name_identifier' => $orcid],
+                [
+                    'name_identifier' => $orcid,
+                    'name_identifier_scheme' => self::ORCID_SCHEME,
+                ],
                 [
                     'given_name' => null,
                     'family_name' => '',
-                    'name_identifier_scheme' => 'ORCID',
                 ],
             );
         }
@@ -110,6 +127,59 @@ class PersonService
         return array_values(array_unique($variants));
     }
 
+    private function findCompatibleOrcidPerson(string $orcid): ?Person
+    {
+        $bareOrcid = strtoupper(OrcidNormalizer::extractBareId($orcid));
+        $variants = OrcidNormalizer::isValidFormat($bareOrcid)
+            ? $this->orcidStorageVariants($bareOrcid)
+            : [$orcid];
+
+        $person = Person::query()
+            ->whereIn('name_identifier', $variants)
+            ->where('name_identifier_scheme', self::ORCID_SCHEME)
+            ->first();
+
+        if ($person instanceof Person) {
+            return $person;
+        }
+
+        // Legacy imports sometimes omitted the scheme for otherwise valid ORCIDs.
+        // They remain compatible, unlike identifiers explicitly assigned to ISNI/ROR.
+        return Person::query()
+            ->whereIn('name_identifier', $variants)
+            ->whereNull('name_identifier_scheme')
+            ->first();
+    }
+
+    private function promoteLegacyOrcidScheme(Person $person): Person
+    {
+        if ($person->name_identifier_scheme === null) {
+            $person->name_identifier_scheme = self::ORCID_SCHEME;
+            $person->save();
+        }
+
+        return $person;
+    }
+
+    private function availableOrcidStorageValue(string $orcid): string
+    {
+        if (Person::query()->where('name_identifier', $orcid)->doesntExist()) {
+            return $orcid;
+        }
+
+        $bareOrcid = strtoupper(OrcidNormalizer::extractBareId($orcid));
+
+        if (OrcidNormalizer::isValid($bareOrcid)) {
+            foreach ($this->orcidStorageVariants($bareOrcid) as $variant) {
+                if (Person::query()->where('name_identifier', $variant)->doesntExist()) {
+                    return $variant;
+                }
+            }
+        }
+
+        return $orcid;
+    }
+
     /**
      * Create a person without carrying over or rediscovering an ORCID identity.
      *
@@ -136,7 +206,10 @@ class PersonService
     {
         // Priority 1: Search by ORCID if provided
         if (! empty($data['orcid'])) {
-            return ['name_identifier' => $data['orcid']];
+            return [
+                'name_identifier' => $data['orcid'],
+                'name_identifier_scheme' => self::ORCID_SCHEME,
+            ];
         }
 
         // Priority 2: Search by name combination
@@ -161,7 +234,7 @@ class PersonService
         // Set ORCID identifier if provided
         if (! empty($data['orcid'])) {
             $person->name_identifier = $data['orcid'];
-            $person->name_identifier_scheme = 'ORCID';
+            $person->name_identifier_scheme = self::ORCID_SCHEME;
         }
     }
 }

@@ -612,7 +612,7 @@ class ResourceStorageService
             : 0;
         $existingPerson = $existingCreatorPeople[$existingCreatorId] ?? null;
         $identityChanged = $existingPerson instanceof Person
-            && ! $this->sameOrcidIdentity($existingPerson->name_identifier, $orcid);
+            && ! $this->sameOrcidIdentity($existingPerson, $orcid);
         $person = $existingPerson instanceof Person
             && ! $identityChanged
                 ? $existingPerson
@@ -623,6 +623,10 @@ class ResourceStorageService
                 $identityChanged && $orcid === null => $this->personService->createWithoutOrcid($givenName, $familyName),
                 default => $this->personService->findOrCreate($data),
             };
+        }
+        if ($orcid !== null && $person->name_identifier_scheme === null) {
+            $person->name_identifier_scheme = 'ORCID';
+            $person->save();
         }
 
         return ResourceCreator::query()->create([
@@ -644,8 +648,15 @@ class ResourceStorageService
         ]);
     }
 
-    private function sameOrcidIdentity(?string $storedOrcid, ?string $submittedOrcid): bool
+    private function sameOrcidIdentity(Person $storedPerson, ?string $submittedOrcid): bool
     {
+        // A null scheme is the supported legacy ORCID representation. Any
+        // explicit non-ORCID scheme describes a different global identity.
+        $storedOrcid = $storedPerson->name_identifier_scheme === null
+            || $storedPerson->name_identifier_scheme === 'ORCID'
+                ? $storedPerson->name_identifier
+                : null;
+
         return $this->normalizedOrcidIdentity($storedOrcid)
             === $this->normalizedOrcidIdentity($submittedOrcid);
     }
