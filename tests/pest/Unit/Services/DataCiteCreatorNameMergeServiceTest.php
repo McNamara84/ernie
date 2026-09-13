@@ -76,6 +76,72 @@ it('does not overwrite opposite initials or conflicting ORCIDs', function (): vo
     expect($this->service->merge($current, $legacy))->toBe($current);
 });
 
+it('does not overwrite a non-empty unstructured name with a different ORCID-matched name', function (
+    string $currentName,
+    string $legacyName,
+): void {
+    $identifier = ($this->orcid)('0000-0001-6171-7716');
+    $current = [[
+        'name' => $currentName,
+        'nameIdentifiers' => $identifier,
+    ]];
+    $legacy = [[
+        'name' => $legacyName,
+        'nameIdentifiers' => $identifier,
+    ]];
+
+    $result = $this->service->mergeWithReport($current, $legacy);
+
+    expect($result['creators'])->toBe($current)
+        ->and($result['matches'][0])->toMatchArray([
+            'legacy_index' => 0,
+            'method' => 'orcid',
+            'status' => 'not_richer',
+        ]);
+})->with([
+    'different normalized names' => ['The Artist', 'A Different Artist'],
+    'non-normalizable current name is not empty' => ['!!!', 'A Different Artist'],
+]);
+
+it('accepts normalized-equivalent unstructured names for an ORCID match', function (): void {
+    $identifier = ($this->orcid)('0000-0001-6171-7716');
+    $current = [[
+        'name' => 'The Artist',
+        'nameIdentifiers' => $identifier,
+    ]];
+    $legacy = [[
+        'name' => 'THE-ARTIST',
+        'nameIdentifiers' => $identifier,
+    ]];
+
+    $result = $this->service->mergeWithReport($current, $legacy);
+
+    expect($result['creators'][0]['name'])->toBe('THE-ARTIST')
+        ->and($result['matches'][0])->toMatchArray([
+            'legacy_index' => 0,
+            'method' => 'orcid',
+            'status' => 'merged',
+        ]);
+});
+
+it('enriches an empty unstructured name from a unique ORCID match', function (): void {
+    $identifier = ($this->orcid)('0000-0001-6171-7716');
+    $current = [['nameIdentifiers' => $identifier]];
+    $legacy = [[
+        'name' => 'The Artist',
+        'nameIdentifiers' => $identifier,
+    ]];
+
+    $result = $this->service->mergeWithReport($current, $legacy);
+
+    expect($result['creators'][0]['name'])->toBe('The Artist')
+        ->and($result['matches'][0])->toMatchArray([
+            'legacy_index' => 0,
+            'method' => 'orcid',
+            'status' => 'merged',
+        ]);
+});
+
 it('rejects ambiguous duplicate ORCID matches across one resource', function (): void {
     $identifier = ($this->orcid)('0000-0001-6171-7716');
     $current = [

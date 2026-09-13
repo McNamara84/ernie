@@ -202,12 +202,29 @@ final class DataCiteCreatorNameMergeService
     {
         $currentFamily = $this->normalize($current['familyName'] ?? null);
         $legacyFamily = $this->normalize($legacy['familyName'] ?? null);
+        $currentGiven = $this->tokens($current['givenName'] ?? null);
+        $legacyGiven = $this->tokens($legacy['givenName'] ?? null);
+
+        if ($currentFamily === null
+            && $legacyFamily === null
+            && $currentGiven === []
+            && $legacyGiven === []
+        ) {
+            $currentName = $this->filled($current['name'] ?? null);
+            if ($currentName === null) {
+                return true;
+            }
+
+            $normalizedCurrentName = $this->normalize($currentName);
+
+            return $normalizedCurrentName !== null
+                && $normalizedCurrentName === $this->normalize($legacy['name'] ?? null);
+        }
+
         if ($currentFamily !== null && $legacyFamily !== null && $currentFamily !== $legacyFamily) {
             return false;
         }
 
-        $currentGiven = $this->tokens($current['givenName'] ?? null);
-        $legacyGiven = $this->tokens($legacy['givenName'] ?? null);
         if ($currentGiven !== [] && $legacyGiven === []) {
             return false;
         }
