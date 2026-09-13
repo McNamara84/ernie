@@ -610,9 +610,7 @@ class ResourceStorageService
         $existingCreatorId = is_numeric($data['resourceCreatorId'] ?? null)
             ? (int) $data['resourceCreatorId']
             : 0;
-        $existingPerson = $nameSnapshot !== null
-            ? ($existingCreatorPeople[$existingCreatorId] ?? null)
-            : null;
+        $existingPerson = $existingCreatorPeople[$existingCreatorId] ?? null;
         $identityChanged = $existingPerson instanceof Person
             && ! $this->sameOrcidIdentity($existingPerson->name_identifier, $orcid);
         $person = $existingPerson instanceof Person

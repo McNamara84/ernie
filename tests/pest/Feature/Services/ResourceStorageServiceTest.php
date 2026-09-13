@@ -419,6 +419,52 @@ describe('ResourceStorageService', function () {
             ->and(Person::query()->findOrFail($originalPersonId)->name_identifier)->toBe($oldOrcid);
     });
 
+    it('removes the ORCID from an older structured creator without a name snapshot', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $oldOrcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed legacy creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $oldOrcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+        $originalCreator->forceFill([
+            'name_snapshot' => null,
+            'given_name_snapshot' => null,
+            'family_name_snapshot' => null,
+        ])->save();
+        $resource->load([
+            'creators.creatorable', 'creators.affiliations',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
+        ]);
+        $author = app(EditorDataTransformer::class)->transformCreators($resource)['authors'][0];
+        $author['orcid'] = null;
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed legacy creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [$author],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($author)->not->toHaveKey('nameSnapshot')
+            ->and($storedCreator->creatorable_id)->not->toBe($originalPersonId)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBeNull()
+            ->and($storedCreator->name_snapshot)->toBe('Sommer, Philipp')
+            ->and(Person::query()->findOrFail($originalPersonId)->name_identifier)->toBe($oldOrcid);
+    });
+
     it('reuses a snapshot-linked person when the ORCID representation is equivalent', function () {
         $resourceType = ResourceType::firstOrFail();
         $bareOrcid = '0000-0002-1825-0097';

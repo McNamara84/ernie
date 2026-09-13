@@ -17,6 +17,7 @@ it('refreshes cached system packages for every container security scan attempt',
     $buildStep = $steps->get('Build application image');
     $trivyCacheStep = $steps->get('Cache Trivy databases');
     $sarifUploadStep = $steps->get('Upload Trivy scan results');
+    $vulnerabilityGateStep = $steps->get('Fail on high or critical image vulnerabilities');
 
     expect($refreshStep)
         ->toBeArray()
@@ -36,7 +37,13 @@ it('refreshes cached system packages for every container security scan attempt',
         ->and($sarifUploadStep)
         ->toBeArray()
         ->and($sarifUploadStep['if'] ?? null)
-        ->toContain("hashFiles('trivy-results.sarif') != ''");
+        ->toContain("hashFiles('trivy-results.sarif') != ''")
+        ->and($sarifUploadStep['continue-on-error'] ?? null)->toBeTrue()
+        ->and($vulnerabilityGateStep)
+        ->toBeArray()
+        ->and($vulnerabilityGateStep['run'] ?? null)
+        ->toBeString()
+        ->toContain('--exit-code 1');
 
     $dockerfile = file_get_contents(base_path('Dockerfile'));
 
