@@ -71,6 +71,20 @@ class PersonService
     }
 
     /**
+     * Create a person without carrying over or rediscovering an ORCID identity.
+     *
+     * This is used when an editor explicitly removes an existing creator's
+     * ORCID. A name-based lookup could otherwise relink the same ORCID person.
+     */
+    public function createWithoutOrcid(?string $givenName, ?string $familyName): Person
+    {
+        return Person::query()->create([
+            'given_name' => $givenName,
+            'family_name' => $familyName ?? '',
+        ]);
+    }
+
+    /**
      * Build search criteria based on provided data.
      *
      * Prioritizes ORCID search if available, falls back to name-based search.

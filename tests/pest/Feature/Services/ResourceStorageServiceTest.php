@@ -275,6 +275,131 @@ describe('ResourceStorageService', function () {
             ->and($storedCreator->family_name_snapshot)->toBe('Sommer');
     });
 
+    it('does not reuse a snapshot-linked person after its ORCID changes', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $oldOrcid = '0000-0002-1825-0097';
+        $newOrcid = '0000-0001-5109-3700';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Changed creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $oldOrcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Changed creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => $newOrcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Philipp Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->not->toBe($originalPersonId)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBe($newOrcid)
+            ->and($storedCreator->name_snapshot)->toBe('Philipp Sommer')
+            ->and(Person::query()->findOrFail($originalPersonId)->name_identifier)->toBe($oldOrcid);
+    });
+
+    it('does not rediscover a snapshot-linked ORCID person by name after its ORCID is removed', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $oldOrcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $oldOrcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => null,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Philipp Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->not->toBe($originalPersonId)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBeNull()
+            ->and($storedCreator->name_snapshot)->toBe('Philipp Sommer')
+            ->and(Person::query()->findOrFail($originalPersonId)->name_identifier)->toBe($oldOrcid);
+    });
+
+    it('reuses a snapshot-linked person when the ORCID representation is equivalent', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $bareOrcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Equivalent creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => 'https://orcid.org/'.$bareOrcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Equivalent creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => $bareOrcid,
+                'firstName' => 'Philipp S.',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Philipp Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->toBe($originalPersonId)
+            ->and($storedCreator->creatorable->name_identifier)->toBe('https://orcid.org/'.$bareOrcid)
+            ->and($storedCreator->name_snapshot)->toBe('Philipp Sommer');
+    });
+
     it('includes IGSN facets in the manual relation-replacement invalidation', function () {
         $invalidation = Mockery::mock(PortalCacheInvalidationService::class)->shouldIgnoreMissing();
         $invalidation->shouldReceive('scheduleForResourceId')

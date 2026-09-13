@@ -605,21 +605,28 @@ class ResourceStorageService
         $givenName = $this->normalizeNullableString($data['firstName'] ?? null);
         $familyName = $this->normalizeNullableString($data['lastName'] ?? null);
         $nameSnapshot = $this->normalizeNullableString($data['nameSnapshot'] ?? null);
+        $orcid = $this->normalizeNullableString($data['orcid'] ?? null);
         $unstructuredNameSnapshot = $givenName === null && $familyName === null
             ? $nameSnapshot
             : null;
         $existingCreatorId = is_numeric($data['resourceCreatorId'] ?? null)
             ? (int) $data['resourceCreatorId']
             : 0;
-        $person = $nameSnapshot !== null
+        $existingPerson = $nameSnapshot !== null
             ? ($existingCreatorPeople[$existingCreatorId] ?? null)
             : null;
+        $identityChanged = $existingPerson instanceof Person
+            && ! $this->sameOrcidIdentity($existingPerson->name_identifier, $orcid);
+        $person = $existingPerson instanceof Person
+            && ! $identityChanged
+                ? $existingPerson
+                : null;
         if (! $person instanceof Person) {
-            $person = $unstructuredNameSnapshot !== null
-                ? $this->personService->findOrCreateWithoutStructuredName(
-                    $this->normalizeNullableString($data['orcid'] ?? null),
-                )
-                : $this->personService->findOrCreate($data);
+            $person = match (true) {
+                $unstructuredNameSnapshot !== null => $this->personService->findOrCreateWithoutStructuredName($orcid),
+                $identityChanged && $orcid === null => $this->personService->createWithoutOrcid($givenName, $familyName),
+                default => $this->personService->findOrCreate($data),
+            };
         }
 
         return ResourceCreator::query()->create([
@@ -639,6 +646,25 @@ class ResourceStorageService
             'given_name_snapshot' => $givenName,
             'family_name_snapshot' => $familyName,
         ]);
+    }
+
+    private function sameOrcidIdentity(?string $storedOrcid, ?string $submittedOrcid): bool
+    {
+        return $this->normalizedOrcidIdentity($storedOrcid)
+            === $this->normalizedOrcidIdentity($submittedOrcid);
+    }
+
+    private function normalizedOrcidIdentity(?string $orcid): ?string
+    {
+        $orcid = $this->normalizeNullableString($orcid);
+
+        if ($orcid === null) {
+            return null;
+        }
+
+        $bareOrcid = OrcidNormalizer::extractBareId($orcid);
+
+        return $bareOrcid !== '' ? strtolower($bareOrcid) : null;
     }
 
     /**

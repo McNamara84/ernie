@@ -168,4 +168,20 @@ describe('PersonService', function () {
                 ->and($found->family_name)->toBe('Identity');
         });
     });
+
+    it('creates a person without rediscovering an ORCID person by name', function () {
+        $existing = Person::factory()->create([
+            'given_name' => 'Philipp',
+            'family_name' => 'Sommer',
+            'name_identifier' => '0000-0002-1825-0097',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        $created = $this->service->createWithoutOrcid('Philipp', 'Sommer');
+
+        expect($created->id)->not->toBe($existing->id)
+            ->and($created->given_name)->toBe('Philipp')
+            ->and($created->family_name)->toBe('Sommer')
+            ->and($created->name_identifier)->toBeNull();
+    });
 });
