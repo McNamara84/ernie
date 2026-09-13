@@ -614,11 +614,11 @@ class ResourceStorageService
             ? ($existingCreatorPeople[$existingCreatorId] ?? null)
             : null;
         if (! $person instanceof Person) {
-            $personData = $data;
-            if ($unstructuredNameSnapshot !== null) {
-                $personData['lastName'] = $unstructuredNameSnapshot;
-            }
-            $person = $this->personService->findOrCreate($personData);
+            $person = $unstructuredNameSnapshot !== null
+                ? $this->personService->findOrCreateWithoutStructuredName(
+                    $this->normalizeNullableString($data['orcid'] ?? null),
+                )
+                : $this->personService->findOrCreate($data);
         }
 
         return ResourceCreator::query()->create([

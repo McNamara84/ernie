@@ -42,6 +42,35 @@ class PersonService
     }
 
     /**
+     * Find or create the identity backing an unstructured creator snapshot.
+     *
+     * The resource-specific display name must not be promoted to structured,
+     * globally shared Person fields. An ORCID may still identify an existing
+     * person; otherwise a nameless Person row satisfies the creator relation.
+     */
+    public function findOrCreateWithoutStructuredName(?string $orcid = null): Person
+    {
+        $orcid = $orcid !== null ? trim($orcid) : null;
+        $orcid = $orcid !== '' ? $orcid : null;
+
+        if ($orcid !== null) {
+            return Person::query()->firstOrCreate(
+                ['name_identifier' => $orcid],
+                [
+                    'given_name' => null,
+                    'family_name' => '',
+                    'name_identifier_scheme' => 'ORCID',
+                ],
+            );
+        }
+
+        return Person::query()->create([
+            'given_name' => null,
+            'family_name' => '',
+        ]);
+    }
+
+    /**
      * Build search criteria based on provided data.
      *
      * Prioritizes ORCID search if available, falls back to name-based search.

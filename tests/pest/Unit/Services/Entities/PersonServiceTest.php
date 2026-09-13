@@ -129,4 +129,43 @@ describe('PersonService', function () {
             expect($found->id)->toBe($existing->id);
         });
     });
+
+    describe('findOrCreateWithoutStructuredName', function () {
+        it('creates a distinct nameless person without an ORCID', function () {
+            $first = $this->service->findOrCreateWithoutStructuredName();
+            $second = $this->service->findOrCreateWithoutStructuredName();
+
+            expect($first->id)->not->toBe($second->id)
+                ->and($first->given_name)->toBeNull()
+                ->and($first->family_name)->toBe('')
+                ->and($first->name_identifier)->toBeNull();
+        });
+
+        it('creates a nameless person with an ORCID', function () {
+            $orcid = '0000-0002-1825-0097';
+
+            $person = $this->service->findOrCreateWithoutStructuredName($orcid);
+
+            expect($person->given_name)->toBeNull()
+                ->and($person->family_name)->toBe('')
+                ->and($person->name_identifier)->toBe($orcid)
+                ->and($person->name_identifier_scheme)->toBe('ORCID');
+        });
+
+        it('reuses an ORCID person without changing its global name', function () {
+            $orcid = '0000-0002-1825-0097';
+            $existing = Person::factory()->create([
+                'given_name' => 'Global',
+                'family_name' => 'Identity',
+                'name_identifier' => $orcid,
+                'name_identifier_scheme' => 'ORCID',
+            ]);
+
+            $found = $this->service->findOrCreateWithoutStructuredName($orcid);
+
+            expect($found->id)->toBe($existing->id)
+                ->and($found->given_name)->toBe('Global')
+                ->and($found->family_name)->toBe('Identity');
+        });
+    });
 });
