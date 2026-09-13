@@ -425,6 +425,45 @@ it('rejects a creator or subject change made after the scan as concurrent', func
         ->and($resource->subjects()->count())->toBe(0);
 });
 
+it('rejects a related person change made after the scan as concurrent', function (
+    string $field,
+    mixed $newValue,
+): void {
+    ['resource' => $resource, 'creator' => $creator, 'person' => $person] = createLegacyCreatorBackfillFixture(
+        "10.5880/concurrent-person-{$field}",
+    );
+    $changed = false;
+
+    DB::listen(function (QueryExecuted $query) use ($person, $field, $newValue, &$changed): void {
+        if ($changed || $query->connectionName !== 'metaworks' || ! str_contains($query->sql, 'resourceagent')) {
+            return;
+        }
+
+        $changed = true;
+        $person->update([$field => $newValue]);
+    });
+
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        apply: true,
+        retainRecords: true,
+    );
+
+    expect($changed)->toBeTrue()
+        ->and($result)->toMatchArray([
+            'changed' => 0,
+            'unchanged' => 0,
+            'concurrent_changes' => 1,
+            'sync_resource_ids' => [],
+        ])->and($result['records'][0]['status'])->toBe('concurrent_change')
+        ->and($creator->fresh()->hasNameSnapshot())->toBeFalse()
+        ->and($person->fresh()->getAttribute($field))->toBe($newValue);
+})->with([
+    'given name' => ['given_name', 'Changed'],
+    'family name' => ['family_name', 'Changed'],
+    'ORCID' => ['name_identifier', '0000-0002-1825-0097'],
+    'ORCID scheme' => ['name_identifier_scheme', null],
+]);
+
 it('rejects changed resource match keys after resolving the legacy resource', function (
     string $field,
     mixed $newValue,

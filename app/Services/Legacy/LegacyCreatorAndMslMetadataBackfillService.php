@@ -263,8 +263,9 @@ final class LegacyCreatorAndMslMetadataBackfillService
 
     /**
      * Lock mutable resource metadata in one deterministic order before checking
-     * the scan fingerprint. On MySQL, the indexed resource_id ranges also guard
-     * against matching inserts until the transaction commits.
+     * the scan fingerprint: resource, creators, related people, then subjects.
+     * On MySQL, the indexed resource_id ranges also guard against matching
+     * creator or subject inserts until the transaction commits.
      */
     private function lockMetadataRelations(Resource $resource): void
     {
@@ -274,6 +275,32 @@ final class LegacyCreatorAndMslMetadataBackfillService
             ->lockForUpdate()
             ->get();
         $creators->load('creatorable');
+
+        $personIds = $creators
+            ->where('creatorable_type', Person::class)
+            ->pluck('creatorable_id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+        /** @var array<int, Person> $lockedPeople */
+        $lockedPeople = Person::query()
+            ->whereKey($personIds)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->mapWithKeys(static fn (Person $person): array => [(int) $person->id => $person])
+            ->all();
+
+        foreach ($creators as $creator) {
+            if ($creator->creatorable_type === Person::class) {
+                $creator->setRelation(
+                    'creatorable',
+                    $lockedPeople[(int) $creator->creatorable_id] ?? null,
+                );
+            }
+        }
 
         $subjects = Subject::query()
             ->where('resource_id', $resource->id)
@@ -599,6 +626,15 @@ final class LegacyCreatorAndMslMetadataBackfillService
                 'given_name_snapshot' => $creator->given_name_snapshot,
                 'family_name_snapshot' => $creator->family_name_snapshot,
                 'updated_at' => $creator->updated_at?->toJSON(),
+                'person' => $creator->creatorable instanceof Person ? [
+                    'id' => (int) $creator->creatorable->id,
+                    'given_name' => $creator->creatorable->given_name,
+                    'family_name' => $creator->creatorable->family_name,
+                    'name_identifier' => $creator->creatorable->name_identifier,
+                    'name_identifier_scheme' => $creator->creatorable->name_identifier_scheme,
+                    'scheme_uri' => $creator->creatorable->scheme_uri,
+                    'updated_at' => $creator->creatorable->updated_at?->toJSON(),
+                ] : null,
             ])
             ->sortBy('id')
             ->values()

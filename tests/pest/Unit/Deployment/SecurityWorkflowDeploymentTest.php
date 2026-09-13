@@ -38,9 +38,12 @@ it('refreshes cached system packages for every container security scan attempt',
         ->toBeArray()
         ->and($sarifUploadStep['if'] ?? null)
         ->toContain("hashFiles('trivy-results.sarif') != ''")
-        ->and($sarifUploadStep['continue-on-error'] ?? null)->toBeTrue()
+        ->and($sarifUploadStep)->not->toHaveKey('continue-on-error')
         ->and($vulnerabilityGateStep)
         ->toBeArray()
+        ->and($vulnerabilityGateStep['if'] ?? null)
+        ->toContain('always()')
+        ->toContain("hashFiles('ernie-security-scan.tar') != ''")
         ->and($vulnerabilityGateStep['run'] ?? null)
         ->toBeString()
         ->toContain('--exit-code 1');
