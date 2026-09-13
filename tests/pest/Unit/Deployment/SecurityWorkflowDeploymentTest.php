@@ -16,6 +16,7 @@ it('refreshes cached system packages for every container security scan attempt',
     $refreshStep = $steps->get('Resolve system package refresh date');
     $buildStep = $steps->get('Build application image');
     $trivyCacheStep = $steps->get('Cache Trivy databases');
+    $sarifUploadStep = $steps->get('Upload Trivy scan results');
 
     expect($refreshStep)
         ->toBeArray()
@@ -31,7 +32,11 @@ it('refreshes cached system packages for every container security scan attempt',
         ->and($trivyCacheStep)
         ->toBeArray()
         ->and($trivyCacheStep['with']['key'] ?? null)
-        ->toBe('${{ runner.os }}-trivy-${{ steps.system-packages-refresh.outputs.date }}');
+        ->toBe('${{ runner.os }}-trivy-${{ steps.system-packages-refresh.outputs.date }}')
+        ->and($sarifUploadStep)
+        ->toBeArray()
+        ->and($sarifUploadStep['if'] ?? null)
+        ->toContain("hashFiles('trivy-results.sarif') != ''");
 
     $dockerfile = file_get_contents(base_path('Dockerfile'));
 
@@ -53,6 +58,18 @@ it('refreshes cached system packages for every container security scan attempt',
     assert(is_int($packageRefreshPosition));
 
     expect($refreshArgumentPosition)->toBeLessThan($packageRefreshPosition);
+});
+
+it('retries the verified Node archive download in the production image', function (): void {
+    $dockerfile = file_get_contents(base_path('Dockerfile'));
+
+    expect($dockerfile)
+        ->toBeString()
+        ->toContain('--retry 5')
+        ->toContain('--retry-all-errors')
+        ->toContain('--retry-max-time 120')
+        ->toContain('--connect-timeout 20')
+        ->toContain('echo "${NODE_CHECKSUM}  /tmp/${NODE_ARCHIVE}" | sha256sum -c -');
 });
 
 it('excludes local temporary tooling from production image contexts', function (): void {
