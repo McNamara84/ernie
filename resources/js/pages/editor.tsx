@@ -250,7 +250,7 @@ export default function Editor({
     }, []);
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <AppLayout breadcrumbs={breadcrumbs} showFooter={false}>
             <Head title="Editor" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4" aria-busy={isLoading && !isEditorReady}>
                 {trackedResourceLoad && !isEditorReady && (

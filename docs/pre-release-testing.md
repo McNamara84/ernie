@@ -373,6 +373,10 @@ Run as curator using a new test resource.
 - [ ] The empty editor loads completely; accordions, status indicators, and
       buttons respond without visible JavaScript errors.
 
+- [ ] The global application footer stays hidden while an existing Resource is
+      loading and in the ready Data Editor. The floating editor actions remain
+      fully usable, while `Changelog` remains available from the sidebar.
+
 - [ ] Required fields are clearly identified; saving is prevented while required
       data is incomplete and the messages lead to the affected fields.
 

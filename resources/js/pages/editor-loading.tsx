@@ -101,7 +101,7 @@ export default function EditorLoadingPage({ editorLoad, loadError = null }: Edit
     const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor', href: editor().url }];
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <AppLayout breadcrumbs={breadcrumbs} showFooter={false}>
             <Head title="Loading Data Editor" />
             <div className="min-h-[50vh]" aria-hidden="true" />
             <EditorLoadingModal progress={progress} message={message} error={error} onRetry={retry} onGoBack={goBack} />

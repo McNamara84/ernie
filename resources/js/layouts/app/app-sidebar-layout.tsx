@@ -14,7 +14,12 @@ import { useNProgress } from '@/hooks/use-nprogress';
 import { useSessionWarmup } from '@/hooks/use-session-warmup';
 import { type BreadcrumbItem } from '@/types';
 
-export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
+interface AppSidebarLayoutProps {
+    breadcrumbs?: BreadcrumbItem[];
+    showFooter?: boolean;
+}
+
+export default function AppSidebarLayout({ children, breadcrumbs = [], showFooter = true }: PropsWithChildren<AppSidebarLayoutProps>) {
     // Ensure session/CSRF token is initialized on first mount
     useSessionWarmup();
     useNProgress();
@@ -29,7 +34,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWi
                     <ErrorBoundary>
                         <PageTransition>{children}</PageTransition>
                     </ErrorBoundary>
-                    <AppFooter />
+                    {showFooter && <AppFooter />}
                 </AppContent>
                 <Toaster position="bottom-right" richColors />
             </AppShell>

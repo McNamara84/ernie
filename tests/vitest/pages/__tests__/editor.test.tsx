@@ -31,7 +31,11 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
-    default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    default: ({ children, showFooter }: { children?: React.ReactNode; showFooter?: boolean }) => (
+        <div data-testid="app-layout" data-show-footer={String(showFooter)}>
+            {children}
+        </div>
+    ),
 }));
 
 vi.mock('@/components/curation/datacite-form', () => ({
@@ -68,6 +72,12 @@ describe('Editor page', () => {
 
     afterEach(() => {
         vi.unstubAllGlobals();
+    });
+
+    it('requests an editor workspace without the global footer', () => {
+        render(<Editor googleMapsApiKey="test-api-key" />);
+
+        expect(screen.getByTestId('app-layout')).toHaveAttribute('data-show-footer', 'false');
     });
 
     it('fetches resource types and passes data to DataCiteForm', async () => {
