@@ -23,6 +23,7 @@ it('forwards the data publication team address to the app and queue containers',
             ->toContain('LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}');
     }
 })->with([
+    'development' => 'docker-compose.dev.yml',
     'stage' => 'docker-compose.stage.yml',
     'production' => 'docker-compose.prod.yml',
 ]);
