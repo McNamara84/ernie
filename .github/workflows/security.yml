@@ -97,15 +97,25 @@ jobs:
             --severity CRITICAL,HIGH \
             --skip-version-check
 
+      - name: Check Trivy SARIF output
+        id: trivy-sarif
+        if: always()
+        run: |
+          if [ -s trivy-results.sarif ]; then
+            echo "non_empty=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "non_empty=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload Trivy scan results
-        if: ${{ always() && hashFiles('trivy-results.sarif') != '' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
+        if: ${{ always() && steps.trivy-sarif.outputs.non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
         uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           sarif_file: trivy-results.sarif
           category: trivy-app-image
 
       - name: Upload Trivy SARIF artifact
-        if: always()
+        if: ${{ always() && steps.trivy-sarif.outputs.non_empty == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: trivy-results

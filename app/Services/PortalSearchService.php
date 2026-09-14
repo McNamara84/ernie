@@ -19,6 +19,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
+use App\Support\LegacyMslScheme;
 use App\Support\PortalCacheNamespace;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
@@ -559,14 +560,20 @@ class PortalSearchService
                                     ->orWhere('family_name_snapshot', 'like', $searchTerm);
                             })
                             ->whereHasMorph('creatorable', [Person::class])
-                            ->orWhereHasMorph(
-                                'creatorable',
-                                [Person::class],
-                                function (Builder $personQuery) use ($searchTerm): void {
-                                    $personQuery->where('family_name', 'like', $searchTerm)
-                                        ->orWhere('given_name', 'like', $searchTerm);
-                                },
-                            );
+                            ->orWhere(function (Builder $personFallbackQuery) use ($searchTerm): void {
+                                $personFallbackQuery
+                                    ->whereNull('name_snapshot')
+                                    ->whereNull('given_name_snapshot')
+                                    ->whereNull('family_name_snapshot')
+                                    ->whereHasMorph(
+                                        'creatorable',
+                                        [Person::class],
+                                        function (Builder $personQuery) use ($searchTerm): void {
+                                            $personQuery->where('family_name', 'like', $searchTerm)
+                                                ->orWhere('given_name', 'like', $searchTerm);
+                                        },
+                                    );
+                            });
                     });
                 })
                 // Search in creator names (institutions)
@@ -756,7 +763,13 @@ class PortalSearchService
 
                         if ($descendantIds !== []) {
                             $subjectQuery->orWhere(function (Builder $fallbackQuery) use ($normalizedValueSql, $descendantValues): void {
-                                $fallbackQuery->whereRaw("TRIM(COALESCE(value_uri, '')) = ''")
+                                $fallbackQuery->where(function (Builder $aliasableQuery): void {
+                                    $aliasableQuery->whereRaw("TRIM(COALESCE(value_uri, '')) = ''")
+                                        ->orWhereIn(
+                                            DB::raw('LOWER(TRIM(subject_scheme))'),
+                                            LegacyMslScheme::normalizedSchemes(),
+                                        );
+                                })
                                     ->whereRaw(...$this->buildInRawCondition(
                                         $normalizedValueSql,
                                         $descendantValues,

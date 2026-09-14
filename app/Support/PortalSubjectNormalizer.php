@@ -60,6 +60,15 @@ final class PortalSubjectNormalizer
         };
     }
 
+    /**
+     * Whether a preserved WP16 URI may additionally use its source value as a
+     * portal alias to a current MSL node. The stored/exported URI is unchanged.
+     */
+    public static function aliasesLegacyMslUriByValue(?string $scheme, ?string $valueUri): bool
+    {
+        return trim((string) $valueUri) !== '' && LegacyMslScheme::isSupported($scheme);
+    }
+
     public static function normalizedControlledSubjectValueSql(string $column, ?string $driverName = null): string
     {
         $characterFunction = self::characterCodeSqlFunction($driverName);

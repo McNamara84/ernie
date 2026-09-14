@@ -107,10 +107,7 @@ describe('KeywordsSection', () => {
                     gcmdKeyword(index + 1, subject, {
                         subject_scheme: subjectScheme,
                         value_uri: null,
-                        breadcrumb_path:
-                            subject === 'intraplate tectonic setting'
-                                ? 'tectonic setting > intraplate tectonic setting'
-                                : null,
+                        breadcrumb_path: subject === 'intraplate tectonic setting' ? 'tectonic setting > intraplate tectonic setting' : null,
                     }),
                 )}
             />,
@@ -121,10 +118,22 @@ describe('KeywordsSection', () => {
             expect(screen.getByText(new RegExp(subject, 'i'))).toBeInTheDocument();
         }
         expect(screen.queryByTestId('keywords-list')).not.toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /^lava flow$/i })).toHaveAttribute(
-            'href',
-            '/doi-search?keywords%5B%5D=lava+flow',
+        expect(screen.getByRole('link', { name: /^lava flow$/i })).toHaveAttribute('href', '/doi-search?keywords%5B%5D=lava+flow');
+    });
+
+    it('keeps a preserved legacy MSL URI out of the current-node portal filter', () => {
+        render(
+            <KeywordsSection
+                subjects={[
+                    gcmdKeyword(1, 'granite', {
+                        subject_scheme: 'EPOS WP16 Analogue Material',
+                        value_uri: 'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite',
+                    }),
+                ]}
+            />,
         );
+
+        expect(screen.getByRole('link', { name: /^granite$/i })).toHaveAttribute('href', '/doi-search?keywords%5B%5D=granite');
     });
 
     it('renders Analytical Methods and EuroSciVoc as controlled landing page keywords', () => {
@@ -168,10 +177,7 @@ describe('KeywordsSection', () => {
 
         const link = screen.getByRole('link', { name: /^SEISMOLOGY$/i });
 
-        expect(link).toHaveAttribute(
-            'href',
-            '/doi-search?thesaurus_keywords%5B%5D=Science+Keywords%3A%3A310607',
-        );
+        expect(link).toHaveAttribute('href', '/doi-search?thesaurus_keywords%5B%5D=Science+Keywords%3A%3A310607');
     });
 
     it('falls back to the legacy keyword filter when a controlled keyword has no stable identifier', () => {

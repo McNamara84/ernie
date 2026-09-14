@@ -16,7 +16,9 @@ it('refreshes cached system packages for every container security scan attempt',
     $refreshStep = $steps->get('Resolve system package refresh date');
     $buildStep = $steps->get('Build application image');
     $trivyCacheStep = $steps->get('Cache Trivy databases');
+    $sarifCheckStep = $steps->get('Check Trivy SARIF output');
     $sarifUploadStep = $steps->get('Upload Trivy scan results');
+    $sarifArtifactStep = $steps->get('Upload Trivy SARIF artifact');
     $vulnerabilityGateStep = $steps->get('Fail on high or critical image vulnerabilities');
 
     expect($refreshStep)
@@ -34,11 +36,24 @@ it('refreshes cached system packages for every container security scan attempt',
         ->toBeArray()
         ->and($trivyCacheStep['with']['key'] ?? null)
         ->toBe('${{ runner.os }}-trivy-${{ steps.system-packages-refresh.outputs.date }}')
+        ->and($sarifCheckStep)
+        ->toBeArray()
+        ->and($sarifCheckStep['id'] ?? null)->toBe('trivy-sarif')
+        ->and($sarifCheckStep['if'] ?? null)->toBe('always()')
+        ->and($sarifCheckStep['run'] ?? null)
+        ->toBeString()
+        ->toContain('[ -s trivy-results.sarif ]')
+        ->toContain('non_empty=true')
+        ->toContain('$GITHUB_OUTPUT')
         ->and($sarifUploadStep)
         ->toBeArray()
         ->and($sarifUploadStep['if'] ?? null)
-        ->toContain("hashFiles('trivy-results.sarif') != ''")
+        ->toContain("steps.trivy-sarif.outputs.non_empty == 'true'")
         ->and($sarifUploadStep)->not->toHaveKey('continue-on-error')
+        ->and($sarifArtifactStep)
+        ->toBeArray()
+        ->and($sarifArtifactStep['if'] ?? null)
+        ->toContain("steps.trivy-sarif.outputs.non_empty == 'true'")
         ->and($vulnerabilityGateStep)
         ->toBeArray()
         ->and($vulnerabilityGateStep['if'] ?? null)

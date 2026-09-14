@@ -39,6 +39,23 @@ describe('PortalSubjectNormalizer::normalizeScheme()', function () {
     });
 });
 
+describe('PortalSubjectNormalizer::aliasesLegacyMslUriByValue()', function () {
+    it('only aliases non-empty URIs from exact legacy MSL schemes', function (): void {
+        expect(PortalSubjectNormalizer::aliasesLegacyMslUriByValue(
+            'EPOS WP16 Analogue Material',
+            'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite',
+        ))->toBeTrue()
+            ->and(PortalSubjectNormalizer::aliasesLegacyMslUriByValue(
+                'EPOS MSL vocabulary',
+                'https://epos-msl.uu.nl/voc/materials/1.3/granite',
+            ))->toBeFalse()
+            ->and(PortalSubjectNormalizer::aliasesLegacyMslUriByValue(
+                'EPOS WP16 Analogue Material',
+                null,
+            ))->toBeFalse();
+    });
+});
+
 describe('PortalSubjectNormalizer::normalizedControlledSubjectValueSql()', function () {
     it('uses CHAR() on sqlite-compatible drivers', function () {
         $sql = PortalSubjectNormalizer::normalizedControlledSubjectValueSql('value', 'sqlite');

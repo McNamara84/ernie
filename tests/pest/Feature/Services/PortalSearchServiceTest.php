@@ -273,7 +273,7 @@ describe('full-text search', function () {
 
     it('finds and displays a resource-specific creator spelling', function () {
         $resource = createPublishedResourceForSearch('Unrelated publication', $this->titleType);
-        $person = Person::factory()->create(['family_name' => 'Sommer', 'given_name' => 'Philipp']);
+        $person = Person::factory()->create(['family_name' => 'FormerFamilyName', 'given_name' => 'StaleGlobalGiven']);
         ResourceCreator::factory()->forPerson($person)->create([
             'resource_id' => $resource->id,
             'position' => 0,
@@ -291,7 +291,9 @@ describe('full-text search', function () {
         expect($portalResource['creators'])->toBe([[
             'name' => 'Sommer',
             'givenName' => 'Philipp S.',
-        ]]);
+        ]])
+            ->and($this->service->search(['query' => 'StaleGlobalGiven'])->total())->toBe(0)
+            ->and($this->service->search(['query' => 'FormerFamilyName'])->total())->toBe(0);
     });
 
     it('finds resources by institution name', function () {
@@ -742,6 +744,39 @@ describe('thesaurus keyword filtering edge cases', function () {
 
         expect($resultIds)->toEqualCanonicalizing([$uriMatch->id, $uriLessFallback->id])
             ->and($resultIds)->not->toContain($differentUri->id);
+    });
+
+    it('matches a legacy MSL URI through the current node value without aliasing other URIs', function () {
+        $matching = createPublishedResourceForSearch('Legacy MSL URI alias', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'granite',
+            'subject_scheme' => 'EPOS WP16 Analogue Material',
+            'value_uri' => 'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite',
+        ]);
+
+        $differentUri = createPublishedResourceForSearch('Current MSL different URI', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $differentUri->id,
+            'value' => 'granite',
+            'subject_scheme' => 'EPOS MSL vocabulary',
+            'value_uri' => 'https://example.test/msl/different-granite',
+        ]);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'https://epos-msl.uu.nl/voc/materials/1.3/igneous-rock-granite',
+            'scheme' => 'EPOS MSL vocabulary',
+            'subject_schemes' => ['EPOS MSL vocabulary', 'EPOS WP16 Analogue Material'],
+            'descendant_ids' => ['https://epos-msl.uu.nl/voc/materials/1.3/igneous-rock-granite'],
+            'descendant_values' => ['Material > igneous rock > granite', 'granite'],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => [
+            'https://epos-msl.uu.nl/voc/materials/1.3/igneous-rock-granite',
+        ]]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
     });
 
     it('returns no results when a resolved thesaurus node has no matchable descendants', function () {
