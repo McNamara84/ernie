@@ -13,6 +13,8 @@ use App\Models\User;
  */
 class ResourcePolicy
 {
+    public const DOI_CHANGE_UNAUTHORIZED_MESSAGE = 'You are not authorized to change the DOI for this resource.';
+
     /**
      * Determine whether the user can view any resources.
      */
@@ -100,7 +102,7 @@ class ResourcePolicy
             return true;
         }
 
-        if ($resource->landingPage?->is_published) {
+        if ($resource->doi !== null && $resource->doi !== '' && $resource->landingPage?->is_published) {
             return false;
         }
 

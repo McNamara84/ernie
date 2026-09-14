@@ -15,6 +15,9 @@ use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Policies\ResourcePolicy;
+use App\Services\Editor\EditorResourceSaveService;
+use Illuminate\Auth\Access\AuthorizationException;
 
 /** @return array<string, mixed> */
 function doiChangePayload(Resource $resource, string $doi, bool $draft, array $overrides = []): array
@@ -144,6 +147,63 @@ it('rejects a beginner changing a DOI before publication', function (string $end
     'validated save' => ['/editor/resources', false],
     'draft autosave' => ['/editor/resources/draft', true],
 ]);
+
+it('allows authorized roles to enter the first DOI after the landing page is public', function (
+    UserRole $role,
+    string $endpoint,
+    bool $draft,
+): void {
+    $user = User::factory()->create(['role' => $role]);
+    $resource = Resource::factory()->create(['doi' => null]);
+    $landingPage = LandingPage::factory()->for($resource)->published()->create(['doi_prefix' => null]);
+
+    $this->actingAs($user)
+        ->postJson($endpoint, doiChangePayload($resource, '10.5880/first-public.001', $draft))
+        ->assertOk()
+        ->assertJsonPath('resource.publicStatus', 'published')
+        ->assertJsonPath('resource.canEditDoi', false);
+
+    expect($resource->fresh()->doi)->toBe('10.5880/first-public.001')
+        ->and($landingPage->fresh()->doi_prefix)->toBe('10.5880/first-public.001');
+})->with([
+    'curator via validated save' => [UserRole::CURATOR, '/editor/resources', false],
+    'curator via draft autosave' => [UserRole::CURATOR, '/editor/resources/draft', true],
+    'group leader via validated save' => [UserRole::GROUP_LEADER, '/editor/resources', false],
+    'group leader via draft autosave' => [UserRole::GROUP_LEADER, '/editor/resources/draft', true],
+]);
+
+it('rejects a beginner entering the first DOI on a persisted DOI-less resource', function (string $endpoint, bool $draft): void {
+    $user = User::factory()->beginner()->create();
+    $resource = Resource::factory()->create(['doi' => null]);
+    $landingPage = LandingPage::factory()->for($resource)->published()->create(['doi_prefix' => null]);
+
+    $this->actingAs($user)
+        ->postJson($endpoint, doiChangePayload($resource, '10.5880/beginner-first.001', $draft))
+        ->assertForbidden();
+
+    expect($resource->fresh()->doi)->toBeNull()
+        ->and($landingPage->fresh()->doi_prefix)->toBeNull();
+})->with([
+    'validated save' => ['/editor/resources', false],
+    'draft autosave' => ['/editor/resources/draft', true],
+]);
+
+it('re-checks DOI authorization inside the mutation transaction after publication', function (): void {
+    $user = User::factory()->curator()->create();
+    $resource = Resource::factory()->withDoi('10.5880/race-old.001')->create();
+    $landingPage = LandingPage::factory()->for($resource)->draft()->withDoi('10.5880/race-old.001')->create();
+    $payload = doiChangePayload($resource, '10.5880/race-new.001', false);
+
+    expect($user->can('changeDoi', [$resource->fresh('landingPage'), '10.5880/race-new.001']))->toBeTrue();
+
+    $landingPage->publish();
+
+    expect(fn () => app(EditorResourceSaveService::class)->saveValidated($payload, $user))
+        ->toThrow(AuthorizationException::class, ResourcePolicy::DOI_CHANGE_UNAUTHORIZED_MESSAGE);
+
+    expect($resource->fresh()->doi)->toBe('10.5880/race-old.001')
+        ->and($landingPage->fresh()->doi_prefix)->toBe('10.5880/race-old.001');
+});
 
 it('allows an admin to replace or remove a published DOI through both save paths', function (
     string $submittedDoi,

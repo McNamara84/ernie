@@ -261,6 +261,11 @@ class LandingPageController extends Controller
         // The try-catch handles both resource_id and slug uniqueness violations.
         try {
             $landingPage = DB::transaction(function () use ($validated, $resource) {
+                /** @var Resource $lockedResource */
+                $lockedResource = Resource::query()
+                    ->lockForUpdate()
+                    ->findOrFail($resource->id);
+
                 // Check if landing page already exists - INSIDE transaction
                 // Use lockForUpdate to prevent race conditions with concurrent requests
                 $existingLandingPage = LandingPage::where('resource_id', $resource->id)
@@ -327,7 +332,7 @@ class LandingPageController extends Controller
                     $createData['downloads_unavailable'] = false;
                 }
 
-                $landingPage = $resource->landingPage()->create($createData);
+                $landingPage = $lockedResource->landingPage()->create($createData);
 
                 // Create additional links inside the transaction for atomicity
                 if (! empty($validated['links']) && $validated['template'] !== 'external' && ! in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
@@ -522,7 +527,13 @@ class LandingPageController extends Controller
 
         // Wrap all mutations in a transaction for atomicity.
         // This ensures the landing page + links are updated together.
-        DB::transaction(function () use ($landingPage, $validated, $effectiveLandingPageTemplateId, $effectiveTemplate, $templateChanged): void {
+        $becamePublished = $requestedStatus !== null && $requestedStatus && ! $currentlyPublished;
+
+        DB::transaction(function () use ($resource, $landingPage, $validated, $effectiveLandingPageTemplateId, $effectiveTemplate, $templateChanged, $becamePublished): void {
+            Resource::query()
+                ->lockForUpdate()
+                ->findOrFail($resource->id);
+
             // Update template and ftp_url if provided
             // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
             if ($templateChanged) {
@@ -621,13 +632,16 @@ class LandingPageController extends Controller
                     $landingPage->links()->createMany(self::normalizeContentDescriptorLinks($validated['links']));
                 }
             }
+
+            // Keep publication in the resource-locked transaction so a concurrent
+            // DOI mutation either finishes before publication or re-checks the
+            // newly published state after acquiring the same lock.
+            if ($becamePublished) {
+                $landingPage->publish();
+            }
         });
 
-        $becamePublished = $requestedStatus !== null && $requestedStatus && ! $currentlyPublished;
-
-        // Handle publication status change: allow publishing a draft
         if ($becamePublished) {
-            $landingPage->publish();
             $this->keywordService->invalidateCache();
             $this->invalidatePortalFacets();
         }

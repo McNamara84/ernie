@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Requests\Concerns;
 
 use App\Models\Resource;
+use App\Policies\ResourcePolicy;
 use Illuminate\Auth\Access\AuthorizationException;
 
 trait AuthorizesResourceDoiChanges
 {
-    public const DOI_CHANGE_UNAUTHORIZED_MESSAGE = 'You are not authorized to change the DOI for this resource.';
+    public const DOI_CHANGE_UNAUTHORIZED_MESSAGE = ResourcePolicy::DOI_CHANGE_UNAUTHORIZED_MESSAGE;
 
     /**
      * Authorize DOI changes to an existing resource while leaving malformed

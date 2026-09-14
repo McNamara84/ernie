@@ -355,6 +355,7 @@ describe('ResourcePolicy', function () {
 
         it('exposes the DOI edit capability by role after publication', function (UserRole $role, bool $expected) {
             $user = User::factory()->create(['role' => $role]);
+            $this->resource->update(['doi' => '10.5880/old.001']);
             LandingPage::factory()->published()->withDoi('10.5880/old.001')->create([
                 'resource_id' => $this->resource->id,
             ]);
@@ -365,6 +366,23 @@ describe('ResourcePolicy', function () {
             'admin' => [UserRole::ADMIN, true],
             'group leader' => [UserRole::GROUP_LEADER, false],
             'curator' => [UserRole::CURATOR, false],
+            'beginner' => [UserRole::BEGINNER, false],
+        ]);
+
+        it('allows authorized roles to enter the first DOI when the landing page is already public', function (UserRole $role, bool $expected) {
+            $user = User::factory()->create(['role' => $role]);
+            LandingPage::factory()->published()->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => null,
+            ]);
+            $this->resource->refresh();
+
+            expect($this->policy->editDoi($user, $this->resource))->toBe($expected)
+                ->and($this->policy->changeDoi($user, $this->resource, '10.5880/first.001'))->toBe($expected);
+        })->with([
+            'admin' => [UserRole::ADMIN, true],
+            'group leader' => [UserRole::GROUP_LEADER, true],
+            'curator' => [UserRole::CURATOR, true],
             'beginner' => [UserRole::BEGINNER, false],
         ]);
 

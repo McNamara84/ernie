@@ -2309,6 +2309,35 @@ describe('DataCiteForm', () => {
             expect(await screen.findByText('You do not have permission to change this saved DOI.')).toBeInTheDocument();
         });
 
+        it('locks an empty DOI field on a persisted resource when the user lacks edit permission', async () => {
+            const user = userEvent.setup();
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialPublicStatus: 'curation',
+                canEditDoi: false,
+            });
+
+            expect(screen.getByLabelText('DOI')).toHaveAttribute('readonly');
+
+            await user.hover(screen.getByText('DOI'));
+            expect(await screen.findByText('You do not have permission to change this saved DOI.')).toBeInTheDocument();
+        });
+
+        it('allows an authorized user to enter the first DOI on a persisted resource', async () => {
+            const user = userEvent.setup();
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialPublicStatus: 'review',
+                canEditDoi: true,
+            });
+
+            const doiInput = screen.getByLabelText('DOI');
+            expect(doiInput).not.toHaveAttribute('readonly');
+
+            await user.type(doiInput, '10.5880/first-persisted.001');
+            expect(doiInput).toHaveValue('10.5880/first-persisted.001');
+        });
+
         it('locks a published DOI for a non-admin even if an earlier capability is stale', async () => {
             const user = userEvent.setup();
             renderDataCiteForm({

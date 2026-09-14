@@ -25,6 +25,12 @@ class AutomaticIgsnLandingPageService
 
         try {
             $result = DB::transaction(function () use ($resource): array {
+                /** @var Resource $lockedResource */
+                $lockedResource = Resource::query()
+                    ->with('titles.titleType')
+                    ->lockForUpdate()
+                    ->findOrFail($resource->id);
+
                 $existing = LandingPage::query()
                     ->where('resource_id', $resource->id)
                     ->lockForUpdate()
@@ -35,7 +41,7 @@ class AutomaticIgsnLandingPageService
                 }
 
                 $landingPage = new LandingPage([
-                    'resource_id' => $resource->id,
+                    'resource_id' => $lockedResource->id,
                     'template' => 'default_gfz_igsn',
                     'landing_page_template_id' => null,
                     'ftp_url' => null,
@@ -43,7 +49,7 @@ class AutomaticIgsnLandingPageService
                     'is_published' => true,
                     'published_at' => now(),
                 ]);
-                $landingPage->setRelation('resource', $resource);
+                $landingPage->setRelation('resource', $lockedResource);
                 $landingPage->save();
 
                 return ['landing_page' => $landingPage, 'created' => true];

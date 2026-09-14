@@ -111,7 +111,7 @@
         "fixes": [
             {
                 "title": "DOI Corrections Before Publication",
-                "description": "Admins, Group Leaders, and Curators can now replace or remove a saved resource DOI while its workflow status is Draft, Curation, or Review. Published DOI changes remain restricted to Admins, Beginners cannot alter saved DOIs, and the same permission checks now protect validated saves, draft saves, autosaves, and landing page previews.",
+                "description": "Admins, Group Leaders, and Curators can now enter, replace, or remove a saved resource DOI before DOI publication, including the pre-registration state where its landing page is already public. Changes to a DOI on a public landing page remain restricted to Admins, Beginners cannot alter the DOI field of saved resources, and transaction-level permission checks protect validated saves, draft saves, autosaves, and landing page previews.",
                 "references": [
                     {
                         "type": "issue",

@@ -2043,9 +2043,7 @@ export default function DataCiteForm({
     });
     const [currentPublicStatus, setCurrentPublicStatus] = useState<ResourcePublicStatus>(initialPublicStatus);
     const [currentCanEditDoi, setCurrentCanEditDoi] = useState(canEditDoi ?? isAdmin);
-    const isDoiReadonly = Boolean(
-        resolvedResourceId !== null && form.doi?.trim() && (!currentCanEditDoi || (currentPublicStatus === 'published' && !isAdmin)),
-    );
+    const isDoiReadonly = Boolean(resolvedResourceId !== null && (!currentCanEditDoi || (currentPublicStatus === 'published' && !isAdmin)));
 
     const [landingPageForPreview, setLandingPageForPreview] = useState<EditorLandingPageSummary | null>(initialLandingPage);
     const [isPreparingLandingPagePreview, setIsPreparingLandingPagePreview] = useState(false);

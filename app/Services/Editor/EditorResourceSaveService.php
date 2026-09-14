@@ -7,7 +7,10 @@ namespace App\Services\Editor;
 use App\Enums\EditorDraftSaveIntent;
 use App\Enums\ResourceWorkflowStatus;
 use App\Models\Resource;
+use App\Models\User;
+use App\Policies\ResourcePolicy;
 use App\Services\ResourceStorageService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -24,10 +27,12 @@ final readonly class EditorResourceSaveService
      * @param  array<string, mixed>  $data
      * @return array{0: Resource, 1: bool}
      */
-    public function saveValidated(array $data, ?int $userId): array
+    public function saveValidated(array $data, ?User $user): array
     {
-        return DB::transaction(function () use ($data, $userId): array {
-            [$resource, $isUpdate] = $this->storageService->store($data, $userId);
+        return DB::transaction(function () use ($data, $user): array {
+            $this->lockResourceAndAuthorizeDoiChange($data, $user);
+
+            [$resource, $isUpdate] = $this->storageService->store($data, $user?->id);
 
             if ($resource->workflow_status_override === ResourceWorkflowStatus::DRAFT) {
                 $resource->workflow_status_override = null;
@@ -42,14 +47,16 @@ final readonly class EditorResourceSaveService
      * @param  array<string, mixed>  $data
      * @return array{0: Resource, 1: bool}
      */
-    public function saveRelaxed(array $data, ?int $userId, EditorDraftSaveIntent $intent): array
+    public function saveRelaxed(array $data, ?User $user, EditorDraftSaveIntent $intent): array
     {
-        return DB::transaction(function () use ($data, $userId, $intent): array {
+        return DB::transaction(function () use ($data, $user, $intent): array {
+            $this->lockResourceAndAuthorizeDoiChange($data, $user);
+
             if ($intent === EditorDraftSaveIntent::SAVE_DRAFT) {
                 $this->assertResourceIsNotPublished($data);
             }
 
-            [$resource, $isUpdate] = $this->storageService->store($data, $userId);
+            [$resource, $isUpdate] = $this->storageService->store($data, $user?->id);
 
             if ($intent === EditorDraftSaveIntent::SAVE_DRAFT) {
                 $resource->workflow_status_override = ResourceWorkflowStatus::DRAFT;
@@ -59,6 +66,39 @@ final readonly class EditorResourceSaveService
 
             return [$this->loadStatusRelations($resource), $isUpdate];
         });
+    }
+
+    /** @param array<string, mixed> $data */
+    private function lockResourceAndAuthorizeDoiChange(array $data, ?User $user): void
+    {
+        $resourceId = $data['resourceId'] ?? null;
+
+        if (! array_key_exists('doi', $data)
+            || (! is_int($resourceId) && ! (is_string($resourceId) && ctype_digit($resourceId)))) {
+            return;
+        }
+
+        /** @var Resource $resource */
+        $resource = Resource::query()
+            ->lockForUpdate()
+            ->findOrFail((int) $resourceId);
+
+        // Publication paths acquire the same resource lock. Loading the landing
+        // page only after this point guarantees that the policy sees whichever
+        // operation won the serialization race.
+        $landingPage = $resource->landingPage()
+            ->lockForUpdate()
+            ->first();
+        $resource->setRelation('landingPage', $landingPage);
+
+        $doi = $data['doi'];
+
+        if (($doi !== null && ! is_string($doi))
+            || $user?->can('changeDoi', [$resource, $doi]) === true) {
+            return;
+        }
+
+        throw new AuthorizationException(ResourcePolicy::DOI_CHANGE_UNAUTHORIZED_MESSAGE);
     }
 
     /** @param array<string, mixed> $data */
