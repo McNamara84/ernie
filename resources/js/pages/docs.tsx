@@ -2271,10 +2271,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             such as <strong>Download (1)</strong> when several files are shown.
                         </p>
                         <p>
-                            If a generated GFZ landing page should not offer downloads yet, enable <strong>No data available for download</strong> in
-                            the same Download URL section. ERNIE keeps the saved primary URL, imported legacy files, and additional download links in
-                            the setup modal, but hides the complete Files section on the preview and public landing page until the option is disabled
-                            again. The independent <strong>License &amp; Rights</strong> section remains visible whenever rights metadata exists.
+                            If a generated GFZ landing page should not offer automated downloads, enable{' '}
+                            <strong>No data available for automatic download</strong> in the same Download URL section. ERNIE keeps the saved primary
+                            URL, imported legacy files, and additional download links in the setup modal, but replaces their public download actions
+                            with a request form until the option is disabled again. Requests go to all designated contact persons and the configured
+                            data publication team; if no contact person has an email address, the team receives the request directly. The independent{' '}
+                            <strong>License &amp; Rights</strong> section remains visible whenever rights metadata exists.
                         </p>
                         <h4>Legacy Creator and Contact Consolidation</h4>
                         <p>

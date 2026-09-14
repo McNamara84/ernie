@@ -16,6 +16,22 @@
                 ]
             },
             {
+                "title": "Data Requests Without Automatic Downloads",
+                "description": "Generated GFZ landing pages marked as having no automatic download now replace their download actions with a clearly labelled request form while retaining saved download values for later use. Requests are sent to every designated contact person with one copy to the configured data publication team; when no contact email is available, a configured team receives the request directly, and successful responses identify any direct team delivery. The form also works in authenticated session previews. If neither recipient is available, the page shows an availability notice instead of an unusable form.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1280,
+                        "url": "https://github.com/McNamara84/ernie/issues/1280"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1329,
+                        "url": "https://github.com/McNamara84/ernie/pull/1329"
+                    }
+                ]
+            },
+            {
                 "title": "Compact Landing Page Headers",
                 "description": "Resource and IGSN landing pages now devote more space to their research information with a shorter 9:1 header, no empty space above the page, and no gap before the title and citation card. New and replacement custom header logos use the documented 9:1 format, while existing logos remain fully supported without cropping or distortion and are identified as legacy formats in template management.",
                 "references": [

@@ -676,6 +676,33 @@ describe('Resource Data Loading', function () {
             ->has('resource.related_identifiers')
         );
     });
+
+    test('resolves data publication team availability outside the cached landing page payload', function () {
+        Cache::flush();
+        config(['mail.landing_page_contact_cc' => 'datapub@example.test']);
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'team-recipient-availability',
+            ]);
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('hasDataPublicationTeamRecipient', true)
+            );
+
+        config(['mail.landing_page_contact_cc' => '']);
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('hasDataPublicationTeamRecipient', false)
+            );
+    });
 });
 
 describe('Tracked Download URLs', function () {

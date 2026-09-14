@@ -519,8 +519,15 @@ verify them after reopening:
 - [ ] ORCID, ROR, licence, DOI, and download links point to plausible destinations
       and open as intended.
 
-- [ ] The contact form is visible when a contact person exists, validates required
-      fields, and sends a test message to a test address.
+- [ ] Enabling `No data available for automatic download` replaces the download
+      area in preview and on the public landing page with the exact request
+      heading from issue #1280 while saved download URLs remain hidden.
+
+- [ ] The data request form validates required fields and sends to every designated
+      contact person with exactly one copy to the configured data publication
+      team; without contact persons, it sends directly to that team.
+
+- [ ] Disabling the option restores the previously saved download actions.
 
 - [ ] Rendering works in light and dark mode; long titles, many creators, and
       missing optional sections do not break the layout.

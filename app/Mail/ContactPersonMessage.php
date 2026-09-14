@@ -35,6 +35,7 @@ class ContactPersonMessage extends Mailable implements ShouldQueue
         public Resource $resource,
         public string $recipientName,
         public bool $isCopyToSender = false,
+        public ?string $datasetUrl = null,
     ) {}
 
     /**
@@ -84,9 +85,9 @@ class ContactPersonMessage extends Mailable implements ShouldQueue
                 'messageContent' => $this->contactMessage->message,
                 'datasetTitle' => $datasetTitle,
                 'datasetDoi' => $this->resource->doi,
-                'datasetUrl' => $this->resource->landingPage !== null
+                'datasetUrl' => $this->datasetUrl ?? ($this->resource->landingPage !== null
                     ? $this->resource->landingPage->public_url
-                    : url('/'),
+                    : url('/')),
                 'recipientName' => $this->recipientName,
                 'isCopyToSender' => $this->isCopyToSender,
             ],

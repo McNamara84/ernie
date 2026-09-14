@@ -109,64 +109,51 @@ describe('FilesSection', () => {
         });
     });
 
-    describe('contact form fallback (when no download URL)', () => {
-        it('shows contact form button when contact person with email exists', () => {
+    describe('data request fallback (when no download URL)', () => {
+        it('shows the request heading and form button when a contact person exists', () => {
             render(<FilesSection contactPersons={[mockContactPersonWithEmail]} datasetTitle="Test Dataset" />);
 
+            expect(
+                screen.getByRole('heading', {
+                    name: 'The dataset is not available for automated download. Please fill in the request form to receive download information.',
+                }),
+            ).toBeInTheDocument();
             const contactButton = screen.getByRole('button', { name: /request data via contact form/i });
             expect(contactButton).toBeInTheDocument();
         });
 
-        it('prioritizes contact person with email over website', () => {
+        it('uses the form instead of a website-only fallback', () => {
             render(<FilesSection contactPersons={[mockContactPersonWithWebsite, mockContactPersonWithEmail]} datasetTitle="Test Dataset" />);
 
-            // Should show contact form button, not website link
             expect(screen.getByRole('button', { name: /request data via contact form/i })).toBeInTheDocument();
             expect(screen.queryByRole('link', { name: /visit contact person website/i })).not.toBeInTheDocument();
         });
-    });
 
-    describe('website fallback (when no download URL and no email)', () => {
-        it('shows website link when contact person has website but no email', () => {
-            render(<FilesSection contactPersons={[mockContactPersonWithWebsite]} datasetTitle="Test Dataset" />);
+        it('uses the team request when a contact person has a website but no email', () => {
+            render(<FilesSection contactPersons={[mockContactPersonWithWebsite]} datasetTitle="Test Dataset" hasDataPublicationTeamRecipient />);
 
-            const websiteLink = screen.getByRole('link', { name: /visit contact person website/i });
-            expect(websiteLink).toBeInTheDocument();
-            expect(websiteLink).toHaveAttribute('href', 'https://example.com/jane');
-            expect(websiteLink).toHaveAttribute('target', '_blank');
-        });
-
-        it('does not show website link when contact person has no website', () => {
-            render(<FilesSection contactPersons={[mockContactPersonNoContact]} />);
-
+            expect(screen.getByRole('button', { name: /request data via contact form/i })).toBeInTheDocument();
             expect(screen.queryByRole('link', { name: /visit contact person website/i })).not.toBeInTheDocument();
         });
-    });
 
-    describe('fallback message (when no download URL and no contact options)', () => {
-        it('shows fallback message when no contact persons available', () => {
-            render(<FilesSection />);
+        it('uses the team request when no contact option exists', () => {
+            render(<FilesSection contactPersons={[mockContactPersonNoContact]} hasDataPublicationTeamRecipient />);
 
-            expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
-            expect(screen.getByText(/please contact the authors/i)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /request data via contact form/i })).toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: /visit contact person website/i })).not.toBeInTheDocument();
         });
 
-        it('shows fallback message when contactPersons is empty array', () => {
-            render(<FilesSection contactPersons={[]} />);
+        it('uses the team request when the contact list is omitted', () => {
+            render(<FilesSection hasDataPublicationTeamRecipient />);
 
-            expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
-        });
-
-        it('shows fallback message when contact persons have neither email nor website', () => {
-            render(<FilesSection contactPersons={[mockContactPersonNoContact]} />);
-
-            expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /request data via contact form/i })).toBeInTheDocument();
+            expect(screen.queryByText(/download information not available/i)).not.toBeInTheDocument();
         });
     });
 
     describe('section header', () => {
         it('renders the Files heading', () => {
-            render(<FilesSection />);
+            render(<FilesSection downloadUrl="https://example.com/data.zip" />);
 
             expect(screen.getByRole('heading', { name: 'Files' })).toBeInTheDocument();
         });
@@ -187,11 +174,10 @@ describe('FilesSection', () => {
             expect(contactButton).toHaveClass('gfz-action-button');
         });
 
-        it('applies GFZ action button styling to website link', () => {
+        it('does not fall back to a website-only action', () => {
             render(<FilesSection contactPersons={[mockContactPersonWithWebsite]} />);
 
-            const websiteLink = screen.getByRole('link', { name: /visit contact person website/i });
-            expect(websiteLink).toHaveClass('gfz-action-button');
+            expect(screen.queryByRole('link', { name: /visit contact person website/i })).not.toBeInTheDocument();
         });
     });
 });

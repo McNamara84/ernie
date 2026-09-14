@@ -80,7 +80,7 @@ export class LandingPage {
   readonly filesSection: Locator;
   readonly downloadButton: Locator;
   readonly contactFormButton: Locator;
-  readonly noDownloadMessage: Locator;
+  readonly dataRequestHeading: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -130,13 +130,16 @@ export class LandingPage {
     this.licenseSection = page.getByTestId('license-and-rights-section');
 
     // Files section
-    this.filesSection = page.locator('[data-testid="files-section"]').or(
-      page.locator('section[aria-labelledby="heading-files"]')
-    );
+    this.filesSection = page
+      .locator('[data-testid="files-section"]')
+      .or(page.locator('[data-testid="data-request-section"]'))
+      .or(page.locator('section[aria-labelledby="heading-files"]'));
     this.downloadButton = this.filesSection.locator('a:has-text("Download data and description")');
     // Contact form is now a button (opens modal), not a link
     this.contactFormButton = this.filesSection.locator('button:has-text("Request data via contact form")');
-    this.noDownloadMessage = this.filesSection.locator('p:has-text("Download information not available")');
+    this.dataRequestHeading = this.filesSection.getByRole('heading', {
+      name: 'The dataset is not available for automated download. Please fill in the request form to receive download information.',
+    });
   }
 
   /**
@@ -542,17 +545,17 @@ export class LandingPage {
   }
 
   /**
-   * Verify fallback message is shown when no download options are available
+   * Verify the exact data-request heading from issue #1280.
    */
-  async verifyNoDownloadMessageVisible() {
-    await expect(this.noDownloadMessage).toBeVisible();
+  async verifyDataRequestHeadingVisible() {
+    await expect(this.dataRequestHeading).toBeVisible();
   }
 
   /**
-   * Verify fallback message is NOT visible
+   * Verify the data-request presentation is not shown when a download is available.
    */
-  async verifyNoDownloadMessageNotVisible() {
-    await expect(this.noDownloadMessage).not.toBeVisible();
+  async verifyDataRequestHeadingNotVisible() {
+    await expect(this.dataRequestHeading).not.toBeVisible();
   }
 
   // =========================================================================

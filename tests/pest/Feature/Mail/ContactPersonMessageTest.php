@@ -159,6 +159,18 @@ describe('content', function () {
 
         expect($content->with['datasetUrl'])->toBe(url('/'));
     });
+
+    it('uses an explicitly provided shareable dataset URL', function () {
+        $datasetUrl = 'https://doi.org/10.5880/gfz.2025.001';
+        $mailable = new ContactPersonMessage(
+            contactMessage: $this->contactMessage,
+            resource: $this->resource,
+            recipientName: 'Dr. Smith',
+            datasetUrl: $datasetUrl,
+        );
+
+        expect($mailable->content()->with['datasetUrl'])->toBe($datasetUrl);
+    });
 });
 
 describe('attachments', function () {

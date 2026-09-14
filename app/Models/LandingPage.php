@@ -28,7 +28,7 @@ use Illuminate\Support\Str;
  * @property string|null $primary_download_label Display label for the primary download button
  * @property int|null $ftp_format_id
  * @property int|null $ftp_size_id
- * @property bool $downloads_unavailable Whether the generated Files section is hidden because no downloads are available
+ * @property bool $downloads_unavailable Whether automated downloads are hidden and replaced by a data request form
  * @property int|null $external_domain_id FK to landing_page_domains (only for external landing pages)
  * @property string|null $external_path URL path appended to domain (only for external landing pages)
  * @property bool $is_published

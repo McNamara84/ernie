@@ -257,6 +257,7 @@ describe('Session Preview Display', function () {
     });
 
     test('can view temporary preview from session', function () {
+        config(['mail.landing_page_contact_cc' => 'datapub@example.test']);
         Session::put("landing_page_preview.{$this->resource->id}", [
             'template' => 'default_gfz',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
@@ -276,7 +277,23 @@ describe('Session Preview Display', function () {
                 ->where('citationStyles.2.id', 'copernicus')
                 ->where('citationStyles.3.id', 'agu')
                 ->where('citationStyles.4.id', 'gsa')
+                ->where('hasDataPublicationTeamRecipient', true)
                 ->where('isPreview', true)
+            );
+    });
+
+    test('marks the team recipient unavailable in a session preview when its configuration is invalid', function () {
+        config(['mail.landing_page_contact_cc' => 'not-an-email']);
+        Session::put("landing_page_preview.{$this->resource->id}", [
+            'template' => 'default_gfz',
+            'downloads_unavailable' => true,
+            'resource_id' => $this->resource->id,
+        ]);
+
+        $this->get("/resources/{$this->resource->id}/landing-page/preview")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('hasDataPublicationTeamRecipient', false)
             );
     });
 

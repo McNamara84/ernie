@@ -392,7 +392,7 @@ describe('DefaultGfzTemplate', () => {
         expect(downloadLink.closest('a')).toHaveAttribute('href', 'https://ftp.example.com/dataset');
     });
 
-    it('omits the Files section when downloads are unavailable', () => {
+    it('replaces the Files section with a data request when automated downloads are unavailable', () => {
         mockUsePage.mockReturnValue({
             props: {
                 resource: {
@@ -427,6 +427,7 @@ describe('DefaultGfzTemplate', () => {
                         },
                     ],
                 },
+                hasDataPublicationTeamRecipient: true,
                 isPreview: false,
             },
         } as unknown as ReturnType<typeof usePage>);
@@ -436,6 +437,12 @@ describe('DefaultGfzTemplate', () => {
         expect(screen.queryByText('Files')).not.toBeInTheDocument();
         expect(screen.queryByText('Download data and description')).not.toBeInTheDocument();
         expect(screen.queryByText('Repository')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', {
+                name: 'The dataset is not available for automated download. Please fill in the request form to receive download information.',
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /request data via contact form/i })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'License & Rights' })).toBeInTheDocument();
         expect(screen.getByText(/Creative Commons Attribution Non Commercial 4\.0 International/)).toBeInTheDocument();
     });

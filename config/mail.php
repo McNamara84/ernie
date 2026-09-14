@@ -118,12 +118,15 @@ return [
     | Landing Page Contact and Resource Review Address
     |--------------------------------------------------------------------------
     |
-    | For landing-page contact forms this address is an optional Cc recipient:
-    | an empty value disables that copy, while invalid values are ignored and
-    | logged. Resource review-link delivery has a stricter requirement: this
-    | value must contain a valid, non-empty address because every invitation
-    | uses it as both Cc and Reply-To. Otherwise the review endpoint returns
-    | HTTP 503 and does not queue any email.
+    | For landing-page contact forms this address identifies the data
+    | publication team. It receives one Cc copy when contact persons are
+    | available and becomes the direct recipient for all-recipient requests
+    | without a contact person. An empty value disables the team recipient,
+    | while invalid values are ignored and logged. Resource review-link
+    | delivery has a stricter requirement: this value must contain a valid,
+    | non-empty address because every invitation uses it as both Cc and
+    | Reply-To. Otherwise the review endpoint returns HTTP 503 and does not
+    | queue any email.
     |
     | Operators enabling the curator-facing review workflow must therefore
     | configure and verify this value before deployment.

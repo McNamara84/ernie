@@ -403,7 +403,7 @@ test.describe('Landing Page - Sizes and Formats', () => {
   });
 });
 
-test.describe('Landing Page - Files Section (Issue #373)', () => {
+test.describe('Landing Page - Files and Data Requests (Issues #373 and #1280)', () => {
   test('displays download button when FTP URL is configured', async ({ page }) => {
     const landingPage = new LandingPage(page);
     await landingPage.goto('files-with-download-url');
@@ -418,8 +418,8 @@ test.describe('Landing Page - Files Section (Issue #373)', () => {
     // Contact form button should NOT be visible when download URL exists
     await landingPage.verifyContactFormButtonNotVisible();
 
-    // Fallback message should NOT be visible
-    await landingPage.verifyNoDownloadMessageNotVisible();
+    // The data-request presentation should NOT be visible when a download URL is available
+    await landingPage.verifyDataRequestHeadingNotVisible();
   });
 
   test('displays contact form button when contact person with email exists', async ({ page }) => {
@@ -436,14 +436,11 @@ test.describe('Landing Page - Files Section (Issue #373)', () => {
     // Contact form button SHOULD be visible (contact person has email)
     await landingPage.verifyContactFormButtonVisible();
 
-    // Fallback message should NOT be visible
-    await landingPage.verifyNoDownloadMessageNotVisible();
+    // Historical no-download configurations use the same request presentation.
+    await landingPage.verifyDataRequestHeadingVisible();
   });
 
-  // This test requires a resource with no contact persons AND no download URL.
-  // The current seeder may not create such a resource correctly.
-  // TODO: Review ResourceTestDataSeeder to ensure 'files-with-no-contact-options' truly has no contacts.
-  test.skip('displays fallback message when no contact options are available', async ({ page }) => {
+  test('displays a team-only request when no contact persons are available', async ({ page }) => {
     const landingPage = new LandingPage(page);
     await landingPage.goto('files-with-no-contact-options');
     await landingPage.verifyPageLoaded();
@@ -454,10 +451,12 @@ test.describe('Landing Page - Files Section (Issue #373)', () => {
     // Download button should NOT be visible
     await landingPage.verifyDownloadButtonNotVisible();
 
-    // Contact form button should NOT be visible
-    await landingPage.verifyContactFormButtonNotVisible();
+    // The configured data publication team keeps this request path available.
+    await landingPage.verifyContactFormButtonVisible();
+    await landingPage.verifyDataRequestHeadingVisible();
 
-    // Fallback message SHOULD be visible
-    await landingPage.verifyNoDownloadMessageVisible();
+    await landingPage.contactFormButton.click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByText('Data publication team', { exact: true })).toBeVisible();
   });
 });

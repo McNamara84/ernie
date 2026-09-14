@@ -95,6 +95,18 @@ it('returns the related GitHub references for every version 1.0.9 changelog entr
                 'url' => 'https://github.com/McNamara84/ernie/issues/1304',
             ],
         ],
+        'Data Requests Without Automatic Downloads' => [
+            [
+                'type' => 'issue',
+                'number' => 1280,
+                'url' => 'https://github.com/McNamara84/ernie/issues/1280',
+            ],
+            [
+                'type' => 'pull_request',
+                'number' => 1329,
+                'url' => 'https://github.com/McNamara84/ernie/pull/1329',
+            ],
+        ],
         'Traceable Changelog Entries' => [
             [
                 'type' => 'issue',

@@ -1155,9 +1155,7 @@ class ResourceTestDataSeeder extends Seeder
     /**
      * Create resource with contact person but no download URL.
      *
-     * Tests FilesSection showing "Request data via contact form" button (Issue #373).
-     * The fallback to contact form is based on having a contact person with email,
-     * not a separate contact_url field.
+     * Tests the legacy request-form fallback without the explicit flag.
      */
     private function createFilesWithContactPersonOnly(): void
     {
@@ -1177,20 +1175,21 @@ class ResourceTestDataSeeder extends Seeder
     /**
      * Create resource with neither download URL nor contact person with email.
      *
-     * Tests FilesSection showing fallback message (Issue #373).
+     * Tests the data-publication-team fallback (Issue #1280).
      */
     private function createFilesWithNoContactOptions(): void
     {
-        $resource = $this->createBaseResource('TEST: Files With No Contact Options');
+        $resource = $this->createBaseResource('TEST: Files With No Contact Options', addDefaultContact: false);
 
         // Regular creator without contact info (is_contact=false)
         $this->addCreator($resource, 'No', 'Download', null, 2);
 
         $this->createLandingPage($resource, 'files-with-no-contact-options', [
             'ftp_url' => null,
+            'downloads_unavailable' => true,
         ]);
 
-        $this->logCreation($resource, 'Landing page with no download or contact person email');
+        $this->logCreation($resource, 'Landing page with a team-only data request');
     }
 
     // =========================================================================
@@ -1410,7 +1409,7 @@ class ResourceTestDataSeeder extends Seeder
      *
      * Note: Slugs are deterministic (no unique ID) to allow Playwright tests to navigate to them.
      *
-     * @param  array<string, string|null>  $options  Optional landing page configuration (ftp_url)
+     * @param  array<string, string|bool|null>  $options  Optional landing page configuration
      */
     private function createLandingPage(Resource $resource, string $slug, array $options = []): LandingPage
     {
@@ -1422,6 +1421,7 @@ class ResourceTestDataSeeder extends Seeder
             'published_at' => now(),
             'preview_token' => bin2hex(random_bytes(32)),
             'ftp_url' => $options['ftp_url'] ?? null,
+            'downloads_unavailable' => $options['downloads_unavailable'] ?? false,
         ]);
     }
 

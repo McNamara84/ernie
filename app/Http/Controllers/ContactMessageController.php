@@ -14,10 +14,12 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Services\Creators\ResourceCreatorNameResolverService;
+use App\Services\DataPublicationTeamRecipientService;
 use App\Services\IgsnRepositoryContactService;
 use App\Services\LandingPagePersonIdentityResolverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
@@ -35,6 +37,7 @@ class ContactMessageController extends Controller
     public function __construct(
         private readonly IgsnRepositoryContactService $repositoryContactService,
         private readonly LandingPagePersonIdentityResolverService $personIdentityResolver,
+        private readonly DataPublicationTeamRecipientService $dataPublicationTeamRecipientService,
         private readonly ResourceCreatorNameResolverService $creatorNameResolver,
     ) {}
 
@@ -87,9 +90,35 @@ class ContactMessageController extends Controller
     }
 
     /**
+     * Store a contact message from an authenticated, session-based preview.
+     * Route: POST /resources/{resource}/landing-page/preview/contact
+     */
+    public function storePreview(Request $request, Resource $resource): JsonResponse
+    {
+        Gate::authorize('create', LandingPage::class);
+
+        $previewData = $request->session()->get("landing_page_preview.{$resource->id}");
+
+        if (! is_array($previewData) || (int) ($previewData['resource_id'] ?? 0) !== $resource->id) {
+            abort(404, 'Preview session expired. Please open preview again from the setup modal.');
+        }
+
+        $landingPage = $resource->landingPage;
+        $datasetUrl = $landingPage !== null && $landingPage->isPublished()
+            ? $landingPage->public_url
+            : url('/');
+
+        return $this->processContactMessage(
+            $request,
+            $resource->id,
+            $datasetUrl,
+        );
+    }
+
+    /**
      * Process the contact message (shared logic).
      */
-    private function processContactMessage(Request $request, int $resourceId): JsonResponse
+    private function processContactMessage(Request $request, int $resourceId, ?string $datasetUrl = null): JsonResponse
     {
         // Check honeypot field (should be empty)
         if ($request->filled('website_url')) {
@@ -155,19 +184,41 @@ class ContactMessageController extends Controller
         ])->findOrFail($resourceId);
 
         // Determine recipients
-        $recipients = $this->getRecipients(
-            $resource,
-            $validated['send_to_all'] ?? false,
-            $validated['resource_creator_id'] ?? null,
-            $validated['resource_contributor_id'] ?? null,
-            $validated['repository_contact_type'] ?? null,
+        $recipients = $this->deduplicateRecipientsByEmail(
+            $this->getRecipients(
+                $resource,
+                $sendToAll,
+                $validated['resource_creator_id'] ?? null,
+                $validated['resource_contributor_id'] ?? null,
+                $validated['repository_contact_type'] ?? null,
+            ),
         );
+
+        $dataPublicationTeamEmail = $this->dataPublicationTeamRecipientService->email(logInvalidConfiguration: true);
+        $teamIsDirectRecipient = false;
+
+        if ($recipients === [] && $sendToAll && $dataPublicationTeamEmail !== null) {
+            $recipients[] = [
+                'email' => $dataPublicationTeamEmail,
+                'name' => 'GFZ Data Publication Team',
+            ];
+            $teamIsDirectRecipient = true;
+        }
 
         if (empty($recipients)) {
             throw ValidationException::withMessages([
-                'recipients' => ['No contact persons available for this dataset.'],
+                'recipients' => ['No contact person or data publication team is available for this dataset.'],
             ]);
         }
+
+        $teamAlreadyIncluded = collect($recipients)->contains(
+            static fn (array $recipient): bool => $dataPublicationTeamEmail !== null
+                && strcasecmp($recipient['email'], $dataPublicationTeamEmail) === 0,
+        );
+        $teamIsDirectRecipient = $teamIsDirectRecipient || $teamAlreadyIncluded;
+        $ccEmail = ! $teamIsDirectRecipient
+            ? $dataPublicationTeamEmail
+            : null;
 
         // Create contact message record
         $contactMessage = ContactMessage::create([
@@ -185,14 +236,6 @@ class ContactMessageController extends Controller
             'delivered_recipient_count' => 0,
         ]);
 
-        // Get Cc email from config (empty string disables Cc)
-        // Validate email format to prevent runtime errors
-        $ccEmail = config('mail.landing_page_contact_cc');
-        if (! empty($ccEmail) && filter_var($ccEmail, FILTER_VALIDATE_EMAIL) === false) {
-            Log::warning('Invalid Cc email address in config', ['cc_email' => $ccEmail]);
-            $ccEmail = null;
-        }
-
         $contactMessage->markAsQueued();
 
         $isFirstRecipient = true;
@@ -205,15 +248,17 @@ class ContactMessageController extends Controller
                 // Add Cc only to first recipient when configured
                 if ($isFirstRecipient && ! empty($ccEmail)) {
                     $mail->cc($ccEmail);
-                    $isFirstRecipient = false;
                 }
+
+                $isFirstRecipient = false;
 
                 $mail->queue(
                     new ContactPersonMessage(
                         $contactMessage,
                         $resource,
                         $recipient['name'],
-                        false
+                        false,
+                        $datasetUrl,
                     )
                 );
             }
@@ -237,7 +282,8 @@ class ContactMessageController extends Controller
                         $contactMessage,
                         $resource,
                         $validated['sender_name'],
-                        true
+                        true,
+                        $datasetUrl,
                     )
                 );
             } catch (Throwable $exception) {
@@ -256,11 +302,13 @@ class ContactMessageController extends Controller
             'recipients_count' => count($recipients),
             'copy_to_sender' => $validated['copy_to_sender'] ?? false,
             'cc_email' => ! empty($ccEmail) ? $ccEmail : null,
+            'data_publication_team_direct_recipient' => $teamIsDirectRecipient,
         ]);
 
         return response()->json([
             'message' => 'Message received successfully.',
             'recipients_count' => count($recipients),
+            'data_publication_team_direct_recipient' => $teamIsDirectRecipient,
         ]);
     }
 
@@ -395,6 +443,31 @@ class ContactMessageController extends Controller
         }
 
         return $recipients;
+    }
+
+    /**
+     * @param  array<int, array{email: string, name: string}>  $recipients
+     * @return list<array{email: string, name: string}>
+     */
+    private function deduplicateRecipientsByEmail(array $recipients): array
+    {
+        $uniqueRecipients = [];
+        $seenEmails = [];
+
+        foreach ($recipients as $recipient) {
+            $email = trim($recipient['email']);
+            $normalizedEmail = strtolower($email);
+
+            if (isset($seenEmails[$normalizedEmail])) {
+                continue;
+            }
+
+            $seenEmails[$normalizedEmail] = true;
+            $recipient['email'] = $email;
+            $uniqueRecipients[] = $recipient;
+        }
+
+        return $uniqueRecipients;
     }
 
     /**

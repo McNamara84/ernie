@@ -553,6 +553,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('resources/{resource}/landing-page/preview', [LandingPagePreviewController::class, 'store'])
         ->name('landing-page.preview.store');
 
+    Route::post('resources/{resource}/landing-page/preview/contact', [ContactMessageController::class, 'storePreview'])
+        ->name('landing-page.preview.contact')
+        ->middleware('throttle:10,1');
+
     Route::get('resources/{resource}/landing-page/preview', [LandingPagePreviewController::class, 'show'])
         ->name('landing-page.preview.show');
 

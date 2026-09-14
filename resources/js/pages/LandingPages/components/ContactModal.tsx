@@ -28,6 +28,8 @@ interface ContactModalProps {
     contactPersons: ContactPerson[];
     datasetTitle: string;
     repositoryContact?: LandingPageRepositoryContact | null;
+    recipientPolicy?: 'selectable' | 'all-contacts-and-team';
+    hasDataPublicationTeamRecipient?: boolean;
 }
 
 type FormStatus = 'idle' | 'submitting' | 'success' | 'error';
@@ -39,14 +41,23 @@ type FormStatus = 'idle' | 'submitting' | 'success' | 'error';
  * Includes honeypot spam protection.
  *
  * The contact form URL is computed from the current page path by appending '/contact'.
- * This works because landing pages follow the pattern /{doi}/{slug} and the contact
- * endpoint is at /{doi}/{slug}/contact.
+ * Published, draft, and authenticated session-preview landing pages expose a
+ * matching contact endpoint at that path.
  */
-export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, datasetTitle, repositoryContact = null }: ContactModalProps) {
+export function ContactModal({
+    isOpen,
+    onClose,
+    selectedPerson,
+    contactPersons,
+    datasetTitle,
+    repositoryContact = null,
+    recipientPolicy = 'selectable',
+    hasDataPublicationTeamRecipient = false,
+}: ContactModalProps) {
     const [formStatus, setFormStatus] = useState<FormStatus>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
 
-    // Compute contact URL from current path (works for both published and draft pages)
+    // Compute contact URL from current path (published, draft, and session preview pages).
     // The contact endpoint is at the current landing page path + '/contact'
     const contactUrl = typeof window !== 'undefined' ? `${window.location.pathname}/contact` : '/contact';
 
@@ -54,22 +65,24 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
     const [senderName, setSenderName] = useState('');
     const [senderEmail, setSenderEmail] = useState('');
     const [message, setMessage] = useState('');
-    const [sendToAll, setSendToAll] = useState(repositoryContact === null && selectedPerson === null);
+    const isDataRequest = recipientPolicy === 'all-contacts-and-team';
+    const initialSendToAll = repositoryContact === null && (isDataRequest || selectedPerson === null);
+    const [sendToAll, setSendToAll] = useState(initialSendToAll);
     const [copyToSender, setCopyToSender] = useState(false);
     const [honeypot, setHoneypot] = useState(''); // Should remain empty
 
     // Keep sendToAll in sync when the modal opens or selectedPerson changes
     useEffect(() => {
         if (isOpen) {
-            setSendToAll(repositoryContact === null && selectedPerson === null);
+            setSendToAll(initialSendToAll);
         }
-    }, [isOpen, repositoryContact, selectedPerson]);
+    }, [initialSendToAll, isOpen]);
 
     const resetForm = () => {
         setSenderName('');
         setSenderEmail('');
         setMessage('');
-        setSendToAll(repositoryContact === null && selectedPerson === null);
+        setSendToAll(initialSendToAll);
         setCopyToSender(false);
         setHoneypot('');
         setFormStatus('idle');
@@ -103,6 +116,8 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
         setFormStatus('submitting');
         setErrorMessage('');
 
+        const shouldSendToAll = repositoryContact === null && (isDataRequest || sendToAll || selectedPerson === null);
+
         try {
             const response = await fetch(contactUrl, {
                 method: 'POST',
@@ -114,11 +129,11 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                     sender_name: senderName.trim(),
                     sender_email: senderEmail.trim(),
                     message: message.trim(),
-                    // Guard: if no person selected, always send to all
-                    send_to_all: repositoryContact === null && (sendToAll || selectedPerson === null),
+                    // Data requests always target every available contact person.
+                    send_to_all: shouldSendToAll,
                     copy_to_sender: copyToSender,
-                    resource_creator_id: !sendToAll && selectedPerson?.source === 'creator' ? selectedPerson.id : null,
-                    resource_contributor_id: !sendToAll && selectedPerson?.source === 'contributor' ? selectedPerson.id : null,
+                    resource_creator_id: !shouldSendToAll && selectedPerson?.source === 'creator' ? selectedPerson.id : null,
+                    resource_contributor_id: !shouldSendToAll && selectedPerson?.source === 'contributor' ? selectedPerson.id : null,
                     repository_contact_type: repositoryContact?.type ?? null,
                     // Honeypot field - bots will fill this
                     website_url: honeypot,
@@ -143,7 +158,22 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
     };
 
     const recipientLabel =
-        repositoryContact?.label ?? (sendToAll ? `All contact persons (${contactPersons.length})` : selectedPerson?.name || 'Selected contact');
+        repositoryContact?.label ??
+        (isDataRequest
+            ? hasDataPublicationTeamRecipient
+                ? contactPersons.length > 0
+                    ? `Data publication team and all contact persons (${contactPersons.length})`
+                    : 'Data publication team'
+                : `All contact persons (${contactPersons.length})`
+            : sendToAll
+              ? `All contact persons (${contactPersons.length})`
+              : selectedPerson?.name || 'Selected contact');
+
+    const dataRequestSuccessMessage = hasDataPublicationTeamRecipient
+        ? contactPersons.length > 0
+            ? 'The data publication team and all contact persons will receive your message and can reply directly to your email.'
+            : 'The data publication team will receive your message and can reply directly to your email.'
+        : 'All contact persons will receive your message and can reply directly to your email.';
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -160,13 +190,15 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                         <CheckCircle className="h-12 w-12 text-green-500 dark:text-green-400" />
                         <p className="text-center font-medium text-green-700 dark:text-green-400">Message sent successfully!</p>
                         <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-                            The contact person(s) will receive your message and can reply directly to your email.
+                            {isDataRequest
+                                ? dataRequestSuccessMessage
+                                : 'The contact person(s) will receive your message and can reply directly to your email.'}
                         </p>
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {/* Recipient selection - only show if multiple persons and not pre-selected for all */}
-                        {repositoryContact === null && contactPersons.length > 1 && selectedPerson !== null && (
+                        {!isDataRequest && repositoryContact === null && contactPersons.length > 1 && selectedPerson !== null && (
                             <div className="space-y-2">
                                 <Label>Send to</Label>
                                 <RadioGroup value={sendToAll ? 'all' : 'single'} onValueChange={(v: string) => setSendToAll(v === 'all')}>
@@ -187,7 +219,7 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                         )}
 
                         {/* Recipient display for single selection or "all" */}
-                        {(repositoryContact !== null || contactPersons.length === 1 || selectedPerson === null) && (
+                        {(isDataRequest || repositoryContact !== null || contactPersons.length === 1 || selectedPerson === null) && (
                             <div className="rounded-lg bg-gray-50 p-3 text-sm dark:bg-gray-800">
                                 <span className="text-gray-500 dark:text-gray-400">To: </span>
                                 <span className="font-medium">{recipientLabel}</span>
