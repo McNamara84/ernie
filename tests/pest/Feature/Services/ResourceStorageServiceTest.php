@@ -505,6 +505,50 @@ describe('ResourceStorageService', function () {
             ->and($storedCreator->name_snapshot)->toBe('Philipp Sommer');
     });
 
+    it('reuses a snapshot-linked person when the stored ORCID scheme has different casing', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $orcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Mixed-case ORCID scheme', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $orcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPerson = $originalCreator->creatorable;
+        expect($originalPerson)->toBeInstanceOf(Person::class);
+        $originalPerson->forceFill(['name_identifier_scheme' => 'Orcid'])->save();
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Mixed-case ORCID scheme', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => $orcid,
+                'firstName' => 'Philipp S.',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Sommer, Philipp',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->toBe($originalPerson->id)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBe($orcid)
+            ->and($storedCreator->creatorable->name_identifier_scheme)->toBe('Orcid')
+            ->and($storedCreator->name_snapshot)->toBe('Sommer, Philipp');
+    });
+
     it('does not reuse a snapshot-linked non-ORCID identity with the same identifier text', function () {
         $resourceType = ResourceType::firstOrFail();
         $orcid = '0000-0002-1825-0097';

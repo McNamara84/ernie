@@ -19,7 +19,6 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
-use App\Support\LegacyMslScheme;
 use App\Support\PortalCacheNamespace;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
@@ -738,6 +737,9 @@ class PortalSearchService
             $subjectSchemes = $this->normalizeResolvedSubjectSchemes($resolvedNode['subject_schemes']);
             $descendantIds = $resolvedNode['descendant_ids'];
             $descendantValues = $this->normalizeResolvedDescendantValues($resolvedNode['descendant_values']);
+            $legacyMslUriAliases = PortalSubjectNormalizer::legacyMslUriAliasesForCurrentNodeUris(
+                $descendantIds,
+            );
 
             if ($subjectSchemes === [] || ($descendantIds === [] && $descendantValues === [])) {
                 $query->whereRaw('1 = 0');
@@ -750,11 +752,23 @@ class PortalSearchService
             /** @var literal-string $normalizedValueSql */
             $normalizedValueSql = PortalSubjectNormalizer::normalizedControlledSubjectValueSql('value');
 
-            $query->whereHas('subjects', function (Builder $q) use ($subjectSchemes, $descendantIds, $descendantValues, $normalizedSchemeSql, $normalizedValueSql): void {
+            $query->whereHas('subjects', function (Builder $q) use ($subjectSchemes, $descendantIds, $descendantValues, $legacyMslUriAliases, $normalizedSchemeSql, $normalizedValueSql): void {
                 $q->whereRaw(...$this->buildInRawCondition($normalizedSchemeSql, $subjectSchemes))
-                    ->where(function (Builder $subjectQuery) use ($descendantIds, $descendantValues, $normalizedValueSql): void {
+                    ->where(function (Builder $subjectQuery) use ($descendantIds, $descendantValues, $legacyMslUriAliases, $normalizedValueSql): void {
                         if ($descendantIds !== []) {
                             $subjectQuery->whereIn('value_uri', $descendantIds);
+                        }
+
+                        if ($legacyMslUriAliases !== []) {
+                            $subjectQuery->orWhere(function (Builder $legacyAliasQuery) use ($legacyMslUriAliases): void {
+                                foreach ($legacyMslUriAliases as $alias) {
+                                    $legacyAliasQuery->orWhere(function (Builder $sourceIdentityQuery) use ($alias): void {
+                                        $sourceIdentityQuery
+                                            ->whereRaw('LOWER(TRIM(subject_scheme)) = ?', [$alias['scheme']])
+                                            ->whereRaw('TRIM(value_uri) = ?', [$alias['value_uri']]);
+                                    });
+                                }
+                            });
                         }
 
                         if ($descendantValues === []) {
@@ -763,13 +777,7 @@ class PortalSearchService
 
                         if ($descendantIds !== []) {
                             $subjectQuery->orWhere(function (Builder $fallbackQuery) use ($normalizedValueSql, $descendantValues): void {
-                                $fallbackQuery->where(function (Builder $aliasableQuery): void {
-                                    $aliasableQuery->whereRaw("TRIM(COALESCE(value_uri, '')) = ''")
-                                        ->orWhereIn(
-                                            DB::raw('LOWER(TRIM(subject_scheme))'),
-                                            LegacyMslScheme::normalizedSchemes(),
-                                        );
-                                })
+                                $fallbackQuery->whereRaw("TRIM(COALESCE(value_uri, '')) = ''")
                                     ->whereRaw(...$this->buildInRawCondition(
                                         $normalizedValueSql,
                                         $descendantValues,

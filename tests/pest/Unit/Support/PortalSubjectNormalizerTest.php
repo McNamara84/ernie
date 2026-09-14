@@ -39,20 +39,27 @@ describe('PortalSubjectNormalizer::normalizeScheme()', function () {
     });
 });
 
-describe('PortalSubjectNormalizer::aliasesLegacyMslUriByValue()', function () {
-    it('only aliases non-empty URIs from exact legacy MSL schemes', function (): void {
-        expect(PortalSubjectNormalizer::aliasesLegacyMslUriByValue(
+describe('PortalSubjectNormalizer legacy MSL URI aliases', function () {
+    it('only aliases explicitly mapped source scheme and URI identities', function (): void {
+        $currentUri = 'https://epos-msl.uu.nl/voc/materials/1.3/igneous_rock_-_intrusive-acidic_intrusive-granite';
+
+        expect(PortalSubjectNormalizer::currentMslNodeUriForLegacyUri(
             'EPOS WP16 Analogue Material',
             'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite',
-        ))->toBeTrue()
-            ->and(PortalSubjectNormalizer::aliasesLegacyMslUriByValue(
-                'EPOS MSL vocabulary',
-                'https://epos-msl.uu.nl/voc/materials/1.3/granite',
-            ))->toBeFalse()
-            ->and(PortalSubjectNormalizer::aliasesLegacyMslUriByValue(
+        ))->toBe($currentUri)
+            ->and(PortalSubjectNormalizer::currentMslNodeUriForLegacyUri(
+                'EPOS WP16 Rock Physics Material',
+                'http://epos/WP16Vocabulary/RockPhysicsMaterial/Rock/Granite',
+            ))->toBeNull()
+            ->and(PortalSubjectNormalizer::currentMslNodeUriForLegacyUri(
                 'EPOS WP16 Analogue Material',
-                null,
-            ))->toBeFalse();
+                'https://legacy.example/unmapped/granite',
+            ))->toBeNull()
+            ->and(PortalSubjectNormalizer::legacyMslUriAliasesForCurrentNodeUris([$currentUri]))
+            ->toBe([[
+                'scheme' => 'epos wp16 analogue material',
+                'value_uri' => 'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite',
+            ]]);
     });
 });
 

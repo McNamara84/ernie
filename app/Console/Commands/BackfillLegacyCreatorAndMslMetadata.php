@@ -118,12 +118,27 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
                 'phase' => 'syncing',
                 'started_at' => now()->toIso8601String(),
             ]);
-            $this->syncDispatcher->dispatch(
-                ImportProgressService::TYPE_RESOURCE,
-                $syncRunId,
-                $result['sync_resource_ids'],
-                fullMetadataResourceIds: $result['sync_resource_ids'],
-            );
+            try {
+                $this->syncDispatcher->dispatch(
+                    ImportProgressService::TYPE_RESOURCE,
+                    $syncRunId,
+                    $result['sync_resource_ids'],
+                    fullMetadataResourceIds: $result['sync_resource_ids'],
+                );
+            } catch (Throwable $exception) {
+                $this->progressService->markSyncDispatchFailure(
+                    ImportProgressService::TYPE_RESOURCE,
+                    $syncRunId,
+                    $result['sync_resource_ids'],
+                    $result['sync_resource_ids'],
+                    $exception->getMessage(),
+                );
+                report($exception);
+                $this->error('Unable to dispatch the DataCite synchronization: '.$exception->getMessage());
+                $this->info('DataCite full-metadata sync run: '.$syncRunId);
+
+                return self::FAILURE;
+            }
         }
 
         $this->info($apply

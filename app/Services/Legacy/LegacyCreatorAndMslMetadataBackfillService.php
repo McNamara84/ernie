@@ -440,9 +440,18 @@ final class LegacyCreatorAndMslMetadataBackfillService
 
             $legacy = $legacyCreators[$match['legacy_index']];
             $snapshot = [
-                'name_snapshot' => $this->filled($legacy['name'] ?? null),
-                'given_name_snapshot' => $this->filled($legacy['givenName'] ?? null),
-                'family_name_snapshot' => $this->filled($legacy['familyName'] ?? null),
+                'name_snapshot' => $this->boundedFilled(
+                    $legacy['name'] ?? null,
+                    ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH,
+                ),
+                'given_name_snapshot' => $this->boundedFilled(
+                    $legacy['givenName'] ?? null,
+                    ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH,
+                ),
+                'family_name_snapshot' => $this->boundedFilled(
+                    $legacy['familyName'] ?? null,
+                    ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH,
+                ),
             ];
             if ($snapshot['name_snapshot'] === null
                 && $snapshot['given_name_snapshot'] === null
@@ -638,6 +647,13 @@ final class LegacyCreatorAndMslMetadataBackfillService
         $value = trim((string) $value);
 
         return $value !== '' ? $value : null;
+    }
+
+    private function boundedFilled(mixed $value, int $maxLength): ?string
+    {
+        $value = $this->filled($value);
+
+        return $value === null ? null : mb_substr($value, 0, $maxLength);
     }
 
     private function resourceMetadataFingerprint(Resource $resource): string

@@ -652,8 +652,9 @@ class ResourceStorageService
     {
         // A null scheme is the supported legacy ORCID representation. Any
         // explicit non-ORCID scheme describes a different global identity.
-        if ($storedPerson->name_identifier_scheme !== null
-            && $storedPerson->name_identifier_scheme !== 'ORCID'
+        $storedScheme = $this->normalizeNullableString($storedPerson->name_identifier_scheme);
+        if ($storedScheme !== null
+            && strcasecmp($storedScheme, 'ORCID') !== 0
         ) {
             return false;
         }

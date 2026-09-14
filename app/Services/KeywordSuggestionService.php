@@ -381,12 +381,15 @@ class KeywordSuggestionService
                 if ($valueUri !== '') {
                     $usedSubjects[$scheme]['ids'][$valueUri] = true;
 
-                    if (! PortalSubjectNormalizer::aliasesLegacyMslUriByValue(
+                    $currentMslNodeUri = PortalSubjectNormalizer::currentMslNodeUriForLegacyUri(
                         $subject->subject_scheme,
                         $subject->value_uri,
-                    )) {
-                        return;
+                    );
+                    if ($currentMslNodeUri !== null) {
+                        $usedSubjects[$scheme]['ids'][$currentMslNodeUri] = true;
                     }
+
+                    return;
                 }
 
                 $normalizedValue = PortalSubjectNormalizer::normalizeControlledSubjectValue($subject->value);

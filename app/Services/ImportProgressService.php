@@ -139,6 +139,61 @@ class ImportProgressService
         ]);
     }
 
+    /**
+     * Preserve the complete synchronization intent when the queue batch could
+     * not be dispatched, so the same run ID can be retried safely.
+     *
+     * @param  list<int>  $resourceIds
+     * @param  list<int>  $fullMetadataResourceIds
+     */
+    public function markSyncDispatchFailure(
+        string $type,
+        string $importId,
+        array $resourceIds,
+        array $fullMetadataResourceIds,
+        string $error,
+    ): void {
+        $resourceIds = array_values(array_unique(array_map('intval', $resourceIds)));
+        $fullMetadataResourceIds = array_values(array_intersect(
+            $resourceIds,
+            array_unique(array_map('intval', $fullMetadataResourceIds)),
+        ));
+        $error = trim($error);
+        if ($error === '') {
+            $error = 'The DataCite synchronization batch could not be dispatched.';
+        }
+
+        Cache::forget($this->pendingIdsKey($type, $importId));
+        Cache::put($this->failureIdsKey($type, $importId), $resourceIds, now()->addHours(24));
+        Cache::put(
+            $this->fullMetadataIdsKey($type, $importId),
+            $fullMetadataResourceIds,
+            now()->addHours(24),
+        );
+
+        $this->update($type, $importId, [
+            'status' => 'completed',
+            'phase' => 'completed',
+            'sync_total' => count($resourceIds),
+            'sync_processed' => count($resourceIds),
+            'sync_succeeded' => 0,
+            'sync_failed' => count($resourceIds),
+            'sync_errors' => array_map(
+                static fn (int $resourceId): array => [
+                    'resource_id' => $resourceId,
+                    'doi' => null,
+                    'error' => $error,
+                ],
+                array_slice($resourceIds, 0, 100),
+            ),
+            'sync_full_metadata_total' => count($fullMetadataResourceIds),
+            'sync_skipped_test_mode' => false,
+            'sync_retry_available' => $resourceIds !== [] && config('datacite.test_mode') === false,
+            'sync_retry' => false,
+            'completed_at' => now()->toIso8601String(),
+        ]);
+    }
+
     public function recordSyncSuccess(string $type, string $importId, int $resourceId): void
     {
         $this->recordSyncResult($type, $importId, $resourceId, null, null);

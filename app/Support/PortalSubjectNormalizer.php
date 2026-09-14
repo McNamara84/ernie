@@ -18,6 +18,20 @@ final class PortalSubjectNormalizer
 
     public const SCHEME_SIMPLE_LITHOLOGY = 'CGI Simple Lithology';
 
+    /**
+     * Manually verified source identities that are equivalent to a current MSL
+     * node. Never infer these mappings from a shared label: the same WP16 leaf
+     * may occur in distinct Analogue and Rock Physics categories.
+     *
+     * @var array<string, array<string, string>>
+     */
+    private const LEGACY_MSL_CURRENT_NODE_URIS = [
+        'epos wp16 analogue material' => [
+            'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite'
+                => 'https://epos-msl.uu.nl/voc/materials/1.3/igneous_rock_-_intrusive-acidic_intrusive-granite',
+        ],
+    ];
+
     public static function normalizeControlledSubjectValue(?string $value): ?string
     {
         $trimmed = trim((string) $value);
@@ -60,13 +74,40 @@ final class PortalSubjectNormalizer
         };
     }
 
-    /**
-     * Whether a preserved WP16 URI may additionally use its source value as a
-     * portal alias to a current MSL node. The stored/exported URI is unchanged.
-     */
-    public static function aliasesLegacyMslUriByValue(?string $scheme, ?string $valueUri): bool
+    public static function currentMslNodeUriForLegacyUri(?string $scheme, ?string $valueUri): ?string
     {
-        return trim((string) $valueUri) !== '' && LegacyMslScheme::isSupported($scheme);
+        $normalizedScheme = mb_strtolower(trim((string) $scheme));
+        $normalizedValueUri = trim((string) $valueUri);
+        if ($normalizedScheme === '' || $normalizedValueUri === '') {
+            return null;
+        }
+
+        return self::LEGACY_MSL_CURRENT_NODE_URIS[$normalizedScheme][$normalizedValueUri] ?? null;
+    }
+
+    /**
+     * @param  array<int, string>  $currentNodeUris
+     * @return list<array{scheme: string, value_uri: string}>
+     */
+    public static function legacyMslUriAliasesForCurrentNodeUris(array $currentNodeUris): array
+    {
+        $selectedUris = array_fill_keys(array_map('trim', $currentNodeUris), true);
+        $aliases = [];
+
+        foreach (self::LEGACY_MSL_CURRENT_NODE_URIS as $normalizedScheme => $uriMappings) {
+            foreach ($uriMappings as $legacyUri => $currentUri) {
+                if (! isset($selectedUris[$currentUri])) {
+                    continue;
+                }
+
+                $aliases[] = [
+                    'scheme' => $normalizedScheme,
+                    'value_uri' => $legacyUri,
+                ];
+            }
+        }
+
+        return $aliases;
     }
 
     public static function normalizedControlledSubjectValueSql(string $column, ?string $driverName = null): string

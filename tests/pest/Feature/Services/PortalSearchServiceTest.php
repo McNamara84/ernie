@@ -763,20 +763,33 @@ describe('thesaurus keyword filtering edge cases', function () {
             'value_uri' => 'https://example.test/msl/different-granite',
         ]);
 
+        $differentLegacyCategory = createPublishedResourceForSearch('Different legacy MSL category', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $differentLegacyCategory->id,
+            'value' => 'granite',
+            'subject_scheme' => 'EPOS WP16 Rock Physics Material',
+            'value_uri' => 'http://epos/WP16Vocabulary/RockPhysicsMaterial/Rock/Granite',
+        ]);
+
         $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
-            'id' => 'https://epos-msl.uu.nl/voc/materials/1.3/igneous-rock-granite',
+            'id' => 'https://epos-msl.uu.nl/voc/materials/1.3/igneous_rock_-_intrusive-acidic_intrusive-granite',
             'scheme' => 'EPOS MSL vocabulary',
-            'subject_schemes' => ['EPOS MSL vocabulary', 'EPOS WP16 Analogue Material'],
-            'descendant_ids' => ['https://epos-msl.uu.nl/voc/materials/1.3/igneous-rock-granite'],
+            'subject_schemes' => [
+                'EPOS MSL vocabulary',
+                'EPOS WP16 Analogue Material',
+                'EPOS WP16 Rock Physics Material',
+            ],
+            'descendant_ids' => ['https://epos-msl.uu.nl/voc/materials/1.3/igneous_rock_-_intrusive-acidic_intrusive-granite'],
             'descendant_values' => ['Material > igneous rock > granite', 'granite'],
         ]]);
 
         $results = $service->search(['thesaurus_keywords' => [
-            'https://epos-msl.uu.nl/voc/materials/1.3/igneous-rock-granite',
+            'https://epos-msl.uu.nl/voc/materials/1.3/igneous_rock_-_intrusive-acidic_intrusive-granite',
         ]]);
 
         expect($results->total())->toBe(1)
-            ->and($results->items()[0]->id)->toBe($matching->id);
+            ->and($results->items()[0]->id)->toBe($matching->id)
+            ->and($results->items()[0]->id)->not->toBe($differentLegacyCategory->id);
     });
 
     it('returns no results when a resolved thesaurus node has no matchable descendants', function () {

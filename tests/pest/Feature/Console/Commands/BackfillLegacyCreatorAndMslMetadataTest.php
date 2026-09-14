@@ -320,6 +320,57 @@ it('persists an ORCID-matched unstructured legacy spelling without replacing glo
         ]);
 });
 
+it('truncates legacy creator snapshots to their database column limits', function (): void {
+    $doi = '10.5880/bounded-legacy-snapshots';
+    $name = str_repeat('Ä', ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH + 5);
+    $givenName = str_repeat('Ö', ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH + 5);
+    $familyName = str_repeat('Ü', ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH + 5);
+    $orcid = '0000-0002-1825-0097';
+    $legacyId = DB::connection('metaworks')->table('resource')->insertGetId(['identifier' => $doi]);
+    DB::connection('metaworks')->table('resourceagent')->insert([
+        'resource_id' => $legacyId,
+        'order' => 0,
+        'firstname' => $givenName,
+        'lastname' => $familyName,
+        'name' => $name,
+        'identifier' => $orcid,
+        'identifiertype' => 'ORCID',
+    ]);
+    DB::connection('metaworks')->table('role')->insert([
+        'resourceagent_resource_id' => $legacyId,
+        'resourceagent_order' => 0,
+        'role' => 'Creator',
+    ]);
+    $person = Person::factory()->create([
+        'given_name' => $givenName,
+        'family_name' => $familyName,
+        'name_identifier' => $orcid,
+        'name_identifier_scheme' => 'ORCID',
+    ]);
+    $resource = Resource::factory()->withDoi($doi)->create([
+        'legacy_source' => 'sumario-pmd',
+        'legacy_source_id' => $legacyId,
+    ]);
+    $creator = ResourceCreator::factory()->forPerson($person)->create([
+        'resource_id' => $resource->id,
+    ]);
+
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        apply: true,
+        dois: [$doi],
+    );
+
+    expect($result)->toMatchArray([
+        'changed' => 1,
+        'errors' => 0,
+        'creator_snapshots_written' => 1,
+    ])->and($creator->fresh())->toMatchArray([
+        'name_snapshot' => str_repeat('Ä', ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH),
+        'given_name_snapshot' => str_repeat('Ö', ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH),
+        'family_name_snapshot' => str_repeat('Ü', ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH),
+    ]);
+});
+
 it('is dry-run-first, additive, resource-specific, and idempotent', function (): void {
     $doi = '10.5880/gfz.1.4.2021.008';
     $legacyId = DB::connection('metaworks')->table('resource')->insertGetId([
@@ -872,6 +923,51 @@ it('dispatches applied DataCite changes before failing for an incomplete CSV rep
         stream_wrapper_unregister($scheme);
         File::deleteDirectory($wrapperDirectory);
     }
+});
+
+it('preserves a retryable DataCite sync run when batch dispatch fails', function (): void {
+    ['resource' => $resource, 'creator' => $creator] = createLegacyCreatorBackfillFixture(
+        '10.5880/failed-sync-dispatch',
+    );
+    Config::set('datacite.test_mode', false);
+    $dispatcher = Mockery::mock(ImportedResourceDataCiteSyncDispatcherService::class);
+    $dispatcher->shouldReceive('dispatch')
+        ->once()
+        ->andThrow(new RuntimeException('Queue connection unavailable.'));
+    app()->instance(ImportedResourceDataCiteSyncDispatcherService::class, $dispatcher);
+
+    $exitCode = Artisan::call('resources:backfill-legacy-creator-and-msl-metadata', [
+        '--doi' => [$resource->doi],
+        '--apply' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($exitCode)->toBe(Command::FAILURE)
+        ->and($output)->toContain('Unable to dispatch the DataCite synchronization: Queue connection unavailable.')
+        ->and($output)->toContain('DataCite full-metadata sync run:')
+        ->and($creator->fresh()->given_name_snapshot)->toBe('Philipp S.');
+
+    preg_match('/DataCite full-metadata sync run: ([0-9a-f-]+)/i', $output, $matches);
+    $syncRunId = $matches[1] ?? null;
+    expect($syncRunId)->toBeString();
+    if (! is_string($syncRunId)) {
+        return;
+    }
+
+    $progress = app(ImportProgressService::class);
+    expect($progress->get(ImportProgressService::TYPE_RESOURCE, $syncRunId))->toMatchArray([
+        'status' => 'completed',
+        'phase' => 'completed',
+        'sync_total' => 1,
+        'sync_processed' => 1,
+        'sync_succeeded' => 0,
+        'sync_failed' => 1,
+        'sync_full_metadata_total' => 1,
+        'sync_retry_available' => true,
+    ])->and($progress->failedResourceIds(ImportProgressService::TYPE_RESOURCE, $syncRunId))
+        ->toBe([$resource->id])
+        ->and($progress->fullMetadataResourceIds(ImportProgressService::TYPE_RESOURCE, $syncRunId))
+        ->toBe([$resource->id]);
 });
 
 it('streams the command report to CSV while resources are processed', function (): void {
