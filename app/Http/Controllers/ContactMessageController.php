@@ -103,10 +103,15 @@ class ContactMessageController extends Controller
             abort(404, 'Preview session expired. Please open preview again from the setup modal.');
         }
 
+        $landingPage = $resource->landingPage;
+        $datasetUrl = $landingPage !== null && $landingPage->isPublished()
+            ? $landingPage->public_url
+            : url('/');
+
         return $this->processContactMessage(
             $request,
             $resource->id,
-            route('landing-page.preview.show', ['resource' => $resource->id]),
+            $datasetUrl,
         );
     }
 

@@ -833,8 +833,11 @@ describe('ContactMessageController', function (): void {
 
             Mail::assertQueued(ContactPersonMessage::class, 1);
             Mail::assertQueued(ContactPersonMessage::class, function (ContactPersonMessage $mail) use ($resource): bool {
+                $datasetUrl = $mail->content()->with['datasetUrl'] ?? null;
+
                 return $mail->hasTo('datapub@gfz.de')
-                    && $mail->content()->with['datasetUrl'] === route('landing-page.preview.show', ['resource' => $resource->id]);
+                    && $datasetUrl === url('/')
+                    && $datasetUrl !== route('landing-page.preview.show', ['resource' => $resource->id]);
             });
 
             $this->assertDatabaseHas('contact_messages', [
@@ -843,6 +846,42 @@ describe('ContactMessageController', function (): void {
                 'sender_email' => 'preview@example.com',
                 'recipient_count' => 1,
             ]);
+        });
+
+        it('uses a persisted public landing page URL in preview emails', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => 'datapub@gfz.de']);
+
+            $user = User::factory()->curator()->create();
+            $resource = Resource::factory()->create([
+                'created_by_user_id' => $user->id,
+            ]);
+            $landingPage = LandingPage::factory()->published()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.preview-public.001',
+                'slug' => 'preview-public-dataset',
+            ]);
+
+            $this->actingAs($user)
+                ->withSession([
+                    "landing_page_preview.{$resource->id}" => [
+                        'template' => 'default_gfz',
+                        'resource_id' => $resource->id,
+                    ],
+                ])
+                ->postJson("/resources/{$resource->id}/landing-page/preview/contact", [
+                    'sender_name' => 'Preview User',
+                    'sender_email' => 'preview@example.com',
+                    'message' => 'Please provide download information for this preview.',
+                    'send_to_all' => true,
+                ])
+                ->assertOk();
+
+            Mail::assertQueued(ContactPersonMessage::class, 1);
+            Mail::assertQueued(
+                ContactPersonMessage::class,
+                fn (ContactPersonMessage $mail): bool => $mail->content()->with['datasetUrl'] === $landingPage->public_url,
+            );
         });
 
         it('returns 404 when the preview session is missing', function (): void {
