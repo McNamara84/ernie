@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Models\RelatedIdentifier;
+use App\Models\ResourceCreator;
 use Illuminate\Support\Facades\Validator;
 
 covers(StoreDraftResourceRequest::class);
@@ -152,6 +153,79 @@ it('keeps non-array raw rights input unchanged for draft validation', function (
 
     expect($request->input('rawRights'))->toBe('not-an-array');
 });
+
+it('preserves unstructured creator snapshot metadata during request normalization', function (string $requestClass, string $uri): void {
+    /** @var StoreDraftResourceRequest|StoreResourceRequest $request */
+    $request = $requestClass::create($uri, 'POST', [
+        'titles' => [['title' => 'Snapshot resource', 'titleType' => 'main-title']],
+        'authors' => [[
+            'type' => 'person',
+            'resourceCreatorId' => '42',
+            'firstName' => ' ',
+            'lastName' => null,
+            'nameSnapshot' => '  The Artist  ',
+            'position' => 0,
+        ]],
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+    $validator = Validator::make($request->all(), $request->rules());
+    foreach ($request->after() as $callback) {
+        $validator->after($callback);
+    }
+    $validator->passes();
+
+    expect($request->input('authors.0.resourceCreatorId'))->toBe(42)
+        ->and($request->input('authors.0.firstName'))->toBeNull()
+        ->and($request->input('authors.0.lastName'))->toBeNull()
+        ->and($request->input('authors.0.nameSnapshot'))->toBe('The Artist')
+        ->and($validator->errors()->has('authors.0.lastName'))->toBeFalse();
+})->with([
+    'draft request' => [StoreDraftResourceRequest::class, '/editor/resources/draft'],
+    'store request' => [StoreResourceRequest::class, '/editor/resources'],
+]);
+
+it('accepts a one-character zero snapshot as a present final creator name', function (): void {
+    $request = StoreResourceRequest::create('/editor/resources', 'POST', [
+        'titles' => [['title' => 'Snapshot resource', 'titleType' => 'main-title']],
+        'authors' => [[
+            'type' => 'person',
+            'firstName' => null,
+            'lastName' => null,
+            'nameSnapshot' => '0',
+            'position' => 0,
+        ]],
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+    $validator = Validator::make($request->all(), $request->rules());
+    foreach ($request->after() as $callback) {
+        $validator->after($callback);
+    }
+    $validator->passes();
+
+    expect($request->input('authors.0.nameSnapshot'))->toBe('0')
+        ->and($validator->errors()->has('authors.0.lastName'))->toBeFalse();
+});
+
+it('aligns creator snapshot validation with the database column length', function (string $requestClass): void {
+    /** @var StoreDraftResourceRequest|StoreResourceRequest $request */
+    $request = new $requestClass;
+    $rules = [
+        'authors' => ['array'],
+        'authors.*.nameSnapshot' => $request->rules()['authors.*.nameSnapshot'],
+    ];
+    $atLimit = str_repeat('a', ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH);
+    $overLimit = $atLimit.'a';
+
+    expect($rules['authors.*.nameSnapshot'])
+        ->toContain('max:'.ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH)
+        ->and(Validator::make(['authors' => [['nameSnapshot' => $atLimit]]], $rules)->passes())->toBeTrue()
+        ->and(Validator::make(['authors' => [['nameSnapshot' => $overLimit]]], $rules)->passes())->toBeFalse();
+})->with([
+    'draft request' => StoreDraftResourceRequest::class,
+    'store request' => StoreResourceRequest::class,
+]);
 
 it('keeps related-work citation label limits aligned between draft and store requests', function (): void {
     $draftRequest = new StoreDraftResourceRequest;

@@ -9,12 +9,20 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 
 /**
  * Maps a Resource to the CSL-JSON item shared by all landing-page styles.
  */
 final class LandingPageCslItemMapperService
 {
+    private readonly ResourceCreatorNameResolverService $creatorNameResolver;
+
+    public function __construct(?ResourceCreatorNameResolverService $creatorNameResolver = null)
+    {
+        $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
+    }
+
     /**
      * DataCite resourceTypeGeneral to the closest unambiguous CSL item type.
      *
@@ -141,9 +149,14 @@ final class LandingPageCslItemMapperService
         $creatorable = $creator->creatorable;
 
         if ($creatorable instanceof Person) {
+            $resolvedName = $this->creatorNameResolver->resolve($creator, $creatorable);
             $person = [];
-            $this->addString($person, 'family', $creatorable->family_name);
-            $this->addString($person, 'given', $creatorable->given_name);
+            $this->addString($person, 'family', $resolvedName['family_name']);
+            $this->addString($person, 'given', $resolvedName['given_name']);
+
+            if ($person === [] && $resolvedName['name'] !== 'Unknown') {
+                $this->addString($person, 'literal', $resolvedName['name']);
+            }
 
             return $person !== [] ? $person : null;
         }

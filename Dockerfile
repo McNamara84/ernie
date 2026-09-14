@@ -89,7 +89,14 @@ RUN set -eux; \
     NODE_ARCHIVE="node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz"; \
     apt-get update; \
     apt-get install -y --no-install-recommends xz-utils; \
-    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${NODE_ARCHIVE}" -o "/tmp/${NODE_ARCHIVE}"; \
+    curl -fsSL \
+        --retry 5 \
+        --retry-all-errors \
+        --retry-delay 2 \
+        --retry-max-time 120 \
+        --connect-timeout 20 \
+        "https://nodejs.org/dist/v${NODE_VERSION}/${NODE_ARCHIVE}" \
+        -o "/tmp/${NODE_ARCHIVE}"; \
     echo "${NODE_CHECKSUM}  /tmp/${NODE_ARCHIVE}" | sha256sum -c -; \
     tar -xJf "/tmp/${NODE_ARCHIVE}" -C /usr/local --strip-components=1 --no-same-owner; \
     rm -f "/tmp/${NODE_ARCHIVE}"; \

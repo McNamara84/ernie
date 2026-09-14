@@ -84,6 +84,35 @@ it('maintains denormalized listing values for resource and relation changes', fu
         ->and($projection->first_creator_sort)->toBe('Byron');
 });
 
+it('sorts an unstructured creator snapshot by its visible name', function (): void {
+    $person = Person::factory()->create([
+        'given_name' => 'Global',
+        'family_name' => 'Identity',
+    ]);
+    $resource = Resource::factory()->create();
+    $creator = ResourceCreator::factory()->forPerson($person)->create([
+        'resource_id' => $resource->id,
+    ]);
+    $creator->forceFill([
+        'name_snapshot' => 'The Artist',
+        'given_name_snapshot' => null,
+        'family_name_snapshot' => null,
+    ])->save();
+
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    $projection = ResourceListingProjection::query()->findOrFail($resource->id);
+    $listedResource = app(ResourceQueryBuilder::class)->baseQuery()->findOrFail($resource->id);
+    $payload = (new ResourceListItemResource($listedResource))->resolve(request());
+
+    expect($projection->first_creator_sort)->toBe('The Artist')
+        ->and($payload['first_author'])->toBe([
+            'name' => 'The Artist',
+            'givenName' => null,
+            'familyName' => null,
+        ]);
+});
+
 it('derives the dashboard draft flag from all workflow completeness rules', function (): void {
     $resource = Resource::factory()->create(['access_level' => null]);
     Title::factory()->create(['resource_id' => $resource->id]);

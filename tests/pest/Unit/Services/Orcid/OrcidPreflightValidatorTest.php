@@ -376,6 +376,27 @@ it('falls back to "Unnamed person" when display name cannot be built', function 
     expect($result->invalid[0]->displayName)->toBe('Unnamed person');
 });
 
+it('reports a creator ORCID issue with the resource-specific spelling', function () {
+    $resource = Resource::factory()->create();
+    $person = Person::factory()->create([
+        'given_name' => 'Philipp',
+        'family_name' => 'Sommer',
+        'name_identifier' => 'not-an-orcid',
+        'name_identifier_scheme' => 'ORCID',
+    ]);
+    ResourceCreator::factory()->forPerson($person)->create([
+        'resource_id' => $resource->id,
+        'name_snapshot' => 'Sommer, Philipp S.',
+        'given_name_snapshot' => 'Philipp S.',
+        'family_name_snapshot' => 'Sommer',
+    ]);
+    $orcid = Mockery::mock(OrcidService::class);
+
+    $result = (new OrcidPreflightValidator($orcid))->validate($resource->fresh());
+
+    expect($result->invalid[0]->displayName)->toBe('Sommer, Philipp S.');
+});
+
 it('normalizes unexpected API error types to "unknown" warning', function () {
     [$resource] = makeResourceWithCreatorOrcid(VALID_ORCID);
 

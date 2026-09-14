@@ -10,6 +10,7 @@ use App\Models\Resource;
 use App\Models\Subject;
 use App\Models\ThesaurusSetting;
 use App\Support\GemetVocabularyParser;
+use App\Support\LegacyMslScheme;
 use App\Support\PortalCacheNamespace;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
@@ -373,6 +374,7 @@ class KeywordSuggestionService
                 $usedSubjects[$scheme] ??= ['ids' => [], 'values' => [], 'schemes' => []];
 
                 $rawScheme = trim((string) $subject->subject_scheme);
+                $isLegacyMslScheme = LegacyMslScheme::isSupported($rawScheme);
                 if ($rawScheme !== '') {
                     $usedSubjects[$scheme]['schemes'][$rawScheme] = true;
                 }
@@ -381,6 +383,22 @@ class KeywordSuggestionService
                 if ($valueUri !== '') {
                     $usedSubjects[$scheme]['ids'][$valueUri] = true;
 
+                    $currentMslNodeUri = PortalSubjectNormalizer::currentMslNodeUriForLegacyUri(
+                        $subject->subject_scheme,
+                        $subject->value_uri,
+                    );
+                    if ($currentMslNodeUri !== null) {
+                        $usedSubjects[$scheme]['ids'][$currentMslNodeUri] = true;
+                    }
+
+                    return;
+                }
+
+                // A shared label is not enough to equate a source WP16 term
+                // with a current MSL node: the same leaf may exist in several
+                // legacy categories. Only the explicit URI aliases above may
+                // expose a legacy subject through the current vocabulary tree.
+                if ($isLegacyMslScheme) {
                     return;
                 }
 

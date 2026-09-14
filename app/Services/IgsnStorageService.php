@@ -313,6 +313,12 @@ class IgsnStorageService
             'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 0,
+            'name_snapshot' => $this->formatPersonNameSnapshot(
+                $creator['familyName'] ?? null,
+                $creator['givenName'] ?? null,
+            ),
+            'given_name_snapshot' => $this->filledString($creator['givenName'] ?? null),
+            'family_name_snapshot' => $this->filledString($creator['familyName'] ?? null),
         ]);
 
         // Add affiliation if provided (using AffiliationService's expected format)
@@ -326,6 +332,29 @@ class IgsnStorageService
                 ],
             ]);
         }
+    }
+
+    private function formatPersonNameSnapshot(mixed $familyName, mixed $givenName): ?string
+    {
+        $familyName = $this->filledString($familyName);
+        $givenName = $this->filledString($givenName);
+
+        if ($familyName !== null && $givenName !== null) {
+            return $familyName.', '.$givenName;
+        }
+
+        return $familyName ?? $givenName;
+    }
+
+    private function filledString(mixed $value): ?string
+    {
+        if (! is_string($value) && ! is_numeric($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : null;
     }
 
     /**

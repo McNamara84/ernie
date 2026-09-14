@@ -24,9 +24,11 @@ interface BaseAuthorEntry {
  */
 export interface PersonAuthorEntry extends BaseAuthorEntry {
     type: 'person';
+    resourceCreatorId?: number;
     orcid: string;
     firstName: string;
     lastName: string;
+    nameSnapshot?: string;
     email: string;
     website: string;
     isContact: boolean;

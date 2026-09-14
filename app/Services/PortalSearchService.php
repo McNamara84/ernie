@@ -17,7 +17,9 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
+use App\Support\LegacyMslScheme;
 use App\Support\PortalCacheNamespace;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
@@ -37,10 +39,15 @@ class PortalSearchService
 {
     use ChecksCacheTagging;
 
+    private readonly ResourceCreatorNameResolverService $creatorNameResolver;
+
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
         private readonly IgsnMaterialHierarchyService $materialHierarchyService,
-    ) {}
+        ?ResourceCreatorNameResolverService $creatorNameResolver = null,
+    ) {
+        $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
+    }
 
     private const DEFAULT_PER_PAGE = 20;
 
@@ -545,14 +552,29 @@ class PortalSearchService
                 })
                 // Search in creator names (persons)
                 ->orWhereHas('creators', function (Builder $creatorQuery) use ($searchTerm): void {
-                    $creatorQuery->whereHasMorph(
-                        'creatorable',
-                        [Person::class],
-                        function (Builder $personQuery) use ($searchTerm): void {
-                            $personQuery->where('family_name', 'like', $searchTerm)
-                                ->orWhere('given_name', 'like', $searchTerm);
-                        }
-                    );
+                    $creatorQuery->where(function (Builder $nameQuery) use ($searchTerm): void {
+                        $nameQuery
+                            ->where(function (Builder $snapshotQuery) use ($searchTerm): void {
+                                $snapshotQuery->where('name_snapshot', 'like', $searchTerm)
+                                    ->orWhere('given_name_snapshot', 'like', $searchTerm)
+                                    ->orWhere('family_name_snapshot', 'like', $searchTerm);
+                            })
+                            ->whereHasMorph('creatorable', [Person::class])
+                            ->orWhere(function (Builder $personFallbackQuery) use ($searchTerm): void {
+                                $personFallbackQuery
+                                    ->whereNull('name_snapshot')
+                                    ->whereNull('given_name_snapshot')
+                                    ->whereNull('family_name_snapshot')
+                                    ->whereHasMorph(
+                                        'creatorable',
+                                        [Person::class],
+                                        function (Builder $personQuery) use ($searchTerm): void {
+                                            $personQuery->where('family_name', 'like', $searchTerm)
+                                                ->orWhere('given_name', 'like', $searchTerm);
+                                        },
+                                    );
+                            });
+                    });
                 })
                 // Search in creator names (institutions)
                 ->orWhereHas('creators', function (Builder $creatorQuery) use ($searchTerm): void {
@@ -705,8 +727,26 @@ class PortalSearchService
             return;
         }
 
-        $resolvedNodes = $this->keywordService->resolveSelectedThesaurusNodes($normalizedIds, $scope);
-        if (count($resolvedNodes) !== count($normalizedIds)) {
+        [$legacySelections, $currentNodeIds] = $this->partitionLegacyMslSelections($normalizedIds);
+
+        foreach ($legacySelections as $selection) {
+            /** @var literal-string $normalizedPathSql */
+            $normalizedPathSql = PortalSubjectNormalizer::normalizedControlledSubjectValueSql(
+                "COALESCE(NULLIF(TRIM(breadcrumb_path), ''), value)",
+            );
+            $query->whereHas('subjects', function (Builder $subjectQuery) use ($selection, $normalizedPathSql): void {
+                $subjectQuery
+                    ->whereRaw('LOWER(TRIM(subject_scheme)) = ?', [$selection['scheme']])
+                    ->whereRaw("{$normalizedPathSql} = ?", [$selection['path']]);
+            });
+        }
+
+        if ($currentNodeIds === []) {
+            return;
+        }
+
+        $resolvedNodes = $this->keywordService->resolveSelectedThesaurusNodes($currentNodeIds, $scope);
+        if (count($resolvedNodes) !== count($currentNodeIds)) {
             $query->whereRaw('1 = 0');
 
             return;
@@ -716,6 +756,9 @@ class PortalSearchService
             $subjectSchemes = $this->normalizeResolvedSubjectSchemes($resolvedNode['subject_schemes']);
             $descendantIds = $resolvedNode['descendant_ids'];
             $descendantValues = $this->normalizeResolvedDescendantValues($resolvedNode['descendant_values']);
+            $legacyMslUriAliases = PortalSubjectNormalizer::legacyMslUriAliasesForCurrentNodeUris(
+                $descendantIds,
+            );
 
             if ($subjectSchemes === [] || ($descendantIds === [] && $descendantValues === [])) {
                 $query->whereRaw('1 = 0');
@@ -728,11 +771,23 @@ class PortalSearchService
             /** @var literal-string $normalizedValueSql */
             $normalizedValueSql = PortalSubjectNormalizer::normalizedControlledSubjectValueSql('value');
 
-            $query->whereHas('subjects', function (Builder $q) use ($subjectSchemes, $descendantIds, $descendantValues, $normalizedSchemeSql, $normalizedValueSql): void {
+            $query->whereHas('subjects', function (Builder $q) use ($subjectSchemes, $descendantIds, $descendantValues, $legacyMslUriAliases, $normalizedSchemeSql, $normalizedValueSql): void {
                 $q->whereRaw(...$this->buildInRawCondition($normalizedSchemeSql, $subjectSchemes))
-                    ->where(function (Builder $subjectQuery) use ($descendantIds, $descendantValues, $normalizedValueSql): void {
+                    ->where(function (Builder $subjectQuery) use ($descendantIds, $descendantValues, $legacyMslUriAliases, $normalizedValueSql): void {
                         if ($descendantIds !== []) {
                             $subjectQuery->whereIn('value_uri', $descendantIds);
+                        }
+
+                        if ($legacyMslUriAliases !== []) {
+                            $subjectQuery->orWhere(function (Builder $legacyAliasQuery) use ($legacyMslUriAliases): void {
+                                foreach ($legacyMslUriAliases as $alias) {
+                                    $legacyAliasQuery->orWhere(function (Builder $sourceIdentityQuery) use ($alias): void {
+                                        $sourceIdentityQuery
+                                            ->whereRaw('LOWER(TRIM(subject_scheme)) = ?', [$alias['scheme']])
+                                            ->whereRaw('TRIM(value_uri) = ?', [$alias['value_uri']]);
+                                    });
+                                }
+                            });
                         }
 
                         if ($descendantValues === []) {
@@ -758,6 +813,39 @@ class PortalSearchService
                     });
             });
         }
+    }
+
+    /**
+     * @param  list<string>  $selectedNodeIds
+     * @return array{0: list<array{scheme: string, path: string}>, 1: list<string>}
+     */
+    private function partitionLegacyMslSelections(array $selectedNodeIds): array
+    {
+        $legacySelections = [];
+        $currentNodeIds = [];
+
+        foreach ($selectedNodeIds as $selectedNodeId) {
+            if (! str_contains($selectedNodeId, '::')) {
+                $currentNodeIds[] = $selectedNodeId;
+
+                continue;
+            }
+
+            [$scheme, $path] = explode('::', $selectedNodeId, 2);
+            $normalizedPath = PortalSubjectNormalizer::normalizeControlledSubjectValue($path);
+            if (! LegacyMslScheme::isSupported($scheme) || $normalizedPath === null) {
+                $currentNodeIds[] = $selectedNodeId;
+
+                continue;
+            }
+
+            $legacySelections[] = [
+                'scheme' => mb_strtolower(trim($scheme)),
+                'path' => mb_strtolower($normalizedPath),
+            ];
+        }
+
+        return [$legacySelections, $currentNodeIds];
     }
 
     /**
@@ -1244,9 +1332,11 @@ class PortalSearchService
                 $creatorable = $creator->creatorable;
 
                 if ($creatorable instanceof Person) {
+                    $resolvedName = $this->creatorNameResolver->resolve($creator, $creatorable);
+
                     return [
-                        'name' => $creatorable->family_name ?? 'Unknown',
-                        'givenName' => $creatorable->given_name,
+                        'name' => $resolvedName['family_name'] ?? $resolvedName['name'],
+                        'givenName' => $resolvedName['given_name'],
                     ];
                 }
 

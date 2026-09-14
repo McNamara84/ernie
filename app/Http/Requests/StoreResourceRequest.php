@@ -10,6 +10,7 @@ use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
 use App\Models\ContributorType;
 use App\Models\RelatedIdentifier;
 use App\Models\RelatedItem;
+use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Rules\HasMainTitle;
@@ -88,9 +89,11 @@ class StoreResourceRequest extends FormRequest
             'authors' => ['required', 'array', 'min:1'],
             'authors.*.type' => ['required', Rule::in(['person', 'institution'])],
             'authors.*.position' => ['required', 'integer', 'min:0'],
+            'authors.*.resourceCreatorId' => ['nullable', 'integer', 'min:1'],
             'authors.*.orcid' => ['nullable', 'string', 'max:255'],
             'authors.*.firstName' => ['nullable', 'string', 'max:255'],
             'authors.*.lastName' => ['nullable', 'string', 'max:255'],
+            'authors.*.nameSnapshot' => ['nullable', 'string', 'max:'.ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH],
             'authors.*.email' => ['nullable', 'email', 'max:255'],
             'authors.*.website' => ['nullable', 'url', 'max:255'],
             'authors.*.isContact' => ['boolean'],
@@ -463,9 +466,11 @@ class StoreResourceRequest extends FormRequest
 
             $authors[] = [
                 'type' => 'person',
+                'resourceCreatorId' => $this->normalizeRelatedIdentifierId($author['resourceCreatorId'] ?? null),
                 'orcid' => $this->normalizeString($author['orcid'] ?? null),
                 'firstName' => $this->normalizeString($author['firstName'] ?? null),
                 'lastName' => $this->normalizeString($author['lastName'] ?? null),
+                'nameSnapshot' => $this->normalizeString($author['nameSnapshot'] ?? null),
                 'email' => $email,
                 'website' => $website,
                 'isContact' => $isContact,
@@ -1374,7 +1379,9 @@ class StoreResourceRequest extends FormRequest
                     $type = $author['type'] ?? 'person';
 
                     if ($type === 'person') {
-                        if (empty($author['lastName'])) {
+                        if ($this->normalizeString($author['lastName'] ?? null) === null
+                            && $this->normalizeString($author['nameSnapshot'] ?? null) === null
+                        ) {
                             $validator->errors()->add(
                                 "authors.$index.lastName",
                                 '[Authors] Author #'.($index + 1).' requires a last name.',

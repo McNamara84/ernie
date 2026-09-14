@@ -19,6 +19,7 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\Right;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Support\GemetVocabularyParser;
 use App\Support\OrcidNormalizer;
@@ -34,6 +35,13 @@ use Illuminate\Support\Str;
  */
 class EditorDataTransformer
 {
+    private readonly ResourceCreatorNameResolverService $creatorNameResolver;
+
+    public function __construct(?ResourceCreatorNameResolverService $creatorNameResolver = null)
+    {
+        $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
+    }
+
     /**
      * Map description type slugs to frontend format.
      *
@@ -246,7 +254,16 @@ class EditorDataTransformer
                 return true;
             })
             ->groupBy(function ($creator): string {
-                return $creator->creatorable_type.'_'.$creator->creatorable_id;
+                $identity = $creator->creatorable_type.'_'.$creator->creatorable_id;
+                if (! $creator->hasNameSnapshot()) {
+                    return $identity;
+                }
+
+                return $identity.'_snapshot_'.hash('sha256', json_encode([
+                    $creator->name_snapshot,
+                    $creator->given_name_snapshot,
+                    $creator->family_name_snapshot,
+                ], JSON_THROW_ON_ERROR));
             });
 
         $authors = [];
@@ -286,6 +303,7 @@ class EditorDataTransformer
             $data = [
                 'position' => $firstEntry->position,
                 'isContact' => $isContact,
+                'resourceCreatorId' => $firstEntry->id,
             ];
 
             if ($isContact && $email !== null) {
@@ -298,10 +316,14 @@ class EditorDataTransformer
 
             if ($firstEntry->creatorable_type === Person::class) {
                 /** @var Person $creatorable */
+                $resolvedName = $this->creatorNameResolver->resolve($firstEntry, $creatorable);
                 $data['type'] = 'person';
                 // Map to frontend field names
-                $data['firstName'] = $creatorable->given_name ?? '';
-                $data['lastName'] = $creatorable->family_name ?? '';
+                $data['firstName'] = $resolvedName['given_name'] ?? '';
+                $data['lastName'] = $resolvedName['family_name'] ?? '';
+                if ($resolvedName['source'] === 'snapshot') {
+                    $data['nameSnapshot'] = $resolvedName['name'];
+                }
                 $data['orcid'] = $creatorable->name_identifier ?? '';
                 // Mark stored ORCIDs as already verified to skip re-validation on load.
                 // Only trust identifiers with ORCID scheme (or null for legacy data)

@@ -447,6 +447,37 @@ npm run artisan -- resources:backfill-legacy-temporal-coverages --apply --match-
 
 The application and queue containers need working access to the configured `metaworks` connection while the command runs. The backfill reads but never modifies the legacy database. Take the normal ERNIE database backup before the apply run; a nonzero exit code indicates processing errors, while manual-review rows deliberately remain unchanged and do not fail the complete run.
 
+### Legacy creator names and EPOS MSL keyword backfill
+
+Legacy SUMARIO resources can contain a more precise creator spelling than the shared ERNIE person record, for example `Philipp S. Sommer` on one resource and `Philipp Sommer` on another resource with the same ORCID. ERNIE keeps the shared person and ORCID as the identity, but stores the spelling used by an individual resource on `resource_creators`. Landing pages, editors, resource lists and searches, citations, and metadata exports prefer this resource-specific snapshot. New SUMARIO imports add a snapshot only when the legacy author can be matched unambiguously and its name is equal to or more precise than the DataCite spelling.
+
+The retired `EPOS WP16 Analogue ...` and `EPOS WP16 Rock Physics ...` schemes are display and search aliases of the MSL family. They are not silently remapped to the current MSL 1.3 concepts: the original legacy scheme and a real legacy source URI are retained, missing URIs remain empty, and ERNIE never manufactures a current MSL URI. This applies to all nine WP16 categories in both scheme families.
+
+After deploying the creator snapshot migration, audit already imported resources with the combined dry-run-first command. The configured `metaworks` connection is read-only for this operation:
+
+```bash
+npm run artisan -- migrate --force
+npm run artisan -- resources:backfill-legacy-creator-and-msl-metadata \
+    --report=storage/app/legacy-creator-msl-dry-run.csv
+```
+
+Review all `manual_review`, `missing_legacy`, and `error` rows. Pilot the two reported resources before applying a bounded production batch:
+
+```bash
+npm run artisan -- resources:backfill-legacy-creator-and-msl-metadata \
+    --doi=10.5880/gfz.1.4.2021.008 --doi=10.5880/fidgeo.2024.038 \
+    --report=storage/app/legacy-creator-msl-pilot.csv
+npm run artisan -- resources:backfill-legacy-creator-and-msl-metadata \
+    --apply --after-id=0 --limit=500 --chunk=100 \
+    --report=storage/app/legacy-creator-msl-applied.csv
+```
+
+Repeatable `--doi` and `--legacy-id` options restrict the audit. `--after-id` refers to the ERNIE `resources.id`. Resources imported before `legacy_source_id` was recorded require the explicit `--match-by-doi` fallback and should first be audited in a small DOI-filtered scope. The command only fills missing, unambiguous creator snapshots and adds or enriches non-conflicting legacy MSL subjects; it never overwrites a different curated name or URI. Apply runs are idempotent, invalidate changed published landing pages, and queue full-metadata DataCite synchronization for changed registered resources. A failed sync run can be retried without rerunning the backfill:
+
+```bash
+npm run artisan -- resources:backfill-legacy-creator-and-msl-metadata --retry-sync=<sync-run-uuid>
+```
+
 ### Exact subject duplicate cleanup
 
 Metadata imports classify each DataCite subject only once. Resources imported before that fix can be audited with a dry-run-first command. By default it considers controlled subjects only and treats rows as duplicates only when value, language, scheme, scheme URI, value URI, classification code, and breadcrumb path are all exactly equal. The smallest Subject ID survives.

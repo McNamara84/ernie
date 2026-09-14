@@ -8,6 +8,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\OrcidService;
 use App\Support\OrcidNormalizer;
 use Illuminate\Support\Facades\Date;
@@ -29,9 +30,14 @@ use Illuminate\Support\Facades\Date;
  */
 final readonly class OrcidPreflightValidator
 {
+    private ResourceCreatorNameResolverService $creatorNameResolver;
+
     public function __construct(
         private OrcidService $orcid,
-    ) {}
+        ?ResourceCreatorNameResolverService $creatorNameResolver = null,
+    ) {
+        $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
+    }
 
     /**
      * Validate every creator and contributor ORCID attached to $resource.
@@ -133,7 +139,7 @@ final readonly class OrcidPreflightValidator
 
         $bareId = OrcidNormalizer::extractBareId($identifier);
         $position = (int) ($row->position ?? 0);
-        $displayName = $this->buildDisplayName($person);
+        $displayName = $this->buildDisplayName($row, $person);
 
         // Offline gate – catch malformed IDs before hitting the network.
         if (! OrcidNormalizer::isValidFormat($bareId)) {
@@ -220,13 +226,12 @@ final readonly class OrcidPreflightValidator
         return $related instanceof Person ? $related : null;
     }
 
-    private function buildDisplayName(Person $person): string
+    private function buildDisplayName(ResourceCreator|ResourceContributor $row, Person $person): string
     {
-        $given = trim((string) $person->given_name);
-        $family = trim((string) $person->family_name);
-        $full = trim($given === '' ? $family : "{$given} {$family}");
+        $resolved = $this->creatorNameResolver->resolve($row, $person);
+        $full = $resolved['name'];
 
-        return $full === '' ? 'Unnamed person' : $full;
+        return $full === 'Unknown' ? 'Unnamed person' : $full;
     }
 
     /**

@@ -111,9 +111,11 @@ export interface SerializedAffiliation {
 export type SerializedAuthor =
     | {
           type: 'person';
+          resourceCreatorId?: number;
           orcid: string | null;
           firstName: string | null;
           lastName: string;
+          nameSnapshot?: string;
           email: string | null;
           website: string | null;
           isContact: boolean;
@@ -164,9 +166,11 @@ type BaseInitialAuthor = {
 export type InitialAuthor =
     | (BaseInitialAuthor & {
           type?: 'person';
+          resourceCreatorId?: number | null;
           orcid?: string | null;
           firstName?: string | null;
           lastName?: string | null;
+          nameSnapshot?: string | null;
           email?: string | null;
           website?: string | null;
           isContact?: boolean | string | null;

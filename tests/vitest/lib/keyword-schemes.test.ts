@@ -73,4 +73,26 @@ describe('normalizeKeywordScheme', () => {
         expect(normalizeKeywordScheme(null)).toBeNull();
         expect(normalizeKeywordScheme('Unknown Scheme')).toBe('Unknown Scheme');
     });
+
+    it('normalizes only the 18 exact EPOS WP16 MSL aliases', () => {
+        const areas = ['Analogue', 'Rock Physics'];
+        const categories = [
+            'Material',
+            'Apparatus',
+            'Monitoring',
+            'Software',
+            'Measured Property',
+            'Main Setting',
+            'Geologic Feature',
+            'Geologic Structure',
+            'Process/Hazard',
+        ];
+
+        for (const area of areas) {
+            for (const category of categories) {
+                expect(normalizeKeywordScheme(`EPOS WP16 ${area} ${category}`)).toBe(SCHEME_MSL);
+            }
+        }
+        expect(normalizeKeywordScheme('EPOS WP16 Analogue Unknown')).toBe('EPOS WP16 Analogue Unknown');
+    });
 });

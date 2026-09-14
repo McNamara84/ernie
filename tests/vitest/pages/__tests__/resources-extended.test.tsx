@@ -384,6 +384,19 @@ describe('ResourcesPage - extended', () => {
 
             rerender(
                 <ResourcesPage
+                    resources={[
+                        makeResource({
+                            first_author: { name: 'Philipp S. Sommer', familyName: 'Sommer', givenName: 'Philipp S.' },
+                        }),
+                    ]}
+                    pagination={makePagination()}
+                    sort={defaultSort}
+                />,
+            );
+            expect(screen.getByText('Philipp S. Sommer')).toBeInTheDocument();
+
+            rerender(
+                <ResourcesPage
                     resources={[makeResource({ first_author: { name: 'GFZ Potsdam' } })] as never}
                     pagination={makePagination()}
                     sort={defaultSort}

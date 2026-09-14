@@ -121,6 +121,9 @@ describe('ResourceCreator model', function (): void {
             'is_contact',
             'email',
             'website',
+            'name_snapshot',
+            'given_name_snapshot',
+            'family_name_snapshot',
         ]);
     });
 

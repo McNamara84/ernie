@@ -53,6 +53,33 @@ it('builds person creator data with identifiers and affiliations', function (): 
     ]);
 });
 
+it('exports a resource-specific creator name while retaining the global ORCID identity', function (): void {
+    $mapper = app(DataCitePartyMappingService::class);
+    $person = Person::factory()->make([
+        'given_name' => 'Philipp',
+        'family_name' => 'Sommer',
+        'name_identifier' => '0000-0001-6171-7716',
+        'name_identifier_scheme' => 'ORCID',
+    ]);
+    $creator = ResourceCreator::factory()->make([
+        'name_snapshot' => 'Sommer, Philipp S.',
+        'given_name_snapshot' => 'Philipp S.',
+        'family_name_snapshot' => 'Sommer',
+    ]);
+    $creator->setRelation('affiliations', collect());
+
+    expect($mapper->buildPersonCreatorData($creator, $person))->toMatchArray([
+        'name' => 'Sommer, Philipp S.',
+        'givenName' => 'Philipp S.',
+        'familyName' => 'Sommer',
+        'nameIdentifiers' => [[
+            'nameIdentifier' => '0000-0001-6171-7716',
+            'nameIdentifierScheme' => 'ORCID',
+            'schemeUri' => 'https://orcid.org/',
+        ]],
+    ]);
+});
+
 it('uses an explicit contributor type for repeated DataCite contributor roles', function (): void {
     $mapper = app(DataCitePartyMappingService::class);
 

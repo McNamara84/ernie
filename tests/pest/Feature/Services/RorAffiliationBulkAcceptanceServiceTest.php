@@ -185,6 +185,27 @@ it('returns a bulk preview only for exact creator name and affiliation matches',
         ->and($source['person']->refresh()->name_identifier)->toBeNull();
 });
 
+it('does not bulk-match different resource-specific spellings of one global name', function (): void {
+    $source = createRorCreatorAffiliationSuggestion('Sommer', 'Philipp', 'GFZ Potsdam');
+    $candidate = createRorCreatorAffiliationSuggestion('Sommer', 'Philipp', 'GFZ Potsdam');
+    $source['creator']->update([
+        'name_snapshot' => 'Sommer, Philipp S.',
+        'given_name_snapshot' => 'Philipp S.',
+        'family_name_snapshot' => 'Sommer',
+    ]);
+    $candidate['creator']->update([
+        'name_snapshot' => 'Sommer, Philipp',
+        'given_name_snapshot' => 'Philipp',
+        'family_name_snapshot' => 'Sommer',
+    ]);
+
+    $result = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
+
+    expect($result['success'])->toBeTrue()
+        ->and($result)->not->toHaveKey('bulk_affiliation_match')
+        ->and($candidate['affiliation']->fresh()->identifier)->toBeNull();
+});
+
 it('does not cache a preview when exact matches exceed the bulk token limit', function (): void {
     config(['services.ror_affiliation_bulk_accept.max_matches' => 1]);
 

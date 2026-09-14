@@ -1350,7 +1350,7 @@ export default function DataCiteForm({
         } else {
             authors.forEach((author, index) => {
                 if (author.type === 'person') {
-                    if (!author.lastName.trim()) {
+                    if (!author.lastName.trim() && !author.nameSnapshot?.trim()) {
                         issues.push(`Author ${index + 1}: Last name is required`);
                     }
                     if (author.isContact && !author.email.trim()) {
@@ -1490,7 +1490,7 @@ export default function DataCiteForm({
         } else {
             authors.forEach((author, index) => {
                 if (author.type === 'person') {
-                    if (!author.lastName.trim()) {
+                    if (!author.lastName.trim() && !author.nameSnapshot?.trim()) {
                         appendValidationMessage(errors, `authors.${index}.lastName`, `Author ${index + 1}: Last name is required.`);
                     }
 
@@ -2116,14 +2116,17 @@ export default function DataCiteForm({
                 const orcid = author.orcid.trim();
                 const firstName = author.firstName.trim();
                 const lastName = author.lastName.trim();
+                const nameSnapshot = author.nameSnapshot?.trim();
                 const email = author.email.trim();
                 const website = author.website.trim();
 
                 return {
                     type: 'person',
+                    ...(author.resourceCreatorId !== undefined ? { resourceCreatorId: author.resourceCreatorId } : {}),
                     orcid: orcid || null,
                     firstName: firstName || null,
                     lastName,
+                    ...(nameSnapshot ? { nameSnapshot } : {}),
                     email: author.isContact && email ? email : null,
                     website: author.isContact && website ? website : null,
                     isContact: author.isContact,

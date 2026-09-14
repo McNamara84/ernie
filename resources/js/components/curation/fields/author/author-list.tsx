@@ -143,12 +143,29 @@ export default function AuthorList({ authors, onAdd, onRemove, onAuthorChange, o
         onAuthorChange(index, newAuthor);
     };
 
+    // Apply bulk person updates (including ORCID autofill and accepted pending
+    // corrections) through the same snapshot invalidation used by text inputs.
+    const handlePersonAuthorChange = (index: number, updatedAuthor: AuthorEntry) => {
+        const currentAuthor = authors[index];
+        if (currentAuthor.type !== 'person' || updatedAuthor.type !== 'person') {
+            onAuthorChange(index, updatedAuthor);
+            return;
+        }
+
+        const structuredNameChanged = currentAuthor.firstName !== updatedAuthor.firstName || currentAuthor.lastName !== updatedAuthor.lastName;
+
+        onAuthorChange(index, {
+            ...updatedAuthor,
+            ...(structuredNameChanged ? { nameSnapshot: undefined } : {}),
+        });
+    };
+
     // Helper: Handle person field change
     const handlePersonFieldChange = (index: number, field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => {
         const author = authors[index];
         if (author.type !== 'person') return;
 
-        onAuthorChange(index, {
+        handlePersonAuthorChange(index, {
             ...author,
             [field]: value,
         });
@@ -242,7 +259,7 @@ export default function AuthorList({ authors, onAdd, onRemove, onAuthorChange, o
                                 onInstitutionNameChange={(value) => handleInstitutionNameChange(index, value)}
                                 onContactChange={(checked) => handleContactChange(index, checked)}
                                 onAffiliationsChange={(value) => handleAffiliationsChange(index, value)}
-                                onAuthorChange={(updatedAuthor) => onAuthorChange(index, updatedAuthor)}
+                                onAuthorChange={(updatedAuthor) => handlePersonAuthorChange(index, updatedAuthor)}
                                 onRemove={() => onRemove(index)}
                                 canRemove={authors.length > 1}
                                 affiliationSuggestions={affiliationSuggestions}

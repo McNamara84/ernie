@@ -2113,12 +2113,12 @@ function ResourcesPage({
                 let authorName = '-';
                 if (resource.first_author) {
                     const author = resource.first_author;
-                    if (author.familyName && author.givenName) {
+                    if (author.name) {
+                        authorName = author.name;
+                    } else if (author.familyName && author.givenName) {
                         authorName = `${author.familyName}, ${author.givenName}`;
                     } else if (author.familyName) {
                         authorName = author.familyName;
-                    } else if (author.name) {
-                        authorName = author.name;
                     }
                 }
 

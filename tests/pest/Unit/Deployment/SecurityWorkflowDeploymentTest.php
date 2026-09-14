@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
-it('refreshes cached system packages daily for the container security scan', function (): void {
+it('refreshes cached system packages once per date while retaining the build cache across attempts', function (): void {
     $workflow = Yaml::parseFile(base_path('.github/workflows/security.yml'));
 
     expect($workflow)->toBeArray();
@@ -16,6 +16,10 @@ it('refreshes cached system packages daily for the container security scan', fun
     $refreshStep = $steps->get('Resolve system package refresh date');
     $buildStep = $steps->get('Build application image');
     $trivyCacheStep = $steps->get('Cache Trivy databases');
+    $sarifCheckStep = $steps->get('Check Trivy SARIF output');
+    $sarifUploadStep = $steps->get('Upload Trivy scan results');
+    $sarifArtifactStep = $steps->get('Upload Trivy SARIF artifact');
+    $vulnerabilityGateStep = $steps->get('Fail on high or critical image vulnerabilities');
 
     expect($refreshStep)
         ->toBeArray()
@@ -28,10 +32,38 @@ it('refreshes cached system packages daily for the container security scan', fun
         ->and($buildStep['with']['build-args'] ?? null)
         ->toBeString()
         ->toContain('SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}')
+        ->not->toContain('github.run_id')
+        ->not->toContain('github.run_attempt')
         ->and($trivyCacheStep)
         ->toBeArray()
         ->and($trivyCacheStep['with']['key'] ?? null)
-        ->toBe('${{ runner.os }}-trivy-${{ steps.system-packages-refresh.outputs.date }}');
+        ->toBe('${{ runner.os }}-trivy-${{ steps.system-packages-refresh.outputs.date }}')
+        ->and($sarifCheckStep)
+        ->toBeArray()
+        ->and($sarifCheckStep['id'] ?? null)->toBe('trivy-sarif')
+        ->and($sarifCheckStep['if'] ?? null)->toBe('always()')
+        ->and($sarifCheckStep['run'] ?? null)
+        ->toBeString()
+        ->toContain('[ -s trivy-results.sarif ]')
+        ->toContain('non_empty=true')
+        ->toContain('$GITHUB_OUTPUT')
+        ->and($sarifUploadStep)
+        ->toBeArray()
+        ->and($sarifUploadStep['if'] ?? null)
+        ->toContain("steps.trivy-sarif.outputs.non_empty == 'true'")
+        ->and($sarifUploadStep)->not->toHaveKey('continue-on-error')
+        ->and($sarifArtifactStep)
+        ->toBeArray()
+        ->and($sarifArtifactStep['if'] ?? null)
+        ->toContain("steps.trivy-sarif.outputs.non_empty == 'true'")
+        ->and($vulnerabilityGateStep)
+        ->toBeArray()
+        ->and($vulnerabilityGateStep['if'] ?? null)
+        ->toContain('always()')
+        ->toContain("hashFiles('ernie-security-scan.tar') != ''")
+        ->and($vulnerabilityGateStep['run'] ?? null)
+        ->toBeString()
+        ->toContain('--exit-code 1');
 
     $dockerfile = file_get_contents(base_path('Dockerfile'));
 
@@ -53,6 +85,18 @@ it('refreshes cached system packages daily for the container security scan', fun
     assert(is_int($packageRefreshPosition));
 
     expect($refreshArgumentPosition)->toBeLessThan($packageRefreshPosition);
+});
+
+it('retries the verified Node archive download in the production image', function (): void {
+    $dockerfile = file_get_contents(base_path('Dockerfile'));
+
+    expect($dockerfile)
+        ->toBeString()
+        ->toContain('--retry 5')
+        ->toContain('--retry-all-errors')
+        ->toContain('--retry-max-time 120')
+        ->toContain('--connect-timeout 20')
+        ->toContain('echo "${NODE_CHECKSUM}  /tmp/${NODE_ARCHIVE}" | sha256sum -c -');
 });
 
 it('excludes local temporary tooling from production image contexts', function (): void {

@@ -301,6 +301,9 @@ erDiagram
         boolean is_contact
         varchar email
         varchar website
+        varchar name_snapshot "nullable, resource-specific creator name"
+        varchar given_name_snapshot "nullable, Person only"
+        varchar family_name_snapshot "nullable, Person only"
         timestamp created_at
         timestamp updated_at
     }

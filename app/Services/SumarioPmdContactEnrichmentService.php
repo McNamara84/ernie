@@ -9,6 +9,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Support\UriHelper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,13 @@ class SumarioPmdContactEnrichmentService
     private const CONNECTION = 'metaworks';
 
     private const CONTACT_FIELD_MAX_LENGTH = 255;
+
+    private readonly ResourceCreatorNameResolverService $creatorNameResolver;
+
+    public function __construct(?ResourceCreatorNameResolverService $creatorNameResolver = null)
+    {
+        $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
+    }
 
     public function enrich(Resource $resource, string $doi): bool
     {
@@ -47,7 +55,7 @@ class SumarioPmdContactEnrichmentService
 
         foreach ($contacts as $contact) {
             foreach ($resource->creators as $creator) {
-                if (! $this->matchesEntity($creator->creatorable, $contact)) {
+                if (! $this->matchesEntity($creator->creatorable, $contact, $creator)) {
                     continue;
                 }
 
@@ -163,10 +171,16 @@ class SumarioPmdContactEnrichmentService
     /**
      * @param  array{order: int, name: string|null, firstname: string|null, lastname: string|null, email: string|null, website: string|null}  $contact
      */
-    private function matchesEntity(?Model $entity, array $contact): bool
-    {
+    private function matchesEntity(
+        ?Model $entity,
+        array $contact,
+        ?ResourceCreator $creator = null,
+    ): bool {
         if ($entity instanceof Person) {
-            return $this->namesOverlap($this->personNameCandidates($entity), $this->contactNameCandidates($contact));
+            return $this->namesOverlap(
+                $this->personNameCandidates($entity, $creator),
+                $this->contactNameCandidates($contact),
+            );
         }
 
         if ($entity instanceof Institution) {
@@ -179,8 +193,20 @@ class SumarioPmdContactEnrichmentService
     /**
      * @return list<string>
      */
-    private function personNameCandidates(Person $person): array
+    private function personNameCandidates(Person $person, ?ResourceCreator $creator = null): array
     {
+        if ($creator !== null) {
+            $resolved = $this->creatorNameResolver->resolve($creator, $person);
+            $candidates = [$resolved['name']];
+
+            if ($resolved['family_name'] !== null && $resolved['given_name'] !== null) {
+                $candidates[] = "{$resolved['family_name']}, {$resolved['given_name']}";
+                $candidates[] = "{$resolved['given_name']} {$resolved['family_name']}";
+            }
+
+            return $candidates;
+        }
+
         $candidates = [];
 
         if ($person->family_name !== null && $person->given_name !== null) {

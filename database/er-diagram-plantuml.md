@@ -334,6 +334,9 @@ entity "resource_creators" as resource_creators {
     * is_contact : BOOLEAN = false
     email : VARCHAR
     website : VARCHAR
+    name_snapshot : VARCHAR //nullable, resource-specific creator name//
+    given_name_snapshot : VARCHAR //nullable, Person only//
+    family_name_snapshot : VARCHAR //nullable, Person only//
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }

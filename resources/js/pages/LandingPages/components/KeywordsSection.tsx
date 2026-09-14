@@ -1,6 +1,7 @@
 import { BookOpen, Clock, FlaskConical, Globe, Leaf, type LucideIcon, Microscope, Mountain, Satellite, Search } from 'lucide-react';
 
 import {
+    isLegacyMslScheme,
     normalizeKeywordScheme,
     SCHEME_ANALYTICAL_METHODS,
     SCHEME_EUROSCIVOC,
@@ -103,6 +104,15 @@ function getDisplayLabel(subject: LandingPageSubject): string {
 }
 
 function getThesaurusKeywordToken(subject: LandingPageSubject): string | null {
+    const sourceSubjectScheme = subject.source_subject_scheme ?? subject.subject_scheme;
+
+    if (isLegacyMslScheme(sourceSubjectScheme)) {
+        const scheme = sourceSubjectScheme?.trim();
+        const path = subject.breadcrumb_path?.trim() || subject.subject.trim();
+
+        return scheme && path ? `${scheme}${THESAURUS_NOTATION_DELIMITER}${path}` : null;
+    }
+
     const valueUri = subject.value_uri?.trim();
     if (valueUri) {
         return valueUri;

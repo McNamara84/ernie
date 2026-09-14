@@ -271,6 +271,31 @@ describe('full-text search', function () {
         expect($results->total())->toBe(1);
     });
 
+    it('finds and displays a resource-specific creator spelling', function () {
+        $resource = createPublishedResourceForSearch('Unrelated publication', $this->titleType);
+        $person = Person::factory()->create(['family_name' => 'FormerFamilyName', 'given_name' => 'StaleGlobalGiven']);
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $resource->id,
+            'position' => 0,
+            'name_snapshot' => 'Sommer, Philipp S.',
+            'given_name_snapshot' => 'Philipp S.',
+            'family_name_snapshot' => 'Sommer',
+        ]);
+
+        $results = $this->service->search(['query' => 'Philipp S.']);
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($resource->id);
+
+        $portalResource = $this->service->transformForPortal($results->items()[0]);
+
+        expect($portalResource['creators'])->toBe([[
+            'name' => 'Sommer',
+            'givenName' => 'Philipp S.',
+        ]])
+            ->and($this->service->search(['query' => 'StaleGlobalGiven'])->total())->toBe(0)
+            ->and($this->service->search(['query' => 'FormerFamilyName'])->total())->toBe(0);
+    });
+
     it('finds resources by institution name', function () {
         $resource = createPublishedResourceForSearch('Test Paper', $this->titleType);
         $institution = Institution::factory()->create(['name' => 'GFZ Potsdam']);
@@ -719,6 +744,52 @@ describe('thesaurus keyword filtering edge cases', function () {
 
         expect($resultIds)->toEqualCanonicalizing([$uriMatch->id, $uriLessFallback->id])
             ->and($resultIds)->not->toContain($differentUri->id);
+    });
+
+    it('matches a legacy MSL URI through the current node value without aliasing other URIs', function () {
+        $matching = createPublishedResourceForSearch('Legacy MSL URI alias', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'granite',
+            'subject_scheme' => 'EPOS WP16 Analogue Material',
+            'value_uri' => 'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite',
+        ]);
+
+        $differentUri = createPublishedResourceForSearch('Current MSL different URI', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $differentUri->id,
+            'value' => 'granite',
+            'subject_scheme' => 'EPOS MSL vocabulary',
+            'value_uri' => 'https://example.test/msl/different-granite',
+        ]);
+
+        $differentLegacyCategory = createPublishedResourceForSearch('Different legacy MSL category', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $differentLegacyCategory->id,
+            'value' => 'granite',
+            'subject_scheme' => 'EPOS WP16 Rock Physics Material',
+            'value_uri' => 'http://epos/WP16Vocabulary/RockPhysicsMaterial/Rock/Granite',
+        ]);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'https://epos-msl.uu.nl/voc/materials/1.3/igneous_rock_-_intrusive-acidic_intrusive-granite',
+            'scheme' => 'EPOS MSL vocabulary',
+            'subject_schemes' => [
+                'EPOS MSL vocabulary',
+                'EPOS WP16 Analogue Material',
+                'EPOS WP16 Rock Physics Material',
+            ],
+            'descendant_ids' => ['https://epos-msl.uu.nl/voc/materials/1.3/igneous_rock_-_intrusive-acidic_intrusive-granite'],
+            'descendant_values' => ['Material > igneous rock > granite', 'granite'],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => [
+            'https://epos-msl.uu.nl/voc/materials/1.3/igneous_rock_-_intrusive-acidic_intrusive-granite',
+        ]]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id)
+            ->and($results->items()[0]->id)->not->toBe($differentLegacyCategory->id);
     });
 
     it('returns no results when a resolved thesaurus node has no matchable descendants', function () {

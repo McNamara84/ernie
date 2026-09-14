@@ -267,6 +267,38 @@ test('keeps incomplete person names separate without strong identity evidence', 
     expect($result['contributors'][$contributor->id])->not->toBe($result['creators'][$creator->id]);
 });
 
+test('does not rehydrate structured identity parts from Person for an unstructured creator snapshot', function () {
+    $creator = identityResolverCreator(1, identityResolverPerson(10, 'Alex', 'Example'));
+    $creator->forceFill([
+        'name_snapshot' => 'The Artist',
+        'given_name_snapshot' => null,
+        'family_name_snapshot' => null,
+    ]);
+    $contributor = identityResolverContributor(2, identityResolverPerson(20, 'Alex', 'Example'));
+
+    $result = resolveLandingPageIdentities([$creator], [$contributor]);
+
+    expect($result['contributors'][$contributor->id])->not->toBe($result['creators'][$creator->id]);
+});
+
+test('does not rehydrate legacy identity tokens from Person for an unstructured creator snapshot', function () {
+    $creator = identityResolverCreator(1, identityResolverPerson(10, 'Juan Camilo', 'Gomez Zapata'));
+    $creator->forceFill([
+        'name_snapshot' => 'The Artist',
+        'given_name_snapshot' => null,
+        'family_name_snapshot' => null,
+    ]);
+    $contributor = identityResolverContributor(
+        2,
+        identityResolverPerson(20, 'Gomez Zapata Juan', 'Camilo'),
+        true,
+    );
+
+    $result = resolveLandingPageIdentities([$creator], [$contributor]);
+
+    expect($result['contributors'][$contributor->id])->not->toBe($result['creators'][$creator->id]);
+});
+
 test('keeps non-person and unresolved legacy rows in safe standalone groups', function () {
     $legacyAliasCreator = new ResourceCreator;
     $legacyAliasCreator->forceFill([

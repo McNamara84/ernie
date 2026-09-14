@@ -287,9 +287,11 @@ export const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | nu
 
     return {
         ...base,
+        resourceCreatorId: typeof author.resourceCreatorId === 'number' ? author.resourceCreatorId : undefined,
         orcid: normalizeOrcid(author.orcid),
         firstName: typeof author.firstName === 'string' ? author.firstName.trim() : '',
         lastName: typeof author.lastName === 'string' ? author.lastName.trim() : '',
+        nameSnapshot: typeof author.nameSnapshot === 'string' ? author.nameSnapshot.trim() : undefined,
         email: typeof author.email === 'string' ? author.email.trim() : '',
         website: normalizeWebsiteUrl(author.website),
         isContact: author.isContact === true || author.isContact === 'true',

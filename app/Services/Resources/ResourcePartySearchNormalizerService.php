@@ -40,12 +40,21 @@ final class ResourcePartySearchNormalizerService
             return $this->unique([$name, str_replace(' ', '', $name)]);
         }
 
-        $givenName = $this->name((string) $party->given_name);
-        $familyName = $this->name((string) $party->family_name);
+        return $this->personNameTerms($party->given_name, $party->family_name);
+    }
+
+    /** @return list<string> */
+    public function personNameTerms(?string $givenName, ?string $familyName, ?string $fullName = null): array
+    {
+        $givenName = $this->name((string) $givenName);
+        $familyName = $this->name((string) $familyName);
+        $fullName = $this->name((string) $fullName);
         $compactGivenName = str_replace(' ', '', $givenName);
         $compactFamilyName = str_replace(' ', '', $familyName);
 
         return $this->unique([
+            $fullName,
+            str_replace(' ', '', $fullName),
             $givenName,
             $familyName,
             trim($givenName.' '.$familyName),
@@ -53,6 +62,23 @@ final class ResourcePartySearchNormalizerService
             $compactGivenName.$compactFamilyName,
             $compactFamilyName.$compactGivenName,
         ]);
+    }
+
+    public function personNameMatches(?string $givenName, ?string $familyName, ?string $fullName, string $query): bool
+    {
+        if (str_contains($query, '@')) {
+            return false;
+        }
+
+        foreach ($this->queryTerms($query) as $queryTerm) {
+            foreach ($this->personNameTerms($givenName, $familyName, $fullName) as $partyTerm) {
+                if (str_contains($partyTerm, $queryTerm)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /** @return list<string> */

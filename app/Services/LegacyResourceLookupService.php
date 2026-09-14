@@ -11,6 +11,7 @@ class LegacyResourceLookupService
 {
     public function __construct(
         private ?LegacyKeywordService $legacyKeywordService = null,
+        private ?LegacyCreatorNameService $legacyCreatorNameService = null,
     ) {}
 
     public function existsByDoi(string $doi): bool
@@ -72,6 +73,7 @@ class LegacyResourceLookupService
      * @return array{
      *     relatedIdentifiers: list<array{identifier: string, identifierType: string, relationType: string, position: int}>,
      *     subjects: list<array<string, string>>,
+     *     creators: list<array<string, mixed>>,
      *     legacyResourceId: int|null,
      *     legacyResourceStatus: string|null
      * }
@@ -84,6 +86,7 @@ class LegacyResourceLookupService
             return [
                 'relatedIdentifiers' => [],
                 'subjects' => [],
+                'creators' => [],
                 'legacyResourceId' => null,
                 'legacyResourceStatus' => null,
             ];
@@ -92,6 +95,7 @@ class LegacyResourceLookupService
         return [
             'relatedIdentifiers' => array_values($resource->getRelatedIdentifiers()),
             'subjects' => $this->keywordService()->dataCiteSubjects($resource),
+            'creators' => $this->creatorNameService()->dataCiteCreators($resource),
             'legacyResourceId' => (int) $resource->id,
             'legacyResourceStatus' => is_string($resource->publicstatus) ? $resource->publicstatus : null,
         ];
@@ -115,5 +119,10 @@ class LegacyResourceLookupService
     private function keywordService(): LegacyKeywordService
     {
         return $this->legacyKeywordService ??= app(LegacyKeywordService::class);
+    }
+
+    private function creatorNameService(): LegacyCreatorNameService
+    {
+        return $this->legacyCreatorNameService ??= app(LegacyCreatorNameService::class);
     }
 }
