@@ -18,6 +18,7 @@ use App\Services\IgsnRepositoryContactService;
 use App\Services\LandingPagePersonIdentityResolverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
@@ -84,6 +85,23 @@ class ContactMessageController extends Controller
 
         // Use the route-provided resourceId directly.
         return $this->processContactMessage($request, $resourceId);
+    }
+
+    /**
+     * Store a contact message from an authenticated, session-based preview.
+     * Route: POST /resources/{resource}/landing-page/preview/contact
+     */
+    public function storePreview(Request $request, Resource $resource): JsonResponse
+    {
+        Gate::authorize('create', LandingPage::class);
+
+        $previewData = $request->session()->get("landing_page_preview.{$resource->id}");
+
+        if (! is_array($previewData) || (int) ($previewData['resource_id'] ?? 0) !== $resource->id) {
+            abort(404, 'Preview session expired. Please open preview again from the setup modal.');
+        }
+
+        return $this->processContactMessage($request, $resource->id);
     }
 
     /**

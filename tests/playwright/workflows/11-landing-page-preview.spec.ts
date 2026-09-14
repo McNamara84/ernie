@@ -150,6 +150,29 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         await expect(previewPage.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
         await expect(previewPage.locator('meta[name="robots"]')).toHaveAttribute('data-inertia', 'landing-page-robots');
 
+        const requestDataButton = previewPage.getByRole('button', { name: 'Request data via contact form' });
+        await expect(requestDataButton).toBeVisible();
+        await requestDataButton.click();
+
+        const contactDialog = previewPage.getByRole('dialog', { name: 'Contact Request' });
+        await expect(contactDialog).toBeVisible();
+        await contactDialog.getByLabel(/Your name/).fill('Preview E2E User');
+        await contactDialog.getByLabel(/Your email/).fill('preview-e2e@example.com');
+        await contactDialog.getByRole('textbox', { name: /Message/ }).fill('Please provide download information for this preview dataset.');
+
+        const contactResponsePromise = previewPage.waitForResponse((response) => {
+            const pathname = new URL(response.url()).pathname;
+
+            return response.request().method() === 'POST' && pathname === `${new URL(previewPage.url()).pathname}/contact`;
+        });
+        const [contactResponse] = await Promise.all([
+            contactResponsePromise,
+            contactDialog.getByRole('button', { name: 'Send Message' }).click(),
+        ]);
+
+        expect(contactResponse.status()).toBe(200);
+        await expect(contactDialog.getByText('Message sent successfully!')).toBeVisible();
+
         // Sanity: should not be a generic Laravel error page
         await expect(previewPage.getByText(/server error|whoops/i)).not.toBeVisible();
     });

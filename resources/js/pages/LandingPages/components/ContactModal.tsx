@@ -41,8 +41,8 @@ type FormStatus = 'idle' | 'submitting' | 'success' | 'error';
  * Includes honeypot spam protection.
  *
  * The contact form URL is computed from the current page path by appending '/contact'.
- * This works because landing pages follow the pattern /{doi}/{slug} and the contact
- * endpoint is at /{doi}/{slug}/contact.
+ * Published, draft, and authenticated session-preview landing pages expose a
+ * matching contact endpoint at that path.
  */
 export function ContactModal({
     isOpen,
@@ -57,7 +57,7 @@ export function ContactModal({
     const [formStatus, setFormStatus] = useState<FormStatus>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
 
-    // Compute contact URL from current path (works for both published and draft pages)
+    // Compute contact URL from current path (published, draft, and session preview pages).
     // The contact endpoint is at the current landing page path + '/contact'
     const contactUrl = typeof window !== 'undefined' ? `${window.location.pathname}/contact` : '/contact';
 

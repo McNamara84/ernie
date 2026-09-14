@@ -270,6 +270,29 @@ describe('ContactModal', () => {
             });
         });
 
+        it('sends session preview form data to the preview contact endpoint', async () => {
+            const user = userEvent.setup();
+            mockFetch.mockResolvedValueOnce({ ok: true });
+            Object.defineProperty(window, 'location', {
+                value: { pathname: '/resources/42/landing-page/preview' },
+                writable: true,
+            });
+
+            render(<ContactModal {...defaultProps} />);
+
+            await user.type(screen.getByLabelText(/your name/i), 'Preview User');
+            await user.type(screen.getByLabelText(/your email/i), 'preview@example.com');
+            await user.type(screen.getByRole('textbox', { name: /message/i }), 'This is a valid preview request.');
+            await user.click(screen.getByRole('button', { name: /send message/i }));
+
+            await waitFor(() => {
+                expect(mockFetch).toHaveBeenCalledWith(
+                    '/resources/42/landing-page/preview/contact',
+                    expect.objectContaining({ method: 'POST' }),
+                );
+            });
+        });
+
         it('shows loading state while submitting', async () => {
             const user = userEvent.setup();
             mockFetch.mockImplementation(() => new Promise(() => {})); // Never resolves

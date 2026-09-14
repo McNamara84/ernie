@@ -13,6 +13,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Title;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Carbon;
@@ -752,6 +753,117 @@ describe('ContactMessageController', function (): void {
             ]);
 
             $response->assertNotFound();
+        });
+
+    });
+
+    describe('storePreview (session-based landing page preview)', function (): void {
+
+        it('sends a contact message for an active session preview', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => 'datapub@gfz.de']);
+
+            $user = User::factory()->curator()->create();
+            $resource = Resource::factory()->create([
+                'created_by_user_id' => $user->id,
+            ]);
+
+            $response = $this->actingAs($user)
+                ->withSession([
+                    "landing_page_preview.{$resource->id}" => [
+                        'template' => 'default_gfz',
+                        'resource_id' => $resource->id,
+                    ],
+                ])
+                ->postJson("/resources/{$resource->id}/landing-page/preview/contact", [
+                    'sender_name' => 'Preview User',
+                    'sender_email' => 'preview@example.com',
+                    'message' => 'Please provide download information for this preview.',
+                    'send_to_all' => true,
+                ]);
+
+            $response->assertOk()
+                ->assertJson([
+                    'message' => 'Message received successfully.',
+                    'recipients_count' => 1,
+                ]);
+
+            Mail::assertQueued(ContactPersonMessage::class, 1);
+            Mail::assertQueued(ContactPersonMessage::class, fn (ContactPersonMessage $mail): bool => $mail->hasTo('datapub@gfz.de'));
+
+            $this->assertDatabaseHas('contact_messages', [
+                'resource_id' => $resource->id,
+                'sender_name' => 'Preview User',
+                'sender_email' => 'preview@example.com',
+                'recipient_count' => 1,
+            ]);
+        });
+
+        it('returns 404 when the preview session is missing', function (): void {
+            Mail::fake();
+
+            $user = User::factory()->curator()->create();
+            $resource = Resource::factory()->create([
+                'created_by_user_id' => $user->id,
+            ]);
+
+            $this->actingAs($user)
+                ->postJson("/resources/{$resource->id}/landing-page/preview/contact", [
+                    'sender_name' => 'Preview User',
+                    'sender_email' => 'preview@example.com',
+                    'message' => 'This preview is no longer available.',
+                    'send_to_all' => true,
+                ])
+                ->assertNotFound();
+
+            Mail::assertNothingQueued();
+            $this->assertDatabaseCount('contact_messages', 0);
+        });
+
+        it('returns 404 when the preview session belongs to another resource', function (): void {
+            Mail::fake();
+
+            $user = User::factory()->curator()->create();
+            $resource = Resource::factory()->create([
+                'created_by_user_id' => $user->id,
+            ]);
+            $otherResource = Resource::factory()->create([
+                'created_by_user_id' => $user->id,
+            ]);
+
+            $this->actingAs($user)
+                ->withSession([
+                    "landing_page_preview.{$resource->id}" => [
+                        'template' => 'default_gfz',
+                        'resource_id' => $otherResource->id,
+                    ],
+                ])
+                ->postJson("/resources/{$resource->id}/landing-page/preview/contact", [
+                    'sender_name' => 'Preview User',
+                    'sender_email' => 'preview@example.com',
+                    'message' => 'This preview belongs to another resource.',
+                    'send_to_all' => true,
+                ])
+                ->assertNotFound();
+
+            Mail::assertNothingQueued();
+            $this->assertDatabaseCount('contact_messages', 0);
+        });
+
+        it('requires authentication', function (): void {
+            $resource = Resource::factory()->create();
+
+            $this->withSession([
+                "landing_page_preview.{$resource->id}" => [
+                    'template' => 'default_gfz',
+                    'resource_id' => $resource->id,
+                ],
+            ])->postJson("/resources/{$resource->id}/landing-page/preview/contact", [
+                'sender_name' => 'Preview User',
+                'sender_email' => 'preview@example.com',
+                'message' => 'This request is not authenticated.',
+                'send_to_all' => true,
+            ])->assertUnauthorized();
         });
 
     });
