@@ -352,6 +352,14 @@ final class LegacyCreatorAndMslMetadataBackfillService
      */
     private function backfillResource(Resource $resource, array $legacyCreators, array $legacyMslKeywords, bool $apply): array
     {
+        $resource->setRelation(
+            'creators',
+            $resource->creators->sortBy([
+                ['position', 'asc'],
+                ['id', 'asc'],
+            ])->values(),
+        );
+
         $creatorResult = $this->backfillCreators($resource, $legacyCreators, $apply);
         $subjectResult = $this->backfillSubjects($resource, $legacyMslKeywords, $apply);
 

@@ -157,6 +157,62 @@ function createLegacyCreatorBackfillFixture(string $doi, ?Person $person = null)
     return compact('resource', 'creator', 'person') + ['legacy_id' => $legacyId];
 }
 
+it('sorts creators by position and id before dry-run position matching', function (): void {
+    $resource = Resource::factory()->create();
+    $firstPerson = Person::factory()->create([
+        'given_name' => 'Alice',
+        'family_name' => 'Alpha',
+    ]);
+    $secondPerson = Person::factory()->create([
+        'given_name' => 'Bob',
+        'family_name' => 'Beta',
+    ]);
+    $firstCreator = ResourceCreator::factory()->forPerson($firstPerson)->create([
+        'resource_id' => $resource->id,
+        'position' => 1,
+    ]);
+    $secondCreator = ResourceCreator::factory()->forPerson($secondPerson)->create([
+        'resource_id' => $resource->id,
+        'position' => 1,
+    ]);
+    $resource->setRelation('creators', $firstCreator->newCollection([
+        $secondCreator->load('creatorable'),
+        $firstCreator->load('creatorable'),
+    ]));
+    $resource->setRelation('subjects', Subject::query()->where('resource_id', $resource->id)->get());
+
+    $backfillResource = new ReflectionMethod(LegacyCreatorAndMslMetadataBackfillService::class, 'backfillResource');
+    $result = $backfillResource->invoke(
+        app(LegacyCreatorAndMslMetadataBackfillService::class),
+        $resource,
+        [
+            [
+                'name' => 'Alpha, Alice',
+                'nameType' => 'Personal',
+                'givenName' => 'Alice',
+                'familyName' => 'Alpha',
+            ],
+            [
+                'name' => 'Beta, Bob',
+                'nameType' => 'Personal',
+                'givenName' => 'Bob',
+                'familyName' => 'Beta',
+            ],
+        ],
+        [],
+        false,
+    );
+
+    expect($result)->toMatchArray([
+        'creator_snapshots_written' => 2,
+        'creator_match_methods' => 'position_and_name:identical|position_and_name:identical',
+    ])->and($resource->creators->pluck('id')->all())->toBe([
+        $firstCreator->id,
+        $secondCreator->id,
+    ])->and($firstCreator->fresh()->hasNameSnapshot())->toBeFalse()
+        ->and($secondCreator->fresh()->hasNameSnapshot())->toBeFalse();
+});
+
 it('is dry-run-first, additive, resource-specific, and idempotent', function (): void {
     $doi = '10.5880/gfz.1.4.2021.008';
     $legacyId = DB::connection('metaworks')->table('resource')->insertGetId([
