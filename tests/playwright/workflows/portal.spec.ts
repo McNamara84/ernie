@@ -173,17 +173,18 @@ test.describe('Portal Page', () => {
             const sidebarViewport = sidebar.locator(':scope > [data-slot="scroll-area"] > [data-slot="scroll-area-viewport"]');
 
             await openFilterSection(page, 'Datacenter');
-            const trigger = page.getByRole('button', { name: 'All Datacenters' });
-            await trigger.scrollIntoViewIfNeeded();
+            const search = sidebar.getByPlaceholder('Search datacenters...');
+            const checkbox = sidebar.getByRole('checkbox', { name: /Select Playwright: Portal Datacenter/ });
+
+            await expect(search).toBeVisible();
+            await expect(page.getByRole('button', { name: 'All Datacenters' })).toHaveCount(0);
 
             await sidebarViewport.evaluate((element) => element.scrollTo(0, element.scrollHeight));
             await expect.poll(() => sidebarViewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
             expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
-            await trigger.click();
-            const option = page.getByRole('option', { name: /Playwright: Portal Datacenter/ });
-            await expect(option).toBeVisible();
-            await option.click();
+            await expect(checkbox).toBeVisible();
+            await checkbox.click();
 
             await expect(page).toHaveURL(/datacenter/);
             await expect(page.getByTestId('portal-results-list').first()).toBeVisible();

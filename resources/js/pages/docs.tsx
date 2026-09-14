@@ -2209,8 +2209,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             Datacenter, temporal range, and spatial map filters work in both portals. Resource Type and Thesaurus Keywords are
                             DOI-specific; the IGSN scope is fixed to physical samples and uses the five sample-metadata filters instead. All controls
-                            work together with the unified search. When the result set refreshes, the current results stay visible until the new
-                            response arrives.
+                            work together with the unified search. Open the Datacenter section to browse its alphabetically ordered values and current
+                            resource counts directly, or narrow the list with the inline search. When the result set refreshes, the current results
+                            stay visible until the new response arrives.
                         </p>
 
                         <h4>Result Preview</h4>

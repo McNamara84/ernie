@@ -5,6 +5,17 @@
         "features": [],
         "improvements": [
             {
+                "title": "Faster Datacenter Filtering",
+                "description": "Datacenter filters in the Data and IGSN Portals now list their alphabetically ordered options and current resource counts directly after the section is opened. The inline search, checkboxes, and removable selection chips replace the additional scrollable popup, reducing the interaction to one expansion on desktop and mobile while preserving multi-selection and shared URLs.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1304,
+                        "url": "https://github.com/McNamara84/ernie/issues/1304"
+                    }
+                ]
+            },
+            {
                 "title": "Data Requests Without Automatic Downloads",
                 "description": "Generated GFZ landing pages marked as having no automatic download now replace their download actions with a clearly labelled request form while retaining saved download values for later use. Requests are sent to every designated contact person with one copy to the configured data publication team; when no contact email is available, a configured team receives the request directly, and successful responses identify any direct team delivery. The form also works in authenticated session previews. If neither recipient is available, the page shows an availability notice instead of an unusable form.",
                 "references": [

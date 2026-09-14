@@ -15,6 +15,9 @@ it('returns changelog data grouped by release', function () {
             'title' => 'Traceable Changelog Entries',
         ])
         ->assertJsonFragment([
+            'title' => 'Faster Datacenter Filtering',
+        ])
+        ->assertJsonFragment([
             'version' => '1.0.8',
             'date' => '2026-09-09',
         ])
@@ -85,6 +88,13 @@ it('returns the related GitHub references for every version 1.0.9 changelog entr
         ->keyBy('title');
 
     $expectedReferences = [
+        'Faster Datacenter Filtering' => [
+            [
+                'type' => 'issue',
+                'number' => 1304,
+                'url' => 'https://github.com/McNamara84/ernie/issues/1304',
+            ],
+        ],
         'Data Requests Without Automatic Downloads' => [
             [
                 'type' => 'issue',
