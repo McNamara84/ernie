@@ -29,6 +29,7 @@ interface ContactModalProps {
     datasetTitle: string;
     repositoryContact?: LandingPageRepositoryContact | null;
     recipientPolicy?: 'selectable' | 'all-contacts-and-team';
+    hasDataPublicationTeamRecipient?: boolean;
 }
 
 type FormStatus = 'idle' | 'submitting' | 'success' | 'error';
@@ -51,6 +52,7 @@ export function ContactModal({
     datasetTitle,
     repositoryContact = null,
     recipientPolicy = 'selectable',
+    hasDataPublicationTeamRecipient = false,
 }: ContactModalProps) {
     const [formStatus, setFormStatus] = useState<FormStatus>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
@@ -158,12 +160,20 @@ export function ContactModal({
     const recipientLabel =
         repositoryContact?.label ??
         (isDataRequest
-            ? contactPersons.length > 0
-                ? `Data publication team and all contact persons (${contactPersons.length})`
-                : 'Data publication team'
+            ? hasDataPublicationTeamRecipient
+                ? contactPersons.length > 0
+                    ? `Data publication team and all contact persons (${contactPersons.length})`
+                    : 'Data publication team'
+                : `All contact persons (${contactPersons.length})`
             : sendToAll
               ? `All contact persons (${contactPersons.length})`
               : selectedPerson?.name || 'Selected contact');
+
+    const dataRequestSuccessMessage = hasDataPublicationTeamRecipient
+        ? contactPersons.length > 0
+            ? 'The data publication team and all contact persons will receive your message and can reply directly to your email.'
+            : 'The data publication team will receive your message and can reply directly to your email.'
+        : 'All contact persons will receive your message and can reply directly to your email.';
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -181,7 +191,7 @@ export function ContactModal({
                         <p className="text-center font-medium text-green-700 dark:text-green-400">Message sent successfully!</p>
                         <p className="text-center text-sm text-gray-500 dark:text-gray-400">
                             {isDataRequest
-                                ? 'The data publication team and any available contact persons will receive your message and can reply directly to your email.'
+                                ? dataRequestSuccessMessage
                                 : 'The contact person(s) will receive your message and can reply directly to your email.'}
                         </p>
                     </div>

@@ -454,7 +454,7 @@ test.describe('Landing Page - Files and Data Requests (Issues #373 and #1280)', 
     // Download button should NOT be visible
     await landingPage.verifyDownloadButtonNotVisible();
 
-    // The explicit no-automatic-download flag always offers a request form.
+    // The configured data publication team keeps this request path available.
     await landingPage.verifyContactFormButtonVisible();
     await landingPage.verifyDataRequestHeadingVisible();
 

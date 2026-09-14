@@ -55,6 +55,7 @@ interface DefaultGfzTemplatePageProps {
     typeVisibility?: LandingPageTypeVisibility;
     citationStyles?: LandingPageCitationStyle[];
     metadataLinks?: LandingPageMetadataLink[];
+    hasDataPublicationTeamRecipient?: boolean;
     /** Inertia PageProps requires index signature for dynamic SSR props */
     [key: string]: unknown;
 }
@@ -105,6 +106,7 @@ export default function DefaultGfzTemplate() {
         displayLimits,
         citationStyles,
         typeVisibility,
+        hasDataPublicationTeamRecipient = false,
     } = usePage<DefaultGfzTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
@@ -155,7 +157,12 @@ export default function DefaultGfzTemplate() {
     const standaloneSectionRegistry = useMemo((): Partial<Record<ResourceSection, ReactNode>> => {
         return {
             files: downloadsUnavailable ? (
-                <DataRequestSection key="files" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />
+                <DataRequestSection
+                    key="files"
+                    contactPersons={resource.contact_persons || []}
+                    datasetTitle={mainTitle}
+                    hasDataPublicationTeamRecipient={hasDataPublicationTeamRecipient}
+                />
             ) : (
                 <FilesSection
                     key="files"
@@ -165,6 +172,7 @@ export default function DefaultGfzTemplate() {
                     downloadFiles={landingPage?.files}
                     contactPersons={resource.contact_persons || []}
                     datasetTitle={mainTitle}
+                    hasDataPublicationTeamRecipient={hasDataPublicationTeamRecipient}
                     additionalLinks={landingPage?.links}
                 />
             ),
@@ -197,7 +205,17 @@ export default function DefaultGfzTemplate() {
             ),
             location: <LocationSection key="location" geoLocations={resource.geo_locations || []} isDark={isDark} />,
         };
-    }, [resource, landingPage, mainTitle, downloadsUnavailable, citationStyles, peopleDisplayLimits.citationAuthors, isDark, typeVisibility]);
+    }, [
+        resource,
+        landingPage,
+        mainTitle,
+        downloadsUnavailable,
+        citationStyles,
+        peopleDisplayLimits.citationAuthors,
+        isDark,
+        typeVisibility,
+        hasDataPublicationTeamRecipient,
+    ]);
 
     const leftColumnSections = composeResourceColumn(orders.left, standaloneSectionRegistry, metadataSections.left);
     const rightColumnSections = composeResourceColumn(orders.right, standaloneSectionRegistry, metadataSections.right);

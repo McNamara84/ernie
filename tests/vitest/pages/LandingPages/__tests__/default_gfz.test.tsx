@@ -427,6 +427,7 @@ describe('DefaultGfzTemplate', () => {
                         },
                     ],
                 },
+                hasDataPublicationTeamRecipient: true,
                 isPreview: false,
             },
         } as unknown as ReturnType<typeof usePage>);

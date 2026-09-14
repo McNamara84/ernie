@@ -12,6 +12,7 @@ interface FilesSectionProps {
     downloadFiles?: { url: string; label?: string | null; tracked_url?: string | null }[];
     contactPersons?: LandingPageContactPerson[];
     datasetTitle?: string;
+    hasDataPublicationTeamRecipient?: boolean;
     additionalLinks?: LandingPageLink[];
 }
 
@@ -30,6 +31,7 @@ export function FilesSection({
     downloadFiles,
     contactPersons = [],
     datasetTitle,
+    hasDataPublicationTeamRecipient = false,
     additionalLinks = [],
 }: FilesSectionProps) {
     const hasDownloadUrl = typeof downloadUrl === 'string' && downloadUrl !== '#' && downloadUrl.trim() !== '';
@@ -51,7 +53,13 @@ export function FilesSection({
               : [];
 
     if (effectiveDownloads.length === 0) {
-        return <DataRequestSection contactPersons={contactPersons} datasetTitle={datasetTitle} />;
+        return (
+            <DataRequestSection
+                contactPersons={contactPersons}
+                datasetTitle={datasetTitle}
+                hasDataPublicationTeamRecipient={hasDataPublicationTeamRecipient}
+            />
+        );
     }
 
     return (

@@ -13,6 +13,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Services\DataPublicationTeamRecipientService;
 use App\Services\IgsnRepositoryContactService;
 use App\Services\LandingPagePersonIdentityResolverService;
 use Illuminate\Http\JsonResponse;
@@ -34,6 +35,7 @@ class ContactMessageController extends Controller
     public function __construct(
         private readonly IgsnRepositoryContactService $repositoryContactService,
         private readonly LandingPagePersonIdentityResolverService $personIdentityResolver,
+        private readonly DataPublicationTeamRecipientService $dataPublicationTeamRecipientService,
     ) {}
 
     /**
@@ -161,7 +163,7 @@ class ContactMessageController extends Controller
             $validated['repository_contact_type'] ?? null,
         );
 
-        $dataPublicationTeamEmail = $this->dataPublicationTeamEmail();
+        $dataPublicationTeamEmail = $this->dataPublicationTeamRecipientService->email(logInvalidConfiguration: true);
         $teamIsDirectRecipient = false;
 
         if ($recipients === [] && $sendToAll && $dataPublicationTeamEmail !== null) {
@@ -273,38 +275,6 @@ class ContactMessageController extends Controller
             'message' => 'Message received successfully.',
             'recipients_count' => count($recipients),
         ]);
-    }
-
-    /**
-     * Resolve the optional data publication team recipient.
-     */
-    private function dataPublicationTeamEmail(): ?string
-    {
-        $configuredEmail = config('mail.landing_page_contact_cc');
-
-        if ($configuredEmail === null || $configuredEmail === '') {
-            return null;
-        }
-
-        if (! is_string($configuredEmail)) {
-            Log::warning('Invalid Cc email address type in config');
-
-            return null;
-        }
-
-        $email = trim($configuredEmail);
-
-        if ($email === '') {
-            return null;
-        }
-
-        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
-            Log::warning('Invalid Cc email address in config', ['cc_email' => $configuredEmail]);
-
-            return null;
-        }
-
-        return $email;
     }
 
     /**

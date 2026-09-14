@@ -130,21 +130,21 @@ describe('FilesSection', () => {
         });
 
         it('uses the team request when a contact person has a website but no email', () => {
-            render(<FilesSection contactPersons={[mockContactPersonWithWebsite]} datasetTitle="Test Dataset" />);
+            render(<FilesSection contactPersons={[mockContactPersonWithWebsite]} datasetTitle="Test Dataset" hasDataPublicationTeamRecipient />);
 
             expect(screen.getByRole('button', { name: /request data via contact form/i })).toBeInTheDocument();
             expect(screen.queryByRole('link', { name: /visit contact person website/i })).not.toBeInTheDocument();
         });
 
         it('uses the team request when no contact option exists', () => {
-            render(<FilesSection contactPersons={[mockContactPersonNoContact]} />);
+            render(<FilesSection contactPersons={[mockContactPersonNoContact]} hasDataPublicationTeamRecipient />);
 
             expect(screen.getByRole('button', { name: /request data via contact form/i })).toBeInTheDocument();
             expect(screen.queryByRole('link', { name: /visit contact person website/i })).not.toBeInTheDocument();
         });
 
         it('uses the team request when the contact list is omitted', () => {
-            render(<FilesSection />);
+            render(<FilesSection hasDataPublicationTeamRecipient />);
 
             expect(screen.getByRole('button', { name: /request data via contact form/i })).toBeInTheDocument();
             expect(screen.queryByText(/download information not available/i)).not.toBeInTheDocument();

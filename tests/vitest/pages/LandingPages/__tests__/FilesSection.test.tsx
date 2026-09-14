@@ -53,7 +53,7 @@ describe('FilesSection', () => {
     });
 
     it('renders a team-backed request when no download or contacts', () => {
-        render(<FilesSection />);
+        render(<FilesSection hasDataPublicationTeamRecipient />);
 
         expect(screen.getByRole('button', { name: /request data via contact form/i })).toBeInTheDocument();
     });
@@ -79,7 +79,7 @@ describe('FilesSection', () => {
         expect(screen.getByText('Request data via contact form')).toBeInTheDocument();
     });
 
-    it('renders the request form instead of a website-only fallback', () => {
+    it('does not offer the request form for a website-only contact when the team is unavailable', () => {
         const contactPersons = [
             {
                 id: 2,
@@ -97,7 +97,8 @@ describe('FilesSection', () => {
 
         render(<FilesSection contactPersons={contactPersons} />);
 
-        expect(screen.getByText('Request data via contact form')).toBeInTheDocument();
+        expect(screen.queryByText('Request data via contact form')).not.toBeInTheDocument();
+        expect(screen.getByText(/no email recipient is available/i)).toBeInTheDocument();
         expect(screen.queryByText('Visit contact person website')).not.toBeInTheDocument();
     });
 

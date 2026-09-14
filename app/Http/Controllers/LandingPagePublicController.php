@@ -12,6 +12,7 @@ use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\BotProtection\LandingPageViewCounterService;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataCiteLinkedDataExporter;
+use App\Services\DataPublicationTeamRecipientService;
 use App\Services\LandingPageDocumentMetadataService;
 use App\Services\LandingPageMachineMetadataService;
 use App\Services\LandingPageMetadataLinkService;
@@ -88,6 +89,7 @@ class LandingPagePublicController extends Controller
         LandingPageDocumentMetadataService $documentMetadataService,
         LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
+        DataPublicationTeamRecipientService $dataPublicationTeamRecipientService,
         string $doiPrefix,
         string $slug
     ): HttpResponse|RedirectResponse {
@@ -143,6 +145,7 @@ class LandingPagePublicController extends Controller
             $documentMetadataService,
             $machineMetadataService,
             $metadataLinkService,
+            $dataPublicationTeamRecipientService,
             $previewToken,
         );
     }
@@ -164,6 +167,7 @@ class LandingPagePublicController extends Controller
         LandingPageDocumentMetadataService $documentMetadataService,
         LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
+        DataPublicationTeamRecipientService $dataPublicationTeamRecipientService,
         int $resourceId,
         string $slug
     ): HttpResponse|RedirectResponse {
@@ -197,6 +201,7 @@ class LandingPagePublicController extends Controller
             $documentMetadataService,
             $machineMetadataService,
             $metadataLinkService,
+            $dataPublicationTeamRecipientService,
             $previewToken,
         );
     }
@@ -274,6 +279,7 @@ class LandingPagePublicController extends Controller
         LandingPageDocumentMetadataService $documentMetadataService,
         LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
+        DataPublicationTeamRecipientService $dataPublicationTeamRecipientService,
         ?string $previewToken
     ): HttpResponse|RedirectResponse {
         // Normalize preview token: treat empty string as null for consistent checks
@@ -414,6 +420,10 @@ class LandingPagePublicController extends Controller
         $renderData = $isPreview
             ? $buildRenderData()
             : $renderDataCache->remember($landingPage, $buildRenderData);
+
+        // Recipient availability is deployment configuration, not landing-page
+        // content, so resolve it on every request instead of caching it.
+        $renderData['props']['hasDataPublicationTeamRecipient'] = $dataPublicationTeamRecipientService->isAvailable();
 
         $inertiaResponse = Inertia::render("LandingPages/{$renderData['template']}", $renderData['props']);
         $viewData = $renderData['viewData'] ?? [];

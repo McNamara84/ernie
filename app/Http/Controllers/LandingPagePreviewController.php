@@ -9,6 +9,7 @@ use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\Citations\LandingPageCitationService;
+use App\Services\DataPublicationTeamRecipientService;
 use App\Services\LandingPageDocumentMetadataService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
@@ -143,6 +144,7 @@ class LandingPagePreviewController extends Controller
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
         LandingPageDocumentMetadataService $documentMetadataService,
+        DataPublicationTeamRecipientService $dataPublicationTeamRecipientService,
     ): Response {
         $sessionKey = "landing_page_preview.{$resource->id}";
         $previewData = Session::get($sessionKey);
@@ -241,6 +243,7 @@ class LandingPagePreviewController extends Controller
             'documentTitle' => $documentMetadata['title'],
             'citationStyles' => $citationService->format($resource),
             'landingPage' => $tempLandingPage,
+            'hasDataPublicationTeamRecipient' => $dataPublicationTeamRecipientService->isAvailable(),
             'isPreview' => true,
             'sectionOrder' => $sectionOrder,
             'customLogoUrl' => $customLogoUrl,
