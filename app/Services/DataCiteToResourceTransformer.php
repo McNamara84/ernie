@@ -46,6 +46,7 @@ use App\Support\DataCiteDateNormalizer;
 use App\Support\DescriptionTextNormalizer;
 use App\Support\GemetVocabularyParser;
 use App\Support\LanguageTag;
+use App\Support\LegacyMslScheme;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Support\Facades\DB;
@@ -625,6 +626,7 @@ class DataCiteToResourceTransformer
                 'creatorable_id' => $entity->id,
                 'position' => $position + 1,
                 'is_contact' => false,
+                ...($entity instanceof Person ? $this->creatorNameSnapshot($creatorData) : []),
             ]);
 
             // Add affiliations
@@ -1314,12 +1316,16 @@ class DataCiteToResourceTransformer
             if (is_string($subjectScheme)) {
                 $subjectScheme = self::IMPORTED_SUBJECT_SCHEME_ALIASES[$subjectScheme] ?? $subjectScheme;
             }
+            $isLegacyMslSubject = is_string($subjectScheme) && LegacyMslScheme::isSupported($subjectScheme);
+            if ($isLegacyMslSubject) {
+                $subjectValue = SubjectBreadcrumbPath::leaf($subjectValue) ?? $subjectValue;
+            }
             $schemeUri = $this->filledString($subjectData['schemeUri'] ?? null);
             $valueUri = $this->filledString($subjectData['valueUri'] ?? null);
             $classificationCode = $subjectData['classificationCode'] ?? null;
             $breadcrumbPath = SubjectBreadcrumbPath::preferredPath(null, $rawSubjectValue);
 
-            if ($valueUri === null || $schemeUri === null) {
+            if (! $isLegacyMslSubject && ($valueUri === null || $schemeUri === null)) {
                 $resolvedKeyword = $this->subjectPathResolver()->resolveKeywordFromPath(
                     is_string($subjectScheme) ? $subjectScheme : null,
                     $rawSubjectValue,
@@ -1333,16 +1339,18 @@ class DataCiteToResourceTransformer
                 }
             }
 
-            $breadcrumbPath = $breadcrumbPath ?? $this->subjectPathResolver()->resolve(
-                is_string($subjectScheme) ? $subjectScheme : null,
-                $valueUri,
-                is_string($classificationCode) || is_numeric($classificationCode) ? (string) $classificationCode : null,
-                $rawSubjectValue,
-            );
+            if (! $isLegacyMslSubject) {
+                $breadcrumbPath = $breadcrumbPath ?? $this->subjectPathResolver()->resolve(
+                    is_string($subjectScheme) ? $subjectScheme : null,
+                    $valueUri,
+                    is_string($classificationCode) || is_numeric($classificationCode) ? (string) $classificationCode : null,
+                    $rawSubjectValue,
+                );
 
-            $schemeUri = $schemeUri ?? $this->subjectPathResolver()->resolveSchemeUri(
-                is_string($subjectScheme) ? $subjectScheme : null,
-            );
+                $schemeUri = $schemeUri ?? $this->subjectPathResolver()->resolveSchemeUri(
+                    is_string($subjectScheme) ? $subjectScheme : null,
+                );
+            }
 
             Subject::create([
                 'resource_id' => $resource->id,
@@ -1371,6 +1379,50 @@ class DataCiteToResourceTransformer
         $value = trim((string) $value);
 
         return $value !== '' ? $value : null;
+    }
+
+    /**
+     * Preserve the name asserted by this resource independently of the global
+     * Person record selected through ORCID reuse.
+     *
+     * @param  array<string, mixed>  $creatorData
+     * @return array{name_snapshot: string|null, given_name_snapshot: string|null, family_name_snapshot: string|null}
+     */
+    private function creatorNameSnapshot(array $creatorData): array
+    {
+        $givenName = $this->boundedCreatorNameSnapshot(
+            $creatorData['givenName'] ?? null,
+            ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH,
+        );
+        $familyName = $this->boundedCreatorNameSnapshot(
+            $creatorData['familyName'] ?? null,
+            ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH,
+        );
+        $name = $this->boundedCreatorNameSnapshot(
+            $creatorData['name'] ?? null,
+            ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH,
+        );
+
+        if ($name === null) {
+            $name = match (true) {
+                $familyName !== null && $givenName !== null => $familyName.', '.$givenName,
+                $familyName !== null => $familyName,
+                default => $givenName,
+            };
+        }
+
+        return [
+            'name_snapshot' => $name,
+            'given_name_snapshot' => $givenName,
+            'family_name_snapshot' => $familyName,
+        ];
+    }
+
+    private function boundedCreatorNameSnapshot(mixed $value, int $maxLength): ?string
+    {
+        $value = $this->filledString($value);
+
+        return $value === null ? null : mb_substr($value, 0, $maxLength);
     }
 
     /**

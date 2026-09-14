@@ -405,6 +405,7 @@ describe('mapInitialAuthorToEntry', () => {
     it('maps person author correctly', () => {
         const initial = {
             type: 'person' as const,
+            resourceCreatorId: 42,
             orcid: 'https://orcid.org/0000-0001-2345-6789',
             firstName: ' John ',
             lastName: ' Doe ',
@@ -421,12 +422,29 @@ describe('mapInitialAuthorToEntry', () => {
         // Type narrowing after confirming type is 'person'
         const personResult = result as PersonAuthorEntry;
         expect(personResult.orcid).toBe('0000-0001-2345-6789');
+        expect(personResult.resourceCreatorId).toBe(42);
         expect(personResult.firstName).toBe('John');
         expect(personResult.lastName).toBe('Doe');
         expect(personResult.email).toBe('john@example.com');
         expect(personResult.website).toBe('https://example.com');
         expect(personResult.isContact).toBe(true);
         expect(personResult.affiliations).toHaveLength(1);
+    });
+
+    it('preserves an unstructured resource-specific name snapshot', () => {
+        const result = mapInitialAuthorToEntry({
+            type: 'person',
+            firstName: null,
+            lastName: null,
+            nameSnapshot: '  The Artist  ',
+        });
+
+        expect(result).toMatchObject({
+            type: 'person',
+            firstName: '',
+            lastName: '',
+            nameSnapshot: 'The Artist',
+        });
     });
 
     it('maps institution author correctly', () => {

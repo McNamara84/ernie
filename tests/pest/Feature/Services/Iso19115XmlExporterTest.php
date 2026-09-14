@@ -219,6 +219,9 @@ test('exports creator identity and resource contact details without confusing th
         'is_contact' => true,
         'email' => 'ada@example.org',
         'website' => 'https://example.org/ada',
+        'name_snapshot' => 'Lovelace, Ada A.',
+        'given_name_snapshot' => 'Ada A.',
+        'family_name_snapshot' => 'Lovelace',
     ]);
     Affiliation::create([
         'affiliatable_type' => ResourceCreator::class,
@@ -232,17 +235,18 @@ test('exports creator identity and resource contact details without confusing th
     $xml = $exporter->export($resource->fresh());
     [, $xpath] = parseIso19115($xml);
 
-    expect($xpath->evaluate('string(//cit:citedResponsibleParty//cit:name/gco:CharacterString)'))->toBe('Lovelace, Ada')
+    expect($xpath->evaluate('string(//cit:citedResponsibleParty//cit:name/gco:CharacterString)'))->toBe('Lovelace, Ada A.')
         ->and($xpath->evaluate('string(//cit:citedResponsibleParty//cit:CI_RoleCode/@codeListValue)'))->toBe('originator')
         ->and($xpath->evaluate('string(//cit:citedResponsibleParty//mcc:code/gco:CharacterString)'))
         ->toBe('https://orcid.org/0000-0001-2345-6789')
         ->and($xpath->evaluate('string(//mri:pointOfContact//cit:CI_RoleCode/@codeListValue)'))->toBe('pointOfContact')
+        ->and($xpath->evaluate('string(//mri:pointOfContact//cit:name/gco:CharacterString)'))->toBe('Lovelace, Ada A.')
         ->and($xpath->evaluate('string(//mri:pointOfContact//cit:electronicMailAddress/gco:CharacterString)'))
         ->toBe('ada@example.org')
         ->and($xpath->evaluate('string(//mri:pointOfContact//cit:onlineResource//cit:linkage/gco:CharacterString)'))
         ->toBe('https://example.org/ada')
         ->and($xpath->evaluate(
-            'string(//cit:citedResponsibleParty[.//cit:name/gco:CharacterString="Lovelace, Ada"]//cit:CI_Organisation/cit:name/gco:CharacterString)',
+            'string(//cit:citedResponsibleParty[.//cit:name/gco:CharacterString="Lovelace, Ada A."]//cit:CI_Organisation/cit:name/gco:CharacterString)',
         ))->toBe('Analytical Engine Institute')
         ->and($xpath->evaluate('string(//cit:CI_Organisation//mcc:codeSpace/gco:CharacterString)'))->toBe('ROR');
 });

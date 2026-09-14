@@ -18,6 +18,19 @@ final class PortalSubjectNormalizer
 
     public const SCHEME_SIMPLE_LITHOLOGY = 'CGI Simple Lithology';
 
+    /**
+     * Manually verified source identities that are equivalent to a current MSL
+     * node. Never infer these mappings from a shared label: the same WP16 leaf
+     * may occur in distinct Analogue and Rock Physics categories.
+     *
+     * @var array<string, array<string, string>>
+     */
+    private const LEGACY_MSL_CURRENT_NODE_URIS = [
+        'epos wp16 analogue material' => [
+            'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite' => 'https://epos-msl.uu.nl/voc/materials/1.3/igneous_rock_-_intrusive-acidic_intrusive-granite',
+        ],
+    ];
+
     public static function normalizeControlledSubjectValue(?string $value): ?string
     {
         $trimmed = trim((string) $value);
@@ -48,6 +61,7 @@ final class PortalSubjectNormalizer
             str_contains($normalized, 'instrument') => 'Instruments',
             str_contains($normalized, 'epos msl'),
             str_contains($normalized, 'msl vocabulary') => 'EPOS MSL vocabulary',
+            LegacyMslScheme::isSupported($trimmed) => LegacyMslScheme::CANONICAL_SCHEME,
             str_contains($normalized, 'chronostrat') => self::SCHEME_ICS_CHRONOSTRAT,
             str_contains($normalized, 'gemet') => GemetVocabularyParser::SCHEME_TITLE,
             str_contains($normalized, 'analytical') && str_contains($normalized, 'method') => self::SCHEME_ANALYTICAL_METHODS,
@@ -57,6 +71,42 @@ final class PortalSubjectNormalizer
             $normalized === 'cgi simple lithology vocabulary' => self::SCHEME_SIMPLE_LITHOLOGY,
             default => $trimmed,
         };
+    }
+
+    public static function currentMslNodeUriForLegacyUri(?string $scheme, ?string $valueUri): ?string
+    {
+        $normalizedScheme = mb_strtolower(trim((string) $scheme));
+        $normalizedValueUri = trim((string) $valueUri);
+        if ($normalizedScheme === '' || $normalizedValueUri === '') {
+            return null;
+        }
+
+        return self::LEGACY_MSL_CURRENT_NODE_URIS[$normalizedScheme][$normalizedValueUri] ?? null;
+    }
+
+    /**
+     * @param  array<int, string>  $currentNodeUris
+     * @return list<array{scheme: string, value_uri: string}>
+     */
+    public static function legacyMslUriAliasesForCurrentNodeUris(array $currentNodeUris): array
+    {
+        $selectedUris = array_fill_keys(array_map('trim', $currentNodeUris), true);
+        $aliases = [];
+
+        foreach (self::LEGACY_MSL_CURRENT_NODE_URIS as $normalizedScheme => $uriMappings) {
+            foreach ($uriMappings as $legacyUri => $currentUri) {
+                if (! isset($selectedUris[$currentUri])) {
+                    continue;
+                }
+
+                $aliases[] = [
+                    'scheme' => $normalizedScheme,
+                    'value_uri' => $legacyUri,
+                ];
+            }
+        }
+
+        return $aliases;
     }
 
     public static function normalizedControlledSubjectValueSql(string $column, ?string $driverName = null): string
@@ -84,13 +134,18 @@ final class PortalSubjectNormalizer
     {
         $trimmed = self::trimmedSql($column);
         $lowered = "LOWER({$trimmed})";
+        $legacyMslSchemes = implode(', ', array_map(
+            static fn (string $scheme): string => "'".str_replace("'", "''", mb_strtolower($scheme))."'",
+            LegacyMslScheme::schemes(),
+        ));
 
-        return sprintf(<<<'SQL'
+        $sql = sprintf(<<<'SQL'
 CASE
     WHEN %1$s LIKE '%%science keywords%%' THEN 'science keywords'
     WHEN %1$s LIKE '%%platform%%' THEN 'platforms'
     WHEN %1$s LIKE '%%instrument%%' THEN 'instruments'
     WHEN %1$s LIKE '%%epos msl%%' OR %1$s LIKE '%%msl vocabulary%%' THEN 'epos msl vocabulary'
+    WHEN %1$s IN (__LEGACY_MSL_SCHEMES__) THEN 'epos msl vocabulary'
     WHEN %1$s LIKE '%%chronostrat%%' THEN 'international chronostratigraphic chart'
     WHEN %1$s LIKE '%%gemet%%' THEN 'gemet - general multilingual environmental thesaurus'
     WHEN %1$s LIKE '%%analytical%%' AND %1$s LIKE '%%method%%' THEN 'analytical methods for geochemistry and cosmochemistry'
@@ -99,6 +154,8 @@ CASE
     ELSE LOWER(%2$s)
 END
 SQL, $lowered, $trimmed);
+
+        return str_replace('__LEGACY_MSL_SCHEMES__', $legacyMslSchemes, $sql);
     }
 
     private static function trimmedSql(string $column): string

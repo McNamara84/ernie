@@ -9,6 +9,7 @@ use App\Models\DescriptionType;
 use App\Models\FunderIdentifierType;
 use App\Models\IdentifierType;
 use App\Models\LandingPage;
+use App\Models\Person;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
@@ -19,6 +20,7 @@ use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\Editor\EditorDataTransformer;
 use App\Services\KeywordSuggestionService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceStorageService;
@@ -96,12 +98,589 @@ describe('ResourceStorageService', function () {
         expect($resource->creators()->count())->toBe(1);
         $creator = $resource->creators->first();
         expect($creator->creatorable->family_name)->toBe('Doe')
-            ->and($creator->creatorable->given_name)->toBe('John');
+            ->and($creator->creatorable->given_name)->toBe('John')
+            ->and($creator->name_snapshot)->toBe('Doe, John')
+            ->and($creator->given_name_snapshot)->toBe('John')
+            ->and($creator->family_name_snapshot)->toBe('Doe');
 
         // Check descriptions
         expect($resource->descriptions()->count())->toBe(1);
         $description = $resource->descriptions->first();
         expect($description->value)->toBe('Test abstract description.');
+    });
+
+    it('stores an unstructured creator snapshot without inventing structured name parts', function () {
+        $resourceType = ResourceType::firstOrFail();
+
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Unstructured creator', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'firstName' => null,
+                'lastName' => null,
+                'nameSnapshot' => 'The Artist',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $creator = $resource->creators()->sole();
+        expect($creator->name_snapshot)->toBe('The Artist')
+            ->and($creator->given_name_snapshot)->toBeNull()
+            ->and($creator->family_name_snapshot)->toBeNull()
+            ->and($creator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($creator->creatorable->given_name)->toBeNull()
+            ->and($creator->creatorable->family_name)->toBe('');
+    });
+
+    it('stores a partial creator snapshot without requiring a global family name', function () {
+        $resourceType = ResourceType::firstOrFail();
+
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Partial creator', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'firstName' => 'A.',
+                'lastName' => null,
+                'nameSnapshot' => 'A.',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $creator = $resource->creators()->sole();
+        expect($creator->name_snapshot)->toBe('A.')
+            ->and($creator->given_name_snapshot)->toBe('A.')
+            ->and($creator->family_name_snapshot)->toBeNull()
+            ->and($creator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($creator->creatorable->given_name)->toBeNull()
+            ->and($creator->creatorable->family_name)->toBe('');
+    });
+
+    it('keeps an unstructured snapshot out of a new ORCID person', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $orcid = '0000-0002-1825-0097';
+
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Unstructured ORCID creator', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $orcid,
+                'firstName' => null,
+                'lastName' => null,
+                'nameSnapshot' => 'The Artist',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $creator = $resource->creators()->sole();
+        expect($creator->name_snapshot)->toBe('The Artist')
+            ->and($creator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($creator->creatorable->given_name)->toBeNull()
+            ->and($creator->creatorable->family_name)->toBe('')
+            ->and($creator->creatorable->name_identifier)->toBe('https://orcid.org/'.$orcid);
+    });
+
+    it('reuses a canonical ORCID person for a partial snapshot submitted with a bare ORCID', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $orcid = '0000-0002-1825-0097';
+        $person = Person::factory()->create([
+            'given_name' => 'Global',
+            'family_name' => 'Identity',
+            'name_identifier' => 'https://orcid.org/'.$orcid,
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Partial ORCID creator', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $orcid,
+                'firstName' => 'A.',
+                'lastName' => null,
+                'nameSnapshot' => 'A.',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $creator = $resource->creators()->sole();
+        expect($creator->creatorable_id)->toBe($person->id)
+            ->and($creator->name_snapshot)->toBe('A.')
+            ->and($creator->given_name_snapshot)->toBe('A.')
+            ->and($creator->family_name_snapshot)->toBeNull()
+            ->and($person->fresh()->given_name)->toBe('Global')
+            ->and($person->family_name)->toBe('Identity')
+            ->and(Person::query()->count())->toBe(1);
+    });
+
+    it('reuses an existing ORCID person without replacing its global name with a snapshot', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $orcid = '0000-0002-1825-0097';
+        $person = Person::factory()->create([
+            'given_name' => 'Global',
+            'family_name' => 'Identity',
+            'name_identifier' => $orcid,
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Existing ORCID creator', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $orcid,
+                'firstName' => null,
+                'lastName' => null,
+                'nameSnapshot' => 'The Artist',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $creator = $resource->creators()->sole();
+        $person->refresh();
+
+        expect($creator->creatorable_id)->toBe($person->id)
+            ->and($creator->name_snapshot)->toBe('The Artist')
+            ->and($person->given_name)->toBe('Global')
+            ->and($person->family_name)->toBe('Identity');
+    });
+
+    it('preserves an unstructured snapshot and person link through an editor update', function () {
+        $resourceType = ResourceType::firstOrFail();
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Round-trip creator', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'firstName' => 'Global',
+                'lastName' => 'Identity',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+        $originalCreator->forceFill([
+            'name_snapshot' => 'The Artist',
+            'given_name_snapshot' => null,
+            'family_name_snapshot' => null,
+        ])->save();
+        $resource->load([
+            'creators.creatorable', 'creators.affiliations',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
+        ]);
+        $author = app(EditorDataTransformer::class)->transformCreators($resource)['authors'][0];
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Round-trip creator', 'titleType' => 'MainTitle']],
+            'authors' => [$author],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->toBe($originalPersonId)
+            ->and($storedCreator->name_snapshot)->toBe('The Artist')
+            ->and($storedCreator->given_name_snapshot)->toBeNull()
+            ->and($storedCreator->family_name_snapshot)->toBeNull();
+    });
+
+    it('preserves a structured snapshot and person link through an editor update', function () {
+        $resourceType = ResourceType::firstOrFail();
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Structured snapshot round-trip', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+        $originalCreator->forceFill([
+            'name_snapshot' => 'Philipp Sommer',
+            'given_name_snapshot' => 'Philipp S.',
+            'family_name_snapshot' => 'Sommer',
+        ])->save();
+        $resource->load([
+            'creators.creatorable', 'creators.affiliations',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
+        ]);
+        $author = app(EditorDataTransformer::class)->transformCreators($resource)['authors'][0];
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Structured snapshot round-trip', 'titleType' => 'MainTitle']],
+            'authors' => [$author],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->toBe($originalPersonId)
+            ->and($storedCreator->name_snapshot)->toBe('Philipp Sommer')
+            ->and($storedCreator->given_name_snapshot)->toBe('Philipp S.')
+            ->and($storedCreator->family_name_snapshot)->toBe('Sommer');
+    });
+
+    it('does not reuse a snapshot-linked person after its ORCID changes', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $oldOrcid = '0000-0002-1825-0097';
+        $newOrcid = '0000-0001-5109-3700';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Changed creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $oldOrcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Changed creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => $newOrcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Philipp Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->not->toBe($originalPersonId)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBe($newOrcid)
+            ->and($storedCreator->name_snapshot)->toBe('Philipp Sommer')
+            ->and(Person::query()->findOrFail($originalPersonId)->name_identifier)->toBe($oldOrcid);
+    });
+
+    it('does not rediscover a snapshot-linked ORCID person by name after its ORCID is removed', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $oldOrcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $oldOrcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => null,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Philipp Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->not->toBe($originalPersonId)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBeNull()
+            ->and($storedCreator->name_snapshot)->toBe('Philipp Sommer')
+            ->and(Person::query()->findOrFail($originalPersonId)->name_identifier)->toBe($oldOrcid);
+    });
+
+    it('removes the ORCID from an older structured creator without a name snapshot', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $oldOrcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed legacy creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $oldOrcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+        $originalCreator->forceFill([
+            'name_snapshot' => null,
+            'given_name_snapshot' => null,
+            'family_name_snapshot' => null,
+        ])->save();
+        $resource->load([
+            'creators.creatorable', 'creators.affiliations',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
+        ]);
+        $author = app(EditorDataTransformer::class)->transformCreators($resource)['authors'][0];
+        $author['orcid'] = null;
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed legacy creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [$author],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($author)->not->toHaveKey('nameSnapshot')
+            ->and($storedCreator->creatorable_id)->not->toBe($originalPersonId)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBeNull()
+            ->and($storedCreator->name_snapshot)->toBe('Sommer, Philipp')
+            ->and(Person::query()->findOrFail($originalPersonId)->name_identifier)->toBe($oldOrcid);
+    });
+
+    it('reuses a snapshot-linked person when the ORCID representation is equivalent', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $bareOrcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Equivalent creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => 'https://orcid.org/'.$bareOrcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPersonId = (int) $originalCreator->creatorable_id;
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Equivalent creator ORCID', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => $bareOrcid,
+                'firstName' => 'Philipp S.',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Philipp Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->toBe($originalPersonId)
+            ->and($storedCreator->creatorable->name_identifier)->toBe('https://orcid.org/'.$bareOrcid)
+            ->and($storedCreator->name_snapshot)->toBe('Philipp Sommer');
+    });
+
+    it('reuses a snapshot-linked person when the stored ORCID scheme has different casing', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $orcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Mixed-case ORCID scheme', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $orcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPerson = $originalCreator->creatorable;
+        expect($originalPerson)->toBeInstanceOf(Person::class);
+        $originalPerson->forceFill(['name_identifier_scheme' => 'Orcid'])->save();
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Mixed-case ORCID scheme', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => $orcid,
+                'firstName' => 'Philipp S.',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Sommer, Philipp',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->toBe($originalPerson->id)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBe($orcid)
+            ->and($storedCreator->creatorable->name_identifier_scheme)->toBe('ORCID')
+            ->and($storedCreator->name_snapshot)->toBe('Sommer, Philipp');
+    });
+
+    it('does not reuse a snapshot-linked non-ORCID identity with the same identifier text', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $orcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Scheme-aware creator identity', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $orcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPerson = $originalCreator->creatorable;
+        expect($originalPerson)->toBeInstanceOf(Person::class);
+        $originalPerson->forceFill(['name_identifier_scheme' => 'ISNI'])->save();
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Scheme-aware creator identity', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => $orcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Sommer, Philipp',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->not->toBe($originalPerson->id)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBe('https://orcid.org/'.$orcid)
+            ->and($storedCreator->creatorable->name_identifier_scheme)->toBe('ORCID')
+            ->and($storedCreator->creatorable->hasOrcid())->toBeTrue()
+            ->and($originalPerson->fresh()->name_identifier_scheme)->toBe('ISNI');
+    });
+
+    it('does not reuse a snapshot-linked non-ORCID identity when no ORCID is submitted', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $identifier = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed non-ORCID creator identity', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $identifier,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPerson = $originalCreator->creatorable;
+        expect($originalPerson)->toBeInstanceOf(Person::class);
+        $originalPerson->forceFill(['name_identifier_scheme' => 'ISNI'])->save();
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed non-ORCID creator identity', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => null,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Sommer, Philipp',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->not->toBe($originalPerson->id)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBeNull()
+            ->and($storedCreator->creatorable->name_identifier_scheme)->toBeNull()
+            ->and($storedCreator->name_snapshot)->toBe('Sommer, Philipp')
+            ->and($originalPerson->fresh()->name_identifier)->toBe($identifier)
+            ->and($originalPerson->fresh()->name_identifier_scheme)->toBe('ISNI');
+    });
+
+    it('reuses and classifies a snapshot-linked legacy ORCID with a null scheme', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $orcid = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Legacy ORCID scheme', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $orcid,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPerson = $originalCreator->creatorable;
+        expect($originalPerson)->toBeInstanceOf(Person::class);
+        $originalPerson->forceFill(['name_identifier_scheme' => null])->save();
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Legacy ORCID scheme', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => $orcid,
+                'firstName' => 'Philipp S.',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Sommer, Philipp',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->toBe($originalPerson->id)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier_scheme)->toBe('ORCID')
+            ->and($storedCreator->creatorable->hasOrcid())->toBeTrue();
     });
 
     it('includes IGSN facets in the manual relation-replacement invalidation', function () {

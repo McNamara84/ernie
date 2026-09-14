@@ -10,6 +10,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
+use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -476,6 +477,32 @@ describe('Portal Resource Transformation', function () {
                 ->has('resources.0.creators', 1)
                 ->where('resources.0.creators.0.name', 'Smith')
                 ->where('resources.0.creators.0.givenName', 'John')
+            );
+    });
+
+    it('finds a legacy MSL subject only in its exact source category', function () {
+        $matching = createPublishedResource($this->datasetType, 'Legacy MSL match');
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'lava flow',
+            'subject_scheme' => 'EPOS WP16 Analogue Geologic Structure',
+            'value_uri' => null,
+        ]);
+        $differentCategory = createPublishedResource($this->datasetType, 'Different category');
+        Subject::factory()->create([
+            'resource_id' => $differentCategory->id,
+            'value' => 'lava flow',
+            'subject_scheme' => 'EPOS WP16 Rock Physics Geologic Structure',
+            'value_uri' => null,
+        ]);
+
+        $selection = 'EPOS WP16 Analogue Geologic Structure::lava flow';
+        $this->get(route('portal.doi', ['thesaurus_keywords' => [$selection]]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('resources', 1)
+                ->where('resources.0.id', $matching->id)
+                ->where('filters.thesaurusKeywords', [$selection])
             );
     });
 });

@@ -426,7 +426,7 @@ class RorAffiliationBulkAcceptanceService
         $creatorable = $creator->getRelationValue('creatorable');
 
         if ($creatorable instanceof Person) {
-            return $this->partyMapper->formatPersonName($creatorable);
+            return $this->partyMapper->resolvePersonName($creator, $creatorable)['name'];
         }
 
         if ($creatorable instanceof Institution) {

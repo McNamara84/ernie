@@ -6,6 +6,7 @@ import {
     authorsWithContactSchema,
     institutionAuthorSchema,
     personAuthorSchema,
+    RESOURCE_CREATOR_NAME_SNAPSHOT_MAX_LENGTH,
     validateContactAuthor,
 } from '@/schemas/author.schema';
 
@@ -26,7 +27,7 @@ describe('Author Schemas', () => {
             expect(result.success).toBe(true);
         });
 
-        it('requires firstName and lastName', () => {
+        it('requires a last name when no unstructured snapshot exists', () => {
             const result = personAuthorSchema.safeParse({
                 id: '1',
                 type: 'person',
@@ -34,6 +35,40 @@ describe('Author Schemas', () => {
                 lastName: '',
             });
             expect(result.success).toBe(false);
+        });
+
+        it('accepts a preserved unstructured name snapshot', () => {
+            const result = personAuthorSchema.safeParse({
+                id: '1',
+                type: 'person',
+                firstName: '',
+                lastName: '',
+                nameSnapshot: 'The Artist',
+            });
+
+            expect(result.success).toBe(true);
+        });
+
+        it('aligns the unstructured snapshot limit with the database column', () => {
+            const author = {
+                id: '1',
+                type: 'person' as const,
+                firstName: '',
+                lastName: '',
+            };
+
+            expect(
+                personAuthorSchema.safeParse({
+                    ...author,
+                    nameSnapshot: 'a'.repeat(RESOURCE_CREATOR_NAME_SNAPSHOT_MAX_LENGTH),
+                }).success,
+            ).toBe(true);
+            expect(
+                personAuthorSchema.safeParse({
+                    ...author,
+                    nameSnapshot: 'a'.repeat(RESOURCE_CREATOR_NAME_SNAPSHOT_MAX_LENGTH + 1),
+                }).success,
+            ).toBe(false);
         });
 
         it('validates email format', () => {
@@ -120,9 +155,7 @@ describe('Author Schemas', () => {
         });
 
         it('accepts array with authors', () => {
-            const result = authorsArraySchema.safeParse([
-                { id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe' },
-            ]);
+            const result = authorsArraySchema.safeParse([{ id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe' }]);
             expect(result.success).toBe(true);
         });
     });
@@ -145,26 +178,20 @@ describe('Author Schemas', () => {
         });
 
         it('returns false for institution-only authors', () => {
-            expect(
-                validateContactAuthor([
-                    { id: '1', type: 'institution', institutionName: 'GFZ', affiliations: [], affiliationsInput: '' },
-                ]),
-            ).toBe(false);
+            expect(validateContactAuthor([{ id: '1', type: 'institution', institutionName: 'GFZ', affiliations: [], affiliationsInput: '' }])).toBe(
+                false,
+            );
         });
     });
 
     describe('authorsWithContactSchema', () => {
         it('rejects authors without contact', () => {
-            const result = authorsWithContactSchema.safeParse([
-                { id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: false },
-            ]);
+            const result = authorsWithContactSchema.safeParse([{ id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: false }]);
             expect(result.success).toBe(false);
         });
 
         it('accepts authors with contact', () => {
-            const result = authorsWithContactSchema.safeParse([
-                { id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true },
-            ]);
+            const result = authorsWithContactSchema.safeParse([{ id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe', isContact: true }]);
             expect(result.success).toBe(true);
         });
     });

@@ -145,7 +145,7 @@ export function PortalThesaurusFilter({
             expandedAncestorIds: expandedAncestors,
             selectedNodes: selectedNodeIds.map((nodeId) => ({
                 id: nodeId,
-                label: labels.get(nodeId) ?? nodeId,
+                label: labels.get(nodeId) ?? nodeId.split('::', 2)[1] ?? nodeId,
             })),
         };
     }, [facets, selectedNodeIdSet, selectedNodeIds]);

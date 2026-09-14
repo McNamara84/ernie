@@ -374,6 +374,81 @@ describe('transformRawRights', function (): void {
 // =========================================================================
 
 describe('transformCreators', function (): void {
+    it('passes an unstructured creator snapshot through the editor payload', function (): void {
+        $person = Person::factory()->create([
+            'given_name' => 'Global',
+            'family_name' => 'Identity',
+        ]);
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+            'name_snapshot' => 'The Artist',
+            'given_name_snapshot' => null,
+            'family_name_snapshot' => null,
+        ]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        expect($this->transformer->transformCreators($this->resource)['authors'][0])->toMatchArray([
+            'firstName' => '',
+            'lastName' => '',
+            'nameSnapshot' => 'The Artist',
+        ]);
+    });
+
+    it('passes a structured creator snapshot through the editor payload', function (): void {
+        $person = Person::factory()->create([
+            'given_name' => 'Philipp',
+            'family_name' => 'Sommer',
+        ]);
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+            'name_snapshot' => 'Philipp Sommer',
+            'given_name_snapshot' => 'Philipp S.',
+            'family_name_snapshot' => 'Sommer',
+        ]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        expect($this->transformer->transformCreators($this->resource)['authors'][0])->toMatchArray([
+            'firstName' => 'Philipp S.',
+            'lastName' => 'Sommer',
+            'nameSnapshot' => 'Philipp Sommer',
+        ]);
+    });
+
+    it('keeps distinct resource spellings that share one person as separate authors', function (): void {
+        $person = Person::factory()->create([
+            'given_name' => 'Philipp',
+            'family_name' => 'Sommer',
+        ]);
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+            'name_snapshot' => 'Sommer, Philipp',
+            'given_name_snapshot' => 'Philipp',
+            'family_name_snapshot' => 'Sommer',
+        ]);
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 2,
+            'name_snapshot' => 'Sommer, Philipp S.',
+            'given_name_snapshot' => 'Philipp S.',
+            'family_name_snapshot' => 'Sommer',
+        ]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $authors = $this->transformer->transformCreators($this->resource)['authors'];
+
+        expect($authors)->toHaveCount(2)
+            ->and(array_column($authors, 'nameSnapshot'))->toBe([
+                'Sommer, Philipp',
+                'Sommer, Philipp S.',
+            ]);
+    });
+
     it('transforms person creator to author', function (): void {
         $person = Person::factory()->withOrcid('0000-0002-1825-0097')->create([
             'given_name' => 'John',

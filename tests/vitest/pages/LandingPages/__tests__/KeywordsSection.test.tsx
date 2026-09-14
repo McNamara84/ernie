@@ -92,6 +92,58 @@ describe('KeywordsSection', () => {
         );
     });
 
+    it('renders all six Issue 1319 legacy MSL subjects as controlled keywords', () => {
+        const values = [
+            ['lava flow', 'EPOS WP16 Analogue Geologic Structure'],
+            ['volcano', 'EPOS WP16 Analogue Geologic Structure'],
+            ['magmatic process', 'EPOS WP16 Analogue Process/Hazard'],
+            ['tectonic uplift', 'EPOS WP16 Analogue Process/Hazard'],
+            ['intraplate tectonic setting', 'EPOS WP16 Analogue Main Setting'],
+            ['volcanic features', 'EPOS WP16 Analogue Geologic Feature'],
+        ];
+        render(
+            <KeywordsSection
+                subjects={values.map(([subject, subjectScheme], index) =>
+                    gcmdKeyword(index + 1, subject, {
+                        subject_scheme: 'EPOS MSL vocabulary',
+                        source_subject_scheme: subjectScheme,
+                        value_uri: null,
+                        breadcrumb_path: subject === 'intraplate tectonic setting' ? 'tectonic setting > intraplate tectonic setting' : null,
+                    }),
+                )}
+            />,
+        );
+
+        expect(screen.getByTestId('thesauri-keywords-list')).toBeInTheDocument();
+        for (const [subject] of values) {
+            expect(screen.getByText(new RegExp(subject, 'i'))).toBeInTheDocument();
+        }
+        expect(screen.queryByTestId('keywords-list')).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /^lava flow$/i })).toHaveAttribute(
+            'href',
+            '/doi-search?thesaurus_keywords%5B%5D=EPOS+WP16+Analogue+Geologic+Structure%3A%3Alava+flow',
+        );
+    });
+
+    it('keeps a preserved legacy MSL URI out of the current-node portal filter', () => {
+        render(
+            <KeywordsSection
+                subjects={[
+                    gcmdKeyword(1, 'granite', {
+                        subject_scheme: 'EPOS MSL vocabulary',
+                        source_subject_scheme: 'EPOS WP16 Analogue Material',
+                        value_uri: 'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByRole('link', { name: /^granite$/i })).toHaveAttribute(
+            'href',
+            '/doi-search?thesaurus_keywords%5B%5D=EPOS+WP16+Analogue+Material%3A%3Agranite',
+        );
+    });
+
     it('renders Analytical Methods and EuroSciVoc as controlled landing page keywords', () => {
         render(
             <KeywordsSection
@@ -133,10 +185,7 @@ describe('KeywordsSection', () => {
 
         const link = screen.getByRole('link', { name: /^SEISMOLOGY$/i });
 
-        expect(link).toHaveAttribute(
-            'href',
-            '/doi-search?thesaurus_keywords%5B%5D=Science+Keywords%3A%3A310607',
-        );
+        expect(link).toHaveAttribute('href', '/doi-search?thesaurus_keywords%5B%5D=Science+Keywords%3A%3A310607');
     });
 
     it('falls back to the legacy keyword filter when a controlled keyword has no stable identifier', () => {

@@ -651,6 +651,7 @@ export interface LandingPageSubject {
     id: number;
     subject: string;
     subject_scheme: string | null;
+    source_subject_scheme?: string | null;
     scheme_uri: string | null;
     value_uri: string | null;
     classification_code: string | null;

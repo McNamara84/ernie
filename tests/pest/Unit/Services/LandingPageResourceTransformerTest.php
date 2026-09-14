@@ -439,6 +439,41 @@ test('normalizes subject scheme aliases in landing page subject payloads', funct
     expect($data['subjects'][0])->toMatchArray([
         'subject' => 'SEISMOLOGY',
         'subject_scheme' => 'Science Keywords',
+        'source_subject_scheme' => 'NASA/GCMD Earth Science Keywords',
+    ]);
+});
+
+test('retains the legacy MSL source scheme for exact portal links', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+    $subject = new Subject;
+    $subject->forceFill([
+        'id' => 1,
+        'value' => 'lava flow',
+        'subject_scheme' => 'EPOS WP16 Analogue Geologic Structure',
+        'scheme_uri' => null,
+        'value_uri' => null,
+        'classification_code' => null,
+        'breadcrumb_path' => null,
+    ]);
+
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection([$subject]));
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data['subjects'][0])->toMatchArray([
+        'subject' => 'lava flow',
+        'subject_scheme' => 'EPOS MSL vocabulary',
+        'source_subject_scheme' => 'EPOS WP16 Analogue Geologic Structure',
     ]);
 });
 
@@ -908,9 +943,56 @@ test('includes both creator and contributor contact persons', function () {
     expect($data['contact_persons'])
         ->toHaveCount(2)
         ->and($data['contact_persons'][0]['source'])->toBe('creator')
-        ->and($data['contact_persons'][0]['name'])->toBe('Jane Creator')
+        ->and($data['contact_persons'][0]['name'])->toBe('Creator, Jane')
         ->and($data['contact_persons'][1]['source'])->toBe('contributor')
         ->and($data['contact_persons'][1]['name'])->toBe('Bob Contributor');
+});
+
+test('preserves structured and unstructured creator snapshots for landing-page contacts', function () {
+    $structuredPerson = legacyLandingPerson(101, 'Philipp', 'Sommer');
+    $structuredCreator = legacyLandingCreator(
+        11,
+        $structuredPerson,
+        1,
+        isContact: true,
+        email: 'philipp@example.com',
+    );
+    $structuredCreator->forceFill([
+        'name_snapshot' => 'Sommer, Philipp S.',
+        'given_name_snapshot' => 'Philipp S.',
+        'family_name_snapshot' => 'Sommer',
+    ]);
+
+    $unstructuredPerson = legacyLandingPerson(102, 'Global', 'Identity');
+    $unstructuredCreator = legacyLandingCreator(
+        12,
+        $unstructuredPerson,
+        2,
+        isContact: true,
+        email: 'artist@example.com',
+    );
+    $unstructuredCreator->forceFill([
+        'name_snapshot' => 'The Artist',
+        'given_name_snapshot' => null,
+        'family_name_snapshot' => null,
+    ]);
+
+    $data = (new LandingPageResourceTransformer)->transform(legacyLandingResource(
+        [$structuredCreator, $unstructuredCreator],
+        [],
+    ));
+
+    expect($data['contact_persons'])->toHaveCount(2)
+        ->and($data['contact_persons'][0])->toMatchArray([
+            'name' => 'Sommer, Philipp S.',
+            'given_name' => 'Philipp S.',
+            'family_name' => 'Sommer',
+        ])
+        ->and($data['contact_persons'][1])->toMatchArray([
+            'name' => 'The Artist',
+            'given_name' => null,
+            'family_name' => null,
+        ]);
 });
 
 test('deduplicates contributor contact persons against creator contact persons', function () {
@@ -973,7 +1055,7 @@ test('deduplicates contributor contact persons against creator contact persons',
     expect($data['contact_persons'])
         ->toHaveCount(1)
         ->and($data['contact_persons'][0]['source'])->toBe('creator')
-        ->and($data['contact_persons'][0]['name'])->toBe('Alice Duplicate');
+        ->and($data['contact_persons'][0]['name'])->toBe('Duplicate, Alice');
 });
 
 test('resolves reordered legacy contact names consistently across credits and contacts', function () {
@@ -990,7 +1072,7 @@ test('resolves reordered legacy contact names consistently across credits and co
         ->and($data['contributors'][0]['contributor_types'])->toBe(['Contact Person'])
         ->and($data['contact_persons'])->toHaveCount(1)
         ->and($data['contact_persons'][0]['source'])->toBe('creator')
-        ->and($data['contact_persons'][0]['name'])->toBe('Juan Camilo Gomez-Zapata')
+        ->and($data['contact_persons'][0]['name'])->toBe('Gomez-Zapata, Juan Camilo')
         ->and($creatorPerson->given_name)->toBe('Juan Camilo')
         ->and($contributorPerson->given_name)->toBe('Gomez Zapata Juan');
 });
@@ -1019,7 +1101,7 @@ test('keeps a contributor contact route while using the matched creator identity
         ->and($data['contact_persons'][0])->toMatchArray([
             'id' => $contributor->id,
             'source' => 'contributor',
-            'name' => 'Juan Camilo Gomez-Zapata',
+            'name' => 'Gomez-Zapata, Juan Camilo',
             'given_name' => 'Juan Camilo',
             'family_name' => 'Gomez-Zapata',
             'orcid' => '0000-0002-1825-0097',
@@ -1054,7 +1136,7 @@ test('keeps a contributor ORCID while using the matched creator name for display
         ->and($data['contact_persons'][0])->toMatchArray([
             'id' => $contributor->id,
             'source' => 'contributor',
-            'name' => 'Alexandra Example',
+            'name' => 'Example, Alexandra',
             'given_name' => 'Alexandra',
             'family_name' => 'Example',
             'orcid' => '0000-0002-1825-0097',

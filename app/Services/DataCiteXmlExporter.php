@@ -176,22 +176,23 @@ class DataCiteXmlExporter
             return null;
         }
 
+        $resolvedName = $this->dataCitePartyMapper()->resolvePersonName($creator, $person);
         $creatorElement = $this->dom->createElement('creator');
 
         // Creator name (required) - use shared helper
-        $creatorName = $this->dom->createElement('creatorName', htmlspecialchars($this->formatPersonName($person)));
+        $creatorName = $this->dom->createElement('creatorName', htmlspecialchars($resolvedName['name']));
         $creatorName->setAttribute('nameType', 'Personal');
         $creatorElement->appendChild($creatorName);
 
         // Given name (optional)
-        if ($person->given_name) {
-            $givenName = $this->dom->createElement('givenName', htmlspecialchars($person->given_name));
+        if ($resolvedName['given_name'] !== null) {
+            $givenName = $this->dom->createElement('givenName', htmlspecialchars($resolvedName['given_name']));
             $creatorElement->appendChild($givenName);
         }
 
         // Family name (optional)
-        if ($person->family_name) {
-            $familyName = $this->dom->createElement('familyName', htmlspecialchars($person->family_name));
+        if ($resolvedName['family_name'] !== null) {
+            $familyName = $this->dom->createElement('familyName', htmlspecialchars($resolvedName['family_name']));
             $creatorElement->appendChild($familyName);
         }
 

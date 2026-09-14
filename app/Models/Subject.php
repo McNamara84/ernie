@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\LegacyMslScheme;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -113,6 +114,10 @@ class Subject extends Model
      */
     public function isMsl(): bool
     {
-        return str_starts_with($this->subject_scheme ?? '', 'MSL');
+        $scheme = trim((string) $this->subject_scheme);
+
+        return str_starts_with(mb_strtolower($scheme), 'msl')
+            || strcasecmp($scheme, LegacyMslScheme::CANONICAL_SCHEME) === 0
+            || LegacyMslScheme::isSupported($this->subject_scheme);
     }
 }

@@ -57,6 +57,27 @@ describe('PersonService', function () {
             expect($found->given_name)->toBe('Max');
         });
 
+        it('reuses and canonicalizes an ORCID person whose scheme uses different casing', function () {
+            $orcid = 'https://orcid.org/0000-0001-2345-6789';
+            $existing = Person::factory()->create([
+                'given_name' => 'Max',
+                'family_name' => 'Planck',
+                'name_identifier' => $orcid,
+                'name_identifier_scheme' => 'Orcid',
+            ]);
+
+            $found = $this->service->findOrCreate([
+                'firstName' => 'Maximilian',
+                'lastName' => 'Planck',
+                'orcid' => $orcid,
+            ]);
+
+            expect($found->id)->toBe($existing->id)
+                ->and($found->name_identifier_scheme)->toBe('ORCID')
+                ->and($found->hasOrcid())->toBeTrue()
+                ->and(Person::query()->count())->toBe(1);
+        });
+
         it('prioritizes ORCID search over name search', function () {
             $orcid = 'https://orcid.org/0000-0001-9999-8888';
             Person::factory()->create([
@@ -128,5 +149,123 @@ describe('PersonService', function () {
 
             expect($found->id)->toBe($existing->id);
         });
+    });
+
+    describe('findOrCreateWithoutStructuredName', function () {
+        it('creates a distinct nameless person without an ORCID', function () {
+            $first = $this->service->findOrCreateWithoutStructuredName();
+            $second = $this->service->findOrCreateWithoutStructuredName();
+
+            expect($first->id)->not->toBe($second->id)
+                ->and($first->given_name)->toBeNull()
+                ->and($first->family_name)->toBe('')
+                ->and($first->name_identifier)->toBeNull();
+        });
+
+        it('creates a nameless person with an ORCID', function () {
+            $orcid = '0000-0002-1825-0097';
+
+            $person = $this->service->findOrCreateWithoutStructuredName($orcid);
+
+            expect($person->given_name)->toBeNull()
+                ->and($person->family_name)->toBe('')
+                ->and($person->name_identifier)->toBe('https://orcid.org/'.$orcid)
+                ->and($person->name_identifier_scheme)->toBe('ORCID');
+        });
+
+        it('reuses stored ORCID variants without changing the global name', function (
+            string $storedOrcid,
+            string $submittedOrcid,
+        ) {
+            $orcid = '0000-0002-1825-0097';
+            $existing = Person::factory()->create([
+                'given_name' => 'Global',
+                'family_name' => 'Identity',
+                'name_identifier' => str_replace('{orcid}', $orcid, $storedOrcid),
+                'name_identifier_scheme' => 'ORCID',
+            ]);
+
+            $found = $this->service->findOrCreateWithoutStructuredName(
+                str_replace('{orcid}', $orcid, $submittedOrcid),
+            );
+
+            expect($found->id)->toBe($existing->id)
+                ->and($found->given_name)->toBe('Global')
+                ->and($found->family_name)->toBe('Identity')
+                ->and(Person::query()->count())->toBe(1);
+        })->with([
+            'canonical stored and bare submitted' => ['https://orcid.org/{orcid}', '{orcid}'],
+            'bare stored and canonical submitted' => ['{orcid}', 'https://orcid.org/{orcid}'],
+            'HTTP www stored and bare submitted' => ['http://www.orcid.org/{orcid}', '{orcid}'],
+            'prefixless URL stored and canonical submitted' => ['orcid.org/{orcid}', 'https://orcid.org/{orcid}'],
+        ]);
+
+        it('does not reuse an identifier assigned to a non-ORCID scheme', function (string $scheme) {
+            $orcid = '0000-0002-1825-0097';
+            $existing = Person::factory()->create([
+                'given_name' => 'Foreign',
+                'family_name' => 'Identity',
+                'name_identifier' => $orcid,
+                'name_identifier_scheme' => $scheme,
+            ]);
+
+            $found = $this->service->findOrCreateWithoutStructuredName($orcid);
+
+            expect($found->id)->not->toBe($existing->id)
+                ->and($found->name_identifier)->toBe('https://orcid.org/'.$orcid)
+                ->and($found->name_identifier_scheme)->toBe('ORCID')
+                ->and($existing->fresh()->name_identifier_scheme)->toBe($scheme)
+                ->and(Person::query()->count())->toBe(2);
+        })->with(['ISNI', 'ROR']);
+
+        it('reuses and classifies a legacy ORCID with a null scheme', function () {
+            $orcid = '0000-0002-1825-0097';
+            $existing = Person::factory()->create([
+                'given_name' => 'Legacy',
+                'family_name' => 'Identity',
+                'name_identifier' => $orcid,
+                'name_identifier_scheme' => null,
+            ]);
+
+            $found = $this->service->findOrCreateWithoutStructuredName($orcid);
+
+            expect($found->id)->toBe($existing->id)
+                ->and($found->name_identifier_scheme)->toBe('ORCID')
+                ->and($found->hasOrcid())->toBeTrue()
+                ->and(Person::query()->count())->toBe(1);
+        });
+
+        it('reuses and canonicalizes a mixed-case ORCID for an unstructured creator', function () {
+            $orcid = '0000-0002-1825-0097';
+            $existing = Person::factory()->create([
+                'given_name' => 'Global',
+                'family_name' => 'Identity',
+                'name_identifier' => 'https://orcid.org/'.$orcid,
+                'name_identifier_scheme' => 'orcid',
+            ]);
+
+            $found = $this->service->findOrCreateWithoutStructuredName($orcid);
+
+            expect($found->id)->toBe($existing->id)
+                ->and($found->name_identifier_scheme)->toBe('ORCID')
+                ->and($found->hasOrcid())->toBeTrue()
+                ->and(Person::query()->count())->toBe(1);
+        });
+    });
+
+    it('creates a person without rediscovering an ORCID person by name', function () {
+        $existing = Person::factory()->create([
+            'given_name' => 'Philipp',
+            'family_name' => 'Sommer',
+            'name_identifier' => '0000-0002-1825-0097',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        $created = $this->service->createWithoutOrcid('Philipp', 'Sommer');
+
+        expect($created->id)->not->toBe($existing->id)
+            ->and($created->given_name)->toBe('Philipp')
+            ->and($created->family_name)->toBe('Sommer')
+            ->and($created->name_identifier)->toBeNull();
     });
 });

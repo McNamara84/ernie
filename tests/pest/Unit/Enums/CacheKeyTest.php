@@ -37,8 +37,8 @@ it('generates correct cache keys with integer suffix', function () {
 });
 
 it('versions landing page render data cache keys', function () {
-    expect(CacheKey::LANDING_PAGE_RENDER_DATA->key())->toBe('landing_pages:render_data:v6')
-        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->key(123))->toBe('landing_pages:render_data:v6:123');
+    expect(CacheKey::LANDING_PAGE_RENDER_DATA->key())->toBe('landing_pages:render_data:v7')
+        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->key(123))->toBe('landing_pages:render_data:v7:123');
 });
 
 it('returns correct TTL for resources', function () {

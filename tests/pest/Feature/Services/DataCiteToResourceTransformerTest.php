@@ -9,6 +9,7 @@ use App\Models\Language;
 use App\Models\Person;
 use App\Models\Publisher;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
 use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\Right;
@@ -582,6 +583,46 @@ describe('DataCiteToResourceTransformer', function (): void {
                 ->and($person->given_name)->toBe('Albert')
                 ->and($person->name_identifier)->toBe('https://orcid.org/0000-0002-1825-0097')
                 ->and($person->name_identifier_scheme)->toBe('ORCID');
+        });
+
+        it('truncates imported creator snapshots to their database column limits', function (): void {
+            $user = User::factory()->create();
+            $person = Person::factory()->create([
+                'given_name' => 'Existing',
+                'family_name' => 'Person',
+                'name_identifier' => 'https://orcid.org/0000-0002-1825-0097',
+                'name_identifier_scheme' => 'ORCID',
+            ]);
+            $name = str_repeat('Ä', ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH + 5);
+            $givenName = str_repeat('Ö', ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH + 5);
+            $familyName = str_repeat('Ü', ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH + 5);
+
+            $resource = (new DataCiteToResourceTransformer)->transform([
+                'attributes' => [
+                    'doi' => '10.5880/long-creator-snapshot.2026.001',
+                    'titles' => [['title' => 'Long creator snapshot']],
+                    'creators' => [[
+                        'name' => $name,
+                        'givenName' => $givenName,
+                        'familyName' => $familyName,
+                        'nameType' => 'Personal',
+                        'nameIdentifiers' => [[
+                            'nameIdentifier' => '0000-0002-1825-0097',
+                            'nameIdentifierScheme' => 'ORCID',
+                        ]],
+                    ]],
+                ],
+            ], $user->id);
+
+            $creator = $resource->creators()->sole();
+
+            expect($creator->creatorable_id)->toBe($person->id)
+                ->and($creator->name_snapshot)
+                ->toBe(str_repeat('Ä', ResourceCreator::MAX_NAME_SNAPSHOT_LENGTH))
+                ->and($creator->given_name_snapshot)
+                ->toBe(str_repeat('Ö', ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH))
+                ->and($creator->family_name_snapshot)
+                ->toBe(str_repeat('Ü', ResourceCreator::MAX_STRUCTURED_NAME_SNAPSHOT_LENGTH));
         });
 
         it('normalizes valid ORCID identifiers to canonical URLs', function (): void {

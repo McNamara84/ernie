@@ -13,6 +13,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\IgsnRepositoryContactService;
 use App\Services\LandingPagePersonIdentityResolverService;
 use Illuminate\Http\JsonResponse;
@@ -34,6 +35,7 @@ class ContactMessageController extends Controller
     public function __construct(
         private readonly IgsnRepositoryContactService $repositoryContactService,
         private readonly LandingPagePersonIdentityResolverService $personIdentityResolver,
+        private readonly ResourceCreatorNameResolverService $creatorNameResolver,
     ) {}
 
     /**
@@ -355,7 +357,7 @@ class ContactMessageController extends Controller
                 $creatorable = $creator->creatorable;
                 $recipients[] = [
                     'email' => (string) $creator->email,
-                    'name' => $this->getEntityName($creatorable),
+                    'name' => $this->getCreatorName($creator, $creatorable),
                 ];
             }
 
@@ -376,7 +378,7 @@ class ContactMessageController extends Controller
                 $creatorable = $creator->creatorable;
                 $recipients[] = [
                     'email' => $creator->email,
-                    'name' => $this->getEntityName($creatorable),
+                    'name' => $this->getCreatorName($creator, $creatorable),
                 ];
             }
         } elseif ($resourceContributorId !== null) {
@@ -405,5 +407,16 @@ class ContactMessageController extends Controller
         }
 
         return $entity->name ?? 'Contact Person';
+    }
+
+    private function getCreatorName(ResourceCreator $creator, Person|Institution $entity): string
+    {
+        if ($entity instanceof Person) {
+            $name = $this->creatorNameResolver->resolve($creator, $entity)['name'];
+
+            return $name !== 'Unknown' ? $name : 'Contact Person';
+        }
+
+        return $this->getEntityName($entity);
     }
 }

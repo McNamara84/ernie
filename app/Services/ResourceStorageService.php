@@ -562,6 +562,15 @@ class ResourceStorageService
      */
     private function storeCreators(Resource $resource, array $data, bool $isUpdate): void
     {
+        /** @var array<int, Person> $existingCreatorPeople */
+        $existingCreatorPeople = $resource->creators()
+            ->with('creatorable')
+            ->get()
+            ->filter(fn (ResourceCreator $creator): bool => $creator->creatorable instanceof Person)
+            ->mapWithKeys(fn (ResourceCreator $creator): array => [
+                (int) $creator->id => $creator->creatorable,
+            ])
+            ->all();
         $resource->creators()->delete();
 
         $authors = $data['authors'] ?? [];
@@ -574,7 +583,7 @@ class ResourceStorageService
             if (($author['type'] ?? 'person') === 'institution') {
                 $resourceCreator = $this->storeInstitutionCreator($resource, $author, $position);
             } else {
-                $resourceCreator = $this->storePersonCreator($resource, $author, $position);
+                $resourceCreator = $this->storePersonCreator($resource, $author, $position, $existingCreatorPeople);
             }
 
             $this->affiliationService->syncForCreator($resourceCreator, $author);
@@ -583,12 +592,46 @@ class ResourceStorageService
 
     /**
      * @param  array<string, mixed>  $data
+     * @param  array<int, Person>  $existingCreatorPeople
      */
-    private function storePersonCreator(Resource $resource, array $data, int $position): ResourceCreator
-    {
-        $person = $this->personService->findOrCreate($data);
+    private function storePersonCreator(
+        Resource $resource,
+        array $data,
+        int $position,
+        array $existingCreatorPeople = [],
+    ): ResourceCreator {
         $isContact = (bool) ($data['isContact'] ?? false);
         $contactInfo = $this->validatedContactInfo($data);
+        $givenName = $this->normalizeNullableString($data['firstName'] ?? null);
+        $familyName = $this->normalizeNullableString($data['lastName'] ?? null);
+        $nameSnapshot = $this->normalizeNullableString($data['nameSnapshot'] ?? null);
+        $orcid = $this->normalizeNullableString($data['orcid'] ?? null);
+        $usesUnstructuredPersonIdentity = $familyName === null && $nameSnapshot !== null;
+        $existingCreatorId = is_numeric($data['resourceCreatorId'] ?? null)
+            ? (int) $data['resourceCreatorId']
+            : 0;
+        $existingPerson = $existingCreatorPeople[$existingCreatorId] ?? null;
+        $identityChanged = $existingPerson instanceof Person
+            && ! $this->sameOrcidIdentity($existingPerson, $orcid);
+        $person = $existingPerson instanceof Person
+            && ! $identityChanged
+                ? $existingPerson
+                : null;
+        if (! $person instanceof Person) {
+            $person = match (true) {
+                $usesUnstructuredPersonIdentity => $this->personService->findOrCreateWithoutStructuredName($orcid),
+                $identityChanged && $orcid === null => $this->personService->createWithoutOrcid($givenName, $familyName),
+                default => $this->personService->findOrCreate($data),
+            };
+        }
+        $storedScheme = $this->normalizeNullableString($person->name_identifier_scheme);
+        if ($orcid !== null
+            && ($storedScheme === null || strcasecmp($storedScheme, 'ORCID') === 0)
+            && $person->name_identifier_scheme !== 'ORCID'
+        ) {
+            $person->name_identifier_scheme = 'ORCID';
+            $person->save();
+        }
 
         return ResourceCreator::query()->create([
             'resource_id' => $resource->id,
@@ -598,7 +641,43 @@ class ResourceStorageService
             'is_contact' => $isContact,
             'email' => $isContact ? $contactInfo['email'] : null,
             'website' => $isContact ? $contactInfo['website'] : null,
+            'name_snapshot' => match (true) {
+                $nameSnapshot !== null => $nameSnapshot,
+                $familyName !== null && $givenName !== null => $familyName.', '.$givenName,
+                $familyName !== null => $familyName,
+                default => $givenName,
+            },
+            'given_name_snapshot' => $givenName,
+            'family_name_snapshot' => $familyName,
         ]);
+    }
+
+    private function sameOrcidIdentity(Person $storedPerson, ?string $submittedOrcid): bool
+    {
+        // A null scheme is the supported legacy ORCID representation. Any
+        // explicit non-ORCID scheme describes a different global identity.
+        $storedScheme = $this->normalizeNullableString($storedPerson->name_identifier_scheme);
+        if ($storedScheme !== null
+            && strcasecmp($storedScheme, 'ORCID') !== 0
+        ) {
+            return false;
+        }
+
+        return $this->normalizedOrcidIdentity($storedPerson->name_identifier)
+            === $this->normalizedOrcidIdentity($submittedOrcid);
+    }
+
+    private function normalizedOrcidIdentity(?string $orcid): ?string
+    {
+        $orcid = $this->normalizeNullableString($orcid);
+
+        if ($orcid === null) {
+            return null;
+        }
+
+        $bareOrcid = OrcidNormalizer::extractBareId($orcid);
+
+        return $bareOrcid !== '' ? strtolower($bareOrcid) : null;
     }
 
     /**

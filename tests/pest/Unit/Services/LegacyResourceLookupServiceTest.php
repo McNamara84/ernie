@@ -160,6 +160,7 @@ describe('LegacyResourceLookupService', function () {
                 ['subject' => 'GNSS'],
                 ['subject' => 'Crustal deformation'],
             ],
+            'creators' => [],
             'legacyResourceId' => $resourceId,
             'legacyResourceStatus' => 'released',
         ]);
@@ -169,6 +170,7 @@ describe('LegacyResourceLookupService', function () {
         expect($this->service->importMetadataByDoi('10.5880/missing'))->toBe([
             'relatedIdentifiers' => [],
             'subjects' => [],
+            'creators' => [],
             'legacyResourceId' => null,
             'legacyResourceStatus' => null,
         ]);

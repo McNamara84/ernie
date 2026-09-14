@@ -631,6 +631,29 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                         </p>
                         <DocsCodeBlock code="php artisan resources:reconcile-legacy-related-identifiers --doi=10.5880/example --apply --sync-datacite --report=/path/to/related-work-sync.csv" />
 
+                        <h4>Backfill Legacy Creator Names and EPOS WP16 Subjects</h4>
+                        <p>
+                            This administrator command audits migrated SUMARIO resources for resource-specific creator spellings and legacy EPOS WP16
+                            subjects. It is a dry run by default. Start with a narrow, repeatable filter and a CSV report, then review unmatched
+                            creators, subject conflicts, concurrent changes, and errors before applying anything.
+                        </p>
+                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --doi=10.5880/example --report=/path/to/creator-msl-audit.csv" />
+                        <p className="text-sm text-muted-foreground">
+                            The repeatable <code>--doi</code> and <code>--legacy-id</code> options select known records. Use{' '}
+                            <code>--match-by-doi</code> only when auditing older resources without a SUMARIO link. Large runs can be resumed and
+                            bounded with <code>--after-id</code>, <code>--limit</code>, and <code>--chunk</code>. Keep the generated CSV as the
+                            per-resource audit trail.
+                        </p>
+                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --legacy-id=12345 --after-id=0 --limit=500 --chunk=100 --report=/path/to/creator-msl-audit.csv" />
+                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --doi=10.5880/example --apply --report=/path/to/creator-msl-apply.csv" />
+                        <p className="text-sm text-muted-foreground">
+                            Apply mode writes only unambiguous additions or enrichments, invalidates affected public output, and starts a
+                            full-metadata DataCite synchronization for changed resources with a DOI. Record the printed sync-run UUID. Local changes
+                            remain applied if an asynchronous synchronization item fails; retry only failed items with the same run ID. Finally,
+                            repeat the dry run over the applied scope and confirm that it proposes no further changes.
+                        </p>
+                        <DocsCodeBlock code="php artisan resources:backfill-legacy-creator-and-msl-metadata --retry-sync=&lt;uuid&gt;" />
+
                         <h4>Audit Legacy IGSN Handles</h4>
                         <DocsCodeBlock code="php artisan igsn:audit-legacy-handles" />
                         <DocsCodeBlock code="php artisan igsn:audit-legacy-handles --batch=20 --output=/path/to/report.json" />

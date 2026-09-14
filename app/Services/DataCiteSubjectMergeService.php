@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Support\GcmdUriHelper;
+use App\Support\LegacyMslScheme;
 use App\Support\PortalSubjectNormalizer;
 use Normalizer;
 
@@ -148,16 +149,19 @@ final class DataCiteSubjectMergeService
         $valueUri = $this->stringValue($subject, ['valueUri', 'valueURI', 'value_uri', 'id']);
         $classificationCode = $this->stringValue($subject, ['classificationCode', 'classification_code']);
         $isControlled = $scheme !== null || $schemeUri !== null || $valueUri !== null || $classificationCode !== null;
+        $preserveSourceScheme = LegacyMslScheme::isSupported($scheme);
 
         if (! $isControlled) {
             return ['free|'.$this->normalizeText($value)];
         }
 
-        $normalizedScheme = $this->normalizeScheme($scheme, $schemeUri, $valueUri);
+        $normalizedScheme = $this->normalizeIdentityScheme($scheme, $schemeUri, $valueUri);
         $identities = [];
 
         if ($valueUri !== null) {
-            $identities[] = 'uri|'.$this->normalizeUri($valueUri);
+            $identities[] = 'uri|'
+                .($preserveSourceScheme ? $normalizedScheme.'|' : '')
+                .$this->normalizeUri($valueUri);
         }
 
         if ($classificationCode !== null && $normalizedScheme !== '') {
@@ -192,8 +196,12 @@ final class DataCiteSubjectMergeService
         return null;
     }
 
-    private function normalizeScheme(?string $scheme, ?string $schemeUri, ?string $valueUri): string
+    private function normalizeIdentityScheme(?string $scheme, ?string $schemeUri, ?string $valueUri): string
     {
+        if (LegacyMslScheme::isSupported($scheme)) {
+            return $this->normalizeText((string) $scheme);
+        }
+
         $normalizedScheme = PortalSubjectNormalizer::normalizeScheme($scheme);
 
         if ($normalizedScheme === null) {
@@ -222,8 +230,8 @@ final class DataCiteSubjectMergeService
         ));
 
         if ($segments !== [] && $normalizedScheme !== '') {
-            $firstSegmentScheme = PortalSubjectNormalizer::normalizeScheme($segments[0]);
-            if ($firstSegmentScheme !== null && $this->normalizeText($firstSegmentScheme) === $normalizedScheme) {
+            $firstSegmentScheme = $this->normalizeIdentityScheme($segments[0], null, null);
+            if ($firstSegmentScheme === $normalizedScheme) {
                 array_shift($segments);
             }
         }

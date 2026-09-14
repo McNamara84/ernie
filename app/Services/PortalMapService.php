@@ -10,6 +10,7 @@ use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceType;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnMapPresentationService;
 use App\Support\CircularLongitudeCoverage;
 use Illuminate\Database\Query\Builder;
@@ -21,6 +22,7 @@ class PortalMapService
         private readonly PortalSearchService $portalSearchService,
         private readonly PortalMapClusterService $clusterService,
         private readonly IgsnMapPresentationService $igsnPresentationService,
+        private readonly ResourceCreatorNameResolverService $creatorNameResolver,
     ) {}
 
     /**
@@ -1010,9 +1012,16 @@ class PortalMapService
                         return null;
                     }
 
-                    $name = $creatorable instanceof Person
-                        ? $creatorable->full_name
-                        : $creatorable->name;
+                    if ($creatorable instanceof Person) {
+                        $resolvedName = $this->creatorNameResolver->resolve($creator, $creatorable);
+                        $name = $resolvedName['source'] === 'person'
+                            && $resolvedName['given_name'] === null
+                            && $resolvedName['family_name'] === null
+                                ? ''
+                                : $resolvedName['name'];
+                    } else {
+                        $name = $creatorable->name;
+                    }
 
                     return trim($name) !== '' ? ['name' => $name] : null;
                 })
