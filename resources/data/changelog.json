@@ -6,7 +6,7 @@
         "improvements": [
             {
                 "title": "Data Requests Without Automatic Downloads",
-                "description": "Generated GFZ landing pages marked as having no automatic download now replace their download actions with a clearly labelled request form while retaining saved download values for later use. Requests are sent to every designated contact person with one copy to the configured data publication team; when no contact email is available, a configured team receives the request directly. The form also works in authenticated session previews. If neither recipient is available, the page shows an availability notice instead of an unusable form.",
+                "description": "Generated GFZ landing pages marked as having no automatic download now replace their download actions with a clearly labelled request form while retaining saved download values for later use. Requests are sent to every designated contact person with one copy to the configured data publication team; when no contact email is available, a configured team receives the request directly and the successful response identifies that fallback. The form also works in authenticated session previews. If neither recipient is available, the page shows an availability notice instead of an unusable form.",
                 "references": [
                     {
                         "type": "issue",

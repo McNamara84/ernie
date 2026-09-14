@@ -292,6 +292,7 @@ class ContactMessageController extends Controller
         return response()->json([
             'message' => 'Message received successfully.',
             'recipients_count' => count($recipients),
+            'data_publication_team_direct_recipient' => $teamIsDirectRecipient,
         ]);
     }
 

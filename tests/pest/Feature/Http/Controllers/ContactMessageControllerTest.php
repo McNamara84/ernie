@@ -100,7 +100,10 @@ describe('ContactMessageController', function (): void {
             ]);
 
             $response->assertOk()
-                ->assertJson(['message' => 'Message received successfully.']);
+                ->assertJson([
+                    'message' => 'Message received successfully.',
+                    'data_publication_team_direct_recipient' => false,
+                ]);
 
             Mail::assertQueued(ContactPersonMessage::class);
 
@@ -319,7 +322,10 @@ describe('ContactMessageController', function (): void {
             ]);
 
             $response->assertOk()
-                ->assertJson(['recipients_count' => 1]);
+                ->assertJson([
+                    'recipients_count' => 1,
+                    'data_publication_team_direct_recipient' => true,
+                ]);
 
             Mail::assertQueued(ContactPersonMessage::class, 1);
             Mail::assertQueued(ContactPersonMessage::class, function (ContactPersonMessage $mail): bool {
@@ -786,6 +792,7 @@ describe('ContactMessageController', function (): void {
                 ->assertJson([
                     'message' => 'Message received successfully.',
                     'recipients_count' => 1,
+                    'data_publication_team_direct_recipient' => true,
                 ]);
 
             Mail::assertQueued(ContactPersonMessage::class, 1);
