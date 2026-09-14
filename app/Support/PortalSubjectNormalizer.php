@@ -27,8 +27,7 @@ final class PortalSubjectNormalizer
      */
     private const LEGACY_MSL_CURRENT_NODE_URIS = [
         'epos wp16 analogue material' => [
-            'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite'
-                => 'https://epos-msl.uu.nl/voc/materials/1.3/igneous_rock_-_intrusive-acidic_intrusive-granite',
+            'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite' => 'https://epos-msl.uu.nl/voc/materials/1.3/igneous_rock_-_intrusive-acidic_intrusive-granite',
         ],
     ];
 

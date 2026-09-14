@@ -929,6 +929,7 @@ it('preserves a retryable DataCite sync run when batch dispatch fails', function
     ['resource' => $resource, 'creator' => $creator] = createLegacyCreatorBackfillFixture(
         '10.5880/failed-sync-dispatch',
     );
+    $reportPath = sys_get_temp_dir().'/ernie-failed-sync-dispatch-'.bin2hex(random_bytes(8)).'.csv';
     Config::set('datacite.test_mode', false);
     $dispatcher = Mockery::mock(ImportedResourceDataCiteSyncDispatcherService::class);
     $dispatcher->shouldReceive('dispatch')
@@ -936,38 +937,69 @@ it('preserves a retryable DataCite sync run when batch dispatch fails', function
         ->andThrow(new RuntimeException('Queue connection unavailable.'));
     app()->instance(ImportedResourceDataCiteSyncDispatcherService::class, $dispatcher);
 
-    $exitCode = Artisan::call('resources:backfill-legacy-creator-and-msl-metadata', [
-        '--doi' => [$resource->doi],
-        '--apply' => true,
-    ]);
-    $output = Artisan::output();
+    try {
+        $exitCode = Artisan::call('resources:backfill-legacy-creator-and-msl-metadata', [
+            '--doi' => [$resource->doi],
+            '--apply' => true,
+            '--report' => $reportPath,
+        ]);
+        $output = Artisan::output();
 
-    expect($exitCode)->toBe(Command::FAILURE)
-        ->and($output)->toContain('Unable to dispatch the DataCite synchronization: Queue connection unavailable.')
-        ->and($output)->toContain('DataCite full-metadata sync run:')
-        ->and($creator->fresh()->given_name_snapshot)->toBe('Philipp S.');
+        expect($exitCode)->toBe(Command::FAILURE)
+            ->and($output)->toContain('Unable to dispatch the DataCite synchronization: Queue connection unavailable.')
+            ->and($output)->toContain('DataCite full-metadata sync run:')
+            ->and($creator->fresh()->given_name_snapshot)->toBe('Philipp S.');
 
-    preg_match('/DataCite full-metadata sync run: ([0-9a-f-]+)/i', $output, $matches);
-    $syncRunId = $matches[1] ?? null;
-    expect($syncRunId)->toBeString();
-    if (! is_string($syncRunId)) {
-        return;
+        preg_match('/DataCite full-metadata sync run: ([0-9a-f-]+)/i', $output, $matches);
+        $syncRunId = $matches[1] ?? null;
+        expect($syncRunId)->toBeString();
+        if (! is_string($syncRunId)) {
+            return;
+        }
+
+        $progress = app(ImportProgressService::class);
+        expect($progress->get(ImportProgressService::TYPE_RESOURCE, $syncRunId))->toMatchArray([
+            'status' => 'completed',
+            'phase' => 'completed',
+            'sync_total' => 1,
+            'sync_processed' => 1,
+            'sync_succeeded' => 0,
+            'sync_failed' => 1,
+            'sync_full_metadata_total' => 1,
+            'sync_retry_available' => true,
+        ])->and($progress->failedResourceIds(ImportProgressService::TYPE_RESOURCE, $syncRunId))
+            ->toBe([$resource->id])
+            ->and($progress->fullMetadataResourceIds(ImportProgressService::TYPE_RESOURCE, $syncRunId))
+            ->toBe([$resource->id]);
+
+        $stream = fopen($reportPath, 'rb');
+        expect($stream)->not->toBeFalse();
+        if ($stream === false) {
+            return;
+        }
+
+        try {
+            $columns = fgetcsv($stream, escape: '');
+            $row = fgetcsv($stream, escape: '');
+        } finally {
+            fclose($stream);
+        }
+
+        expect($columns)->toBeArray()
+            ->and($row)->toBeArray();
+        if (! is_array($columns) || ! is_array($row)) {
+            return;
+        }
+
+        $record = array_combine($columns, $row);
+        expect($record)->toBeArray()
+            ->and($record['datacite_sync_status'] ?? null)->toBe('pending:'.$syncRunId)
+            ->and($record['datacite_sync_status'] ?? null)->not->toStartWith('queued:');
+    } finally {
+        if (file_exists($reportPath)) {
+            unlink($reportPath);
+        }
     }
-
-    $progress = app(ImportProgressService::class);
-    expect($progress->get(ImportProgressService::TYPE_RESOURCE, $syncRunId))->toMatchArray([
-        'status' => 'completed',
-        'phase' => 'completed',
-        'sync_total' => 1,
-        'sync_processed' => 1,
-        'sync_succeeded' => 0,
-        'sync_failed' => 1,
-        'sync_full_metadata_total' => 1,
-        'sync_retry_available' => true,
-    ])->and($progress->failedResourceIds(ImportProgressService::TYPE_RESOURCE, $syncRunId))
-        ->toBe([$resource->id])
-        ->and($progress->fullMetadataResourceIds(ImportProgressService::TYPE_RESOURCE, $syncRunId))
-        ->toBe([$resource->id]);
 });
 
 it('streams the command report to CSV while resources are processed', function (): void {

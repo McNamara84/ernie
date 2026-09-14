@@ -274,7 +274,7 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
 
         return config('datacite.test_mode') !== false
             ? 'skipped_test_mode'
-            : 'queued:'.$syncRunId;
+            : 'pending:'.$syncRunId;
     }
 
     private function spreadsheetSafeCell(mixed $value): string|int|null
