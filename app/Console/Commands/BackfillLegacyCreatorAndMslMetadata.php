@@ -284,7 +284,10 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
         }
 
         $value = (string) $value;
+        if ($value === '' || preg_match('/\A\s*(?:[=+\-@]|\t|\r|\n)/u', $value) !== 1) {
+            return $value;
+        }
 
-        return preg_match('/^[=+\-@]/', $value) === 1 ? "'".$value : $value;
+        return "'".$value;
     }
 }

@@ -57,6 +57,27 @@ describe('PersonService', function () {
             expect($found->given_name)->toBe('Max');
         });
 
+        it('reuses and canonicalizes an ORCID person whose scheme uses different casing', function () {
+            $orcid = 'https://orcid.org/0000-0001-2345-6789';
+            $existing = Person::factory()->create([
+                'given_name' => 'Max',
+                'family_name' => 'Planck',
+                'name_identifier' => $orcid,
+                'name_identifier_scheme' => 'Orcid',
+            ]);
+
+            $found = $this->service->findOrCreate([
+                'firstName' => 'Maximilian',
+                'lastName' => 'Planck',
+                'orcid' => $orcid,
+            ]);
+
+            expect($found->id)->toBe($existing->id)
+                ->and($found->name_identifier_scheme)->toBe('ORCID')
+                ->and($found->hasOrcid())->toBeTrue()
+                ->and(Person::query()->count())->toBe(1);
+        });
+
         it('prioritizes ORCID search over name search', function () {
             $orcid = 'https://orcid.org/0000-0001-9999-8888';
             Person::factory()->create([
@@ -204,6 +225,23 @@ describe('PersonService', function () {
                 'family_name' => 'Identity',
                 'name_identifier' => $orcid,
                 'name_identifier_scheme' => null,
+            ]);
+
+            $found = $this->service->findOrCreateWithoutStructuredName($orcid);
+
+            expect($found->id)->toBe($existing->id)
+                ->and($found->name_identifier_scheme)->toBe('ORCID')
+                ->and($found->hasOrcid())->toBeTrue()
+                ->and(Person::query()->count())->toBe(1);
+        });
+
+        it('reuses and canonicalizes a mixed-case ORCID for an unstructured creator', function () {
+            $orcid = '0000-0002-1825-0097';
+            $existing = Person::factory()->create([
+                'given_name' => 'Global',
+                'family_name' => 'Identity',
+                'name_identifier' => 'https://orcid.org/'.$orcid,
+                'name_identifier_scheme' => 'orcid',
             ]);
 
             $found = $this->service->findOrCreateWithoutStructuredName($orcid);

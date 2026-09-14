@@ -545,7 +545,7 @@ describe('ResourceStorageService', function () {
         expect($storedCreator->creatorable_id)->toBe($originalPerson->id)
             ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
             ->and($storedCreator->creatorable->name_identifier)->toBe($orcid)
-            ->and($storedCreator->creatorable->name_identifier_scheme)->toBe('Orcid')
+            ->and($storedCreator->creatorable->name_identifier_scheme)->toBe('ORCID')
             ->and($storedCreator->name_snapshot)->toBe('Sommer, Philipp');
     });
 

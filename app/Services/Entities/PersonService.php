@@ -18,8 +18,8 @@ use App\Support\OrcidNormalizer;
  * 2. By given_name + family_name combination
  *
  * New persons are created with ORCID identifier if provided.
- * Existing names are not updated to preserve data integrity. A legacy ORCID
- * with a null identifier scheme is classified as ORCID when it is reused.
+ * Existing names are not updated to preserve data integrity. Compatible ORCID
+ * scheme variants are normalized to the canonical spelling when reused.
  */
 class PersonService
 {
@@ -37,7 +37,7 @@ class PersonService
             $existing = $this->findCompatibleOrcidPerson($orcid);
 
             if ($existing instanceof Person) {
-                return $this->promoteLegacyOrcidScheme($existing);
+                return $this->canonicalizeOrcidScheme($existing);
             }
 
             $data['orcid'] = $this->availableOrcidStorageValue($orcid);
@@ -73,7 +73,7 @@ class PersonService
             $existing = $this->findCompatibleOrcidPerson($orcid);
 
             if ($existing instanceof Person) {
-                return $this->promoteLegacyOrcidScheme($existing);
+                return $this->canonicalizeOrcidScheme($existing);
             }
 
             if (OrcidNormalizer::isValid($bareOrcid)) {
@@ -136,7 +136,7 @@ class PersonService
 
         $person = Person::query()
             ->whereIn('name_identifier', $variants)
-            ->where('name_identifier_scheme', self::ORCID_SCHEME)
+            ->whereRaw('LOWER(TRIM(name_identifier_scheme)) = ?', [strtolower(self::ORCID_SCHEME)])
             ->first();
 
         if ($person instanceof Person) {
@@ -151,9 +151,9 @@ class PersonService
             ->first();
     }
 
-    private function promoteLegacyOrcidScheme(Person $person): Person
+    private function canonicalizeOrcidScheme(Person $person): Person
     {
-        if ($person->name_identifier_scheme === null) {
+        if ($person->name_identifier_scheme !== self::ORCID_SCHEME) {
             $person->name_identifier_scheme = self::ORCID_SCHEME;
             $person->save();
         }

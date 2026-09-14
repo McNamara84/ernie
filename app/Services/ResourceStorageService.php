@@ -624,7 +624,11 @@ class ResourceStorageService
                 default => $this->personService->findOrCreate($data),
             };
         }
-        if ($orcid !== null && $person->name_identifier_scheme === null) {
+        $storedScheme = $this->normalizeNullableString($person->name_identifier_scheme);
+        if ($orcid !== null
+            && ($storedScheme === null || strcasecmp($storedScheme, 'ORCID') === 0)
+            && $person->name_identifier_scheme !== 'ORCID'
+        ) {
             $person->name_identifier_scheme = 'ORCID';
             $person->save();
         }

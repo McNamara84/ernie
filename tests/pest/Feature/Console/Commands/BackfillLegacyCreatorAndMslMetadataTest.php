@@ -1049,6 +1049,17 @@ it('streams the command report to CSV while resources are processed', function (
     }
 });
 
+it('neutralizes spreadsheet formulas after leading whitespace in CSV cells', function (): void {
+    $method = new ReflectionMethod(BackfillLegacyCreatorAndMslMetadata::class, 'spreadsheetSafeCell');
+    $command = app(BackfillLegacyCreatorAndMslMetadata::class);
+
+    expect($method->invoke($command, '  =1+1'))->toBe("'  =1+1")
+        ->and($method->invoke($command, "\t@SUM(1:1)"))->toBe("'\t@SUM(1:1)")
+        ->and($method->invoke($command, "\u{00A0}+1+1"))->toBe("'\u{00A0}+1+1")
+        ->and($method->invoke($command, '  harmless'))->toBe('  harmless')
+        ->and($method->invoke($command, 42))->toBe(42);
+});
+
 it('rejects retrying a DataCite synchronization that is still running', function (): void {
     $syncRunId = '5cd20d2a-77f1-4ba0-bf98-e03076e9e8b4';
     app(ImportProgressService::class)->update(ImportProgressService::TYPE_RESOURCE, $syncRunId, [
