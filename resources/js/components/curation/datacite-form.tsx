@@ -133,12 +133,12 @@ function parseCurationAccordionRevision(value: unknown): number | null {
 
 type DraftSaveResponse = {
     message?: string;
-    resource?: { id: number; publicStatus?: ResourcePublicStatus };
+    resource?: { id: number; publicStatus?: ResourcePublicStatus; canEditDoi?: boolean };
 };
 
 type ValidatedSaveResponse = {
     message?: string;
-    resource?: { id: number; publicStatus?: ResourcePublicStatus };
+    resource?: { id: number; publicStatus?: ResourcePublicStatus; canEditDoi?: boolean };
 };
 
 type LandingPageSetupPurpose = 'preview' | 'datacite-registration';
@@ -299,6 +299,7 @@ export default function DataCiteForm({
     initialDatacenterId = null,
     availableDatacenters = [],
     isUserAdmin,
+    canEditDoi,
     activeRelationTypes,
     activeIdentifierTypes,
 }: DataCiteFormProps) {
@@ -613,10 +614,6 @@ export default function DataCiteForm({
             toast.success('DOI ist verfügbar', { duration: 2000 });
         },
     });
-
-    // Check if DOI field should be readonly (already saved with a valid DOI)
-    // Admins can always edit the DOI field, even after the resource has been saved
-    const isDoiReadonly = Boolean(initialResourceId && initialDoi && initialDoi.trim() !== '' && !isAdmin);
 
     // DOI validation rules (format only - duplicate check is done via useDoiValidation hook)
     // Memoized to prevent unnecessary callback recreations
@@ -2045,6 +2042,10 @@ export default function DataCiteForm({
         return Number.isFinite(parsed) ? parsed : null;
     });
     const [currentPublicStatus, setCurrentPublicStatus] = useState<ResourcePublicStatus>(initialPublicStatus);
+    const [currentCanEditDoi, setCurrentCanEditDoi] = useState(canEditDoi ?? isAdmin);
+    const isDoiReadonly = Boolean(
+        resolvedResourceId !== null && form.doi?.trim() && (!currentCanEditDoi || (currentPublicStatus === 'published' && !isAdmin)),
+    );
 
     const [landingPageForPreview, setLandingPageForPreview] = useState<EditorLandingPageSummary | null>(initialLandingPage);
     const [isPreparingLandingPagePreview, setIsPreparingLandingPagePreview] = useState(false);
@@ -2495,6 +2496,12 @@ export default function DataCiteForm({
             if (savedResourceId) {
                 setResolvedResourceId(savedResourceId);
             }
+            if (data?.resource?.publicStatus) {
+                setCurrentPublicStatus(data.resource.publicStatus);
+            }
+            if (typeof data?.resource?.canEditDoi === 'boolean') {
+                setCurrentCanEditDoi(data.resource.canEditDoi);
+            }
 
             markDraftAutosaveSaved(payload, savedResourceId);
         } catch (error) {
@@ -2658,6 +2665,9 @@ export default function DataCiteForm({
             }
             if (data?.resource?.publicStatus) {
                 setCurrentPublicStatus(data.resource.publicStatus);
+            }
+            if (typeof data?.resource?.canEditDoi === 'boolean') {
+                setCurrentCanEditDoi(data.resource.canEditDoi);
             }
 
             setHasAttemptedSubmit(false);
@@ -2884,6 +2894,12 @@ export default function DataCiteForm({
             if (savedResourceId) {
                 setResolvedResourceId(savedResourceId);
             }
+            if (data?.resource?.publicStatus) {
+                setCurrentPublicStatus(data.resource.publicStatus);
+            }
+            if (typeof data?.resource?.canEditDoi === 'boolean') {
+                setCurrentCanEditDoi(data.resource.canEditDoi);
+            }
             updateDraftAutosaveSignature(payload, savedResourceId);
 
             setHasAttemptedSubmit(false);
@@ -2968,6 +2984,12 @@ export default function DataCiteForm({
             }
 
             setResolvedResourceId(savedResourceId);
+            if (data?.resource?.publicStatus) {
+                setCurrentPublicStatus(data.resource.publicStatus);
+            }
+            if (typeof data?.resource?.canEditDoi === 'boolean') {
+                setCurrentCanEditDoi(data.resource.canEditDoi);
+            }
             updateDraftAutosaveSignature(payload, savedResourceId);
             setHasAttemptedSubmit(false);
 
@@ -3070,6 +3092,9 @@ export default function DataCiteForm({
     const handleLandingPageSetupSuccess = async (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => {
         const summary = landingPage ? toEditorLandingPageSummary(landingPage) : null;
         setLandingPageForPreview(summary);
+        if (summary?.is_published && form.doi?.trim()) {
+            setCurrentPublicStatus('published');
+        }
         setIsLandingPageSetupOpen(false);
         setPendingLandingPageSetupResource(null);
 
@@ -3362,9 +3387,13 @@ export default function DataCiteForm({
                             placeholder="10.xxxx/xxxxx"
                             labelTooltip={
                                 isDoiReadonly
-                                    ? 'DOI cannot be changed after the resource has been saved. Only administrators can edit the DOI.'
-                                    : initialResourceId && initialDoi && isAdmin
-                                      ? 'As an administrator, you can edit this DOI. Be careful when changing registered DOIs.'
+                                    ? currentPublicStatus === 'published'
+                                        ? 'Published DOIs can only be changed by administrators.'
+                                        : 'You do not have permission to change this saved DOI.'
+                                    : initialResourceId && initialDoi
+                                      ? currentPublicStatus === 'published'
+                                          ? 'As an administrator, you can edit this published DOI. Changing it can break existing links.'
+                                          : 'You can replace or remove this DOI until the resource is published.'
                                       : 'Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx'
                             }
                             className="md:col-span-4 2xl:col-span-3"

@@ -279,6 +279,8 @@ export interface DataCiteFormProps {
     availableDatacenters?: { id: number; name: string }[];
     /** Optional: Whether the current user is an admin (used for DOI editing permissions) */
     isUserAdmin?: boolean;
+    /** Whether the current user may change the DOI of this persisted resource */
+    canEditDoi?: boolean;
     /** Active relation type slugs from the backend (only these are shown in the editor) */
     activeRelationTypes?: string[];
     /** Active identifier type slugs from the backend (only these are shown in the editor) */

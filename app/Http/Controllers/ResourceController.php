@@ -151,6 +151,7 @@ class ResourceController extends Controller
             'resource' => [
                 'id' => $resource->id,
                 'publicStatus' => $resource->publicStatus(),
+                'canEditDoi' => $request->user()?->can('editDoi', $resource) ?? false,
             ],
         ], $status);
     }
@@ -205,6 +206,7 @@ class ResourceController extends Controller
             'resource' => [
                 'id' => $resource->id,
                 'publicStatus' => $resource->publicStatus(),
+                'canEditDoi' => $request->user()?->can('editDoi', $resource) ?? false,
             ],
         ], $status);
     }

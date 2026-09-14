@@ -110,6 +110,17 @@
         ],
         "fixes": [
             {
+                "title": "DOI Corrections Before Publication",
+                "description": "Admins, Group Leaders, and Curators can now replace or remove a saved resource DOI while its workflow status is Draft, Curation, or Review. Published DOI changes remain restricted to Admins, Beginners cannot alter saved DOIs, and the same permission checks now protect validated saves, draft saves, autosaves, and landing page previews.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1315,
+                        "url": "https://github.com/McNamara84/ernie/issues/1315"
+                    }
+                ]
+            },
+            {
                 "title": "Unobstructed Data Editor Actions",
                 "description": "The Data Editor no longer shows the redundant global footer in its loading, error, or ready states. Its fixed action buttons therefore no longer cover version, About, or Legal Notice links at the bottom of the page, while Changelog remains available from the sidebar and other pages retain their footer.",
                 "references": [

@@ -86,7 +86,8 @@ class ResourceStorageService
                     ->value('id');
             }
 
-            $doi = $data['doi'] ?? null;
+            $hasDoiInput = array_key_exists('doi', $data);
+            $doi = $hasDoiInput ? $data['doi'] : null;
             if ($doi !== null && $doi !== '') {
                 $doi = app(DoiSuggestionService::class)->normalizeDoi($doi);
                 if ($doi === '') {
@@ -96,7 +97,6 @@ class ResourceStorageService
 
             $isUpdate = ! empty($data['resourceId']);
             $attributes = [
-                'doi' => $doi,
                 'publication_year' => $data['year'] ?? null,
                 'resource_type_id' => $data['resourceType'] ?? null,
                 'version' => $data['version'] ?? null,
@@ -104,6 +104,10 @@ class ResourceStorageService
                 'publisher_id' => Publisher::getDefault()?->id,
                 'datacenter_id' => $data['datacenter_id'] ?? null,
             ];
+
+            if (! $isUpdate || $hasDoiInput) {
+                $attributes['doi'] = $doi;
+            }
 
             if (! $isUpdate || array_key_exists('accessLevel', $data)) {
                 $attributes['access_level'] = $data['accessLevel'] ?? null;
