@@ -1,5 +1,5 @@
-﻿import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+﻿import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ContactModal } from '@/pages/LandingPages/components/ContactModal';
@@ -286,10 +286,7 @@ describe('ContactModal', () => {
             await user.click(screen.getByRole('button', { name: /send message/i }));
 
             await waitFor(() => {
-                expect(mockFetch).toHaveBeenCalledWith(
-                    '/resources/42/landing-page/preview/contact',
-                    expect.objectContaining({ method: 'POST' }),
-                );
+                expect(mockFetch).toHaveBeenCalledWith('/resources/42/landing-page/preview/contact', expect.objectContaining({ method: 'POST' }));
             });
         });
 
