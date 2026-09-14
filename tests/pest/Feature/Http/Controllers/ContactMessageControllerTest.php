@@ -1220,7 +1220,10 @@ describe('ContactMessageController', function (): void {
                 'sender_email' => 'test@example.com',
                 'message' => 'This request should reach the team only once.',
                 'send_to_all' => true,
-            ])->assertOk()->assertJson(['recipients_count' => 1]);
+            ])->assertOk()->assertJson([
+                'recipients_count' => 1,
+                'data_publication_team_direct_recipient' => true,
+            ]);
 
             Mail::assertQueued(ContactPersonMessage::class, 1);
             Mail::assertQueued(ContactPersonMessage::class, function (ContactPersonMessage $mail): bool {

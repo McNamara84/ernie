@@ -204,7 +204,8 @@ class ContactMessageController extends Controller
             static fn (array $recipient): bool => $dataPublicationTeamEmail !== null
                 && strcasecmp($recipient['email'], $dataPublicationTeamEmail) === 0,
         );
-        $ccEmail = ! $teamIsDirectRecipient && ! $teamAlreadyIncluded
+        $teamIsDirectRecipient = $teamIsDirectRecipient || $teamAlreadyIncluded;
+        $ccEmail = ! $teamIsDirectRecipient
             ? $dataPublicationTeamEmail
             : null;
 
