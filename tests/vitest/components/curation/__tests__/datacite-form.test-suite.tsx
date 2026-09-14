@@ -1228,7 +1228,7 @@ describe('DataCiteForm', () => {
         expect(screen.getAllByRole('textbox', { name: /Title/ })).toHaveLength(1);
     });
 
-    it('uses responsive resource information spans and keeps long selected datacenter badges wrapped', () => {
+    it('uses complete responsive resource information rows and keeps long selected datacenter badges wrapped', () => {
         const longDatacenterName = 'DEKORP - German Continental Seismic Reflection Program';
 
         render(
@@ -1248,28 +1248,36 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        const doiField = screen.getByLabelText('DOI').parentElement;
-        expect(doiField).toHaveClass('md:col-span-4', 'xl:col-span-3');
+        expect(screen.getByTestId('resource-information-fields-grid')).toHaveClass('grid', 'gap-4', 'md:grid-cols-12', '2xl:grid-cols-14');
 
-        const yearField = screen.getByLabelText('Year', { exact: false }).parentElement;
-        expect(yearField).toHaveClass('md:col-span-2', 'xl:col-span-1');
+        const fieldSpans = [
+            { field: screen.getByLabelText('DOI').parentElement, medium: 4, wide: 3 },
+            { field: screen.getByLabelText('Year', { exact: false }).parentElement, medium: 2, wide: 1 },
+            { field: screen.getByTestId('resource-type-select').parentElement, medium: 3, wide: 2 },
+            { field: screen.getByTestId('access-level-select').parentElement, medium: 3, wide: 2 },
+            { field: screen.getByTestId('datacenter-select').parentElement, medium: 6, wide: 3 },
+            { field: screen.getByLabelText('Version').parentElement, medium: 2, wide: 1 },
+            { field: screen.getByTestId('language-select').parentElement, medium: 4, wide: 2 },
+        ];
+
+        for (const { field, medium, wide } of fieldSpans) {
+            expect(field).toHaveClass(`md:col-span-${medium}`, `2xl:col-span-${wide}`);
+        }
+
+        expect(fieldSpans.slice(0, 4).reduce((sum, { medium }) => sum + medium, 0)).toBe(12);
+        expect(fieldSpans.slice(4).reduce((sum, { medium }) => sum + medium, 0)).toBe(12);
+        expect(fieldSpans.reduce((sum, { wide }) => sum + wide, 0)).toBe(14);
 
         const resourceTypeField = screen.getByTestId('resource-type-select').parentElement;
-        expect(resourceTypeField).toHaveClass('min-w-0', 'md:col-span-6', 'xl:col-span-2');
-
         const accessLevelField = screen.getByTestId('access-level-select').parentElement;
-        expect(accessLevelField).toHaveClass('min-w-0', 'md:col-span-6', 'xl:col-span-2');
-
         const datacenterField = screen.getByTestId('datacenter-select').parentElement;
-        expect(datacenterField).toHaveClass('min-w-0');
-        expect(datacenterField).toHaveClass('md:col-span-6', 'xl:col-span-3');
-
         const versionField = screen.getByLabelText('Version').parentElement;
-        expect(versionField).toHaveClass('min-w-0');
-        expect(versionField).toHaveClass('md:col-span-2', 'xl:col-span-1');
-
         const languageField = screen.getByTestId('language-select').parentElement;
-        expect(languageField).toHaveClass('min-w-0', 'md:col-span-4', 'xl:col-span-2');
+        expect(resourceTypeField).toHaveClass('min-w-0');
+        expect(accessLevelField).toHaveClass('min-w-0');
+        expect(datacenterField).toHaveClass('min-w-0');
+        expect(versionField).toHaveClass('min-w-0');
+        expect(languageField).toHaveClass('min-w-0');
 
         const selectedDatacenter = screen.getByText(longDatacenterName);
         expect(selectedDatacenter).toHaveClass('whitespace-normal');
