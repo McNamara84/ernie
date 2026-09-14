@@ -550,6 +550,52 @@ describe('ResourceStorageService', function () {
             ->and($originalPerson->fresh()->name_identifier_scheme)->toBe('ISNI');
     });
 
+    it('does not reuse a snapshot-linked non-ORCID identity when no ORCID is submitted', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $identifier = '0000-0002-1825-0097';
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed non-ORCID creator identity', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'orcid' => $identifier,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $originalCreator = $resource->creators()->sole();
+        $originalPerson = $originalCreator->creatorable;
+        expect($originalPerson)->toBeInstanceOf(Person::class);
+        $originalPerson->forceFill(['name_identifier_scheme' => 'ISNI'])->save();
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Removed non-ORCID creator identity', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'resourceCreatorId' => $originalCreator->id,
+                'orcid' => null,
+                'firstName' => 'Philipp',
+                'lastName' => 'Sommer',
+                'nameSnapshot' => 'Sommer, Philipp',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+
+        $storedCreator = $updated->creators()->sole();
+        expect($storedCreator->creatorable_id)->not->toBe($originalPerson->id)
+            ->and($storedCreator->creatorable)->toBeInstanceOf(Person::class)
+            ->and($storedCreator->creatorable->name_identifier)->toBeNull()
+            ->and($storedCreator->creatorable->name_identifier_scheme)->toBeNull()
+            ->and($storedCreator->name_snapshot)->toBe('Sommer, Philipp')
+            ->and($originalPerson->fresh()->name_identifier)->toBe($identifier)
+            ->and($originalPerson->fresh()->name_identifier_scheme)->toBe('ISNI');
+    });
+
     it('reuses and classifies a snapshot-linked legacy ORCID with a null scheme', function () {
         $resourceType = ResourceType::firstOrFail();
         $orcid = '0000-0002-1825-0097';
