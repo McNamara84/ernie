@@ -129,6 +129,11 @@ it('returns the related GitHub references for every version 1.0.9 changelog entr
                 'number' => 1284,
                 'url' => 'https://github.com/McNamara84/ernie/issues/1284',
             ],
+            [
+                'type' => 'pull_request',
+                'number' => 1328,
+                'url' => 'https://github.com/McNamara84/ernie/pull/1328',
+            ],
         ],
         'Readable Controlled Vocabulary Tabs' => [
             [
