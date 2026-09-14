@@ -114,8 +114,10 @@ class Subject extends Model
      */
     public function isMsl(): bool
     {
-        return str_starts_with($this->subject_scheme ?? '', 'MSL')
-            || $this->subject_scheme === LegacyMslScheme::CANONICAL_SCHEME
+        $scheme = trim((string) $this->subject_scheme);
+
+        return str_starts_with(mb_strtolower($scheme), 'msl')
+            || strcasecmp($scheme, LegacyMslScheme::CANONICAL_SCHEME) === 0
             || LegacyMslScheme::isSupported($this->subject_scheme);
     }
 }

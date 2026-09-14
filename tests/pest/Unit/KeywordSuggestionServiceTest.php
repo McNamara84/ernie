@@ -326,6 +326,29 @@ it('does not expose a current MSL node for an unmapped legacy URI sharing its le
     expect($this->service->getThesaurusFacets())->toBe([]);
 });
 
+it('does not expose a current MSL node for a URI-less legacy term sharing its leaf label', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('msl-vocabulary.json', json_encode([[
+        'id' => 'https://epos-msl.uu.nl/voc/materials/1.3/',
+        'text' => 'Material',
+        'scheme' => 'EPOS MSL vocabulary',
+        'children' => [[
+            'id' => 'https://epos-msl.uu.nl/voc/materials/1.3/granite',
+            'text' => 'granite',
+            'scheme' => 'EPOS MSL vocabulary',
+            'children' => [],
+        ]],
+    ]], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [[
+        'value' => 'granite',
+        'subject_scheme' => 'EPOS WP16 Rock Physics Material',
+        'value_uri' => null,
+    ]]);
+
+    expect($this->service->getThesaurusFacets())->toBe([]);
+});
+
 it('builds a CGI Simple Lithology portal facet when the thesaurus is enabled', function () {
     Storage::fake('local');
     ThesaurusSetting::query()

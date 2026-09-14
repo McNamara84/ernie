@@ -356,6 +356,7 @@ final class LandingPageResourceTransformer
                     'id' => $subject->id,
                     'subject' => SubjectBreadcrumbPath::leaf($breadcrumbPath, $subject->value) ?? $subject->value,
                     'subject_scheme' => PortalSubjectNormalizer::normalizeScheme($subject->subject_scheme),
+                    'source_subject_scheme' => $subject->subject_scheme,
                     'scheme_uri' => $subject->scheme_uri,
                     'value_uri' => $subject->value_uri,
                     'classification_code' => $subject->classification_code,

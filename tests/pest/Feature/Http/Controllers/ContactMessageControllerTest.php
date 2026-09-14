@@ -446,6 +446,42 @@ describe('ContactMessageController', function (): void {
             Mail::assertQueued(ContactPersonMessage::class, 1);
         });
 
+        it('addresses a creator using the resource-specific snapshot', function (): void {
+            Mail::fake();
+
+            $resource = Resource::factory()->create();
+            $person = Person::factory()->create([
+                'given_name' => 'Philipp',
+                'family_name' => 'Sommer',
+            ]);
+            $creator = ResourceCreator::factory()->forPerson($person)->create([
+                'resource_id' => $resource->id,
+                'email' => 'philipp@example.com',
+                'is_contact' => true,
+                'name_snapshot' => 'Sommer, Philipp S.',
+                'given_name_snapshot' => 'Philipp S.',
+                'family_name_snapshot' => 'Sommer',
+            ]);
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.snapshot.001',
+                'slug' => 'snapshot-creator',
+            ]);
+
+            $this->postJson('/10.5880/gfz.snapshot.001/snapshot-creator/contact', [
+                'sender_name' => 'Test User',
+                'sender_email' => 'test@example.com',
+                'message' => 'Message for the snapshot creator.',
+                'send_to_all' => false,
+                'resource_creator_id' => $creator->id,
+            ])->assertOk();
+
+            Mail::assertQueued(
+                ContactPersonMessage::class,
+                fn (ContactPersonMessage $mail): bool => $mail->recipientName === 'Sommer, Philipp S.',
+            );
+        });
+
         it('routes a protected current repository request using only server-side metadata', function (): void {
             Mail::fake();
             $resource = Resource::factory()->create();

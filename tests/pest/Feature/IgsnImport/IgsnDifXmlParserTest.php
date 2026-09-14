@@ -402,6 +402,27 @@ describe('IgsnDifXmlParser', function () {
         expect($contributor)->not->toBeNull();
     });
 
+    it('matches a DIF collector against the resource-specific creator spelling', function () {
+        $person = Person::factory()->create([
+            'given_name' => 'Philipp',
+            'family_name' => 'Sommer',
+        ]);
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'name_snapshot' => 'Sommer, Philipp S.',
+            'given_name_snapshot' => 'Philipp S.',
+            'family_name_snapshot' => 'Sommer',
+        ]);
+        $xml = <<<'XML'
+        <DIF><sample><collector>Sommer, Philipp S.</collector></sample></DIF>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+
+        $collector = ResourceContributor::whereBelongsTo($this->resource)->sole();
+        expect($collector->contributorable_id)->toBe($person->id);
+    });
+
     it('stores parent_igsn handle in description_json for later resolution', function () {
         $xml = <<<'XML'
         <?xml version="1.0" encoding="UTF-8"?>

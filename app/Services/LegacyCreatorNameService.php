@@ -13,13 +13,17 @@ final class LegacyCreatorNameService
     /**
      * @return list<array<string, mixed>>
      */
-    public function dataCiteCreators(OldDataset $dataset): array
+    public function dataCiteCreators(OldDataset $dataset, bool $bestEffort = true): array
     {
         $creators = [];
 
         try {
             $authors = $dataset->getAuthors();
         } catch (\Throwable $exception) {
+            if (! $bestEffort) {
+                throw $exception;
+            }
+
             Log::warning('Unable to load SUMARIO creator names; continuing without creator-name enrichment.', [
                 'doi' => $dataset->identifier,
                 'legacy_resource_id' => $dataset->id,
@@ -32,7 +36,7 @@ final class LegacyCreatorNameService
         foreach ($authors as $author) {
             $givenName = $this->filled($author['givenName'] ?? null);
             $familyName = $this->filled($author['familyName'] ?? null);
-            $name = $this->filled($author['name'])
+            $name = $this->filled($author['name'] ?? null)
                 ?? $this->format($familyName, $givenName);
 
             if ($name === null) {

@@ -184,6 +184,10 @@ it('imports Issue 1318 creator spelling per resource and all Issue 1319 legacy M
     $resource = (new DataCiteToResourceTransformer)->transform($record, User::factory()->create()->id);
 
     $creator = $resource->creators()->firstOrFail();
+    $hierarchicalSubject = $resource->subjects()
+        ->where('subject_scheme', 'epos wp16 analogue main setting')
+        ->sole(['value', 'breadcrumb_path']);
+
     expect($creator->creatorable_id)->toBe($person->id)
         ->and($creator->name_snapshot)->toBe('Sommer, Philipp S.')
         ->and($creator->given_name_snapshot)->toBe('Philipp S.')
@@ -192,7 +196,9 @@ it('imports Issue 1318 creator spelling per resource and all Issue 1319 legacy M
         ->and($resource->subjects()->pluck('subject_scheme')->unique()->values()->all())
         ->toHaveCount(4)
         ->and($resource->subjects()->whereNotNull('value_uri')->count())->toBe(0)
-        ->and($resource->subjects()->whereNotNull('scheme_uri')->count())->toBe(0);
+        ->and($resource->subjects()->whereNotNull('scheme_uri')->count())->toBe(0)
+        ->and($hierarchicalSubject->value)->toBe('intraplate tectonic setting')
+        ->and($hierarchicalSubject->breadcrumb_path)->toBe('tectonic setting > intraplate tectonic setting');
 
     $resource->load(['creators.creatorable', 'creators.affiliations', 'subjects']);
     $export = (new DataCiteJsonExporter)->export($resource);

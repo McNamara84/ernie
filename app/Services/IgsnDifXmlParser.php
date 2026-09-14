@@ -30,8 +30,10 @@ use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\Size;
+use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnDifMetadataExtractor;
 use App\Services\Igsn\IgsnGeometryNormalizer;
 use App\Services\Igsn\IgsnSampleImageUrlService;
@@ -55,6 +57,7 @@ class IgsnDifXmlParser
         private readonly IgsnDifMetadataExtractor $extractor = new IgsnDifMetadataExtractor,
         private readonly IgsnGeometryNormalizer $geometryNormalizer = new IgsnGeometryNormalizer,
         private readonly IgsnSampleImageUrlService $sampleImageUrlService = new IgsnSampleImageUrlService,
+        private readonly ResourceCreatorNameResolverService $creatorNameResolver = new ResourceCreatorNameResolverService,
     ) {}
 
     public function enrichFromDifXml(
@@ -440,7 +443,8 @@ class IgsnDifXmlParser
             if (! $entity instanceof Person) {
                 continue;
             }
-            $name = $entity->full_name;
+            /** @var ResourceCreator $creator */
+            $name = $this->creatorNameResolver->resolve($creator, $entity)['name'];
             if ($this->normalizePersonName($name) === $target) {
                 return $entity;
             }

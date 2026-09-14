@@ -124,7 +124,7 @@ final class LegacyCreatorAndMslMetadataBackfillService
                         continue;
                     }
 
-                    $legacyCreators = $this->legacyCreatorNames->dataCiteCreators($oldDataset);
+                    $legacyCreators = $this->legacyCreatorNames->dataCiteCreators($oldDataset, bestEffort: false);
                     $legacyMslKeywords = array_values(array_filter(
                         $this->legacyKeywords->controlledKeywords($oldDataset),
                         static fn (array $keyword): bool => LegacyMslScheme::isSupported(
@@ -521,6 +521,10 @@ final class LegacyCreatorAndMslMetadataBackfillService
             $path = PortalSubjectNormalizer::normalizeControlledSubjectValue(
                 $this->filled($keyword['path'] ?? null),
             );
+            if ($path === null) {
+                continue;
+            }
+
             $identity = $this->legacyMslSubjectIdentity($scheme, $path);
             if ($identity === null) {
                 continue;
@@ -582,6 +586,15 @@ final class LegacyCreatorAndMslMetadataBackfillService
             }
 
             $updates = [];
+            $normalizedCurrentValue = SubjectBreadcrumbPath::normalize($subject->value);
+            $leafValue = SubjectBreadcrumbPath::leaf($path);
+            if ($leafValue !== null
+                && SubjectBreadcrumbPath::hasHierarchy($normalizedCurrentValue)
+                && mb_strtolower((string) $normalizedCurrentValue) === mb_strtolower($path)
+                && $subject->value !== $leafValue
+            ) {
+                $updates['value'] = $leafValue;
+            }
             if ($subject->breadcrumb_path === null) {
                 $updates['breadcrumb_path'] = $path;
             }

@@ -49,6 +49,11 @@ final class LegacyBackfillFailingCsvStreamWrapper
         return strlen($data);
     }
 
+    public function stream_flush(): bool
+    {
+        return true;
+    }
+
     /** @return array<string, int> */
     public function stream_stat(): array
     {
@@ -507,10 +512,10 @@ it('keeps hierarchical MSL paths from distinct WP16 categories in the canonical 
     }
     Subject::factory()->create([
         'resource_id' => $resource->id,
-        'value' => 'Granite',
+        'value' => 'Rock > Granite',
         'subject_scheme' => 'EPOS WP16 Analogue Material',
         'value_uri' => null,
-        'breadcrumb_path' => 'Rock > Granite',
+        'breadcrumb_path' => null,
     ]);
 
     $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
@@ -829,6 +834,26 @@ it('reports a storage query failure as an error and makes the command fail', fun
         ->and($creator->fresh()->hasNameSnapshot())->toBeFalse();
 });
 
+it('reports a legacy creator read failure instead of treating it as empty metadata', function (): void {
+    ['resource' => $resource, 'creator' => $creator] = createLegacyCreatorBackfillFixture(
+        '10.5880/legacy-creator-read-failure',
+    );
+    Schema::connection('metaworks')->drop('role');
+
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        apply: true,
+        dois: [$resource->doi],
+        retainRecords: true,
+    );
+
+    expect($result)->toMatchArray([
+        'changed' => 0,
+        'errors' => 1,
+        'sync_resource_ids' => [],
+    ])->and($result['records'][0]['status'])->toBe('error')
+        ->and($creator->fresh()->hasNameSnapshot())->toBeFalse();
+});
+
 it('streams audit records without retaining the full result set', function (): void {
     ['resource' => $resource] = createLegacyCreatorBackfillFixture('10.5880/streamed-report');
     $records = [];
@@ -1108,6 +1133,47 @@ it('retries failed DataCite synchronizations after the prior run completed', fun
         '--retry-sync' => $syncRunId,
     ])->expectsOutput('Failed DataCite synchronizations were queued again.')
         ->assertSuccessful();
+});
+
+it('keeps a failed retry dispatch recoverable', function (): void {
+    Config::set('datacite.test_mode', false);
+    $syncRunId = '56497ae6-b968-48d6-92c4-6486c11ac32f';
+    $resourceIds = [41, 42];
+    app(ImportProgressService::class)->markSyncDispatchFailure(
+        ImportProgressService::TYPE_RESOURCE,
+        $syncRunId,
+        $resourceIds,
+        [42],
+        'Initial dispatch failed.',
+    );
+
+    $dispatcher = Mockery::mock(ImportedResourceDataCiteSyncDispatcherService::class);
+    $dispatcher->shouldReceive('retryFailures')
+        ->once()
+        ->with(ImportProgressService::TYPE_RESOURCE, $syncRunId)
+        ->andThrow(new RuntimeException('Queue remains unavailable.'));
+    app()->instance(ImportedResourceDataCiteSyncDispatcherService::class, $dispatcher);
+
+    $this->artisan('resources:backfill-legacy-creator-and-msl-metadata', [
+        '--retry-sync' => $syncRunId,
+    ])->expectsOutput('Unable to dispatch the DataCite synchronization retry: Queue remains unavailable.')
+        ->assertFailed();
+
+    expect(app(ImportProgressService::class)->get(
+        ImportProgressService::TYPE_RESOURCE,
+        $syncRunId,
+    ))->toMatchArray([
+        'status' => 'completed',
+        'sync_failed' => 2,
+        'sync_retry_available' => true,
+    ])->and(app(ImportProgressService::class)->failedResourceIds(
+        ImportProgressService::TYPE_RESOURCE,
+        $syncRunId,
+    ))->toBe($resourceIds)
+        ->and(app(ImportProgressService::class)->fullMetadataResourceIds(
+            ImportProgressService::TYPE_RESOURCE,
+            $syncRunId,
+        ))->toBe([42]);
 });
 
 it('uses a bounded existence query for the legacy database preflight', function (): void {

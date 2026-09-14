@@ -142,6 +142,32 @@ it('enriches an empty unstructured name from a unique ORCID match', function ():
         ]);
 });
 
+it('preserves an ORCID-matched unstructured legacy spelling as a snapshot-only name', function (): void {
+    $identifier = ($this->orcid)('0000-0001-6171-7716');
+    $current = [[
+        'name' => 'Sommer, Philipp',
+        'givenName' => 'Philipp',
+        'familyName' => 'Sommer',
+        'nameIdentifiers' => $identifier,
+    ]];
+    $legacy = [[
+        'name' => 'Philipp Sommer',
+        'nameIdentifiers' => $identifier,
+    ]];
+
+    $result = $this->service->mergeWithReport($current, $legacy);
+
+    expect($result['creators'][0])->toMatchArray([
+        'name' => 'Philipp Sommer',
+        'givenName' => 'Philipp',
+        'familyName' => 'Sommer',
+    ])->and($result['matches'][0])->toMatchArray([
+        'legacy_index' => 0,
+        'method' => 'orcid',
+        'status' => 'snapshot_only',
+    ]);
+});
+
 it('enriches a nameless creator from the only aligned legacy position', function (): void {
     $current = [[
         'name' => null,

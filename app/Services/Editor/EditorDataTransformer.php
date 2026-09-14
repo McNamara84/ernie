@@ -254,7 +254,16 @@ class EditorDataTransformer
                 return true;
             })
             ->groupBy(function ($creator): string {
-                return $creator->creatorable_type.'_'.$creator->creatorable_id;
+                $identity = $creator->creatorable_type.'_'.$creator->creatorable_id;
+                if (! $creator->hasNameSnapshot()) {
+                    return $identity;
+                }
+
+                return $identity.'_snapshot_'.hash('sha256', json_encode([
+                    $creator->name_snapshot,
+                    $creator->given_name_snapshot,
+                    $creator->family_name_snapshot,
+                ], JSON_THROW_ON_ERROR));
             });
 
         $authors = [];

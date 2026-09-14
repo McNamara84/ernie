@@ -85,6 +85,41 @@ describe('SumarioPmdContactEnrichmentService', function () {
             ->and($creator->fresh()->website)->toBe('https://jane.example.org');
     });
 
+    it('matches creator contacts against the resource-specific name snapshot', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 43,
+            'identifier' => '10.5880/contact.snapshot',
+        ]);
+        DB::connection('metaworks')->table('resourceagent')->insert([
+            'resource_id' => 43,
+            'order' => 1,
+            'name' => 'Sommer, Philipp S.',
+            'firstname' => 'Philipp S.',
+            'lastname' => 'Sommer',
+        ]);
+        DB::connection('metaworks')->table('contactinfo')->insert([
+            'resourceagent_resource_id' => 43,
+            'resourceagent_order' => 1,
+            'email' => 'philipp.sommer@example.org',
+            'website' => null,
+        ]);
+
+        $resource = Resource::factory()->create(['doi' => '10.5880/contact.snapshot']);
+        $person = Person::factory()->create([
+            'given_name' => 'Philipp',
+            'family_name' => 'Sommer',
+        ]);
+        $creator = ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $resource->id,
+            'name_snapshot' => 'Sommer, Philipp S.',
+            'given_name_snapshot' => 'Philipp S.',
+            'family_name_snapshot' => 'Sommer',
+        ]);
+
+        expect((new SumarioPmdContactEnrichmentService)->enrich($resource, '10.5880/contact.snapshot'))->toBeTrue()
+            ->and($creator->fresh()->email)->toBe('philipp.sommer@example.org');
+    });
+
     it('does not touch the resource when matching creator contact data is unchanged', function () {
         DB::connection('metaworks')->table('resource')->insert([
             'id' => 47,

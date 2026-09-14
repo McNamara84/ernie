@@ -206,7 +206,32 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
             return self::FAILURE;
         }
 
-        if (! $this->syncDispatcher->retryFailures(ImportProgressService::TYPE_RESOURCE, $syncRunId)) {
+        $failedResourceIds = $this->progressService->failedResourceIds(
+            ImportProgressService::TYPE_RESOURCE,
+            $syncRunId,
+        );
+        $fullMetadataResourceIds = array_values(array_intersect(
+            $failedResourceIds,
+            $this->progressService->fullMetadataResourceIds(ImportProgressService::TYPE_RESOURCE, $syncRunId),
+        ));
+
+        try {
+            $retryStarted = $this->syncDispatcher->retryFailures(ImportProgressService::TYPE_RESOURCE, $syncRunId);
+        } catch (Throwable $exception) {
+            $this->progressService->markSyncDispatchFailure(
+                ImportProgressService::TYPE_RESOURCE,
+                $syncRunId,
+                $failedResourceIds,
+                $fullMetadataResourceIds,
+                $exception->getMessage(),
+            );
+            report($exception);
+            $this->error('Unable to dispatch the DataCite synchronization retry: '.$exception->getMessage());
+
+            return self::FAILURE;
+        }
+
+        if (! $retryStarted) {
             $this->warn('No retryable DataCite synchronization failures were found.');
 
             return self::FAILURE;
@@ -234,7 +259,7 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
         }
 
         $written = fputcsv($stream, self::REPORT_COLUMNS, escape: '');
-        if ($written === false || $written === 0) {
+        if ($written === false || $written === 0 || ! fflush($stream)) {
             fclose($stream);
             throw new RuntimeException('Unable to write report header: '.$path);
         }
@@ -253,7 +278,7 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
             self::REPORT_COLUMNS,
         ), escape: '');
 
-        if ($written === false || $written === 0) {
+        if ($written === false || $written === 0 || ! fflush($stream)) {
             throw new RuntimeException('Unable to stream a backfill report row.');
         }
     }

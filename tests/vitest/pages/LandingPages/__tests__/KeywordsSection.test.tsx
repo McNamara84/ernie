@@ -105,7 +105,8 @@ describe('KeywordsSection', () => {
             <KeywordsSection
                 subjects={values.map(([subject, subjectScheme], index) =>
                     gcmdKeyword(index + 1, subject, {
-                        subject_scheme: subjectScheme,
+                        subject_scheme: 'EPOS MSL vocabulary',
+                        source_subject_scheme: subjectScheme,
                         value_uri: null,
                         breadcrumb_path: subject === 'intraplate tectonic setting' ? 'tectonic setting > intraplate tectonic setting' : null,
                     }),
@@ -118,7 +119,10 @@ describe('KeywordsSection', () => {
             expect(screen.getByText(new RegExp(subject, 'i'))).toBeInTheDocument();
         }
         expect(screen.queryByTestId('keywords-list')).not.toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /^lava flow$/i })).toHaveAttribute('href', '/doi-search?keywords%5B%5D=lava+flow');
+        expect(screen.getByRole('link', { name: /^lava flow$/i })).toHaveAttribute(
+            'href',
+            '/doi-search?thesaurus_keywords%5B%5D=EPOS+WP16+Analogue+Geologic+Structure%3A%3Alava+flow',
+        );
     });
 
     it('keeps a preserved legacy MSL URI out of the current-node portal filter', () => {
@@ -126,14 +130,18 @@ describe('KeywordsSection', () => {
             <KeywordsSection
                 subjects={[
                     gcmdKeyword(1, 'granite', {
-                        subject_scheme: 'EPOS WP16 Analogue Material',
+                        subject_scheme: 'EPOS MSL vocabulary',
+                        source_subject_scheme: 'EPOS WP16 Analogue Material',
                         value_uri: 'http://epos/WP16Vocabulary/AnalogueMaterial/Rock/Granite',
                     }),
                 ]}
             />,
         );
 
-        expect(screen.getByRole('link', { name: /^granite$/i })).toHaveAttribute('href', '/doi-search?keywords%5B%5D=granite');
+        expect(screen.getByRole('link', { name: /^granite$/i })).toHaveAttribute(
+            'href',
+            '/doi-search?thesaurus_keywords%5B%5D=EPOS+WP16+Analogue+Material%3A%3Agranite',
+        );
     });
 
     it('renders Analytical Methods and EuroSciVoc as controlled landing page keywords', () => {

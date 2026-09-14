@@ -439,6 +439,41 @@ test('normalizes subject scheme aliases in landing page subject payloads', funct
     expect($data['subjects'][0])->toMatchArray([
         'subject' => 'SEISMOLOGY',
         'subject_scheme' => 'Science Keywords',
+        'source_subject_scheme' => 'NASA/GCMD Earth Science Keywords',
+    ]);
+});
+
+test('retains the legacy MSL source scheme for exact portal links', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+    $subject = new Subject;
+    $subject->forceFill([
+        'id' => 1,
+        'value' => 'lava flow',
+        'subject_scheme' => 'EPOS WP16 Analogue Geologic Structure',
+        'scheme_uri' => null,
+        'value_uri' => null,
+        'classification_code' => null,
+        'breadcrumb_path' => null,
+    ]);
+
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection([$subject]));
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data['subjects'][0])->toMatchArray([
+        'subject' => 'lava flow',
+        'subject_scheme' => 'EPOS MSL vocabulary',
+        'source_subject_scheme' => 'EPOS WP16 Analogue Geologic Structure',
     ]);
 });
 

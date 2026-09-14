@@ -142,6 +142,13 @@ describe('isMsl', function () {
         expect($model->isMsl())->toBeFalse();
     });
 
+    it('recognizes canonical MSL scheme casing variants', function (string $scheme) {
+        expect((new Subject(['subject_scheme' => $scheme]))->isMsl())->toBeTrue();
+    })->with([
+        'lowercase canonical' => 'epos msl vocabulary',
+        'lowercase prefix' => 'msl materials',
+    ]);
+
     it('returns false for non-MSL scheme', function () {
         $model = new Subject(['subject_scheme' => 'GCMD Science Keywords']);
 

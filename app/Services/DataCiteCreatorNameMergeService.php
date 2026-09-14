@@ -89,7 +89,10 @@ final class DataCiteCreatorNameMergeService
             $legacyIndex = $match['legacy_index'];
             $usedLegacyIndexes[$legacyIndex] = true;
             $legacy = $legacyCreators[$legacyIndex];
-            if (! $this->isSameOrRicherName($creator, $legacy)) {
+            $snapshotOnly = $match['method'] === 'orcid'
+                && $this->hasStructuredName($creator)
+                && $this->isUnstructuredName($legacy);
+            if (! $this->isSameOrRicherName($creator, $legacy) && ! $snapshotOnly) {
                 $matches[] = [
                     'current_index' => $index,
                     'legacy_index' => $legacyIndex,
@@ -114,7 +117,7 @@ final class DataCiteCreatorNameMergeService
                 'current_index' => $index,
                 'legacy_index' => $legacyIndex,
                 'method' => $match['method'],
-                'status' => $changed ? 'merged' : 'identical',
+                'status' => $changed ? ($snapshotOnly ? 'snapshot_only' : 'merged') : 'identical',
             ];
         }
 
@@ -240,6 +243,20 @@ final class DataCiteCreatorNameMergeService
         }
 
         return array_diff($currentGiven, $legacyGiven) === [];
+    }
+
+    /** @param array<string, mixed> $creator */
+    private function hasStructuredName(array $creator): bool
+    {
+        return $this->filled($creator['givenName'] ?? null) !== null
+            || $this->filled($creator['familyName'] ?? null) !== null;
+    }
+
+    /** @param array<string, mixed> $creator */
+    private function isUnstructuredName(array $creator): bool
+    {
+        return $this->filled($creator['name'] ?? null) !== null
+            && ! $this->hasStructuredName($creator);
     }
 
     /**

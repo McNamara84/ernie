@@ -19,6 +19,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
+use App\Support\LegacyMslScheme;
 use App\Support\PortalCacheNamespace;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
@@ -726,8 +727,26 @@ class PortalSearchService
             return;
         }
 
-        $resolvedNodes = $this->keywordService->resolveSelectedThesaurusNodes($normalizedIds, $scope);
-        if (count($resolvedNodes) !== count($normalizedIds)) {
+        [$legacySelections, $currentNodeIds] = $this->partitionLegacyMslSelections($normalizedIds);
+
+        foreach ($legacySelections as $selection) {
+            /** @var literal-string $normalizedPathSql */
+            $normalizedPathSql = PortalSubjectNormalizer::normalizedControlledSubjectValueSql(
+                "COALESCE(NULLIF(TRIM(breadcrumb_path), ''), value)",
+            );
+            $query->whereHas('subjects', function (Builder $subjectQuery) use ($selection, $normalizedPathSql): void {
+                $subjectQuery
+                    ->whereRaw('LOWER(TRIM(subject_scheme)) = ?', [$selection['scheme']])
+                    ->whereRaw("{$normalizedPathSql} = ?", [$selection['path']]);
+            });
+        }
+
+        if ($currentNodeIds === []) {
+            return;
+        }
+
+        $resolvedNodes = $this->keywordService->resolveSelectedThesaurusNodes($currentNodeIds, $scope);
+        if (count($resolvedNodes) !== count($currentNodeIds)) {
             $query->whereRaw('1 = 0');
 
             return;
@@ -794,6 +813,39 @@ class PortalSearchService
                     });
             });
         }
+    }
+
+    /**
+     * @param  list<string>  $selectedNodeIds
+     * @return array{0: list<array{scheme: string, path: string}>, 1: list<string>}
+     */
+    private function partitionLegacyMslSelections(array $selectedNodeIds): array
+    {
+        $legacySelections = [];
+        $currentNodeIds = [];
+
+        foreach ($selectedNodeIds as $selectedNodeId) {
+            if (! str_contains($selectedNodeId, '::')) {
+                $currentNodeIds[] = $selectedNodeId;
+
+                continue;
+            }
+
+            [$scheme, $path] = explode('::', $selectedNodeId, 2);
+            $normalizedPath = PortalSubjectNormalizer::normalizeControlledSubjectValue($path);
+            if (! LegacyMslScheme::isSupported($scheme) || $normalizedPath === null) {
+                $currentNodeIds[] = $selectedNodeId;
+
+                continue;
+            }
+
+            $legacySelections[] = [
+                'scheme' => mb_strtolower(trim($scheme)),
+                'path' => mb_strtolower($normalizedPath),
+            ];
+        }
+
+        return [$legacySelections, $currentNodeIds];
     }
 
     /**

@@ -1317,6 +1317,9 @@ class DataCiteToResourceTransformer
                 $subjectScheme = self::IMPORTED_SUBJECT_SCHEME_ALIASES[$subjectScheme] ?? $subjectScheme;
             }
             $isLegacyMslSubject = is_string($subjectScheme) && LegacyMslScheme::isSupported($subjectScheme);
+            if ($isLegacyMslSubject) {
+                $subjectValue = SubjectBreadcrumbPath::leaf($subjectValue) ?? $subjectValue;
+            }
             $schemeUri = $this->filledString($subjectData['schemeUri'] ?? null);
             $valueUri = $this->filledString($subjectData['valueUri'] ?? null);
             $classificationCode = $subjectData['classificationCode'] ?? null;
