@@ -52,10 +52,10 @@ describe('FilesSection', () => {
         expect(calculationLink).toHaveAttribute('title', 'https://example.com/calculate');
     });
 
-    it('renders fallback message when no download or contacts', () => {
+    it('renders a team-backed request when no download or contacts', () => {
         render(<FilesSection />);
 
-        expect(screen.getByText(/Download information not available/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /request data via contact form/i })).toBeInTheDocument();
     });
 
     it('renders contact form button when contact with email exists', () => {
@@ -79,7 +79,7 @@ describe('FilesSection', () => {
         expect(screen.getByText('Request data via contact form')).toBeInTheDocument();
     });
 
-    it('renders website link when contact has website but no email', () => {
+    it('renders the request form instead of a website-only fallback', () => {
         const contactPersons = [
             {
                 id: 2,
@@ -97,7 +97,8 @@ describe('FilesSection', () => {
 
         render(<FilesSection contactPersons={contactPersons} />);
 
-        expect(screen.getByText('Visit contact person website')).toBeInTheDocument();
+        expect(screen.getByText('Request data via contact form')).toBeInTheDocument();
+        expect(screen.queryByText('Visit contact person website')).not.toBeInTheDocument();
     });
 
     it('does not render download link for empty or hash URL', () => {

@@ -1,10 +1,8 @@
-import { Download, ExternalLink, Mail } from 'lucide-react';
-import { useState } from 'react';
+import { Download, ExternalLink } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import type { LandingPageContactPerson, LandingPageLink } from '@/types/landing-page';
 
-import { ContactModal } from './ContactModal';
+import { DataRequestSection } from './DataRequestSection';
 import { LandingPageCard } from './LandingPageCard';
 
 interface FilesSectionProps {
@@ -17,18 +15,14 @@ interface FilesSectionProps {
     additionalLinks?: LandingPageLink[];
 }
 
-/**
- * Fallback display mode when no download URL is available.
- * Priority order (highest to lowest):
- * 1. 'download' - Direct download link (ftp_url configured)
- * 2. 'contact-form' - Contact form button (contact person with email exists)
- * 3. 'website' - External website link (contact person with website but no email)
- * 4. 'fallback-message' - Generic message (no contact options available)
- */
-type FallbackMode = 'download' | 'contact-form' | 'website' | 'fallback-message';
-
 const DEFAULT_PRIMARY_DOWNLOAD_LABEL = 'Download data and description';
 
+/**
+ * Automated download actions for a landing page.
+ *
+ * Historical configurations may have no download without setting the explicit
+ * downloads_unavailable flag. They retain the data-request fallback here.
+ */
 export function FilesSection({
     downloadUrl,
     trackedDownloadUrl,
@@ -38,10 +32,6 @@ export function FilesSection({
     datasetTitle,
     additionalLinks = [],
 }: FilesSectionProps) {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedPerson, setSelectedPerson] = useState<LandingPageContactPerson | null>(null);
-
-    // Build effective list of download URLs: prefer downloadFiles, fall back to single downloadUrl
     const hasDownloadUrl = typeof downloadUrl === 'string' && downloadUrl !== '#' && downloadUrl.trim() !== '';
     const effectiveDownloads =
         downloadFiles && downloadFiles.length > 0
@@ -53,146 +43,75 @@ export function FilesSection({
             : hasDownloadUrl
               ? [
                     {
-                        href: trackedDownloadUrl ?? downloadUrl!,
-                        url: downloadUrl!,
+                        href: trackedDownloadUrl ?? downloadUrl,
+                        url: downloadUrl,
                         label: downloadLabel?.trim() || DEFAULT_PRIMARY_DOWNLOAD_LABEL,
                     },
                 ]
               : [];
 
-    // Find contact persons for fallback options
-    const contactPersonWithEmail = contactPersons.find((p) => p.has_email);
-    const contactPersonWithWebsite = contactPersons.find((p) => p.website && p.website.trim() !== '');
-
-    /**
-     * Determine which UI element to display based on available contact options.
-     * The priority is explicit and intentional:
-     * - Download URL takes precedence over all fallbacks
-     * - Contact form (email) is preferred over website link for better UX
-     * - Website link is a last resort before the fallback message
-     */
-    const displayMode: FallbackMode =
-        effectiveDownloads.length > 0
-            ? 'download'
-            : contactPersonWithEmail
-              ? 'contact-form'
-              : contactPersonWithWebsite
-                ? 'website'
-                : 'fallback-message';
-
-    const handleContactClick = (person: LandingPageContactPerson) => {
-        setSelectedPerson(person);
-        setIsModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setSelectedPerson(null);
-    };
+    if (effectiveDownloads.length === 0) {
+        return <DataRequestSection contactPersons={contactPersons} datasetTitle={datasetTitle} />;
+    }
 
     return (
-        <>
-            <LandingPageCard aria-labelledby="heading-files" data-testid="files-section">
-                <h2 id="heading-files" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    Files
-                </h2>
+        <LandingPageCard aria-labelledby="heading-files" data-testid="files-section">
+            <h2 id="heading-files" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Files
+            </h2>
 
-                <div className="space-y-3">
-                    {/* Download Link(s) - shown when download URLs are available */}
-                    {displayMode === 'download' && effectiveDownloads.length === 1 && (
-                        <a
-                            href={effectiveDownloads[0].href}
-                            title={effectiveDownloads[0].url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="gfz-action-button flex items-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
-                        >
-                            <Download className="h-4 w-4" aria-hidden="true" />
-                            {effectiveDownloads[0].label}
-                        </a>
-                    )}
-                    {displayMode === 'download' && effectiveDownloads.length > 1 && (
-                        <div className="space-y-2">
-                            {effectiveDownloads.map((download) => (
+            <div className="space-y-3">
+                {effectiveDownloads.length === 1 && (
+                    <a
+                        href={effectiveDownloads[0].href}
+                        title={effectiveDownloads[0].url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="gfz-action-button flex items-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+                    >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        {effectiveDownloads[0].label}
+                    </a>
+                )}
+
+                {effectiveDownloads.length > 1 && (
+                    <div className="space-y-2">
+                        {effectiveDownloads.map((download) => (
+                            <a
+                                key={download.url}
+                                href={download.href}
+                                title={download.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="gfz-action-button flex items-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+                            >
+                                <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                <span className="truncate">{download.label}</span>
+                            </a>
+                        ))}
+                    </div>
+                )}
+
+                {additionalLinks.length > 0 && (
+                    <div className="space-y-1.5">
+                        {[...additionalLinks]
+                            .sort((a, b) => a.position - b.position)
+                            .map((link) => (
                                 <a
-                                    key={download.url}
-                                    href={download.href}
-                                    title={download.url}
+                                    key={link.id ?? `${link.url}-${link.position}`}
+                                    href={link.url}
+                                    title={link.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="gfz-action-button flex items-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+                                    className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                                 >
-                                    <Download className="h-4 w-4" aria-hidden="true" />
-                                    <span className="truncate">{download.label}</span>
+                                    <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                    <span className="truncate">{link.label}</span>
                                 </a>
                             ))}
-                        </div>
-                    )}
-
-                    {/* Contact Form Button - shown when no download URL but contact person with email exists */}
-                    {displayMode === 'contact-form' && contactPersonWithEmail && (
-                        <Button
-                            onClick={() => handleContactClick(contactPersonWithEmail)}
-                            className="gfz-action-button flex w-full items-center gap-2 bg-gfz-primary text-gfz-primary-foreground hover:bg-gfz-primary/90"
-                        >
-                            <Mail className="h-4 w-4" aria-hidden="true" />
-                            Request data via contact form
-                        </Button>
-                    )}
-
-                    {/* Website Link - shown when no download URL and no contact email, but contact person has website */}
-                    {displayMode === 'website' && contactPersonWithWebsite && (
-                        <a
-                            href={contactPersonWithWebsite.website!}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="gfz-action-button flex items-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
-                        >
-                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                            Visit contact person website
-                        </a>
-                    )}
-
-                    {/* No download available message - when no contact options are available */}
-                    {displayMode === 'fallback-message' && (
-                        <p className="text-sm text-gray-500 italic dark:text-gray-400">
-                            Download information not available. Please contact the authors for data access.
-                        </p>
-                    )}
-
-                    {/* Additional Links - displayed below primary download action, styled in light grey */}
-                    {displayMode === 'download' && additionalLinks.length > 0 && (
-                        <div className="space-y-1.5">
-                            {[...additionalLinks]
-                                .sort((a, b) => a.position - b.position)
-                                .map((link) => (
-                                    <a
-                                        key={link.id ?? `${link.url}-${link.position}`}
-                                        href={link.url}
-                                        title={link.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                                    >
-                                        <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
-                                        <span className="truncate">{link.label}</span>
-                                    </a>
-                                ))}
-                        </div>
-                    )}
-                </div>
-            </LandingPageCard>
-
-            {/* Contact Modal - rendered when user clicks contact button */}
-            {selectedPerson && (
-                <ContactModal
-                    isOpen={isModalOpen}
-                    onClose={handleCloseModal}
-                    selectedPerson={selectedPerson}
-                    contactPersons={contactPersons}
-                    datasetTitle={datasetTitle || 'Dataset'}
-                />
-            )}
-        </>
+                    </div>
+                )}
+            </div>
+        </LandingPageCard>
     );
 }

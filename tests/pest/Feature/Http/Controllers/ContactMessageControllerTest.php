@@ -297,8 +297,10 @@ describe('ContactMessageController', function (): void {
                 ->assertJsonValidationErrors(['sender_email']);
         });
 
-        it('fails when no contact persons available', function (): void {
-            // Resource without any creators with email
+        it('sends directly to the data publication team when no contact persons are available', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => 'datapub@gfz.de']);
+
             $resource = Resource::factory()->create();
             Title::factory()->create(['resource_id' => $resource->id]);
 
@@ -315,8 +317,75 @@ describe('ContactMessageController', function (): void {
                 'send_to_all' => true,
             ]);
 
+            $response->assertOk()
+                ->assertJson(['recipients_count' => 1]);
+
+            Mail::assertQueued(ContactPersonMessage::class, 1);
+            Mail::assertQueued(ContactPersonMessage::class, function (ContactPersonMessage $mail): bool {
+                return $mail->hasTo('datapub@gfz.de')
+                    && ! $mail->hasCc('datapub@gfz.de')
+                    && $mail->recipientName === 'GFZ Data Publication Team';
+            });
+
+            $this->assertDatabaseHas('contact_messages', [
+                'resource_id' => $resource->id,
+                'send_to_all' => true,
+                'recipient_count' => 1,
+            ]);
+        });
+
+        it('fails without creating a message when no contact or team recipient is available', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => '']);
+
+            $resource = Resource::factory()->create();
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.no-recipient.001',
+                'slug' => 'no-recipient',
+            ]);
+
+            $response = $this->postJson('/10.5880/gfz.no-recipient.001/no-recipient/contact', [
+                'sender_name' => 'Test User',
+                'sender_email' => 'no-recipient@example.com',
+                'message' => 'This request has nowhere to be delivered.',
+                'send_to_all' => true,
+            ]);
+
             $response->assertUnprocessable()
                 ->assertJsonValidationErrors(['recipients']);
+
+            Mail::assertNothingQueued();
+            $this->assertDatabaseMissing('contact_messages', [
+                'sender_email' => 'no-recipient@example.com',
+            ]);
+        });
+
+        it('fails without creating a message when the only configured recipient is invalid', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => 'not-an-email']);
+
+            $resource = Resource::factory()->create();
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.invalid-only-recipient.001',
+                'slug' => 'invalid-only-recipient',
+            ]);
+
+            $response = $this->postJson('/10.5880/gfz.invalid-only-recipient.001/invalid-only-recipient/contact', [
+                'sender_name' => 'Test User',
+                'sender_email' => 'invalid-only-recipient@example.com',
+                'message' => 'This request has an invalid configured recipient.',
+                'send_to_all' => true,
+            ]);
+
+            $response->assertUnprocessable()
+                ->assertJsonValidationErrors(['recipients']);
+
+            Mail::assertNothingQueued();
+            $this->assertDatabaseMissing('contact_messages', [
+                'sender_email' => 'invalid-only-recipient@example.com',
+            ]);
         });
 
         it('sends copy to sender when requested', function (): void {
@@ -636,6 +705,28 @@ describe('ContactMessageController', function (): void {
             Mail::assertQueued(ContactPersonMessage::class);
         });
 
+        it('sends a draft data request directly to the team when no contact person exists', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => 'datapub@gfz.de']);
+
+            $resource = Resource::factory()->create();
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => null,
+                'slug' => 'draft-team-request',
+            ]);
+
+            $this->postJson("/draft-{$resource->id}/draft-team-request/contact", [
+                'sender_name' => 'Test User',
+                'sender_email' => 'test@example.com',
+                'message' => 'Please provide download information for this dataset.',
+                'send_to_all' => true,
+            ])->assertOk()->assertJson(['recipients_count' => 1]);
+
+            Mail::assertQueued(ContactPersonMessage::class, 1);
+            Mail::assertQueued(ContactPersonMessage::class, fn (ContactPersonMessage $mail): bool => $mail->hasTo('datapub@gfz.de'));
+        });
+
         it('returns 404 for non-existent draft landing page', function (): void {
             $response = $this->postJson('/draft-99999/non-existent/contact', [
                 'sender_name' => 'Test User',
@@ -948,6 +1039,38 @@ describe('ContactMessageController', function (): void {
 
             // Only 1 email should have Cc
             expect($emailsWithCc)->toBe(1);
+        });
+
+        it('does not cc the team when its address is already a contact recipient', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => 'DataPub@GFZ.de']);
+
+            $resource = Resource::factory()->create();
+            $person = Person::factory()->create();
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'email' => 'datapub@gfz.de',
+                'is_contact' => true,
+            ]);
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.team-dedup.001',
+                'slug' => 'team-dedup',
+            ]);
+
+            $this->postJson('/10.5880/gfz.team-dedup.001/team-dedup/contact', [
+                'sender_name' => 'Test User',
+                'sender_email' => 'test@example.com',
+                'message' => 'This request should reach the team only once.',
+                'send_to_all' => true,
+            ])->assertOk()->assertJson(['recipients_count' => 1]);
+
+            Mail::assertQueued(ContactPersonMessage::class, 1);
+            Mail::assertQueued(ContactPersonMessage::class, function (ContactPersonMessage $mail): bool {
+                return $mail->hasTo('datapub@gfz.de') && empty($mail->cc);
+            });
         });
 
     });

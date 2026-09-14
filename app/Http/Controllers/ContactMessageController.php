@@ -155,17 +155,36 @@ class ContactMessageController extends Controller
         // Determine recipients
         $recipients = $this->getRecipients(
             $resource,
-            $validated['send_to_all'] ?? false,
+            $sendToAll,
             $validated['resource_creator_id'] ?? null,
             $validated['resource_contributor_id'] ?? null,
             $validated['repository_contact_type'] ?? null,
         );
 
+        $dataPublicationTeamEmail = $this->dataPublicationTeamEmail();
+        $teamIsDirectRecipient = false;
+
+        if ($recipients === [] && $sendToAll && $dataPublicationTeamEmail !== null) {
+            $recipients[] = [
+                'email' => $dataPublicationTeamEmail,
+                'name' => 'GFZ Data Publication Team',
+            ];
+            $teamIsDirectRecipient = true;
+        }
+
         if (empty($recipients)) {
             throw ValidationException::withMessages([
-                'recipients' => ['No contact persons available for this dataset.'],
+                'recipients' => ['No contact person or data publication team is available for this dataset.'],
             ]);
         }
+
+        $teamAlreadyIncluded = collect($recipients)->contains(
+            static fn (array $recipient): bool => $dataPublicationTeamEmail !== null
+                && strcasecmp($recipient['email'], $dataPublicationTeamEmail) === 0,
+        );
+        $ccEmail = ! $teamIsDirectRecipient && ! $teamAlreadyIncluded
+            ? $dataPublicationTeamEmail
+            : null;
 
         // Create contact message record
         $contactMessage = ContactMessage::create([
@@ -183,14 +202,6 @@ class ContactMessageController extends Controller
             'delivered_recipient_count' => 0,
         ]);
 
-        // Get Cc email from config (empty string disables Cc)
-        // Validate email format to prevent runtime errors
-        $ccEmail = config('mail.landing_page_contact_cc');
-        if (! empty($ccEmail) && filter_var($ccEmail, FILTER_VALIDATE_EMAIL) === false) {
-            Log::warning('Invalid Cc email address in config', ['cc_email' => $ccEmail]);
-            $ccEmail = null;
-        }
-
         $contactMessage->markAsQueued();
 
         $isFirstRecipient = true;
@@ -203,8 +214,9 @@ class ContactMessageController extends Controller
                 // Add Cc only to first recipient when configured
                 if ($isFirstRecipient && ! empty($ccEmail)) {
                     $mail->cc($ccEmail);
-                    $isFirstRecipient = false;
                 }
+
+                $isFirstRecipient = false;
 
                 $mail->queue(
                     new ContactPersonMessage(
@@ -254,12 +266,45 @@ class ContactMessageController extends Controller
             'recipients_count' => count($recipients),
             'copy_to_sender' => $validated['copy_to_sender'] ?? false,
             'cc_email' => ! empty($ccEmail) ? $ccEmail : null,
+            'data_publication_team_direct_recipient' => $teamIsDirectRecipient,
         ]);
 
         return response()->json([
             'message' => 'Message received successfully.',
             'recipients_count' => count($recipients),
         ]);
+    }
+
+    /**
+     * Resolve the optional data publication team recipient.
+     */
+    private function dataPublicationTeamEmail(): ?string
+    {
+        $configuredEmail = config('mail.landing_page_contact_cc');
+
+        if ($configuredEmail === null || $configuredEmail === '') {
+            return null;
+        }
+
+        if (! is_string($configuredEmail)) {
+            Log::warning('Invalid Cc email address type in config');
+
+            return null;
+        }
+
+        $email = trim($configuredEmail);
+
+        if ($email === '') {
+            return null;
+        }
+
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            Log::warning('Invalid Cc email address in config', ['cc_email' => $configuredEmail]);
+
+            return null;
+        }
+
+        return $email;
     }
 
     /**

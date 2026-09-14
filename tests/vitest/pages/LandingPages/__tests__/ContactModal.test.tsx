@@ -127,6 +127,20 @@ describe('ContactModal', () => {
 
             expect(screen.getByText(/all contact persons \(2\)/i)).toBeInTheDocument();
         });
+
+        it('shows the data publication team and all contacts for a data request', () => {
+            render(<ContactModal {...defaultProps} recipientPolicy="all-contacts-and-team" />);
+
+            expect(screen.getByText('Data publication team and all contact persons (2)')).toBeInTheDocument();
+            expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+        });
+
+        it('shows only the data publication team when a data request has no contacts', () => {
+            render(<ContactModal {...defaultProps} selectedPerson={null} contactPersons={[]} recipientPolicy="all-contacts-and-team" />);
+
+            expect(screen.getByText('Data publication team')).toBeInTheDocument();
+            expect(screen.queryByText(/all contact persons \(0\)/i)).not.toBeInTheDocument();
+        });
     });
 
     describe('form input', () => {
@@ -470,6 +484,49 @@ describe('ContactModal', () => {
             await user.type(screen.getByLabelText(/your name/i), 'Test User');
             await user.type(screen.getByLabelText(/your email/i), 'test@example.com');
             await user.type(screen.getByRole('textbox', { name: /message/i }), 'This is a valid test message');
+            await user.click(screen.getByRole('button', { name: /send message/i }));
+
+            await waitFor(() => {
+                const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+                expect(callBody.send_to_all).toBe(true);
+                expect(callBody.resource_creator_id).toBeNull();
+                expect(callBody.resource_contributor_id).toBeNull();
+            });
+        });
+
+        it('forces all recipients and omits selectors for a data request', async () => {
+            const user = userEvent.setup();
+            mockFetch.mockResolvedValueOnce({ ok: true });
+
+            render(<ContactModal {...defaultProps} recipientPolicy="all-contacts-and-team" />);
+
+            await user.type(screen.getByLabelText(/your name/i), 'Test User');
+            await user.type(screen.getByLabelText(/your email/i), 'test@example.com');
+            await user.type(screen.getByRole('textbox', { name: /message/i }), 'Please provide download information.');
+            await user.click(screen.getByRole('button', { name: /send message/i }));
+
+            await waitFor(() => {
+                const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+                expect(callBody).toEqual(
+                    expect.objectContaining({
+                        send_to_all: true,
+                        resource_creator_id: null,
+                        resource_contributor_id: null,
+                        repository_contact_type: null,
+                    }),
+                );
+            });
+        });
+
+        it('submits a team-only data request when no contacts exist', async () => {
+            const user = userEvent.setup();
+            mockFetch.mockResolvedValueOnce({ ok: true });
+
+            render(<ContactModal {...defaultProps} selectedPerson={null} contactPersons={[]} recipientPolicy="all-contacts-and-team" />);
+
+            await user.type(screen.getByLabelText(/your name/i), 'Test User');
+            await user.type(screen.getByLabelText(/your email/i), 'test@example.com');
+            await user.type(screen.getByRole('textbox', { name: /message/i }), 'Please provide download information.');
             await user.click(screen.getByRole('button', { name: /send message/i }));
 
             await waitFor(() => {

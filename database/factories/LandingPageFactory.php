@@ -117,7 +117,7 @@ class LandingPageFactory extends Factory
     }
 
     /**
-     * Indicate that the generated landing page should hide the Files section.
+     * Indicate that the generated landing page should replace downloads with a data request.
      */
     public function downloadsUnavailable(): static
     {

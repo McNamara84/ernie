@@ -369,7 +369,7 @@ export interface LandingPageConfig {
     ftp_format_id?: number | null;
     ftp_size_id?: number | null;
 
-    /** Whether the generated landing page should hide the Files section */
+    /** Whether automated downloads should be replaced by a data request form */
     downloads_unavailable?: boolean;
 
     /** Public tracked redirect URL used only on published landing pages */

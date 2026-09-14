@@ -1481,10 +1481,11 @@ export default function SetupLandingPageModal({
                                                 />
                                                 <div className="space-y-1">
                                                     <Label htmlFor="downloads-unavailable" className="text-sm font-medium">
-                                                        No data available for download
+                                                        No data available for automatic download
                                                     </Label>
                                                     <p className="text-sm text-muted-foreground">
-                                                        Hide the Files section on the landing page while keeping saved download values for later use.
+                                                        Replace automatic downloads with a request form while keeping saved download values for later
+                                                        use.
                                                     </p>
                                                 </div>
                                             </div>
@@ -1492,10 +1493,7 @@ export default function SetupLandingPageModal({
                                             {downloadsUnavailable && hasImportedFiles && (
                                                 <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                                                     <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                                                    <p>
-                                                        Imported download files will be hidden on the public landing page while this option is
-                                                        enabled.
-                                                    </p>
+                                                    <p>Imported download files will not be offered automatically while this option is enabled.</p>
                                                 </div>
                                             )}
                                         </div>

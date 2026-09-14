@@ -15,6 +15,7 @@ import type {
 import { AbstractSection } from './components/AbstractSection';
 import { CiteThisResourceSection } from './components/CiteThisResourceSection';
 import { ContactSection } from './components/ContactSection';
+import { DataRequestSection } from './components/DataRequestSection';
 import { DatesSection } from './components/DatesSection';
 import { FilesSection } from './components/FilesSection';
 import { LandingPageShell } from './components/LandingPageShell';
@@ -153,7 +154,9 @@ export default function DefaultGfzTemplate() {
 
     const standaloneSectionRegistry = useMemo((): Partial<Record<ResourceSection, ReactNode>> => {
         return {
-            files: downloadsUnavailable ? null : (
+            files: downloadsUnavailable ? (
+                <DataRequestSection key="files" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />
+            ) : (
                 <FilesSection
                     key="files"
                     downloadUrl={landingPage?.ftp_url}

@@ -302,7 +302,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            expect(await screen.findByRole('checkbox', { name: /no data available for download/i })).toBeChecked();
+            expect(await screen.findByRole('checkbox', { name: /no data available for automatic download/i })).toBeChecked();
         });
 
         it('keeps the download URL value when downloads unavailable is toggled', async () => {
@@ -313,7 +313,7 @@ describe('SetupLandingPageModal', () => {
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             const ftpInput = await screen.findByLabelText(/^Download URL$/i);
-            await user.click(screen.getByRole('checkbox', { name: /no data available for download/i }));
+            await user.click(screen.getByRole('checkbox', { name: /no data available for automatic download/i }));
 
             expect(ftpInput).toHaveValue(mockExistingConfig.ftp_url);
         });
@@ -490,9 +490,9 @@ describe('SetupLandingPageModal', () => {
                 />,
             );
 
-            await user.click(await screen.findByRole('checkbox', { name: /no data available for download/i }));
+            await user.click(await screen.findByRole('checkbox', { name: /no data available for automatic download/i }));
 
-            expect(screen.getByText(/Imported download files will be hidden/i)).toBeInTheDocument();
+            expect(screen.getByText(/Imported download files will not be offered automatically/i)).toBeInTheDocument();
         });
 
         it('keeps the modal usable when loading download url suggestions fails', async () => {
@@ -992,7 +992,7 @@ describe('SetupLandingPageModal', () => {
 
             const ftpInput = await screen.findByLabelText(/^Download URL$/i);
             await user.type(ftpInput, 'https://datapub.gfz-potsdam.de/download/no-data-record.zip');
-            await user.click(screen.getByRole('checkbox', { name: /no data available for download/i }));
+            await user.click(screen.getByRole('checkbox', { name: /no data available for automatic download/i }));
             await user.click(screen.getByRole('button', { name: /Create Preview/i }));
 
             await waitFor(() => {
@@ -1098,7 +1098,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            await user.click(await screen.findByRole('checkbox', { name: /no data available for download/i }));
+            await user.click(await screen.findByRole('checkbox', { name: /no data available for automatic download/i }));
             await user.click(screen.getByRole('button', { name: /Update/i }));
 
             await waitFor(() => {
@@ -1339,7 +1339,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            await user.click(await screen.findByRole('checkbox', { name: /no data available for download/i }));
+            await user.click(await screen.findByRole('checkbox', { name: /no data available for automatic download/i }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
 
             expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
@@ -1378,7 +1378,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            await user.click(await screen.findByRole('checkbox', { name: /no data available for download/i }));
+            await user.click(await screen.findByRole('checkbox', { name: /no data available for automatic download/i }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
 
             expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
@@ -1409,7 +1409,7 @@ describe('SetupLandingPageModal', () => {
 
             render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
-            await user.click(await screen.findByRole('checkbox', { name: /no data available for download/i }));
+            await user.click(await screen.findByRole('checkbox', { name: /no data available for automatic download/i }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
 
             expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
@@ -1657,7 +1657,7 @@ describe('SetupLandingPageModal', () => {
             const ftpInput = await screen.findByLabelText(/^Download URL$/i);
             await user.clear(ftpInput);
             await user.type(ftpInput, 'https://downloads.example.org/draft-file.zip');
-            await user.click(screen.getByRole('checkbox', { name: /no data available for download/i }));
+            await user.click(screen.getByRole('checkbox', { name: /no data available for automatic download/i }));
 
             await user.click(screen.getByRole('button', { name: /add link/i }));
             await user.type(screen.getByPlaceholderText(/display text/i), 'Project Website');
@@ -1679,7 +1679,7 @@ describe('SetupLandingPageModal', () => {
             const reopenedFtpInput = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
 
             expect(reopenedFtpInput.value).toBe('https://downloads.example.org/draft-file.zip');
-            expect(screen.getByRole('checkbox', { name: /no data available for download/i })).toBeChecked();
+            expect(screen.getByRole('checkbox', { name: /no data available for automatic download/i })).toBeChecked();
             expect(screen.getByDisplayValue('Project Website')).toBeInTheDocument();
             expect(screen.getByDisplayValue('https://example.org/project')).toBeInTheDocument();
             expect(screen.getByRole('combobox', { name: 'Link role' })).toHaveTextContent('Source repository');
@@ -2689,7 +2689,7 @@ describe('SetupLandingPageModal', () => {
             const ftpInput = (await screen.findByLabelText(/^Download URL$/i)) as HTMLInputElement;
 
             expect(ftpInput.value).toBe('https://downloads.example.org/persisted.zip');
-            expect(screen.getByRole('checkbox', { name: /no data available for download/i })).toBeChecked();
+            expect(screen.getByRole('checkbox', { name: /no data available for automatic download/i })).toBeChecked();
             expect(screen.getByDisplayValue('Persisted link')).toBeInTheDocument();
             expect(screen.getByDisplayValue('https://example.org/persisted')).toBeInTheDocument();
             expect(toast.error).toHaveBeenCalledWith('Failed to load landing page configuration');
