@@ -1431,26 +1431,26 @@ describe('datacenter facets', function () {
         expect($facets)->toBeEmpty();
     });
 
-    it('sorts facets by count descending', function () {
-        $dc1 = Datacenter::create(['name' => 'Small DC']);
-        $dc2 = Datacenter::create(['name' => 'Large DC']);
+    it('sorts facets naturally by name regardless of resource count', function () {
+        $alpha = Datacenter::create(['name' => 'Datacenter 2']);
+        $zulu = Datacenter::create(['name' => 'Datacenter 10']);
 
         $r1 = createPublishedResourceForSearch('Paper 1', $this->titleType);
-        $r1->update(['datacenter_id' => $dc1->id]);
+        $r1->update(['datacenter_id' => $alpha->id]);
 
         $r2 = createPublishedResourceForSearch('Paper 2', $this->titleType);
-        $r2->update(['datacenter_id' => $dc2->id]);
+        $r2->update(['datacenter_id' => $zulu->id]);
 
         $r3 = createPublishedResourceForSearch('Paper 3', $this->titleType);
-        $r3->update(['datacenter_id' => $dc2->id]);
+        $r3->update(['datacenter_id' => $zulu->id]);
 
         $facets = $this->service->getDatacenterFacets();
+        $cachedFacets = $this->service->getDatacenterFacets();
 
         expect($facets)->toHaveCount(2)
-            ->and($facets[0]['name'])->toBe('Large DC')
-            ->and($facets[0]['count'])->toBe(2)
-            ->and($facets[1]['name'])->toBe('Small DC')
-            ->and($facets[1]['count'])->toBe(1);
+            ->and($facets[0])->toBe(['name' => 'Datacenter 2', 'count' => 1])
+            ->and($facets[1])->toBe(['name' => 'Datacenter 10', 'count' => 2])
+            ->and($cachedFacets)->toBe($facets);
     });
 
     it('counts a resource only in its single assigned datacenter', function () {

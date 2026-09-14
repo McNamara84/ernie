@@ -554,6 +554,12 @@ verify them after reopening:
 - [ ] Visible filters for data centre, resource type, keyword, thesaurus, time,
       and geography work individually and in combination.
 
+- [ ] In both DOI and IGSN portals, opening `Datacenter` once displays the
+      alphabetically ordered checkbox list and resource counts directly. Verify
+      its inline search, multiple selection, and removable selection chips on a
+      desktop and a narrow mobile viewport without a nested popover or inner
+      scroll area.
+
 - [ ] The URL and browser navigation preserve or reconstruct filter state
       appropriately.
 

@@ -372,6 +372,28 @@ it('returns contextual distinct counts and retains selected zero-count values', 
         ->and($zeroFacets['datacenters'][0])->toBe(['name' => 'Missing datacenter', 'count' => 0]);
 });
 
+it('sorts datacenter facets naturally by name regardless of contextual count', function (): void {
+    $datacenter2 = Datacenter::factory()->create(['name' => 'Datacenter 2']);
+    $datacenter10 = Datacenter::factory()->create(['name' => 'Datacenter 10']);
+
+    createPublishedIgsnForPortalFilters($this->physicalObjectType, 'Core', 'Rock', datacenter: $datacenter2);
+    createPublishedIgsnForPortalFilters($this->physicalObjectType, 'Core', 'Rock', datacenter: $datacenter10);
+    createPublishedIgsnForPortalFilters($this->physicalObjectType, 'Specimen', 'Rock', datacenter: $datacenter10);
+
+    $facets = $this->facetService->getFacets(igsnPortalFilters([
+        'datacenter' => ['Alpha selected without results'],
+    ]));
+    $cachedFacets = $this->facetService->getFacets(igsnPortalFilters([
+        'datacenter' => ['Alpha selected without results'],
+    ]));
+
+    expect($facets['datacenters'])->toBe([
+        ['name' => 'Alpha selected without results', 'count' => 0],
+        ['name' => 'Datacenter 2', 'count' => 1],
+        ['name' => 'Datacenter 10', 'count' => 2],
+    ])->and($cachedFacets['datacenters'])->toBe($facets['datacenters']);
+});
+
 it('retains a selected classification vocabulary type when other filters produce no rows', function (): void {
     createPublishedIgsnForPortalFilters(
         $this->physicalObjectType,
