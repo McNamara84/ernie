@@ -25,7 +25,7 @@ export function AccessLevelField({ value, onChange, onBlur, validationMessages, 
                 { value: 'embargoed', label: 'Embargoed access' },
                 { value: 'metadata-only', label: 'Metadata only access' },
             ]}
-            className="min-w-0 md:col-span-6 xl:col-span-2"
+            className="min-w-0 md:col-span-3 2xl:col-span-2"
             labelTooltip="Access conditions are independent of the selected license. Embargoed access requires an Available date."
             required
             data-testid="access-level-select"

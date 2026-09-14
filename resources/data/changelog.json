@@ -99,6 +99,17 @@
         ],
         "fixes": [
             {
+                "title": "Balanced Resource Information Layout",
+                "description": "The Data Editor now keeps DOI, Year, Resource Type, Access Level, Datacenter, Version, and Language of Data together in one proportional row on wide desktops and two fully occupied rows at medium widths. Language of Data no longer wraps into a row by itself, while long Datacenter names and small-screen stacking remain intact.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1317,
+                        "url": "https://github.com/McNamara84/ernie/issues/1317"
+                    }
+                ]
+            },
+            {
                 "title": "Readable Controlled Vocabulary Tabs",
                 "description": "Controlled Vocabulary tabs in the Data Editor now adapt to the available editor width instead of overlapping or being cut off. Compact layouts use distinct icons while keeping the active vocabulary clearly named, with accessible labels, hover hints, and full keyboard navigation at every size.",
                 "references": [

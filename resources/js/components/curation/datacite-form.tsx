@@ -3340,7 +3340,7 @@ export default function DataCiteForm({
                     </div>
                 </div>
                 <div className="space-y-6 pb-4">
-                    <div className="grid gap-4 md:grid-cols-12">
+                    <div className="grid gap-4 md:grid-cols-12 2xl:grid-cols-14" data-testid="resource-information-fields-grid">
                         <InputField
                             id="doi"
                             label="DOI"
@@ -3364,7 +3364,7 @@ export default function DataCiteForm({
                                       ? 'As an administrator, you can edit this DOI. Be careful when changing registered DOIs.'
                                       : 'Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx'
                             }
-                            className="md:col-span-4 xl:col-span-3"
+                            className="md:col-span-4 2xl:col-span-3"
                             readOnly={isDoiReadonly}
                             disabled={isDoiValidating}
                         />
@@ -3378,7 +3378,7 @@ export default function DataCiteForm({
                             validationMessages={getFieldState('year').messages}
                             touched={getFieldState('year').touched}
                             placeholder="2024"
-                            className="md:col-span-2 xl:col-span-1"
+                            className="md:col-span-2 2xl:col-span-1"
                             required
                         />
                         <SelectField
@@ -3393,7 +3393,7 @@ export default function DataCiteForm({
                                 value: String(type.id),
                                 label: type.name,
                             }))}
-                            className="min-w-0 md:col-span-6 xl:col-span-2"
+                            className="min-w-0 md:col-span-3 2xl:col-span-2"
                             required
                             data-testid="resource-type-select"
                             contentPosition="popper"
@@ -3416,7 +3416,7 @@ export default function DataCiteForm({
                                 setDatacenterTouched(true);
                                 clearDatacenterValidationErrors();
                             }}
-                            className="min-w-0 md:col-span-6 xl:col-span-3"
+                            className="min-w-0 md:col-span-6 2xl:col-span-3"
                             required
                             hasError={datacenterErrorMessage !== null}
                             errorMessage={datacenterErrorMessage ?? undefined}
@@ -3432,7 +3432,7 @@ export default function DataCiteForm({
                             placeholder="None"
                             labelTooltip="Optional version (e.g., 1.0, 2.1, 1.0.0)"
                             maxLength={50}
-                            className="min-w-0 md:col-span-2 xl:col-span-1"
+                            className="min-w-0 md:col-span-2 2xl:col-span-1"
                         />
                         <SelectField
                             id="language"
@@ -3447,7 +3447,7 @@ export default function DataCiteForm({
                                 label: l.name,
                             }))}
                             placeholder="Select language"
-                            className="min-w-0 md:col-span-4 xl:col-span-2"
+                            className="min-w-0 md:col-span-4 2xl:col-span-2"
                             clearable
                             clearLabel="Clear language selection"
                             data-testid="language-select"

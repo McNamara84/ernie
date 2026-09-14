@@ -45,7 +45,7 @@ async function gotoWithLocalTlsRetry(page: Page, url: string) {
 test.describe('Editor Form', () => {
     test('editor page requires authentication', async ({ page }) => {
         // Try to access editor without login
-        await page.goto('/editor', { waitUntil: 'commit' });
+        await gotoWithLocalTlsRetry(page, '/editor');
 
         // Should redirect to login
         await expect(page).toHaveURL(/\/login/);
@@ -53,7 +53,7 @@ test.describe('Editor Form', () => {
 
     test('editor page is accessible after login', async ({ page }) => {
         // Login first
-        await page.goto('/login');
+        await gotoWithLocalTlsRetry(page, '/login');
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
         await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
         await page.getByRole('button', { name: 'Log in' }).click();
@@ -64,6 +64,122 @@ test.describe('Editor Form', () => {
 
         // Should be accessible (even if empty without XML upload)
         await expect(page).toHaveURL(/\/editor/);
+    });
+
+    test('keeps resource information fields in complete responsive rows', async ({ page }) => {
+        await page.setViewportSize({ width: 1600, height: 900 });
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        const grid = page.getByTestId('resource-information-fields-grid');
+        await expect(grid).toBeVisible({ timeout: 30_000 });
+
+        const datacenterSelect = page.getByTestId('datacenter-select');
+        await datacenterSelect.click();
+        await page.getByRole('option', { name: 'DEKORP - German Continental Seismic Reflection Program', exact: true }).click();
+        await expect(datacenterSelect).toContainText('DEKORP - German Continental Seismic Reflection Program');
+
+        const readLayout = () =>
+            grid.evaluate((element) => {
+                const selectors = {
+                    doi: '#doi',
+                    year: '#year',
+                    resourceType: '[data-testid="resource-type-select"]',
+                    accessLevel: '[data-testid="access-level-select"]',
+                    datacenter: '[data-testid="datacenter-select"]',
+                    version: '#version',
+                    language: '[data-testid="language-select"]',
+                } as const;
+                const toBounds = (target: Element) => {
+                    const rect = target.getBoundingClientRect();
+
+                    return {
+                        left: rect.left,
+                        right: rect.right,
+                        top: rect.top,
+                        bottom: rect.bottom,
+                    };
+                };
+                const fields = Object.fromEntries(
+                    Object.entries(selectors).map(([name, selector]) => {
+                        const field = element.querySelector(selector)?.parentElement;
+
+                        if (!field) {
+                            throw new Error(`Resource information field not found: ${name}`);
+                        }
+
+                        return [name, toBounds(field)];
+                    }),
+                );
+
+                return {
+                    grid: toBounds(element),
+                    fields,
+                    gridClientWidth: element.clientWidth,
+                    gridScrollWidth: element.scrollWidth,
+                    documentWidth: document.documentElement.scrollWidth,
+                    viewportWidth: window.innerWidth,
+                };
+            });
+
+        type Layout = Awaited<ReturnType<typeof readLayout>>;
+        type FieldName = keyof Layout['fields'];
+        const tolerance = 2;
+        const expectSameRow = (layout: Layout, names: FieldName[]) => {
+            const firstTop = layout.fields[names[0]].top;
+
+            for (const name of names.slice(1)) {
+                expect(Math.abs(layout.fields[name].top - firstTop), `${name} should share a row with ${names[0]}`).toBeLessThanOrEqual(tolerance);
+            }
+        };
+        const expectTouchesGridEdges = (layout: Layout, first: FieldName, last: FieldName) => {
+            expect(Math.abs(layout.fields[first].left - layout.grid.left), `${first} should start at the grid's left edge`).toBeLessThanOrEqual(
+                tolerance,
+            );
+            expect(Math.abs(layout.fields[last].right - layout.grid.right), `${last} should end at the grid's right edge`).toBeLessThanOrEqual(
+                tolerance,
+            );
+        };
+        const expectNoHorizontalOverflow = (layout: Layout) => {
+            expect(layout.gridScrollWidth).toBeLessThanOrEqual(layout.gridClientWidth);
+            expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
+        };
+
+        const fieldOrder: FieldName[] = ['doi', 'year', 'resourceType', 'accessLevel', 'datacenter', 'version', 'language'];
+
+        const wideLayout = await readLayout();
+        expectSameRow(wideLayout, fieldOrder);
+        expectTouchesGridEdges(wideLayout, 'doi', 'language');
+        for (let index = 1; index < fieldOrder.length; index += 1) {
+            expect(wideLayout.fields[fieldOrder[index - 1]].right).toBeLessThan(wideLayout.fields[fieldOrder[index]].left);
+        }
+        expectNoHorizontalOverflow(wideLayout);
+
+        await page.setViewportSize({ width: 1280, height: 900 });
+        const mediumLayout = await readLayout();
+        expectSameRow(mediumLayout, ['doi', 'year', 'resourceType', 'accessLevel']);
+        expectSameRow(mediumLayout, ['datacenter', 'version', 'language']);
+        expect(mediumLayout.fields.datacenter.top).toBeGreaterThan(mediumLayout.fields.doi.bottom);
+        expectTouchesGridEdges(mediumLayout, 'doi', 'accessLevel');
+        expectTouchesGridEdges(mediumLayout, 'datacenter', 'language');
+        expectNoHorizontalOverflow(mediumLayout);
+
+        await page.setViewportSize({ width: 393, height: 852 });
+        const smallLayout = await readLayout();
+        expectTouchesGridEdges(smallLayout, 'doi', 'doi');
+        for (let index = 1; index < fieldOrder.length; index += 1) {
+            const previous = smallLayout.fields[fieldOrder[index - 1]];
+            const current = smallLayout.fields[fieldOrder[index]];
+
+            expect(current.top).toBeGreaterThan(previous.bottom);
+            expect(Math.abs(current.left - smallLayout.grid.left)).toBeLessThanOrEqual(tolerance);
+            expect(Math.abs(current.right - smallLayout.grid.right)).toBeLessThanOrEqual(tolerance);
+        }
+        expectNoHorizontalOverflow(smallLayout);
     });
 
     test('keeps controlled vocabulary tabs readable at every responsive layout', async ({ page }) => {
