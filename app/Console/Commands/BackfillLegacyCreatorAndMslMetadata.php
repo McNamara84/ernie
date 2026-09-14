@@ -183,6 +183,14 @@ final class BackfillLegacyCreatorAndMslMetadata extends Command
 
             return self::INVALID;
         }
+
+        $progress = $this->progressService->get(ImportProgressService::TYPE_RESOURCE, $syncRunId);
+        if (($progress['status'] ?? null) === 'running') {
+            $this->error('A DataCite synchronization is already running.');
+
+            return self::FAILURE;
+        }
+
         if (! $this->syncDispatcher->retryFailures(ImportProgressService::TYPE_RESOURCE, $syncRunId)) {
             $this->warn('No retryable DataCite synchronization failures were found.');
 

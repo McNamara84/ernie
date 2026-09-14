@@ -9,6 +9,7 @@ use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\Subject;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use App\Services\Legacy\LegacyCreatorAndMslMetadataBackfillService;
 use Illuminate\Console\Command;
@@ -918,6 +919,56 @@ it('streams the command report to CSV while resources are processed', function (
             unlink($reportPath);
         }
     }
+});
+
+it('rejects retrying a DataCite synchronization that is still running', function (): void {
+    $syncRunId = '5cd20d2a-77f1-4ba0-bf98-e03076e9e8b4';
+    app(ImportProgressService::class)->update(ImportProgressService::TYPE_RESOURCE, $syncRunId, [
+        'status' => 'running',
+        'phase' => 'syncing',
+        'sync_failed' => 1,
+        'sync_retry_available' => true,
+    ]);
+
+    $dispatcher = Mockery::mock(ImportedResourceDataCiteSyncDispatcherService::class);
+    $dispatcher->shouldNotReceive('retryFailures');
+    app()->instance(ImportedResourceDataCiteSyncDispatcherService::class, $dispatcher);
+
+    $this->artisan('resources:backfill-legacy-creator-and-msl-metadata', [
+        '--retry-sync' => $syncRunId,
+    ])->expectsOutput('A DataCite synchronization is already running.')
+        ->assertFailed();
+
+    expect(app(ImportProgressService::class)->get(
+        ImportProgressService::TYPE_RESOURCE,
+        $syncRunId,
+    ))->toMatchArray([
+        'status' => 'running',
+        'sync_failed' => 1,
+        'sync_retry_available' => true,
+    ]);
+});
+
+it('retries failed DataCite synchronizations after the prior run completed', function (): void {
+    $syncRunId = 'c2a7d31a-d056-47fb-b5ac-fbe6bab2695d';
+    app(ImportProgressService::class)->update(ImportProgressService::TYPE_RESOURCE, $syncRunId, [
+        'status' => 'completed',
+        'phase' => 'completed',
+        'sync_failed' => 1,
+        'sync_retry_available' => true,
+    ]);
+
+    $dispatcher = Mockery::mock(ImportedResourceDataCiteSyncDispatcherService::class);
+    $dispatcher->shouldReceive('retryFailures')
+        ->once()
+        ->with(ImportProgressService::TYPE_RESOURCE, $syncRunId)
+        ->andReturnTrue();
+    app()->instance(ImportedResourceDataCiteSyncDispatcherService::class, $dispatcher);
+
+    $this->artisan('resources:backfill-legacy-creator-and-msl-metadata', [
+        '--retry-sync' => $syncRunId,
+    ])->expectsOutput('Failed DataCite synchronizations were queued again.')
+        ->assertSuccessful();
 });
 
 it('uses a bounded existence query for the legacy database preflight', function (): void {
