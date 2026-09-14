@@ -1231,6 +1231,58 @@ describe('ContactMessageController', function (): void {
             });
         });
 
+        it('queues only one team message when distinct contacts share its normalized address', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => 'DataPub@GFZ.de']);
+
+            $resource = Resource::factory()->create();
+            $firstPerson = Person::factory()->create([
+                'given_name' => 'Alice',
+                'family_name' => 'First',
+            ]);
+            $secondPerson = Person::factory()->create([
+                'given_name' => 'Bob',
+                'family_name' => 'Second',
+            ]);
+
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $firstPerson->id,
+                'email' => 'datapub@gfz.de',
+                'is_contact' => true,
+            ]);
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $secondPerson->id,
+                'email' => ' DataPub@GFZ.de ',
+                'is_contact' => true,
+            ]);
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.team-email-dedup.001',
+                'slug' => 'team-email-dedup',
+            ]);
+
+            $this->postJson('/10.5880/gfz.team-email-dedup.001/team-email-dedup/contact', [
+                'sender_name' => 'Test User',
+                'sender_email' => 'test@example.com',
+                'message' => 'This request should reach the shared team address only once.',
+                'send_to_all' => true,
+            ])->assertOk()->assertJson([
+                'recipients_count' => 1,
+                'data_publication_team_direct_recipient' => true,
+            ]);
+
+            Mail::assertQueued(ContactPersonMessage::class, 1);
+            Mail::assertQueued(ContactPersonMessage::class, function (ContactPersonMessage $mail): bool {
+                return $mail->hasTo('datapub@gfz.de') && empty($mail->cc);
+            });
+
+            expect(ContactMessage::query()->latest('id')->firstOrFail()->recipient_count)->toBe(1);
+        });
+
     });
 
     describe('contributor contact person routing', function (): void {

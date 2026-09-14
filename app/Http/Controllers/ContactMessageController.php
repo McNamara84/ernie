@@ -175,12 +175,14 @@ class ContactMessageController extends Controller
         ])->findOrFail($resourceId);
 
         // Determine recipients
-        $recipients = $this->getRecipients(
-            $resource,
-            $sendToAll,
-            $validated['resource_creator_id'] ?? null,
-            $validated['resource_contributor_id'] ?? null,
-            $validated['repository_contact_type'] ?? null,
+        $recipients = $this->deduplicateRecipientsByEmail(
+            $this->getRecipients(
+                $resource,
+                $sendToAll,
+                $validated['resource_creator_id'] ?? null,
+                $validated['resource_contributor_id'] ?? null,
+                $validated['repository_contact_type'] ?? null,
+            ),
         );
 
         $dataPublicationTeamEmail = $this->dataPublicationTeamRecipientService->email(logInvalidConfiguration: true);
@@ -430,6 +432,31 @@ class ContactMessageController extends Controller
         }
 
         return $recipients;
+    }
+
+    /**
+     * @param  array<int, array{email: string, name: string}>  $recipients
+     * @return list<array{email: string, name: string}>
+     */
+    private function deduplicateRecipientsByEmail(array $recipients): array
+    {
+        $uniqueRecipients = [];
+        $seenEmails = [];
+
+        foreach ($recipients as $recipient) {
+            $email = trim($recipient['email']);
+            $normalizedEmail = strtolower($email);
+
+            if (isset($seenEmails[$normalizedEmail])) {
+                continue;
+            }
+
+            $seenEmails[$normalizedEmail] = true;
+            $recipient['email'] = $email;
+            $uniqueRecipients[] = $recipient;
+        }
+
+        return $uniqueRecipients;
     }
 
     /**
