@@ -3,7 +3,7 @@
  */
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,9 +12,9 @@ import type { DatacenterFacet } from '@/types/portal';
 
 describe('PortalDatacenterFilter', () => {
     const facets: DatacenterFacet[] = [
-        { name: 'GFZ Data Services', count: 42 },
-        { name: 'GEOFON', count: 15 },
         { name: 'EPOS', count: 3 },
+        { name: 'GEOFON', count: 15 },
+        { name: 'GFZ Data Services', count: 1_234 },
     ];
 
     const defaultProps = {
@@ -27,126 +27,111 @@ describe('PortalDatacenterFilter', () => {
         vi.clearAllMocks();
     });
 
-    describe('rendering', () => {
-        it('shows "All Datacenters" when none are selected', () => {
-            render(<PortalDatacenterFilter {...defaultProps} />);
+    it('shows the search, datacenters, and resource counts inline without another trigger', () => {
+        render(<PortalDatacenterFilter {...defaultProps} />);
 
-            expect(screen.getByText('All Datacenters')).toBeInTheDocument();
-        });
-
-        it('shows selected count when datacenters are selected', () => {
-            render(<PortalDatacenterFilter {...defaultProps} selectedNames={['GFZ Data Services', 'GEOFON']} />);
-
-            expect(screen.getByText('2 selected')).toBeInTheDocument();
-        });
-
-        it('shows badge with count when datacenters are selected', () => {
-            render(<PortalDatacenterFilter {...defaultProps} selectedNames={['GFZ Data Services']} />);
-
-            expect(screen.getByText('1 selected')).toBeInTheDocument();
-            expect(screen.getByText('1')).toBeInTheDocument();
-        });
+        expect(screen.getByPlaceholderText('Search datacenters...')).toBeVisible();
+        expect(screen.getByRole('group', { name: 'Datacenters' })).toBeVisible();
+        expect(screen.getByText('EPOS')).toBeVisible();
+        expect(screen.getByText('GEOFON')).toBeVisible();
+        expect(screen.getByText('GFZ Data Services')).toBeVisible();
+        expect(screen.getByText('3')).toBeVisible();
+        expect(screen.getByText('15')).toBeVisible();
+        expect(screen.getByText('1,234')).toBeVisible();
+        expect(screen.queryByText('All Datacenters')).not.toBeInTheDocument();
     });
 
-    describe('dropdown interaction', () => {
-        it('opens the popover and displays facets when clicked', async () => {
-            const user = userEvent.setup();
-            render(<PortalDatacenterFilter {...defaultProps} />);
+    it('preserves the facet order supplied by the backend', () => {
+        render(<PortalDatacenterFilter {...defaultProps} />);
 
-            await user.click(screen.getByText('All Datacenters'));
+        const checkboxes = within(screen.getByRole('group', { name: 'Datacenters' })).getAllByRole('checkbox');
 
-            expect(screen.getByPlaceholderText('Search datacenters...')).toBeInTheDocument();
-            expect(screen.getByText('GFZ Data Services')).toBeInTheDocument();
-            expect(screen.getByText('GEOFON')).toBeInTheDocument();
-            expect(screen.getByText('EPOS')).toBeInTheDocument();
-        });
-
-        it('displays facet counts next to each datacenter', async () => {
-            const user = userEvent.setup();
-            render(<PortalDatacenterFilter {...defaultProps} />);
-
-            await user.click(screen.getByText('All Datacenters'));
-
-            expect(screen.getByText('42')).toBeInTheDocument();
-            expect(screen.getByText('15')).toBeInTheDocument();
-            expect(screen.getByText('3')).toBeInTheDocument();
-        });
-
-        it('calls onSelectionChange with the toggled datacenter when an item is selected', async () => {
-            const user = userEvent.setup();
-            const onSelectionChange = vi.fn();
-
-            render(<PortalDatacenterFilter {...defaultProps} onSelectionChange={onSelectionChange} />);
-
-            await user.click(screen.getByText('All Datacenters'));
-            await user.click(screen.getByText('GFZ Data Services'));
-
-            expect(onSelectionChange).toHaveBeenCalledWith(['GFZ Data Services']);
-        });
-
-        it('calls onSelectionChange without the datacenter when a selected item is deselected', async () => {
-            const user = userEvent.setup();
-            const onSelectionChange = vi.fn();
-
-            render(
-                <PortalDatacenterFilter
-                    {...defaultProps}
-                    selectedNames={['GFZ Data Services', 'GEOFON']}
-                    onSelectionChange={onSelectionChange}
-                />,
-            );
-
-            await user.click(screen.getByText('2 selected'));
-            await user.click(screen.getByText('GFZ Data Services'));
-
-            expect(onSelectionChange).toHaveBeenCalledWith(['GEOFON']);
-        });
-
-        it('shows "No datacenters found." when facets are empty', async () => {
-            const user = userEvent.setup();
-            render(<PortalDatacenterFilter {...defaultProps} facets={[]} />);
-
-            await user.click(screen.getByText('All Datacenters'));
-
-            expect(screen.getByText('No datacenters found.')).toBeInTheDocument();
-        });
+        expect(checkboxes.map((checkbox) => checkbox.getAttribute('aria-label'))).toEqual([
+            'Select EPOS',
+            'Select GEOFON',
+            'Select GFZ Data Services',
+        ]);
     });
 
-    describe('clear filter', () => {
-        it('does not show "Clear filter" button when no selection', async () => {
-            const user = userEvent.setup();
-            render(<PortalDatacenterFilter {...defaultProps} />);
+    it('selects an unchecked datacenter while preserving existing selections', async () => {
+        const user = userEvent.setup();
+        const onSelectionChange = vi.fn();
 
-            await user.click(screen.getByText('All Datacenters'));
+        render(<PortalDatacenterFilter {...defaultProps} selectedNames={['EPOS']} onSelectionChange={onSelectionChange} />);
 
-            expect(screen.queryByText('Clear filter')).not.toBeInTheDocument();
-        });
+        await user.click(screen.getByRole('checkbox', { name: 'Select GEOFON' }));
 
-        it('shows "Clear filter" button when datacenters are selected', async () => {
-            const user = userEvent.setup();
-            render(<PortalDatacenterFilter {...defaultProps} selectedNames={['GFZ Data Services']} />);
+        expect(onSelectionChange).toHaveBeenCalledWith(['EPOS', 'GEOFON']);
+    });
 
-            await user.click(screen.getByText('1 selected'));
+    it('deselects a checked datacenter from its checkbox', async () => {
+        const user = userEvent.setup();
+        const onSelectionChange = vi.fn();
 
-            expect(screen.getByText('Clear filter')).toBeInTheDocument();
-        });
+        render(<PortalDatacenterFilter {...defaultProps} selectedNames={['EPOS', 'GEOFON']} onSelectionChange={onSelectionChange} />);
 
-        it('calls onSelectionChange with empty array when "Clear filter" is clicked', async () => {
-            const user = userEvent.setup();
-            const onSelectionChange = vi.fn();
+        expect(screen.getByRole('checkbox', { name: 'Select EPOS' })).toBeChecked();
+        await user.click(screen.getByRole('checkbox', { name: 'Select EPOS' }));
 
-            render(
-                <PortalDatacenterFilter
-                    {...defaultProps}
-                    selectedNames={['GFZ Data Services']}
-                    onSelectionChange={onSelectionChange}
-                />,
-            );
+        expect(onSelectionChange).toHaveBeenCalledWith(['GEOFON']);
+    });
 
-            await user.click(screen.getByText('1 selected'));
-            await user.click(screen.getByText('Clear filter'));
+    it('shows selected datacenters as removable chips', async () => {
+        const user = userEvent.setup();
+        const onSelectionChange = vi.fn();
 
-            expect(onSelectionChange).toHaveBeenCalledWith([]);
-        });
+        render(<PortalDatacenterFilter {...defaultProps} selectedNames={['EPOS', 'GEOFON']} onSelectionChange={onSelectionChange} />);
+
+        await user.click(screen.getByRole('button', { name: 'Remove GEOFON' }));
+
+        expect(onSelectionChange).toHaveBeenCalledWith(['EPOS']);
+    });
+
+    it('filters datacenters through the inline search without changing their selection', async () => {
+        const user = userEvent.setup();
+
+        render(<PortalDatacenterFilter {...defaultProps} selectedNames={['EPOS']} />);
+
+        await user.type(screen.getByPlaceholderText('Search datacenters...'), 'geo');
+
+        expect(screen.getByText('GEOFON')).toBeVisible();
+        expect(screen.queryByRole('checkbox', { name: 'Select EPOS' })).not.toBeInTheDocument();
+        expect(screen.queryByText('GFZ Data Services')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Remove EPOS' })).toBeVisible();
+    });
+
+    it('shows a no-match state for an unsuccessful search', async () => {
+        const user = userEvent.setup();
+
+        render(<PortalDatacenterFilter {...defaultProps} />);
+
+        await user.type(screen.getByPlaceholderText('Search datacenters...'), 'missing');
+
+        expect(screen.getByText('No matching values.')).toBeVisible();
+        expect(screen.queryByRole('group', { name: 'Datacenters' })).not.toBeInTheDocument();
+    });
+
+    it('shows an empty state without rendering a redundant search field', () => {
+        render(<PortalDatacenterFilter {...defaultProps} facets={[]} />);
+
+        expect(screen.getByText('No datacenters available.')).toBeVisible();
+        expect(screen.queryByPlaceholderText('Search datacenters...')).not.toBeInTheDocument();
+    });
+
+    it('keeps a selected URL value removable when it is absent from the available facets', async () => {
+        const user = userEvent.setup();
+        const onSelectionChange = vi.fn();
+
+        render(<PortalDatacenterFilter facets={[]} selectedNames={['Missing datacenter']} onSelectionChange={onSelectionChange} />);
+
+        await user.click(screen.getByRole('button', { name: 'Remove Missing datacenter' }));
+
+        expect(onSelectionChange).toHaveBeenCalledWith([]);
+    });
+
+    it('describes the unchanged OR semantics', () => {
+        render(<PortalDatacenterFilter {...defaultProps} />);
+
+        expect(screen.getByText('A result may match any selected datacenter.')).toBeVisible();
     });
 });

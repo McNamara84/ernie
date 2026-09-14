@@ -485,7 +485,7 @@ class PortalSearchService
      * Get datacenter facets with counts for published resources.
      *
      * Returns only datacenters that have at least one published resource,
-     * sorted by count descending.
+     * sorted naturally and case-insensitively by name.
      *
      * @return array<int, array{name: string, count: int}>
      */
@@ -493,8 +493,8 @@ class PortalSearchService
     {
         $cacheKey = CacheKey::PORTAL_DATACENTER_FACETS;
 
-        /** @var array<int, array{name: string, count: int}> */
-        return $this->rememberFacet($cacheKey, $scope, function () use ($scope): array {
+        /** @var array<int, array{name: string, count: int}> $facets */
+        $facets = $this->rememberFacet($cacheKey, $scope, function () use ($scope): array {
             $results = Datacenter::query()
                 ->select('datacenters.name')
                 ->selectRaw('COUNT(DISTINCT resources.id) as resources_count')
@@ -514,7 +514,6 @@ class PortalSearchService
                     fn (Builder $query): Builder => $query->where('resource_types.slug', PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE),
                 )
                 ->groupBy('datacenters.id', 'datacenters.name')
-                ->orderByDesc('resources_count')
                 ->get();
 
             return $results->map(fn ($row): array => [
@@ -522,6 +521,14 @@ class PortalSearchService
                 'count' => (int) $row->resources_count,
             ])->all();
         });
+
+        usort($facets, static function (array $left, array $right): int {
+            $nameComparison = strnatcasecmp($left['name'], $right['name']);
+
+            return $nameComparison !== 0 ? $nameComparison : strcmp($left['name'], $right['name']);
+        });
+
+        return $facets;
     }
 
     /**

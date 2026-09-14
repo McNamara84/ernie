@@ -42,8 +42,8 @@ final class IgsnPortalFacetService
         $cacheKey = CacheKey::PORTAL_IGSN_FACETS;
         $scope = PortalScope::IGSN;
 
-        /** @var array{sampleTypes: list<array{value: string, label: string, count: int}>, materials: list<array{value: string, label: string, count: int, children: list<mixed>}>, classifications: list<array{type: string, label: string, options: list<array{value: string, label: string, count: int}>}>, geologicalAges: list<array{value: string, label: string, count: int}>, geologicalUnits: list<array{value: string, label: string, count: int}>, datacenters: list<array{name: string, count: int}>} */
-        return $this->flexibleCache->remember(
+        /** @var array{sampleTypes: list<array{value: string, label: string, count: int}>, materials: list<array{value: string, label: string, count: int, children: list<mixed>}>, classifications: list<array{type: string, label: string, options: list<array{value: string, label: string, count: int}>}>, geologicalAges: list<array{value: string, label: string, count: int}>, geologicalUnits: list<array{value: string, label: string, count: int}>, datacenters: list<array{name: string, count: int}>} $facets */
+        $facets = $this->flexibleCache->remember(
             $this->getCacheInstance(PortalCacheNamespace::tags($cacheKey, $scope)),
             PortalCacheNamespace::versionedKey(
                 $cacheKey,
@@ -57,6 +57,14 @@ final class IgsnPortalFacetService
             (int) config('bot_protection.portal_cache_lock_seconds', 15),
             (int) config('bot_protection.portal_cache_lock_wait_seconds', 10),
         );
+
+        usort($facets['datacenters'], static function (array $left, array $right): int {
+            $nameComparison = strnatcasecmp($left['name'], $right['name']);
+
+            return $nameComparison !== 0 ? $nameComparison : strcmp($left['name'], $right['name']);
+        });
+
+        return $facets;
     }
 
     /**
@@ -305,12 +313,6 @@ final class IgsnPortalFacetService
         foreach ($counts as $name => $count) {
             $facets[] = ['name' => $name, 'count' => $count];
         }
-
-        usort($facets, static function (array $left, array $right): int {
-            $countComparison = $right['count'] <=> $left['count'];
-
-            return $countComparison !== 0 ? $countComparison : strnatcasecmp($left['name'], $right['name']);
-        });
 
         return $facets;
     }

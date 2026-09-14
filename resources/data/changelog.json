@@ -5,6 +5,17 @@
         "features": [],
         "improvements": [
             {
+                "title": "Faster Datacenter Filtering",
+                "description": "Datacenter filters in the Data and IGSN Portals now list their alphabetically ordered options and current resource counts directly after the section is opened. The inline search, checkboxes, and removable selection chips replace the additional scrollable popup, reducing the interaction to one expansion on desktop and mobile while preserving multi-selection and shared URLs.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1304,
+                        "url": "https://github.com/McNamara84/ernie/issues/1304"
+                    }
+                ]
+            },
+            {
                 "title": "Compact Landing Page Headers",
                 "description": "Resource and IGSN landing pages now devote more space to their research information with a shorter 9:1 header, no empty space above the page, and no gap before the title and citation card. New and replacement custom header logos use the documented 9:1 format, while existing logos remain fully supported without cropping or distortion and are identified as legacy formats in template management.",
                 "references": [

@@ -154,6 +154,44 @@ describe('PortalFilters', () => {
         expect(screen.getByText('All Resource Types')).toBeInTheDocument();
     });
 
+    it('shows and operates the inline datacenter list after one accordion action', async () => {
+        const user = userEvent.setup();
+        render(<PortalFilters {...defaultProps} />);
+
+        expect(screen.queryByPlaceholderText('Search datacenters...')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /^datacenter$/i }));
+
+        expect(screen.getByPlaceholderText('Search datacenters...')).toBeVisible();
+        expect(screen.getByRole('checkbox', { name: 'Select GFZ' })).toBeVisible();
+        expect(screen.getByText('42')).toBeVisible();
+        expect(screen.queryByText('All Datacenters')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('checkbox', { name: 'Select GFZ' }));
+
+        expect(defaultProps.onDatacenterChange).toHaveBeenCalledWith(['GFZ']);
+    });
+
+    it('automatically opens an active datacenter group and shows its selected-value count', () => {
+        render(<PortalFilters {...defaultProps} filters={{ ...defaultFilters, datacenter: ['GFZ'] }} hasActiveFilters />);
+
+        expect(screen.getByPlaceholderText('Search datacenters...')).toBeVisible();
+        expect(screen.getByRole('checkbox', { name: 'Select GFZ' })).toBeChecked();
+        expect(screen.getByRole('button', { name: /^datacenter1$/i })).toHaveAttribute('data-state', 'open');
+        expect(screen.getByRole('button', { name: 'Remove GFZ' })).toBeVisible();
+    });
+
+    it('uses the same inline datacenter interaction in the IGSN portal', async () => {
+        const user = userEvent.setup();
+        render(<PortalFilters {...defaultProps} basePath="/igsn-search" igsnFacets={igsnFacets} showResourceTypeFilter={false} />);
+
+        await user.click(screen.getByRole('button', { name: /^datacenter$/i }));
+
+        expect(screen.getByPlaceholderText('Search datacenters...')).toBeVisible();
+        expect(screen.getByRole('checkbox', { name: 'Select GFZ' })).toBeVisible();
+        expect(screen.queryByText('All Datacenters')).not.toBeInTheDocument();
+    });
+
     it('removes the complete resource type section in the IGSN portal', () => {
         render(
             <PortalFilters
