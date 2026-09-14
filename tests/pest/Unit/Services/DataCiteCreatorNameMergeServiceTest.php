@@ -142,6 +142,57 @@ it('enriches an empty unstructured name from a unique ORCID match', function ():
         ]);
 });
 
+it('enriches a nameless creator from the only aligned legacy position', function (): void {
+    $current = [[
+        'name' => null,
+        'givenName' => null,
+        'familyName' => null,
+    ]];
+    $legacy = [['name' => 'The Artist']];
+
+    $result = $this->service->mergeWithReport($current, $legacy);
+
+    expect($result['creators'][0]['name'])->toBe('The Artist')
+        ->and($result['matches'][0])->toMatchArray([
+            'legacy_index' => 0,
+            'method' => 'position_only',
+            'status' => 'merged',
+        ]);
+});
+
+it('does not use a nameless position match when creator counts differ or ORCIDs conflict', function (): void {
+    $nameless = [[
+        'name' => null,
+        'givenName' => null,
+        'familyName' => null,
+    ]];
+    $differentCount = $this->service->mergeWithReport(
+        [...$nameless, ['name' => 'Second Creator']],
+        [['name' => 'The Artist']],
+    );
+
+    $conflictingOrcid = $this->service->mergeWithReport(
+        [[
+            ...$nameless[0],
+            'nameIdentifiers' => ($this->orcid)('0000-0001-6171-7716'),
+        ]],
+        [[
+            'name' => 'The Artist',
+            'nameIdentifiers' => ($this->orcid)('0000-0002-1825-0097'),
+        ]],
+    );
+
+    expect($differentCount['matches'][0])->toMatchArray([
+        'legacy_index' => null,
+        'method' => 'none',
+        'status' => 'unmatched',
+    ])->and($conflictingOrcid['matches'][0])->toMatchArray([
+        'legacy_index' => null,
+        'method' => 'none',
+        'status' => 'unmatched',
+    ]);
+});
+
 it('rejects ambiguous duplicate ORCID matches across one resource', function (): void {
     $identifier = ($this->orcid)('0000-0001-6171-7716');
     $current = [

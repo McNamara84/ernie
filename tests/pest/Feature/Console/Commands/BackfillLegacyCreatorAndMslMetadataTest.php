@@ -213,6 +213,112 @@ it('sorts creators by position and id before dry-run position matching', functio
         ->and($secondCreator->fresh()->hasNameSnapshot())->toBeFalse();
 });
 
+it('backfills an unstructured snapshot onto a nameless person through an unambiguous position', function (): void {
+    $doi = '10.5880/unstructured-position-snapshot';
+    $legacyId = DB::connection('metaworks')->table('resource')->insertGetId(['identifier' => $doi]);
+    DB::connection('metaworks')->table('resourceagent')->insert([
+        'resource_id' => $legacyId,
+        'order' => 0,
+        'firstname' => null,
+        'lastname' => null,
+        'name' => 'The Artist',
+        'identifier' => null,
+        'identifiertype' => null,
+    ]);
+    DB::connection('metaworks')->table('role')->insert([
+        'resourceagent_resource_id' => $legacyId,
+        'resourceagent_order' => 0,
+        'role' => 'Creator',
+    ]);
+    $person = Person::factory()->create([
+        'given_name' => '',
+        'family_name' => '',
+    ]);
+    $resource = Resource::factory()->withDoi($doi)->create([
+        'legacy_source' => 'sumario-pmd',
+        'legacy_source_id' => $legacyId,
+    ]);
+    $creator = ResourceCreator::factory()->forPerson($person)->create([
+        'resource_id' => $resource->id,
+        'position' => 0,
+    ]);
+    $service = app(LegacyCreatorAndMslMetadataBackfillService::class);
+
+    $dryRun = $service->run(dois: [$doi], retainRecords: true);
+
+    expect($dryRun)->toMatchArray([
+        'changed' => 1,
+        'creator_snapshots_written' => 1,
+        'manual_review' => 0,
+    ])->and($dryRun['records'][0]['creator_match_methods'])->toBe('position_only:merged')
+        ->and($creator->fresh()->hasNameSnapshot())->toBeFalse();
+
+    $applied = $service->run(apply: true, dois: [$doi], retainRecords: true);
+
+    expect($applied)->toMatchArray([
+        'changed' => 1,
+        'creator_snapshots_written' => 1,
+        'manual_review' => 0,
+    ])->and($creator->fresh())->toMatchArray([
+        'name_snapshot' => 'The Artist',
+        'given_name_snapshot' => null,
+        'family_name_snapshot' => null,
+    ]);
+});
+
+it('persists an ORCID-matched unstructured legacy spelling without replacing global person fields', function (): void {
+    $doi = '10.5880/unstructured-orcid-snapshot';
+    $legacyId = DB::connection('metaworks')->table('resource')->insertGetId(['identifier' => $doi]);
+    DB::connection('metaworks')->table('resourceagent')->insert([
+        'resource_id' => $legacyId,
+        'order' => 0,
+        'firstname' => null,
+        'lastname' => null,
+        'name' => 'Sommer, Philipp S.',
+        'identifier' => '0000-0001-6171-7716',
+        'identifiertype' => 'ORCID',
+    ]);
+    DB::connection('metaworks')->table('role')->insert([
+        'resourceagent_resource_id' => $legacyId,
+        'resourceagent_order' => 0,
+        'role' => 'Creator',
+    ]);
+    $person = Person::factory()->create([
+        'given_name' => 'Philipp',
+        'family_name' => 'Sommer',
+        'name_identifier' => '0000-0001-6171-7716',
+        'name_identifier_scheme' => 'ORCID',
+    ]);
+    $resource = Resource::factory()->withDoi($doi)->create([
+        'legacy_source' => 'sumario-pmd',
+        'legacy_source_id' => $legacyId,
+    ]);
+    $creator = ResourceCreator::factory()->forPerson($person)->create([
+        'resource_id' => $resource->id,
+        'position' => 0,
+    ]);
+
+    $result = app(LegacyCreatorAndMslMetadataBackfillService::class)->run(
+        apply: true,
+        dois: [$doi],
+        retainRecords: true,
+    );
+
+    expect($result)->toMatchArray([
+        'changed' => 1,
+        'creator_snapshots_written' => 1,
+        'manual_review' => 0,
+    ])->and($result['records'][0]['creator_match_methods'])->toBe('orcid:snapshot_only')
+        ->and($creator->fresh())->toMatchArray([
+            'name_snapshot' => 'Sommer, Philipp S.',
+            'given_name_snapshot' => null,
+            'family_name_snapshot' => null,
+        ])->and($person->fresh())->toMatchArray([
+            'given_name' => 'Philipp',
+            'family_name' => 'Sommer',
+        ]);
+});
+
 it('is dry-run-first, additive, resource-specific, and idempotent', function (): void {
     $doi = '10.5880/gfz.1.4.2021.008';
     $legacyId = DB::connection('metaworks')->table('resource')->insertGetId([

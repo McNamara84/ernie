@@ -385,12 +385,16 @@ final class LegacyCreatorAndMslMetadataBackfillService
         foreach ($resource->creators->values() as $index => $author) {
             $entity = $author->creatorable;
             if ($entity instanceof Person) {
-                $name = $this->creatorNameResolver->resolve($author, $entity);
+                $resolvedName = $this->creatorNameResolver->resolve($author, $entity);
+                $name = $resolvedName['source'] === 'snapshot'
+                    ? $this->filled($author->name_snapshot)
+                        ?? $this->creatorNameResolver->format($resolvedName['family_name'], $resolvedName['given_name'])
+                    : $this->creatorNameResolver->format($resolvedName['family_name'], $resolvedName['given_name']);
                 $creator = [
-                    'name' => $name['name'],
+                    'name' => $name,
                     'nameType' => 'Personal',
-                    'givenName' => $name['given_name'],
-                    'familyName' => $name['family_name'],
+                    'givenName' => $resolvedName['given_name'],
+                    'familyName' => $resolvedName['family_name'],
                 ];
                 if ($entity->hasOrcid()) {
                     $creator['nameIdentifiers'] = [[
@@ -407,6 +411,16 @@ final class LegacyCreatorAndMslMetadataBackfillService
         }
 
         $merge = $this->creatorMerger->mergeWithReport($current, $legacyCreators);
+        foreach ($merge['matches'] as $matchIndex => $match) {
+            $legacyIndex = $match['legacy_index'];
+            if ($match['method'] === 'orcid'
+                && $match['status'] === 'not_richer'
+                && $legacyIndex !== null
+                && $this->isUnstructuredLegacyCreator($legacyCreators[$legacyIndex] ?? null)
+            ) {
+                $merge['matches'][$matchIndex]['status'] = 'snapshot_only';
+            }
+        }
         $written = 0;
         $visibleChanges = 0;
         $warnings = [];
@@ -416,7 +430,7 @@ final class LegacyCreatorAndMslMetadataBackfillService
             if (! $row instanceof ResourceCreator) {
                 continue;
             }
-            if (! in_array($match['status'], ['merged', 'identical'], true) || $match['legacy_index'] === null) {
+            if (! in_array($match['status'], ['merged', 'identical', 'snapshot_only'], true) || $match['legacy_index'] === null) {
                 if (in_array($match['status'], ['ambiguous', 'not_richer'], true)) {
                     $warnings[] = "Creator position {$row->position} was not changed ({$match['status']}).";
                 }
@@ -471,6 +485,14 @@ final class LegacyCreatorAndMslMetadataBackfillService
             )),
             'warnings' => $warnings,
         ];
+    }
+
+    private function isUnstructuredLegacyCreator(mixed $creator): bool
+    {
+        return is_array($creator)
+            && $this->filled($creator['name'] ?? null) !== null
+            && $this->filled($creator['givenName'] ?? null) === null
+            && $this->filled($creator['familyName'] ?? null) === null;
     }
 
     /**

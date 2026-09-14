@@ -160,12 +160,22 @@ final class DataCiteCreatorNameMergeService
         }
 
         $positionCandidate = $legacyCreators[$position] ?? null;
+        $namesAreCompatible = is_array($positionCandidate)
+            && $this->namesAreCompatible($creator, $positionCandidate);
+        $namelessPositionMatch = is_array($positionCandidate)
+            && count($dataCiteCreators) === count($legacyCreators)
+            && $this->normalizedFullName($creator) === null
+            && $this->normalizedFullName($positionCandidate) !== null;
         if (is_array($positionCandidate)
             && ! isset($usedLegacyIndexes[$position])
-            && $this->namesAreCompatible($creator, $positionCandidate)
+            && ($namesAreCompatible || $namelessPositionMatch)
             && ! $this->hasConflictingOrcids($creator, $positionCandidate)
         ) {
-            return ['legacy_index' => $position, 'method' => 'position_and_name', 'status' => 'matched'];
+            return [
+                'legacy_index' => $position,
+                'method' => $namesAreCompatible ? 'position_and_name' : 'position_only',
+                'status' => 'matched',
+            ];
         }
 
         $normalizedName = $this->normalizedFullName($creator);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
-it('refreshes cached system packages for every container security scan attempt', function (): void {
+it('refreshes cached system packages once per date while retaining the build cache across attempts', function (): void {
     $workflow = Yaml::parseFile(base_path('.github/workflows/security.yml'));
 
     expect($workflow)->toBeArray();
@@ -31,7 +31,9 @@ it('refreshes cached system packages for every container security scan attempt',
         ->toBeArray()
         ->and($buildStep['with']['build-args'] ?? null)
         ->toBeString()
-        ->toContain('SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}-${{ github.run_id }}-${{ github.run_attempt }}')
+        ->toContain('SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}')
+        ->not->toContain('github.run_id')
+        ->not->toContain('github.run_attempt')
         ->and($trivyCacheStep)
         ->toBeArray()
         ->and($trivyCacheStep['with']['key'] ?? null)

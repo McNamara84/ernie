@@ -185,6 +185,29 @@ it('preserves unstructured creator snapshot metadata during request normalizatio
     'store request' => [StoreResourceRequest::class, '/editor/resources'],
 ]);
 
+it('accepts a one-character zero snapshot as a present final creator name', function (): void {
+    $request = StoreResourceRequest::create('/editor/resources', 'POST', [
+        'titles' => [['title' => 'Snapshot resource', 'titleType' => 'main-title']],
+        'authors' => [[
+            'type' => 'person',
+            'firstName' => null,
+            'lastName' => null,
+            'nameSnapshot' => '0',
+            'position' => 0,
+        ]],
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+    $validator = Validator::make($request->all(), $request->rules());
+    foreach ($request->after() as $callback) {
+        $validator->after($callback);
+    }
+    $validator->passes();
+
+    expect($request->input('authors.0.nameSnapshot'))->toBe('0')
+        ->and($validator->errors()->has('authors.0.lastName'))->toBeFalse();
+});
+
 it('aligns creator snapshot validation with the database column length', function (string $requestClass): void {
     /** @var StoreDraftResourceRequest|StoreResourceRequest $request */
     $request = new $requestClass;

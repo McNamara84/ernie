@@ -192,11 +192,9 @@ final class LandingPagePersonIdentityResolverService
 
     private function structuredNameKey(Person $person, ResourceCreator|ResourceContributor|null $author = null): ?string
     {
-        $resolvedName = $author !== null
-            ? $this->creatorNameResolver->resolve($author, $person)
-            : null;
-        $givenName = $this->normalizeNamePart($resolvedName['given_name'] ?? $person->given_name);
-        $familyName = $this->normalizeNamePart($resolvedName['family_name'] ?? $person->family_name);
+        $nameParts = $this->nameParts($person, $author);
+        $givenName = $this->normalizeNamePart($nameParts['given_name']);
+        $familyName = $this->normalizeNamePart($nameParts['family_name']);
 
         if ($givenName === null || $familyName === null) {
             return null;
@@ -207,11 +205,9 @@ final class LandingPagePersonIdentityResolverService
 
     private function legacyTokenKey(Person $person, ResourceCreator|ResourceContributor|null $author = null): ?string
     {
-        $resolvedName = $author !== null
-            ? $this->creatorNameResolver->resolve($author, $person)
-            : null;
-        $givenName = $this->normalizeNamePart($resolvedName['given_name'] ?? $person->given_name);
-        $familyName = $this->normalizeNamePart($resolvedName['family_name'] ?? $person->family_name);
+        $nameParts = $this->nameParts($person, $author);
+        $givenName = $this->normalizeNamePart($nameParts['given_name']);
+        $familyName = $this->normalizeNamePart($nameParts['family_name']);
 
         if ($givenName === null || $familyName === null) {
             return null;
@@ -229,6 +225,26 @@ final class LandingPagePersonIdentityResolverService
         sort($tokens, SORT_STRING);
 
         return implode('|', $tokens);
+    }
+
+    /**
+     * @return array{given_name: string|null, family_name: string|null}
+     */
+    private function nameParts(Person $person, ResourceCreator|ResourceContributor|null $author): array
+    {
+        if ($author === null) {
+            return [
+                'given_name' => $person->given_name,
+                'family_name' => $person->family_name,
+            ];
+        }
+
+        $resolvedName = $this->creatorNameResolver->resolve($author, $person);
+
+        return [
+            'given_name' => $resolvedName['given_name'],
+            'family_name' => $resolvedName['family_name'],
+        ];
     }
 
     private function normalizeNamePart(?string $value): ?string

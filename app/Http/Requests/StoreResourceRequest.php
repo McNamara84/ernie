@@ -1379,7 +1379,9 @@ class StoreResourceRequest extends FormRequest
                     $type = $author['type'] ?? 'person';
 
                     if ($type === 'person') {
-                        if (empty($author['lastName']) && empty($author['nameSnapshot'])) {
+                        if ($this->normalizeString($author['lastName'] ?? null) === null
+                            && $this->normalizeString($author['nameSnapshot'] ?? null) === null
+                        ) {
                             $validator->errors()->add(
                                 "authors.$index.lastName",
                                 '[Authors] Author #'.($index + 1).' requires a last name.',
