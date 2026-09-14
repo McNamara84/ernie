@@ -418,8 +418,8 @@ test.describe('Landing Page - Files and Data Requests (Issues #373 and #1280)', 
     // Contact form button should NOT be visible when download URL exists
     await landingPage.verifyContactFormButtonNotVisible();
 
-    // Fallback message should NOT be visible
-    await landingPage.verifyNoDownloadMessageNotVisible();
+    // The data-request presentation should NOT be visible when a download URL is available
+    await landingPage.verifyDataRequestHeadingNotVisible();
   });
 
   test('displays contact form button when contact person with email exists', async ({ page }) => {
@@ -438,9 +438,6 @@ test.describe('Landing Page - Files and Data Requests (Issues #373 and #1280)', 
 
     // Historical no-download configurations use the same request presentation.
     await landingPage.verifyDataRequestHeadingVisible();
-
-    // Fallback message should NOT be visible
-    await landingPage.verifyNoDownloadMessageNotVisible();
   });
 
   test('displays a team-only request when no contact persons are available', async ({ page }) => {

@@ -80,7 +80,6 @@ export class LandingPage {
   readonly filesSection: Locator;
   readonly downloadButton: Locator;
   readonly contactFormButton: Locator;
-  readonly noDownloadMessage: Locator;
   readonly dataRequestHeading: Locator;
 
   constructor(page: Page) {
@@ -138,7 +137,6 @@ export class LandingPage {
     this.downloadButton = this.filesSection.locator('a:has-text("Download data and description")');
     // Contact form is now a button (opens modal), not a link
     this.contactFormButton = this.filesSection.locator('button:has-text("Request data via contact form")');
-    this.noDownloadMessage = this.filesSection.locator('p:has-text("Download information not available")');
     this.dataRequestHeading = this.filesSection.getByRole('heading', {
       name: 'The dataset is not available for automated download. Please fill in the request form to receive download information.',
     });
@@ -554,17 +552,10 @@ export class LandingPage {
   }
 
   /**
-   * Verify fallback message is shown when no download options are available
+   * Verify the data-request presentation is not shown when a download is available.
    */
-  async verifyNoDownloadMessageVisible() {
-    await expect(this.noDownloadMessage).toBeVisible();
-  }
-
-  /**
-   * Verify fallback message is NOT visible
-   */
-  async verifyNoDownloadMessageNotVisible() {
-    await expect(this.noDownloadMessage).not.toBeVisible();
+  async verifyDataRequestHeadingNotVisible() {
+    await expect(this.dataRequestHeading).not.toBeVisible();
   }
 
   // =========================================================================
