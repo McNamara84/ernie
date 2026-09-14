@@ -21,6 +21,8 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\TitleType;
+use App\Models\User;
+use App\Policies\ResourcePolicy;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Citations\RelatedItemStorageService;
 use App\Services\Entities\AffiliationService;
@@ -31,6 +33,7 @@ use App\Services\Rights\ResourceRightsStorageService;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -64,8 +67,10 @@ class ResourceStorageService
      *
      * @param  array<string, mixed>  $data  Validated request data
      * @param  int|null  $userId  ID of the user performing the operation
+     * @param  User|null  $doiChangeActor  Editor user whose DOI mutation must be authorized
      * @return array{0: Resource, 1: bool} Returns [$resource, $isUpdate]
      *
+     * @throws AuthorizationException
      * @throws QueryException
      * @throws ValidationException
      */
@@ -74,10 +79,11 @@ class ResourceStorageService
         array $data,
         ?int $userId = null,
         CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
+        ?User $doiChangeActor = null,
     ): array {
         $data = $this->prepareDataForStorage($data, $citationLabelResolutionMode);
 
-        return DB::transaction(function () use ($data, $userId): array {
+        return DB::transaction(function () use ($data, $userId, $doiChangeActor): array {
             $languageId = null;
 
             if (! empty($data['language'])) {
@@ -118,6 +124,20 @@ class ResourceStorageService
                 $resource = Resource::query()
                     ->lockForUpdate()
                     ->findOrFail($data['resourceId']);
+
+                if ($hasDoiInput && $doiChangeActor !== null) {
+                    // Publication uses the resource lock as its serialization
+                    // boundary. Resolve the landing page only after that lock so
+                    // the policy sees the state immediately before mutation.
+                    $landingPage = $resource->landingPage()
+                        ->lockForUpdate()
+                        ->first();
+                    $resource->setRelation('landingPage', $landingPage);
+
+                    if (! $doiChangeActor->can('changeDoi', [$resource, $doi])) {
+                        throw new AuthorizationException(ResourcePolicy::DOI_CHANGE_UNAUTHORIZED_MESSAGE);
+                    }
+                }
 
                 // Track who updated the resource
                 $attributes['updated_by_user_id'] = $userId;

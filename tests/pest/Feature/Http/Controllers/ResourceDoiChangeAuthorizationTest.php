@@ -16,6 +16,7 @@ use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Policies\ResourcePolicy;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Editor\EditorResourceSaveService;
 use Illuminate\Auth\Access\AuthorizationException;
 
@@ -203,6 +204,39 @@ it('re-checks DOI authorization inside the mutation transaction after publicatio
 
     expect($resource->fresh()->doi)->toBe('10.5880/race-old.001')
         ->and($landingPage->fresh()->doi_prefix)->toBe('10.5880/race-old.001');
+});
+
+it('prepares citation labels before locking and re-checking the DOI mutation', function (): void {
+    $user = User::factory()->curator()->create();
+    $resource = Resource::factory()->withDoi('10.5880/preparation-old.001')->create();
+    $landingPage = LandingPage::factory()->for($resource)->draft()->withDoi('10.5880/preparation-old.001')->create();
+
+    $citationLabels = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+    $citationLabels->shouldReceive('resolveBestEffortBatchForStorage')
+        ->once()
+        ->andReturnUsing(function (array $relatedIdentifiers) use ($landingPage): array {
+            $landingPage->publish();
+
+            return $relatedIdentifiers;
+        });
+    $this->app->instance(RelatedIdentifierCitationLabelService::class, $citationLabels);
+
+    $payload = doiChangePayload($resource, '10.5880/preparation-new.001', false, [
+        'relatedIdentifiers' => [
+            [
+                'identifier' => '10.5880/related.001',
+                'identifierType' => 'DOI',
+                'relationType' => 'Cites',
+            ],
+        ],
+    ]);
+
+    expect(fn () => app(EditorResourceSaveService::class)->saveValidated($payload, $user))
+        ->toThrow(AuthorizationException::class, ResourcePolicy::DOI_CHANGE_UNAUTHORIZED_MESSAGE);
+
+    expect($resource->fresh()->doi)->toBe('10.5880/preparation-old.001')
+        ->and($landingPage->fresh()->is_published)->toBeFalse()
+        ->and($landingPage->fresh()->doi_prefix)->toBe('10.5880/preparation-old.001');
 });
 
 it('allows an admin to replace or remove a published DOI through both save paths', function (
