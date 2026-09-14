@@ -832,7 +832,10 @@ describe('ContactMessageController', function (): void {
                 ]);
 
             Mail::assertQueued(ContactPersonMessage::class, 1);
-            Mail::assertQueued(ContactPersonMessage::class, fn (ContactPersonMessage $mail): bool => $mail->hasTo('datapub@gfz.de'));
+            Mail::assertQueued(ContactPersonMessage::class, function (ContactPersonMessage $mail) use ($resource): bool {
+                return $mail->hasTo('datapub@gfz.de')
+                    && $mail->content()->with['datasetUrl'] === route('landing-page.preview.show', ['resource' => $resource->id]);
+            });
 
             $this->assertDatabaseHas('contact_messages', [
                 'resource_id' => $resource->id,

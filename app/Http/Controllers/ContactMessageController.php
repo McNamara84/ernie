@@ -103,13 +103,17 @@ class ContactMessageController extends Controller
             abort(404, 'Preview session expired. Please open preview again from the setup modal.');
         }
 
-        return $this->processContactMessage($request, $resource->id);
+        return $this->processContactMessage(
+            $request,
+            $resource->id,
+            route('landing-page.preview.show', ['resource' => $resource->id]),
+        );
     }
 
     /**
      * Process the contact message (shared logic).
      */
-    private function processContactMessage(Request $request, int $resourceId): JsonResponse
+    private function processContactMessage(Request $request, int $resourceId, ?string $datasetUrl = null): JsonResponse
     {
         // Check honeypot field (should be empty)
         if ($request->filled('website_url')) {
@@ -248,7 +252,8 @@ class ContactMessageController extends Controller
                         $contactMessage,
                         $resource,
                         $recipient['name'],
-                        false
+                        false,
+                        $datasetUrl,
                     )
                 );
             }
@@ -272,7 +277,8 @@ class ContactMessageController extends Controller
                         $contactMessage,
                         $resource,
                         $validated['sender_name'],
-                        true
+                        true,
+                        $datasetUrl,
                     )
                 );
             } catch (Throwable $exception) {

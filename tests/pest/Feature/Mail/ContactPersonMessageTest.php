@@ -159,6 +159,18 @@ describe('content', function () {
 
         expect($content->with['datasetUrl'])->toBe(url('/'));
     });
+
+    it('uses an explicitly provided dataset URL', function () {
+        $previewUrl = route('landing-page.preview.show', ['resource' => $this->resource->id]);
+        $mailable = new ContactPersonMessage(
+            contactMessage: $this->contactMessage,
+            resource: $this->resource,
+            recipientName: 'Dr. Smith',
+            datasetUrl: $previewUrl,
+        );
+
+        expect($mailable->content()->with['datasetUrl'])->toBe($previewUrl);
+    });
 });
 
 describe('attachments', function () {
