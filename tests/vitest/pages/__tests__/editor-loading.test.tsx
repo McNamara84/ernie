@@ -22,7 +22,11 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
-    default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    default: ({ children, showFooter }: { children: React.ReactNode; showFooter?: boolean }) => (
+        <div data-testid="app-layout" data-show-footer={String(showFooter)}>
+            {children}
+        </div>
+    ),
 }));
 
 vi.mock('@/routes', () => ({
@@ -51,6 +55,7 @@ describe('editor-loading page', () => {
     it('starts the canonical Inertia reload with the progress token', async () => {
         render(<EditorLoadingPage editorLoad={editorLoad} />);
 
+        expect(screen.getByTestId('app-layout')).toHaveAttribute('data-show-footer', 'false');
         expect(screen.getByTestId('editor-loading-modal')).toBeInTheDocument();
         expect(routerVisitMock).toHaveBeenCalledWith(
             '/editor?resourceId=42',

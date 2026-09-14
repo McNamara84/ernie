@@ -9,7 +9,7 @@ import type { BreadcrumbItem } from '@/types';
 
 const AppLayoutTemplateMock = vi.hoisted(() =>
     vi.fn(
-        ({ children, breadcrumbs }: { children: ReactNode; breadcrumbs?: BreadcrumbItem[] }) => (
+        ({ children, breadcrumbs }: { children: ReactNode; breadcrumbs?: BreadcrumbItem[]; showFooter?: boolean }) => (
             <div>
                 {breadcrumbs && (
                     <nav data-testid="breadcrumbs">
@@ -40,5 +40,16 @@ describe('AppLayout', () => {
         const callProps = AppLayoutTemplateMock.mock.calls[0][0];
         expect(callProps.breadcrumbs).toEqual(breadcrumbs);
     });
-});
 
+    it('passes the footer visibility preference to the layout template', () => {
+        render(
+            <AppLayout showFooter={false}>
+                <p>Editor</p>
+            </AppLayout>,
+        );
+
+        const callProps = AppLayoutTemplateMock.mock.calls[0][0];
+        expect(callProps.showFooter).toBe(false);
+        expect(screen.getByTestId('content')).toHaveTextContent('Editor');
+    });
+});

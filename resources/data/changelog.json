@@ -99,6 +99,22 @@
         ],
         "fixes": [
             {
+                "title": "Unobstructed Data Editor Actions",
+                "description": "The Data Editor no longer shows the redundant global footer in its loading, error, or ready states. Its fixed action buttons therefore no longer cover version, About, or Legal Notice links at the bottom of the page, while Changelog remains available from the sidebar and other pages retain their footer.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1284,
+                        "url": "https://github.com/McNamara84/ernie/issues/1284"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1328,
+                        "url": "https://github.com/McNamara84/ernie/pull/1328"
+                    }
+                ]
+            },
+            {
                 "title": "Balanced Resource Information Layout",
                 "description": "The Data Editor now keeps DOI, Year, Resource Type, Access Level, Datacenter, Version, and Language of Data together in one proportional row on wide desktops and two fully occupied rows at medium widths. Language of Data no longer wraps into a row by itself, while long Datacenter names and small-screen stacking remain intact.",
                 "references": [

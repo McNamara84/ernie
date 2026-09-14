@@ -14,6 +14,7 @@ const AppShellMock = vi.hoisted(() =>
     )),
 );
 const AppSidebarMock = vi.hoisted(() => vi.fn(() => <div data-testid="app-sidebar" />));
+const AppFooterMock = vi.hoisted(() => vi.fn(() => <footer data-testid="app-footer" />));
 const AppContentMock = vi.hoisted(() =>
     vi.fn(({ children, variant, className }: { children?: React.ReactNode; variant?: string; className?: string }) => (
         <main data-testid="app-content" data-variant={variant} className={className}>
@@ -29,6 +30,7 @@ const AppSidebarHeaderMock = vi.hoisted(() =>
 
 vi.mock('@/components/app-shell', () => ({ AppShell: AppShellMock }));
 vi.mock('@/components/app-sidebar', () => ({ AppSidebar: AppSidebarMock }));
+vi.mock('@/components/app-footer', () => ({ AppFooter: AppFooterMock }));
 vi.mock('@/components/app-content', () => ({ AppContent: AppContentMock }));
 vi.mock('@/components/app-sidebar-header', () => ({ AppSidebarHeader: AppSidebarHeaderMock }));
 
@@ -45,6 +47,20 @@ describe('AppSidebarLayout', () => {
         expect(content).not.toHaveClass('overflow-x-hidden');
         expect(screen.getByTestId('app-sidebar-header')).toHaveTextContent('Settings');
         expect(screen.getByText('Child')).toBeInTheDocument();
+        expect(screen.getByTestId('app-footer')).toBeInTheDocument();
         expect(useFeedbackDiagnostics).toHaveBeenCalledOnce();
+    });
+
+    it('omits only the global footer when requested', () => {
+        render(
+            <AppSidebarLayout breadcrumbs={[{ title: 'Editor', href: '/editor' }]} showFooter={false}>
+                Editor content
+            </AppSidebarLayout>,
+        );
+
+        expect(screen.queryByTestId('app-footer')).not.toBeInTheDocument();
+        expect(screen.getByTestId('app-sidebar')).toBeInTheDocument();
+        expect(screen.getByTestId('app-sidebar-header')).toHaveTextContent('Editor');
+        expect(screen.getByText('Editor content')).toBeInTheDocument();
     });
 });

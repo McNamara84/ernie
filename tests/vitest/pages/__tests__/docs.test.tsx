@@ -891,6 +891,30 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it.each(['beginner', 'curator', 'group_leader', 'admin'] as const)(
+        'documents the footer and changelog navigation behavior for the %s editor role',
+        async (userRole) => {
+            const { user } = renderDocsPage(userRole);
+
+            await openDatasetsTab(user);
+
+            expect(
+                screen.getByText((_, element) => {
+                    if (element?.tagName !== 'P') {
+                        return false;
+                    }
+
+                    const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                    return (
+                        text.includes('the Data Editor does not show the global footer with the ERNIE version, About, and Legal Notice') &&
+                        text.includes('Open Changelog from the sidebar instead')
+                    );
+                }),
+            ).toBeInTheDocument();
+        },
+    );
+
     it('documents resource quick actions and grouped delete behavior for curators', async () => {
         const { user } = renderDocsPage('curator');
 

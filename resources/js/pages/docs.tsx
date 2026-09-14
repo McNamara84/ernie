@@ -1333,6 +1333,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     The action bar stays available while you move through the form. On smaller pointer-based screens it fades back
                                     until you hover near the bottom-right corner or focus a button; on touch screens it remains visible and compact.
                                 </p>
+                                <p className="mt-2">
+                                    To keep these actions unobstructed, the Data Editor does not show the global footer with the ERNIE version,{' '}
+                                    <strong>About</strong>, and <strong>Legal Notice</strong>, including while an existing Resource is loading or
+                                    showing a loading error. Open <strong>Changelog</strong> from the sidebar instead.
+                                </p>
                                 <ul>
                                     <li>
                                         <strong>"Save Draft"</strong> – Save an incomplete dataset with just a Main Title. You can return later to
