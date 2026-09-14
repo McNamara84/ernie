@@ -42,11 +42,11 @@ test.describe('Landing Page - Citation Standards', () => {
     const sectionIds = await leftColumn.locator(':scope > section').evaluateAll((sections) =>
       sections.map((section) => section.getAttribute('data-testid') ?? section.getAttribute('aria-labelledby')),
     );
-    const filesIndex = sectionIds.indexOf('files-section');
+    const filesSlotIndex = sectionIds.findIndex((sectionId) => sectionId === 'files-section' || sectionId === 'data-request-section');
     const licensesIndex = sectionIds.indexOf('license-and-rights-section');
     const citationIndex = sectionIds.indexOf('citation-section');
-    expect(filesIndex).toBeGreaterThanOrEqual(0);
-    expect(licensesIndex).toBe(filesIndex + 1);
+    expect(filesSlotIndex).toBeGreaterThanOrEqual(0);
+    expect(licensesIndex).toBe(filesSlotIndex + 1);
     expect(citationIndex).toBe(licensesIndex + 1);
 
     const apaText = normalizeVisibleText(await landingPage.citationContent.innerText());
