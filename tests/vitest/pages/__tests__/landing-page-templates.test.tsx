@@ -169,7 +169,7 @@ const defaultTemplate: LandingPageTemplateConfig = {
     logo_filename: null,
     logo_url: null,
     right_column_order: defaultRightOrder,
-    left_column_order: ['files', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
+    left_column_order: ['files', 'citation', 'dates', 'contact', 'related_work'],
     hidden_sections: [],
     creator_display_limit: 50,
     contributor_display_limit: 50,
@@ -193,7 +193,7 @@ const customTemplate: LandingPageTemplateConfig = {
     logo_filename: 'logo.png',
     logo_url: 'http://localhost/storage/landing-page-logos/geophysics/logo.png',
     right_column_order: locationFirstRightOrder,
-    left_column_order: ['contact', 'files', 'citation', 'dates', 'model_description', 'related_work'],
+    left_column_order: ['contact', 'files', 'citation', 'dates', 'related_work'],
     hidden_sections: [],
     creator_display_limit: 25,
     contributor_display_limit: 75,
@@ -217,7 +217,7 @@ const customTemplateNoLogo: LandingPageTemplateConfig = {
     logo_filename: null,
     logo_url: null,
     right_column_order: defaultRightOrder,
-    left_column_order: ['files', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
+    left_column_order: ['files', 'citation', 'dates', 'contact', 'related_work'],
     hidden_sections: [],
     creator_display_limit: 50,
     contributor_display_limit: 50,
@@ -1118,7 +1118,7 @@ describe('LandingPageTemplatesPage', () => {
                 right_column_order: string[];
             };
             expect(payload.right_column_order.indexOf('files')).toBe(payload.right_column_order.indexOf('abstract') - 1);
-            expect(new Set([...payload.left_column_order, ...payload.right_column_order]).size).toBe(19);
+            expect(new Set([...payload.left_column_order, ...payload.right_column_order]).size).toBe(18);
         });
 
         it('keeps Resource metadata grouped and restores the layout after a drop outside both columns', async () => {
@@ -1187,7 +1187,7 @@ describe('LandingPageTemplatesPage', () => {
                 expect(mockedAxiosPut).toHaveBeenCalledWith(
                     `/landing-pages/${customTemplate.id}`,
                     expect.objectContaining({
-                        left_column_order: ['contact', 'citation', 'files', 'licenses', 'dates', 'model_description', 'related_work'],
+                        left_column_order: ['contact', 'citation', 'files', 'licenses', 'dates', 'related_work'],
                     }),
                 );
             });
@@ -1637,7 +1637,7 @@ describe('LandingPageTemplatesPage', () => {
             render(<LandingPageTemplatesPage />);
             expect(screen.getAllByText('Files & Downloads').length).toBeGreaterThanOrEqual(1);
             expect(screen.getAllByText('Contact Person').length).toBeGreaterThanOrEqual(1);
-            expect(screen.getAllByText('Model / Method Description').length).toBeGreaterThanOrEqual(1);
+            expect(screen.queryByText('Model / Method Description')).not.toBeInTheDocument();
             expect(screen.getAllByText('Related Work').length).toBeGreaterThanOrEqual(1);
         });
     });

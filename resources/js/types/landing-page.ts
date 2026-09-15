@@ -71,7 +71,6 @@ export type ResourceSection =
     | 'citation'
     | 'dates'
     | 'contact'
-    | 'model_description'
     | 'related_work'
     | 'abstract'
     | 'methods'

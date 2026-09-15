@@ -1222,7 +1222,7 @@ export default function LandingPageTemplatesPage() {
                                         left={editLeftOrder as ResourceSection[]}
                                         right={editRightOrder as ResourceSection[]}
                                         normalize={normalizeResourceColumnOrders}
-                                        description="Every Resource module can be reordered or moved between either column. Metadata modules remain grouped inside the existing shared metadata card."
+                                        description="Every Resource module can be reordered or moved between either column. Key Publication and Dataset Description automatically follow License & Rights. Metadata modules remain grouped inside the existing shared metadata card."
                                         onChange={(orders) => {
                                             setEditLeftOrder(orders.left);
                                             setEditRightOrder(orders.right);

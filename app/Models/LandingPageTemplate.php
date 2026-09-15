@@ -127,7 +127,6 @@ class LandingPageTemplate extends Model
         'citation',
         'dates',
         'contact',
-        'model_description',
         'related_work',
     ];
 

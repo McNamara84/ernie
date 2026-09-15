@@ -5,6 +5,22 @@
         "features": [],
         "improvements": [
             {
+                "title": "Highlighted Resource Publications and Descriptions",
+                "description": "Resource landing pages now present IsSupplementTo relations as Key Publication and IsDocumentedBy relations as Dataset Description in dedicated cards directly after License & Rights. Both related identifiers and related items with inline metadata are supported, while all other relations remain in Related Work without duplication; IGSN landing pages retain their existing layout.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1295,
+                        "url": "https://github.com/McNamara84/ernie/issues/1295"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1335,
+                        "url": "https://github.com/McNamara84/ernie/pull/1335"
+                    }
+                ]
+            },
+            {
                 "title": "Configurable IGSN Landing Pages",
                 "description": "IGSN landing pages now use the agreed default card order and a three-zone template editor for left, right, and hidden cards, with a movable but mandatory Version Notice. Location and Map are independent cards with a restrained overview zoom, every card adapts to either column, Sample Family starts on the current branch and supports accessible collapsing and resizing, and Hero plus citation styles consistently show and copy the complete DOI. Existing custom layouts are migrated without losing visible cards or datacenter assignments.",
                 "references": [

@@ -20,6 +20,8 @@ use App\Models\Language;
 use App\Models\Person;
 use App\Models\Publisher;
 use App\Models\RelatedIdentifier;
+use App\Models\RelatedItem;
+use App\Models\RelatedItemTitle;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
@@ -904,9 +906,29 @@ class ResourceTestDataSeeder extends Seeder
             'position' => 6,
         ]);
 
+        $datasetDescriptionType = RelationType::where('slug', 'IsDocumentedBy')->first();
+        if ($datasetDescriptionType) {
+            $datasetDescription = RelatedItem::create([
+                'resource_id' => $resource->id,
+                'related_item_type' => 'JournalArticle',
+                'relation_type_id' => $datasetDescriptionType->id,
+                'publication_year' => 2015,
+                'publisher' => 'Copernicus Publications',
+                'identifier' => '10.5194/sd-19-1-2015',
+                'identifier_type' => 'DOI',
+                'position' => 7,
+            ]);
+            RelatedItemTitle::create([
+                'related_item_id' => $datasetDescription->id,
+                'title' => 'Dataset description supplied as inline metadata',
+                'title_type' => RelatedItem::TITLE_TYPE_MAIN,
+                'position' => 0,
+            ]);
+        }
+
         $this->createLandingPage($resource, 'many-related-identifiers');
 
-        $this->logCreation($resource, '6 related identifiers');
+        $this->logCreation($resource, '6 related identifiers and 1 related item');
     }
 
     /**

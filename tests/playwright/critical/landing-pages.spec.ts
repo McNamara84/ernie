@@ -259,7 +259,7 @@ test.describe('Landing Page - GeoLocations', () => {
 });
 
 test.describe('Landing Page - Related Identifiers', () => {
-  test('displays related identifier DOIs in related work and model description', async ({ page }) => {
+  test('displays Resource relations in their dedicated cards without duplication', async ({ page }) => {
     const landingPage = new LandingPage(page);
     await landingPage.goto('many-related-identifiers');
     await landingPage.verifyPageLoaded();
@@ -267,11 +267,22 @@ test.describe('Landing Page - Related Identifiers', () => {
     // Verify related works section
     await expect(landingPage.relatedWorksSection).toBeVisible();
 
-    // Verify real DOIs are displayed in the correct sections.
-    // The first IsSupplementTo entry is rendered as Model Description.
+    // Verify relatedIdentifier and relatedItem DOIs are displayed in the correct sections.
     await landingPage.verifyRelatedWorkDoi('10.5880/igets.su.l1.001');
-    await landingPage.verifyModelDescriptionDoi('10.1007/978-3-642-20338-1_37');
+    await landingPage.verifyKeyPublicationDoi('10.1007/978-3-642-20338-1_37');
+    await landingPage.verifyDatasetDescriptionDoi('10.5194/sd-19-1-2015');
     await landingPage.verifyRelatedWorkDoi('10.1016/j.jog.2009.09.009');
+
+    await expect(landingPage.relatedWorksSection.locator('a[href*="10.1007/978-3-642-20338-1_37"]')).toHaveCount(0);
+    await expect(landingPage.relatedWorksSection.locator('a[href*="10.5194/sd-19-1-2015"]')).toHaveCount(0);
+
+    const orderedCards = page.locator(
+      '[data-testid="license-and-rights-section"], [data-testid="key-publication-section"], [data-testid="dataset-description-section"]',
+    );
+    await expect(orderedCards).toHaveCount(3);
+    await expect(orderedCards.nth(0)).toHaveAttribute('data-testid', 'license-and-rights-section');
+    await expect(orderedCards.nth(1)).toHaveAttribute('data-testid', 'key-publication-section');
+    await expect(orderedCards.nth(2)).toHaveAttribute('data-testid', 'dataset-description-section');
   });
 
   test('related work DOI links are clickable', async ({ page }) => {

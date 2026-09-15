@@ -1955,6 +1955,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             are reused on landing pages and in the relation browser, so no third-party citation lookup is needed at page-load time.
                         </p>
 
+                        <h4>On Resource Landing Pages</h4>
+                        <p>
+                            On regular Resource landing pages, <code>IsSupplementTo</code> identifiers appear in the dedicated{' '}
+                            <em>Key Publication</em> card and <code>IsDocumentedBy</code> identifiers appear in the <em>Dataset Description</em> card.
+                            These cards follow <em>License &amp; Rights</em> directly; all other identifiers remain in <em>Related Work</em>. IGSN
+                            landing pages keep their existing relation layout.
+                        </p>
+
                         <h4>Common Relation Types</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
@@ -2069,9 +2077,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>On the Landing Page</h4>
                         <p>
-                            Related items appear in the <em>Related Work</em> section under the <em>Citations</em> heading, labelled with an{' '}
-                            <em>Inline metadata</em> badge. If the related item has a DOI or URL identifier, the card links out to the external
-                            resource.
+                            On regular Resource landing pages, <code>IsSupplementTo</code> related items appear in the dedicated{' '}
+                            <em>Key Publication</em> card and <code>IsDocumentedBy</code> related items appear in the <em>Dataset Description</em>{' '}
+                            card directly after <em>License &amp; Rights</em>. All other related items appear in the <em>Related Work</em> section
+                            under the <em>Citations</em> heading. Related items retain their <em>Inline metadata</em> badge in either location. If an
+                            item has a DOI or URL identifier, its entry links to the external resource. IGSN landing pages keep their existing
+                            relation layout.
                         </p>
                         <p>
                             Related Identifiers with a stored citation label show a <strong>Copy citation</strong> action beside the entry. Visitors

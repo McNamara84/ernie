@@ -1185,7 +1185,20 @@ describe('Docs page', () => {
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
                 return text.includes(
-                    'Related items appear in the Related Work section under the Citations heading, labelled with an Inline metadata badge.',
+                    'On regular Resource landing pages, IsSupplementTo related items appear in the dedicated Key Publication card and IsDocumentedBy related items appear in the Dataset Description card directly after License & Rights.',
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes(
+                    'On regular Resource landing pages, IsSupplementTo identifiers appear in the dedicated Key Publication card and IsDocumentedBy identifiers appear in the Dataset Description card.',
                 );
             }),
         ).toBeInTheDocument();

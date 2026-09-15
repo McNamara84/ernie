@@ -413,7 +413,6 @@ describe('Session Preview Display', function () {
                     'contact',
                     'files',
                     'licenses',
-                    'model_description',
                     'related_work',
                     'dates',
                     'citation',
@@ -431,7 +430,6 @@ describe('Session Preview Display', function () {
             'citation',
             'dates',
             'contact',
-            'model_description',
             'related_work',
             'location',
         ];
