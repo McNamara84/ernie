@@ -12,8 +12,6 @@ on:
       - completed
     branches:
       - main
-  workflow_dispatch:
-
 permissions:
   contents: read
 
@@ -24,9 +22,8 @@ concurrency:
 jobs:
   validate:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.conclusion == 'success')
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -42,7 +39,7 @@ jobs:
       - name: Checkout the candidate main commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'refs/heads/main' }}
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
       - name: Resolve source and image names
@@ -142,11 +139,7 @@ jobs:
                 .join(', ');
               const message = `Stage publication is blocked for ${sourceSha}: ${details}`;
 
-              if (context.eventName === 'workflow_dispatch') {
-                core.setFailed(message);
-              } else {
-                core.notice(message);
-              }
+              core.notice(message);
             }
 
   publish:
@@ -166,8 +159,8 @@ jobs:
           ref: ${{ needs.validate.outputs.sha }}
           fetch-depth: 0
 
-      - name: Replace production environment with public build defaults
-        run: cp .env.example .env.production
+      - name: Validate public production environment
+        run: bash scripts/validate-production-environment.sh
 
       - name: Resolve system package refresh date
         id: system-packages-refresh

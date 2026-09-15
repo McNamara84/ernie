@@ -83,8 +83,9 @@ Merge the implementation into `main`. Wait for:
 2. `Publish Stage Images` to publish the validated commit.
 
 The second workflow creates the two GHCR packages and the digest-pinned
-`deploy/stage` branch. It can also be started manually from the Actions page
-to retry the current `main` commit.
+`deploy/stage` branch. It intentionally has no `workflow_dispatch` trigger:
+manual dispatch can target another branch and would execute that branch's
+workflow definition with the publish job's write-scoped token.
 
 The validation job has read-only access. Only after every deployment-blocking
 workflow succeeded for the same commit does the publish job request
@@ -174,10 +175,12 @@ commit.
 
 ## Manual retry
 
-Use **Actions > Publish Stage Images > Run workflow**. Manual execution always
-uses the current head of `main`; it cannot deploy an arbitrary feature
-branch. It still requires successful Security, Pest, Vitest, lint/PHPStan, and
-Playwright push workflows for that exact commit.
+Open any one of the five successful deployment-blocking workflow runs for the
+current `main` commit and choose **Re-run all jobs**. Its successful completion
+triggers the default-branch `Publish Stage Images` workflow again. Do not add a
+manual trigger to the privileged publishing workflow or dispatch it against a
+feature branch. The retry still verifies successful Security, Pest, Vitest,
+lint/PHPStan, and Playwright push workflows for that exact commit.
 
 ## Rollback
 
@@ -226,9 +229,12 @@ Portainer's manual pull/redeploy once to inspect the registry error directly.
 
 `.env.production` and `stack.env` are tracked in a public repository. Their
 current credential fields are intentionally empty or use non-secret sentinels
-such as `null`. `stack.env` is excluded from the Docker build context, and the
-image workflows replace `.env.production` with `.env.example` in their
-temporary checkout before building.
+such as `null`. `stack.env` is excluded from the Docker build context. Before
+building, both image workflows reject credential-like values in
+`.env.production` but otherwise keep this sanitized Production template
+unchanged. The resulting image therefore retains Production-safe defaults such
+as `LOG_STACK=daily` and `LOG_LEVEL=error`; Portainer overrides only the values
+explicitly supplied by the stack environment or Compose service definition.
 
 Previously committed values remain in Git history. Rotate any application key,
 API key, cookie key, database password, Solr password, DataCite password,

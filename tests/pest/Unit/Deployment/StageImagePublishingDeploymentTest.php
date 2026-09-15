@@ -18,6 +18,7 @@ it('publishes Stage images only after every deployment workflow passed for the s
     ];
 
     expect($workflow['on']['workflow_run']['workflows'] ?? null)->toBe($requiredWorkflows)
+        ->and($workflow['on'] ?? [])->not->toHaveKey('workflow_dispatch')
         ->and($workflow['permissions']['contents'] ?? null)->toBe('read')
         ->and($workflow['permissions'] ?? [])->not->toHaveKey('packages');
 
@@ -53,8 +54,44 @@ it('publishes Stage images only after every deployment workflow passed for the s
         ->toContain("event: 'push'")
         ->toContain('head_sha: sourceSha')
         ->toContain("result.status === 'completed' && result.conclusion === 'success'")
-        ->toContain("context.eventName === 'workflow_dispatch'")
-        ->toContain('core.setFailed(message)');
+        ->not->toContain('workflow_dispatch')
+        ->toContain('core.notice(message)');
+
+    expect($validateJob['if'] ?? null)
+        ->toContain("github.event.workflow_run.event == 'push'")
+        ->toContain("github.event.workflow_run.conclusion == 'success'")
+        ->not->toContain('workflow_dispatch')
+        ->and($validateSteps->get('Checkout the candidate main commit')['with']['ref'] ?? null)
+        ->toBe('${{ github.event.workflow_run.head_sha }}');
+});
+
+it('builds images from sanitized Production defaults without replacing their runtime settings', function (): void {
+    $publishWorkflow = Yaml::parseFile(base_path('.github/workflows/publish-stage-images.yml'));
+    $securityWorkflow = Yaml::parseFile(base_path('.github/workflows/security.yml'));
+    $productionEnvironment = file_get_contents(base_path('.env.production'));
+    $validator = file_get_contents(base_path('scripts/validate-production-environment.sh'));
+
+    expect($publishWorkflow)->toBeArray()
+        ->and($securityWorkflow)->toBeArray()
+        ->and($productionEnvironment)->toBeString()
+        ->toMatch('/^LOG_STACK=daily$/m')
+        ->toMatch('/^LOG_LEVEL=error$/m')
+        ->and($validator)->toBeString()
+        ->toContain('_(PASSWORD|SECRET|TOKEN|API_KEY|PRIVATE_KEY|ENCRYPTION_KEY|SIGNING_KEY|AUTH|CREDENTIAL|CREDENTIALS)')
+        ->toContain('invalid_keys+=("$key")')
+        ->toContain('printf \'  - %s\\n\' "${invalid_keys[@]}"');
+
+    foreach ([
+        $publishWorkflow['jobs']['publish']['steps'] ?? [],
+        $securityWorkflow['jobs']['container-scan']['steps'] ?? [],
+    ] as $steps) {
+        $namedSteps = collect($steps)->keyBy('name');
+        $validation = $namedSteps->get('Validate public production environment');
+
+        expect($validation)->toBeArray()
+            ->and($validation['run'] ?? null)->toBe('bash scripts/validate-production-environment.sh')
+            ->and($namedSteps->has('Replace production environment with public build defaults'))->toBeFalse();
+    }
 });
 
 it('publishes a digest-pinned Stage deployment with a compare-and-swap branch update', function (): void {

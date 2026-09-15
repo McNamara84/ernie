@@ -52,8 +52,8 @@ jobs:
         id: system-packages-refresh
         run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
 
-      - name: Replace production environment with public build defaults
-        run: cp .env.example .env.production
+      - name: Validate public production environment
+        run: bash scripts/validate-production-environment.sh
 
       - name: Build application image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
