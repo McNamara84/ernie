@@ -1431,6 +1431,21 @@ describe('Docs page', () => {
         expect(screen.getByRole('heading', { name: 'Text Search and Free Keyword Suggestions', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/Choose a suggestion to add it as an exact keyword chip/i)).toBeInTheDocument();
         expect(screen.getByText(/All controlled vocabularies share one hierarchy/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Filter Order and Active Selections', level: 4 })).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('Filter groups without an active URL filter start collapsed') &&
+                    text.includes('Datacenter, Resource Type, Location, Thesaurus Keywords, and Time') &&
+                    text.includes('Datacenter, Sample Type, Material, Classification, Geological Age, Geological Unit, Location, and Time') &&
+                    text.includes('every group containing an active filter opens automatically')
+                );
+            }),
+        ).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Responsive Filters and Views', level: 4 })).toBeInTheDocument();
         expect(
             screen.getByText((_, element) => {

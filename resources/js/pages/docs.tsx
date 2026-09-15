@@ -2153,6 +2153,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             filter state is stored in the URL, so filtered views can be bookmarked and shared.
                         </p>
 
+                        <h4>Filter Order and Active Selections</h4>
+                        <p>
+                            Filter groups without an active URL filter start collapsed. Below the <strong>Search</strong> field, the Data Portal
+                            orders them as <strong>Datacenter</strong>, <strong>Resource Type</strong>, <strong>Location</strong>,{' '}
+                            <strong>Thesaurus Keywords</strong>, and <strong>Time</strong>. The IGSN Portal uses <strong>Datacenter</strong>,{' '}
+                            <strong>Sample Type</strong>, <strong>Material</strong>, <strong>Classification</strong>, <strong>Geological Age</strong>,{' '}
+                            <strong>Geological Unit</strong>, <strong>Location</strong>, and <strong>Time</strong>. When you open a bookmarked or
+                            shared URL, every group containing an active filter opens automatically so its applied selections remain visible.
+                        </p>
+
                         <h4>Exploring Results on the Map</h4>
                         <p>
                             The map loads the records in the currently visible area. Pan or zoom to explore another region. Nearby records are

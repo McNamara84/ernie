@@ -107,6 +107,11 @@ it('returns the related GitHub references for every version 1.0.9 changelog entr
                 'number' => 1303,
                 'url' => 'https://github.com/McNamara84/ernie/issues/1303',
             ],
+            [
+                'type' => 'pull_request',
+                'number' => 1336,
+                'url' => 'https://github.com/McNamara84/ernie/pull/1336',
+            ],
         ],
         'Faster Datacenter Filtering' => [
             [
