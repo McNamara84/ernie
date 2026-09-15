@@ -77,7 +77,7 @@ it('builds images from sanitized Production defaults without replacing their run
         ->toMatch('/^LOG_STACK=daily$/m')
         ->toMatch('/^LOG_LEVEL=error$/m')
         ->and($validator)->toBeString()
-        ->toContain('_(PASSWORD|SECRET|TOKEN|API_KEY|PRIVATE_KEY|ENCRYPTION_KEY|SIGNING_KEY|AUTH|CREDENTIAL|CREDENTIALS)')
+        ->toContain('_(PASSWORD|SECRET|TOKEN|API_KEY|ACCESS_KEY|PRIVATE_KEY|ENCRYPTION_KEY|SIGNING_KEY|AUTH|CREDENTIAL|CREDENTIALS)')
         ->toContain('invalid_keys+=("$key")')
         ->toContain('printf \'  - %s\\n\' "${invalid_keys[@]}"');
 
@@ -91,6 +91,36 @@ it('builds images from sanitized Production defaults without replacing their run
         expect($validation)->toBeArray()
             ->and($validation['run'] ?? null)->toBe('bash scripts/validate-production-environment.sh')
             ->and($namedSteps->has('Replace production environment with public build defaults'))->toBeFalse();
+    }
+});
+
+it('rejects a non-empty AWS secret access key without printing its value', function (): void {
+    $environmentFile = tempnam(sys_get_temp_dir(), 'ernie-production-environment-');
+
+    if ($environmentFile === false) {
+        throw new RuntimeException('Could not create the temporary production environment fixture.');
+    }
+
+    $secretValue = 'must-not-appear-in-validator-output';
+
+    try {
+        file_put_contents($environmentFile, "AWS_SECRET_ACCESS_KEY={$secretValue}\n");
+
+        $command = sprintf(
+            'bash %s %s 2>&1',
+            escapeshellarg(base_path('scripts/validate-production-environment.sh')),
+            escapeshellarg($environmentFile),
+        );
+        $output = [];
+        $exitCode = 0;
+
+        exec($command, $output, $exitCode);
+
+        expect($exitCode)->toBe(1)
+            ->and(implode("\n", $output))->toContain('AWS_SECRET_ACCESS_KEY')
+            ->not->toContain($secretValue);
+    } finally {
+        @unlink($environmentFile);
     }
 });
 
