@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, screen } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { KeywordsSection } from '@/pages/LandingPages/components/KeywordsSection';
@@ -268,6 +268,11 @@ describe('KeywordsSection', () => {
     it('shows expand button when above threshold', () => {
         const subjects = Array.from({ length: 12 }, (_, i) => freeKeyword(i + 1, `keyword-${i + 1}`));
         render(<KeywordsSection subjects={subjects} />);
-        expect(screen.getByText('Show all 12 keywords')).toBeInTheDocument();
+        const toggle = screen.getByRole('button', { name: 'Show all 12 keywords' });
+
+        fireEvent.click(toggle);
+
+        expect(screen.getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.queryByText('Show fewer keywords')).not.toBeInTheDocument();
     });
 });

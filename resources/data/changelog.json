@@ -5,6 +5,17 @@
         "features": [],
         "improvements": [
             {
+                "title": "Consistent Landing Page Collapse Controls",
+                "description": "Expandable keyword, creator, contributor, funder, and Related Work sections on Resource and IGSN landing pages now consistently use Show less when their complete contents are visible, while their contextual Show all labels continue to identify the hidden content and item count.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1320,
+                        "url": "https://github.com/McNamara84/ernie/issues/1320"
+                    }
+                ]
+            },
+            {
                 "title": "Highlighted Resource Publications and Descriptions",
                 "description": "Resource landing pages now present IsSupplementTo relations as Key Publication and IsDocumentedBy relations as Dataset Description in dedicated cards directly after License & Rights. Both related identifiers and related items with inline metadata are supported, while all other relations remain in Related Work without duplication; IGSN landing pages retain their existing layout.",
                 "references": [
