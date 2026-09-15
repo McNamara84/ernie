@@ -337,6 +337,38 @@ describe('RelatedWorkSection', () => {
         expect(await screen.findByTestId('relation-browser-graph')).toHaveTextContent('1');
     });
 
+    it('uses the full identifier set only for the relation browser when provided', async () => {
+        const user = userEvent.setup();
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[makeRelatedIdentifier({ id: 1, citation_label: 'Visible reference' })]}
+                relationBrowserRelatedIdentifiers={[
+                    makeRelatedIdentifier({ id: 1, citation_label: 'Visible reference' }),
+                    makeRelatedIdentifier({
+                        id: 2,
+                        relation_type: 'IsDocumentedBy',
+                        identifier: '10.5880/documentation',
+                        citation_label: 'Dataset documentation',
+                    }),
+                    makeRelatedIdentifier({
+                        id: 3,
+                        relation_type: 'IsSupplementTo',
+                        identifier: '10.5880/publication',
+                        citation_label: 'Key publication',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('Visible reference')).toBeInTheDocument();
+        expect(screen.queryByText('Dataset documentation')).not.toBeInTheDocument();
+        expect(screen.queryByText('Key publication')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Open Relation Browser' }));
+        expect(await screen.findByTestId('relation-browser-graph')).toHaveTextContent('3');
+    });
+
     it('hides the module when every identifier and inline item uses an excluded relation type', () => {
         const { container } = render(
             <RelatedWorkSection

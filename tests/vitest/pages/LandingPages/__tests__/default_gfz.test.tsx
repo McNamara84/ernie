@@ -1,4 +1,4 @@
-import { render, screen, within } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen, within } from '@tests/vitest/utils/render';
 import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,6 +20,12 @@ vi.mock('@inertiajs/react', () => ({
 
         return createPortal(managedChildren, document.head);
     },
+}));
+
+vi.mock('@/pages/LandingPages/components/relation-browser/RelationBrowserGraph', () => ({
+    RelationBrowserGraph: ({ relatedIdentifiers }: { relatedIdentifiers: unknown[] }) => (
+        <div data-testid="relation-browser-graph">{relatedIdentifiers.length}</div>
+    ),
 }));
 
 import { usePage } from '@inertiajs/react';
@@ -863,7 +869,7 @@ describe('DefaultGfzTemplate', () => {
         });
     });
 
-    it('renders highlighted relations after License & Rights and removes them from Related Work', () => {
+    it('renders highlighted relations after License & Rights, removes them from Related Work, and retains them in the relation browser', async () => {
         mockUsePage.mockReturnValue({
             props: {
                 resource: {
@@ -892,6 +898,13 @@ describe('DefaultGfzTemplate', () => {
                             identifier_type: 'DOI',
                             relation_type: 'References',
                             citation_label: 'Ordinary related work',
+                        },
+                        {
+                            id: 3,
+                            identifier: '10.5880/dataset-documentation',
+                            identifier_type: 'DOI',
+                            relation_type: 'IsDocumentedBy',
+                            citation_label: 'Featured dataset documentation identifier',
                         },
                     ],
                     related_items: [
@@ -937,9 +950,14 @@ describe('DefaultGfzTemplate', () => {
         expect(keyPublication.compareDocumentPosition(datasetDescription) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(within(keyPublication).getByText('Featured key publication')).toBeInTheDocument();
         expect(within(datasetDescription).getByText('Featured dataset description')).toBeInTheDocument();
+        expect(within(datasetDescription).getByText('Featured dataset documentation identifier')).toBeInTheDocument();
         expect(within(relatedWork).getByText('Ordinary related work')).toBeInTheDocument();
         expect(within(relatedWork).queryByText('Featured key publication')).not.toBeInTheDocument();
         expect(within(relatedWork).queryByText('Featured dataset description')).not.toBeInTheDocument();
+        expect(within(relatedWork).queryByText('Featured dataset documentation identifier')).not.toBeInTheDocument();
+
+        fireEvent.click(within(relatedWork).getByRole('button', { name: 'Open Relation Browser' }));
+        expect(await screen.findByTestId('relation-browser-graph')).toHaveTextContent('3');
     });
 
     it('keeps highlighted relations attached when License & Rights moves to the right column', () => {

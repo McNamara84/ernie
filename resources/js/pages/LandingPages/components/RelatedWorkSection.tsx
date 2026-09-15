@@ -15,6 +15,8 @@ const RelationBrowserModal = lazy(() => import('./RelationBrowserModal').then((m
 
 interface RelatedWorkSectionProps {
     relatedIdentifiers: LandingPageRelatedIdentifier[];
+    /** Optional full identifier set used by the Relation Browser instead of the visible Related Work list. */
+    relationBrowserRelatedIdentifiers?: LandingPageRelatedIdentifier[];
     /** Inline relatedItem metadata (DataCite 4.7 Related Item Manager). Optional for backward-compatibility. */
     relatedItems?: LandingPageRelatedItem[];
     resource: LandingPageResource;
@@ -50,6 +52,7 @@ function groupRelatedIdentifiersByType(relations: LandingPageRelatedIdentifier[]
  */
 export function RelatedWorkSection({
     relatedIdentifiers,
+    relationBrowserRelatedIdentifiers,
     relatedItems = [],
     resource,
     useIgsnHandles = false,
@@ -141,6 +144,14 @@ export function RelatedWorkSection({
         [visibleRelatedIdentifiers],
     );
 
+    const relationBrowserRelations = useMemo(() => {
+        if (relationBrowserRelatedIdentifiers === undefined) {
+            return filteredRelations;
+        }
+
+        return relationBrowserRelatedIdentifiers.filter((relation) => !excludedTypeSlugs.has(normalizeTypeSlug(relation.relation_type)));
+    }, [excludedTypeSlugs, filteredRelations, relationBrowserRelatedIdentifiers]);
+
     const initialRelations = useMemo(() => filteredRelations.filter((rel) => !isRepositoryCurationRelatedIdentifier(rel)), [filteredRelations]);
 
     const repositoryCurationRelations = useMemo(() => filteredRelations.filter(isRepositoryCurationRelatedIdentifier), [filteredRelations]);
@@ -160,7 +171,7 @@ export function RelatedWorkSection({
     // Provide persisted citation texts for the relation browser.
     const citationTexts = useMemo(() => {
         const map = new Map<string, string>();
-        filteredRelations.forEach((relatedIdentifier) => {
+        relationBrowserRelations.forEach((relatedIdentifier) => {
             if (relatedIdentifier.identifier_type !== 'DOI') {
                 return;
             }
@@ -173,7 +184,7 @@ export function RelatedWorkSection({
             }
         });
         return map;
-    }, [filteredRelations]);
+    }, [relationBrowserRelations]);
 
     const displayableRelations = useMemo(() => filteredRelations.filter(hasDisplayableIdentifier), [filteredRelations]);
 
@@ -379,7 +390,7 @@ export function RelatedWorkSection({
                         open={browserOpen}
                         onOpenChange={setBrowserOpen}
                         resource={resource}
-                        relatedIdentifiers={filteredRelations}
+                        relatedIdentifiers={relationBrowserRelations}
                         citationTexts={citationTexts}
                     />
                 </Suspense>

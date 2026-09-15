@@ -204,6 +204,7 @@ export default function DefaultGfzTemplate() {
                 <RelatedWorkSection
                     key="related_work"
                     relatedIdentifiers={partitionedRelatedWork.remaining.relatedIdentifiers}
+                    relationBrowserRelatedIdentifiers={resource.related_identifiers || []}
                     relatedItems={partitionedRelatedWork.remaining.relatedItems}
                     resource={resource}
                     excludedRelationTypes={typeVisibility?.excludedRelationTypes}
