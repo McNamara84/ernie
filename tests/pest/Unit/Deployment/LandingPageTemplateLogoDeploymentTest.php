@@ -88,10 +88,7 @@ describe('landing page template logo deployment regression guard', function () {
         $appStorageMount = $serviceVolumeMount($app, '/var/www/html/storage');
         $webserverStorageMount = $serviceVolumeMount($webserver, '/var/www/html/storage');
 
-        expect($app['build']['dockerfile'] ?? null)
-            ->toBe('Dockerfile')
-            ->and($webserver['build']['dockerfile'] ?? null)->toBe('Dockerfile')
-            ->and($appStorageMount['source'])->toBe('storage-data')
+        expect($appStorageMount['source'])->toBe('storage-data')
             ->and($webserverStorageMount['source'])->toBe('storage-data')
             ->and($appStorageMount['source'])->toBe($webserverStorageMount['source'])
             ->and($appStorageMount['target'])->toBe('/var/www/html/storage')
@@ -102,4 +99,44 @@ describe('landing page template logo deployment regression guard', function () {
         'stage' => 'docker-compose.stage.yml',
         'production' => 'docker-compose.prod.yml',
     ]);
+
+    it('deploys prebuilt stage images without local builds', function () use ($parsedCompose) {
+        $compose = $parsedCompose('docker-compose.stage.yml');
+        $services = $compose['services'] ?? null;
+
+        if (! is_array($services)) {
+            throw new RuntimeException('Stage Compose file is missing the services map.');
+        }
+
+        $expectedImages = [
+            'app' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}',
+            'webserver' => '${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx:stage}',
+            'queue' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}',
+            'assessment-queue' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}',
+            'scheduler' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}',
+        ];
+
+        foreach ($expectedImages as $serviceName => $expectedImage) {
+            $service = $services[$serviceName] ?? null;
+
+            expect($service)->toBeArray()
+                ->and($service)->not->toHaveKey('build')
+                ->and($service['image'] ?? null)->toBe($expectedImage)
+                ->and($service['pull_policy'] ?? null)->toBe('always');
+        }
+    });
+
+    it('keeps production app and webserver on their Dockerfile build targets', function () use ($parsedCompose) {
+        $compose = $parsedCompose('docker-compose.prod.yml');
+        $services = $compose['services'] ?? null;
+
+        if (! is_array($services)) {
+            throw new RuntimeException('Production Compose file is missing the services map.');
+        }
+
+        expect($services['app']['build']['dockerfile'] ?? null)->toBe('Dockerfile')
+            ->and($services['app']['build']['target'] ?? null)->toBe('app')
+            ->and($services['webserver']['build']['dockerfile'] ?? null)->toBe('Dockerfile')
+            ->and($services['webserver']['build']['target'] ?? null)->toBe('nginx');
+    });
 });
