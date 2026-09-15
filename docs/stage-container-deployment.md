@@ -17,14 +17,16 @@ validated.
    runtime targets (`app` and `nginx`) for HIGH and CRITICAL vulnerabilities.
 3. `Publish Stage Images` verifies that all five workflows succeeded for the
    exact current `main` commit, then builds and pushes the images under
-   traceable `sha-<full-commit-sha>` tags and captures their immutable
-   digests.
-4. The workflow creates a deployment commit derived from that source commit.
+   traceable `sha-<full-commit-sha>` tags.
+4. The publication job scans the exact pushed application and Nginx digest
+   references. A HIGH or CRITICAL vulnerability in either published image
+   stops the workflow before it can change `deploy/stage`.
+5. The workflow creates a deployment commit derived from that source commit.
    Its Stage Compose file pins the application and Nginx images as
    `ghcr.io/...@sha256:<digest>`.
-5. If the source commit is still the head of `main`, the workflow advances
+6. If the source commit is still the head of `main`, the workflow advances
    `deploy/stage` to the digest-pinned deployment commit.
-6. Portainer's existing outbound Git polling detects the new
+7. Portainer's existing outbound Git polling detects the new
    `deploy/stage` commit and recreates the Stage services from the GHCR
    images.
 
@@ -91,6 +93,12 @@ registry password is required in GitHub. If the branch push or package push
 receives HTTP 403, verify the repository or organization policy under
 **Settings > Actions > General > Workflow permissions**. It must permit the
 requested write scopes.
+
+Before the publish job creates or advances `deploy/stage`, it scans the exact
+application and Nginx digest references it just pushed. This closes the gap
+between the earlier validation build and the artifacts that Portainer will
+actually deploy, including when package repositories changed between the two
+builds.
 
 ### 4. Choose GHCR visibility
 

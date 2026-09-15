@@ -91,6 +91,13 @@ it('returns the related GitHub references for every version 1.0.9 changelog entr
         ->keyBy('title');
 
     $expectedReferences = [
+        'Resource-Efficient Stage Deployments' => [
+            [
+                'type' => 'pull_request',
+                'number' => 1334,
+                'url' => 'https://github.com/McNamara84/ernie/pull/1334',
+            ],
+        ],
         'Self-Describing Related Work Types' => [
             [
                 'type' => 'issue',

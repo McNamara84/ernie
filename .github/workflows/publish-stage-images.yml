@@ -222,6 +222,62 @@ jobs:
             type=gha,scope=stage-nginx
           cache-to: type=gha,mode=max,scope=stage-nginx
 
+      - name: Cache Trivy databases
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .trivy-cache
+          key: ${{ runner.os }}-trivy-${{ steps.system-packages-refresh.outputs.date }}
+          restore-keys: |
+            ${{ runner.os }}-trivy-
+
+      - name: Prepare Trivy cache
+        run: mkdir -p .trivy-cache
+
+      - name: Scan exact published image digests
+        env:
+          APP_IMAGE_REF: ${{ needs.validate.outputs.app_image }}@${{ steps.app-build.outputs.digest }}
+          NGINX_IMAGE_REF: ${{ needs.validate.outputs.nginx_image }}@${{ steps.nginx-build.outputs.digest }}
+          TRIVY_DISABLE_VEX_NOTICE: 'true'
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_USERNAME: ${{ github.actor }}
+        run: |
+          set -uo pipefail
+          scan_status=0
+
+          for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF"; do
+            if [[ ! "$image_ref" =~ @sha256:[0-9a-f]{64}$ ]]; then
+              echo "Invalid published image reference: $image_ref" >&2
+              scan_status=1
+              continue
+            fi
+
+            docker run --rm \
+              -e TRIVY_DISABLE_VEX_NOTICE \
+              -e TRIVY_PASSWORD \
+              -e TRIVY_USERNAME \
+              -v "${{ github.workspace }}:/work" \
+              -w /work \
+              aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image \
+              --cache-dir /work/.trivy-cache \
+              --scanners vuln \
+              --format table \
+              --exit-code 1 \
+              --ignore-unfixed \
+              --pkg-types os,library \
+              --severity CRITICAL,HIGH \
+              --skip-version-check \
+              "$image_ref" || scan_status=1
+          done
+
+          exit "$scan_status"
+
+      - name: Restore Trivy cache ownership
+        if: always()
+        run: |
+          if [ -d .trivy-cache ]; then
+            sudo chown -R "$(id -u):$(id -g)" .trivy-cache
+          fi
+
       - name: Confirm that the candidate is still current
         id: latest
         env:

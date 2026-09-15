@@ -72,10 +72,32 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->and($workflowContents)->not->toContain('docker buildx imagetools create --tag');
 
     $publishSteps = collect($workflow['jobs']['publish']['steps'] ?? [])->keyBy('name');
+    $publishedDigestScan = $publishSteps->get('Scan exact published image digests');
+    $cacheOwnershipStep = $publishSteps->get('Restore Trivy cache ownership');
     $createDeployment = $publishSteps->get('Create digest-pinned Stage deployment commit');
     $advanceDeployment = $publishSteps->get('Advance the digest-pinned Stage deployment branch');
 
-    expect($createDeployment)
+    expect($publishedDigestScan)
+        ->toBeArray()
+        ->and($publishedDigestScan['env']['APP_IMAGE_REF'] ?? null)
+        ->toBe('${{ needs.validate.outputs.app_image }}@${{ steps.app-build.outputs.digest }}')
+        ->and($publishedDigestScan['env']['NGINX_IMAGE_REF'] ?? null)
+        ->toBe('${{ needs.validate.outputs.nginx_image }}@${{ steps.nginx-build.outputs.digest }}')
+        ->and($publishedDigestScan['env']['TRIVY_PASSWORD'] ?? null)
+        ->toBe('${{ secrets.GITHUB_TOKEN }}')
+        ->and($publishedDigestScan['run'] ?? null)
+        ->toBeString()
+        ->toContain('for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF"')
+        ->toContain('@sha256:[0-9a-f]{64}$')
+        ->toContain('aquasec/trivy:0.74.0@sha256:')
+        ->toContain('--exit-code 1')
+        ->toContain('--severity CRITICAL,HIGH')
+        ->toContain('"$image_ref" || scan_status=1')
+        ->toContain('exit "$scan_status"')
+        ->and($cacheOwnershipStep)
+        ->toBeArray()
+        ->and($cacheOwnershipStep['if'] ?? null)->toBe('always()')
+        ->and($createDeployment)
         ->toBeArray()
         ->and($createDeployment['id'] ?? null)->toBe('deployment')
         ->and($createDeployment['if'] ?? null)->toBe("steps.latest.outputs.current == 'true'")
@@ -105,6 +127,26 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->toContain('--force-with-lease=refs/heads/deploy/stage:${PREVIOUS_DEPLOY_SHA}')
         ->toContain('--force-with-lease=refs/heads/deploy/stage:')
         ->toContain('${DEPLOY_COMMIT}:refs/heads/deploy/stage');
+
+    $publishStepNames = collect($workflow['jobs']['publish']['steps'] ?? [])->pluck('name')->values();
+    $nginxBuildPosition = $publishStepNames->search('Build and push Nginx image');
+    $digestScanPosition = $publishStepNames->search('Scan exact published image digests');
+    $deploymentPosition = $publishStepNames->search('Create digest-pinned Stage deployment commit');
+
+    expect($nginxBuildPosition)->toBeInt()
+        ->and($digestScanPosition)->toBeInt()->toBeGreaterThan($nginxBuildPosition)
+        ->and($deploymentPosition)->toBeInt()->toBeGreaterThan($digestScanPosition);
+});
+
+it('documents that direct Stage Compose starts require the generated deployment branch', function (): void {
+    $documentation = file_get_contents(base_path('docs/production-runtime-performance.md'));
+
+    expect($documentation)
+        ->toBeString()
+        ->toContain('valid only from a checkout of the generated `deploy/stage` branch')
+        ->toMatch('/Do not run\s+it from `main`/')
+        ->toMatch('/unpublished\s+`deployment-template` image tags/')
+        ->toContain('docker compose -f docker-compose.stage.yml up -d');
 });
 
 it('retains the null Redis password sentinel for unauthenticated Production Redis', function (): void {

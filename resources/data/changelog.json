@@ -5,6 +5,17 @@
         "features": [],
         "improvements": [
             {
+                "title": "Resource-Efficient Stage Deployments",
+                "description": "Stage deployments now pull prebuilt application and Nginx images from GitHub Container Registry instead of compiling them on the resource-constrained server. Deployment-blocking CI checks, scans of the exact published image digests, immutable Compose references, and an automatically maintained deployment branch ensure that Portainer receives a consistent validated image pair while retaining a documented rollback path.",
+                "references": [
+                    {
+                        "type": "pull_request",
+                        "number": 1334,
+                        "url": "https://github.com/McNamara84/ernie/pull/1334"
+                    }
+                ]
+            },
+            {
                 "title": "Configurable IGSN Landing Pages",
                 "description": "IGSN landing pages now use the agreed default card order and a three-zone template editor for left, right, and hidden cards, with a movable but mandatory Version Notice. Location and Map are independent cards with a restrained overview zoom, every card adapts to either column, Sample Family starts on the current branch and supports accessible collapsing and resizing, and Hero plus citation styles consistently show and copy the complete DOI. Existing custom layouts are migrated without losing visible cards or datacenter assignments.",
                 "references": [
