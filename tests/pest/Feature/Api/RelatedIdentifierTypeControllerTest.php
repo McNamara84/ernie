@@ -11,10 +11,10 @@ uses(RefreshDatabase::class);
 beforeEach(function (): void {
     config(['services.ernie.api_key' => 'test-api-key']);
 
-    $doi = IdentifierType::create(['name' => 'DOI', 'slug' => 'DOI', 'is_active' => true, 'is_elmo_active' => true]);
-    $url = IdentifierType::create(['name' => 'URL', 'slug' => 'URL', 'is_active' => true, 'is_elmo_active' => false]);
-    IdentifierType::create(['name' => 'Handle', 'slug' => 'Handle', 'is_active' => false, 'is_elmo_active' => true]);
-    IdentifierType::create(['name' => 'IGSN', 'slug' => 'IGSN', 'is_active' => false, 'is_elmo_active' => false]);
+    $doi = IdentifierType::create(['name' => 'DOI', 'slug' => 'DOI', 'description' => 'A character string used to uniquely identify an object.', 'is_active' => true, 'is_elmo_active' => true]);
+    $url = IdentifierType::create(['name' => 'URL', 'slug' => 'URL', 'description' => 'Also known as web address.', 'is_active' => true, 'is_elmo_active' => false]);
+    IdentifierType::create(['name' => 'Handle', 'slug' => 'Handle', 'description' => 'An ID in the Handle system.', 'is_active' => false, 'is_elmo_active' => true]);
+    IdentifierType::create(['name' => 'Custom Identifier', 'slug' => 'CustomIdentifier', 'description' => null, 'is_active' => false, 'is_elmo_active' => false]);
 
     // Add patterns for DOI
     IdentifierTypePattern::create([
@@ -40,7 +40,7 @@ beforeEach(function (): void {
     ]);
 
     // URL has no patterns
-    // Handle and IGSN are inactive
+    // Handle and the custom identifier type are inactive
 });
 
 describe('GET /api/v1/identifier-types', function (): void {
@@ -53,7 +53,15 @@ describe('GET /api/v1/identifier-types', function (): void {
     test('returns correct structure with patterns', function (): void {
         $this->getJson('/api/v1/identifier-types')
             ->assertOk()
-            ->assertJsonStructure([['id', 'name', 'slug', 'patterns' => ['validation', 'detection']]]);
+            ->assertJsonStructure([['id', 'name', 'slug', 'description', 'patterns' => ['validation', 'detection']]])
+            ->assertJsonFragment([
+                'slug' => 'DOI',
+                'description' => 'A character string used to uniquely identify an object.',
+            ])
+            ->assertJsonFragment([
+                'slug' => 'CustomIdentifier',
+                'description' => null,
+            ]);
     });
 
     test('returns only active patterns', function (): void {
@@ -74,7 +82,10 @@ describe('GET /api/v1/identifier-types/ernie', function (): void {
 
         $slugs = collect($response->json())->pluck('slug')->all();
         expect($slugs)->toContain('DOI', 'URL')
-            ->not->toContain('Handle', 'IGSN');
+            ->not->toContain('Handle', 'CustomIdentifier');
+
+        expect(collect($response->json())->firstWhere('slug', 'URL')['description'])
+            ->toBe('Also known as web address.');
     });
 });
 
@@ -88,7 +99,9 @@ describe('GET /api/v1/identifier-types/elmo', function (): void {
 
         $slugs = collect($response->json())->pluck('slug')->all();
         expect($slugs)->toContain('DOI')
-            ->not->toContain('URL', 'Handle', 'IGSN');
+            ->not->toContain('URL', 'Handle', 'CustomIdentifier');
+
+        expect($response->json('0.description'))->toBe('A character string used to uniquely identify an object.');
     });
 
     test('includes patterns in response', function (): void {

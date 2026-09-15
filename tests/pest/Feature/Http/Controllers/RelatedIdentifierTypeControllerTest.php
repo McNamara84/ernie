@@ -11,9 +11,9 @@ uses(RefreshDatabase::class);
 covers(RelatedIdentifierTypeController::class);
 
 beforeEach(function () {
-    $doi = IdentifierType::create(['name' => 'DOI', 'slug' => 'DOI', 'is_active' => true, 'is_elmo_active' => true]);
-    $url = IdentifierType::create(['name' => 'URL', 'slug' => 'URL', 'is_active' => true, 'is_elmo_active' => false]);
-    IdentifierType::create(['name' => 'ARK', 'slug' => 'ARK', 'is_active' => false, 'is_elmo_active' => false]);
+    $doi = IdentifierType::create(['name' => 'DOI', 'slug' => 'DOI', 'description' => 'A character string used to uniquely identify an object.', 'is_active' => true, 'is_elmo_active' => true]);
+    $url = IdentifierType::create(['name' => 'URL', 'slug' => 'URL', 'description' => 'Also known as web address.', 'is_active' => true, 'is_elmo_active' => false]);
+    IdentifierType::create(['name' => 'Custom Identifier', 'slug' => 'CustomIdentifier', 'description' => null, 'is_active' => false, 'is_elmo_active' => false]);
 
     // Add patterns to DOI type
     IdentifierTypePattern::create([
@@ -62,11 +62,17 @@ describe('index', function () {
         expect($doi['patterns']['detection'])->toHaveCount(1);
     });
 
-    it('returns id, name, slug and patterns fields', function () {
+    it('returns id, name, slug, nullable description and patterns fields', function () {
         $response = $this->getJson('/api/v1/identifier-types');
 
         $response->assertJsonStructure([
-            ['id', 'name', 'slug', 'patterns' => ['validation', 'detection']],
+            ['id', 'name', 'slug', 'description', 'patterns' => ['validation', 'detection']],
+        ])->assertJsonFragment([
+            'slug' => 'DOI',
+            'description' => 'A character string used to uniquely identify an object.',
+        ])->assertJsonFragment([
+            'slug' => 'CustomIdentifier',
+            'description' => null,
         ]);
     });
 });
@@ -80,7 +86,8 @@ describe('elmo', function () {
         $response->assertOk()
             ->assertJsonCount(1);
 
-        expect($response->json()[0]['slug'])->toBe('DOI');
+        expect($response->json()[0]['slug'])->toBe('DOI')
+            ->and($response->json()[0]['description'])->toBe('A character string used to uniquely identify an object.');
     });
 
     it('rejects requests without API key', function () {
@@ -96,12 +103,15 @@ describe('ernie', function () {
 
         $response->assertOk()
             ->assertJsonCount(2);
+
+        expect(collect($response->json())->firstWhere('slug', 'URL')['description'])
+            ->toBe('Also known as web address.');
     });
 
     it('excludes inactive identifier types', function () {
         $response = $this->getJson('/api/v1/identifier-types/ernie');
 
         $slugs = collect($response->json())->pluck('slug')->all();
-        expect($slugs)->not->toContain('ARK');
+        expect($slugs)->not->toContain('CustomIdentifier');
     });
 });

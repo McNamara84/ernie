@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\IdentifierType;
+use App\Models\IdentifierTypePattern;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 
@@ -17,7 +18,7 @@ class RelatedIdentifierTypeController extends Controller
     {
         $types = IdentifierType::with(['patterns' => fn ($q) => $q->active()->orderByDesc('priority')])
             ->orderBy('name')
-            ->get(['id', 'name', 'slug']);
+            ->get(['id', 'name', 'slug', 'description']);
 
         return response()->json($this->formatResponse($types));
     }
@@ -32,7 +33,7 @@ class RelatedIdentifierTypeController extends Controller
             ->elmoActive()
             ->with(['patterns' => fn ($q) => $q->active()->orderByDesc('priority')])
             ->orderBy('name')
-            ->get(['id', 'name', 'slug']);
+            ->get(['id', 'name', 'slug', 'description']);
 
         return response()->json($this->formatResponse($types));
     }
@@ -46,7 +47,7 @@ class RelatedIdentifierTypeController extends Controller
             ->active()
             ->with(['patterns' => fn ($q) => $q->active()->orderByDesc('priority')])
             ->orderBy('name')
-            ->get(['id', 'name', 'slug']);
+            ->get(['id', 'name', 'slug', 'description']);
 
         return response()->json($this->formatResponse($types));
     }
@@ -55,32 +56,33 @@ class RelatedIdentifierTypeController extends Controller
      * Format the response with grouped patterns.
      *
      * @param  Collection<int, IdentifierType>  $types
-     * @return array<int, array{id: int, name: string, slug: string, patterns: array{validation: array<int, array{pattern: string, priority: int}>, detection: array<int, array{pattern: string, priority: int}>}}>
+     * @return list<array{id: int, name: string, slug: string, description: string|null, patterns: array{validation: list<array{pattern: string, priority: int}>, detection: list<array{pattern: string, priority: int}>}}>
      */
-    private function formatResponse($types): array
+    private function formatResponse(Collection $types): array
     {
-        return $types->map(fn (IdentifierType $type): array => [
+        return array_values($types->map(fn (IdentifierType $type): array => [
             'id' => $type->id,
             'name' => $type->name,
             'slug' => $type->slug,
+            'description' => $type->description,
             'patterns' => [
-                'validation' => $type->patterns
+                'validation' => array_values($type->patterns
                     ->where('type', 'validation')
                     ->values()
-                    ->map(fn ($p): array => [
-                        'pattern' => $p->pattern,
-                        'priority' => $p->priority,
+                    ->map(fn (IdentifierTypePattern $pattern): array => [
+                        'pattern' => $pattern->pattern,
+                        'priority' => $pattern->priority,
                     ])
-                    ->toArray(),
-                'detection' => $type->patterns
+                    ->all()),
+                'detection' => array_values($type->patterns
                     ->where('type', 'detection')
                     ->values()
-                    ->map(fn ($p): array => [
-                        'pattern' => $p->pattern,
-                        'priority' => $p->priority,
+                    ->map(fn (IdentifierTypePattern $pattern): array => [
+                        'pattern' => $pattern->pattern,
+                        'priority' => $pattern->priority,
                     ])
-                    ->toArray(),
+                    ->all()),
             ],
-        ])->all();
+        ])->all());
     }
 }
