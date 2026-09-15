@@ -10,9 +10,9 @@ uses(RefreshDatabase::class);
 covers(RelationTypeController::class);
 
 beforeEach(function () {
-    RelationType::create(['name' => 'Cites', 'slug' => 'Cites', 'is_active' => true, 'is_elmo_active' => true]);
-    RelationType::create(['name' => 'Is Part Of', 'slug' => 'IsPartOf', 'is_active' => true, 'is_elmo_active' => false]);
-    RelationType::create(['name' => 'Other', 'slug' => 'Other', 'is_active' => false, 'is_elmo_active' => false]);
+    RelationType::create(['name' => 'Cites', 'slug' => 'Cites', 'description' => 'Indicates that A includes B in a citation', 'is_active' => true, 'is_elmo_active' => true]);
+    RelationType::create(['name' => 'Is Part Of', 'slug' => 'IsPartOf', 'description' => 'Indicates A is a portion of B', 'is_active' => true, 'is_elmo_active' => false]);
+    RelationType::create(['name' => 'Unlisted Relation', 'slug' => 'CustomRelation', 'description' => null, 'is_active' => false, 'is_elmo_active' => false]);
 });
 
 describe('index', function () {
@@ -27,14 +27,20 @@ describe('index', function () {
         $response = $this->getJson('/api/v1/relation-types');
 
         $names = collect($response->json())->pluck('name')->all();
-        expect($names)->toBe(['Cites', 'Is Part Of', 'Other']);
+        expect($names)->toBe(['Cites', 'Is Part Of', 'Unlisted Relation']);
     });
 
-    it('returns id, name and slug fields', function () {
+    it('returns id, name, slug and nullable description fields', function () {
         $response = $this->getJson('/api/v1/relation-types');
 
         $response->assertJsonStructure([
-            ['id', 'name', 'slug'],
+            ['id', 'name', 'slug', 'description'],
+        ])->assertJsonFragment([
+            'slug' => 'Cites',
+            'description' => 'Indicates that A includes B in a citation',
+        ])->assertJsonFragment([
+            'slug' => 'CustomRelation',
+            'description' => null,
         ]);
     });
 });
@@ -48,7 +54,8 @@ describe('elmo', function () {
         $response->assertOk()
             ->assertJsonCount(1);
 
-        expect($response->json()[0]['slug'])->toBe('Cites');
+        expect($response->json()[0]['slug'])->toBe('Cites')
+            ->and($response->json()[0]['description'])->toBe('Indicates that A includes B in a citation');
     });
 
     it('rejects requests without API key', function () {
@@ -64,12 +71,15 @@ describe('ernie', function () {
 
         $response->assertOk()
             ->assertJsonCount(2);
+
+        expect(collect($response->json())->firstWhere('slug', 'IsPartOf')['description'])
+            ->toBe('Indicates A is a portion of B');
     });
 
     it('excludes inactive relation types', function () {
         $response = $this->getJson('/api/v1/relation-types/ernie');
 
         $slugs = collect($response->json())->pluck('slug')->all();
-        expect($slugs)->not->toContain('Other');
+        expect($slugs)->not->toContain('CustomRelation');
     });
 });

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\RelationType;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 
 class RelationTypeController extends Controller
@@ -16,15 +17,9 @@ class RelationTypeController extends Controller
     {
         $types = RelationType::query()
             ->orderBy('name')
-            ->get(['id', 'name', 'slug']);
+            ->get(['id', 'name', 'slug', 'description']);
 
-        return response()->json(
-            $types->map(fn (RelationType $type): array => [
-                'id' => $type->id,
-                'name' => $type->name,
-                'slug' => $type->slug,
-            ])
-        );
+        return response()->json($this->formatResponse($types));
     }
 
     /**
@@ -36,15 +31,9 @@ class RelationTypeController extends Controller
             ->active()
             ->elmoActive()
             ->orderBy('name')
-            ->get(['id', 'name', 'slug']);
+            ->get(['id', 'name', 'slug', 'description']);
 
-        return response()->json(
-            $types->map(fn (RelationType $type): array => [
-                'id' => $type->id,
-                'name' => $type->name,
-                'slug' => $type->slug,
-            ])
-        );
+        return response()->json($this->formatResponse($types));
     }
 
     /**
@@ -55,14 +44,22 @@ class RelationTypeController extends Controller
         $types = RelationType::query()
             ->active()
             ->orderBy('name')
-            ->get(['id', 'name', 'slug']);
+            ->get(['id', 'name', 'slug', 'description']);
 
-        return response()->json(
-            $types->map(fn (RelationType $type): array => [
-                'id' => $type->id,
-                'name' => $type->name,
-                'slug' => $type->slug,
-            ])
-        );
+        return response()->json($this->formatResponse($types));
+    }
+
+    /**
+     * @param  Collection<int, RelationType>  $types
+     * @return list<array{id: int, name: string, slug: string, description: string|null}>
+     */
+    private function formatResponse(Collection $types): array
+    {
+        return array_values($types->map(fn (RelationType $type): array => [
+            'id' => $type->id,
+            'name' => $type->name,
+            'slug' => $type->slug,
+            'description' => $type->description,
+        ])->all());
     }
 }

@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $name
  * @property string $slug
+ * @property string|null $description
  * @property bool $is_active
  * @property bool $is_elmo_active
  * @property Carbon|null $created_at
@@ -23,7 +24,7 @@ use Illuminate\Support\Carbon;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/relatedidentifier/
  */
-#[Fillable(['name', 'slug', 'is_active', 'is_elmo_active'])]
+#[Fillable(['name', 'slug', 'description', 'is_active', 'is_elmo_active'])]
 class RelationType extends Model
 {
     protected $casts = [

@@ -61,6 +61,7 @@ erDiagram
         bigint id PK
         varchar name
         varchar slug UK
+        text description "nullable, official DataCite 4.7 definition"
         boolean is_active
         boolean is_elmo_active
         timestamp created_at
@@ -82,6 +83,7 @@ erDiagram
         bigint id PK
         varchar name
         varchar slug UK
+        text description "nullable, official DataCite 4.7 definition"
         boolean is_active
         boolean is_elmo_active
         timestamp created_at
