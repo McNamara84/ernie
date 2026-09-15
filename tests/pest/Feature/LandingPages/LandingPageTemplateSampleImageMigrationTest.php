@@ -79,7 +79,18 @@ it('preserves omitted modules while upgrading a sparse legacy layout through the
         ->and($resource->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
         ->and($currentSections)->toHaveCount(count(LandingPageTemplate::IGSN_SECTIONS))
         ->and(array_diff(LandingPageTemplate::IGSN_SECTIONS, $currentSections))->toBe([])
-        ->and(collect($currentSections)->duplicates()->all())->toBe([]);
+        ->and(collect($currentSections)->duplicates()->all())->toBe([])
+        ->and($igsn->right_column_order)->toContain('sample_image')
+        ->and($igsn->hidden_sections)->not->toContain('sample_image')
+        ->and(array_search('sample_image', $igsn->right_column_order, true))->toBe(array_search('location', $igsn->right_column_order, true) - 1);
+
+    $layoutMigration->down();
+    $igsn->refresh();
+
+    expect($igsn->right_column_order)->toContain('sample_image')
+        ->and(array_search('sample_image', $igsn->right_column_order, true))->toBe(array_search('location', $igsn->right_column_order, true) - 1);
+
+    $layoutMigration->up();
 });
 
 it('deduplicates known modules and remains reversible after the layout supersession', function (): void {
