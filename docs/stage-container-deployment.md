@@ -12,8 +12,10 @@ validated.
 ## Deployment flow
 
 1. Feature and fix branches are reviewed and merged into `main`.
-2. The existing `Security Checks` workflow validates the merged commit.
-3. `Publish Stage Images` builds and pushes immutable images tagged
+2. The Security, Pest, Vitest, lint/PHPStan, and Playwright workflows validate
+   the merged commit.
+3. `Publish Stage Images` verifies that all five workflows succeeded for the
+   exact current `main` commit, then builds and pushes immutable images tagged
    `sha-<full-commit-sha>`.
 4. If the commit is still the head of `main`, the workflow updates the
    movable `stage` image tags.
@@ -62,18 +64,21 @@ existing Stage stack. Do not delete the stack or its volumes.
 
 Merge the implementation into `main`. Wait for:
 
-1. `Security Checks` to succeed;
-2. `Publish Stage Images` to succeed.
+1. `Security Checks`, `Pest PHP Unit Tests`, `Vitest TS integration Tests`,
+   `Linter Tests`, and `Playwright UI Tests` to succeed;
+2. `Publish Stage Images` to publish the validated commit.
 
 The second workflow creates the two GHCR packages, their `stage` tags, and
 the `deploy/stage` branch. It can also be started manually from the Actions
 page to retry the current `main` commit.
 
-The workflow requests `contents: write` and `packages: write` for the
-built-in `GITHUB_TOKEN`; no registry password is required in GitHub. If the
-branch push or package push receives HTTP 403, verify the repository or
-organization policy under **Settings > Actions > General > Workflow
-permissions**. It must permit the requested write scopes.
+The validation job has read-only access. Only after every deployment-blocking
+workflow succeeded for the same commit does the publish job request
+`contents: write` and `packages: write` for the built-in `GITHUB_TOKEN`; no
+registry password is required in GitHub. If the branch push or package push
+receives HTTP 403, verify the repository or organization policy under
+**Settings > Actions > General > Workflow permissions**. It must permit the
+requested write scopes.
 
 ### 4. Choose GHCR visibility
 
@@ -136,7 +141,7 @@ After the one-time rollout, the normal developer process remains unchanged:
 1. create a feature or fix branch from `main`;
 2. open and review a pull request;
 3. merge the pull request into `main`;
-4. wait for the Security and Stage image workflows;
+4. wait for all CI validation and the Stage image workflow;
 5. Portainer observes `deploy/stage` and deploys the images.
 
 If another commit reaches `main` while images are building, the older
@@ -147,7 +152,8 @@ tags or `deploy/stage`.
 
 Use **Actions > Publish Stage Images > Run workflow**. Manual execution always
 uses the current head of `main`; it cannot deploy an arbitrary feature
-branch.
+branch. It still requires successful Security, Pest, Vitest, lint/PHPStan, and
+Playwright push workflows for that exact commit.
 
 ## Rollback
 
@@ -180,9 +186,10 @@ and that the registry is selected for the stack.
 
 ### The deploy branch does not move
 
-Inspect `Security Checks` and `Publish Stage Images`. A failed security
-workflow prevents publication. A superseded run intentionally skips
-promotion when a newer `main` commit exists.
+Inspect the five deployment-blocking validation workflows and `Publish Stage
+Images`. Any missing, running, or failed validation for the exact commit
+prevents publication. A superseded run intentionally skips promotion when a
+newer `main` commit exists.
 
 ### Portainer sees the commit but keeps the old image
 
@@ -193,17 +200,17 @@ Portainer's manual pull/redeploy once to inspect the registry error directly.
 ## Credential cleanup
 
 `.env.production` and `stack.env` are tracked in a public repository. Their
-current credential fields are intentionally empty. `stack.env` is excluded
-from the Docker build context, and the image workflows replace
-`.env.production` with `.env.example` in their temporary checkout before
-building.
+current credential fields are intentionally empty or use non-secret sentinels
+such as `null`. `stack.env` is excluded from the Docker build context, and the
+image workflows replace `.env.production` with `.env.example` in their
+temporary checkout before building.
 
-Previously committed values remain in Git history. Treat every formerly
-non-empty application key, API key, cookie key, database password, Solr
-password, DataCite password, F-UJI password, and mail password from those files
-as exposed. Rotate all values that were ever live, then update the
-corresponding Portainer stack variables. History rewriting is not a substitute
-for credential rotation.
+Previously committed values remain in Git history. Rotate any application key,
+API key, cookie key, database password, Solr password, DataCite password,
+F-UJI password, or mail password from those files that was ever live, then
+update the corresponding Portainer stack variables. Known dummy and test
+values do not require rotation. History rewriting is not a substitute for
+credential rotation.
 
 Plan the Laravel `APP_KEY` rotation separately. Changing it without a
 transition can invalidate encrypted cookies and make application-encrypted

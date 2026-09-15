@@ -4,6 +4,10 @@ on:
   workflow_run:
     workflows:
       - Security Checks
+      - Pest PHP Unit Tests
+      - Vitest TS integration Tests
+      - Linter Tests
+      - Playwright UI Tests
     types:
       - completed
     branches:
@@ -11,20 +15,28 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 concurrency:
   group: publish-stage-images
   cancel-in-progress: true
 
 jobs:
-  publish:
+  validate:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      app_image: ${{ steps.source.outputs.app_image }}
+      checks_ready: ${{ steps.deployment-checks.outputs.ready }}
+      current: ${{ steps.source.outputs.current }}
+      nginx_image: ${{ steps.source.outputs.nginx_image }}
+      sha: ${{ steps.source.outputs.sha }}
 
     steps:
       - name: Checkout the candidate main commit
@@ -59,21 +71,112 @@ jobs:
             echo "nginx_image=ghcr.io/${OWNER}/ernie-nginx"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Replace production environment with public build defaults
+      - name: Require successful deployment checks
         if: steps.source.outputs.current == 'true'
+        id: deployment-checks
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        with:
+          script: |
+            const requiredWorkflows = [
+              ['security.yml', 'Security Checks'],
+              ['tests.yml', 'Pest PHP Unit Tests'],
+              ['vitest.yml', 'Vitest TS integration Tests'],
+              ['lint.yml', 'Linter Tests'],
+              ['playwright.yml', 'Playwright UI Tests'],
+            ];
+            const sourceSha = process.env.SOURCE_SHA;
+            const results = [];
+
+            for (const [workflowId, workflowName] of requiredWorkflows) {
+              const response = await github.rest.actions.listWorkflowRuns({
+                ...context.repo,
+                workflow_id: workflowId,
+                branch: 'main',
+                event: 'push',
+                head_sha: sourceSha,
+                per_page: 10,
+              });
+              const run = response.data.workflow_runs
+                .filter((candidate) =>
+                  candidate.head_sha === sourceSha && candidate.event === 'push'
+                )
+                .sort((left, right) => right.id - left.id)[0];
+
+              results.push({
+                name: workflowName,
+                status: run?.status ?? 'missing',
+                conclusion: run?.conclusion ?? '-',
+                url: run?.html_url ?? '',
+              });
+            }
+
+            await core.summary
+              .addHeading(`Deployment checks for ${sourceSha}`)
+              .addTable([
+                [
+                  { data: 'Workflow', header: true },
+                  { data: 'Status', header: true },
+                  { data: 'Conclusion', header: true },
+                ],
+                ...results.map((result) => [
+                  result.url ? `<a href="${result.url}">${result.name}</a>` : result.name,
+                  result.status,
+                  result.conclusion,
+                ]),
+              ])
+              .write();
+
+            const ready = results.every((result) =>
+              result.status === 'completed' && result.conclusion === 'success'
+            );
+            core.setOutput('ready', ready ? 'true' : 'false');
+
+            if (!ready) {
+              const details = results
+                .filter((result) =>
+                  result.status !== 'completed' || result.conclusion !== 'success'
+                )
+                .map((result) => `${result.name}: ${result.status}/${result.conclusion}`)
+                .join(', ');
+              const message = `Stage publication is blocked for ${sourceSha}: ${details}`;
+
+              if (context.eventName === 'workflow_dispatch') {
+                core.setFailed(message);
+              } else {
+                core.notice(message);
+              }
+            }
+
+  publish:
+    needs: validate
+    if: >-
+      needs.validate.outputs.current == 'true' &&
+      needs.validate.outputs.checks_ready == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout the validated main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Replace production environment with public build defaults
         run: cp .env.example .env.production
 
       - name: Resolve system package refresh date
-        if: steps.source.outputs.current == 'true'
         id: system-packages-refresh
         run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
 
       - name: Setup Docker Buildx
-        if: steps.source.outputs.current == 'true'
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       - name: Log in to GitHub Container Registry
-        if: steps.source.outputs.current == 'true'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
@@ -81,18 +184,17 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push immutable application image
-        if: steps.source.outputs.current == 'true'
         id: app-build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
           target: app
           push: true
-          tags: ${{ steps.source.outputs.app_image }}:sha-${{ steps.source.outputs.sha }}
+          tags: ${{ needs.validate.outputs.app_image }}:sha-${{ needs.validate.outputs.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
-            org.opencontainers.image.version=sha-${{ steps.source.outputs.sha }}
+            org.opencontainers.image.revision=${{ needs.validate.outputs.sha }}
+            org.opencontainers.image.version=sha-${{ needs.validate.outputs.sha }}
           build-args: |
             SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
           cache-from: |
@@ -101,18 +203,17 @@ jobs:
           cache-to: type=gha,mode=max,scope=stage-app
 
       - name: Build and push immutable Nginx image
-        if: steps.source.outputs.current == 'true'
         id: nginx-build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
           target: nginx
           push: true
-          tags: ${{ steps.source.outputs.nginx_image }}:sha-${{ steps.source.outputs.sha }}
+          tags: ${{ needs.validate.outputs.nginx_image }}:sha-${{ needs.validate.outputs.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
-            org.opencontainers.image.version=sha-${{ steps.source.outputs.sha }}
+            org.opencontainers.image.revision=${{ needs.validate.outputs.sha }}
+            org.opencontainers.image.version=sha-${{ needs.validate.outputs.sha }}
           build-args: |
             SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
           cache-from: |
@@ -122,10 +223,9 @@ jobs:
           cache-to: type=gha,mode=max,scope=stage-nginx
 
       - name: Confirm that the candidate is still current
-        if: steps.source.outputs.current == 'true'
         id: latest
         env:
-          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
         run: |
           set -euo pipefail
 
@@ -142,9 +242,9 @@ jobs:
         if: steps.latest.outputs.current == 'true'
         env:
           APP_DIGEST: ${{ steps.app-build.outputs.digest }}
-          APP_IMAGE: ${{ steps.source.outputs.app_image }}
+          APP_IMAGE: ${{ needs.validate.outputs.app_image }}
           NGINX_DIGEST: ${{ steps.nginx-build.outputs.digest }}
-          NGINX_IMAGE: ${{ steps.source.outputs.nginx_image }}
+          NGINX_IMAGE: ${{ needs.validate.outputs.nginx_image }}
         run: |
           set -euo pipefail
 
@@ -155,7 +255,7 @@ jobs:
       - name: Advance the Stage deployment branch
         if: steps.latest.outputs.current == 'true'
         env:
-          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
         run: |
           set -euo pipefail
 
