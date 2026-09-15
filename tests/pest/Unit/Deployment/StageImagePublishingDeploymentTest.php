@@ -77,6 +77,8 @@ it('builds images from sanitized Production defaults without replacing their run
         ->toMatch('/^LOG_STACK=daily$/m')
         ->toMatch('/^LOG_LEVEL=error$/m')
         ->and($validator)->toBeString()
+        ->toContain('"$key" == "APP_PREVIOUS_KEYS"')
+        ->toContain('"$key" == "RESEND_KEY"')
         ->toContain('_(PASSWORD|SECRET|TOKEN|API_KEY|ACCESS_KEY|PRIVATE_KEY|ENCRYPTION_KEY|SIGNING_KEY|AUTH|CREDENTIAL|CREDENTIALS)')
         ->toContain('invalid_keys+=("$key")')
         ->toContain('printf \'  - %s\\n\' "${invalid_keys[@]}"');
@@ -94,7 +96,7 @@ it('builds images from sanitized Production defaults without replacing their run
     }
 });
 
-it('rejects a non-empty AWS secret access key without printing its value', function (): void {
+it('rejects a non-empty credential without printing its value', function (string $credentialKey): void {
     $environmentFile = tempnam(sys_get_temp_dir(), 'ernie-production-environment-');
 
     if ($environmentFile === false) {
@@ -104,7 +106,7 @@ it('rejects a non-empty AWS secret access key without printing its value', funct
     $secretValue = 'must-not-appear-in-validator-output';
 
     try {
-        file_put_contents($environmentFile, "AWS_SECRET_ACCESS_KEY={$secretValue}\n");
+        file_put_contents($environmentFile, "{$credentialKey}={$secretValue}\n");
 
         $command = sprintf(
             'bash %s %s 2>&1',
@@ -117,12 +119,16 @@ it('rejects a non-empty AWS secret access key without printing its value', funct
         exec($command, $output, $exitCode);
 
         expect($exitCode)->toBe(1)
-            ->and(implode("\n", $output))->toContain('AWS_SECRET_ACCESS_KEY')
+            ->and(implode("\n", $output))->toContain($credentialKey)
             ->not->toContain($secretValue);
     } finally {
         @unlink($environmentFile);
     }
-});
+})->with([
+    'AWS secret access key' => 'AWS_SECRET_ACCESS_KEY',
+    'previous application keys' => 'APP_PREVIOUS_KEYS',
+    'Resend API key' => 'RESEND_KEY',
+]);
 
 it('publishes a digest-pinned Stage deployment with a compare-and-swap branch update', function (): void {
     $workflowContents = file_get_contents(base_path('.github/workflows/publish-stage-images.yml'));

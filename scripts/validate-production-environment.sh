@@ -23,7 +23,9 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     credential_key=false
 
     if [[ "$key" == "APP_KEY" ||
+        "$key" == "APP_PREVIOUS_KEYS" ||
         "$key" == "AWS_ACCESS_KEY_ID" ||
+        "$key" == "RESEND_KEY" ||
         "$key" =~ _(PASSWORD|SECRET|TOKEN|API_KEY|ACCESS_KEY|PRIVATE_KEY|ENCRYPTION_KEY|SIGNING_KEY|AUTH|CREDENTIAL|CREDENTIALS)$ ||
         ( "$key" == *_USERNAME && "$key" != "DB_USERNAME" ) ]]; then
         credential_key=true
