@@ -52,20 +52,39 @@ jobs:
         id: system-packages-refresh
         run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
 
+      - name: Validate public production environment
+        run: bash scripts/validate-production-environment.sh
+
       - name: Build application image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
           target: app
           load: true
-          tags: ernie-security-scan:${{ github.sha }}
+          tags: ernie-app-security-scan:${{ github.sha }}
           build-args: |
             SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
           cache-from: type=gha,scope=security-app
           cache-to: type=gha,mode=max,scope=security-app
 
-      - name: Export application image
-        run: docker save -o ernie-security-scan.tar ernie-security-scan:${{ github.sha }}
+      - name: Build Nginx image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          target: nginx
+          load: true
+          tags: ernie-nginx-security-scan:${{ github.sha }}
+          build-args: |
+            SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
+          cache-from: |
+            type=gha,scope=security-app
+            type=gha,scope=security-nginx
+          cache-to: type=gha,mode=max,scope=security-nginx
+
+      - name: Export runtime images
+        run: |
+          docker save -o ernie-app-security-scan.tar ernie-app-security-scan:${{ github.sha }}
+          docker save -o ernie-nginx-security-scan.tar ernie-nginx-security-scan:${{ github.sha }}
 
       - name: Cache Trivy databases
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -82,62 +101,90 @@ jobs:
         env:
           TRIVY_DISABLE_VEX_NOTICE: 'true'
         run: |
-          docker run --rm \
-            -e TRIVY_DISABLE_VEX_NOTICE \
-            -v "${{ github.workspace }}:/work" \
-            -w /work \
-            aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image \
-            --input /work/ernie-security-scan.tar \
-            --cache-dir /work/.trivy-cache \
-            --scanners vuln \
-            --format sarif \
-            --output /work/trivy-results.sarif \
-            --ignore-unfixed \
-            --pkg-types os,library \
-            --severity CRITICAL,HIGH \
-            --skip-version-check
+          set -euo pipefail
+          mkdir -p trivy-results
+
+          for target in app nginx; do
+            docker run --rm \
+              -e TRIVY_DISABLE_VEX_NOTICE \
+              -v "${{ github.workspace }}:/work" \
+              -w /work \
+              aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image \
+              --input "/work/ernie-${target}-security-scan.tar" \
+              --cache-dir /work/.trivy-cache \
+              --scanners vuln \
+              --format sarif \
+              --output "/work/trivy-results/${target}.sarif" \
+              --ignore-unfixed \
+              --pkg-types os,library \
+              --severity CRITICAL,HIGH \
+              --skip-version-check
+          done
 
       - name: Check Trivy SARIF output
         id: trivy-sarif
         if: always()
         run: |
-          if [ -s trivy-results.sarif ]; then
-            echo "non_empty=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "non_empty=false" >> "$GITHUB_OUTPUT"
-          fi
+          for target in app nginx; do
+            if [ -s "trivy-results/${target}.sarif" ]; then
+              echo "${target}_non_empty=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "${target}_non_empty=false" >> "$GITHUB_OUTPUT"
+            fi
+          done
 
-      - name: Upload Trivy scan results
-        if: ${{ always() && steps.trivy-sarif.outputs.non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
+      - name: Upload application Trivy scan results
+        if: ${{ always() && steps.trivy-sarif.outputs.app_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
         uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
-          sarif_file: trivy-results.sarif
+          sarif_file: trivy-results/app.sarif
           category: trivy-app-image
 
+      - name: Upload Nginx Trivy scan results
+        if: ${{ always() && steps.trivy-sarif.outputs.nginx_non_empty == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          sarif_file: trivy-results/nginx.sarif
+          category: trivy-nginx-image
+
       - name: Upload Trivy SARIF artifact
-        if: ${{ always() && steps.trivy-sarif.outputs.non_empty == 'true' }}
+        if: ${{ always() && (steps.trivy-sarif.outputs.app_non_empty == 'true' || steps.trivy-sarif.outputs.nginx_non_empty == 'true') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: trivy-results
-          path: trivy-results.sarif
+          path: trivy-results
           if-no-files-found: ignore
 
       - name: Fail on high or critical image vulnerabilities
-        if: ${{ always() && hashFiles('ernie-security-scan.tar') != '' }}
+        if: ${{ always() && hashFiles('ernie-app-security-scan.tar') != '' && hashFiles('ernie-nginx-security-scan.tar') != '' }}
         env:
           TRIVY_DISABLE_VEX_NOTICE: 'true'
         run: |
-          docker run --rm \
-            -e TRIVY_DISABLE_VEX_NOTICE \
-            -v "${{ github.workspace }}:/work" \
-            -w /work \
-            aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image \
-            --input /work/ernie-security-scan.tar \
-            --cache-dir /work/.trivy-cache \
-            --scanners vuln \
-            --format table \
-            --exit-code 1 \
-            --ignore-unfixed \
-            --pkg-types os,library \
-            --severity CRITICAL,HIGH \
-            --skip-version-check
+          set -uo pipefail
+          scan_status=0
+
+          for target in app nginx; do
+            docker run --rm \
+              -e TRIVY_DISABLE_VEX_NOTICE \
+              -v "${{ github.workspace }}:/work" \
+              -w /work \
+              aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image \
+              --input "/work/ernie-${target}-security-scan.tar" \
+              --cache-dir /work/.trivy-cache \
+              --scanners vuln \
+              --format table \
+              --exit-code 1 \
+              --ignore-unfixed \
+              --pkg-types os,library \
+              --severity CRITICAL,HIGH \
+              --skip-version-check || scan_status=1
+          done
+
+          exit "$scan_status"
+
+      - name: Restore Trivy cache ownership
+        if: always()
+        run: |
+          if [ -d .trivy-cache ]; then
+            sudo chown -R "$(id -u):$(id -g)" .trivy-cache
+          fi

@@ -2,14 +2,28 @@
 
 This document covers the runtime settings introduced for the resource, PHP/Laravel, and public-portal cache optimizations. The values in Compose are conservative starting points. Validate them on Stage with a production-sized data set before changing Production.
 
+Stage pulls prebuilt application and Nginx images from GHCR. The build,
+promotion, initial Portainer migration, rollback, and troubleshooting process
+is documented in [stage-container-deployment.md](stage-container-deployment.md).
+Production continues to build from its Compose file until the Stage image
+workflow has been validated and explicitly promoted to Production.
+
 ## FAIR assessment services
 
 F-UJI and the dedicated `assessment-queue` workers are standard services in the Stage and Production Compose files. A normal Portainer stack deployment therefore creates them without a Compose profile. Before deploying an environment in which assessments should be available, configure `FUJI_ENABLED=true`, `FUJI_USERNAME`, and `FUJI_PASSWORD` in the Portainer stack environment. `FUJI_BASE_URL` normally remains at its internal default, `http://fuji:1071`.
 
-The equivalent CLI starts do not require `--profile`:
+The equivalent CLI starts do not require `--profile`. The Stage command is
+valid only from a checkout of the generated `deploy/stage` branch. Do not run
+it from `main`: that branch intentionally contains unpublished
+`deployment-template` image tags. Normal Stage deployments should follow the
+Portainer flow in
+[stage-container-deployment.md](stage-container-deployment.md).
 
 ```bash
+# Run only from a checkout of refs/heads/deploy/stage.
 docker compose -f docker-compose.stage.yml up -d
+
+# Run from the normal Production deployment checkout.
 docker compose -f docker-compose.prod.yml up -d
 ```
 

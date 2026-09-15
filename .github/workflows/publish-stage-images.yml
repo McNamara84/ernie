@@ -1,0 +1,363 @@
+name: Publish Stage Images
+
+on:
+  workflow_run:
+    workflows:
+      - Security Checks
+      - Pest PHP Unit Tests
+      - Vitest TS integration Tests
+      - Linter Tests
+      - Playwright UI Tests
+    types:
+      - completed
+    branches:
+      - main
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-stage-images
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: >-
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      app_image: ${{ steps.source.outputs.app_image }}
+      checks_ready: ${{ steps.deployment-checks.outputs.ready }}
+      current: ${{ steps.source.outputs.current }}
+      nginx_image: ${{ steps.source.outputs.nginx_image }}
+      sha: ${{ steps.source.outputs.sha }}
+
+    steps:
+      - name: Checkout the candidate main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Resolve source and image names
+        id: source
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          OWNER="$(printf '%s' "$REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+
+          if [[ "$(git rev-parse refs/remotes/origin/main)" == "$SOURCE_SHA" ]]; then
+            CURRENT=true
+          else
+            CURRENT=false
+            echo "Skipping stale commit $SOURCE_SHA because main has advanced."
+          fi
+
+          {
+            echo "current=$CURRENT"
+            echo "sha=$SOURCE_SHA"
+            echo "app_image=ghcr.io/${OWNER}/ernie-app"
+            echo "nginx_image=ghcr.io/${OWNER}/ernie-nginx"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Require successful deployment checks
+        if: steps.source.outputs.current == 'true'
+        id: deployment-checks
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        with:
+          script: |
+            const requiredWorkflows = [
+              ['security.yml', 'Security Checks'],
+              ['tests.yml', 'Pest PHP Unit Tests'],
+              ['vitest.yml', 'Vitest TS integration Tests'],
+              ['lint.yml', 'Linter Tests'],
+              ['playwright.yml', 'Playwright UI Tests'],
+            ];
+            const sourceSha = process.env.SOURCE_SHA;
+            const results = [];
+
+            for (const [workflowId, workflowName] of requiredWorkflows) {
+              const response = await github.rest.actions.listWorkflowRuns({
+                ...context.repo,
+                workflow_id: workflowId,
+                branch: 'main',
+                event: 'push',
+                head_sha: sourceSha,
+                per_page: 10,
+              });
+              const run = response.data.workflow_runs
+                .filter((candidate) =>
+                  candidate.head_sha === sourceSha && candidate.event === 'push'
+                )
+                .sort((left, right) => right.id - left.id)[0];
+
+              results.push({
+                name: workflowName,
+                status: run?.status ?? 'missing',
+                conclusion: run?.conclusion ?? '-',
+                url: run?.html_url ?? '',
+              });
+            }
+
+            await core.summary
+              .addHeading(`Deployment checks for ${sourceSha}`)
+              .addTable([
+                [
+                  { data: 'Workflow', header: true },
+                  { data: 'Status', header: true },
+                  { data: 'Conclusion', header: true },
+                ],
+                ...results.map((result) => [
+                  result.url ? `<a href="${result.url}">${result.name}</a>` : result.name,
+                  result.status,
+                  result.conclusion,
+                ]),
+              ])
+              .write();
+
+            const ready = results.every((result) =>
+              result.status === 'completed' && result.conclusion === 'success'
+            );
+            core.setOutput('ready', ready ? 'true' : 'false');
+
+            if (!ready) {
+              const details = results
+                .filter((result) =>
+                  result.status !== 'completed' || result.conclusion !== 'success'
+                )
+                .map((result) => `${result.name}: ${result.status}/${result.conclusion}`)
+                .join(', ');
+              const message = `Stage publication is blocked for ${sourceSha}: ${details}`;
+
+              core.notice(message);
+            }
+
+  publish:
+    needs: validate
+    if: >-
+      needs.validate.outputs.current == 'true' &&
+      needs.validate.outputs.checks_ready == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout the validated main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Validate public production environment
+        run: bash scripts/validate-production-environment.sh
+
+      - name: Resolve system package refresh date
+        id: system-packages-refresh
+        run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push application image
+        id: app-build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          target: app
+          push: true
+          tags: ${{ needs.validate.outputs.app_image }}:sha-${{ needs.validate.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.validate.outputs.sha }}
+            org.opencontainers.image.version=sha-${{ needs.validate.outputs.sha }}
+          build-args: |
+            SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
+          cache-from: |
+            type=gha,scope=security-app
+            type=gha,scope=stage-app
+          cache-to: type=gha,mode=max,scope=stage-app
+
+      - name: Build and push Nginx image
+        id: nginx-build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          target: nginx
+          push: true
+          tags: ${{ needs.validate.outputs.nginx_image }}:sha-${{ needs.validate.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.validate.outputs.sha }}
+            org.opencontainers.image.version=sha-${{ needs.validate.outputs.sha }}
+          build-args: |
+            SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
+          cache-from: |
+            type=gha,scope=security-app
+            type=gha,scope=stage-app
+            type=gha,scope=stage-nginx
+          cache-to: type=gha,mode=max,scope=stage-nginx
+
+      - name: Prepare Trivy cache
+        run: mkdir -p "${{ runner.temp }}/trivy-cache"
+
+      - name: Scan exact published image digests
+        env:
+          APP_IMAGE_REF: ${{ needs.validate.outputs.app_image }}@${{ steps.app-build.outputs.digest }}
+          NGINX_IMAGE_REF: ${{ needs.validate.outputs.nginx_image }}@${{ steps.nginx-build.outputs.digest }}
+          TRIVY_DISABLE_VEX_NOTICE: 'true'
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_USERNAME: ${{ github.actor }}
+        run: |
+          set -uo pipefail
+          scan_status=0
+
+          for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF"; do
+            if [[ ! "$image_ref" =~ @sha256:[0-9a-f]{64}$ ]]; then
+              echo "Invalid published image reference: $image_ref" >&2
+              scan_status=1
+              continue
+            fi
+
+            docker run --rm \
+              -e TRIVY_DISABLE_VEX_NOTICE \
+              -e TRIVY_PASSWORD \
+              -e TRIVY_USERNAME \
+              -v "${{ runner.temp }}/trivy-cache:/root/.cache/trivy" \
+              aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image \
+              --cache-dir /root/.cache/trivy \
+              --scanners vuln \
+              --format table \
+              --exit-code 1 \
+              --ignore-unfixed \
+              --pkg-types os,library \
+              --severity CRITICAL,HIGH \
+              --skip-version-check \
+              "$image_ref" || scan_status=1
+          done
+
+          exit "$scan_status"
+
+      - name: Confirm that the candidate is still current
+        id: latest
+        env:
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+
+          if [[ "$(git rev-parse refs/remotes/origin/main)" == "$SOURCE_SHA" ]]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "Images remain available by SHA, but a newer main commit will be promoted instead."
+          fi
+
+      - name: Create digest-pinned Stage deployment commit
+        if: steps.latest.outputs.current == 'true'
+        id: deployment
+        env:
+          APP_DIGEST: ${{ steps.app-build.outputs.digest }}
+          APP_IMAGE: ${{ needs.validate.outputs.app_image }}
+          NGINX_DIGEST: ${{ steps.nginx-build.outputs.digest }}
+          NGINX_IMAGE: ${{ needs.validate.outputs.nginx_image }}
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$APP_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid application image digest: $APP_DIGEST" >&2
+            exit 1
+          fi
+
+          if [[ ! "$NGINX_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid Nginx image digest: $NGINX_DIGEST" >&2
+            exit 1
+          fi
+
+          APP_TEMPLATE="${APP_IMAGE}:deployment-template"
+          NGINX_TEMPLATE="${NGINX_IMAGE}:deployment-template"
+          APP_TEMPLATE_COUNT="$(grep -Fc "$APP_TEMPLATE" docker-compose.stage.yml)"
+          NGINX_TEMPLATE_COUNT="$(grep -Fc "$NGINX_TEMPLATE" docker-compose.stage.yml)"
+
+          if [[ "$APP_TEMPLATE_COUNT" -ne 4 || "$NGINX_TEMPLATE_COUNT" -ne 1 ]]; then
+            echo "Unexpected Stage image template count: app=$APP_TEMPLATE_COUNT nginx=$NGINX_TEMPLATE_COUNT" >&2
+            exit 1
+          fi
+
+          sed -i "s|${APP_TEMPLATE}|${APP_IMAGE}@${APP_DIGEST}|g" docker-compose.stage.yml
+          sed -i "s|${NGINX_TEMPLATE}|${NGINX_IMAGE}@${NGINX_DIGEST}|g" docker-compose.stage.yml
+
+          if grep -Fq "$APP_TEMPLATE" docker-compose.stage.yml || grep -Fq "$NGINX_TEMPLATE" docker-compose.stage.yml; then
+            echo "Stage image templates remain after digest pinning." >&2
+            exit 1
+          fi
+
+          docker compose -f docker-compose.stage.yml config --quiet
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docker-compose.stage.yml
+
+          PREVIOUS_DEPLOY_SHA="$(git ls-remote --heads origin refs/heads/deploy/stage | awk '{print $1}')"
+          PARENTS=(-p "$SOURCE_SHA")
+
+          if [[ -n "$PREVIOUS_DEPLOY_SHA" ]]; then
+            git fetch --no-tags origin \
+              "+refs/heads/deploy/stage:refs/remotes/origin/deploy/stage"
+            PARENTS=(-p "$PREVIOUS_DEPLOY_SHA")
+
+            if [[ "$PREVIOUS_DEPLOY_SHA" != "$SOURCE_SHA" ]]; then
+              PARENTS+=(-p "$SOURCE_SHA")
+            fi
+          fi
+
+          DEPLOY_TREE="$(git write-tree)"
+          DEPLOY_COMMIT="$(git commit-tree "$DEPLOY_TREE" "${PARENTS[@]}" -m "Deploy Stage from $SOURCE_SHA")"
+
+          {
+            echo "commit=$DEPLOY_COMMIT"
+            echo "previous=$PREVIOUS_DEPLOY_SHA"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Advance the digest-pinned Stage deployment branch
+        if: steps.latest.outputs.current == 'true'
+        env:
+          DEPLOY_COMMIT: ${{ steps.deployment.outputs.commit }}
+          PREVIOUS_DEPLOY_SHA: ${{ steps.deployment.outputs.previous }}
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+
+          if [[ "$(git rev-parse refs/remotes/origin/main)" != "$SOURCE_SHA" ]]; then
+            echo "main advanced while preparing the deployment commit; leaving deploy/stage unchanged."
+            exit 0
+          fi
+
+          if [[ -n "$PREVIOUS_DEPLOY_SHA" ]]; then
+            DEPLOY_LEASE="--force-with-lease=refs/heads/deploy/stage:${PREVIOUS_DEPLOY_SHA}"
+          else
+            DEPLOY_LEASE="--force-with-lease=refs/heads/deploy/stage:"
+          fi
+
+          git push "$DEPLOY_LEASE" origin "${DEPLOY_COMMIT}:refs/heads/deploy/stage"

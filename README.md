@@ -300,6 +300,7 @@ For the full local testing strategy, focused commands, and MySQL-sensitive test 
 
 - [docs/local-development.md](docs/local-development.md) for Docker setup details, platform guidance, and troubleshooting
 - [docs/testing.md](docs/testing.md) for local validation strategy and command recommendations
+- [docs/stage-container-deployment.md](docs/stage-container-deployment.md) for the prebuilt Stage image and Portainer rollout workflow
 - [resources/data/openapi.json](resources/data/openapi.json) for the OpenAPI specification used by the public API
 
 ## Contributing

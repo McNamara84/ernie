@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\Yaml\Yaml;
 
-it('refreshes cached system packages once per date while retaining the build cache across attempts', function (): void {
+it('scans every deployed runtime image while retaining the dated build caches', function (): void {
     $workflow = Yaml::parseFile(base_path('.github/workflows/security.yml'));
 
     expect($workflow)->toBeArray();
@@ -14,12 +14,17 @@ it('refreshes cached system packages once per date while retaining the build cac
 
     $steps = collect($containerScan['steps'] ?? [])->keyBy('name');
     $refreshStep = $steps->get('Resolve system package refresh date');
-    $buildStep = $steps->get('Build application image');
+    $applicationBuildStep = $steps->get('Build application image');
+    $nginxBuildStep = $steps->get('Build Nginx image');
+    $exportStep = $steps->get('Export runtime images');
     $trivyCacheStep = $steps->get('Cache Trivy databases');
+    $trivyScanStep = $steps->get('Run Trivy vulnerability scanner');
     $sarifCheckStep = $steps->get('Check Trivy SARIF output');
-    $sarifUploadStep = $steps->get('Upload Trivy scan results');
+    $applicationSarifUploadStep = $steps->get('Upload application Trivy scan results');
+    $nginxSarifUploadStep = $steps->get('Upload Nginx Trivy scan results');
     $sarifArtifactStep = $steps->get('Upload Trivy SARIF artifact');
     $vulnerabilityGateStep = $steps->get('Fail on high or critical image vulnerabilities');
+    $cacheOwnershipStep = $steps->get('Restore Trivy cache ownership');
 
     expect($refreshStep)
         ->toBeArray()
@@ -27,43 +32,93 @@ it('refreshes cached system packages once per date while retaining the build cac
         ->and($refreshStep['run'] ?? null)
         ->toBeString()
         ->toContain("date +'%Y-%m-%d'")
-        ->and($buildStep)
+        ->and($applicationBuildStep)
         ->toBeArray()
-        ->and($buildStep['with']['build-args'] ?? null)
+        ->and($applicationBuildStep['with']['target'] ?? null)->toBe('app')
+        ->and($applicationBuildStep['with']['tags'] ?? null)
+        ->toBe('ernie-app-security-scan:${{ github.sha }}')
+        ->and($applicationBuildStep['with']['build-args'] ?? null)
         ->toBeString()
         ->toContain('SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}')
         ->not->toContain('github.run_id')
         ->not->toContain('github.run_attempt')
+        ->and($nginxBuildStep)
+        ->toBeArray()
+        ->and($nginxBuildStep['with']['target'] ?? null)->toBe('nginx')
+        ->and($nginxBuildStep['with']['tags'] ?? null)
+        ->toBe('ernie-nginx-security-scan:${{ github.sha }}')
+        ->and($nginxBuildStep['with']['build-args'] ?? null)
+        ->toBeString()
+        ->toContain('SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}')
+        ->and($nginxBuildStep['with']['cache-from'] ?? null)
+        ->toBeString()
+        ->toContain('type=gha,scope=security-app')
+        ->toContain('type=gha,scope=security-nginx')
+        ->and($exportStep)
+        ->toBeArray()
+        ->and($exportStep['run'] ?? null)
+        ->toBeString()
+        ->toContain('docker save -o ernie-app-security-scan.tar')
+        ->toContain('docker save -o ernie-nginx-security-scan.tar')
         ->and($trivyCacheStep)
         ->toBeArray()
         ->and($trivyCacheStep['with']['key'] ?? null)
         ->toBe('${{ runner.os }}-trivy-${{ steps.system-packages-refresh.outputs.date }}')
+        ->and($trivyScanStep)
+        ->toBeArray()
+        ->and($trivyScanStep['run'] ?? null)
+        ->toBeString()
+        ->toContain('for target in app nginx')
+        ->toContain('--input "/work/ernie-${target}-security-scan.tar"')
+        ->toContain('--output "/work/trivy-results/${target}.sarif"')
         ->and($sarifCheckStep)
         ->toBeArray()
         ->and($sarifCheckStep['id'] ?? null)->toBe('trivy-sarif')
         ->and($sarifCheckStep['if'] ?? null)->toBe('always()')
         ->and($sarifCheckStep['run'] ?? null)
         ->toBeString()
-        ->toContain('[ -s trivy-results.sarif ]')
-        ->toContain('non_empty=true')
+        ->toContain('for target in app nginx')
+        ->toContain('[ -s "trivy-results/${target}.sarif" ]')
+        ->toContain('echo "${target}_non_empty=true"')
         ->toContain('$GITHUB_OUTPUT')
-        ->and($sarifUploadStep)
+        ->and($applicationSarifUploadStep)
         ->toBeArray()
-        ->and($sarifUploadStep['if'] ?? null)
-        ->toContain("steps.trivy-sarif.outputs.non_empty == 'true'")
-        ->and($sarifUploadStep)->not->toHaveKey('continue-on-error')
+        ->and($applicationSarifUploadStep['if'] ?? null)
+        ->toContain("steps.trivy-sarif.outputs.app_non_empty == 'true'")
+        ->and($applicationSarifUploadStep)->not->toHaveKey('continue-on-error')
+        ->and($applicationSarifUploadStep['with']['sarif_file'] ?? null)->toBe('trivy-results/app.sarif')
+        ->and($applicationSarifUploadStep['with']['category'] ?? null)->toBe('trivy-app-image')
+        ->and($nginxSarifUploadStep)
+        ->toBeArray()
+        ->and($nginxSarifUploadStep['if'] ?? null)
+        ->toContain("steps.trivy-sarif.outputs.nginx_non_empty == 'true'")
+        ->and($nginxSarifUploadStep)->not->toHaveKey('continue-on-error')
+        ->and($nginxSarifUploadStep['with']['sarif_file'] ?? null)->toBe('trivy-results/nginx.sarif')
+        ->and($nginxSarifUploadStep['with']['category'] ?? null)->toBe('trivy-nginx-image')
         ->and($sarifArtifactStep)
         ->toBeArray()
         ->and($sarifArtifactStep['if'] ?? null)
-        ->toContain("steps.trivy-sarif.outputs.non_empty == 'true'")
+        ->toContain("steps.trivy-sarif.outputs.app_non_empty == 'true'")
+        ->toContain("steps.trivy-sarif.outputs.nginx_non_empty == 'true'")
+        ->and($sarifArtifactStep['with']['path'] ?? null)->toBe('trivy-results')
         ->and($vulnerabilityGateStep)
         ->toBeArray()
         ->and($vulnerabilityGateStep['if'] ?? null)
         ->toContain('always()')
-        ->toContain("hashFiles('ernie-security-scan.tar') != ''")
+        ->toContain("hashFiles('ernie-app-security-scan.tar') != ''")
+        ->toContain("hashFiles('ernie-nginx-security-scan.tar') != ''")
         ->and($vulnerabilityGateStep['run'] ?? null)
         ->toBeString()
-        ->toContain('--exit-code 1');
+        ->toContain('for target in app nginx')
+        ->toContain('--input "/work/ernie-${target}-security-scan.tar"')
+        ->toContain('--exit-code 1')
+        ->toContain('exit "$scan_status"')
+        ->and($cacheOwnershipStep)
+        ->toBeArray()
+        ->and($cacheOwnershipStep['if'] ?? null)->toBe('always()')
+        ->and($cacheOwnershipStep['run'] ?? null)
+        ->toBeString()
+        ->toContain('sudo chown -R "$(id -u):$(id -g)" .trivy-cache');
 
     $dockerfile = file_get_contents(base_path('Dockerfile'));
 
@@ -71,6 +126,13 @@ it('refreshes cached system packages once per date while retaining the build cac
         ->toBeString()
         ->toContain('ARG SYSTEM_PACKAGES_REFRESH=manual')
         ->toContain('System package refresh: ${SYSTEM_PACKAGES_REFRESH}');
+
+    $nginxStage = strstr($dockerfile, ' AS nginx');
+
+    expect($nginxStage)
+        ->toBeString()
+        ->toContain('ARG SYSTEM_PACKAGES_REFRESH=manual')
+        ->toContain('apk upgrade --no-cache');
 
     assert(is_string($dockerfile));
 
