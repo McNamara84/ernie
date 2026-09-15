@@ -37,6 +37,16 @@ async function openFilterSection(page: Page, name: 'Resource Type' | 'Datacenter
     await expect(trigger).toHaveAttribute('data-state', 'open');
 }
 
+async function expectFilterLayout(page: Page, expectedValues: readonly string[]) {
+    const items = page.getByTestId('portal-filter-sidebar').locator('[data-accordion-value]');
+
+    await expect(items).toHaveCount(expectedValues.length);
+    expect(await items.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-accordion-value')))).toEqual(expectedValues);
+    expect(await items.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-state')))).toEqual(
+        expectedValues.map(() => 'closed'),
+    );
+}
+
 test.describe('Portal Page', () => {
     test.beforeEach(async ({ page }) => {
         await openPortal(page);
@@ -54,6 +64,10 @@ test.describe('Portal Page', () => {
             await expect(sidebar).toBeVisible();
             await expect(sidebar.getByText('Filters', { exact: true })).toBeVisible();
             await expect(sidebar.getByRole('button', { name: 'Resource Type', exact: true })).toBeVisible();
+        });
+
+        test('orders DOI filters and keeps every group collapsed by default', async ({ page }) => {
+            await expectFilterLayout(page, ['datacenter', 'resource-type', 'geographic', 'thesaurus', 'temporal']);
         });
 
         test('displays map component', async ({ page }) => {
@@ -228,8 +242,9 @@ test.describe('Portal Page', () => {
             await openPortal(page, '/doi-search?q=climate&type[]=dataset&page=1');
 
             await expect(searchInput(page)).toHaveValue('climate');
-            await openFilterSection(page, 'Resource Type');
-            await expect(page.getByRole('button', { name: /^\d+ selected/ })).toBeVisible();
+            const resourceTypeSection = page.getByTestId('portal-filter-sidebar').locator('[data-accordion-value="resource-type"]');
+            await expect(resourceTypeSection).toHaveAttribute('data-state', 'open');
+            await expect(resourceTypeSection.getByRole('button', { name: /^\d+ selected/ })).toBeVisible();
         });
 
         test('URL state survives page refresh', async ({ page }) => {
@@ -331,6 +346,27 @@ test.describe('IGSN Portal Page', () => {
     test('uses the IGSN title and omits the resource type filter', async ({ page }) => {
         await expect(page).toHaveTitle(/IGSN Portal/);
         await expect(page.getByRole('button', { name: 'Resource Type', exact: true })).toHaveCount(0);
+    });
+
+    test('orders IGSN filters and keeps every group collapsed by default', async ({ page }) => {
+        await expectFilterLayout(page, [
+            'datacenter',
+            'sample-type',
+            'material',
+            'classification',
+            'geological-age',
+            'geological-unit',
+            'geographic',
+            'temporal',
+        ]);
+    });
+
+    test('opens an IGSN group when its URL filter is active', async ({ page }) => {
+        await openPortal(page, '/igsn-search?sample_types[]=Hole');
+
+        const sampleTypeSection = page.getByTestId('portal-filter-sidebar').locator('[data-accordion-value="sample-type"]');
+        await expect(sampleTypeSection).toHaveAttribute('data-state', 'open');
+        await expect(sampleTypeSection.getByRole('checkbox', { name: 'Select Hole' })).toBeChecked();
     });
 
     test('keeps searches inside the IGSN portal', async ({ page }) => {

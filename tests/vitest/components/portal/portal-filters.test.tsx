@@ -117,6 +117,17 @@ const defaultProps = {
     datacenterFacets: [{ name: 'GFZ', count: 42 }],
 };
 
+function filterSectionItems(): HTMLElement[] {
+    return Array.from(screen.getByTestId('portal-filter-sidebar').querySelectorAll<HTMLElement>('[data-accordion-value]'));
+}
+
+function expectClosedFilterSections(expectedValues: string[]): void {
+    const items = filterSectionItems();
+
+    expect(items.map((item) => item.dataset.accordionValue)).toEqual(expectedValues);
+    items.forEach((item) => expect(item).toHaveAttribute('data-state', 'closed'));
+}
+
 describe('PortalFilters', () => {
     beforeEach(() => vi.clearAllMocks());
 
@@ -132,16 +143,37 @@ describe('PortalFilters', () => {
         expect(screen.queryByText(/results|counting/i)).not.toBeInTheDocument();
     });
 
-    it('opens thesaurus roots initially and keeps the remaining filter groups collapsed', () => {
+    it('renders DOI filter groups in the requested order and keeps them collapsed by default', () => {
         render(<PortalFilters {...defaultProps} />);
 
-        expect(screen.getByText('Science Keywords')).toBeInTheDocument();
+        expectClosedFilterSections(['datacenter', 'resource-type', 'geographic', 'thesaurus', 'temporal']);
+
+        expect(screen.queryByText('Science Keywords')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /sample type/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /^material/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /^classification/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /geological age/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /geological unit/i })).not.toBeInTheDocument();
         expect(screen.queryByText('All Resource Types')).not.toBeInTheDocument();
+        expect(screen.queryByText('All Datacenters')).not.toBeInTheDocument();
+    });
+
+    it('renders IGSN filter groups in the requested order and keeps them collapsed by default', () => {
+        render(<PortalFilters {...defaultProps} basePath="/igsn-search" igsnFacets={igsnFacets} showResourceTypeFilter={false} />);
+
+        expectClosedFilterSections([
+            'datacenter',
+            'sample-type',
+            'material',
+            'classification',
+            'geological-age',
+            'geological-unit',
+            'geographic',
+            'temporal',
+        ]);
+
+        expect(screen.queryByText('Core')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /resource type/i })).not.toBeInTheDocument();
         expect(screen.queryByText('All Datacenters')).not.toBeInTheDocument();
     });
 
@@ -217,6 +249,10 @@ describe('PortalFilters', () => {
         expect(screen.getByRole('button', { name: /classification/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /geological age/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /geological unit/i })).toBeInTheDocument();
+        expect(screen.queryByText('Core')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /sample type/i }));
+
         expect(screen.getByText('Core')).toBeInTheDocument();
         expect(screen.getByText('12')).toBeInTheDocument();
 
@@ -238,7 +274,7 @@ describe('PortalFilters', () => {
 
         expect(screen.getByRole('list', { name: 'Materials' })).toBeInTheDocument();
         expect(screen.queryByRole('tree')).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /^material1$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^material1$/i })).toHaveAttribute('data-state', 'open');
         expect(screen.getByRole('button', { name: 'Remove Rock' })).toBeInTheDocument();
     });
 
@@ -247,6 +283,7 @@ describe('PortalFilters', () => {
 
         expect(screen.getByText('1 selected')).toBeInTheDocument();
         expect(screen.getAllByText('1').length).toBeGreaterThan(0);
+        expect(screen.getByRole('button', { name: /^resource type1$/i })).toHaveAttribute('data-state', 'open');
     });
 
     it('forwards unified text and keyword actions', async () => {

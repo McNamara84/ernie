@@ -147,9 +147,7 @@ export function PortalFilters({
         isIgsnPortal,
         temporalFilterEnabled,
     ]);
-    const [openSections, setOpenSections] = useState<FilterSection[]>(() =>
-        Array.from(new Set<FilterSection>([isIgsnPortal ? 'sample-type' : 'thesaurus', ...activeSections])),
-    );
+    const [openSections, setOpenSections] = useState<FilterSection[]>(() => activeSections);
 
     useEffect(() => {
         if (activeSections.length === 0) return;
@@ -219,21 +217,38 @@ export function PortalFilters({
                     onValueChange={(values) => setOpenSections(values as FilterSection[])}
                     className="px-3"
                 >
-                    {!isIgsnPortal && (
-                        <AccordionItem value="thesaurus">
+                    <AccordionItem value="datacenter">
+                        <AccordionTrigger className="items-center py-3 hover:no-underline">
+                            <span className="flex items-center gap-2">
+                                <Database className="h-4 w-4" />
+                                Datacenter
+                            </span>
+                            <CountBadge count={filters.datacenter.length} />
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <PortalDatacenterFilter
+                                facets={datacenterFacets}
+                                selectedNames={filters.datacenter}
+                                onSelectionChange={onDatacenterChange}
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
+
+                    {showResourceTypeFilter && !isIgsnPortal && (
+                        <AccordionItem value="resource-type">
                             <AccordionTrigger className="items-center py-3 hover:no-underline">
-                                <span className="flex min-w-0 items-center gap-2">
-                                    <Network className="h-4 w-4" />
-                                    Thesaurus Keywords
+                                <span className="flex items-center gap-2">
+                                    <Shapes className="h-4 w-4" />
+                                    Resource Type
                                 </span>
-                                <CountBadge count={filters.thesaurusKeywords?.length ?? 0} />
+                                <CountBadge count={filters.type.length > 0 ? filters.type.length : filters.exclude_type ? 1 : 0} />
                             </AccordionTrigger>
                             <AccordionContent>
-                                <PortalThesaurusFilter
-                                    hideTitle
-                                    facets={thesaurusFacets}
-                                    selectedNodeIds={filters.thesaurusKeywords ?? []}
-                                    onSelectionChange={onThesaurusKeywordsChange}
+                                <PortalResourceTypeFilter
+                                    facets={resourceTypeFacets}
+                                    selectedSlugs={filters.type}
+                                    excludeType={filters.exclude_type}
+                                    onSelectionChange={onTypeChange}
                                 />
                             </AccordionContent>
                         </AccordionItem>
@@ -341,26 +356,6 @@ export function PortalFilters({
                         </>
                     )}
 
-                    <AccordionItem value="temporal">
-                        <AccordionTrigger className="items-center py-3 hover:no-underline">
-                            <span className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4" />
-                                Time
-                            </span>
-                            <CountBadge count={temporalFilterEnabled ? 1 : 0} />
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <PortalTemporalFilter
-                                hideTitle
-                                enabled={temporalFilterEnabled}
-                                onToggle={onTemporalFilterToggle}
-                                temporalRange={temporalRange}
-                                temporal={filters.temporal}
-                                onTemporalChange={onTemporalChange}
-                            />
-                        </AccordionContent>
-                    </AccordionItem>
-
                     <AccordionItem value="geographic">
                         <AccordionTrigger className="items-center py-3 hover:no-underline">
                             <span className="flex items-center gap-2">
@@ -380,39 +375,42 @@ export function PortalFilters({
                         </AccordionContent>
                     </AccordionItem>
 
-                    {showResourceTypeFilter && !isIgsnPortal && (
-                        <AccordionItem value="resource-type">
+                    {!isIgsnPortal && (
+                        <AccordionItem value="thesaurus">
                             <AccordionTrigger className="items-center py-3 hover:no-underline">
-                                <span className="flex items-center gap-2">
-                                    <Shapes className="h-4 w-4" />
-                                    Resource Type
+                                <span className="flex min-w-0 items-center gap-2">
+                                    <Network className="h-4 w-4" />
+                                    Thesaurus Keywords
                                 </span>
-                                <CountBadge count={filters.type.length > 0 ? filters.type.length : filters.exclude_type ? 1 : 0} />
+                                <CountBadge count={filters.thesaurusKeywords?.length ?? 0} />
                             </AccordionTrigger>
                             <AccordionContent>
-                                <PortalResourceTypeFilter
-                                    facets={resourceTypeFacets}
-                                    selectedSlugs={filters.type}
-                                    excludeType={filters.exclude_type}
-                                    onSelectionChange={onTypeChange}
+                                <PortalThesaurusFilter
+                                    hideTitle
+                                    facets={thesaurusFacets}
+                                    selectedNodeIds={filters.thesaurusKeywords ?? []}
+                                    onSelectionChange={onThesaurusKeywordsChange}
                                 />
                             </AccordionContent>
                         </AccordionItem>
                     )}
 
-                    <AccordionItem value="datacenter">
+                    <AccordionItem value="temporal">
                         <AccordionTrigger className="items-center py-3 hover:no-underline">
                             <span className="flex items-center gap-2">
-                                <Database className="h-4 w-4" />
-                                Datacenter
+                                <Calendar className="h-4 w-4" />
+                                Time
                             </span>
-                            <CountBadge count={filters.datacenter.length} />
+                            <CountBadge count={temporalFilterEnabled ? 1 : 0} />
                         </AccordionTrigger>
                         <AccordionContent>
-                            <PortalDatacenterFilter
-                                facets={datacenterFacets}
-                                selectedNames={filters.datacenter}
-                                onSelectionChange={onDatacenterChange}
+                            <PortalTemporalFilter
+                                hideTitle
+                                enabled={temporalFilterEnabled}
+                                onToggle={onTemporalFilterToggle}
+                                temporalRange={temporalRange}
+                                temporal={filters.temporal}
+                                onTemporalChange={onTemporalChange}
                             />
                         </AccordionContent>
                     </AccordionItem>

@@ -88,6 +88,17 @@
                 ]
             },
             {
+                "title": "Clearer Portal Filter Overview",
+                "description": "The Data and IGSN Portals now start with all inactive filter groups collapsed and place Datacenter directly below the search field. The Data Portal continues with Resource Type, Location, Thesaurus Keywords, and Time, while the IGSN Portal keeps its sample metadata filters together before Location and Time. Groups containing active URL filters still open automatically so every applied selection remains visible.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1303,
+                        "url": "https://github.com/McNamara84/ernie/issues/1303"
+                    }
+                ]
+            },
+            {
                 "title": "Faster Datacenter Filtering",
                 "description": "Datacenter filters in the Data and IGSN Portals now list their alphabetically ordered options and current resource counts directly after the section is opened. The inline search, checkboxes, and removable selection chips replace the additional scrollable popup, reducing the interaction to one expansion on desktop and mobile while preserving multi-selection and shared URLs.",
                 "references": [
