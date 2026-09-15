@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@tests/vitest/utils/render';
 import { renderToString } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { SampleFamilySection } from '@/pages/LandingPages/components/SampleFamilySection';
 import type { LandingPageIgsnSampleFamily } from '@/types/landing-page';
@@ -170,6 +170,30 @@ describe('SampleFamilySection', () => {
         expect(grip).toHaveAttribute('aria-valuenow', grip.getAttribute('aria-valuemin'));
         fireEvent.keyDown(grip, { key: 'End' });
         expect(grip).toHaveAttribute('aria-valuenow', grip.getAttribute('aria-valuemax'));
+    });
+
+    it('caps measured keyboard and pointer resizing at 512px', () => {
+        const scrollHeight = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(900);
+
+        try {
+            render(<SampleFamilySection family={family} currentResourceId={2} />);
+
+            const navigation = screen.getByRole('navigation', { name: 'Sample Family' });
+            const grip = screen.getByRole('separator', { name: 'Resize Sample Family' });
+            grip.setPointerCapture = vi.fn();
+            grip.hasPointerCapture = vi.fn(() => false);
+
+            expect(grip).toHaveAttribute('aria-valuemax', '512');
+            fireEvent.keyDown(grip, { key: 'End' });
+            expect(navigation).toHaveStyle({ height: '512px' });
+
+            fireEvent.keyDown(grip, { key: 'Home' });
+            fireEvent.pointerDown(grip, { pointerId: 1, clientY: 0 });
+            fireEvent.pointerMove(grip, { pointerId: 1, clientY: 900 });
+            expect(navigation).toHaveStyle({ height: '512px' });
+        } finally {
+            scrollHeight.mockRestore();
+        }
     });
 
     it('keeps the server-rendered family height automatic with a 512px ceiling', () => {

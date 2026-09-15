@@ -180,6 +180,12 @@ describe('Public Landing Page Access', function () {
                 ->where('citationStyles.2.id', 'copernicus')
                 ->where('citationStyles.3.id', 'agu')
                 ->where('citationStyles.4.id', 'gsa')
+                ->where('citationStyles.4.html', fn ($html) => is_string($html)
+                    && str_contains($html, 'https://doi.org/10.5880/test.public.001')
+                    && ! str_contains($html, 'doi:10.5880/test.public.001'))
+                ->where('citationStyles.4.text', fn ($text) => is_string($text)
+                    && str_contains($text, 'https://doi.org/10.5880/test.public.001')
+                    && ! str_contains($text, 'doi:10.5880/test.public.001'))
                 ->where('isPreview', false)
             );
     });

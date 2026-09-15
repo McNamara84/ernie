@@ -104,14 +104,14 @@ it('renders reviewable golden plaintext for all five official styles', function 
             'harvard' => 'Müller, A. and GFZ Helmholtz Centre (2025) ‘Crustal deformation observations’. GFZ Data Services. Available at: https://doi.org/10.5880/example.2025.001.',
             'copernicus' => 'Müller, A. and GFZ Helmholtz Centre: Crustal deformation observations (1.0), https://doi.org/10.5880/example.2025.001, 2025.',
             'agu' => 'Müller, A., & GFZ Helmholtz Centre. (2025). Crustal deformation observations (Version 1.0) [Data set]. GFZ Data Services. https://doi.org/10.5880/example.2025.001',
-            'gsa' => 'Müller, A., and GFZ Helmholtz Centre, 2025, Crustal deformation observations:, doi:10.5880/example.2025.001.',
+            'gsa' => 'Müller, A., and GFZ Helmholtz Centre, 2025, Crustal deformation observations:, https://doi.org/10.5880/example.2025.001.',
         ])
         ->and(array_column($styles, 'html', 'id'))->toBe([
             'apa-7' => '<div class="csl-entry csl-hanging-indent csl-double-spaced">Müller, A., &amp; GFZ Helmholtz Centre. (2025). <i>Crustal deformation observations</i> (Version 1.0) [Dataset]. GFZ Data Services. https://doi.org/10.5880/example.2025.001</div>',
             'harvard' => '<div class="csl-entry">Müller, A. and GFZ Helmholtz Centre (2025) ‘Crustal deformation observations’. GFZ Data Services. Available at: https://doi.org/10.5880/example.2025.001.</div>',
             'copernicus' => '<div class="csl-entry">Müller, A. and GFZ Helmholtz Centre: Crustal deformation observations (1.0), https://doi.org/10.5880/example.2025.001, 2025.</div>',
             'agu' => '<div class="csl-entry csl-hanging-indent csl-double-spaced">Müller, A., &amp; GFZ Helmholtz Centre. (2025). Crustal deformation observations (Version 1.0) [Data set]. GFZ Data Services. https://doi.org/10.5880/example.2025.001</div>',
-            'gsa' => '<div class="csl-entry csl-hanging-indent">Müller, A., and GFZ Helmholtz Centre, 2025, Crustal deformation observations:, doi:10.5880/example.2025.001.</div>',
+            'gsa' => '<div class="csl-entry csl-hanging-indent">Müller, A., and GFZ Helmholtz Centre, 2025, Crustal deformation observations:, https://doi.org/10.5880/example.2025.001.</div>',
         ]);
 
     foreach ($styles as $style) {
@@ -121,7 +121,12 @@ it('renders reviewable golden plaintext for all five official styles', function 
             ->html->toStartWith('<div class="csl-entry')
             ->html->not->toContain('csl-bib-body')
             ->html->not->toContain('<script')
+            ->html->toContain('https://doi.org/10.5880/example.2025.001')
             ->text->not->toContain('<');
+
+        expect($style['text'])
+            ->toContain('https://doi.org/10.5880/example.2025.001')
+            ->not->toContain('doi:10.5880/example.2025.001');
     }
 
     expect($styles[0]['html'])

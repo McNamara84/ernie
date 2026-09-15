@@ -95,8 +95,8 @@ const citationStyles: LandingPageCitationStyle[] = [
         id: 'gsa',
         label: 'GSA',
         available: true,
-        html: '<div class="csl-entry">Lovelace, A., and Hopper, G., 2026, <em>A Test Dataset</em>.</div>',
-        text: 'Lovelace, A., and Hopper, G., 2026, A Test Dataset.',
+        html: '<div class="csl-entry">Lovelace, A., and Hopper, G., 2026, <em>A Test Dataset</em>: https://doi.org/10.5880/example.2026.</div>',
+        text: 'Lovelace, A., and Hopper, G., 2026, A Test Dataset: https://doi.org/10.5880/example.2026.',
     },
 ];
 
@@ -302,6 +302,20 @@ describe('CiteThisResourceSection', () => {
         expect(writeText).not.toHaveBeenCalledWith(citationStyles[1].html);
         expect(mockToastSuccess).toHaveBeenCalledWith('Citation copied to clipboard');
         expect(screen.getByRole('status')).toHaveTextContent('Citation copied to clipboard');
+    });
+
+    it('shows and copies the complete DOI resolver URL for GSA', async () => {
+        writeText.mockResolvedValueOnce(undefined);
+        render(<CiteThisResourceSection resource={resource} citationStyles={citationStyles} />);
+
+        await chooseCitationStyle('GSA');
+
+        const expectedCitation = citationStyles[4].text;
+        expect(screen.getByTestId('citation-content')).toHaveTextContent('https://doi.org/10.5880/example.2026');
+        fireEvent.click(screen.getByRole('button', { name: 'Copy citation to clipboard' }));
+
+        await waitFor(() => expect(writeText).toHaveBeenCalledWith(expectedCitation));
+        expect(writeText.mock.calls[0][0]).not.toContain('doi:10.5880/example.2026');
     });
 
     it('omits a missing DOI from GFZ and keeps the explanatory note out of the clipboard', async () => {

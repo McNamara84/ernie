@@ -339,11 +339,14 @@ export function SampleFamilySection({ family, currentResourceId }: SampleFamilyS
         const tree = treeRef.current;
         if (!tree) return;
         const firstRow = tree.querySelector<HTMLElement>('[data-family-node-row]');
-        const nextMin = Math.max(44, Math.ceil(firstRow?.getBoundingClientRect().height ?? firstRow?.offsetHeight ?? 44));
-        const nextMax = Math.max(nextMin, Math.ceil(tree.scrollHeight));
+        const nextMin = Math.min(
+            INITIAL_MAX_HEIGHT,
+            Math.max(44, Math.ceil(firstRow?.getBoundingClientRect().height ?? firstRow?.offsetHeight ?? 44)),
+        );
+        const nextMax = Math.max(nextMin, Math.min(Math.ceil(tree.scrollHeight), INITIAL_MAX_HEIGHT));
         setMinHeight(nextMin);
         setMaxHeight(nextMax);
-        setHeight((current) => (current === null ? Math.min(nextMax, INITIAL_MAX_HEIGHT) : Math.max(nextMin, Math.min(current, nextMax))));
+        setHeight((current) => (current === null ? nextMax : Math.max(nextMin, Math.min(current, nextMax))));
     }, []);
 
     useEffect(() => {
