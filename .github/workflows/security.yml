@@ -181,3 +181,10 @@ jobs:
           done
 
           exit "$scan_status"
+
+      - name: Restore Trivy cache ownership
+        if: always()
+        run: |
+          if [ -d .trivy-cache ]; then
+            sudo chown -R "$(id -u):$(id -g)" .trivy-cache
+          fi

@@ -24,6 +24,7 @@ it('scans every deployed runtime image while retaining the dated build caches', 
     $nginxSarifUploadStep = $steps->get('Upload Nginx Trivy scan results');
     $sarifArtifactStep = $steps->get('Upload Trivy SARIF artifact');
     $vulnerabilityGateStep = $steps->get('Fail on high or critical image vulnerabilities');
+    $cacheOwnershipStep = $steps->get('Restore Trivy cache ownership');
 
     expect($refreshStep)
         ->toBeArray()
@@ -111,7 +112,13 @@ it('scans every deployed runtime image while retaining the dated build caches', 
         ->toContain('for target in app nginx')
         ->toContain('--input "/work/ernie-${target}-security-scan.tar"')
         ->toContain('--exit-code 1')
-        ->toContain('exit "$scan_status"');
+        ->toContain('exit "$scan_status"')
+        ->and($cacheOwnershipStep)
+        ->toBeArray()
+        ->and($cacheOwnershipStep['if'] ?? null)->toBe('always()')
+        ->and($cacheOwnershipStep['run'] ?? null)
+        ->toBeString()
+        ->toContain('sudo chown -R "$(id -u):$(id -g)" .trivy-cache');
 
     $dockerfile = file_get_contents(base_path('Dockerfile'));
 
