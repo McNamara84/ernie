@@ -238,7 +238,7 @@ class EditorController extends Controller
             $state = $this->progressTracker->findForUser($token, $user->id, $normalizedResourceId);
             abort_if($state === null, HttpResponse::HTTP_NOT_FOUND);
 
-            return $this->loadFromResource($normalizedResourceId, $user->id, $token);
+            return $this->loadFromResource($normalizedResourceId, $user, $token);
         }
 
         Resource::query()->select('id')->findOrFail($normalizedResourceId);
@@ -254,8 +254,10 @@ class EditorController extends Controller
         ]);
     }
 
-    private function loadFromResource(int $resourceId, int $userId, string $token): Response
+    private function loadFromResource(int $resourceId, User $user, string $token): Response
     {
+        $userId = $user->id;
+
         try {
             $commonProps = $this->transformer->getCommonProps();
             $this->progressTracker->advance($token, $userId, $resourceId, EditorLoadStage::COMMON_PROPS_LOADED);
@@ -318,6 +320,7 @@ class EditorController extends Controller
                 $commonProps,
                 $editorData,
                 [
+                    'canEditDoi' => $user->can('editDoi', $resource),
                     'editorLoad' => $this->editorLoadProps(
                         token: $token,
                         resourceId: $resourceId,

@@ -7,6 +7,7 @@ namespace App\Services\Editor;
 use App\Enums\EditorDraftSaveIntent;
 use App\Enums\ResourceWorkflowStatus;
 use App\Models\Resource;
+use App\Models\User;
 use App\Services\ResourceStorageService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,10 +25,14 @@ final readonly class EditorResourceSaveService
      * @param  array<string, mixed>  $data
      * @return array{0: Resource, 1: bool}
      */
-    public function saveValidated(array $data, ?int $userId): array
+    public function saveValidated(array $data, ?User $user): array
     {
-        return DB::transaction(function () use ($data, $userId): array {
-            [$resource, $isUpdate] = $this->storageService->store($data, $userId);
+        return DB::transaction(function () use ($data, $user): array {
+            [$resource, $isUpdate] = $this->storageService->store(
+                $data,
+                $user?->id,
+                doiChangeActor: $user,
+            );
 
             if ($resource->workflow_status_override === ResourceWorkflowStatus::DRAFT) {
                 $resource->workflow_status_override = null;
@@ -42,14 +47,18 @@ final readonly class EditorResourceSaveService
      * @param  array<string, mixed>  $data
      * @return array{0: Resource, 1: bool}
      */
-    public function saveRelaxed(array $data, ?int $userId, EditorDraftSaveIntent $intent): array
+    public function saveRelaxed(array $data, ?User $user, EditorDraftSaveIntent $intent): array
     {
-        return DB::transaction(function () use ($data, $userId, $intent): array {
+        return DB::transaction(function () use ($data, $user, $intent): array {
             if ($intent === EditorDraftSaveIntent::SAVE_DRAFT) {
                 $this->assertResourceIsNotPublished($data);
             }
 
-            [$resource, $isUpdate] = $this->storageService->store($data, $userId);
+            [$resource, $isUpdate] = $this->storageService->store(
+                $data,
+                $user?->id,
+                doiChangeActor: $user,
+            );
 
             if ($intent === EditorDraftSaveIntent::SAVE_DRAFT) {
                 $resource->workflow_status_override = ResourceWorkflowStatus::DRAFT;

@@ -2579,6 +2579,23 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             without the celebration.
                         </p>
 
+                        <h4>Editing the Resource DOI</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>In a new, unsaved resource, the DOI can be entered for the first time as part of creating the record.</li>
+                            <li>
+                                For saved resources in Draft, Curation, or Review, Admins, Group Leaders, and Curators can enter, replace, or remove
+                                the DOI. Beginners cannot change the DOI field of a saved resource.
+                            </li>
+                            <li>
+                                A public landing page may be prepared before DOI registration. While the saved resource still has no DOI, Admins,
+                                Group Leaders, and Curators can enter its first DOI in the editor.
+                            </li>
+                            <li>
+                                Once a resource has both a DOI and a public landing page, only Admins can change or remove that DOI. Changing it can
+                                break existing citations, bookmarks, and public links.
+                            </li>
+                        </ul>
+
                         <h4>DOI Duplicate Detection</h4>
                         <p>The system automatically validates DOIs when you enter them and when you save:</p>
                         <ul className="list-inside list-disc space-y-1">

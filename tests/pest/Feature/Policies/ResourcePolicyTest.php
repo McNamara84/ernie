@@ -340,64 +340,100 @@ describe('ResourcePolicy', function () {
         });
     });
 
-    describe('changeDoi', function () {
-        it('allows DOI change if DOI is not actually changing', function () {
-            $user = User::factory()->create(['role' => UserRole::CURATOR]);
-            $this->resource->doi = '10.5880/test.001';
+    describe('DOI editing', function () {
+        it('exposes the DOI edit capability by role before publication', function (UserRole $role, bool $expected) {
+            $user = User::factory()->create(['role' => $role]);
+            $this->resource->setRelation('landingPage', null);
+
+            expect($this->policy->editDoi($user, $this->resource))->toBe($expected);
+        })->with([
+            'admin' => [UserRole::ADMIN, true],
+            'group leader' => [UserRole::GROUP_LEADER, true],
+            'curator' => [UserRole::CURATOR, true],
+            'beginner' => [UserRole::BEGINNER, false],
+        ]);
+
+        it('exposes the DOI edit capability by role after publication', function (UserRole $role, bool $expected) {
+            $user = User::factory()->create(['role' => $role]);
+            $this->resource->update(['doi' => '10.5880/old.001']);
+            LandingPage::factory()->published()->withDoi('10.5880/old.001')->create([
+                'resource_id' => $this->resource->id,
+            ]);
+            $this->resource->refresh();
+
+            expect($this->policy->editDoi($user, $this->resource))->toBe($expected);
+        })->with([
+            'admin' => [UserRole::ADMIN, true],
+            'group leader' => [UserRole::GROUP_LEADER, false],
+            'curator' => [UserRole::CURATOR, false],
+            'beginner' => [UserRole::BEGINNER, false],
+        ]);
+
+        it('allows authorized roles to enter the first DOI when the landing page is already public', function (UserRole $role, bool $expected) {
+            $user = User::factory()->create(['role' => $role]);
+            LandingPage::factory()->published()->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => null,
+            ]);
+            $this->resource->refresh();
+
+            expect($this->policy->editDoi($user, $this->resource))->toBe($expected)
+                ->and($this->policy->changeDoi($user, $this->resource, '10.5880/first.001'))->toBe($expected);
+        })->with([
+            'admin' => [UserRole::ADMIN, true],
+            'group leader' => [UserRole::GROUP_LEADER, true],
+            'curator' => [UserRole::CURATOR, true],
+            'beginner' => [UserRole::BEGINNER, false],
+        ]);
+
+        it('allows every role to submit an unchanged DOI', function (UserRole $role) {
+            $user = User::factory()->create(['role' => $role]);
+            $this->resource->update(['doi' => '10.5880/test.001']);
+            LandingPage::factory()->published()->withDoi('10.5880/test.001')->create([
+                'resource_id' => $this->resource->id,
+            ]);
+            $this->resource->refresh();
+
             expect($this->policy->changeDoi($user, $this->resource, '10.5880/test.001'))->toBeTrue();
+        })->with(UserRole::cases());
+
+        it('allows authorized roles to replace or remove a DOI before publication', function (UserRole $role) {
+            $user = User::factory()->create(['role' => $role]);
+            $this->resource->doi = '10.5880/old.001';
+            $this->resource->setRelation('landingPage', null);
+
+            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeTrue()
+                ->and($this->policy->changeDoi($user, $this->resource, null))->toBeTrue();
+        })->with([
+            UserRole::ADMIN,
+            UserRole::GROUP_LEADER,
+            UserRole::CURATOR,
+        ]);
+
+        it('denies a beginner from replacing or removing a DOI before publication', function () {
+            $user = User::factory()->create(['role' => UserRole::BEGINNER]);
+            $this->resource->doi = '10.5880/old.001';
+            $this->resource->setRelation('landingPage', null);
+
+            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeFalse()
+                ->and($this->policy->changeDoi($user, $this->resource, null))->toBeFalse();
         });
 
-        it('allows DOI change if resource has no landing page', function () {
-            $user = User::factory()->create(['role' => UserRole::CURATOR]);
-            $this->resource->doi = '10.5880/old.001';
-            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeTrue();
-        });
-
-        it('allows DOI change if landing page is not published', function () {
-            $user = User::factory()->create(['role' => UserRole::CURATOR]);
-            $this->resource->doi = '10.5880/old.001';
-            LandingPage::factory()->withoutDoi()->create([
+        it('only allows an admin to replace or remove a published DOI', function (UserRole $role, bool $expected) {
+            $user = User::factory()->create(['role' => $role]);
+            $this->resource->update(['doi' => '10.5880/old.001']);
+            LandingPage::factory()->published()->withDoi('10.5880/old.001')->create([
                 'resource_id' => $this->resource->id,
-                'is_published' => false,
             ]);
             $this->resource->refresh();
-            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeTrue();
-        });
 
-        it('denies curator from changing DOI on published landing page', function () {
-            $user = User::factory()->create(['role' => UserRole::CURATOR]);
-            $this->resource->doi = '10.5880/old.001';
-            LandingPage::factory()->create([
-                'resource_id' => $this->resource->id,
-                'doi_prefix' => '10.5880/old.001',
-                'is_published' => true,
-            ]);
-            $this->resource->refresh();
-            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeFalse();
-        });
-
-        it('allows admin to change DOI on published landing page', function () {
-            $user = User::factory()->create(['role' => UserRole::ADMIN]);
-            $this->resource->doi = '10.5880/old.001';
-            LandingPage::factory()->create([
-                'resource_id' => $this->resource->id,
-                'doi_prefix' => '10.5880/old.001',
-                'is_published' => true,
-            ]);
-            $this->resource->refresh();
-            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeTrue();
-        });
-
-        it('denies group leader from changing DOI on published landing page', function () {
-            $user = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
-            $this->resource->doi = '10.5880/old.001';
-            LandingPage::factory()->create([
-                'resource_id' => $this->resource->id,
-                'doi_prefix' => '10.5880/old.001',
-                'is_published' => true,
-            ]);
-            $this->resource->refresh();
-            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeFalse();
-        });
+            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBe($expected)
+                ->and($this->policy->changeDoi($user, $this->resource, null))->toBe($expected);
+        })->with([
+            'admin' => [UserRole::ADMIN, true],
+            'group leader' => [UserRole::GROUP_LEADER, false],
+            'curator' => [UserRole::CURATOR, false],
+            'beginner' => [UserRole::BEGINNER, false],
+        ]);
     });
 });

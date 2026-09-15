@@ -52,6 +52,12 @@ class DataCiteLandingPageImportService
         }
 
         $result = DB::transaction(function () use ($resource, $attributes, $parts): array {
+            /** @var Resource $lockedResource */
+            $lockedResource = Resource::query()
+                ->with('titles.titleType')
+                ->lockForUpdate()
+                ->findOrFail($resource->id);
+
             $existingLandingPage = LandingPage::query()
                 ->where('resource_id', $resource->id)
                 ->lockForUpdate()
@@ -68,7 +74,7 @@ class DataCiteLandingPageImportService
             $isFindable = strtolower(trim((string) ($attributes['state'] ?? ''))) === 'findable';
 
             $landingPage = new LandingPage([
-                'resource_id' => $resource->id,
+                'resource_id' => $lockedResource->id,
                 'template' => 'external',
                 'external_domain_id' => $domain->id,
                 'external_path' => $parts['path'],
@@ -77,6 +83,7 @@ class DataCiteLandingPageImportService
                 'is_published' => $isFindable,
                 'published_at' => $isFindable ? now() : null,
             ]);
+            $landingPage->setRelation('resource', $lockedResource);
 
             $landingPage->save();
 

@@ -37,11 +37,26 @@ class LegacyLandingPageImportService
             return null;
         }
 
-        $landingPage = DB::transaction(
-            fn (): LandingPage => $this->createDefaultLandingPage($resource, $fileEntries, $isPublished)
-        );
+        [$landingPage, $created] = DB::transaction(function () use ($resource, $fileEntries, $isPublished): array {
+            /** @var Resource $lockedResource */
+            $lockedResource = Resource::query()
+                ->lockForUpdate()
+                ->findOrFail($resource->id);
 
-        CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->forget();
+            $existingLandingPage = LandingPage::where('resource_id', $lockedResource->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingLandingPage !== null) {
+                return [$existingLandingPage, false];
+            }
+
+            return [$this->createDefaultLandingPage($lockedResource, $fileEntries, $isPublished), true];
+        });
+
+        if ($created) {
+            CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->forget();
+        }
 
         return $landingPage;
     }
@@ -70,7 +85,12 @@ class LegacyLandingPageImportService
         }
 
         $result = DB::transaction(function () use ($resource, $fileEntries, $isPublished): array {
-            $landingPage = LandingPage::where('resource_id', $resource->id)
+            /** @var Resource $lockedResource */
+            $lockedResource = Resource::query()
+                ->lockForUpdate()
+                ->findOrFail($resource->id);
+
+            $landingPage = LandingPage::where('resource_id', $lockedResource->id)
                 ->lockForUpdate()
                 ->first();
 
@@ -80,7 +100,7 @@ class LegacyLandingPageImportService
                     created: true,
                     ftpUrlAdded: $fileEntries !== [],
                     linksAdded: max(count($fileEntries) - 1, 0),
-                    landingPage: $this->createDefaultLandingPage($resource, $fileEntries, $isPublished),
+                    landingPage: $this->createDefaultLandingPage($lockedResource, $fileEntries, $isPublished),
                 );
             }
 

@@ -261,6 +261,11 @@ class LandingPageController extends Controller
         // The try-catch handles both resource_id and slug uniqueness violations.
         try {
             $landingPage = DB::transaction(function () use ($validated, $resource) {
+                /** @var Resource $lockedResource */
+                $lockedResource = Resource::query()
+                    ->lockForUpdate()
+                    ->findOrFail($resource->id);
+
                 // Check if landing page already exists - INSIDE transaction
                 // Use lockForUpdate to prevent race conditions with concurrent requests
                 $existingLandingPage = LandingPage::where('resource_id', $resource->id)
@@ -327,7 +332,7 @@ class LandingPageController extends Controller
                     $createData['downloads_unavailable'] = false;
                 }
 
-                $landingPage = $resource->landingPage()->create($createData);
+                $landingPage = $lockedResource->landingPage()->create($createData);
 
                 // Create additional links inside the transaction for atomicity
                 if (! empty($validated['links']) && $validated['template'] !== 'external' && ! in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
@@ -452,150 +457,163 @@ class LandingPageController extends Controller
 
         $validated = $request->validated();
 
-        $resource->loadMissing('resourceType');
+        // Wrap all mutations in a transaction for atomicity.
+        // The resource and landing page are locked in that order so all effective
+        // values are derived from the current serialized state rather than the
+        // route-bound snapshot used for the initial authorization check.
+        /** @var JsonResponse|array{resource: Resource, landing_page: LandingPage, became_published: bool} $updateResult */
+        $updateResult = DB::transaction(function () use ($resource, $validated): JsonResponse|array {
+            /** @var Resource $lockedResource */
+            $lockedResource = Resource::query()
+                ->with('resourceType')
+                ->lockForUpdate()
+                ->findOrFail($resource->id);
 
-        if (isset($validated['template'])) {
-            if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $resource->resourceType?->slug)) {
-                return response()->json([
-                    'message' => $templateError,
-                    'error' => 'invalid_template_for_resource_type',
-                ], 422);
-            }
-        }
+            /** @var LandingPage $lockedLandingPage */
+            $lockedLandingPage = LandingPage::query()
+                ->where('resource_id', $lockedResource->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $effectiveTemplate = array_key_exists('template', $validated)
-            ? $validated['template']
-            : LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resource->resourceType?->slug);
-        $templateChanged = $effectiveTemplate !== $landingPage->template;
-
-        if (array_key_exists('template', $validated) || $templateChanged) {
-            $unsupportedFields = self::unsupportedFieldErrorsForTemplate($validated, $effectiveTemplate);
-
-            if ($unsupportedFields !== []) {
-                return response()->json([
-                    'message' => 'The request includes fields that are not supported for this landing page template.',
-                    'errors' => $unsupportedFields,
-                ], 422);
-            }
-        }
-
-        $effectiveLandingPageTemplateId = null;
-
-        if (self::templateSupportsCustomTemplateId($effectiveTemplate)) {
-            $effectiveLandingPageTemplateId = array_key_exists('landing_page_template_id', $validated)
-                ? $validated['landing_page_template_id']
-                : $landingPage->landing_page_template_id;
-
-            if ($customTemplateError = LandingPageTemplate::customTemplateScopeError($effectiveLandingPageTemplateId, $resource->resourceType?->slug)) {
-                if (array_key_exists('landing_page_template_id', $validated)) {
+            if (isset($validated['template'])) {
+                if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $lockedResource->resourceType?->slug)) {
                     return response()->json([
-                        'message' => $customTemplateError,
+                        'message' => $templateError,
                         'error' => 'invalid_template_for_resource_type',
                     ], 422);
                 }
-
-                $effectiveLandingPageTemplateId = null;
             }
-        }
 
-        // Determine requested publication status change (if any).
-        // Support both 'status' (preferred) and 'is_published' (legacy) fields.
-        $currentlyPublished = $landingPage->isPublished();
-        $requestedStatus = null;
+            $effectiveTemplate = array_key_exists('template', $validated)
+                ? $validated['template']
+                : LandingPageTemplate::normalizeBuiltInTemplateForResource($lockedLandingPage->template, $lockedResource->resourceType?->slug);
+            $templateChanged = $effectiveTemplate !== $lockedLandingPage->template;
 
-        if (isset($validated['status'])) {
-            $requestedStatus = $validated['status'] === 'published';
-        } elseif (isset($validated['is_published'])) {
-            $requestedStatus = $validated['is_published'];
-        }
+            if (array_key_exists('template', $validated) || $templateChanged) {
+                $unsupportedFields = self::unsupportedFieldErrorsForTemplate($validated, $effectiveTemplate);
 
-        // Validate publication status BEFORE saving any changes.
-        // This ensures atomicity: if unpublishing is not allowed, no changes are persisted.
-        // IMPORTANT: Published landing pages cannot be unpublished because DOIs are persistent
-        // and must always resolve to a valid landing page.
-        if ($requestedStatus !== null && $currentlyPublished && ! $requestedStatus) {
-            return response()->json([
-                'message' => 'Cannot unpublish a published landing page. DOIs are persistent and must always resolve to a valid landing page.',
-                'error' => 'cannot_unpublish',
-            ], 422);
-        }
+                if ($unsupportedFields !== []) {
+                    return response()->json([
+                        'message' => 'The request includes fields that are not supported for this landing page template.',
+                        'errors' => $unsupportedFields,
+                    ], 422);
+                }
+            }
 
-        // Wrap all mutations in a transaction for atomicity.
-        // This ensures the landing page + links are updated together.
-        DB::transaction(function () use ($landingPage, $validated, $effectiveLandingPageTemplateId, $effectiveTemplate, $templateChanged): void {
+            $effectiveLandingPageTemplateId = null;
+
+            if (self::templateSupportsCustomTemplateId($effectiveTemplate)) {
+                $effectiveLandingPageTemplateId = array_key_exists('landing_page_template_id', $validated)
+                    ? $validated['landing_page_template_id']
+                    : $lockedLandingPage->landing_page_template_id;
+
+                if ($customTemplateError = LandingPageTemplate::customTemplateScopeError($effectiveLandingPageTemplateId, $lockedResource->resourceType?->slug)) {
+                    if (array_key_exists('landing_page_template_id', $validated)) {
+                        return response()->json([
+                            'message' => $customTemplateError,
+                            'error' => 'invalid_template_for_resource_type',
+                        ], 422);
+                    }
+
+                    $effectiveLandingPageTemplateId = null;
+                }
+            }
+
+            // Support both 'status' (preferred) and 'is_published' (legacy) fields.
+            $requestedStatus = null;
+
+            if (isset($validated['status'])) {
+                $requestedStatus = $validated['status'] === 'published';
+            } elseif (isset($validated['is_published'])) {
+                $requestedStatus = $validated['is_published'];
+            }
+
+            $currentlyPublished = $lockedLandingPage->isPublished();
+
+            // Published landing pages cannot be unpublished because DOIs are
+            // persistent and must always resolve to a valid landing page.
+            if ($requestedStatus !== null && $currentlyPublished && ! $requestedStatus) {
+                return response()->json([
+                    'message' => 'Cannot unpublish a published landing page. DOIs are persistent and must always resolve to a valid landing page.',
+                    'error' => 'cannot_unpublish',
+                ], 422);
+            }
+
+            $becamePublished = $requestedStatus !== null && $requestedStatus && ! $currentlyPublished;
+
             // Update template and ftp_url if provided
             // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
             if ($templateChanged) {
-                $landingPage->template = $effectiveTemplate;
+                $lockedLandingPage->template = $effectiveTemplate;
             }
 
             if (self::templateSupportsCustomTemplateId($effectiveTemplate)) {
-                $landingPage->landing_page_template_id = $effectiveLandingPageTemplateId;
+                $lockedLandingPage->landing_page_template_id = $effectiveLandingPageTemplateId;
             } else {
-                $landingPage->landing_page_template_id = null;
+                $lockedLandingPage->landing_page_template_id = null;
             }
 
             if (self::templateSupportsFtpUrl($effectiveTemplate) && array_key_exists('ftp_url', $validated)) {
-                $landingPage->ftp_url = $validated['ftp_url'];
+                $lockedLandingPage->ftp_url = $validated['ftp_url'];
             } elseif (! self::templateSupportsFtpUrl($effectiveTemplate)) {
-                $landingPage->ftp_url = null;
+                $lockedLandingPage->ftp_url = null;
             }
 
             if (self::templateSupportsFtpUrl($effectiveTemplate) && array_key_exists('primary_download_label', $validated)) {
-                $landingPage->primary_download_label = self::normalizeOptionalLabel($validated['primary_download_label']);
+                $lockedLandingPage->primary_download_label = self::normalizeOptionalLabel($validated['primary_download_label']);
             } elseif (! self::templateSupportsFtpUrl($effectiveTemplate)) {
-                $landingPage->primary_download_label = null;
+                $lockedLandingPage->primary_download_label = null;
             }
 
-            if (empty($landingPage->ftp_url)) {
-                $landingPage->primary_download_label = null;
+            if (empty($lockedLandingPage->ftp_url)) {
+                $lockedLandingPage->primary_download_label = null;
             }
 
-            if (self::templateSupportsFtpUrl($effectiveTemplate) && ! empty($landingPage->ftp_url)) {
+            if (self::templateSupportsFtpUrl($effectiveTemplate) && ! empty($lockedLandingPage->ftp_url)) {
                 if (array_key_exists('ftp_format_id', $validated)) {
-                    $landingPage->ftp_format_id = $validated['ftp_format_id'];
+                    $lockedLandingPage->ftp_format_id = $validated['ftp_format_id'];
                 }
                 if (array_key_exists('ftp_size_id', $validated)) {
-                    $landingPage->ftp_size_id = $validated['ftp_size_id'];
+                    $lockedLandingPage->ftp_size_id = $validated['ftp_size_id'];
                 }
             } else {
-                $landingPage->ftp_format_id = null;
-                $landingPage->ftp_size_id = null;
+                $lockedLandingPage->ftp_format_id = null;
+                $lockedLandingPage->ftp_size_id = null;
             }
 
             if (self::templateSupportsDownloadsUnavailable($effectiveTemplate)) {
                 if (array_key_exists('downloads_unavailable', $validated)) {
-                    $landingPage->downloads_unavailable = $validated['downloads_unavailable'];
+                    $lockedLandingPage->downloads_unavailable = $validated['downloads_unavailable'];
                 }
             } else {
-                $landingPage->downloads_unavailable = false;
+                $lockedLandingPage->downloads_unavailable = false;
             }
 
             // Update external landing page fields
             if (self::templateSupportsExternalFields($effectiveTemplate)) {
                 if (array_key_exists('external_domain_id', $validated)) {
-                    $landingPage->external_domain_id = $validated['external_domain_id'];
+                    $lockedLandingPage->external_domain_id = $validated['external_domain_id'];
                 }
                 if (array_key_exists('external_path', $validated)) {
-                    $landingPage->external_path = $validated['external_path'];
+                    $lockedLandingPage->external_path = $validated['external_path'];
                 }
                 // Clear FTP URL for external pages (not relevant)
-                $landingPage->ftp_url = null;
-                $landingPage->primary_download_label = null;
-                $landingPage->ftp_format_id = null;
-                $landingPage->ftp_size_id = null;
-                $landingPage->downloads_unavailable = false;
+                $lockedLandingPage->ftp_url = null;
+                $lockedLandingPage->primary_download_label = null;
+                $lockedLandingPage->ftp_format_id = null;
+                $lockedLandingPage->ftp_size_id = null;
+                $lockedLandingPage->downloads_unavailable = false;
             } else {
                 // Clear external fields when switching away from external template
-                $landingPage->external_domain_id = null;
-                $landingPage->external_path = null;
+                $lockedLandingPage->external_domain_id = null;
+                $lockedLandingPage->external_path = null;
             }
 
-            $landingPage->save();
+            $lockedLandingPage->save();
 
             if (array_key_exists('files', $validated) && is_array($validated['files'])) {
                 foreach ($validated['files'] as $fileData) {
-                    $file = $landingPage->files()
+                    $file = $lockedLandingPage->files()
                         ->whereKey((int) $fileData['id'])
                         ->firstOrFail();
                     $file->fill([
@@ -612,22 +630,39 @@ class LandingPageController extends Controller
             // Sync additional links: determine once whether this template supports links
             if (! self::templateSupportsLinks($effectiveTemplate)) {
                 // Template does not support links – clear any existing ones
-                $landingPage->links()->delete();
+                $lockedLandingPage->links()->delete();
             } elseif (array_key_exists('links', $validated)) {
                 // Template supports links and payload includes link data – replace all
-                $landingPage->links()->delete();
+                $lockedLandingPage->links()->delete();
 
                 if (! empty($validated['links'])) {
-                    $landingPage->links()->createMany(self::normalizeContentDescriptorLinks($validated['links']));
+                    $lockedLandingPage->links()->createMany(self::normalizeContentDescriptorLinks($validated['links']));
                 }
             }
+
+            // Keep publication in the resource-locked transaction so a concurrent
+            // DOI mutation either finishes before publication or re-checks the
+            // newly published state after acquiring the same lock.
+            if ($becamePublished) {
+                $lockedLandingPage->publish();
+            }
+
+            return [
+                'resource' => $lockedResource,
+                'landing_page' => $lockedLandingPage,
+                'became_published' => $becamePublished,
+            ];
         });
 
-        $becamePublished = $requestedStatus !== null && $requestedStatus && ! $currentlyPublished;
+        if ($updateResult instanceof JsonResponse) {
+            return $updateResult;
+        }
 
-        // Handle publication status change: allow publishing a draft
+        $lockedResource = $updateResult['resource'];
+        $landingPage = $updateResult['landing_page'];
+        $becamePublished = $updateResult['became_published'];
+
         if ($becamePublished) {
-            $landingPage->publish();
             $this->keywordService->invalidateCache();
             $this->invalidatePortalFacets();
         }
@@ -641,7 +676,7 @@ class LandingPageController extends Controller
 
         return response()->json([
             'message' => 'Landing page updated successfully',
-            'landing_page' => self::serializeLandingPagePayload($resource, $freshLandingPage),
+            'landing_page' => self::serializeLandingPagePayload($lockedResource, $freshLandingPage),
         ]);
     }
 

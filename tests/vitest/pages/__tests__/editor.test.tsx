@@ -217,6 +217,11 @@ describe('Editor page', () => {
         await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialDoi: '10.1234/xyz' })));
     });
 
+    it('passes the server-provided DOI edit capability to DataCiteForm', async () => {
+        render(<Editor googleMapsApiKey="test-api-key" canEditDoi={true} />);
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ canEditDoi: true })));
+    });
+
     it('passes year to DataCiteForm when provided', async () => {
         render(<Editor googleMapsApiKey="test-api-key" year="2024" />);
         await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialYear: '2024' })));
