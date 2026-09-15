@@ -91,10 +91,14 @@ it('migrates existing IGSN layouts into visible and hidden zones without losing 
 
     $migration->down();
     $rolledBack = DB::table('landing_page_templates')->find($igsn->id);
+    $rolledBackDefault = DB::table('landing_page_templates')->find($default->id);
+    $rolledBackVisibleDrilling = DB::table('landing_page_templates')->find($visibleDrillingIgsn->id);
 
     expect(Schema::hasColumn('landing_page_templates', 'hidden_sections'))->toBeFalse()
         ->and(Schema::hasColumn('landing_page_templates', 'show_igsn_drilling'))->toBeTrue()
         ->and((bool) $rolledBack->show_igsn_drilling)->toBeFalse()
+        ->and((bool) $rolledBackDefault->show_igsn_drilling)->toBeTrue()
+        ->and((bool) $rolledBackVisibleDrilling->show_igsn_drilling)->toBeTrue()
         ->and(decodeLandingPageTemplateOrder($rolledBack->left_column_order))->not->toContain('map', 'version_notice')
         ->and(decodeLandingPageTemplateOrder($rolledBack->right_column_order))->not->toContain('map', 'version_notice');
 

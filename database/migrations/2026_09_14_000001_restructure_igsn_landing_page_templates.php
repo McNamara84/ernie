@@ -129,13 +129,13 @@ return new class extends Migration
 
         DB::table('landing_page_templates')
             ->where('template_type', LandingPageTemplate::TEMPLATE_TYPE_IGSN)
-            ->select(['id', 'left_column_order', 'right_column_order', 'hidden_sections'])
+            ->select(['id', 'is_default', 'left_column_order', 'right_column_order', 'hidden_sections'])
             ->orderBy('id')
             ->each(function (object $row): void {
                 $left = $this->decodeOrder($row->left_column_order);
                 $right = $this->decodeOrder($row->right_column_order);
                 $hidden = $this->decodeOrder($row->hidden_sections);
-                $showDrilling = ! in_array('igsn_drilling', $hidden, true);
+                $showDrilling = (bool) $row->is_default || ! in_array('igsn_drilling', $hidden, true);
                 $visibleAndHidden = [...$left, ...$right, ...$hidden];
 
                 $legacyLeft = $this->orderedSubset($visibleAndHidden, self::LEGACY_LEFT);
