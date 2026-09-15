@@ -10,8 +10,10 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
+use App\Policies\LandingPagePolicy;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 covers(LandingPageController::class);
 
@@ -234,6 +236,51 @@ describe('Landing Page Updates', function () {
         expect($this->landingPage->fresh())
             ->ftp_url->toBe('https://datapub.gfz-potsdam.de/download/updated.zip')
             ->primary_download_label->toBe('Download updated package');
+    });
+
+    test('derives partial update behavior from the locked landing page state', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://concurrent.example.org/')->create();
+        $landingPageId = $this->landingPage->id;
+
+        $policy = Mockery::mock(LandingPagePolicy::class);
+        $policy->shouldReceive('update')
+            ->once()
+            ->andReturnUsing(function (User $user, LandingPage $routeBoundLandingPage) use ($domain, $landingPageId): bool {
+                expect($routeBoundLandingPage->template)->toBe('default_gfz');
+
+                // Simulate a concurrent partial update that commits after route
+                // binding but before the controller acquires its row locks.
+                DB::table('landing_pages')
+                    ->where('id', $landingPageId)
+                    ->update([
+                        'template' => 'external',
+                        'external_domain_id' => $domain->id,
+                        'external_path' => '/datasets/concurrent',
+                        'ftp_url' => null,
+                        'primary_download_label' => null,
+                        'ftp_format_id' => null,
+                        'ftp_size_id' => null,
+                        'downloads_unavailable' => false,
+                        'updated_at' => now(),
+                    ]);
+
+                return true;
+            });
+        $this->app->instance(LandingPagePolicy::class, $policy);
+
+        $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'downloads_unavailable' => true,
+            'status' => 'draft',
+        ])->assertOk()
+            ->assertJsonPath('landing_page.template', 'external')
+            ->assertJsonPath('landing_page.external_url', 'https://concurrent.example.org/datasets/concurrent')
+            ->assertJsonPath('landing_page.downloads_unavailable', false);
+
+        expect($this->landingPage->fresh())
+            ->template->toBe('external')
+            ->external_domain_id->toBe($domain->id)
+            ->external_path->toBe('/datasets/concurrent')
+            ->downloads_unavailable->toBeFalse();
     });
 
     test('preserves a primary label when omitted and clears it together with its URL', function () {

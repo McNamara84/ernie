@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use App\Enums\AccessLevel;
 use App\Enums\EditorDraftSaveIntent;
+use App\Http\Requests\Concerns\AuthorizesResourceDoiChanges;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
 use App\Models\RelatedIdentifier;
@@ -32,6 +33,7 @@ use Illuminate\Validation\Validator;
  */
 class StoreDraftResourceRequest extends FormRequest
 {
+    use AuthorizesResourceDoiChanges;
     use ValidatesEditorDates;
     use ValidatesTemporalCoverages;
 
@@ -49,7 +51,7 @@ class StoreDraftResourceRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return true;
+        return $this->isResourceDoiChangeAuthorized();
     }
 
     /**
@@ -229,6 +231,8 @@ class StoreDraftResourceRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $hasDoiInput = $this->has('doi');
+
         if (! $this->has('intent')) {
             // Backwards-compatible default for explicit draft saves. Browser
             // autosave and landing-page preview always send their own intent.
@@ -835,7 +839,7 @@ class StoreDraftResourceRequest extends FormRequest
         }
 
         $this->merge([
-            'doi' => $this->normalizeDoiInput($this->input('doi')),
+            ...($hasDoiInput ? ['doi' => $this->normalizeDoiInput($this->input('doi'))] : []),
             'year' => $this->filled('year') ? (int) $this->input('year') : null,
             'resourceType' => $this->filled('resourceType') ? (int) $this->input('resourceType') : null,
             'version' => $this->filled('version') ? trim((string) $this->input('version')) : null,

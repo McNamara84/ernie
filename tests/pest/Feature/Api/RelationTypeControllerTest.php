@@ -10,10 +10,10 @@ uses(RefreshDatabase::class);
 beforeEach(function (): void {
     config(['services.ernie.api_key' => 'test-api-key']);
 
-    RelationType::create(['name' => 'Cites', 'slug' => 'Cites', 'is_active' => true, 'is_elmo_active' => true]);
-    RelationType::create(['name' => 'IsCitedBy', 'slug' => 'IsCitedBy', 'is_active' => true, 'is_elmo_active' => false]);
-    RelationType::create(['name' => 'References', 'slug' => 'References', 'is_active' => false, 'is_elmo_active' => true]);
-    RelationType::create(['name' => 'IsReferencedBy', 'slug' => 'IsReferencedBy', 'is_active' => false, 'is_elmo_active' => false]);
+    RelationType::create(['name' => 'Cites', 'slug' => 'Cites', 'description' => 'Indicates that A includes B in a citation', 'is_active' => true, 'is_elmo_active' => true]);
+    RelationType::create(['name' => 'IsCitedBy', 'slug' => 'IsCitedBy', 'description' => 'Indicates that B includes A in a citation', 'is_active' => true, 'is_elmo_active' => false]);
+    RelationType::create(['name' => 'References', 'slug' => 'References', 'description' => 'Indicates B is used as a source of information for A', 'is_active' => false, 'is_elmo_active' => true]);
+    RelationType::create(['name' => 'Custom Relation', 'slug' => 'CustomRelation', 'description' => null, 'is_active' => false, 'is_elmo_active' => false]);
 });
 
 describe('GET /api/v1/relation-types', function (): void {
@@ -27,7 +27,15 @@ describe('GET /api/v1/relation-types', function (): void {
     test('returns correct structure', function (): void {
         $this->getJson('/api/v1/relation-types')
             ->assertOk()
-            ->assertJsonStructure([['id', 'name', 'slug']]);
+            ->assertJsonStructure([['id', 'name', 'slug', 'description']])
+            ->assertJsonFragment([
+                'slug' => 'Cites',
+                'description' => 'Indicates that A includes B in a citation',
+            ])
+            ->assertJsonFragment([
+                'slug' => 'CustomRelation',
+                'description' => null,
+            ]);
     });
 });
 
@@ -39,7 +47,10 @@ describe('GET /api/v1/relation-types/ernie', function (): void {
 
         $slugs = collect($response->json())->pluck('slug')->all();
         expect($slugs)->toContain('Cites', 'IsCitedBy')
-            ->not->toContain('References', 'IsReferencedBy');
+            ->not->toContain('References', 'CustomRelation');
+
+        expect(collect($response->json())->firstWhere('slug', 'IsCitedBy')['description'])
+            ->toBe('Indicates that B includes A in a citation');
     });
 });
 
@@ -53,7 +64,9 @@ describe('GET /api/v1/relation-types/elmo', function (): void {
 
         $slugs = collect($response->json())->pluck('slug')->all();
         expect($slugs)->toContain('Cites')
-            ->not->toContain('IsCitedBy', 'References', 'IsReferencedBy');
+            ->not->toContain('IsCitedBy', 'References', 'CustomRelation');
+
+        expect($response->json('0.description'))->toBe('Indicates that A includes B in a citation');
     });
 
     test('rejects request without API key', function (): void {

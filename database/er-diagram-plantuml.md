@@ -77,6 +77,7 @@ entity "identifier_types" as identifier_types {
     --
     * name : VARCHAR
     * slug : VARCHAR <<UK>>
+    description : TEXT //nullable, official DataCite 4.7 definition//
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
     created_at : TIMESTAMP
@@ -100,6 +101,7 @@ entity "relation_types" as relation_types {
     --
     * name : VARCHAR
     * slug : VARCHAR <<UK>>
+    description : TEXT //nullable, official DataCite 4.7 definition//
     * is_active : BOOLEAN
     * is_elmo_active : BOOLEAN
     created_at : TIMESTAMP

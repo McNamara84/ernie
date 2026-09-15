@@ -20,6 +20,7 @@ use App\Services\Editor\EditorResourceSaveService;
 use App\Services\Resources\DeleteAllResourcesService;
 use App\Services\Resources\ResourceListingPayloadService;
 use App\Services\Resources\ResourceQueryBuilder;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -118,8 +119,10 @@ class ResourceController extends Controller
         try {
             [$resource, $isUpdate] = $this->editorResourceSaveService->saveValidated(
                 $request->validated(),
-                $request->user()?->id
+                $request->user(),
             );
+        } catch (AuthorizationException $exception) {
+            throw $exception;
         } catch (ValidationException $exception) {
             return response()->json([
                 'message' => 'Unable to save resource. Please review the highlighted issues.',
@@ -151,6 +154,7 @@ class ResourceController extends Controller
             'resource' => [
                 'id' => $resource->id,
                 'publicStatus' => $resource->publicStatus(),
+                'canEditDoi' => $request->user()?->can('editDoi', $resource) ?? false,
             ],
         ], $status);
     }
@@ -169,9 +173,11 @@ class ResourceController extends Controller
 
             [$resource, $isUpdate] = $this->editorResourceSaveService->saveRelaxed(
                 $validated,
-                $request->user()?->id,
+                $request->user(),
                 $intent,
             );
+        } catch (AuthorizationException $exception) {
+            throw $exception;
         } catch (ValidationException $exception) {
             return response()->json([
                 'message' => 'Unable to save draft. Please review the highlighted issues.',
@@ -205,6 +211,7 @@ class ResourceController extends Controller
             'resource' => [
                 'id' => $resource->id,
                 'publicStatus' => $resource->publicStatus(),
+                'canEditDoi' => $request->user()?->can('editDoi', $resource) ?? false,
             ],
         ], $status);
     }

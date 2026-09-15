@@ -4422,9 +4422,14 @@
                         "type": "string",
                         "description": "Machine-readable slug matching the DataCite schema value",
                         "example": "Cites"
+                    },
+                    "description": {
+                        "type": ["string", "null"],
+                        "description": "Official DataCite 4.7 definition of the relation type",
+                        "example": "Indicates that A includes B in a citation"
                     }
                 },
-                "required": ["id", "name", "slug"]
+                "required": ["id", "name", "slug", "description"]
             },
             "IdentifierType": {
                 "type": "object",
@@ -4444,6 +4449,11 @@
                         "type": "string",
                         "description": "Machine-readable slug matching the DataCite schema value",
                         "example": "DOI"
+                    },
+                    "description": {
+                        "type": ["string", "null"],
+                        "description": "Official DataCite 4.7 description of the identifier type",
+                        "example": "A character string used to uniquely identify an object. A DOI name is divided into two parts, a prefix and a suffix, separated by a slash."
                     },
                     "patterns": {
                         "type": "object",
@@ -4467,7 +4477,7 @@
                         "required": ["validation", "detection"]
                     }
                 },
-                "required": ["id", "name", "slug", "patterns"]
+                "required": ["id", "name", "slug", "description", "patterns"]
             },
             "IdentifierTypePattern": {
                 "type": "object",

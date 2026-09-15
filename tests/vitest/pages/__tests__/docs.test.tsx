@@ -1313,6 +1313,20 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('documents role-dependent DOI editing before and after publication', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByRole('heading', { name: 'Editing the Resource DOI', level: 4 })).toBeInTheDocument();
+        expect(screen.getByText(/Admins, Group Leaders, and Curators can enter, replace, or remove the DOI/i)).toBeInTheDocument();
+        expect(screen.getByText(/Beginners cannot change the DOI field of a saved resource/i)).toBeInTheDocument();
+        expect(screen.getByText(/A public landing page may be prepared before DOI registration/i)).toBeInTheDocument();
+        expect(
+            screen.getByText(/Once a resource has both a DOI and a public landing page, only Admins can change or remove that DOI/i),
+        ).toBeInTheDocument();
+    });
+
     it('shows the beginner note for test DOI registration only', async () => {
         const { user } = renderDocsPage('beginner');
 

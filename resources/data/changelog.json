@@ -61,6 +61,17 @@
                 ]
             },
             {
+                "title": "Self-Describing Related Work Types",
+                "description": "All relation-type and related-identifier-type API responses now include the official DataCite 4.7 definition for each standard value. ELMO and other API consumers can therefore display consistent contextual help from the same versioned source without maintaining a separate name-based definition mapping.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1306,
+                        "url": "https://github.com/McNamara84/ernie/issues/1306"
+                    }
+                ]
+            },
+            {
                 "title": "Faster Datacenter Filtering",
                 "description": "Datacenter filters in the Data and IGSN Portals now list their alphabetically ordered options and current resource counts directly after the section is opened. The inline search, checkboxes, and removable selection chips replace the additional scrollable popup, reducing the interaction to one expansion on desktop and mobile while preserving multi-selection and shared URLs.",
                 "references": [
@@ -181,6 +192,17 @@
             }
         ],
         "fixes": [
+            {
+                "title": "DOI Corrections Before Publication",
+                "description": "Admins, Group Leaders, and Curators can now enter, replace, or remove a saved resource DOI before DOI publication, including the pre-registration state where its landing page is already public. Changes to a DOI on a public landing page remain restricted to Admins, Beginners cannot alter the DOI field of saved resources, and transaction-level permission checks protect validated saves, draft saves, autosaves, and landing page previews.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1315,
+                        "url": "https://github.com/McNamara84/ernie/issues/1315"
+                    }
+                ]
+            },
             {
                 "title": "Unobstructed Data Editor Actions",
                 "description": "The Data Editor no longer shows the redundant global footer in its loading, error, or ready states. Its fixed action buttons therefore no longer cover version, About, or Legal Notice links at the bottom of the page, while Changelog remains available from the sidebar and other pages retain their footer.",

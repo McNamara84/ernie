@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
 use App\Models\Resource;
@@ -27,6 +28,50 @@ test('authenticated users can view editor page', function () {
         ->where('initialLicenses', [])
     );
 });
+
+test('editor exposes DOI edit permission for an unpublished resource', function (UserRole $role, bool $expected) {
+    $user = User::factory()->create(['role' => $role]);
+    $resource = Resource::factory()->withDoi('10.5880/editor.permission.draft')->create();
+    LandingPage::factory()->for($resource)->draft()->withDoi((string) $resource->doi)->create();
+
+    withoutVite();
+
+    $this->actingAs($user);
+
+    loadExistingResourceInEditor($this, $resource->id)
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('editor')
+            ->where('canEditDoi', $expected)
+        );
+})->with([
+    'admin' => [UserRole::ADMIN, true],
+    'group leader' => [UserRole::GROUP_LEADER, true],
+    'curator' => [UserRole::CURATOR, true],
+    'beginner' => [UserRole::BEGINNER, false],
+]);
+
+test('editor exposes DOI edit permission for a published resource', function (UserRole $role, bool $expected) {
+    $user = User::factory()->create(['role' => $role]);
+    $resource = Resource::factory()->withDoi('10.5880/editor.permission.published')->create();
+    LandingPage::factory()->for($resource)->published()->withDoi((string) $resource->doi)->create();
+
+    withoutVite();
+
+    $this->actingAs($user);
+
+    loadExistingResourceInEditor($this, $resource->id)
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('editor')
+            ->where('canEditDoi', $expected)
+        );
+})->with([
+    'admin' => [UserRole::ADMIN, true],
+    'group leader' => [UserRole::GROUP_LEADER, false],
+    'curator' => [UserRole::CURATOR, false],
+    'beginner' => [UserRole::BEGINNER, false],
+]);
 
 test('editor exposes draft landing page preview summary for existing resource', function () {
     $user = User::factory()->create();
