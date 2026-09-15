@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\Datacenter;
 use App\Models\LandingPageTemplate;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -157,4 +158,48 @@ it('is safe to rerun in either migration direction', function (): void {
     expect(Schema::hasColumn('landing_page_templates', 'hidden_sections'))->toBeFalse();
 
     $migration->up();
+});
+
+it('resumes a partially completed migration without changing converted layouts', function (): void {
+    $migration = loadLandingPageTemplateIgsnLayoutMigration();
+    $convertedLeft = ['general', 'map', 'citation'];
+    $convertedRight = ['version_notice', 'creators'];
+    $convertedHidden = array_values(array_diff(
+        LandingPageTemplate::IGSN_SECTIONS,
+        [...$convertedLeft, ...$convertedRight],
+    ));
+    $converted = LandingPageTemplate::factory()->igsn()->create([
+        'left_column_order' => $convertedLeft,
+        'right_column_order' => $convertedRight,
+        'hidden_sections' => $convertedHidden,
+    ]);
+    $legacy = LandingPageTemplate::factory()->igsn()->create();
+
+    Schema::table('landing_page_templates', function (Blueprint $table): void {
+        $table->boolean('show_igsn_drilling')->default(true)->after('citation_author_display_limit');
+    });
+    DB::table('landing_page_templates')->where('id', $legacy->id)->update([
+        'left_column_order' => json_encode(['general', 'location', 'igsn_drilling'], JSON_THROW_ON_ERROR),
+        'right_column_order' => json_encode(['contributors', 'creators'], JSON_THROW_ON_ERROR),
+        'hidden_sections' => null,
+        'show_igsn_drilling' => false,
+    ]);
+
+    $migration->up();
+
+    $convertedRow = DB::table('landing_page_templates')->find($converted->id);
+    $legacyRow = DB::table('landing_page_templates')->find($legacy->id);
+    $legacyLeft = decodeLandingPageTemplateOrder($legacyRow->left_column_order);
+    $legacyRight = decodeLandingPageTemplateOrder($legacyRow->right_column_order);
+    $legacyHidden = decodeLandingPageTemplateOrder($legacyRow->hidden_sections);
+
+    expect(Schema::hasColumn('landing_page_templates', 'show_igsn_drilling'))->toBeFalse()
+        ->and(decodeLandingPageTemplateOrder($convertedRow->left_column_order))->toBe($convertedLeft)
+        ->and(decodeLandingPageTemplateOrder($convertedRow->right_column_order))->toBe($convertedRight)
+        ->and(decodeLandingPageTemplateOrder($convertedRow->hidden_sections))->toBe($convertedHidden)
+        ->and($legacyLeft)->toBe(['general', 'location', 'map'])
+        ->and($legacyRight)->toBe(['version_notice', 'contributors', 'creators'])
+        ->and($legacyHidden)->toContain('igsn_drilling')
+        ->and([...$legacyLeft, ...$legacyRight, ...$legacyHidden])->toHaveCount(count(LandingPageTemplate::IGSN_SECTIONS))
+        ->and(array_unique([...$legacyLeft, ...$legacyRight, ...$legacyHidden]))->toHaveCount(count(LandingPageTemplate::IGSN_SECTIONS));
 });

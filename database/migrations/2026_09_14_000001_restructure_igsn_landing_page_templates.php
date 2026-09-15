@@ -59,11 +59,15 @@ return new class extends Migration
         }
 
         DB::table('landing_page_templates')
-            ->select(['id', 'is_default', 'template_type', 'left_column_order', 'right_column_order', 'show_igsn_drilling'])
+            ->select(['id', 'is_default', 'template_type', 'left_column_order', 'right_column_order', 'hidden_sections', 'show_igsn_drilling'])
             ->orderBy('id')
             ->each(function (object $row): void {
+                $left = $this->decodeOrder($row->left_column_order);
+                $right = $this->decodeOrder($row->right_column_order);
+                $hidden = $this->decodeOrder($row->hidden_sections);
+
                 if ($row->template_type !== LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
-                    $this->updateLayout((int) $row->id, $this->decodeOrder($row->left_column_order), $this->decodeOrder($row->right_column_order), []);
+                    $this->updateLayout((int) $row->id, $left, $right, []);
 
                     return;
                 }
@@ -79,10 +83,14 @@ return new class extends Migration
                     return;
                 }
 
-                [$left, $right] = $this->uniqueKnownLayout(
-                    $this->decodeOrder($row->left_column_order),
-                    $this->decodeOrder($row->right_column_order),
-                );
+                if ($this->hasNewLayoutSection($left, $right, $hidden)) {
+                    [$left, $right, $hidden] = $this->normalizeNewLayout($left, $right, $hidden);
+                    $this->updateLayout((int) $row->id, $left, $right, $hidden);
+
+                    return;
+                }
+
+                [$left, $right] = $this->uniqueKnownLayout($left, $right);
 
                 if (! (bool) $row->show_igsn_drilling) {
                     $left = $this->without($left, 'igsn_drilling');
@@ -174,6 +182,61 @@ return new class extends Migration
         };
 
         return [$filter($left), $filter($right)];
+    }
+
+    /** @param list<string> $left
+     * @param  list<string>  $right
+     * @param  list<string>  $hidden
+     */
+    private function hasNewLayoutSection(array $left, array $right, array $hidden): bool
+    {
+        $sections = [...$left, ...$right, ...$hidden];
+
+        return in_array('map', $sections, true) || in_array('version_notice', $sections, true);
+    }
+
+    /** @param list<string> $left
+     * @param  list<string>  $right
+     * @param  list<string>  $hidden
+     * @return array{list<string>, list<string>, list<string>}
+     */
+    private function normalizeNewLayout(array $left, array $right, array $hidden): array
+    {
+        $known = array_fill_keys(self::NEW_SECTIONS, true);
+        $seen = [];
+        $filter = static function (array $sections, bool $allowVersionNotice = true) use ($known, &$seen): array {
+            $result = [];
+            foreach ($sections as $section) {
+                if ((! $allowVersionNotice && $section === 'version_notice')
+                    || ! isset($known[$section])
+                    || isset($seen[$section])) {
+                    continue;
+                }
+
+                $seen[$section] = true;
+                $result[] = $section;
+            }
+
+            return $result;
+        };
+
+        $left = $filter($left);
+        $right = $filter($right);
+        $hidden = $filter($hidden, false);
+
+        if (! isset($seen['version_notice'])) {
+            array_unshift($right, 'version_notice');
+            $seen['version_notice'] = true;
+        }
+
+        foreach (self::NEW_SECTIONS as $section) {
+            if (! isset($seen[$section])) {
+                $seen[$section] = true;
+                $hidden[] = $section;
+            }
+        }
+
+        return [$left, $right, $hidden];
     }
 
     /**
