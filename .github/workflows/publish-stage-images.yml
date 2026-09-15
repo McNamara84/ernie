@@ -183,7 +183,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push immutable application image
+      - name: Build and push application image
         id: app-build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
@@ -202,7 +202,7 @@ jobs:
             type=gha,scope=stage-app
           cache-to: type=gha,mode=max,scope=stage-app
 
-      - name: Build and push immutable Nginx image
+      - name: Build and push Nginx image
         id: nginx-build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
@@ -238,23 +238,78 @@ jobs:
             echo "Images remain available by SHA, but a newer main commit will be promoted instead."
           fi
 
-      - name: Promote immutable images to the Stage channel
+      - name: Create digest-pinned Stage deployment commit
         if: steps.latest.outputs.current == 'true'
+        id: deployment
         env:
           APP_DIGEST: ${{ steps.app-build.outputs.digest }}
           APP_IMAGE: ${{ needs.validate.outputs.app_image }}
           NGINX_DIGEST: ${{ steps.nginx-build.outputs.digest }}
           NGINX_IMAGE: ${{ needs.validate.outputs.nginx_image }}
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
         run: |
           set -euo pipefail
 
-          docker buildx imagetools create --tag "${APP_IMAGE}:stage" "${APP_IMAGE}@${APP_DIGEST}"
+          if [[ ! "$APP_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid application image digest: $APP_DIGEST" >&2
+            exit 1
+          fi
 
-          docker buildx imagetools create --tag "${NGINX_IMAGE}:stage" "${NGINX_IMAGE}@${NGINX_DIGEST}"
+          if [[ ! "$NGINX_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid Nginx image digest: $NGINX_DIGEST" >&2
+            exit 1
+          fi
 
-      - name: Advance the Stage deployment branch
+          APP_TEMPLATE="${APP_IMAGE}:deployment-template"
+          NGINX_TEMPLATE="${NGINX_IMAGE}:deployment-template"
+          APP_TEMPLATE_COUNT="$(grep -Fc "$APP_TEMPLATE" docker-compose.stage.yml)"
+          NGINX_TEMPLATE_COUNT="$(grep -Fc "$NGINX_TEMPLATE" docker-compose.stage.yml)"
+
+          if [[ "$APP_TEMPLATE_COUNT" -ne 4 || "$NGINX_TEMPLATE_COUNT" -ne 1 ]]; then
+            echo "Unexpected Stage image template count: app=$APP_TEMPLATE_COUNT nginx=$NGINX_TEMPLATE_COUNT" >&2
+            exit 1
+          fi
+
+          sed -i "s|${APP_TEMPLATE}|${APP_IMAGE}@${APP_DIGEST}|g" docker-compose.stage.yml
+          sed -i "s|${NGINX_TEMPLATE}|${NGINX_IMAGE}@${NGINX_DIGEST}|g" docker-compose.stage.yml
+
+          if grep -Fq "$APP_TEMPLATE" docker-compose.stage.yml || grep -Fq "$NGINX_TEMPLATE" docker-compose.stage.yml; then
+            echo "Stage image templates remain after digest pinning." >&2
+            exit 1
+          fi
+
+          docker compose -f docker-compose.stage.yml config --quiet
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docker-compose.stage.yml
+
+          PREVIOUS_DEPLOY_SHA="$(git ls-remote --heads origin refs/heads/deploy/stage | awk '{print $1}')"
+          PARENTS=(-p "$SOURCE_SHA")
+
+          if [[ -n "$PREVIOUS_DEPLOY_SHA" ]]; then
+            git fetch --no-tags origin \
+              "+refs/heads/deploy/stage:refs/remotes/origin/deploy/stage"
+            PARENTS=(-p "$PREVIOUS_DEPLOY_SHA")
+
+            if [[ "$PREVIOUS_DEPLOY_SHA" != "$SOURCE_SHA" ]]; then
+              PARENTS+=(-p "$SOURCE_SHA")
+            fi
+          fi
+
+          DEPLOY_TREE="$(git write-tree)"
+          DEPLOY_COMMIT="$(git commit-tree "$DEPLOY_TREE" "${PARENTS[@]}" -m "Deploy Stage from $SOURCE_SHA")"
+
+          {
+            echo "commit=$DEPLOY_COMMIT"
+            echo "previous=$PREVIOUS_DEPLOY_SHA"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Advance the digest-pinned Stage deployment branch
         if: steps.latest.outputs.current == 'true'
         env:
+          DEPLOY_COMMIT: ${{ steps.deployment.outputs.commit }}
+          PREVIOUS_DEPLOY_SHA: ${{ steps.deployment.outputs.previous }}
           SOURCE_SHA: ${{ needs.validate.outputs.sha }}
         run: |
           set -euo pipefail
@@ -262,8 +317,14 @@ jobs:
           git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
 
           if [[ "$(git rev-parse refs/remotes/origin/main)" != "$SOURCE_SHA" ]]; then
-            echo "main advanced after image promotion; leaving deploy/stage unchanged."
+            echo "main advanced while preparing the deployment commit; leaving deploy/stage unchanged."
             exit 0
           fi
 
-          git push origin "${SOURCE_SHA}:refs/heads/deploy/stage"
+          if [[ -n "$PREVIOUS_DEPLOY_SHA" ]]; then
+            DEPLOY_LEASE="--force-with-lease=refs/heads/deploy/stage:${PREVIOUS_DEPLOY_SHA}"
+          else
+            DEPLOY_LEASE="--force-with-lease=refs/heads/deploy/stage:"
+          fi
+
+          git push "$DEPLOY_LEASE" origin "${DEPLOY_COMMIT}:refs/heads/deploy/stage"

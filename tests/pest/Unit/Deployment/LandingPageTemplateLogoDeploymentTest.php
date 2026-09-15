@@ -100,7 +100,7 @@ describe('landing page template logo deployment regression guard', function () {
         'production' => 'docker-compose.prod.yml',
     ]);
 
-    it('deploys prebuilt stage images without local builds', function () use ($parsedCompose) {
+    it('uses prebuilt Stage image templates without local builds', function () use ($parsedCompose) {
         $compose = $parsedCompose('docker-compose.stage.yml');
         $services = $compose['services'] ?? null;
 
@@ -109,11 +109,11 @@ describe('landing page template logo deployment regression guard', function () {
         }
 
         $expectedImages = [
-            'app' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}',
-            'webserver' => '${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx:stage}',
-            'queue' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}',
-            'assessment-queue' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}',
-            'scheduler' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}',
+            'app' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}',
+            'webserver' => '${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx:deployment-template}',
+            'queue' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}',
+            'assessment-queue' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}',
+            'scheduler' => '${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}',
         ];
 
         foreach ($expectedImages as $serviceName => $expectedImage) {

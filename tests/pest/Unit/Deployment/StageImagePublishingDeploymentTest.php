@@ -57,6 +57,56 @@ it('publishes Stage images only after every deployment workflow passed for the s
         ->toContain('core.setFailed(message)');
 });
 
+it('publishes a digest-pinned Stage deployment with a compare-and-swap branch update', function (): void {
+    $workflowContents = file_get_contents(base_path('.github/workflows/publish-stage-images.yml'));
+    $composeContents = file_get_contents(base_path('docker-compose.stage.yml'));
+    $workflow = Yaml::parseFile(base_path('.github/workflows/publish-stage-images.yml'));
+
+    expect($workflowContents)->toBeString()
+        ->and($composeContents)->toBeString()
+        ->and(substr_count($composeContents, 'ghcr.io/mcnamara84/ernie-app:deployment-template'))->toBe(4)
+        ->and(substr_count($composeContents, 'ghcr.io/mcnamara84/ernie-nginx:deployment-template'))->toBe(1)
+        ->and($composeContents)
+        ->not->toContain('ghcr.io/mcnamara84/ernie-app:stage')
+        ->not->toContain('ghcr.io/mcnamara84/ernie-nginx:stage')
+        ->and($workflowContents)->not->toContain('docker buildx imagetools create --tag');
+
+    $publishSteps = collect($workflow['jobs']['publish']['steps'] ?? [])->keyBy('name');
+    $createDeployment = $publishSteps->get('Create digest-pinned Stage deployment commit');
+    $advanceDeployment = $publishSteps->get('Advance the digest-pinned Stage deployment branch');
+
+    expect($createDeployment)
+        ->toBeArray()
+        ->and($createDeployment['id'] ?? null)->toBe('deployment')
+        ->and($createDeployment['if'] ?? null)->toBe("steps.latest.outputs.current == 'true'")
+        ->and($createDeployment['run'] ?? null)
+        ->toBeString()
+        ->toContain('^sha256:[0-9a-f]{64}$')
+        ->toContain('APP_TEMPLATE="${APP_IMAGE}:deployment-template"')
+        ->toContain('NGINX_TEMPLATE="${NGINX_IMAGE}:deployment-template"')
+        ->toContain('docker compose -f docker-compose.stage.yml config --quiet')
+        ->toContain('git ls-remote --heads origin refs/heads/deploy/stage')
+        ->toContain('PARENTS=(-p "$PREVIOUS_DEPLOY_SHA")')
+        ->toContain('PARENTS+=(-p "$SOURCE_SHA")')
+        ->toContain('git commit-tree "$DEPLOY_TREE" "${PARENTS[@]}"')
+        ->toContain('echo "commit=$DEPLOY_COMMIT"')
+        ->toContain('echo "previous=$PREVIOUS_DEPLOY_SHA"');
+
+    expect($advanceDeployment)
+        ->toBeArray()
+        ->and($advanceDeployment['if'] ?? null)->toBe("steps.latest.outputs.current == 'true'")
+        ->and($advanceDeployment['env']['DEPLOY_COMMIT'] ?? null)
+        ->toBe('${{ steps.deployment.outputs.commit }}')
+        ->and($advanceDeployment['env']['PREVIOUS_DEPLOY_SHA'] ?? null)
+        ->toBe('${{ steps.deployment.outputs.previous }}')
+        ->and($advanceDeployment['run'] ?? null)
+        ->toBeString()
+        ->toContain('refs/heads/main:refs/remotes/origin/main')
+        ->toContain('--force-with-lease=refs/heads/deploy/stage:${PREVIOUS_DEPLOY_SHA}')
+        ->toContain('--force-with-lease=refs/heads/deploy/stage:')
+        ->toContain('${DEPLOY_COMMIT}:refs/heads/deploy/stage');
+});
+
 it('retains the null Redis password sentinel for unauthenticated Production Redis', function (): void {
     $environment = file_get_contents(base_path('.env.production'));
     $compose = Yaml::parseFile(base_path('docker-compose.prod.yml'));

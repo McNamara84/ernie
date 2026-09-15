@@ -2,8 +2,8 @@
 
 Stage does not build ERNIE images on RZ-VM182. GitHub Actions builds the
 application and Nginx images, publishes them to GitHub Container Registry
-(GHCR), and advances the machine-managed `deploy/stage` branch only after
-both images are available.
+(GHCR), and creates a machine-managed `deploy/stage` commit whose Compose file
+pins both images by immutable digest.
 
 Production is intentionally not part of this workflow. Its Compose file and
 deployment process remain unchanged until the Stage rollout has been
@@ -15,26 +15,37 @@ validated.
 2. The Security, Pest, Vitest, lint/PHPStan, and Playwright workflows validate
    the merged commit.
 3. `Publish Stage Images` verifies that all five workflows succeeded for the
-   exact current `main` commit, then builds and pushes immutable images tagged
-   `sha-<full-commit-sha>`.
-4. If the commit is still the head of `main`, the workflow updates the
-   movable `stage` image tags.
-5. Only then does the workflow fast-forward `deploy/stage` to that exact
-   `main` commit.
+   exact current `main` commit, then builds and pushes the images under
+   traceable `sha-<full-commit-sha>` tags and captures their immutable
+   digests.
+4. The workflow creates a deployment commit derived from that source commit.
+   Its Stage Compose file pins the application and Nginx images as
+   `ghcr.io/...@sha256:<digest>`.
+5. If the source commit is still the head of `main`, the workflow advances
+   `deploy/stage` to the digest-pinned deployment commit.
 6. Portainer's existing outbound Git polling detects the new
    `deploy/stage` commit and recreates the Stage services from the GHCR
    images.
 
 No developer works on or merges into `deploy/stage`. It is a deployment
-pointer maintained by GitHub Actions. A failed or superseded build never moves
-the pointer.
+pointer maintained by GitHub Actions. Its commits retain the validated source
+commit as a parent and form a linear deployment history. A compare-and-swap
+push prevents an older workflow from overwriting a newer deployment commit.
 
 The published images are:
 
-- `ghcr.io/mcnamara84/ernie-app:stage`
-- `ghcr.io/mcnamara84/ernie-nginx:stage`
 - `ghcr.io/mcnamara84/ernie-app:sha-<full-commit-sha>`
 - `ghcr.io/mcnamara84/ernie-nginx:sha-<full-commit-sha>`
+
+The generated deployment Compose file does not use mutable `stage` tags. It
+references the exact digest produced by each image build. Therefore a manual
+pull or later stack recreation cannot combine a deployment commit with images
+from another commit.
+
+The Compose file on `main` contains the deliberately unpublished
+`deployment-template` marker. It is input for the publishing workflow, not a
+direct Portainer deployment target. The workflow requires and replaces every
+marker before advancing `deploy/stage`.
 
 The `app`, `queue`, `assessment-queue`, and `scheduler` services share
 the same application image. `webserver` uses the Nginx image.
@@ -68,9 +79,9 @@ Merge the implementation into `main`. Wait for:
    `Linter Tests`, and `Playwright UI Tests` to succeed;
 2. `Publish Stage Images` to publish the validated commit.
 
-The second workflow creates the two GHCR packages, their `stage` tags, and
-the `deploy/stage` branch. It can also be started manually from the Actions
-page to retry the current `main` commit.
+The second workflow creates the two GHCR packages and the digest-pinned
+`deploy/stage` branch. It can also be started manually from the Actions page
+to retry the current `main` commit.
 
 The validation job has read-only access. Only after every deployment-blocking
 workflow succeeded for the same commit does the publish job request
@@ -111,8 +122,9 @@ Edit the Git settings of the existing stack:
 - re-pull images: enable it when the installed Portainer version exposes the
   option.
 
-The Compose file also sets `pull_policy: always`, so the current `stage`
-manifests are requested on every actual stack update.
+The Compose file also sets `pull_policy: always`. Because its generated image
+references include immutable digests, every actual stack update requests the
+exact validated manifests.
 
 Save and redeploy the stack, then re-enable automatic polling if changing the
 Git reference did not already enable it.
@@ -122,8 +134,8 @@ Git reference did not already enable it.
 Portainer must show these image references:
 
 - `app`, `queue`, `assessment-queue`, and `scheduler`:
-  `ghcr.io/mcnamara84/ernie-app:stage`;
-- `webserver`: `ghcr.io/mcnamara84/ernie-nginx:stage`.
+  `ghcr.io/mcnamara84/ernie-app@sha256:<digest>`;
+- `webserver`: `ghcr.io/mcnamara84/ernie-nginx@sha256:<digest>`.
 
 There must be no local ERNIE Docker build in the Portainer deployment log.
 Verify that:
@@ -144,9 +156,12 @@ After the one-time rollout, the normal developer process remains unchanged:
 4. wait for all CI validation and the Stage image workflow;
 5. Portainer observes `deploy/stage` and deploys the images.
 
-If another commit reaches `main` while images are building, the older
-workflow retains its immutable SHA images but does not update the `stage`
-tags or `deploy/stage`.
+If another commit reaches `main` while images are building, the final head
+guard normally skips the older deployment and the newer validated workflow
+replaces it. Even if `main` changes at the final update boundary, every
+deployment commit remains internally consistent because it pins both image
+digests; a later pull can never silently substitute images from another
+commit.
 
 ## Manual retry
 
@@ -157,15 +172,16 @@ Playwright push workflows for that exact commit.
 
 ## Rollback
 
-Every successful build keeps immutable SHA tags. To test a previous image,
-set these two Stage stack variables in Portainer:
+Every deployment commit records immutable image digests. To restore a previous
+pair, read both digest references from the corresponding `deploy/stage` commit
+and set these two Stage stack variables in Portainer:
 
-- `ERNIE_STAGE_APP_IMAGE=ghcr.io/mcnamara84/ernie-app:sha-<good-sha>`
-- `ERNIE_STAGE_NGINX_IMAGE=ghcr.io/mcnamara84/ernie-nginx:sha-<good-sha>`
+- `ERNIE_STAGE_APP_IMAGE=ghcr.io/mcnamara84/ernie-app@sha256:<good-digest>`
+- `ERNIE_STAGE_NGINX_IMAGE=ghcr.io/mcnamara84/ernie-nginx@sha256:<good-digest>`
 
-Use the same commit SHA for both images and manually pull/redeploy the stack.
-Remove the overrides to return to the automatically maintained `stage`
-channel.
+Use both digests from the same deployment commit and manually pull/redeploy
+the stack. Remove the overrides to return to the automatically maintained,
+digest-pinned deployment branch.
 
 Database migrations are not automatically reversible. Check migration
 compatibility before rolling the application image back across a schema
@@ -180,9 +196,9 @@ workflow uses the repository's built-in `GITHUB_TOKEN`.
 
 ### Portainer reports manifest unknown or unauthorized
 
-Confirm that both `stage` tags exist. For private packages, verify the
-Portainer GHCR username, the token's `read:packages` scope, package access,
-and that the registry is selected for the stack.
+Confirm that both pinned digests exist. For private packages, verify the
+Portainer GHCR username, the token's `read:packages` scope, package access, and
+that the registry is selected for the stack.
 
 ### The deploy branch does not move
 
