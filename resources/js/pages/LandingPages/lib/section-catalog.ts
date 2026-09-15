@@ -51,7 +51,7 @@ export const IGSN_SECTION_LABELS: Record<IgsnSection, string> = {
     igsn_drilling: 'Drilling',
     repositories: 'Repositories',
     licenses: 'License & Rights',
-    citation: 'Cite this Resource',
+    citation: 'Cite This Resource',
     dates: 'Dates',
     contact: 'Contact Person',
     model_description: 'Model / Method Description',
@@ -62,19 +62,21 @@ export const IGSN_SECTION_LABELS: Record<IgsnSection, string> = {
     series_information: 'Series Information',
     table_of_contents: 'Table of Contents',
     other: 'Additional Information',
-    creators: 'Creators / Authors',
+    creators: 'Authors',
     contributors: 'Contributors',
     funders: 'Funding References',
     keywords: 'Keywords / Subjects',
-    metadata_download: 'Metadata Download',
+    metadata_download: 'Download Metadata',
     sample_image: 'Sample Image',
-    location: 'Location / Map',
+    location: 'Location',
+    map: 'Map',
+    version_notice: 'Version Notice',
 };
 
 export const SECTION_LABELS: Record<TemplateSection, string> = {
+    ...IGSN_SECTION_LABELS,
     ...RIGHT_SECTION_LABELS,
     ...LEFT_SECTION_LABELS,
-    ...IGSN_SECTION_LABELS,
 };
 
 export const RIGHT_COLUMN_SECTIONS: CanonicalRightColumnSection[] = [
@@ -111,33 +113,31 @@ export const RESOURCE_SECTIONS: ResourceSection[] = [
     ...(RIGHT_COLUMN_SECTIONS as ResourceSection[]),
 ];
 
-export const IGSN_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
+export const IGSN_LEFT_COLUMN_SECTIONS: IgsnSection[] = [
     'general',
     'sample_family',
-    'acquisition',
+    'repositories',
+    'map',
+    'related_work',
+    'metadata_download',
+    'dates',
+    'citation',
+];
+
+export const IGSN_RIGHT_COLUMN_SECTIONS: IgsnSection[] = ['version_notice', 'contributors', 'creators', 'location', 'acquisition', 'funders'];
+
+export const IGSN_HIDDEN_SECTIONS: IgsnSection[] = [
     'igsn_methods',
     'igsn_drilling',
-    'repositories',
     'licenses',
-    'citation',
-    'dates',
     'contact',
     'model_description',
-    'related_work',
-];
-
-export const IGSN_RIGHT_COLUMN_SECTIONS: IgsnSection[] = [
     ...DESCRIPTION_SECTION_KEYS,
-    'creators',
-    'contributors',
-    'funders',
     'keywords',
-    'metadata_download',
     'sample_image',
-    'location',
 ];
 
-export const IGSN_SECTIONS: IgsnSection[] = [...(IGSN_LEFT_COLUMN_SECTIONS as IgsnSection[]), ...IGSN_RIGHT_COLUMN_SECTIONS];
+export const IGSN_SECTIONS: IgsnSection[] = [...(IGSN_LEFT_COLUMN_SECTIONS as IgsnSection[]), ...IGSN_RIGHT_COLUMN_SECTIONS, ...IGSN_HIDDEN_SECTIONS];
 
 export const LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
     'files',
@@ -155,7 +155,7 @@ export const LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
     'related_work',
 ];
 
-export function getCanonicalLeftOrder(templateType: LandingPageTemplateConfig['template_type']): LeftColumnSection[] {
+export function getCanonicalLeftOrder(templateType: LandingPageTemplateConfig['template_type']): TemplateSection[] {
     return templateType === 'igsn' ? IGSN_LEFT_COLUMN_SECTIONS : RESOURCE_LEFT_COLUMN_SECTIONS;
 }
 
@@ -242,16 +242,16 @@ export function normalizeRightColumnOrder(stored: readonly TemplateSection[]): R
 export function normalizeLeftColumnOrder(
     stored: readonly TemplateSection[],
     templateType: LandingPageTemplateConfig['template_type'],
-): LeftColumnSection[] {
+): TemplateSection[] {
     const canonical = getCanonicalLeftOrder(templateType);
 
     if (stored.includes('citation')) {
-        return normalizeOrder<LeftColumnSection>(stored as readonly LeftColumnSection[], canonical);
+        return normalizeOrder<TemplateSection>(stored, canonical);
     }
 
     return [
-        ...normalizeOrder<LeftColumnSection>(
-            stored as readonly LeftColumnSection[],
+        ...normalizeOrder<TemplateSection>(
+            stored,
             canonical.filter((key) => key !== 'citation'),
         ),
         'citation',
@@ -261,11 +261,13 @@ export function normalizeLeftColumnOrder(
 export function normalizeIgsnColumnOrders(
     storedLeft: readonly TemplateSection[],
     storedRight: readonly TemplateSection[],
-): { left: IgsnSection[]; right: IgsnSection[] } {
+    storedHidden: readonly TemplateSection[] = [],
+): { left: IgsnSection[]; right: IgsnSection[]; hidden: IgsnSection[] } {
     const valid = new Set<IgsnSection>(IGSN_SECTIONS);
     const seen = new Set<IgsnSection>();
     const left: IgsnSection[] = [];
     const right: IgsnSection[] = [];
+    const hidden: IgsnSection[] = [];
 
     const appendKnown = (target: IgsnSection[], values: readonly TemplateSection[]) => {
         for (const value of values) {
@@ -278,21 +280,25 @@ export function normalizeIgsnColumnOrders(
 
     appendKnown(left, storedLeft);
     appendKnown(right, storedRight);
-    const hasStoredCitation = seen.has('citation');
-    appendKnown(left, hasStoredCitation ? IGSN_LEFT_COLUMN_SECTIONS : IGSN_LEFT_COLUMN_SECTIONS.filter((section) => section !== 'citation'));
-    if (!hasStoredCitation) {
-        seen.add('citation');
-        left.push('citation');
-    }
-    for (const section of IGSN_RIGHT_COLUMN_SECTIONS) {
-        if (seen.has(section)) continue;
+    for (const value of storedHidden) {
+        const section = value as IgsnSection;
+        if (section === 'version_notice' || !valid.has(section) || seen.has(section)) continue;
         seen.add(section);
-        const locationIndex = section === 'sample_image' ? right.indexOf('location') : -1;
-        if (locationIndex === -1) right.push(section);
-        else right.splice(locationIndex, 0, section);
+        hidden.push(section);
     }
 
-    return { left, right };
+    if (!seen.has('version_notice')) {
+        right.unshift('version_notice');
+        seen.add('version_notice');
+    }
+
+    for (const section of IGSN_SECTIONS) {
+        if (seen.has(section)) continue;
+        seen.add(section);
+        hidden.push(section);
+    }
+
+    return { left, right, hidden };
 }
 
 function groupResourceMetadataSections(order: ResourceSection[]): ResourceSection[] {

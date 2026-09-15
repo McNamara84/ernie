@@ -1143,13 +1143,17 @@ describe('Docs page', () => {
 
         expect(heading).toBeInTheDocument();
         expect(screen.getByText('Additional Information')).toBeInTheDocument();
-        expect(screen.getByText(/For Resource and IGSN templates.*move them between the left and right columns/i)).toBeInTheDocument();
+        expect(sectionContent).toMatch(/Use drag & drop to rearrange modules within a column or move them between the left and right columns/i);
         expect(screen.getByText(/Every Resource module can be placed in either column/i)).toBeInTheDocument();
         expect(screen.getByText(/Each template type only offers the modules intended for its landing pages/i)).toBeInTheDocument();
+        expect(sectionContent).toMatch(/For IGSN landing pages, each module renders in its own card and can be placed in either column or in Hidden cards/i);
         expect(screen.getByText(/Sample Image displays the locally managed or approved external legacy photo/i)).toBeInTheDocument();
         expect(sectionContent).toMatch(/On ICDP IGSN landing pages, a dedicated Drilling card/i);
-        expect(sectionContent).toMatch(/Show Drilling card.*enabled by default.*built-in Templates IGSN copy template/i);
-        expect(sectionContent).toMatch(/built-in IGSN copy template additionally allows the Show Drilling card setting/i);
+        expect(sectionContent).toMatch(/Drilling and Sample Image start in Hidden cards/i);
+        expect(sectionContent).toMatch(/Sample Family initially opens only the ancestors needed to reach the current sample/i);
+        expect(sectionContent).toMatch(/complete https:\/\/doi\.org\/\.\.\. identifier/i);
+        expect(sectionContent).toMatch(/automatic overview stops at zoom level 2/i);
+        expect(sectionContent).toMatch(/Version Notice can move between the columns but cannot be hidden/i);
         expect(sectionContent).toMatch(/New and replacement logos must use an exact 9:1 aspect ratio/i);
         expect(sectionContent).toMatch(/between 1080 × 120 and 2700 × 300 px.*recommended size is 1800 × 200 px/i);
         expect(sectionContent).toMatch(/Accepted formats are PNG, JPG\/JPEG, and WebP.*maximum file size of 2 MB/i);

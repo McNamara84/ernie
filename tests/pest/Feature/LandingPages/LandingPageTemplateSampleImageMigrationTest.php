@@ -11,7 +11,7 @@ function issue1168TemplateMigration(): object
     return require database_path('migrations/2026_08_27_000002_enable_flexible_igsn_template_sections.php');
 }
 
-it('adds the sample image before location and completes only IGSN layouts', function (): void {
+it('keeps the superseded flexible-column migration safe on the current schema', function (): void {
     $igsn = LandingPageTemplate::factory()->igsn()->create([
         'left_column_order' => ['contact', 'general'],
         'right_column_order' => ['abstract', 'location'],
@@ -25,18 +25,12 @@ it('adds the sample image before location and completes only IGSN layouts', func
     $igsn->refresh();
     $resource->refresh();
 
-    expect(LandingPageTemplate::isValidIgsnSectionLayout(
-        $igsn->left_column_order,
-        $igsn->right_column_order,
-    ))->toBeTrue()
-        ->and(array_search('sample_image', $igsn->right_column_order, true))
-        ->toBe(array_search('location', $igsn->right_column_order, true) - 1)
-        ->and($igsn->left_column_order[0])->toBe('contact')
-        ->and($igsn->left_column_order[1])->toBe('general')
+    expect($igsn->left_column_order)->toBe(['contact', 'general'])
+        ->and($igsn->right_column_order)->toBe(['version_notice', 'abstract', 'location'])
         ->and($resource->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS);
 });
 
-it('deduplicates known IGSN modules and rollback restores pre-migration column ownership', function (): void {
+it('deduplicates known modules and remains reversible after the layout supersession', function (): void {
     $template = LandingPageTemplate::factory()->igsn()->create([
         'left_column_order' => ['general', 'location', 'general'],
         'right_column_order' => ['location', 'sample_image', 'abstract', 'unknown'],
@@ -45,11 +39,8 @@ it('deduplicates known IGSN modules and rollback restores pre-migration column o
 
     $migration->up();
     $template->refresh();
-    expect(LandingPageTemplate::isValidIgsnSectionLayout(
-        $template->left_column_order,
-        $template->right_column_order,
-    ))->toBeTrue()
-        ->and(collect([...$template->left_column_order, ...$template->right_column_order])->duplicates()->all())->toBe([]);
+    expect(collect([...$template->left_column_order, ...$template->right_column_order])->duplicates()->all())->toBe([])
+        ->and($template->right_column_order[0])->toBe('version_notice');
 
     $template->update([
         'left_column_order' => [
@@ -71,10 +62,7 @@ it('deduplicates known IGSN modules and rollback restores pre-migration column o
     $migration->down();
     $template->refresh();
 
-    expect($template->left_column_order)->toHaveCount(count(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS))
-        ->and(array_diff(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS, $template->left_column_order))->toBe([])
-        ->and($template->left_column_order)->not->toContain('abstract', 'sample_image')
-        ->and($template->right_column_order)->toHaveCount(count(LandingPageTemplate::RIGHT_COLUMN_SECTIONS))
-        ->and(array_diff(LandingPageTemplate::RIGHT_COLUMN_SECTIONS, $template->right_column_order))->toBe([])
-        ->and($template->right_column_order)->not->toContain('general', 'sample_image');
+    expect($template->left_column_order)->not->toContain('abstract', 'sample_image')
+        ->and($template->right_column_order)->not->toContain('general', 'sample_image', 'version_notice')
+        ->and(collect([...$template->left_column_order, ...$template->right_column_order])->duplicates()->all())->toBe([]);
 });

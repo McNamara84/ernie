@@ -802,6 +802,37 @@ Modify only purpose-created `MANUAL-TEST` users.
       the other column; preview and an already published landing page both adopt
       the saved layout after refresh.
 
+- [ ] The built-in `Templates IGSN` layout shows General, Sample Family,
+      Repositories, Map, Related Work, Download Metadata, Dates, and Cite This
+      Resource on the left; Version Notice, Contributors, Authors, Location,
+      Acquisition, and Funding References on the right; all remaining cards are
+      listed under `Hidden cards`.
+
+- [ ] In a cloned IGSN template, cards can be reordered and moved among both
+      columns and `Hidden cards` by drag and drop. Hide and both Show actions also
+      work by keyboard, persist after saving and reopening, and Version Notice can
+      move left or right but cannot be hidden.
+
+- [ ] A custom IGSN template that existed before the migration retains its
+      visible cards and relative order. Map follows its former combined Location
+      position, Version Notice is first on the right, and a formerly disabled
+      Drilling card is hidden.
+
+- [ ] IGSN Location and Map render as separate cards when each is placed once on
+      the left and once on the right. A single marker starts no closer than Leaflet
+      zoom 2 but can be zoomed manually; neither narrow cards nor long metadata
+      cause horizontal page overflow on desktop or mobile.
+
+- [ ] Sample Family uses normal body text, initially expands only the ancestors
+      of the current sample, and lets every parent be collapsed and expanded by
+      mouse and keyboard. Its resize handle respects the first-row minimum and
+      content maximum, creates no blank area, and moves the following card in the
+      normal document flow.
+
+- [ ] The IGSN Hero and every available citation style display and copy the full
+      canonical `https://doi.org/<DOI>` value, while General and Sample Family
+      continue to show the short IGSN handle.
+
 - [ ] Cancelling preserves the template; confirmed deletion removes only the
       `MANUAL-TEST` template.
 

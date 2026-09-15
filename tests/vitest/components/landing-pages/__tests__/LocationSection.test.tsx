@@ -5,6 +5,8 @@ import { render, screen, within } from '@tests/vitest/utils/render';
 import L from 'leaflet';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const fitBoundsMock = vi.hoisted(() => vi.fn());
+
 // Mock react-leaflet components since they require browser APIs
 vi.mock('react-leaflet', () => ({
     MapContainer: vi.fn(({ children, maxBounds, maxBoundsViscosity, worldCopyJump }) => (
@@ -38,7 +40,7 @@ vi.mock('react-leaflet', () => ({
         </div>
     )),
     useMap: vi.fn(() => ({
-        fitBounds: vi.fn(),
+        fitBounds: fitBoundsMock,
         invalidateSize: vi.fn(),
         getContainer: vi.fn(() => document.createElement('div')),
     })),
@@ -183,6 +185,34 @@ describe('LocationSection', () => {
             expect(screen.getByTestId('leaflet-map').dataset.maxBoundsViscosity).toBe('1');
             expect(screen.getByTestId('leaflet-map').dataset.worldCopyJump).toBe('false');
             expect(screen.getByTestId('tile-layer').dataset.noWrap).toBe('true');
+            expect(fitBoundsMock).toHaveBeenCalledWith(expect.anything(), { padding: [20, 20], maxZoom: 2 });
+        });
+
+        it('can render sampling details and the map as independently headed cards', () => {
+            const geoLocations = [
+                {
+                    id: 1,
+                    place: 'GFZ Potsdam',
+                    point_longitude: 13.0661,
+                    point_latitude: 52.3806,
+                    west_bound_longitude: null,
+                    east_bound_longitude: null,
+                    south_bound_latitude: null,
+                    north_bound_latitude: null,
+                    polygon_points: null,
+                    geo_type: 'point',
+                },
+            ];
+
+            const { rerender } = render(<LocationSection samplingLocation content="details" heading="Location" geoLocations={geoLocations} />);
+
+            expect(screen.getByRole('heading', { name: 'Location' })).toHaveAttribute('id', 'heading-location');
+            expect(screen.queryByTestId('map-container')).not.toBeInTheDocument();
+
+            rerender(<LocationSection samplingLocation content="map" heading="Map" geoLocations={geoLocations} />);
+
+            expect(screen.getByRole('heading', { name: 'Map' })).toHaveAttribute('id', 'heading-map');
+            expect(screen.getByTestId('map-container')).toBeInTheDocument();
         });
     });
 

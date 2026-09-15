@@ -753,10 +753,10 @@ entity "landing_page_templates" as landing_page_templates {
     logo_filename : VARCHAR
     * right_column_order : JSON
     * left_column_order : JSON
+    hidden_sections : JSON //IGSN hidden cards; [] for resources//
     * creator_display_limit : SMALLINT = 50
     * contributor_display_limit : SMALLINT = 50
     * citation_author_display_limit : SMALLINT = 50
-    * show_igsn_drilling : BOOLEAN = true
     created_by : BIGINT <<FK>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP

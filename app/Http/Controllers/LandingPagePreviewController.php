@@ -192,8 +192,13 @@ class LandingPagePreviewController extends Controller
             $igsnOrders = LandingPageTemplate::normalizeIgsnSectionOrders(
                 $templateConfig->left_column_order,
                 $templateConfig->right_column_order,
+                $templateConfig->hidden_sections ?? [],
             );
-            $sectionOrder = ['rightColumn' => $igsnOrders['right'], 'leftColumn' => $igsnOrders['left']];
+            $sectionOrder = [
+                'rightColumn' => $igsnOrders['right'],
+                'leftColumn' => $igsnOrders['left'],
+                'hiddenSections' => $igsnOrders['hidden'],
+            ];
         } else {
             $resourceOrders = LandingPageTemplate::normalizeResourceSectionOrders(
                 $templateConfig->left_column_order,
@@ -257,9 +262,6 @@ class LandingPagePreviewController extends Controller
             'typeVisibility' => [
                 'excludedDateTypes' => $templateConfig->excludedDateTypeSlugs(),
                 'excludedRelationTypes' => $templateConfig->excludedRelationTypeSlugs(),
-            ],
-            'sectionVisibility' => [
-                'igsnDrilling' => $templateConfig->show_igsn_drilling,
             ],
         ])->withViewData([
             'landingPageDocumentMetadata' => $documentMetadata,

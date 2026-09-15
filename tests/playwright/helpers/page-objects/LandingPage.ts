@@ -52,6 +52,8 @@ export class LandingPage {
   readonly fundingList: Locator;
 
   // GeoLocation section
+  readonly locationSection: Locator;
+  readonly mapSection: Locator;
   readonly geoLocationSection: Locator;
   readonly mapContainer: Locator;
 
@@ -119,8 +121,12 @@ export class LandingPage {
     this.fundingList = this.fundingSection.locator('ul, [data-testid="funding-list"]');
 
     // GeoLocation section
-    this.geoLocationSection = page.locator('[data-testid="geolocation-section"]').or(page.locator('section[aria-labelledby="heading-location"]'));
     this.mapContainer = page.locator('.leaflet-container, [data-testid="map-container"]').first();
+    this.locationSection = page.locator('section[aria-labelledby="heading-location"]');
+    this.mapSection = page
+      .locator('section[aria-labelledby="heading-map"]')
+      .or(page.locator('section[aria-labelledby="heading-location"]').filter({ has: page.locator('[data-testid="map-container"]') }));
+    this.geoLocationSection = this.mapSection;
 
     // Subjects/Keywords section
     this.subjectsSection = page.locator('[data-testid="subjects-section"]');

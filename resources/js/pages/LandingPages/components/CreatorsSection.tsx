@@ -6,12 +6,13 @@ import { PersonMetadataLine } from './PersonMetadataLine';
 interface CreatorsSectionProps {
     creators: LandingPageDisplayCreator[];
     displayLimit?: number;
+    heading?: string;
 }
 
 /**
  * Renders the list of creators (authors) with ORCID and ROR icons.
  */
-export function CreatorsSection({ creators, displayLimit = 50 }: CreatorsSectionProps) {
+export function CreatorsSection({ creators, displayLimit = 50, heading = 'Creators' }: CreatorsSectionProps) {
     if (creators.length === 0) {
         return null;
     }
@@ -19,7 +20,7 @@ export function CreatorsSection({ creators, displayLimit = 50 }: CreatorsSection
     return (
         <section className="mt-6" data-testid="creators-section" aria-labelledby="heading-creators">
             <h3 id="heading-creators" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Creators
+                {heading}
             </h3>
             <CollapsibleList
                 items={creators}

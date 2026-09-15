@@ -72,16 +72,12 @@ describe('section-catalog helpers', () => {
         expect(IGSN_LEFT_COLUMN_SECTIONS).toEqual([
             'general',
             'sample_family',
-            'acquisition',
-            'igsn_methods',
-            'igsn_drilling',
             'repositories',
-            'licenses',
-            'citation',
-            'dates',
-            'contact',
-            'model_description',
+            'map',
             'related_work',
+            'metadata_download',
+            'dates',
+            'citation',
         ]);
     });
 
@@ -125,17 +121,13 @@ describe('section-catalog helpers', () => {
             'citation',
         ]);
         expect(normalizeLeftColumnOrder(['contact', 'general', 'files'] as never, 'igsn')).toEqual([
-            'contact',
             'general',
-            'licenses',
             'sample_family',
-            'acquisition',
-            'igsn_methods',
-            'igsn_drilling',
             'repositories',
-            'dates',
-            'model_description',
+            'map',
             'related_work',
+            'metadata_download',
+            'dates',
             'citation',
         ]);
     });
@@ -151,18 +143,14 @@ describe('section-catalog helpers', () => {
             'related_work',
         ]);
         expect(normalizeLeftColumnOrder(['citation', 'contact', 'general'] as never, 'igsn')).toEqual([
-            'licenses',
             'citation',
-            'contact',
             'general',
             'sample_family',
-            'acquisition',
-            'igsn_methods',
-            'igsn_drilling',
             'repositories',
-            'dates',
-            'model_description',
+            'map',
             'related_work',
+            'metadata_download',
+            'dates',
         ]);
     });
 
@@ -177,17 +165,13 @@ describe('section-catalog helpers', () => {
             'citation',
         ]);
         expect(normalizeLeftColumnOrder(['contact', 'files', 'unknown'] as never, 'igsn')).toEqual([
-            'contact',
-            'licenses',
             'general',
             'sample_family',
-            'acquisition',
-            'igsn_methods',
-            'igsn_drilling',
             'repositories',
-            'dates',
-            'model_description',
+            'map',
             'related_work',
+            'metadata_download',
+            'dates',
             'citation',
         ]);
     });

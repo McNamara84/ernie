@@ -25,6 +25,7 @@ vi.mock('@inertiajs/react', () => ({
 import { usePage } from '@inertiajs/react';
 
 import DefaultGfzIgsnTemplate from '@/pages/LandingPages/default_gfz_igsn';
+import { IGSN_HIDDEN_SECTIONS, IGSN_LEFT_COLUMN_SECTIONS, IGSN_RIGHT_COLUMN_SECTIONS } from '@/pages/LandingPages/lib/section-catalog';
 
 const mockUsePage = vi.mocked(usePage);
 
@@ -63,6 +64,11 @@ describe('DefaultGfzIgsnTemplate', () => {
         status: 'published',
         ftp_url: null, // No FTP URL for IGSN
     };
+    const allIgsnSectionsVisible = {
+        leftColumn: [...IGSN_LEFT_COLUMN_SECTIONS, ...IGSN_HIDDEN_SECTIONS],
+        rightColumn: IGSN_RIGHT_COLUMN_SECTIONS,
+        hiddenSections: [],
+    };
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -76,6 +82,7 @@ describe('DefaultGfzIgsnTemplate', () => {
                     resource: mockResource,
                     landingPage: mockLandingPage,
                     isPreview: false,
+                    sectionOrder: allIgsnSectionsVisible,
                 },
             } as unknown as ReturnType<typeof usePage>);
 
@@ -103,6 +110,7 @@ describe('DefaultGfzIgsnTemplate', () => {
                     },
                     landingPage: mockLandingPage,
                     isPreview: false,
+                    sectionOrder: allIgsnSectionsVisible,
                 },
             } as unknown as ReturnType<typeof usePage>);
 
@@ -148,6 +156,7 @@ describe('DefaultGfzIgsnTemplate', () => {
                     },
                     landingPage: mockLandingPage,
                     isPreview: false,
+                    sectionOrder: allIgsnSectionsVisible,
                 },
             } as unknown as ReturnType<typeof usePage>);
 
@@ -331,12 +340,13 @@ describe('DefaultGfzIgsnTemplate', () => {
                     },
                     landingPage: mockLandingPage,
                     isPreview: false,
+                    sectionOrder: allIgsnSectionsVisible,
                 },
             } as unknown as ReturnType<typeof usePage>);
 
             render(<DefaultGfzIgsnTemplate />);
 
-            // Abstract content from descriptions is now rendered alongside General/Acquisition modules
+            // A custom template can restore Abstract from the hidden zone.
             expect(screen.getByText('Sample abstract text')).toBeInTheDocument();
         });
 
@@ -373,8 +383,7 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             render(<DefaultGfzIgsnTemplate />);
 
-            // Creators section is rendered inside the AbstractSection card
-            expect(screen.getByText('Creators')).toBeInTheDocument();
+            expect(screen.getByText('Authors')).toBeInTheDocument();
         });
     });
 
@@ -479,7 +488,7 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(screen.getByText('Rock')).toBeInTheDocument();
             expect(screen.getByText('IGSN-XYZ123')).toBeInTheDocument();
             expect(screen.getByText('Local sample XYZ')).toBeInTheDocument();
-            expect(screen.queryByText(/10\.60510\/igsn-xyz123/i)).not.toBeInTheDocument();
+            expect(screen.getAllByText(/https:\/\/doi\.org\/10\.60510\/igsn-xyz123/i).length).toBeGreaterThan(0);
             expect(screen.getByText('Tectonic study')).toBeInTheDocument();
             expect(screen.getAllByText('2024-01-15').length).toBeGreaterThan(0);
         });
@@ -530,6 +539,7 @@ describe('DefaultGfzIgsnTemplate', () => {
                     },
                     landingPage: mockLandingPage,
                     isPreview: false,
+                    sectionOrder: allIgsnSectionsVisible,
                 },
             } as unknown as ReturnType<typeof usePage>);
 
@@ -611,6 +621,7 @@ describe('DefaultGfzIgsnTemplate', () => {
                     },
                     landingPage: mockLandingPage,
                     isPreview: false,
+                    sectionOrder: allIgsnSectionsVisible,
                 },
             } as unknown as ReturnType<typeof usePage>);
 
@@ -633,7 +644,7 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(acquisition.queryByText('Operator')).not.toBeInTheDocument();
         });
 
-        it('hides the ICDP Drilling module when the template setting is disabled', () => {
+        it('hides the ICDP Drilling module when it remains in the default hidden zone', () => {
             mockUsePage.mockReturnValue({
                 props: {
                     resource: {
@@ -649,7 +660,6 @@ describe('DefaultGfzIgsnTemplate', () => {
                     },
                     landingPage: mockLandingPage,
                     isPreview: false,
-                    sectionVisibility: { igsnDrilling: false },
                 },
             } as unknown as ReturnType<typeof usePage>);
 
@@ -683,7 +693,6 @@ describe('DefaultGfzIgsnTemplate', () => {
                     },
                     landingPage: mockLandingPage,
                     isPreview: false,
-                    sectionVisibility: { igsnDrilling: true },
                 },
             } as unknown as ReturnType<typeof usePage>);
 
@@ -959,17 +968,22 @@ describe('DefaultGfzIgsnTemplate', () => {
             render(<DefaultGfzIgsnTemplate />);
         };
 
-        it('renders the default order as General, Acquisition, Cite this Resource, Dates', () => {
+        it('renders the new default visible modules in their configured columns', () => {
             renderWithLeftOrder();
 
             const general = screen.getByRole('heading', { name: 'General' });
-            const acquisition = screen.getByRole('heading', { name: 'Acquisition' });
-            const citation = screen.getByRole('heading', { name: 'Cite this Resource' });
+            const citation = screen.getByRole('heading', { name: 'Cite This Resource' });
             const dates = screen.getByRole('heading', { name: 'Dates' });
+            const leftColumn = within(screen.getByTestId('landing-page-left-column'));
+            const rightColumn = within(screen.getByTestId('landing-page-right-column'));
 
-            expect(general.compareDocumentPosition(acquisition) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-            expect(acquisition.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-            expect(citation.compareDocumentPosition(dates) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(leftColumn.getByRole('heading', { name: 'General' })).toBeInTheDocument();
+            expect(leftColumn.getByRole('heading', { name: 'Dates' })).toBeInTheDocument();
+            expect(leftColumn.getByRole('heading', { name: 'Cite This Resource' })).toBeInTheDocument();
+            expect(rightColumn.getByRole('heading', { name: 'Acquisition' })).toBeInTheDocument();
+            expect(leftColumn.queryByRole('heading', { name: 'Acquisition' })).not.toBeInTheDocument();
+            expect(general.compareDocumentPosition(dates) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(dates.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
 
         it('keeps an excluded Available date in General while hiding it from Dates', () => {
@@ -1005,24 +1019,24 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(screen.queryByRole('heading', { name: 'Dates' })).not.toBeInTheDocument();
         });
 
-        it('appends citation after an old custom IGSN order that does not contain it', () => {
+        it('keeps omitted custom modules hidden instead of silently restoring them', () => {
             renderWithLeftOrder(['dates', 'acquisition', 'general', 'contact', 'model_description', 'related_work']);
 
             const dates = screen.getByRole('heading', { name: 'Dates' });
             const acquisition = screen.getByRole('heading', { name: 'Acquisition' });
             const general = screen.getByRole('heading', { name: 'General' });
-            const citation = screen.getByRole('heading', { name: 'Cite this Resource' });
+            const citation = screen.queryByRole('heading', { name: 'Cite This Resource' });
 
             expect(dates.compareDocumentPosition(acquisition) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
             expect(acquisition.compareDocumentPosition(general) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-            expect(general.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(citation).not.toBeInTheDocument();
         });
 
         it('preserves a configured custom citation position for IGSN', () => {
             renderWithLeftOrder(['general', 'citation', 'acquisition', 'dates', 'contact', 'model_description', 'related_work']);
 
             const general = screen.getByRole('heading', { name: 'General' });
-            const citation = screen.getByRole('heading', { name: 'Cite this Resource' });
+            const citation = screen.getByRole('heading', { name: 'Cite This Resource' });
             const acquisition = screen.getByRole('heading', { name: 'Acquisition' });
 
             expect(general.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -1036,6 +1050,7 @@ describe('DefaultGfzIgsnTemplate', () => {
                     resource: fullyVisibleResource,
                     landingPage: mockLandingPage,
                     isPreview: false,
+                    sectionOrder: allIgsnSectionsVisible,
                     citationStyles: [
                         {
                             id: 'apa-7',
@@ -1085,13 +1100,14 @@ describe('DefaultGfzIgsnTemplate', () => {
                     },
                     landingPage: mockLandingPage,
                     isPreview: false,
+                    sectionOrder: allIgsnSectionsVisible,
                 },
             } as unknown as ReturnType<typeof usePage>);
 
             render(<DefaultGfzIgsnTemplate />);
 
             const abstractCard = screen.getByText('Independent abstract').closest('[data-slot="landing-page-card"]');
-            const creatorsCard = screen.getByRole('heading', { name: 'Creators' }).closest('[data-slot="landing-page-card"]');
+            const creatorsCard = screen.getByRole('heading', { name: 'Authors' }).closest('[data-slot="landing-page-card"]');
             expect(abstractCard).not.toBeNull();
             expect(creatorsCard).not.toBeNull();
             expect(abstractCard).not.toBe(creatorsCard);

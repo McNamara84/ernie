@@ -34,6 +34,8 @@ interface AbstractSectionProps {
     sectionOrder?: MetadataSectionKey[];
     displayLimits?: LandingPageDisplayLimits;
     portalBasePath?: PortalBasePath;
+    creatorHeading?: string;
+    funderHeading?: string;
 }
 
 /**
@@ -54,6 +56,8 @@ export function AbstractSection({
     sectionOrder = ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
     displayLimits = { creators: 50, contributors: 50, citationAuthors: 50 },
     portalBasePath = '/doi-search',
+    creatorHeading,
+    funderHeading,
 }: AbstractSectionProps) {
     const expandedSectionOrder = expandMetadataOrder(sectionOrder);
     const displayCredits = useMemo(() => mergeLandingPageCredits(creators, contributors), [creators, contributors]);
@@ -71,7 +75,12 @@ export function AbstractSection({
             switch (sectionKey) {
                 case 'creators':
                     return displayCredits.creators.length > 0 ? (
-                        <CreatorsSection key="creators" creators={displayCredits.creators} displayLimit={displayLimits.creators} />
+                        <CreatorsSection
+                            key="creators"
+                            creators={displayCredits.creators}
+                            displayLimit={displayLimits.creators}
+                            heading={creatorHeading}
+                        />
                     ) : null;
                 case 'contributors':
                     return displayCredits.contributors.length > 0 ? (
@@ -82,7 +91,9 @@ export function AbstractSection({
                         />
                     ) : null;
                 case 'funders':
-                    return fundingReferences.length > 0 ? <FundersSection key="funders" fundingReferences={fundingReferences} /> : null;
+                    return fundingReferences.length > 0 ? (
+                        <FundersSection key="funders" fundingReferences={fundingReferences} heading={funderHeading} />
+                    ) : null;
                 case 'keywords':
                     return hasVisibleKeywords(subjects) ? (
                         <KeywordsSection key="keywords" subjects={subjects} portalBasePath={portalBasePath} />

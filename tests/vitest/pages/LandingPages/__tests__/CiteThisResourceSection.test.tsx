@@ -389,7 +389,7 @@ describe('CiteThisResourceSection', () => {
         expect(copyButton).toHaveClass('min-h-11', 'min-w-11');
     });
 
-    it('shows an IGSN handle in official and versioned GFZ citation text while retaining the DOI resolver href', async () => {
+    it('shows the full DOI resolver URL in official and versioned GFZ citation text', async () => {
         const igsnResource = { ...resource, doi: '10.60510/gflmu0020' };
         const igsnStyles: LandingPageCitationStyle[] = [
             {
@@ -401,15 +401,16 @@ describe('CiteThisResourceSection', () => {
             },
         ];
 
-        render(<CiteThisResourceSection resource={igsnResource} citationStyles={igsnStyles} displayIdentifier="GFLMU0020" />);
+        render(<CiteThisResourceSection resource={igsnResource} citationStyles={igsnStyles} />);
 
-        const link = screen.getByRole('link', { name: 'GFLMU0020' });
+        const link = screen.getByRole('link', { name: 'https://doi.org/10.60510/gflmu0020' });
         expect(link).toHaveAttribute('href', 'https://doi.org/10.60510/gflmu0020');
-        expect(screen.getByTestId('citation-content')).not.toHaveTextContent('10.60510');
+        expect(screen.getByTestId('citation-content')).toHaveTextContent('https://doi.org/10.60510/gflmu0020');
 
         await chooseCitationStyle('GFZ Data Services (legacy)');
 
-        expect(screen.getByTestId('citation-content')).toHaveTextContent('A Test Dataset. V. 1.0. GFZ Data Services. GFLMU0020');
-        expect(screen.getByTestId('citation-content')).not.toHaveTextContent('10.60510');
+        expect(screen.getByTestId('citation-content')).toHaveTextContent(
+            'A Test Dataset. V. 1.0. GFZ Data Services. https://doi.org/10.60510/gflmu0020',
+        );
     });
 });

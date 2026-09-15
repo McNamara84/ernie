@@ -6,6 +6,7 @@ import axios from 'axios';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { IGSN_HIDDEN_SECTIONS, IGSN_LEFT_COLUMN_SECTIONS, IGSN_RIGHT_COLUMN_SECTIONS } from '@/pages/LandingPages/lib/section-catalog';
 import type { LandingPageTemplateConfig, LandingPageTemplateDatacenter, LandingPageTypeOption } from '@/types/landing-page';
 
 const defaultRightOrder: LandingPageTemplateConfig['right_column_order'] = [
@@ -169,10 +170,10 @@ const defaultTemplate: LandingPageTemplateConfig = {
     logo_url: null,
     right_column_order: defaultRightOrder,
     left_column_order: ['files', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
+    hidden_sections: [],
     creator_display_limit: 50,
     contributor_display_limit: 50,
     citation_author_display_limit: 50,
-    show_igsn_drilling: true,
     excluded_date_type_ids: [],
     excluded_relation_type_ids: [],
     created_by: null,
@@ -193,10 +194,10 @@ const customTemplate: LandingPageTemplateConfig = {
     logo_url: 'http://localhost/storage/landing-page-logos/geophysics/logo.png',
     right_column_order: locationFirstRightOrder,
     left_column_order: ['contact', 'files', 'citation', 'dates', 'model_description', 'related_work'],
+    hidden_sections: [],
     creator_display_limit: 25,
     contributor_display_limit: 75,
     citation_author_display_limit: 10,
-    show_igsn_drilling: true,
     excluded_date_type_ids: [2],
     excluded_relation_type_ids: [12],
     created_by: 1,
@@ -217,10 +218,10 @@ const customTemplateNoLogo: LandingPageTemplateConfig = {
     logo_url: null,
     right_column_order: defaultRightOrder,
     left_column_order: ['files', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
+    hidden_sections: [],
     creator_display_limit: 50,
     contributor_display_limit: 50,
     citation_author_display_limit: 50,
-    show_igsn_drilling: true,
     excluded_date_type_ids: [],
     excluded_relation_type_ids: [],
     created_by: 1,
@@ -236,7 +237,9 @@ const defaultIgsnTemplate: LandingPageTemplateConfig = {
     name: 'Templates IGSN',
     slug: 'default_gfz_igsn',
     template_type: 'igsn',
-    left_column_order: ['general', 'acquisition', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
+    left_column_order: IGSN_LEFT_COLUMN_SECTIONS,
+    right_column_order: IGSN_RIGHT_COLUMN_SECTIONS,
+    hidden_sections: IGSN_HIDDEN_SECTIONS,
 };
 
 let mockTemplates: LandingPageTemplateConfig[] = [];
@@ -685,7 +688,7 @@ describe('LandingPageTemplatesPage', () => {
             expect(screen.queryByRole('checkbox', { name: 'Show Drilling card' })).not.toBeInTheDocument();
         });
 
-        it('edits the Drilling visibility setting for a custom IGSN template', async () => {
+        it('restores a hidden Drilling module into the left column for a custom IGSN template', async () => {
             mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
             mockTemplates = [
                 {
@@ -696,20 +699,59 @@ describe('LandingPageTemplatesPage', () => {
                     created_by: 1,
                     creator: { id: 1, name: 'Admin User' },
                     landing_pages_count: 0,
-                    show_igsn_drilling: false,
                 },
             ];
             const user = userEvent.setup();
             render(<LandingPageTemplatesPage />);
 
             await user.click(screen.getByRole('button', { name: /Edit/i }));
-            const checkbox = screen.getByRole('checkbox', { name: 'Show Drilling card' });
-            expect(checkbox).not.toBeChecked();
-            await user.click(checkbox);
+            await user.click(screen.getByRole('button', { name: 'Show Drilling in left column' }));
             await user.click(screen.getByRole('button', { name: /Save Changes/i }));
 
             await waitFor(() => {
-                expect(mockedAxiosPut).toHaveBeenCalledWith('/landing-pages/5', expect.objectContaining({ show_igsn_drilling: true }));
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    '/landing-pages/5',
+                    expect.objectContaining({
+                        left_column_order: expect.arrayContaining(['igsn_drilling']),
+                        hidden_sections: expect.not.arrayContaining(['igsn_drilling']),
+                    }),
+                );
+            });
+        });
+
+        it('hides visible IGSN cards while keeping Version Notice unhideable', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [
+                {
+                    ...defaultIgsnTemplate,
+                    id: 5,
+                    is_default: false,
+                    name: 'Custom IGSN Template',
+                    created_by: 1,
+                    creator: { id: 1, name: 'Admin User' },
+                    landing_pages_count: 0,
+                },
+            ];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /Edit/i }));
+            expect(screen.getByText('Hidden cards')).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Hide Version Notice' })).not.toBeInTheDocument();
+
+            await user.click(screen.getByRole('button', { name: 'Hide General' }));
+            expect(screen.getByRole('button', { name: 'Show General in left column' })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Show General in right column' })).toBeInTheDocument();
+
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    '/landing-pages/5',
+                    expect.objectContaining({
+                        left_column_order: expect.not.arrayContaining(['general']),
+                        hidden_sections: expect.arrayContaining(['general']),
+                    }),
+                );
             });
         });
 
@@ -852,16 +894,14 @@ describe('LandingPageTemplatesPage', () => {
             });
         });
 
-        it('allows the Drilling setting to be changed on the default IGSN template', async () => {
+        it('keeps layout controls unavailable on the default IGSN template', async () => {
             mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
             mockTemplates = [defaultIgsnTemplate];
             const user = userEvent.setup();
             render(<LandingPageTemplatesPage />);
 
             await user.click(screen.getByRole('button', { name: /Limits/i }));
-            const checkbox = screen.getByRole('checkbox', { name: 'Show Drilling card' });
-            expect(checkbox).toBeChecked();
-            await user.click(checkbox);
+            expect(screen.queryByRole('button', { name: 'Show Drilling in left column' })).not.toBeInTheDocument();
             await user.click(screen.getByRole('button', { name: /Save Changes/i }));
 
             await waitFor(() => {
@@ -869,7 +909,6 @@ describe('LandingPageTemplatesPage', () => {
                     creator_display_limit: 50,
                     contributor_display_limit: 50,
                     citation_author_display_limit: 50,
-                    show_igsn_drilling: false,
                     datacenter_ids: [],
                 });
             });
@@ -1157,7 +1196,7 @@ describe('LandingPageTemplatesPage', () => {
             expect(payload.left_column_order.filter((key) => key === 'citation')).toHaveLength(1);
         });
 
-        it('normalizes IGSN left-column sections before saving and does not expose files in the dialog', async () => {
+        it('preserves known IGSN visibility and moves missing legacy modules into the hidden zone', async () => {
             mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
             mockTemplates = [
                 {
@@ -1185,7 +1224,7 @@ describe('LandingPageTemplatesPage', () => {
             expect(within(dialog).getByText('IGSN Methods')).toBeInTheDocument();
             expect(within(dialog).getByText('Drilling')).toBeInTheDocument();
             expect(within(dialog).getByText('License & Rights')).toBeInTheDocument();
-            expect(within(dialog).getByText('Cite this Resource')).toBeInTheDocument();
+            expect(within(dialog).getByText('Cite This Resource')).toBeInTheDocument();
             expect(within(dialog).getByText('Sample Image')).toBeInTheDocument();
 
             await user.click(screen.getByRole('button', { name: /Save Changes/i }));
@@ -1194,20 +1233,8 @@ describe('LandingPageTemplatesPage', () => {
                 expect(mockedAxiosPut).toHaveBeenCalledWith(
                     '/landing-pages/5',
                     expect.objectContaining({
-                        left_column_order: [
-                            'contact',
-                            'model_description',
-                            'related_work',
-                            'general',
-                            'sample_family',
-                            'acquisition',
-                            'igsn_methods',
-                            'igsn_drilling',
-                            'repositories',
-                            'licenses',
-                            'dates',
-                            'citation',
-                        ],
+                        left_column_order: ['contact', 'model_description', 'related_work'],
+                        hidden_sections: expect.arrayContaining(['general', 'sample_family', 'repositories', 'map', 'dates', 'citation']),
                     }),
                 );
             });
@@ -1242,6 +1269,7 @@ describe('LandingPageTemplatesPage', () => {
                     '/landing-pages/6',
                     expect.objectContaining({
                         left_column_order: expect.arrayContaining(['general']),
+                        hidden_sections: IGSN_HIDDEN_SECTIONS,
                     }),
                 );
             });
@@ -1266,8 +1294,8 @@ describe('LandingPageTemplatesPage', () => {
             await user.click(screen.getByRole('button', { name: /Edit/i }));
 
             act(() => dndContextMock.startHandlers.at(-1)?.({ active: { id: 'general' } }));
-            act(() => dndContextMock.overHandlers.at(-1)?.({ active: { id: 'general' }, over: { id: 'abstract' } }));
-            act(() => dndContextMock.handlers.at(-1)?.({ active: { id: 'general' }, over: { id: 'abstract' } }));
+            act(() => dndContextMock.overHandlers.at(-1)?.({ active: { id: 'general' }, over: { id: 'contributors' } }));
+            act(() => dndContextMock.handlers.at(-1)?.({ active: { id: 'general' }, over: { id: 'contributors' } }));
 
             await user.click(screen.getByRole('button', { name: /Save Changes/i }));
 
@@ -1276,13 +1304,13 @@ describe('LandingPageTemplatesPage', () => {
                     '/landing-pages/7',
                     expect.objectContaining({
                         left_column_order: expect.not.arrayContaining(['general']),
-                        right_column_order: expect.arrayContaining(['general', 'abstract']),
+                        right_column_order: expect.arrayContaining(['general', 'contributors']),
                     }),
                 );
             });
 
             const payload = mockedAxiosPut.mock.calls.at(-1)?.[1] as { right_column_order: string[] };
-            expect(payload.right_column_order.indexOf('general')).toBe(payload.right_column_order.indexOf('abstract') - 1);
+            expect(payload.right_column_order.indexOf('general')).toBe(payload.right_column_order.indexOf('contributors') - 1);
         });
 
         it('normalizes middle location to the end before saving', async () => {

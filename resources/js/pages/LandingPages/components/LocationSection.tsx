@@ -58,6 +58,9 @@ interface LocationSectionProps {
     /** Enables the physical-sample metadata rows and heading. */
     samplingLocation?: boolean;
     igsn?: LandingPageIgsnMetadata | null;
+    /** Render the legacy combined card, text-only details, or the map only. */
+    content?: 'combined' | 'details' | 'map';
+    heading?: string;
 }
 
 // GFZ Corporate Blue
@@ -185,7 +188,7 @@ function FitBoundsControl({ bounds }: { bounds: L.LatLngBounds }) {
 
     useEffect(() => {
         if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [20, 20] });
+            map.fitBounds(bounds, { padding: [20, 20], maxZoom: 2 });
         }
     }, [map, bounds]);
 
@@ -438,7 +441,14 @@ function GlobalCoverageNotice() {
  * Auto-zooms to fit all locations with padding.
  * Hidden when no valid geo locations are available.
  */
-export function LocationSection({ geoLocations, isDark = false, samplingLocation = false, igsn = null }: LocationSectionProps) {
+export function LocationSection({
+    geoLocations,
+    isDark = false,
+    samplingLocation = false,
+    igsn = null,
+    content = 'combined',
+    heading: headingOverride,
+}: LocationSectionProps) {
     const [isMounted, setIsMounted] = useState(false);
 
     // Client-side only rendering (Leaflet needs window/document)
@@ -488,10 +498,12 @@ export function LocationSection({ geoLocations, isDark = false, samplingLocation
           ]
         : [];
     const hasDetails = hasVisibleMetadataRows(rows);
-    const heading = samplingLocation ? 'Sampling Location' : 'Location';
+    const heading = headingOverride ?? (samplingLocation ? 'Sampling Location' : 'Location');
+    const headingId = content === 'map' ? 'heading-map' : 'heading-location';
+    const showDetails = content !== 'map' && hasDetails;
+    const showMap = content !== 'details' && (hasGlobalCoverage || hasMappableLocations);
 
-    // Don't render if neither coordinates nor sample location details exist.
-    if (validLocations.length === 0 && !hasDetails) {
+    if (!showDetails && !showMap) {
         return null;
     }
 
@@ -503,35 +515,35 @@ export function LocationSection({ geoLocations, isDark = false, samplingLocation
         : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
     // Show loading placeholder during SSR — always visible (no fade-in gating)
-    if (!isMounted && hasMappableLocations) {
+    if (!isMounted && content !== 'details' && hasMappableLocations) {
         return (
-            <LandingPageCard disableFadeIn aria-labelledby="heading-location">
-                <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <LandingPageCard disableFadeIn aria-labelledby={headingId}>
+                <h2 id={headingId} className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
                     {heading}
                 </h2>
-                {hasDetails && (
+                {showDetails && (
                     <div className="mb-4">
                         <MetadataList rows={rows} />
                     </div>
                 )}
-                {hasGlobalCoverage && <GlobalCoverageNotice />}
+                {showMap && hasGlobalCoverage && <GlobalCoverageNotice />}
                 <Skeleton className="aspect-square w-full rounded-lg" />
             </LandingPageCard>
         );
     }
 
     return (
-        <LandingPageCard aria-labelledby="heading-location" data-testid="geolocation-section">
-            <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <LandingPageCard aria-labelledby={headingId} data-testid="geolocation-section">
+            <h2 id={headingId} className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 {heading}
             </h2>
-            {hasDetails && (
+            {showDetails && (
                 <div className="mb-4">
                     <MetadataList rows={rows} />
                 </div>
             )}
-            {hasGlobalCoverage && <GlobalCoverageNotice />}
-            {hasMappableLocations && (
+            {showMap && hasGlobalCoverage && <GlobalCoverageNotice />}
+            {showMap && hasMappableLocations && (
                 <div
                     className="relative z-0 aspect-square w-full overflow-hidden rounded-lg"
                     data-testid="map-container"

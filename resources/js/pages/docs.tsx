@@ -2242,10 +2242,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <h4>Newer-Version and Superseded Notices</h4>
                         <p>
-                            Resource and IGSN landing pages show a prominent notice below the page header when the metadata contains{' '}
-                            <code>IsPreviousVersionOf</code> or <code>IsObsoletedBy</code>. The notice links every identified target and uses a
-                            stronger warning when the current record has been superseded. It remains visible even when Related Work is collapsed or
-                            the relation type is hidden in the landing-page template; the complete relation can still also appear in Related Work.
+                            Resource and IGSN landing pages show a prominent notice when the metadata contains <code>IsPreviousVersionOf</code> or{' '}
+                            <code>IsObsoletedBy</code>. Resource pages keep it below the Hero; IGSN templates may place the Version Notice in either
+                            column but cannot hide it. The notice links every identified target and uses a stronger warning when the current record
+                            has been superseded. It remains visible even when Related Work is collapsed or its relation type is hidden; the complete
+                            relation can still also appear in Related Work.
                         </p>
                         <p className="text-sm text-muted-foreground">
                             If a version relation points to a Related Item without an identifier, ERNIE shows its title as plain text until an
@@ -2463,9 +2464,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Reorder Sections">
                                 <p>
-                                    Click the edit icon on a template card. For Resource and IGSN templates, use <strong>drag &amp; drop</strong> to
-                                    rearrange modules within a column or move them between the left and right columns. Each template type only offers
-                                    the modules intended for its landing pages.
+                                    Click the edit icon on a template card. Use <strong>drag &amp; drop</strong> to rearrange modules within a column
+                                    or move them between the left and right columns. Each template type only offers the modules intended for its
+                                    landing pages.
                                 </p>
                                 <p>
                                     Resource templates provide Resource-specific modules such as Files &amp; Downloads, License &amp; Rights,
@@ -2477,33 +2478,47 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     remains a separate card at its selected position.
                                 </p>
                                 <p>
-                                    For IGSN landing pages, each module renders in its own card and can be placed in either column. IGSN modules
-                                    include <strong>General</strong> (Project, Campaign, Type, Name, IGSN, Parent IGSN, Purpose, Release Date),{' '}
-                                    <strong>Sample Family</strong> (the complete locally known hierarchy from the highest ancestor to all descendants,
-                                    with links to published family members), <strong>Acquisition</strong> (Material, material-specific Classification,
-                                    structured Description fields labelled by their scheme, Geological Age and Age Range, Geological Unit,
-                                    Minimum/Maximum Depth, Depth Scale, Sizes, Launch Platform, Launch Type, and Navigation Type), and{' '}
-                                    <strong>Repositories</strong> (current and original repository, their protected contact actions, and sample
-                                    access), plus <strong>Sample Image</strong>. On ICDP IGSN landing pages, a dedicated <strong>Drilling</strong>{' '}
-                                    card can additionally show Collection Method and Description, Total Length, Comments, Platform Type, Platform Name
-                                    and Description, Operator, Funding Agency, Chief Scientist, Sampling Date, and Start/End Date. Collection Date
-                                    Precision is not displayed. Sample Image displays the locally managed or approved external legacy photo and may be
-                                    positioned like any other IGSN module. Draft family members remain visible without a link, while empty fields and
-                                    empty modules, including a missing image or a Drilling card without meaningful values, are hidden automatically.
+                                    For IGSN landing pages, each module renders in its own card and can be placed in either column or in{' '}
+                                    <strong>Hidden cards</strong>. Visible cards also have a Hide action, while hidden cards can be restored directly
+                                    to either column without dragging. IGSN modules include <strong>General</strong> (Project, Campaign, Type, Name,
+                                    IGSN, Parent IGSN, Purpose, Release Date), <strong>Sample Family</strong> (the complete locally known hierarchy
+                                    from the highest ancestor to all descendants, with links to published family members),{' '}
+                                    <strong>Acquisition</strong> (Material, material-specific Classification, structured Description fields labelled
+                                    by their scheme, Geological Age and Age Range, Geological Unit, Minimum/Maximum Depth, Depth Scale, Sizes, Launch
+                                    Platform, Launch Type, and Navigation Type), and <strong>Repositories</strong> (current and original repository,
+                                    their protected contact actions, and sample access), plus <strong>Sample Image</strong>. On ICDP IGSN landing
+                                    pages, a dedicated <strong>Drilling</strong> card can additionally show Collection Method and Description, Total
+                                    Length, Comments, Platform Type, Platform Name and Description, Operator, Funding Agency, Chief Scientist,
+                                    Sampling Date, and Start/End Date. Collection Date Precision is not displayed. Sample Image displays the locally
+                                    managed or approved external legacy photo and may be positioned like any other IGSN module. Drilling and Sample
+                                    Image start in Hidden cards on new IGSN templates. Draft family members remain visible without a link, while empty
+                                    fields and empty modules are hidden automatically.
                                 </p>
                                 <p>
-                                    The <strong>Location / Map</strong> module becomes <strong>Sampling Location</strong> for IGSNs. It can display
-                                    latitude and longitude, bounding coordinates, coordinate system, elevation, location type and name, Location
-                                    Description, Locality Description, country, province, county, and city. One coordinate pair is rendered as a
-                                    point, two pairs as a box, and three or more pairs as a polygon.
+                                    Sample Family initially opens only the ancestors needed to reach the current sample. Use each parent's chevron to
+                                    expand or collapse that branch, and drag or operate the keyboard-accessible lower resize handle to change the tree
+                                    height for the current page view. The height is not saved. Citation cards and the Hero always display and copy the
+                                    complete <code>https://doi.org/...</code> identifier; compact IGSN handles remain in sample-specific metadata and
+                                    family links.
+                                </p>
+                                <p>
+                                    IGSNs use separate <strong>Location</strong> and <strong>Map</strong> cards. Location contains latitude and
+                                    longitude, bounding coordinates, coordinate system, elevation, location type and name, Location Description,
+                                    Locality Description, country, province, county, and city. Map renders one coordinate pair as a point, two pairs
+                                    as a box, and three or more pairs as a polygon; its automatic overview stops at zoom level 2 before visitors zoom
+                                    further themselves.
+                                </p>
+                                <p>
+                                    The built-in IGSN layout starts with General, Sample Family, Repositories, Map, Related Work, Download Metadata,
+                                    Dates, and Cite This Resource on the left. Version Notice, Contributors, Authors, Location, Acquisition, and
+                                    Funding References form the right column. Version Notice can move between the columns but cannot be hidden.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Configure Visibility (Optional)">
                                 <p>
-                                    For every IGSN template, use <strong>Show Drilling card</strong> to control the dedicated card on ICDP IGSN
-                                    landing pages. The setting is enabled by default and is also available when editing the built-in{' '}
-                                    <strong>Templates IGSN</strong> copy template. It has no effect on non-ICDP IGSNs, where the corresponding
-                                    drilling details remain in <strong>Acquisition</strong>.
+                                    For a custom IGSN template, move any optional module to <strong>Hidden cards</strong> to omit it from every
+                                    landing page using that template. Move Drilling into a visible column when an ICDP landing page should show its
+                                    dedicated drilling metadata. On non-ICDP IGSNs, corresponding details remain in <strong>Acquisition</strong>.
                                 </p>
                                 <p>
                                     In the custom template editor, use <strong>Dates visibility</strong> and <strong>Related Work visibility</strong>{' '}
@@ -2547,9 +2562,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Note:</strong> Built-in copy templates only allow display-limit and datacenter-assignment changes; the
-                                built-in IGSN copy template additionally allows the <strong>Show Drilling card</strong> setting. They cannot be
-                                deleted. A custom template cannot be deleted while a landing page uses it explicitly or a datacenter inherits it.
+                                <strong>Note:</strong> Built-in copy templates only allow display-limit and datacenter-assignment changes and cannot
+                                be deleted. Clone one to customize its layout or Hidden cards. A custom template cannot be deleted while a landing
+                                page uses it explicitly or a datacenter inherits it.
                             </p>
                         </div>
                     </>

@@ -4,8 +4,10 @@ namespace Database\Seeders;
 
 use App\Enums\AccessLevel;
 use App\Enums\UserRole;
+use App\Models\AlternateIdentifier;
 use App\Models\Datacenter;
 use App\Models\Description;
+use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
@@ -44,6 +46,10 @@ class PlaywrightTestSeeder extends Seeder
     private const PLAYWRIGHT_PUBLISHED_RESOURCE_DOI = '10.1234/playwright-published';
 
     private const PLAYWRIGHT_IGSN_PREVIEW_DOI = '10.1234/playwright-igsn-preview';
+
+    private const PLAYWRIGHT_IGSN_FAMILY_ROOT_DOI = '10.60510/playwrightroot0001';
+
+    private const PLAYWRIGHT_IGSN_FAMILY_CHILD_DOI = '10.60510/playwrightchild0001';
 
     private const PLAYWRIGHT_LEGACY_IGSN_DOI = '10.60510/gfbno7002exz3001';
 
@@ -264,9 +270,28 @@ class PlaywrightTestSeeder extends Seeder
             $igsnResource->save();
         }
 
+        $familyRoot = Resource::query()->where('doi', self::PLAYWRIGHT_IGSN_FAMILY_ROOT_DOI)->first();
+        if (! $familyRoot) {
+            $familyRoot = Resource::factory()->create(array_merge($resourceAttributes, [
+                'doi' => self::PLAYWRIGHT_IGSN_FAMILY_ROOT_DOI,
+                'identifier_type' => 'IGSN',
+                'resource_type_id' => $physicalObjectType->id,
+            ]));
+        }
+        $familyRoot->update(['identifier_type' => 'IGSN', 'resource_type_id' => $physicalObjectType->id]);
+        IgsnMetadata::query()->updateOrCreate(
+            ['resource_id' => $familyRoot->id],
+            ['parent_resource_id' => null, 'sample_type' => 'Hole', 'material' => 'Rock'],
+        );
+        AlternateIdentifier::query()->updateOrCreate(
+            ['resource_id' => $familyRoot->id, 'type' => 'Local accession number'],
+            ['value' => 'Playwright family root', 'position' => 0],
+        );
+
         IgsnMetadata::query()->updateOrCreate(
             ['resource_id' => $igsnResource->id],
             [
+                'parent_resource_id' => $familyRoot->id,
                 'sample_type' => 'Rock core',
                 'material' => 'Granite',
                 'collection_method' => 'Field collection',
@@ -281,6 +306,40 @@ class PlaywrightTestSeeder extends Seeder
                 ],
                 'upload_status' => IgsnMetadata::STATUS_PENDING,
             ],
+        );
+        AlternateIdentifier::query()->updateOrCreate(
+            ['resource_id' => $igsnResource->id, 'type' => 'Local accession number'],
+            ['value' => 'Playwright current sample', 'position' => 0],
+        );
+        GeoLocation::query()->updateOrCreate(
+            ['resource_id' => $igsnResource->id, 'position' => 0],
+            [
+                'geo_type' => 'point',
+                'place' => 'GFZ Potsdam',
+                'point_longitude' => 13.0661,
+                'point_latitude' => 52.3806,
+                'location_type' => 'Field site',
+                'country' => 'Germany',
+                'city' => 'Potsdam',
+            ],
+        );
+
+        $familyChild = Resource::query()->where('doi', self::PLAYWRIGHT_IGSN_FAMILY_CHILD_DOI)->first();
+        if (! $familyChild) {
+            $familyChild = Resource::factory()->create(array_merge($resourceAttributes, [
+                'doi' => self::PLAYWRIGHT_IGSN_FAMILY_CHILD_DOI,
+                'identifier_type' => 'IGSN',
+                'resource_type_id' => $physicalObjectType->id,
+            ]));
+        }
+        $familyChild->update(['identifier_type' => 'IGSN', 'resource_type_id' => $physicalObjectType->id]);
+        IgsnMetadata::query()->updateOrCreate(
+            ['resource_id' => $familyChild->id],
+            ['parent_resource_id' => $igsnResource->id, 'sample_type' => 'Specimen', 'material' => 'Rock'],
+        );
+        AlternateIdentifier::query()->updateOrCreate(
+            ['resource_id' => $familyChild->id, 'type' => 'Local accession number'],
+            ['value' => 'Playwright family child', 'position' => 0],
         );
 
         $igsnLandingPage = LandingPage::query()->firstOrNew([

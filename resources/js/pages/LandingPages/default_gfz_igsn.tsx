@@ -8,7 +8,6 @@ import type {
     LandingPageDisplayLimits,
     LandingPageMetadataLink,
     LandingPageResource,
-    LandingPageSectionVisibility,
     LandingPageTypeVisibility,
     SectionOrder,
 } from '@/types/landing-page';
@@ -32,10 +31,9 @@ import { SampleFamilySection } from './components/SampleFamilySection';
 import { SampleImageSection } from './components/SampleImageSection';
 import { VersionNotice } from './components/VersionNotice';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
-import { replaceIgsnIdentifierText } from './lib/igsn-display';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
 import { type MetadataSectionKey } from './lib/metadata-sections';
-import { IGSN_LEFT_COLUMN_SECTIONS, IGSN_RIGHT_COLUMN_SECTIONS, normalizeIgsnColumnOrders } from './lib/section-catalog';
+import { IGSN_HIDDEN_SECTIONS, IGSN_LEFT_COLUMN_SECTIONS, IGSN_RIGHT_COLUMN_SECTIONS, normalizeIgsnColumnOrders } from './lib/section-catalog';
 
 /**
  * Props passed to IGSN landing page template via Inertia
@@ -51,7 +49,6 @@ interface DefaultGfzIgsnTemplatePageProps {
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
     typeVisibility?: LandingPageTypeVisibility;
-    sectionVisibility?: LandingPageSectionVisibility;
     citationStyles?: LandingPageCitationStyle[];
     metadataLinks?: LandingPageMetadataLink[];
     /** Inertia PageProps requires index signature for dynamic SSR props */
@@ -67,9 +64,8 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
 /**
  * Built-in GFZ IGSN Landing Page Copy Template
  *
- * Two-column landing page for physical samples (IGSNs). Mirrors the layout
- * of the Templates Resources layout but replaces the Files module
- * with IGSN-specific General and Acquisition modules in the left column.
+ * Configurable two-column landing page for physical samples (IGSNs), with a
+ * third persisted template zone for modules intentionally hidden from output.
  */
 export default function DefaultGfzIgsnTemplate() {
     const {
@@ -83,7 +79,6 @@ export default function DefaultGfzIgsnTemplate() {
         displayLimits,
         citationStyles,
         typeVisibility,
-        sectionVisibility,
     } = usePage<DefaultGfzIgsnTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
@@ -91,21 +86,13 @@ export default function DefaultGfzIgsnTemplate() {
     const templateData = getLandingPageTemplateData(resource, landingPage, isPreview, peopleDisplayLimits.citationAuthors);
     const localName = resource.igsn_metadata?.name?.trim();
     const mainTitle = templateData.mainTitle.trim().toLowerCase() === ':tba' && localName ? localName : templateData.mainTitle;
-    const citation = replaceIgsnIdentifierText(templateData.citation, resource.doi, resource.igsn_metadata?.igsn);
-    const citationPresentation = {
-        ...templateData.citationPresentation,
-        compact: replaceIgsnIdentifierText(templateData.citationPresentation.compact, resource.doi, resource.igsn_metadata?.igsn),
-        expanded: replaceIgsnIdentifierText(templateData.citationPresentation.expanded, resource.doi, resource.igsn_metadata?.igsn),
-        compactPrefix: replaceIgsnIdentifierText(templateData.citationPresentation.compactPrefix, resource.doi, resource.igsn_metadata?.igsn),
-        compactSuffix: replaceIgsnIdentifierText(templateData.citationPresentation.compactSuffix, resource.doi, resource.igsn_metadata?.igsn),
-    };
+    const { citation, citationPresentation } = templateData;
     const { status, subtitle } = templateData;
     const isIcdp = resource.datacenter?.name === 'ICDP';
-    const showIgsnDrilling = sectionVisibility?.igsnDrilling ?? true;
 
     const orders = sectionOrder
-        ? normalizeIgsnColumnOrders(sectionOrder.leftColumn, sectionOrder.rightColumn)
-        : { left: IGSN_LEFT_COLUMN_SECTIONS as IgsnSection[], right: IGSN_RIGHT_COLUMN_SECTIONS };
+        ? normalizeIgsnColumnOrders(sectionOrder.leftColumn, sectionOrder.rightColumn, sectionOrder.hiddenSections)
+        : { left: IGSN_LEFT_COLUMN_SECTIONS as IgsnSection[], right: IGSN_RIGHT_COLUMN_SECTIONS, hidden: IGSN_HIDDEN_SECTIONS };
 
     const sectionRegistry = useMemo((): Record<IgsnSection, ReactNode> => {
         const jsonLdExportUrl = landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined;
@@ -123,6 +110,8 @@ export default function DefaultGfzIgsnTemplate() {
                 metadataLinks={metadataLinks}
                 sectionOrder={[key]}
                 displayLimits={peopleDisplayLimits}
+                creatorHeading={key === 'creators' ? 'Authors' : undefined}
+                funderHeading={key === 'funders' ? 'Funding References' : undefined}
             />
         );
 
@@ -143,16 +132,15 @@ export default function DefaultGfzIgsnTemplate() {
                 />
             ),
             igsn_methods: <IgsnMethodsSection key="igsn_methods" igsn={resource.igsn_metadata} />,
-            igsn_drilling:
-                isIcdp && showIgsnDrilling ? (
-                    <IgsnDrillingSection
-                        key="igsn_drilling"
-                        igsn={resource.igsn_metadata}
-                        contributors={resource.contributors || []}
-                        fundingReferences={resource.funding_references || []}
-                        dates={resource.dates || []}
-                    />
-                ) : null,
+            igsn_drilling: isIcdp ? (
+                <IgsnDrillingSection
+                    key="igsn_drilling"
+                    igsn={resource.igsn_metadata}
+                    contributors={resource.contributors || []}
+                    fundingReferences={resource.funding_references || []}
+                    dates={resource.dates || []}
+                />
+            ) : null,
             repositories: <RepositoriesSection key="repositories" igsn={resource.igsn_metadata} datasetTitle={mainTitle} />,
             citation: (
                 <CiteThisResourceSection
@@ -160,7 +148,7 @@ export default function DefaultGfzIgsnTemplate() {
                     resource={resource}
                     citationStyles={citationStyles}
                     citationAuthorLimit={peopleDisplayLimits.citationAuthors}
-                    displayIdentifier={resource.igsn_metadata?.igsn}
+                    heading="Cite This Resource"
                 />
             ),
             dates: <DatesSection key="dates" dates={resource.dates || []} excludedDateTypes={typeVisibility?.excludedDateTypes} />,
@@ -201,10 +189,20 @@ export default function DefaultGfzIgsnTemplate() {
                     isDark={isDark}
                     samplingLocation
                     igsn={resource.igsn_metadata}
+                    content="details"
+                    heading="Location"
+                />
+            ),
+            map: <LocationSection key="map" geoLocations={resource.geo_locations || []} isDark={isDark} content="map" heading="Map" />,
+            version_notice: (
+                <VersionNotice
+                    key="version_notice"
+                    relatedIdentifiers={resource.related_identifiers || []}
+                    relatedItems={resource.related_items || []}
                 />
             ),
         };
-    }, [resource, landingPage, isDark, peopleDisplayLimits, metadataLinks, mainTitle, citationStyles, typeVisibility, isIcdp, showIgsnDrilling]);
+    }, [resource, landingPage, isDark, peopleDisplayLimits, metadataLinks, mainTitle, citationStyles, typeVisibility, isIcdp]);
 
     return (
         <>
@@ -225,7 +223,6 @@ export default function DefaultGfzIgsnTemplate() {
                         useIgsnIcon={true}
                     />
                 }
-                notice={<VersionNotice relatedIdentifiers={resource.related_identifiers || []} relatedItems={resource.related_items || []} />}
                 rightColumnSections={orders.right.map((key) => sectionRegistry[key]).filter(Boolean)}
                 leftColumnSections={orders.left.map((key) => sectionRegistry[key]).filter(Boolean)}
             />

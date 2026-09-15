@@ -65,7 +65,11 @@ export function MetadataList({ rows, subgrid = false }: MetadataListProps): Reac
         <dl
             data-slot="metadata-list"
             data-layout={subgrid ? 'subgrid' : 'independent'}
-            className={subgrid ? 'col-span-2 grid grid-cols-subgrid gap-y-2 text-sm' : 'grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 text-sm'}
+            className={
+                subgrid
+                    ? 'col-span-2 grid grid-cols-subgrid gap-y-2 text-sm'
+                    : 'grid min-w-0 grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-[minmax(0,max-content)_minmax(0,1fr)] sm:gap-y-2'
+            }
         >
             {visible.map((row) => (
                 <Fragment key={row.key ?? row.label}>

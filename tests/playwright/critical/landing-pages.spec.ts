@@ -146,6 +146,41 @@ test.describe.skip('Landing Page - Contributors', () => {
   });
 });
 
+test.describe('Landing Page - IGSN layout', () => {
+  test('separates Location and Map and supports focused Sample Family expansion and resizing', async ({ page }) => {
+    const landingPage = new LandingPage(page);
+    await landingPage.gotoPreview('playwright-igsn-preview');
+    await landingPage.verifyPageLoaded();
+
+    await expect(landingPage.locationSection.getByRole('heading', { name: 'Location' })).toBeVisible();
+    await expect(landingPage.mapSection.getByRole('heading', { name: 'Map' })).toBeVisible();
+    await expect(landingPage.mapContainer).toBeVisible();
+
+    const family = page.locator('section[aria-labelledby="heading-sample-family"]');
+    const rootToggle = family.getByRole('button', { name: 'Collapse Playwright family root' });
+    const currentToggle = family.getByRole('button', { name: 'Expand Playwright current sample' });
+    await expect(rootToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(currentToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(family.getByText('Playwright family child')).not.toBeVisible();
+
+    await currentToggle.click();
+    await expect(family.getByText('Playwright family child')).toBeVisible();
+
+    const resizeHandle = family.getByRole('separator', { name: 'Resize Sample Family' });
+    const viewport = family.getByRole('navigation');
+    const followingCard = family.locator('xpath=following-sibling::section[1]');
+    await resizeHandle.press('Home');
+    const minimumHeight = await viewport.evaluate((element) => element.getBoundingClientRect().height);
+    const minimumFollowingTop = await followingCard.evaluate((element) => element.getBoundingClientRect().top);
+
+    await resizeHandle.press('End');
+    await expect.poll(() => viewport.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(minimumHeight);
+    await expect.poll(() => followingCard.evaluate((element) => element.getBoundingClientRect().top)).toBeGreaterThan(minimumFollowingTop);
+
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+});
+
 // Skip GeoLocation tests on Webkit in CI - Leaflet map rendering is notoriously slow on Webkit
 // and causes CI timeouts. Map functionality is still tested on Chromium and Firefox.
 test.describe('Landing Page - GeoLocations', () => {

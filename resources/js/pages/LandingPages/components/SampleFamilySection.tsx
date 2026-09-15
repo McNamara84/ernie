@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { GripHorizontal } from 'lucide-react';
+import { type PointerEvent as ReactPointerEvent, type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
 
 import type { LandingPageIgsnFamilyNode, LandingPageIgsnSampleFamily } from '@/types/landing-page';
 
@@ -12,6 +13,9 @@ interface SampleFamilySectionProps {
 interface FamilyNodeProps {
     node: LandingPageIgsnFamilyNode;
     currentResourceId: number;
+    expandedIds: ReadonlySet<number>;
+    onToggle: (resourceId: number) => void;
+    idPrefix: string;
 }
 
 type SampleTypeIconKind =
@@ -210,8 +214,11 @@ function SampleTypeIcon({ sampleType, isCurrent, isPublished }: SampleTypeIconPr
     );
 }
 
-function FamilyNode({ node, currentResourceId }: FamilyNodeProps): ReactNode {
+function FamilyNode({ node, currentResourceId, expandedIds, onToggle, idPrefix }: FamilyNodeProps): ReactNode {
     const isCurrent = node.resource_id === currentResourceId;
+    const hasChildren = node.children.length > 0;
+    const isExpanded = hasChildren && expandedIds.has(node.resource_id);
+    const childrenId = `${idPrefix}-children-${node.resource_id}`;
     const name = node.name?.trim();
     const igsn = node.igsn?.trim();
     const primaryLabel = name || igsn || 'Unnamed sample';
@@ -220,7 +227,7 @@ function FamilyNode({ node, currentResourceId }: FamilyNodeProps): ReactNode {
     const content = (
         <>
             <span className="min-w-0 flex-1">
-                <span className="block font-medium break-words text-gray-900 dark:text-gray-100">{primaryLabel}</span>
+                <span className="block text-sm font-medium break-words text-gray-900 dark:text-gray-100">{primaryLabel}</span>
                 {showIgsn ? <span className="block text-xs break-all text-gray-500 dark:text-gray-400">IGSN {igsn}</span> : null}
             </span>
             {isCurrent ? (
@@ -233,29 +240,59 @@ function FamilyNode({ node, currentResourceId }: FamilyNodeProps): ReactNode {
 
     return (
         <li aria-current={isCurrent ? 'page' : undefined}>
-            {node.landing_page && !isCurrent ? (
-                <a
-                    href={node.landing_page.public_url}
-                    className="flex flex-wrap items-start gap-3 rounded-md border border-transparent px-3 py-2 transition-colors hover:border-gfz-primary/30 hover:bg-gfz-primary/5 focus-visible:ring-2 focus-visible:ring-gfz-primary focus-visible:ring-offset-2 focus-visible:outline-none dark:hover:border-blue-400/40 dark:hover:bg-blue-400/10 dark:focus-visible:ring-blue-400 dark:focus-visible:ring-offset-gray-800"
-                >
-                    <SampleTypeIcon sampleType={node.sample_type} isCurrent={isCurrent} isPublished />
-                    {content}
-                </a>
-            ) : (
-                <div
-                    className={`flex flex-wrap items-start gap-3 rounded-md border px-3 py-2 ${
-                        isCurrent ? 'border-gfz-primary/40 bg-gfz-primary/5 dark:border-blue-400/50 dark:bg-blue-400/10' : 'border-transparent'
-                    }`}
-                >
-                    <SampleTypeIcon sampleType={node.sample_type} isCurrent={isCurrent} isPublished={Boolean(node.landing_page)} />
-                    {content}
-                </div>
-            )}
+            <div className="flex min-w-0 items-start" data-family-node-row>
+                {hasChildren ? (
+                    <button
+                        type="button"
+                        className="flex size-11 shrink-0 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-gfz-primary focus-visible:outline-none dark:text-gray-300 dark:hover:bg-gray-700 dark:focus-visible:ring-blue-400"
+                        aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${primaryLabel}`}
+                        aria-expanded={isExpanded}
+                        aria-controls={childrenId}
+                        onClick={() => onToggle(node.resource_id)}
+                    >
+                        <svg
+                            className={`size-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path d="m7 4 6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    </button>
+                ) : (
+                    <span className="size-11 shrink-0" aria-hidden="true" />
+                )}
+                {node.landing_page && !isCurrent ? (
+                    <a
+                        href={node.landing_page.public_url}
+                        className="flex min-w-0 flex-1 flex-wrap items-start gap-3 rounded-md border border-transparent px-3 py-2 transition-colors hover:border-gfz-primary/30 hover:bg-gfz-primary/5 focus-visible:ring-2 focus-visible:ring-gfz-primary focus-visible:ring-offset-2 focus-visible:outline-none dark:hover:border-blue-400/40 dark:hover:bg-blue-400/10 dark:focus-visible:ring-blue-400 dark:focus-visible:ring-offset-gray-800"
+                    >
+                        <SampleTypeIcon sampleType={node.sample_type} isCurrent={isCurrent} isPublished />
+                        {content}
+                    </a>
+                ) : (
+                    <div
+                        className={`flex min-w-0 flex-1 flex-wrap items-start gap-3 rounded-md border px-3 py-2 ${
+                            isCurrent ? 'border-gfz-primary/40 bg-gfz-primary/5 dark:border-blue-400/50 dark:bg-blue-400/10' : 'border-transparent'
+                        }`}
+                    >
+                        <SampleTypeIcon sampleType={node.sample_type} isCurrent={isCurrent} isPublished={Boolean(node.landing_page)} />
+                        {content}
+                    </div>
+                )}
+            </div>
 
-            {node.children.length ? (
-                <ul className="ml-2 border-l border-gray-300 pl-2 sm:ml-4 sm:pl-3 dark:border-gray-600">
+            {hasChildren && isExpanded ? (
+                <ul id={childrenId} className="ml-5 border-l border-gray-300 pl-1 sm:ml-7 sm:pl-2 dark:border-gray-600">
                     {node.children.map((child) => (
-                        <FamilyNode key={child.resource_id} node={child} currentResourceId={currentResourceId} />
+                        <FamilyNode
+                            key={child.resource_id}
+                            node={child}
+                            currentResourceId={currentResourceId}
+                            expandedIds={expandedIds}
+                            onToggle={onToggle}
+                            idPrefix={idPrefix}
+                        />
                     ))}
                 </ul>
             ) : null}
@@ -263,8 +300,80 @@ function FamilyNode({ node, currentResourceId }: FamilyNodeProps): ReactNode {
     );
 }
 
+/** Return exactly the ancestors that must be open to reveal the current sample. */
+export function findExpandedAncestorIds(root: LandingPageIgsnFamilyNode, currentResourceId: number): Set<number> {
+    const visit = (node: LandingPageIgsnFamilyNode, ancestors: number[]): number[] | null => {
+        if (node.resource_id === currentResourceId) return ancestors;
+        for (const child of node.children) {
+            const path = visit(child, [...ancestors, node.resource_id]);
+            if (path) return path;
+        }
+        return null;
+    };
+
+    return new Set(visit(root, []) ?? []);
+}
+
 /** Complete locally known parent/child navigation for IGSN landing pages. */
 export function SampleFamilySection({ family, currentResourceId }: SampleFamilySectionProps): ReactNode {
+    const idPrefix = useId().replace(/:/g, '');
+    const [expandedIds, setExpandedIds] = useState<Set<number>>(() => (family ? findExpandedAncestorIds(family.root, currentResourceId) : new Set()));
+    const [height, setHeight] = useState<number | null>(null);
+    const [minHeight, setMinHeight] = useState(44);
+    const [maxHeight, setMaxHeight] = useState(512);
+    const navigationRef = useRef<HTMLElement>(null);
+    const treeRef = useRef<HTMLUListElement>(null);
+    const resizeStart = useRef<{ pointerY: number; height: number } | null>(null);
+
+    useEffect(() => {
+        setExpandedIds(family ? findExpandedAncestorIds(family.root, currentResourceId) : new Set());
+        setHeight(null);
+    }, [family, currentResourceId]);
+
+    const measure = useCallback(() => {
+        const tree = treeRef.current;
+        if (!tree) return;
+        const firstRow = tree.querySelector<HTMLElement>('[data-family-node-row]');
+        const nextMin = Math.max(44, Math.ceil(firstRow?.getBoundingClientRect().height ?? firstRow?.offsetHeight ?? 44));
+        const nextMax = Math.max(nextMin, Math.ceil(tree.scrollHeight));
+        setMinHeight(nextMin);
+        setMaxHeight(nextMax);
+        setHeight((current) => (current === null ? Math.min(nextMax, 512) : Math.max(nextMin, Math.min(current, nextMax))));
+    }, []);
+
+    useEffect(() => {
+        measure();
+        const tree = treeRef.current;
+        if (!tree || typeof ResizeObserver === 'undefined') return;
+        const observer = new ResizeObserver(measure);
+        observer.observe(tree);
+        return () => observer.disconnect();
+    }, [expandedIds, measure]);
+
+    const clampHeight = (value: number) => Math.max(minHeight, Math.min(value, maxHeight));
+    const toggle = (resourceId: number) => {
+        setExpandedIds((current) => {
+            const next = new Set(current);
+            if (next.has(resourceId)) next.delete(resourceId);
+            else next.add(resourceId);
+            return next;
+        });
+    };
+    const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+        const currentHeight = navigationRef.current?.getBoundingClientRect().height ?? height ?? minHeight;
+        resizeStart.current = { pointerY: event.clientY, height: currentHeight };
+        event.currentTarget.setPointerCapture(event.pointerId);
+        event.preventDefault();
+    };
+    const handleResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+        if (!resizeStart.current) return;
+        setHeight(clampHeight(resizeStart.current.height + event.clientY - resizeStart.current.pointerY));
+    };
+    const handleResizeEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+        resizeStart.current = null;
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    };
+
     if (!family || family.member_count <= 1) {
         return null;
     }
@@ -274,11 +383,47 @@ export function SampleFamilySection({ family, currentResourceId }: SampleFamilyS
             <h2 id="heading-sample-family" className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Sample Family
             </h2>
-            <nav aria-labelledby="heading-sample-family" className="max-h-[32rem] overflow-auto pr-1">
-                <ul className="min-w-64 space-y-1">
-                    <FamilyNode node={family.root} currentResourceId={currentResourceId} />
+            <nav
+                ref={navigationRef}
+                aria-labelledby="heading-sample-family"
+                className="min-w-0 overflow-auto pr-1"
+                style={{ height: height ?? Math.min(maxHeight, 512) }}
+            >
+                <ul ref={treeRef} className="min-w-0 space-y-1">
+                    <FamilyNode
+                        node={family.root}
+                        currentResourceId={currentResourceId}
+                        expandedIds={expandedIds}
+                        onToggle={toggle}
+                        idPrefix={idPrefix}
+                    />
                 </ul>
             </nav>
+            <div
+                role="separator"
+                aria-label="Resize Sample Family"
+                aria-orientation="horizontal"
+                aria-valuemin={Math.round(minHeight)}
+                aria-valuemax={Math.round(maxHeight)}
+                aria-valuenow={Math.round(height ?? Math.min(maxHeight, 512))}
+                tabIndex={0}
+                className="mt-2 flex h-6 cursor-ns-resize touch-none items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus-visible:ring-2 focus-visible:ring-gfz-primary focus-visible:outline-none dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:focus-visible:ring-blue-400"
+                onPointerDown={handleResizeStart}
+                onPointerMove={handleResizeMove}
+                onPointerUp={handleResizeEnd}
+                onPointerCancel={handleResizeEnd}
+                onKeyDown={(event) => {
+                    const current = height ?? Math.min(maxHeight, 512);
+                    if (event.key === 'ArrowUp') setHeight(clampHeight(current - 24));
+                    else if (event.key === 'ArrowDown') setHeight(clampHeight(current + 24));
+                    else if (event.key === 'Home') setHeight(minHeight);
+                    else if (event.key === 'End') setHeight(maxHeight);
+                    else return;
+                    event.preventDefault();
+                }}
+            >
+                <GripHorizontal className="size-5" aria-hidden="true" />
+            </div>
         </LandingPageCard>
     );
 }
