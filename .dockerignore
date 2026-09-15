@@ -18,6 +18,7 @@
 .env
 .env.backup
 .env.local
+/stack.env
 
 # Testing (this is the main optimization - no tests in production)
 /tests

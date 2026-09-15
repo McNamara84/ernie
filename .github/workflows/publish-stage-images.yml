@@ -1,0 +1,169 @@
+name: Publish Stage Images
+
+on:
+  workflow_run:
+    workflows:
+      - Security Checks
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: publish-stage-images
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the candidate main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'refs/heads/main' }}
+          fetch-depth: 0
+
+      - name: Resolve source and image names
+        id: source
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          OWNER="$(printf '%s' "$REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+
+          if [[ "$(git rev-parse refs/remotes/origin/main)" == "$SOURCE_SHA" ]]; then
+            CURRENT=true
+          else
+            CURRENT=false
+            echo "Skipping stale commit $SOURCE_SHA because main has advanced."
+          fi
+
+          {
+            echo "current=$CURRENT"
+            echo "sha=$SOURCE_SHA"
+            echo "app_image=ghcr.io/${OWNER}/ernie-app"
+            echo "nginx_image=ghcr.io/${OWNER}/ernie-nginx"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Replace production environment with public build defaults
+        if: steps.source.outputs.current == 'true'
+        run: cp .env.example .env.production
+
+      - name: Resolve system package refresh date
+        if: steps.source.outputs.current == 'true'
+        id: system-packages-refresh
+        run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Docker Buildx
+        if: steps.source.outputs.current == 'true'
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      - name: Log in to GitHub Container Registry
+        if: steps.source.outputs.current == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push immutable application image
+        if: steps.source.outputs.current == 'true'
+        id: app-build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          target: app
+          push: true
+          tags: ${{ steps.source.outputs.app_image }}:sha-${{ steps.source.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
+            org.opencontainers.image.version=sha-${{ steps.source.outputs.sha }}
+          build-args: |
+            SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
+          cache-from: |
+            type=gha,scope=security-app
+            type=gha,scope=stage-app
+          cache-to: type=gha,mode=max,scope=stage-app
+
+      - name: Build and push immutable Nginx image
+        if: steps.source.outputs.current == 'true'
+        id: nginx-build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          target: nginx
+          push: true
+          tags: ${{ steps.source.outputs.nginx_image }}:sha-${{ steps.source.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
+            org.opencontainers.image.version=sha-${{ steps.source.outputs.sha }}
+          build-args: |
+            SYSTEM_PACKAGES_REFRESH=${{ steps.system-packages-refresh.outputs.date }}
+          cache-from: |
+            type=gha,scope=security-app
+            type=gha,scope=stage-app
+            type=gha,scope=stage-nginx
+          cache-to: type=gha,mode=max,scope=stage-nginx
+
+      - name: Confirm that the candidate is still current
+        if: steps.source.outputs.current == 'true'
+        id: latest
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+
+          if [[ "$(git rev-parse refs/remotes/origin/main)" == "$SOURCE_SHA" ]]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "Images remain available by SHA, but a newer main commit will be promoted instead."
+          fi
+
+      - name: Promote immutable images to the Stage channel
+        if: steps.latest.outputs.current == 'true'
+        env:
+          APP_DIGEST: ${{ steps.app-build.outputs.digest }}
+          APP_IMAGE: ${{ steps.source.outputs.app_image }}
+          NGINX_DIGEST: ${{ steps.nginx-build.outputs.digest }}
+          NGINX_IMAGE: ${{ steps.source.outputs.nginx_image }}
+        run: |
+          set -euo pipefail
+
+          docker buildx imagetools create --tag "${APP_IMAGE}:stage" "${APP_IMAGE}@${APP_DIGEST}"
+
+          docker buildx imagetools create --tag "${NGINX_IMAGE}:stage" "${NGINX_IMAGE}@${NGINX_DIGEST}"
+
+      - name: Advance the Stage deployment branch
+        if: steps.latest.outputs.current == 'true'
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+
+          if [[ "$(git rev-parse refs/remotes/origin/main)" != "$SOURCE_SHA" ]]; then
+            echo "main advanced after image promotion; leaving deploy/stage unchanged."
+            exit 0
+          fi
+
+          git push origin "${SOURCE_SHA}:refs/heads/deploy/stage"

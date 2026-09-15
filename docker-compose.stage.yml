@@ -1,10 +1,7 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: app
-    pull_policy: build
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}"
+    pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
     volumes:
@@ -141,11 +138,8 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
 
   webserver:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: nginx
-    pull_policy: build
+    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx:stage}"
+    pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
     ports:
@@ -235,11 +229,8 @@ services:
       start_period: 60s
 
   queue:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: app
-    pull_policy: build
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}"
+    pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
     command: php artisan queue:work --queue=${DATACITE_QUEUE:-datacite},vocabularies,default,imports --verbose --tries=3 --timeout=7200
@@ -328,11 +319,8 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
 
   assessment-queue:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: app
-    pull_policy: build
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}"
+    pull_policy: always
     restart: unless-stopped
     deploy:
       replicas: ${FUJI_ASSESSMENT_CONCURRENCY:-1}
@@ -389,11 +377,8 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: app
-    pull_policy: build
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:stage}"
+    pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped
     command:
