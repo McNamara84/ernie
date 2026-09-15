@@ -18,6 +18,9 @@ it('returns changelog data grouped by release', function () {
             'title' => 'Self-Describing Related Work Types',
         ])
         ->assertJsonFragment([
+            'title' => 'Clearer Portal Filter Overview',
+        ])
+        ->assertJsonFragment([
             'title' => 'Faster Datacenter Filtering',
         ])
         ->assertJsonFragment([
@@ -103,6 +106,18 @@ it('returns the related GitHub references for every version 1.0.9 changelog entr
                 'type' => 'issue',
                 'number' => 1306,
                 'url' => 'https://github.com/McNamara84/ernie/issues/1306',
+            ],
+        ],
+        'Clearer Portal Filter Overview' => [
+            [
+                'type' => 'issue',
+                'number' => 1303,
+                'url' => 'https://github.com/McNamara84/ernie/issues/1303',
+            ],
+            [
+                'type' => 'pull_request',
+                'number' => 1336,
+                'url' => 'https://github.com/McNamara84/ernie/pull/1336',
             ],
         ],
         'Faster Datacenter Filtering' => [
