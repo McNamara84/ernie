@@ -57,37 +57,49 @@ it('maps each template type to its datacenter assignment column', function (): v
         ->toThrow(InvalidArgumentException::class, 'Unsupported landing-page template type [unsupported].');
 });
 
-describe('Flexible IGSN columns for Issue 1168', function (): void {
-    it('accepts every IGSN module in either column including an empty column', function (): void {
+describe('Flexible IGSN layout zones', function (): void {
+    it('accepts every IGSN module in either visible column or the hidden zone', function (): void {
         expect(LandingPageTemplate::isValidIgsnSectionLayout(
             LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
             LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+            LandingPageTemplate::IGSN_HIDDEN_SECTIONS,
         ))->toBeTrue()
-            ->and(LandingPageTemplate::isValidIgsnSectionLayout([], LandingPageTemplate::IGSN_SECTIONS))->toBeTrue()
-            ->and(LandingPageTemplate::isValidIgsnSectionLayout(LandingPageTemplate::IGSN_SECTIONS, []))->toBeTrue();
+            ->and(LandingPageTemplate::isValidIgsnSectionLayout([], LandingPageTemplate::IGSN_SECTIONS, []))->toBeTrue()
+            ->and(LandingPageTemplate::isValidIgsnSectionLayout(LandingPageTemplate::IGSN_SECTIONS, [], []))->toBeTrue();
     });
 
-    it('rejects missing duplicate and unknown IGSN modules across columns', function (): void {
+    it('rejects missing duplicate unknown and hidden version-notice modules across zones', function (): void {
         $withoutImage = array_values(array_filter(
-            LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+            LandingPageTemplate::IGSN_HIDDEN_SECTIONS,
             static fn (string $key): bool => $key !== 'sample_image',
         ));
 
         expect(LandingPageTemplate::isValidIgsnSectionLayout(
             LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
+            LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
             $withoutImage,
         ))->toBeFalse()
             ->and(LandingPageTemplate::isValidIgsnSectionLayout(
                 [...LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS, 'location'],
                 LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+                LandingPageTemplate::IGSN_HIDDEN_SECTIONS,
             ))->toBeFalse()
             ->and(LandingPageTemplate::isValidIgsnSectionLayout(
                 [...LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS, 'unknown'],
                 LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+                LandingPageTemplate::IGSN_HIDDEN_SECTIONS,
+            ))->toBeFalse()
+            ->and(LandingPageTemplate::isValidIgsnSectionLayout(
+                LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
+                array_values(array_filter(
+                    LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+                    static fn (string $key): bool => $key !== 'version_notice',
+                )),
+                ['version_notice', ...LandingPageTemplate::IGSN_HIDDEN_SECTIONS],
             ))->toBeFalse();
     });
 
-    it('persists a cross-column IGSN layout and requires both columns together', function (): void {
+    it('persists a three-zone IGSN layout and requires all zones together', function (): void {
         $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $this->admin->id]);
         $left = ['sample_image', 'location'];
         $right = array_values(array_filter(
@@ -99,16 +111,18 @@ describe('Flexible IGSN columns for Issue 1168', function (): void {
             ->putJson("/landing-pages/{$template->id}", [
                 'left_column_order' => $left,
                 'right_column_order' => $right,
+                'hidden_sections' => [],
             ])
             ->assertOk();
 
         expect($template->fresh()->left_column_order)->toBe($left)
-            ->and($template->fresh()->right_column_order)->toBe($right);
+            ->and($template->fresh()->right_column_order)->toBe($right)
+            ->and($template->fresh()->hidden_sections)->toBe([]);
 
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", ['left_column_order' => LandingPageTemplate::IGSN_SECTIONS])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('right_column_order');
+            ->assertJsonValidationErrors(['right_column_order', 'hidden_sections']);
     });
 });
 
@@ -295,8 +309,8 @@ describe('Index', function (): void {
             ->assertInertia(fn ($page) => $page
                 ->component('landing-page-templates')
                 ->has('templates', 4) // resource default + IGSN default + 2 custom
-                ->where('templates.0.show_igsn_drilling', true)
-                ->where('templates.1.show_igsn_drilling', true)
+                ->where('templates.0.hidden_sections', [])
+                ->where('templates.1.hidden_sections', LandingPageTemplate::IGSN_HIDDEN_SECTIONS)
                 ->where('logoUploadConstraints', [
                     'minWidth' => 1080,
                     'minHeight' => 120,
@@ -541,8 +555,6 @@ describe('Clone', function (): void {
     });
 
     it('clones the IGSN default template when template_type=igsn is provided', function (): void {
-        $this->igsnDefaultTemplate->update(['show_igsn_drilling' => false]);
-
         $response = $this->actingAs($this->admin)
             ->postJson('/landing-pages', [
                 'name' => 'My IGSN Template',
@@ -557,7 +569,8 @@ describe('Clone', function (): void {
             ->and($template?->is_default)->toBeFalse()
             ->and($template?->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN)
             ->and($template?->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS)
-            ->and($template?->show_igsn_drilling)->toBeFalse();
+            ->and($template?->right_column_order)->toBe(LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS)
+            ->and($template?->hidden_sections)->toBe(LandingPageTemplate::IGSN_HIDDEN_SECTIONS);
     });
 
     it('rejects invalid template_type values', function (): void {
@@ -684,49 +697,89 @@ describe('Update', function (): void {
             ->and($template->citation_author_display_limit)->toBe(70);
     });
 
-    it('allows a group leader to update Drilling visibility on a custom IGSN template', function (): void {
-        $template = LandingPageTemplate::factory()->igsn()->create([
-            'created_by' => $this->admin->id,
-            'show_igsn_drilling' => true,
-        ]);
+    it('allows a group leader to move Drilling into the hidden zone on a custom IGSN template', function (): void {
+        $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $this->admin->id]);
+        $left = [...LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS, 'igsn_drilling'];
+        $hidden = array_values(array_filter(
+            LandingPageTemplate::IGSN_HIDDEN_SECTIONS,
+            static fn (string $key): bool => $key !== 'igsn_drilling',
+        ));
+        $template->update(['left_column_order' => $left, 'hidden_sections' => $hidden]);
 
         $this->actingAs($this->groupLeader)
-            ->putJson("/landing-pages/{$template->id}", ['show_igsn_drilling' => false])
+            ->putJson("/landing-pages/{$template->id}", [
+                'left_column_order' => LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
+                'right_column_order' => LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+                'hidden_sections' => LandingPageTemplate::IGSN_HIDDEN_SECTIONS,
+            ])
             ->assertOk()
-            ->assertJsonPath('template.show_igsn_drilling', false);
+            ->assertJsonPath('template.hidden_sections', LandingPageTemplate::IGSN_HIDDEN_SECTIONS);
 
-        expect($template->fresh()?->show_igsn_drilling)->toBeFalse();
+        expect($template->fresh()?->hidden_sections)->toBe(LandingPageTemplate::IGSN_HIDDEN_SECTIONS);
     });
 
-    it('allows an admin to update Drilling visibility on the built-in IGSN template', function (): void {
+    it('keeps the built-in IGSN layout immutable', function (): void {
         $this->actingAs($this->admin)
-            ->putJson("/landing-pages/{$this->igsnDefaultTemplate->id}", ['show_igsn_drilling' => false])
-            ->assertOk()
-            ->assertJsonPath('template.show_igsn_drilling', false);
-
-        expect($this->igsnDefaultTemplate->fresh()?->show_igsn_drilling)->toBeFalse();
+            ->putJson("/landing-pages/{$this->igsnDefaultTemplate->id}", [
+                'left_column_order' => [...LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS, 'igsn_drilling'],
+                'right_column_order' => LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+                'hidden_sections' => array_values(array_filter(
+                    LandingPageTemplate::IGSN_HIDDEN_SECTIONS,
+                    static fn (string $key): bool => $key !== 'igsn_drilling',
+                )),
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('error', 'default_template_immutable');
     });
 
-    it('rejects the IGSN-only Drilling setting for Resource templates', function (): void {
-        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+    it('rejects hiding the mandatory IGSN Version Notice', function (): void {
+        $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $this->admin->id]);
+        $right = array_values(array_filter(
+            LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+            static fn (string $key): bool => $key !== 'version_notice',
+        ));
 
         $this->actingAs($this->admin)
-            ->putJson("/landing-pages/{$template->id}", ['show_igsn_drilling' => false])
+            ->putJson("/landing-pages/{$template->id}", [
+                'left_column_order' => LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
+                'right_column_order' => $right,
+                'hidden_sections' => ['version_notice', ...LandingPageTemplate::IGSN_HIDDEN_SECTIONS],
+            ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('show_igsn_drilling')
             ->assertJsonPath(
-                'errors.show_igsn_drilling.0',
-                'The Drilling card setting is only available for IGSN templates.',
+                'errors.hidden_sections.0',
+                'IGSN layout zones must contain every valid section exactly once, and the Version Notice must remain visible.',
             );
     });
 
-    it('requires Drilling visibility to be boolean', function (mixed $value): void {
+    it('rejects the IGSN-only hidden zone for Resource templates', function (): void {
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'left_column_order' => LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
+                'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+                'hidden_sections' => [],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('hidden_sections')
+            ->assertJsonPath(
+                'errors.hidden_sections.0',
+                'Hidden sections are only available for IGSN templates.',
+            );
+    });
+
+    it('requires hidden sections to be an array', function (mixed $value): void {
         $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $this->admin->id]);
 
         $this->actingAs($this->admin)
-            ->putJson("/landing-pages/{$template->id}", ['show_igsn_drilling' => $value])
-            ->assertJsonValidationErrors('show_igsn_drilling');
-    })->with(['false', 2, null, [[]]]);
+            ->putJson("/landing-pages/{$template->id}", [
+                'left_column_order' => LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
+                'right_column_order' => LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+                'hidden_sections' => $value,
+            ])
+            ->assertJsonValidationErrors('hidden_sections');
+    })->with(['hidden', 2, null]);
 
     it('rejects a standalone module that splits the shared Resource metadata block', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
@@ -824,13 +877,10 @@ describe('Update', function (): void {
         expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
     });
 
-    it('forgets affected cached public landing page render data after Drilling visibility changes', function (): void {
+    it('forgets affected cached public landing page render data after hidden sections change', function (): void {
         Cache::flush();
 
-        $template = LandingPageTemplate::factory()->igsn()->create([
-            'created_by' => $this->admin->id,
-            'show_igsn_drilling' => true,
-        ]);
+        $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $this->admin->id]);
         $landingPage = LandingPage::factory()->published()->create([
             'resource_id' => Resource::factory()->create()->id,
             'landing_page_template_id' => $template->id,
@@ -840,8 +890,17 @@ describe('Update', function (): void {
 
         expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue();
 
+        $visibleDrilling = array_values(array_filter(
+            LandingPageTemplate::IGSN_HIDDEN_SECTIONS,
+            static fn (string $key): bool => $key !== 'igsn_drilling',
+        ));
+
         $this->actingAs($this->admin)
-            ->putJson("/landing-pages/{$template->id}", ['show_igsn_drilling' => false])
+            ->putJson("/landing-pages/{$template->id}", [
+                'left_column_order' => [...LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS, 'igsn_drilling'],
+                'right_column_order' => LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
+                'hidden_sections' => $visibleDrilling,
+            ])
             ->assertOk();
 
         expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
@@ -1203,7 +1262,7 @@ describe('API List', function (): void {
                         'logo_path',
                         'right_column_order',
                         'left_column_order',
-                        'show_igsn_drilling',
+                        'hidden_sections',
                     ],
                 ],
             ]);
@@ -1248,7 +1307,7 @@ describe('API List', function (): void {
             ]);
     });
 
-    it('normalizes legacy igsn left-column orders in the API list response', function (): void {
+    it('normalizes sparse IGSN layouts into a complete three-zone API response without persisting it', function (): void {
         $storedOrder = ['contact', 'files', 'model_description', 'related_work'];
 
         $template = LandingPageTemplate::factory()->igsn()->create([
@@ -1268,13 +1327,20 @@ describe('API List', function (): void {
                 'contact',
                 'model_description',
                 'related_work',
-                'general',
-                'sample_family',
-                'acquisition',
+            ])
+            ->and($serializedTemplate['right_column_order'])->toBe(LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS)
+            ->and($serializedTemplate['hidden_sections'])->toBe([
                 'igsn_methods',
                 'igsn_drilling',
-                'repositories',
                 'licenses',
+                ...LandingPageTemplate::DESCRIPTION_COLUMN_SECTIONS,
+                'keywords',
+                'sample_image',
+                'general',
+                'sample_family',
+                'repositories',
+                'map',
+                'metadata_download',
                 'dates',
                 'citation',
             ])
@@ -1324,17 +1390,13 @@ describe('Model', function (): void {
             ['contact', 'general', 'files'],
             LandingPageTemplate::TEMPLATE_TYPE_IGSN,
         ))->toBe([
-            'contact',
             'general',
-            'licenses',
             'sample_family',
-            'acquisition',
-            'igsn_methods',
-            'igsn_drilling',
             'repositories',
-            'dates',
-            'model_description',
+            'map',
             'related_work',
+            'metadata_download',
+            'dates',
             'citation',
         ]);
     });
@@ -1355,22 +1417,18 @@ describe('Model', function (): void {
             ['citation', 'contact', 'general'],
             LandingPageTemplate::TEMPLATE_TYPE_IGSN,
         ))->toBe([
-            'licenses',
             'citation',
-            'contact',
             'general',
             'sample_family',
-            'acquisition',
-            'igsn_methods',
-            'igsn_drilling',
             'repositories',
-            'dates',
-            'model_description',
+            'map',
             'related_work',
+            'metadata_download',
+            'dates',
         ]);
     });
 
-    it('preserves the legacy citation fallback when normalizing flexible IGSN layouts', function (): void {
+    it('preserves known positions and moves missing IGSN modules into the hidden zone', function (): void {
         $normalized = LandingPageTemplate::normalizeIgsnSectionOrders(
             ['contact', 'general', 'unknown'],
             ['abstract', 'location'],
@@ -1379,21 +1437,12 @@ describe('Model', function (): void {
         expect($normalized['left'])->toBe([
             'contact',
             'general',
-            'sample_family',
-            'acquisition',
-            'igsn_methods',
-            'igsn_drilling',
-            'repositories',
-            'licenses',
-            'dates',
-            'model_description',
-            'related_work',
-            'citation',
-        ])->and($normalized['right'])->toContain('sample_image')
+        ])->and($normalized['right'])->toBe(['version_notice', 'abstract', 'location'])
+            ->and($normalized['hidden'])->toContain('sample_image', 'citation', 'igsn_drilling')
             ->and(LandingPageTemplate::normalizeIgsnSectionOrders(
                 ['general'],
                 ['citation', 'location'],
-            )['right'][0])->toBe('citation');
+            )['right'])->toBe(['version_notice', 'citation', 'location']);
     });
 
     it('restores citation at the canonical position in legacy system defaults', function (): void {
@@ -1449,15 +1498,13 @@ describe('Model', function (): void {
             'creator_display_limit' => 33,
             'contributor_display_limit' => 44,
             'citation_author_display_limit' => 55,
-            'show_igsn_drilling' => false,
         ]);
 
         $template = LandingPageTemplate::ensureDefaultTemplateExists();
 
         expect($template->creator_display_limit)->toBe(33)
             ->and($template->contributor_display_limit)->toBe(44)
-            ->and($template->citation_author_display_limit)->toBe(55)
-            ->and($template->show_igsn_drilling)->toBeFalse();
+            ->and($template->citation_author_display_limit)->toBe(55);
     });
 
     it('returns null logo_url when no logo is set', function (): void {
@@ -1599,7 +1646,7 @@ describe('Model', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         expect($template->is_default)->toBeBool()
-            ->and($template->show_igsn_drilling)->toBeBool();
+            ->and($template->hidden_sections)->toBeArray();
     });
 
     it('appends logo_url attribute', function (): void {
@@ -1626,7 +1673,7 @@ describe('Factory', function (): void {
             ->and($template->creator_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
             ->and($template->contributor_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
             ->and($template->citation_author_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
-            ->and($template->show_igsn_drilling)->toBeTrue();
+            ->and($template->hidden_sections)->toBe([]);
     });
 
     it('creates an igsn template with igsn left-column defaults', function (): void {
@@ -1634,7 +1681,8 @@ describe('Factory', function (): void {
 
         expect($template->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN)
             ->and($template->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS)
-            ->and($template->right_column_order)->toBe(LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS);
+            ->and($template->right_column_order)->toBe(LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS)
+            ->and($template->hidden_sections)->toBe(LandingPageTemplate::IGSN_HIDDEN_SECTIONS);
     });
 
     it('creates a default template via state', function (): void {
@@ -1700,7 +1748,8 @@ describe('Seeder', function (): void {
             ->and($igsn?->is_default)->toBeTrue()
             ->and($igsn?->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN)
             ->and($igsn?->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS)
-            ->and($igsn?->show_igsn_drilling)->toBeTrue();
+            ->and($igsn?->right_column_order)->toBe(LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS)
+            ->and($igsn?->hidden_sections)->toBe(LandingPageTemplate::IGSN_HIDDEN_SECTIONS);
     });
 
     it('does not duplicate the IGSN default when seeder runs again', function (): void {

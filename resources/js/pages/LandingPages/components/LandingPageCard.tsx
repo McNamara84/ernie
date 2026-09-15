@@ -29,7 +29,7 @@ export function LandingPageCard({ className, children, disableFadeIn = false, ..
             ref={disableFadeIn ? undefined : fadeRef}
             data-slot="landing-page-card"
             className={cn(
-                'rounded-lg border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md dark:border-gray-700 dark:bg-gray-800',
+                'max-w-full min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md sm:p-6 dark:border-gray-700 dark:bg-gray-800',
                 !disableFadeIn && 'fade-in-on-scroll',
                 className,
             )}

@@ -1,5 +1,6 @@
-import { render, screen, within } from '@tests/vitest/utils/render';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, within } from '@tests/vitest/utils/render';
+import { renderToString } from 'react-dom/server';
+import { describe, expect, it, vi } from 'vitest';
 
 import { SampleFamilySection } from '@/pages/LandingPages/components/SampleFamilySection';
 import type { LandingPageIgsnSampleFamily } from '@/types/landing-page';
@@ -51,17 +52,26 @@ describe('SampleFamilySection', () => {
         expect(container.firstChild).toBeNull();
     });
 
-    it('renders the complete hierarchy as native nested lists with names and IGSNs', () => {
+    it('initially expands only the current branch and exposes accessible toggles for every parent', () => {
         render(<SampleFamilySection family={family} currentResourceId={2} />);
 
         expect(screen.getByRole('heading', { name: 'Sample Family' })).toBeInTheDocument();
         const navigation = screen.getByRole('navigation', { name: 'Sample Family' });
-        expect(within(navigation).getAllByRole('listitem')).toHaveLength(4);
+        expect(within(navigation).getAllByRole('listitem')).toHaveLength(3);
         expect(screen.queryByRole('tree')).not.toBeInTheDocument();
         expect(screen.queryByRole('treeitem')).not.toBeInTheDocument();
         expect(screen.queryByText(/Complete sampling hierarchy known to ERNIE/i)).not.toBeInTheDocument();
         expect(screen.getByText('Station Alpha')).toBeInTheDocument();
         expect(screen.getByText('IGSN GFROOT001')).toBeInTheDocument();
+        expect(screen.queryByText('Sample 1')).not.toBeInTheDocument();
+        const rootToggle = screen.getByRole('button', { name: 'Collapse Station Alpha' });
+        expect(rootToggle).toHaveAttribute('data-slot', 'button');
+        expect(rootToggle).toHaveAttribute('data-variant', 'ghost');
+        expect(rootToggle).toHaveAttribute('data-size', 'icon');
+        expect(rootToggle).toHaveAttribute('aria-expanded', 'true');
+        const coreToggle = screen.getByRole('button', { name: 'Expand Core A' });
+        expect(coreToggle).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(coreToggle);
         expect(screen.getByText('Sample 1')).toBeInTheDocument();
         expect(screen.getByText('IGSN GFSAMPLE01')).toBeInTheDocument();
         expect(screen.queryByText('Individual Sample')).not.toBeInTheDocument();
@@ -120,7 +130,7 @@ describe('SampleFamilySection', () => {
             },
         };
 
-        render(<SampleFamilySection family={iconFamily} currentResourceId={100} />);
+        render(<SampleFamilySection family={iconFamily} currentResourceId={101} />);
 
         for (const [sampleType, iconKind] of legacyTypes) {
             expect(screen.getByRole('img', { name: `Sample type: ${sampleType}` })).toHaveAttribute('data-sample-type-icon', iconKind);
@@ -128,7 +138,7 @@ describe('SampleFamilySection', () => {
     });
 
     it('uses the IGSN as the primary label when a sample name is missing', () => {
-        render(<SampleFamilySection family={family} currentResourceId={1} />);
+        render(<SampleFamilySection family={family} currentResourceId={3} />);
 
         expect(screen.getByText('GFCORE002')).toBeInTheDocument();
         expect(screen.queryByText('IGSN GFCORE002')).not.toBeInTheDocument();
@@ -143,8 +153,61 @@ describe('SampleFamilySection', () => {
             },
         };
 
-        render(<SampleFamilySection family={incomplete} currentResourceId={1} />);
+        render(<SampleFamilySection family={incomplete} currentResourceId={9} />);
 
         expect(screen.getByText('Unnamed sample')).toBeInTheDocument();
+    });
+
+    it('provides a keyboard-operable resize grip without persisting the chosen height', () => {
+        render(<SampleFamilySection family={family} currentResourceId={2} />);
+
+        const grip = screen.getByRole('separator', { name: 'Resize Sample Family' });
+        expect(grip).toHaveAttribute('aria-orientation', 'horizontal');
+        expect(grip).toHaveAttribute('tabindex', '0');
+        expect(grip).toHaveAttribute('aria-valuenow');
+
+        fireEvent.keyDown(grip, { key: 'Home' });
+        expect(grip).toHaveAttribute('aria-valuenow', grip.getAttribute('aria-valuemin'));
+        fireEvent.keyDown(grip, { key: 'End' });
+        expect(grip).toHaveAttribute('aria-valuenow', grip.getAttribute('aria-valuemax'));
+    });
+
+    it('caps measured keyboard and pointer resizing at 512px', () => {
+        const scrollHeight = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(900);
+
+        try {
+            render(<SampleFamilySection family={family} currentResourceId={2} />);
+
+            const navigation = screen.getByRole('navigation', { name: 'Sample Family' });
+            const grip = screen.getByRole('separator', { name: 'Resize Sample Family' });
+            grip.setPointerCapture = vi.fn();
+            grip.hasPointerCapture = vi.fn(() => false);
+
+            expect(grip).toHaveAttribute('aria-valuemax', '512');
+            fireEvent.keyDown(grip, { key: 'End' });
+            expect(navigation).toHaveStyle({ height: '512px' });
+
+            fireEvent.keyDown(grip, { key: 'Home' });
+            fireEvent.pointerDown(grip, { pointerId: 1, clientY: 0 });
+            fireEvent.pointerMove(grip, { pointerId: 1, clientY: 900 });
+            expect(navigation).toHaveStyle({ height: '512px' });
+        } finally {
+            scrollHeight.mockRestore();
+        }
+    });
+
+    it('keeps the server-rendered family height automatic with a 512px ceiling', () => {
+        const container = document.createElement('div');
+        container.innerHTML = renderToString(<SampleFamilySection family={family} currentResourceId={2} />);
+
+        const navigation = container.querySelector('nav');
+        expect(navigation).not.toBeNull();
+        expect((navigation as HTMLElement).style.height).toBe('');
+        expect((navigation as HTMLElement).style.maxHeight).toBe('512px');
+
+        const grip = container.querySelector('[role="separator"]');
+        expect(grip).not.toBeNull();
+        expect(grip).not.toHaveAttribute('tabindex');
+        expect(grip).not.toHaveAttribute('aria-valuenow');
     });
 });

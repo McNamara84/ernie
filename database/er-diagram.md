@@ -686,10 +686,10 @@ erDiagram
         varchar logo_filename "nullable"
         json right_column_order
         json left_column_order
+        json hidden_sections "nullable; IGSN hidden cards; [] for resources"
         smallint creator_display_limit "default 50"
         smallint contributor_display_limit "default 50"
         smallint citation_author_display_limit "default 50"
-        boolean show_igsn_drilling "default true"
         bigint created_by FK "nullable"
         timestamp created_at
         timestamp updated_at

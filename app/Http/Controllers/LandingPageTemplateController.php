@@ -101,10 +101,10 @@ class LandingPageTemplateController extends Controller
                 'logo_filename' => null,
                 'right_column_order' => $defaultTemplate->right_column_order,
                 'left_column_order' => $defaultTemplate->left_column_order,
+                'hidden_sections' => $defaultTemplate->hidden_sections ?? [],
                 'creator_display_limit' => $defaultTemplate->creator_display_limit,
                 'contributor_display_limit' => $defaultTemplate->contributor_display_limit,
                 'citation_author_display_limit' => $defaultTemplate->citation_author_display_limit,
-                'show_igsn_drilling' => $defaultTemplate->show_igsn_drilling,
                 'created_by' => $request->user()?->id,
             ]);
 
@@ -131,7 +131,7 @@ class LandingPageTemplateController extends Controller
         $validated = $request->validated();
 
         if ($landingPageTemplate->isDefault()) {
-            $editableDefaultFields = ['creator_display_limit', 'contributor_display_limit', 'citation_author_display_limit', 'show_igsn_drilling', 'datacenter_ids'];
+            $editableDefaultFields = ['creator_display_limit', 'contributor_display_limit', 'citation_author_display_limit', 'datacenter_ids'];
             $unsupportedFields = array_diff(array_keys($validated), $editableDefaultFields);
 
             if ($unsupportedFields !== []) {
@@ -156,6 +156,10 @@ class LandingPageTemplateController extends Controller
             $updateData['left_column_order'] = $validated['left_column_order'];
         }
 
+        if (! $landingPageTemplate->isDefault() && isset($validated['hidden_sections'])) {
+            $updateData['hidden_sections'] = $validated['hidden_sections'];
+        }
+
         if (isset($validated['creator_display_limit'])) {
             $updateData['creator_display_limit'] = $validated['creator_display_limit'];
         }
@@ -166,10 +170,6 @@ class LandingPageTemplateController extends Controller
 
         if (isset($validated['citation_author_display_limit'])) {
             $updateData['citation_author_display_limit'] = $validated['citation_author_display_limit'];
-        }
-
-        if (array_key_exists('show_igsn_drilling', $validated)) {
-            $updateData['show_igsn_drilling'] = $validated['show_igsn_drilling'];
         }
 
         DB::transaction(function () use ($landingPageTemplate, $updateData, $validated): void {
@@ -366,10 +366,10 @@ class LandingPageTemplateController extends Controller
                 'logo_path',
                 'right_column_order',
                 'left_column_order',
+                'hidden_sections',
                 'creator_display_limit',
                 'contributor_display_limit',
                 'citation_author_display_limit',
-                'show_igsn_drilling',
             ]);
 
         return response()->json([
@@ -466,6 +466,7 @@ class LandingPageTemplateController extends Controller
             $orders = LandingPageTemplate::normalizeIgsnSectionOrders(
                 $template->left_column_order,
                 $template->right_column_order,
+                $template->hidden_sections ?? [],
             );
         } else {
             $orders = LandingPageTemplate::normalizeResourceSectionOrders(
@@ -475,6 +476,7 @@ class LandingPageTemplateController extends Controller
         }
         $payload['left_column_order'] = $orders['left'];
         $payload['right_column_order'] = $orders['right'];
+        $payload['hidden_sections'] = $orders['hidden'] ?? [];
         $payload['excluded_date_type_ids'] = $template->relationLoaded('excludedDateTypes')
             ? $template->excludedDateTypes->pluck('id')->map(static fn (mixed $id): int => (int) $id)->sort()->values()->all()
             : [];

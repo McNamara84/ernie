@@ -19,29 +19,26 @@ function loadLandingPageTemplateDrillingVisibilityMigration(): Migration
 
 it('adds a default-enabled boolean Drilling visibility setting and removes it on rollback', function (): void {
     $migration = loadLandingPageTemplateDrillingVisibilityMigration();
-    $resourceTemplate = LandingPageTemplate::factory()->create(['show_igsn_drilling' => false]);
-    $igsnTemplate = LandingPageTemplate::factory()->igsn()->create(['show_igsn_drilling' => false]);
-
-    expect(Schema::hasColumn('landing_page_templates', 'show_igsn_drilling'))->toBeTrue();
-
-    $migration->down();
 
     expect(Schema::hasColumn('landing_page_templates', 'show_igsn_drilling'))->toBeFalse();
 
     $migration->up();
 
-    $resourceTemplate->refresh();
-    $igsnTemplate->refresh();
+    expect(Schema::hasColumn('landing_page_templates', 'show_igsn_drilling'))->toBeTrue();
 
-    expect(Schema::hasColumn('landing_page_templates', 'show_igsn_drilling'))->toBeTrue()
-        ->and($resourceTemplate->show_igsn_drilling)->toBeTrue()
-        ->and($igsnTemplate->show_igsn_drilling)->toBeTrue();
+    $template = LandingPageTemplate::factory()->igsn()->create()->refresh();
+    expect((bool) $template->getRawOriginal('show_igsn_drilling'))->toBeTrue();
+
+    $migration->down();
+
+    expect(Schema::hasColumn('landing_page_templates', 'show_igsn_drilling'))->toBeFalse();
 });
 
 it('can be rerun safely when the Drilling visibility column already matches the desired state', function (): void {
     $migration = loadLandingPageTemplateDrillingVisibilityMigration();
 
     $migration->up();
+    $migration->up();
 
     expect(Schema::hasColumn('landing_page_templates', 'show_igsn_drilling'))->toBeTrue();
 
@@ -49,9 +46,4 @@ it('can be rerun safely when the Drilling visibility column already matches the 
     $migration->down();
 
     expect(Schema::hasColumn('landing_page_templates', 'show_igsn_drilling'))->toBeFalse();
-
-    $migration->up();
-    $migration->up();
-
-    expect(Schema::hasColumn('landing_page_templates', 'show_igsn_drilling'))->toBeTrue();
 });

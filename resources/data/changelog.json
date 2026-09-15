@@ -5,6 +5,62 @@
         "features": [],
         "improvements": [
             {
+                "title": "Configurable IGSN Landing Pages",
+                "description": "IGSN landing pages now use the agreed default card order and a three-zone template editor for left, right, and hidden cards, with a movable but mandatory Version Notice. Location and Map are independent cards with a restrained overview zoom, every card adapts to either column, Sample Family starts on the current branch and supports accessible collapsing and resizing, and Hero plus citation styles consistently show and copy the complete DOI. Existing custom layouts are migrated without losing visible cards or datacenter assignments.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1309,
+                        "url": "https://github.com/McNamara84/ernie/issues/1309"
+                    },
+                    {
+                        "type": "issue",
+                        "number": 1310,
+                        "url": "https://github.com/McNamara84/ernie/issues/1310"
+                    },
+                    {
+                        "type": "issue",
+                        "number": 1311,
+                        "url": "https://github.com/McNamara84/ernie/issues/1311"
+                    },
+                    {
+                        "type": "issue",
+                        "number": 1312,
+                        "url": "https://github.com/McNamara84/ernie/issues/1312"
+                    },
+                    {
+                        "type": "issue",
+                        "number": 1314,
+                        "url": "https://github.com/McNamara84/ernie/issues/1314"
+                    },
+                    {
+                        "type": "issue",
+                        "number": 1321,
+                        "url": "https://github.com/McNamara84/ernie/issues/1321"
+                    },
+                    {
+                        "type": "issue",
+                        "number": 1322,
+                        "url": "https://github.com/McNamara84/ernie/issues/1322"
+                    },
+                    {
+                        "type": "issue",
+                        "number": 1323,
+                        "url": "https://github.com/McNamara84/ernie/issues/1323"
+                    },
+                    {
+                        "type": "issue",
+                        "number": 1324,
+                        "url": "https://github.com/McNamara84/ernie/issues/1324"
+                    },
+                    {
+                        "type": "issue",
+                        "number": 1325,
+                        "url": "https://github.com/McNamara84/ernie/issues/1325"
+                    }
+                ]
+            },
+            {
                 "title": "Self-Describing Related Work Types",
                 "description": "All relation-type and related-identifier-type API responses now include the official DataCite 4.7 definition for each standard value. ELMO and other API consumers can therefore display consistent contextual help from the same versioned source without maintaining a separate name-based definition mapping.",
                 "references": [

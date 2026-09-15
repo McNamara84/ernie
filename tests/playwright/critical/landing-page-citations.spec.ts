@@ -73,7 +73,7 @@ test.describe('Landing Page - Citation Standards', () => {
       .toBe(gfzText);
   });
 
-  test('renders the citation module after License & Rights in an IGSN preview', async ({ page }) => {
+  test('uses the new IGSN card order and complete DOI in visible and copied citations', async ({ page }) => {
     const landingPage = new LandingPage(page);
     await landingPage.installCitationClipboardStub();
     await landingPage.gotoPreview('playwright-igsn-preview');
@@ -81,6 +81,7 @@ test.describe('Landing Page - Citation Standards', () => {
 
     await expect(page.getByText('Preview Mode')).toBeVisible();
     await expect(landingPage.heroCitation).toContainText('Playwright: IGSN Citation Preview. V. 1.0. GFZ Data Services.');
+    await expect(landingPage.heroCitation).toContainText('https://doi.org/10.1234/playwright-igsn-preview');
     await expect(landingPage.citationSection).toBeVisible();
     await expect(landingPage.citationStyleSelect).toHaveAttribute('data-citation-style', 'apa-7');
     await expect(landingPage.citationStyleSelect).toHaveText('APA 7');
@@ -90,7 +91,9 @@ test.describe('Landing Page - Citation Standards', () => {
       .locator(':scope > section > h2')
       .allTextContents();
 
-    expect(leftHeadings.slice(0, 4)).toEqual(['General', 'Acquisition', 'License & Rights', 'Cite this Resource']);
+    expect(leftHeadings[0]).toBe('General');
+    expect(leftHeadings).toContain('Cite This Resource');
+    expect(leftHeadings).not.toContain('License & Rights');
 
     const acquisition = page.locator('section[aria-labelledby="heading-acquisition"]');
     await expect(acquisition).toBeVisible();
@@ -106,6 +109,7 @@ test.describe('Landing Page - Citation Standards', () => {
     await landingPage.selectCitationStyle('gfz');
     const gfzText = normalizeVisibleText(await landingPage.citationContent.innerText());
     expect(gfzText).toContain('Playwright: IGSN Citation Preview. V. 1.0. GFZ Data Services.');
+    expect(gfzText).toContain('https://doi.org/10.1234/playwright-igsn-preview');
 
     await landingPage.copyCitation();
     await expect

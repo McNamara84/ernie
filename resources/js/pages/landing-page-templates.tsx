@@ -4,7 +4,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { Copy, GripVertical, ImagePlus, LayoutTemplate, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Copy, EyeOff, GripVertical, ImagePlus, LayoutTemplate, Pencil, Plus, Trash2 } from 'lucide-react';
 import { type ChangeEvent, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -30,7 +30,12 @@ import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
-import { normalizeIgsnColumnOrders, normalizeResourceColumnOrders, SECTION_LABELS } from '@/pages/LandingPages/lib/section-catalog';
+import {
+    IGSN_SECTION_LABELS,
+    normalizeIgsnColumnOrders,
+    normalizeResourceColumnOrders,
+    SECTION_LABELS,
+} from '@/pages/LandingPages/lib/section-catalog';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import type {
     IgsnSection,
@@ -70,7 +75,7 @@ interface PageProps extends SharedData {
 }
 
 // --- Sortable Section Item ---
-function SortableSectionItem({ id, label }: { id: string; label: string }) {
+function SortableSectionItem({ id, label, actions }: { id: string; label: string; actions?: React.ReactNode }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
     const style = {
@@ -93,6 +98,7 @@ function SortableSectionItem({ id, label }: { id: string; label: string }) {
                 <GripVertical className="size-4" />
             </Button>
             <span className="flex-1">{label}</span>
+            {actions}
         </div>
     );
 }
@@ -100,6 +106,7 @@ function SortableSectionItem({ id, label }: { id: string; label: string }) {
 type LayoutScope = 'igsn' | 'resource';
 type LayoutSection = IgsnSection | ResourceSection;
 type TemplateColumnId = `${LayoutScope}-left-column` | `${LayoutScope}-right-column`;
+type IgsnColumnId = TemplateColumnId | 'igsn-hidden-column';
 
 function columnIds(scope: LayoutScope): { left: TemplateColumnId; right: TemplateColumnId } {
     return {
@@ -158,10 +165,43 @@ export function moveTemplateSection<T extends LayoutSection>(
 export function moveIgsnSection(
     left: readonly IgsnSection[],
     right: readonly IgsnSection[],
+    hidden: readonly IgsnSection[],
     activeId: string,
     overId: string,
-): { left: IgsnSection[]; right: IgsnSection[] } {
-    return moveTemplateSection('igsn', left, right, activeId, overId);
+): { left: IgsnSection[]; right: IgsnSection[]; hidden: IgsnSection[] } {
+    const columns: Record<'left' | 'right' | 'hidden', IgsnColumnId> = {
+        left: 'igsn-left-column',
+        right: 'igsn-right-column',
+        hidden: 'igsn-hidden-column',
+    };
+    const findZone = (id: string): keyof typeof columns | null => {
+        if (id === columns.left || left.includes(id as IgsnSection)) return 'left';
+        if (id === columns.right || right.includes(id as IgsnSection)) return 'right';
+        if (id === columns.hidden || hidden.includes(id as IgsnSection)) return 'hidden';
+        return null;
+    };
+    const sourceZone = findZone(activeId);
+    const targetZone = findZone(overId);
+    const next = { left: [...left], right: [...right], hidden: [...hidden] };
+    if (sourceZone === null || targetZone === null || activeId === overId || (activeId === 'version_notice' && targetZone === 'hidden')) {
+        return next;
+    }
+
+    const source = next[sourceZone];
+    const target = next[targetZone];
+    const oldIndex = source.indexOf(activeId as IgsnSection);
+    if (oldIndex === -1) return next;
+
+    if (sourceZone === targetZone) {
+        const overIndex = overId === columns[targetZone] ? target.length - 1 : target.indexOf(overId as IgsnSection);
+        if (overIndex >= 0) next[sourceZone] = arrayMove(source, oldIndex, overIndex);
+        return next;
+    }
+
+    const [moved] = source.splice(oldIndex, 1);
+    const overIndex = overId === columns[targetZone] ? target.length : target.indexOf(overId as IgsnSection);
+    target.splice(overIndex < 0 ? target.length : overIndex, 0, moved);
+    return next;
 }
 
 export function moveResourceSection(
@@ -173,7 +213,19 @@ export function moveResourceSection(
     return moveTemplateSection('resource', left, right, activeId, overId);
 }
 
-function TemplateColumn<T extends LayoutSection>({ id, title, items }: { id: TemplateColumnId; title: string; items: T[] }) {
+function TemplateColumn<T extends LayoutSection>({
+    id,
+    title,
+    items,
+    actions,
+    labelFor = (section) => SECTION_LABELS[section],
+}: {
+    id: TemplateColumnId | IgsnColumnId;
+    title: string;
+    items: T[];
+    actions?: (section: T) => React.ReactNode;
+    labelFor?: (section: T) => string;
+}) {
     const { setNodeRef, isOver } = useDroppable({ id });
 
     return (
@@ -186,11 +238,134 @@ function TemplateColumn<T extends LayoutSection>({ id, title, items }: { id: Tem
                     className={`min-h-20 space-y-1.5 rounded-md border border-dashed p-2 ${isOver ? 'border-primary bg-primary/5' : ''}`}
                 >
                     {items.map((key) => (
-                        <SortableSectionItem key={key} id={key} label={SECTION_LABELS[key]} />
+                        <SortableSectionItem key={key} id={key} label={labelFor(key)} actions={actions?.(key)} />
                     ))}
                     {items.length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">Drop modules here</p>}
                 </div>
             </SortableContext>
+        </div>
+    );
+}
+
+function IgsnSectionOrderEditor({
+    left,
+    right,
+    hidden,
+    onChange,
+}: {
+    left: IgsnSection[];
+    right: IgsnSection[];
+    hidden: IgsnSection[];
+    onChange: (orders: { left: IgsnSection[]; right: IgsnSection[]; hidden: IgsnSection[] }) => void;
+}) {
+    const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+    const snapshot = useRef<{ left: IgsnSection[]; right: IgsnSection[]; hidden: IgsnSection[] } | null>(null);
+    const normalize = (orders: { left: IgsnSection[]; right: IgsnSection[]; hidden: IgsnSection[] }) =>
+        normalizeIgsnColumnOrders(orders.left, orders.right, orders.hidden);
+    const move = (section: IgsnSection, target: IgsnColumnId) => onChange(normalize(moveIgsnSection(left, right, hidden, section, target)));
+    const zoneFor = (id: string): IgsnColumnId | null => {
+        if (id === 'igsn-left-column' || left.includes(id as IgsnSection)) return 'igsn-left-column';
+        if (id === 'igsn-right-column' || right.includes(id as IgsnSection)) return 'igsn-right-column';
+        if (id === 'igsn-hidden-column' || hidden.includes(id as IgsnSection)) return 'igsn-hidden-column';
+        return null;
+    };
+    const actionsFor = (zone: 'left' | 'right' | 'hidden') => (section: IgsnSection) =>
+        zone === 'hidden' ? (
+            <div className="flex gap-1">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label={`Show ${IGSN_SECTION_LABELS[section]} in left column`}
+                    onClick={() => move(section, 'igsn-left-column')}
+                >
+                    <ArrowLeft className="size-4" />
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label={`Show ${IGSN_SECTION_LABELS[section]} in right column`}
+                    onClick={() => move(section, 'igsn-right-column')}
+                >
+                    <ArrowRight className="size-4" />
+                </Button>
+            </div>
+        ) : section === 'version_notice' ? null : (
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                aria-label={`Hide ${IGSN_SECTION_LABELS[section]}`}
+                onClick={() => move(section, 'igsn-hidden-column')}
+            >
+                <EyeOff className="size-4" />
+            </Button>
+        );
+
+    const handleDragStart = (event: DragStartEvent) => {
+        if (zoneFor(String(event.active.id))) snapshot.current = { left: [...left], right: [...right], hidden: [...hidden] };
+    };
+    const handleDragOver = (event: DragOverEvent) => {
+        if (!event.over) return;
+        const activeId = String(event.active.id);
+        const overId = String(event.over.id);
+        if (zoneFor(activeId) !== zoneFor(overId)) onChange(normalize(moveIgsnSection(left, right, hidden, activeId, overId)));
+    };
+    const handleDragEnd = (event: DragEndEvent) => {
+        if (!event.over) {
+            if (snapshot.current) onChange(snapshot.current);
+            snapshot.current = null;
+            return;
+        }
+        const initial = snapshot.current ?? { left, right, hidden };
+        snapshot.current = null;
+        onChange(normalize(moveIgsnSection(initial.left, initial.right, initial.hidden, String(event.active.id), String(event.over.id))));
+    };
+
+    return (
+        <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+                Reorder modules, move them between columns, or hide and restore them. The Version Notice can move but always remains visible.
+            </p>
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+                onDragCancel={() => {
+                    if (snapshot.current) onChange(snapshot.current);
+                    snapshot.current = null;
+                }}
+            >
+                <div className="grid gap-6 md:grid-cols-3">
+                    <TemplateColumn
+                        id="igsn-left-column"
+                        title="Left Column (sidebar)"
+                        items={left}
+                        actions={actionsFor('left')}
+                        labelFor={(section) => IGSN_SECTION_LABELS[section]}
+                    />
+                    <TemplateColumn
+                        id="igsn-right-column"
+                        title="Right Column (main content)"
+                        items={right}
+                        actions={actionsFor('right')}
+                        labelFor={(section) => IGSN_SECTION_LABELS[section]}
+                    />
+                    <TemplateColumn
+                        id="igsn-hidden-column"
+                        title="Hidden cards"
+                        items={hidden}
+                        actions={actionsFor('hidden')}
+                        labelFor={(section) => IGSN_SECTION_LABELS[section]}
+                    />
+                </div>
+            </DndContext>
         </div>
     );
 }
@@ -441,13 +616,13 @@ export default function LandingPageTemplatesPage() {
     const [editName, setEditName] = useState('');
     const [editRightOrder, setEditRightOrder] = useState<TemplateSection[]>([]);
     const [editLeftOrder, setEditLeftOrder] = useState<TemplateSection[]>([]);
+    const [editHiddenSections, setEditHiddenSections] = useState<TemplateSection[]>([]);
     const [editCreatorDisplayLimit, setEditCreatorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [editContributorDisplayLimit, setEditContributorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [editCitationAuthorDisplayLimit, setEditCitationAuthorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [editDatacenterIds, setEditDatacenterIds] = useState<number[]>([]);
     const [editExcludedDateTypeIds, setEditExcludedDateTypeIds] = useState<number[]>([]);
     const [editExcludedRelationTypeIds, setEditExcludedRelationTypeIds] = useState<number[]>([]);
-    const [editShowIgsnDrilling, setEditShowIgsnDrilling] = useState(true);
     const [saving, setSaving] = useState(false);
 
     // Delete dialog
@@ -498,13 +673,15 @@ export default function LandingPageTemplatesPage() {
         setEditTemplate(tmpl);
         setEditName(tmpl.name);
         if (tmpl.template_type === 'igsn') {
-            const orders = normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order);
+            const orders = normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order, tmpl.hidden_sections);
             setEditLeftOrder(orders.left);
             setEditRightOrder(orders.right);
+            setEditHiddenSections(orders.hidden);
         } else {
             const orders = normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order);
             setEditLeftOrder(orders.left);
             setEditRightOrder(orders.right);
+            setEditHiddenSections([]);
         }
         setEditCreatorDisplayLimit(String(tmpl.creator_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditContributorDisplayLimit(String(tmpl.contributor_display_limit ?? DISPLAY_LIMIT_DEFAULT));
@@ -512,7 +689,6 @@ export default function LandingPageTemplatesPage() {
         setEditDatacenterIds(tmpl.datacenters?.map((datacenter) => datacenter.id) ?? []);
         setEditExcludedDateTypeIds(tmpl.excluded_date_type_ids ?? []);
         setEditExcludedRelationTypeIds(tmpl.excluded_relation_type_ids ?? []);
-        setEditShowIgsnDrilling(tmpl.show_igsn_drilling ?? true);
         setEditOpen(true);
     };
 
@@ -535,28 +711,27 @@ export default function LandingPageTemplatesPage() {
         try {
             const normalizedOrders =
                 editTemplate.template_type === 'igsn'
-                    ? normalizeIgsnColumnOrders(editLeftOrder, editRightOrder)
+                    ? normalizeIgsnColumnOrders(editLeftOrder, editRightOrder, editHiddenSections)
                     : normalizeResourceColumnOrders(editLeftOrder, editRightOrder);
-            const igsnVisibility = editTemplate.template_type === 'igsn' ? { show_igsn_drilling: editShowIgsnDrilling } : {};
+            const igsnLayout = 'hidden' in normalizedOrders ? { hidden_sections: normalizedOrders.hidden } : {};
             const payload = editTemplate.is_default
                 ? {
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
                       citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
                       datacenter_ids: editDatacenterIds,
-                      ...igsnVisibility,
                   }
                 : {
                       name: editName.trim(),
                       right_column_order: normalizedOrders.right,
                       left_column_order: normalizedOrders.left,
+                      ...igsnLayout,
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
                       citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
                       excluded_date_type_ids: editExcludedDateTypeIds,
                       excluded_relation_type_ids: editExcludedRelationTypeIds,
                       datacenter_ids: editDatacenterIds,
-                      ...igsnVisibility,
                   };
 
             await axios.put(`/landing-pages/${editTemplate.id}`, payload);
@@ -751,15 +926,22 @@ export default function LandingPageTemplatesPage() {
                                 )}
 
                                 {/* Section Order Summary */}
-                                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                <div
+                                    className={`grid gap-2 text-xs text-muted-foreground ${tmpl.template_type === 'igsn' ? 'grid-cols-3' : 'grid-cols-2'}`}
+                                >
                                     <div>
                                         <span className="font-medium text-foreground">Left Column:</span>
                                         <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
                                             {(tmpl.template_type === 'igsn'
-                                                ? normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order).left
+                                                ? normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order, tmpl.hidden_sections)
+                                                      .left
                                                 : normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order).left
                                             ).map((key) => (
-                                                <li key={key}>{SECTION_LABELS[key] ?? key}</li>
+                                                <li key={key}>
+                                                    {tmpl.template_type === 'igsn'
+                                                        ? IGSN_SECTION_LABELS[key as IgsnSection]
+                                                        : (SECTION_LABELS[key] ?? key)}
+                                                </li>
                                             ))}
                                         </ol>
                                     </div>
@@ -767,13 +949,32 @@ export default function LandingPageTemplatesPage() {
                                         <span className="font-medium text-foreground">Right Column:</span>
                                         <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
                                             {(tmpl.template_type === 'igsn'
-                                                ? normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order).right
+                                                ? normalizeIgsnColumnOrders(tmpl.left_column_order, tmpl.right_column_order, tmpl.hidden_sections)
+                                                      .right
                                                 : normalizeResourceColumnOrders(tmpl.left_column_order, tmpl.right_column_order).right
                                             ).map((key) => (
-                                                <li key={key}>{SECTION_LABELS[key] ?? key}</li>
+                                                <li key={key}>
+                                                    {tmpl.template_type === 'igsn'
+                                                        ? IGSN_SECTION_LABELS[key as IgsnSection]
+                                                        : (SECTION_LABELS[key] ?? key)}
+                                                </li>
                                             ))}
                                         </ol>
                                     </div>
+                                    {tmpl.template_type === 'igsn' && (
+                                        <div>
+                                            <span className="font-medium text-foreground">Hidden:</span>
+                                            <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
+                                                {normalizeIgsnColumnOrders(
+                                                    tmpl.left_column_order,
+                                                    tmpl.right_column_order,
+                                                    tmpl.hidden_sections,
+                                                ).hidden.map((key) => (
+                                                    <li key={key}>{IGSN_SECTION_LABELS[key] ?? key}</li>
+                                                ))}
+                                            </ol>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Actions */}
@@ -897,7 +1098,7 @@ export default function LandingPageTemplatesPage() {
 
             {/* Edit Dialog */}
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+                <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Pencil className="size-5" />
@@ -978,27 +1179,6 @@ export default function LandingPageTemplatesPage() {
                             </>
                         )}
 
-                        {editTemplate?.template_type === 'igsn' && (
-                            <>
-                                <Separator />
-                                <div className="flex items-start gap-3">
-                                    <Checkbox
-                                        id="edit-show-igsn-drilling"
-                                        checked={editShowIgsnDrilling}
-                                        onCheckedChange={(checked) => setEditShowIgsnDrilling(checked === true)}
-                                    />
-                                    <div className="space-y-1">
-                                        <Label htmlFor="edit-show-igsn-drilling" className="cursor-pointer">
-                                            Show Drilling card
-                                        </Label>
-                                        <p className="text-xs text-muted-foreground">
-                                            Display the card on ICDP IGSN landing pages when at least one drilling value is available.
-                                        </p>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-
                         {!editTemplate?.is_default && (
                             <>
                                 <Separator />
@@ -1026,15 +1206,14 @@ export default function LandingPageTemplatesPage() {
                                 <Separator />
 
                                 {editTemplate?.template_type === 'igsn' ? (
-                                    <FlexibleSectionOrderEditor
-                                        scope="igsn"
+                                    <IgsnSectionOrderEditor
                                         left={editLeftOrder as IgsnSection[]}
                                         right={editRightOrder as IgsnSection[]}
-                                        normalize={normalizeIgsnColumnOrders}
-                                        description="Every IGSN module can be reordered or moved between either column."
+                                        hidden={editHiddenSections as IgsnSection[]}
                                         onChange={(orders) => {
                                             setEditLeftOrder(orders.left);
                                             setEditRightOrder(orders.right);
+                                            setEditHiddenSections(orders.hidden);
                                         }}
                                     />
                                 ) : (

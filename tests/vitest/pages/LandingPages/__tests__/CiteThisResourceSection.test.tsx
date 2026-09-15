@@ -95,8 +95,8 @@ const citationStyles: LandingPageCitationStyle[] = [
         id: 'gsa',
         label: 'GSA',
         available: true,
-        html: '<div class="csl-entry">Lovelace, A., and Hopper, G., 2026, <em>A Test Dataset</em>.</div>',
-        text: 'Lovelace, A., and Hopper, G., 2026, A Test Dataset.',
+        html: '<div class="csl-entry">Lovelace, A., and Hopper, G., 2026, <em>A Test Dataset</em>: https://doi.org/10.5880/example.2026.</div>',
+        text: 'Lovelace, A., and Hopper, G., 2026, A Test Dataset: https://doi.org/10.5880/example.2026.',
     },
 ];
 
@@ -304,6 +304,20 @@ describe('CiteThisResourceSection', () => {
         expect(screen.getByRole('status')).toHaveTextContent('Citation copied to clipboard');
     });
 
+    it('shows and copies the complete DOI resolver URL for GSA', async () => {
+        writeText.mockResolvedValueOnce(undefined);
+        render(<CiteThisResourceSection resource={resource} citationStyles={citationStyles} />);
+
+        await chooseCitationStyle('GSA');
+
+        const expectedCitation = citationStyles[4].text;
+        expect(screen.getByTestId('citation-content')).toHaveTextContent('https://doi.org/10.5880/example.2026');
+        fireEvent.click(screen.getByRole('button', { name: 'Copy citation to clipboard' }));
+
+        await waitFor(() => expect(writeText).toHaveBeenCalledWith(expectedCitation));
+        expect(writeText.mock.calls[0][0]).not.toContain('doi:10.5880/example.2026');
+    });
+
     it('omits a missing DOI from GFZ and keeps the explanatory note out of the clipboard', async () => {
         writeText.mockResolvedValueOnce(undefined);
         render(<CiteThisResourceSection resource={{ ...resource, doi: null }} citationStyles={[]} />);
@@ -389,7 +403,7 @@ describe('CiteThisResourceSection', () => {
         expect(copyButton).toHaveClass('min-h-11', 'min-w-11');
     });
 
-    it('shows an IGSN handle in official and versioned GFZ citation text while retaining the DOI resolver href', async () => {
+    it('shows the full DOI resolver URL in official and versioned GFZ citation text', async () => {
         const igsnResource = { ...resource, doi: '10.60510/gflmu0020' };
         const igsnStyles: LandingPageCitationStyle[] = [
             {
@@ -401,15 +415,16 @@ describe('CiteThisResourceSection', () => {
             },
         ];
 
-        render(<CiteThisResourceSection resource={igsnResource} citationStyles={igsnStyles} displayIdentifier="GFLMU0020" />);
+        render(<CiteThisResourceSection resource={igsnResource} citationStyles={igsnStyles} />);
 
-        const link = screen.getByRole('link', { name: 'GFLMU0020' });
+        const link = screen.getByRole('link', { name: 'https://doi.org/10.60510/gflmu0020' });
         expect(link).toHaveAttribute('href', 'https://doi.org/10.60510/gflmu0020');
-        expect(screen.getByTestId('citation-content')).not.toHaveTextContent('10.60510');
+        expect(screen.getByTestId('citation-content')).toHaveTextContent('https://doi.org/10.60510/gflmu0020');
 
         await chooseCitationStyle('GFZ Data Services (legacy)');
 
-        expect(screen.getByTestId('citation-content')).toHaveTextContent('A Test Dataset. V. 1.0. GFZ Data Services. GFLMU0020');
-        expect(screen.getByTestId('citation-content')).not.toHaveTextContent('10.60510');
+        expect(screen.getByTestId('citation-content')).toHaveTextContent(
+            'A Test Dataset. V. 1.0. GFZ Data Services. https://doi.org/10.60510/gflmu0020',
+        );
     });
 });

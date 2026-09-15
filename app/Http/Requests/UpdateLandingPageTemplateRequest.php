@@ -36,14 +36,15 @@ class UpdateLandingPageTemplateRequest extends FormRequest
 
         return [
             'name' => ['sometimes', 'filled', 'string', 'min:1', 'max:255', Rule::unique('landing_page_templates', 'name')->ignore($template->id)],
-            'right_column_order' => ['sometimes', 'required_with:left_column_order', 'array'],
+            'right_column_order' => ['sometimes', 'array'],
             'right_column_order.*' => ['required', 'string', Rule::in($allowedSections)],
-            'left_column_order' => ['sometimes', 'required_with:right_column_order', 'array'],
+            'left_column_order' => ['sometimes', 'array'],
             'left_column_order.*' => ['required', 'string', Rule::in($allowedSections)],
+            'hidden_sections' => ['sometimes', 'array'],
+            'hidden_sections.*' => ['required', 'string', Rule::in($allowedSections)],
             'creator_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'contributor_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'citation_author_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
-            'show_igsn_drilling' => ['sometimes', 'required', 'boolean'],
             'excluded_date_type_ids' => ['sometimes', 'array'],
             'excluded_date_type_ids.*' => ['required', 'integer', 'distinct', Rule::exists('date_types', 'id')],
             'excluded_relation_type_ids' => ['sometimes', 'array'],
@@ -62,47 +63,59 @@ class UpdateLandingPageTemplateRequest extends FormRequest
             /** @var LandingPageTemplate $template */
             $template = $this->route('landingPageTemplate');
 
-            if ($this->has('show_igsn_drilling')
+            if ($this->has('hidden_sections')
                 && $template->template_type !== LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
                 $validator->errors()->add(
-                    'show_igsn_drilling',
-                    'The Drilling card setting is only available for IGSN templates.'
+                    'hidden_sections',
+                    'Hidden sections are only available for IGSN templates.'
                 );
             }
 
-            if ($this->has('right_column_order') || $this->has('left_column_order')) {
-                if ($this->has('left_column_order') && ! $this->has('right_column_order')) {
+            if ($this->hasAny(['right_column_order', 'left_column_order', 'hidden_sections'])) {
+                if (! $this->has('right_column_order')) {
                     $validator->errors()->add(
                         'right_column_order',
                         'The right column order is required when changing a landing page template layout.'
                     );
                 }
 
-                if ($this->has('right_column_order') && ! $this->has('left_column_order')) {
+                if (! $this->has('left_column_order')) {
                     $validator->errors()->add(
                         'left_column_order',
                         'The left column order is required when changing a landing page template layout.'
                     );
                 }
 
+                if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
+                    && ! $this->has('hidden_sections')) {
+                    $validator->errors()->add(
+                        'hidden_sections',
+                        'The hidden sections are required when changing an IGSN landing page template layout.'
+                    );
+                }
+
                 $rightOrder = $this->input('right_column_order', []);
                 $leftOrder = $this->input('left_column_order', []);
+                $hiddenSections = $this->input('hidden_sections', []);
                 if (! is_array($rightOrder)
                     || ! is_array($leftOrder)
+                    || ! is_array($hiddenSections)
                     || $validator->errors()->hasAny([
                         'right_column_order',
                         'right_column_order.*',
                         'left_column_order',
                         'left_column_order.*',
+                        'hidden_sections',
+                        'hidden_sections.*',
                     ])) {
                     return;
                 }
 
                 if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
-                    && ! LandingPageTemplate::isValidIgsnSectionLayout($leftOrder, $rightOrder)) {
+                    && ! LandingPageTemplate::isValidIgsnSectionLayout($leftOrder, $rightOrder, $hiddenSections)) {
                     $validator->errors()->add(
-                        'right_column_order',
-                        'IGSN columns must contain every valid section exactly once across both columns.'
+                        'hidden_sections',
+                        'IGSN layout zones must contain every valid section exactly once, and the Version Notice must remain visible.'
                     );
                 }
 

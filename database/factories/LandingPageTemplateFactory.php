@@ -36,10 +36,10 @@ class LandingPageTemplateFactory extends Factory
             'logo_filename' => null,
             'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
             'left_column_order' => LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
+            'hidden_sections' => [],
             'creator_display_limit' => LandingPageTemplate::DEFAULT_DISPLAY_LIMIT,
             'contributor_display_limit' => LandingPageTemplate::DEFAULT_DISPLAY_LIMIT,
             'citation_author_display_limit' => LandingPageTemplate::DEFAULT_DISPLAY_LIMIT,
-            'show_igsn_drilling' => true,
             'created_by' => User::factory(),
         ];
     }
@@ -71,6 +71,7 @@ class LandingPageTemplateFactory extends Factory
             'template_type' => LandingPageTemplate::TEMPLATE_TYPE_IGSN,
             'right_column_order' => LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
             'left_column_order' => LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
+            'hidden_sections' => LandingPageTemplate::IGSN_HIDDEN_SECTIONS,
             'created_by' => null,
         ]);
     }
@@ -84,6 +85,7 @@ class LandingPageTemplateFactory extends Factory
             'template_type' => LandingPageTemplate::TEMPLATE_TYPE_IGSN,
             'right_column_order' => LandingPageTemplate::IGSN_RIGHT_COLUMN_SECTIONS,
             'left_column_order' => LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS,
+            'hidden_sections' => LandingPageTemplate::IGSN_HIDDEN_SECTIONS,
         ]);
     }
 

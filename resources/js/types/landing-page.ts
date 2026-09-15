@@ -60,7 +60,9 @@ export type IgsnSection =
     | 'keywords'
     | 'metadata_download'
     | 'sample_image'
-    | 'location';
+    | 'location'
+    | 'map'
+    | 'version_notice';
 
 /** Every module supported by regular resource landing-page templates. */
 export type ResourceSection =
@@ -92,6 +94,7 @@ export type TemplateSection = LeftColumnSection | RightColumnSection | IgsnSecti
 export interface SectionOrder {
     rightColumn: TemplateSection[];
     leftColumn: TemplateSection[];
+    hiddenSections?: TemplateSection[];
 }
 
 /**
@@ -135,6 +138,9 @@ export interface LandingPageTemplateConfig {
     /** Ordered left column sections */
     left_column_order: TemplateSection[];
 
+    /** Ordered sections hidden from an IGSN landing page */
+    hidden_sections: TemplateSection[];
+
     /** Number of creators shown initially on public landing pages */
     creator_display_limit: number;
 
@@ -143,9 +149,6 @@ export interface LandingPageTemplateConfig {
 
     /** Number of citation authors shown before et al. */
     citation_author_display_limit: number;
-
-    /** Whether the ICDP-only Drilling card is enabled */
-    show_igsn_drilling: boolean;
 
     /** Date types hidden from the Dates module */
     excluded_date_type_ids: number[];
@@ -221,10 +224,6 @@ export interface LandingPageDisplayLimits {
 export interface LandingPageTypeVisibility {
     excludedDateTypes: string[];
     excludedRelationTypes: string[];
-}
-
-export interface LandingPageSectionVisibility {
-    igsnDrilling: boolean;
 }
 
 /**

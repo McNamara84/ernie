@@ -36,10 +36,10 @@ use Illuminate\Support\Str;
  * @property string|null $logo_filename Original filename of the uploaded logo
  * @property array<int, string> $right_column_order Ordered section keys for right column
  * @property array<int, string> $left_column_order Ordered section keys for left column
+ * @property array<int, string> $hidden_sections Ordered section keys hidden from the landing page
  * @property int $creator_display_limit Number of creators shown initially on landing pages
  * @property int $contributor_display_limit Number of contributors shown initially on landing pages
  * @property int $citation_author_display_limit Number of creators shown before et al. in citations
- * @property bool $show_igsn_drilling Whether the ICDP-only Drilling card is enabled
  * @property int|null $created_by FK to users table
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -155,34 +155,41 @@ class LandingPageTemplate extends Model
     public const IGSN_LEFT_COLUMN_SECTIONS = [
         'general',
         'sample_family',
-        'acquisition',
-        'igsn_methods',
-        'igsn_drilling',
         'repositories',
-        'licenses',
-        'citation',
-        'dates',
-        'contact',
-        'model_description',
+        'map',
         'related_work',
+        'metadata_download',
+        'dates',
+        'citation',
     ];
 
     /** Default right-column distribution for IGSN landing pages. */
     public const IGSN_RIGHT_COLUMN_SECTIONS = [
-        ...self::DESCRIPTION_COLUMN_SECTIONS,
-        'creators',
+        'version_notice',
         'contributors',
-        'funders',
-        'keywords',
-        'metadata_download',
-        'sample_image',
+        'creators',
         'location',
+        'acquisition',
+        'funders',
+    ];
+
+    /** Modules hidden by default on IGSN landing pages. */
+    public const IGSN_HIDDEN_SECTIONS = [
+        'igsn_methods',
+        'igsn_drilling',
+        'licenses',
+        'contact',
+        'model_description',
+        ...self::DESCRIPTION_COLUMN_SECTIONS,
+        'keywords',
+        'sample_image',
     ];
 
     /** Every independently movable IGSN landing-page module. */
     public const IGSN_SECTIONS = [
         ...self::IGSN_LEFT_COLUMN_SECTIONS,
         ...self::IGSN_RIGHT_COLUMN_SECTIONS,
+        ...self::IGSN_HIDDEN_SECTIONS,
     ];
 
     /**
@@ -220,10 +227,10 @@ class LandingPageTemplate extends Model
         'logo_filename',
         'right_column_order',
         'left_column_order',
+        'hidden_sections',
         'creator_display_limit',
         'contributor_display_limit',
         'citation_author_display_limit',
-        'show_igsn_drilling',
         'created_by',
     ];
 
@@ -236,10 +243,10 @@ class LandingPageTemplate extends Model
         'is_default' => 'boolean',
         'right_column_order' => 'array',
         'left_column_order' => 'array',
+        'hidden_sections' => 'array',
         'creator_display_limit' => 'integer',
         'contributor_display_limit' => 'integer',
         'citation_author_display_limit' => 'integer',
-        'show_igsn_drilling' => 'boolean',
     ];
 
     /**
@@ -450,14 +457,16 @@ class LandingPageTemplate extends Model
     }
 
     /**
-     * Validate both IGSN columns as one complete, duplicate-free section set.
+     * Validate visible and hidden IGSN zones as one complete, duplicate-free section set.
      *
      * @param  array<int, string>  $left
      * @param  array<int, string>  $right
+     * @param  array<int, string>  $hidden
      */
-    public static function isValidIgsnSectionLayout(array $left, array $right): bool
+    public static function isValidIgsnSectionLayout(array $left, array $right, array $hidden): bool
     {
-        return self::isValidSectionOrder([...$left, ...$right], self::IGSN_SECTIONS);
+        return ! in_array('version_notice', $hidden, true)
+            && self::isValidSectionOrder([...$left, ...$right, ...$hidden], self::IGSN_SECTIONS);
     }
 
     /**
@@ -566,19 +575,29 @@ class LandingPageTemplate extends Model
             : self::RIGHT_COLUMN_SECTIONS;
     }
 
+    /** @return list<string> */
+    public static function hiddenSectionsForTemplateType(string $templateType): array
+    {
+        return $templateType === self::TEMPLATE_TYPE_IGSN
+            ? self::IGSN_HIDDEN_SECTIONS
+            : [];
+    }
+
     /**
-     * Normalize legacy IGSN layouts while preserving known section positions.
+     * Normalize IGSN layouts while preserving known section positions.
      *
      * @param  array<int, string>  $left
      * @param  array<int, string>  $right
-     * @return array{left: list<string>, right: list<string>}
+     * @param  array<int, string>  $hidden
+     * @return array{left: list<string>, right: list<string>, hidden: list<string>}
      */
-    public static function normalizeIgsnSectionOrders(array $left, array $right): array
+    public static function normalizeIgsnSectionOrders(array $left, array $right, array $hidden = []): array
     {
         $valid = array_fill_keys(self::IGSN_SECTIONS, true);
         $seen = [];
         $normalizedLeft = [];
         $normalizedRight = [];
+        $normalizedHidden = [];
 
         foreach ($left as $key) {
             if (isset($valid[$key]) && ! isset($seen[$key])) {
@@ -593,39 +612,26 @@ class LandingPageTemplate extends Model
             }
         }
 
-        $hasStoredCitation = isset($seen['citation']);
-
-        foreach (self::IGSN_LEFT_COLUMN_SECTIONS as $key) {
-            if ($key === 'citation' && ! $hasStoredCitation) {
-                continue;
+        foreach ($hidden as $key) {
+            if ($key !== 'version_notice' && isset($valid[$key]) && ! isset($seen[$key])) {
+                $seen[$key] = true;
+                $normalizedHidden[] = $key;
             }
+        }
 
+        if (! isset($seen['version_notice'])) {
+            array_unshift($normalizedRight, 'version_notice');
+            $seen['version_notice'] = true;
+        }
+
+        foreach (self::IGSN_SECTIONS as $key) {
             if (! isset($seen[$key])) {
                 $seen[$key] = true;
-                $normalizedLeft[] = $key;
+                $normalizedHidden[] = $key;
             }
         }
 
-        if (! $hasStoredCitation) {
-            $seen['citation'] = true;
-            $normalizedLeft[] = 'citation';
-        }
-
-        foreach (self::IGSN_RIGHT_COLUMN_SECTIONS as $key) {
-            if (! isset($seen[$key])) {
-                $seen[$key] = true;
-                $locationIndex = $key === 'sample_image'
-                    ? array_search('location', $normalizedRight, true)
-                    : false;
-                if ($locationIndex === false) {
-                    $normalizedRight[] = $key;
-                } else {
-                    array_splice($normalizedRight, $locationIndex, 0, [$key]);
-                }
-            }
-        }
-
-        return ['left' => $normalizedLeft, 'right' => $normalizedRight];
+        return ['left' => $normalizedLeft, 'right' => $normalizedRight, 'hidden' => $normalizedHidden];
     }
 
     /**
@@ -970,10 +976,10 @@ class LandingPageTemplate extends Model
                             'logo_filename' => null,
                             'right_column_order' => self::rightColumnSectionsForTemplateType($templateType),
                             'left_column_order' => self::leftColumnSectionsForTemplateType($templateType),
+                            'hidden_sections' => self::hiddenSectionsForTemplateType($templateType),
                             'creator_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
                             'contributor_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
                             'citation_author_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
-                            'show_igsn_drilling' => true,
                             'created_by' => null,
                         ]
                     );
@@ -1011,12 +1017,13 @@ class LandingPageTemplate extends Model
                 'template_type' => $templateType,
                 'right_column_order' => self::rightColumnSectionsForTemplateType($templateType),
                 'left_column_order' => self::leftColumnSectionsForTemplateType($templateType),
+                'hidden_sections' => self::hiddenSectionsForTemplateType($templateType),
                 'created_by' => null,           // System-owned, not created by a user
                 'logo_path' => null,            // No custom logo
                 'logo_filename' => null,        // No custom logo
             ]);
 
-            if ($template->isDirty(['is_default', 'template_type', 'right_column_order', 'left_column_order', 'created_by', 'logo_path', 'logo_filename'])) {
+            if ($template->isDirty(['is_default', 'template_type', 'right_column_order', 'left_column_order', 'hidden_sections', 'created_by', 'logo_path', 'logo_filename'])) {
                 $template->save();
             }
 

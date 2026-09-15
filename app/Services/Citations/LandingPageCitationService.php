@@ -139,6 +139,7 @@ final class LandingPageCitationService
         }
 
         $bibliography = $this->restoreEngineText($bibliography, $markers);
+        $bibliography = $this->normalizeDoiResolverUrl($bibliography, $item);
         $html = $this->sanitizer->sanitize($bibliography, $css);
         $text = $this->sanitizer->toPlainText($html);
 
@@ -147,6 +148,25 @@ final class LandingPageCitationService
         }
 
         return [$html, $text];
+    }
+
+    /** @param array<string, mixed> $item */
+    private function normalizeDoiResolverUrl(string $bibliography, array $item): string
+    {
+        $doi = $item['DOI'] ?? null;
+        $url = $item['URL'] ?? null;
+
+        if (! is_string($doi) || $doi === '' || ! is_string($url) || $url === '') {
+            return $bibliography;
+        }
+
+        $normalized = preg_replace_callback(
+            '/doi:\s*'.preg_quote($doi, '/').'/iu',
+            static fn (): string => $url,
+            $bibliography,
+        );
+
+        return is_string($normalized) ? $normalized : $bibliography;
     }
 
     /**

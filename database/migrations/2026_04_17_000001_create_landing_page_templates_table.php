@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('logo_filename')->nullable();
             $table->json('right_column_order');
             $table->json('left_column_order');
+            $table->json('hidden_sections')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });
