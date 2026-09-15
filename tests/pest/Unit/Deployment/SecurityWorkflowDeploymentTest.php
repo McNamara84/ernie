@@ -20,7 +20,8 @@ it('scans every deployed runtime image while retaining the dated build caches', 
     $trivyCacheStep = $steps->get('Cache Trivy databases');
     $trivyScanStep = $steps->get('Run Trivy vulnerability scanner');
     $sarifCheckStep = $steps->get('Check Trivy SARIF output');
-    $sarifUploadStep = $steps->get('Upload Trivy scan results');
+    $applicationSarifUploadStep = $steps->get('Upload application Trivy scan results');
+    $nginxSarifUploadStep = $steps->get('Upload Nginx Trivy scan results');
     $sarifArtifactStep = $steps->get('Upload Trivy SARIF artifact');
     $vulnerabilityGateStep = $steps->get('Fail on high or critical image vulnerabilities');
 
@@ -75,21 +76,29 @@ it('scans every deployed runtime image while retaining the dated build caches', 
         ->and($sarifCheckStep['if'] ?? null)->toBe('always()')
         ->and($sarifCheckStep['run'] ?? null)
         ->toBeString()
-        ->toContain('[ -s trivy-results/app.sarif ]')
-        ->toContain('[ -s trivy-results/nginx.sarif ]')
-        ->toContain('non_empty=true')
+        ->toContain('for target in app nginx')
+        ->toContain('[ -s "trivy-results/${target}.sarif" ]')
+        ->toContain('echo "${target}_non_empty=true"')
         ->toContain('$GITHUB_OUTPUT')
-        ->and($sarifUploadStep)
+        ->and($applicationSarifUploadStep)
         ->toBeArray()
-        ->and($sarifUploadStep['if'] ?? null)
-        ->toContain("steps.trivy-sarif.outputs.non_empty == 'true'")
-        ->and($sarifUploadStep)->not->toHaveKey('continue-on-error')
-        ->and($sarifUploadStep['with']['sarif_file'] ?? null)->toBe('trivy-results')
-        ->and($sarifUploadStep['with']['category'] ?? null)->toBe('trivy-runtime-images')
+        ->and($applicationSarifUploadStep['if'] ?? null)
+        ->toContain("steps.trivy-sarif.outputs.app_non_empty == 'true'")
+        ->and($applicationSarifUploadStep)->not->toHaveKey('continue-on-error')
+        ->and($applicationSarifUploadStep['with']['sarif_file'] ?? null)->toBe('trivy-results/app.sarif')
+        ->and($applicationSarifUploadStep['with']['category'] ?? null)->toBe('trivy-app-image')
+        ->and($nginxSarifUploadStep)
+        ->toBeArray()
+        ->and($nginxSarifUploadStep['if'] ?? null)
+        ->toContain("steps.trivy-sarif.outputs.nginx_non_empty == 'true'")
+        ->and($nginxSarifUploadStep)->not->toHaveKey('continue-on-error')
+        ->and($nginxSarifUploadStep['with']['sarif_file'] ?? null)->toBe('trivy-results/nginx.sarif')
+        ->and($nginxSarifUploadStep['with']['category'] ?? null)->toBe('trivy-nginx-image')
         ->and($sarifArtifactStep)
         ->toBeArray()
         ->and($sarifArtifactStep['if'] ?? null)
-        ->toContain("steps.trivy-sarif.outputs.non_empty == 'true'")
+        ->toContain("steps.trivy-sarif.outputs.app_non_empty == 'true'")
+        ->toContain("steps.trivy-sarif.outputs.nginx_non_empty == 'true'")
         ->and($sarifArtifactStep['with']['path'] ?? null)->toBe('trivy-results')
         ->and($vulnerabilityGateStep)
         ->toBeArray()
@@ -110,6 +119,13 @@ it('scans every deployed runtime image while retaining the dated build caches', 
         ->toBeString()
         ->toContain('ARG SYSTEM_PACKAGES_REFRESH=manual')
         ->toContain('System package refresh: ${SYSTEM_PACKAGES_REFRESH}');
+
+    $nginxStage = strstr($dockerfile, ' AS nginx');
+
+    expect($nginxStage)
+        ->toBeString()
+        ->toContain('ARG SYSTEM_PACKAGES_REFRESH=manual')
+        ->toContain('apk upgrade --no-cache');
 
     assert(is_string($dockerfile));
 

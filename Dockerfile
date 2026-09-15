@@ -155,6 +155,11 @@ CMD ["php-fpm"]
 
 FROM nginx:1.31.5-alpine@sha256:72ba65eb42c10344912a84ff42408db7d34f2feb642204570ab8fc5ffd29f1d3 AS nginx
 
+ARG SYSTEM_PACKAGES_REFRESH=manual
+
+RUN echo "System package refresh: ${SYSTEM_PACKAGES_REFRESH}" \
+    && apk upgrade --no-cache
+
 WORKDIR /var/www/html
 
 COPY docker/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
