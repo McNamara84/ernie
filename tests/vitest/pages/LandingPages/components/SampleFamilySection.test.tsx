@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from '@tests/vitest/utils/render';
+import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { SampleFamilySection } from '@/pages/LandingPages/components/SampleFamilySection';
@@ -64,6 +65,9 @@ describe('SampleFamilySection', () => {
         expect(screen.getByText('IGSN GFROOT001')).toBeInTheDocument();
         expect(screen.queryByText('Sample 1')).not.toBeInTheDocument();
         const rootToggle = screen.getByRole('button', { name: 'Collapse Station Alpha' });
+        expect(rootToggle).toHaveAttribute('data-slot', 'button');
+        expect(rootToggle).toHaveAttribute('data-variant', 'ghost');
+        expect(rootToggle).toHaveAttribute('data-size', 'icon');
         expect(rootToggle).toHaveAttribute('aria-expanded', 'true');
         const coreToggle = screen.getByRole('button', { name: 'Expand Core A' });
         expect(coreToggle).toHaveAttribute('aria-expanded', 'false');
@@ -165,5 +169,15 @@ describe('SampleFamilySection', () => {
         expect(grip).toHaveAttribute('aria-valuenow', grip.getAttribute('aria-valuemin'));
         fireEvent.keyDown(grip, { key: 'End' });
         expect(grip).toHaveAttribute('aria-valuenow', grip.getAttribute('aria-valuemax'));
+    });
+
+    it('keeps the server-rendered family height automatic with a 512px ceiling', () => {
+        const container = document.createElement('div');
+        container.innerHTML = renderToString(<SampleFamilySection family={family} currentResourceId={2} />);
+
+        const navigation = container.querySelector('nav');
+        expect(navigation).not.toBeNull();
+        expect((navigation as HTMLElement).style.height).toBe('');
+        expect((navigation as HTMLElement).style.maxHeight).toBe('512px');
     });
 });

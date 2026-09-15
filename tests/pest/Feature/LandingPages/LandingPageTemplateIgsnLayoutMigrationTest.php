@@ -19,6 +19,14 @@ function loadLandingPageTemplateIgsnLayoutMigration(): Migration
     return $migration;
 }
 
+function loadSupersededFlexibleIgsnTemplateMigration(): Migration
+{
+    /** @var Migration $migration */
+    $migration = require database_path('migrations/2026_08_27_000002_enable_flexible_igsn_template_sections.php');
+
+    return $migration;
+}
+
 /** @return list<string> */
 function decodeLandingPageTemplateOrder(mixed $value): array
 {
@@ -89,6 +97,30 @@ it('migrates existing IGSN layouts into visible and hidden zones without losing 
         ->and((bool) $rolledBack->show_igsn_drilling)->toBeFalse()
         ->and(decodeLandingPageTemplateOrder($rolledBack->left_column_order))->not->toContain('map', 'version_notice')
         ->and(decodeLandingPageTemplateOrder($rolledBack->right_column_order))->not->toContain('map', 'version_notice');
+
+    $legacyLeft = [
+        'general', 'sample_family', 'acquisition', 'igsn_methods', 'igsn_drilling',
+        'repositories', 'licenses', 'citation', 'dates', 'contact',
+        'model_description', 'related_work',
+    ];
+    $legacyRight = [
+        'abstract', 'methods', 'technical_info', 'series_information',
+        'table_of_contents', 'other', 'creators', 'contributors', 'funders',
+        'keywords', 'metadata_download', 'location',
+    ];
+
+    loadSupersededFlexibleIgsnTemplateMigration()->down();
+    $rolledBackPastFlexibleLayout = DB::table('landing_page_templates')->find($igsn->id);
+    $rolledBackLeft = decodeLandingPageTemplateOrder($rolledBackPastFlexibleLayout->left_column_order);
+    $rolledBackRight = decodeLandingPageTemplateOrder($rolledBackPastFlexibleLayout->right_column_order);
+
+    expect($rolledBackLeft)->toHaveCount(count($legacyLeft))
+        ->and(array_diff($legacyLeft, $rolledBackLeft))->toBe([])
+        ->and(array_diff($rolledBackLeft, $legacyLeft))->toBe([])
+        ->and($rolledBackRight)->toHaveCount(count($legacyRight))
+        ->and(array_diff($legacyRight, $rolledBackRight))->toBe([])
+        ->and(array_diff($rolledBackRight, $legacyRight))->toBe([])
+        ->and(collect([...$rolledBackLeft, ...$rolledBackRight])->duplicates()->all())->toBe([]);
 
     $migration->up();
 });

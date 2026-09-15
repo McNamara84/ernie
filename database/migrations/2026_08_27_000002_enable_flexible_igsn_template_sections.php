@@ -8,6 +8,45 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
+    /**
+     * The legacy section ownership immediately before the three-zone layout.
+     *
+     * Keep these lists local: model-level layout constants may change in later
+     * releases, but this migration's rollback must remain deterministic.
+     *
+     * @var list<string>
+     */
+    private const LEGACY_LEFT_COLUMN_SECTIONS = [
+        'general',
+        'sample_family',
+        'acquisition',
+        'igsn_methods',
+        'igsn_drilling',
+        'repositories',
+        'licenses',
+        'citation',
+        'dates',
+        'contact',
+        'model_description',
+        'related_work',
+    ];
+
+    /** @var list<string> */
+    private const LEGACY_RIGHT_COLUMN_SECTIONS = [
+        'abstract',
+        'methods',
+        'technical_info',
+        'series_information',
+        'table_of_contents',
+        'other',
+        'creators',
+        'contributors',
+        'funders',
+        'keywords',
+        'metadata_download',
+        'location',
+    ];
+
     public function up(): void
     {
         DB::table('landing_page_templates')
@@ -37,11 +76,11 @@ return new class extends Migration
                 ]));
                 $left = array_values(array_filter(
                     $allSections,
-                    static fn (string $key): bool => in_array($key, LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS, true),
+                    static fn (string $key): bool => in_array($key, self::LEGACY_LEFT_COLUMN_SECTIONS, true),
                 ));
                 $right = array_values(array_filter(
                     $allSections,
-                    static fn (string $key): bool => in_array($key, LandingPageTemplate::RIGHT_COLUMN_SECTIONS, true),
+                    static fn (string $key): bool => in_array($key, self::LEGACY_RIGHT_COLUMN_SECTIONS, true),
                 ));
 
                 $this->updateOrders((int) $row->id, $left, $right);

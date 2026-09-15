@@ -1,6 +1,7 @@
 import { GripHorizontal } from 'lucide-react';
 import { type PointerEvent as ReactPointerEvent, type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import type { LandingPageIgsnFamilyNode, LandingPageIgsnSampleFamily } from '@/types/landing-page';
 
 import { LandingPageCard } from './LandingPageCard';
@@ -35,6 +36,8 @@ type SampleTypeIconKind =
     | 'dredge'
     | 'other'
     | 'unknown';
+
+const INITIAL_MAX_HEIGHT = 512;
 
 /** All 15 sample types in the 35,429-record legacy IGSN Solr index. */
 const LEGACY_SAMPLE_TYPE_ICONS: Readonly<Record<string, SampleTypeIconKind>> = {
@@ -242,9 +245,11 @@ function FamilyNode({ node, currentResourceId, expandedIds, onToggle, idPrefix }
         <li aria-current={isCurrent ? 'page' : undefined}>
             <div className="flex min-w-0 items-start" data-family-node-row>
                 {hasChildren ? (
-                    <button
+                    <Button
                         type="button"
-                        className="flex size-11 shrink-0 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-gfz-primary focus-visible:outline-none dark:text-gray-300 dark:hover:bg-gray-700 dark:focus-visible:ring-blue-400"
+                        variant="ghost"
+                        size="icon"
+                        className="size-11 shrink-0 text-gray-600 hover:bg-gray-100 focus-visible:ring-gfz-primary dark:text-gray-300 dark:hover:bg-gray-700 dark:focus-visible:ring-blue-400"
                         aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${primaryLabel}`}
                         aria-expanded={isExpanded}
                         aria-controls={childrenId}
@@ -258,7 +263,7 @@ function FamilyNode({ node, currentResourceId, expandedIds, onToggle, idPrefix }
                         >
                             <path d="m7 4 6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
-                    </button>
+                    </Button>
                 ) : (
                     <span className="size-11 shrink-0" aria-hidden="true" />
                 )}
@@ -320,7 +325,7 @@ export function SampleFamilySection({ family, currentResourceId }: SampleFamilyS
     const [expandedIds, setExpandedIds] = useState<Set<number>>(() => (family ? findExpandedAncestorIds(family.root, currentResourceId) : new Set()));
     const [height, setHeight] = useState<number | null>(null);
     const [minHeight, setMinHeight] = useState(44);
-    const [maxHeight, setMaxHeight] = useState(512);
+    const [maxHeight, setMaxHeight] = useState(INITIAL_MAX_HEIGHT);
     const navigationRef = useRef<HTMLElement>(null);
     const treeRef = useRef<HTMLUListElement>(null);
     const resizeStart = useRef<{ pointerY: number; height: number } | null>(null);
@@ -338,7 +343,7 @@ export function SampleFamilySection({ family, currentResourceId }: SampleFamilyS
         const nextMax = Math.max(nextMin, Math.ceil(tree.scrollHeight));
         setMinHeight(nextMin);
         setMaxHeight(nextMax);
-        setHeight((current) => (current === null ? Math.min(nextMax, 512) : Math.max(nextMin, Math.min(current, nextMax))));
+        setHeight((current) => (current === null ? Math.min(nextMax, INITIAL_MAX_HEIGHT) : Math.max(nextMin, Math.min(current, nextMax))));
     }, []);
 
     useEffect(() => {
@@ -387,7 +392,7 @@ export function SampleFamilySection({ family, currentResourceId }: SampleFamilyS
                 ref={navigationRef}
                 aria-labelledby="heading-sample-family"
                 className="min-w-0 overflow-auto pr-1"
-                style={{ height: height ?? Math.min(maxHeight, 512) }}
+                style={height === null ? { maxHeight: INITIAL_MAX_HEIGHT } : { height }}
             >
                 <ul ref={treeRef} className="min-w-0 space-y-1">
                     <FamilyNode
@@ -405,7 +410,7 @@ export function SampleFamilySection({ family, currentResourceId }: SampleFamilyS
                 aria-orientation="horizontal"
                 aria-valuemin={Math.round(minHeight)}
                 aria-valuemax={Math.round(maxHeight)}
-                aria-valuenow={Math.round(height ?? Math.min(maxHeight, 512))}
+                aria-valuenow={height === null ? undefined : Math.round(height)}
                 tabIndex={0}
                 className="mt-2 flex h-6 cursor-ns-resize touch-none items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus-visible:ring-2 focus-visible:ring-gfz-primary focus-visible:outline-none dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:focus-visible:ring-blue-400"
                 onPointerDown={handleResizeStart}
@@ -413,7 +418,7 @@ export function SampleFamilySection({ family, currentResourceId }: SampleFamilyS
                 onPointerUp={handleResizeEnd}
                 onPointerCancel={handleResizeEnd}
                 onKeyDown={(event) => {
-                    const current = height ?? Math.min(maxHeight, 512);
+                    const current = height ?? navigationRef.current?.getBoundingClientRect().height ?? Math.min(maxHeight, INITIAL_MAX_HEIGHT);
                     if (event.key === 'ArrowUp') setHeight(clampHeight(current - 24));
                     else if (event.key === 'ArrowDown') setHeight(clampHeight(current + 24));
                     else if (event.key === 'Home') setHeight(minHeight);

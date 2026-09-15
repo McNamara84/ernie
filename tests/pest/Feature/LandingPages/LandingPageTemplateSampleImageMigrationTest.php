@@ -31,9 +31,19 @@ it('keeps the superseded flexible-column migration safe on the current schema', 
 });
 
 it('deduplicates known modules and remains reversible after the layout supersession', function (): void {
+    $legacyLeft = [
+        'general', 'sample_family', 'acquisition', 'igsn_methods', 'igsn_drilling',
+        'repositories', 'licenses', 'citation', 'dates', 'contact',
+        'model_description', 'related_work',
+    ];
+    $legacyRight = [
+        'abstract', 'methods', 'technical_info', 'series_information',
+        'table_of_contents', 'other', 'creators', 'contributors', 'funders',
+        'keywords', 'metadata_download', 'location',
+    ];
     $template = LandingPageTemplate::factory()->igsn()->create([
-        'left_column_order' => ['general', 'location', 'general'],
-        'right_column_order' => ['location', 'sample_image', 'abstract', 'unknown'],
+        'left_column_order' => ['general', 'location', 'general', ...array_slice($legacyLeft, 1)],
+        'right_column_order' => ['location', 'sample_image', 'abstract', 'unknown', ...array_slice($legacyRight, 1, -1)],
     ]);
     $migration = issue1168TemplateMigration();
 
@@ -62,7 +72,13 @@ it('deduplicates known modules and remains reversible after the layout supersess
     $migration->down();
     $template->refresh();
 
-    expect($template->left_column_order)->not->toContain('abstract', 'sample_image')
+    expect($template->left_column_order)->toHaveCount(count($legacyLeft))
+        ->and(array_diff($legacyLeft, $template->left_column_order))->toBe([])
+        ->and(array_diff($template->left_column_order, $legacyLeft))->toBe([])
+        ->and($template->left_column_order)->not->toContain('abstract', 'sample_image')
+        ->and($template->right_column_order)->toHaveCount(count($legacyRight))
+        ->and(array_diff($legacyRight, $template->right_column_order))->toBe([])
+        ->and(array_diff($template->right_column_order, $legacyRight))->toBe([])
         ->and($template->right_column_order)->not->toContain('general', 'sample_image', 'version_notice')
         ->and(collect([...$template->left_column_order, ...$template->right_column_order])->duplicates()->all())->toBe([]);
 });
