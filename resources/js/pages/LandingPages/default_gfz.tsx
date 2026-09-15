@@ -1,5 +1,5 @@
 import { Head, usePage } from '@inertiajs/react';
-import { type ReactNode, useMemo } from 'react';
+import { Fragment, type ReactNode, useMemo } from 'react';
 
 import type {
     LandingPageCitationStyle,
@@ -21,13 +21,14 @@ import { FilesSection } from './components/FilesSection';
 import { LandingPageShell } from './components/LandingPageShell';
 import { LicenseAndRightsSection } from './components/LicenseAndRightsSection';
 import { LocationSection } from './components/LocationSection';
-import { ModelDescriptionSection } from './components/ModelDescriptionSection';
 import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { ResourceHero } from './components/ResourceHero';
+import { ResourceRelationHighlightSections } from './components/ResourceRelationHighlightSections';
 import { VersionNotice } from './components/VersionNotice';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
 import { type MetadataSectionKey } from './lib/metadata-sections';
+import { partitionResourceRelatedWork } from './lib/resource-related-work';
 import {
     normalizeResourceColumnOrders,
     RESOURCE_LEFT_COLUMN_SECTIONS,
@@ -128,6 +129,10 @@ export default function DefaultGfzTemplate() {
     const downloadsUnavailable = landingPage?.downloads_unavailable === true;
     const leftMetadataOrder = metadataOrderForColumn(orders.left);
     const rightMetadataOrder = metadataOrderForColumn(orders.right);
+    const partitionedRelatedWork = useMemo(
+        () => partitionResourceRelatedWork(resource.related_identifiers || [], resource.related_items || []),
+        [resource.related_identifiers, resource.related_items],
+    );
 
     const metadataSections = useMemo((): { left: ReactNode; right: ReactNode } => {
         const jsonLdExportUrl = landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined;
@@ -176,7 +181,15 @@ export default function DefaultGfzTemplate() {
                     additionalLinks={landingPage?.links}
                 />
             ),
-            licenses: <LicenseAndRightsSection key="licenses" licenses={resource.licenses || []} />,
+            licenses: (
+                <Fragment key="licenses">
+                    <LicenseAndRightsSection licenses={resource.licenses || []} />
+                    <ResourceRelationHighlightSections
+                        keyPublications={partitionedRelatedWork.keyPublications}
+                        datasetDescriptions={partitionedRelatedWork.datasetDescriptions}
+                    />
+                </Fragment>
+            ),
             citation: (
                 <CiteThisResourceSection
                     key="citation"
@@ -187,18 +200,11 @@ export default function DefaultGfzTemplate() {
             ),
             dates: <DatesSection key="dates" dates={resource.dates || []} excludedDateTypes={typeVisibility?.excludedDateTypes} />,
             contact: <ContactSection key="contact" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />,
-            model_description: (
-                <ModelDescriptionSection
-                    key="model_description"
-                    relatedIdentifiers={resource.related_identifiers || []}
-                    resourceType={resource.resource_type?.name}
-                />
-            ),
             related_work: (
                 <RelatedWorkSection
                     key="related_work"
-                    relatedIdentifiers={resource.related_identifiers || []}
-                    relatedItems={resource.related_items || []}
+                    relatedIdentifiers={partitionedRelatedWork.remaining.relatedIdentifiers}
+                    relatedItems={partitionedRelatedWork.remaining.relatedItems}
                     resource={resource}
                     excludedRelationTypes={typeVisibility?.excludedRelationTypes}
                 />
@@ -215,6 +221,7 @@ export default function DefaultGfzTemplate() {
         isDark,
         typeVisibility,
         hasDataPublicationTeamRecipient,
+        partitionedRelatedWork,
     ]);
 
     const leftColumnSections = composeResourceColumn(orders.left, standaloneSectionRegistry, metadataSections.left);

@@ -863,7 +863,116 @@ describe('DefaultGfzTemplate', () => {
         });
     });
 
-    it('applies type visibility only to Dates and Related Work while preserving Model Description', () => {
+    it('renders highlighted relations after License & Rights and removes them from Related Work', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: {
+                    ...mockResource,
+                    licenses: [
+                        {
+                            id: 1,
+                            resource_right_id: 1,
+                            name: 'CC BY 4.0',
+                            spdx_id: 'CC-BY-4.0',
+                            reference: 'https://creativecommons.org/licenses/by/4.0/',
+                            source: 'catalog',
+                        },
+                    ],
+                    related_identifiers: [
+                        {
+                            id: 1,
+                            identifier: '10.5880/key-publication',
+                            identifier_type: 'DOI',
+                            relation_type: 'IsSupplementTo',
+                            citation_label: 'Featured key publication',
+                        },
+                        {
+                            id: 2,
+                            identifier: '10.5880/reference',
+                            identifier_type: 'DOI',
+                            relation_type: 'References',
+                            citation_label: 'Ordinary related work',
+                        },
+                    ],
+                    related_items: [
+                        {
+                            id: 10,
+                            related_item_type: 'JournalArticle',
+                            relation_type: 'Is Documented By',
+                            relation_type_slug: 'IsDocumentedBy',
+                            publication_year: 2026,
+                            volume: null,
+                            issue: null,
+                            number: null,
+                            number_type: null,
+                            first_page: null,
+                            last_page: null,
+                            publisher: null,
+                            edition: null,
+                            identifier: '10.5880/dataset-description',
+                            identifier_type: 'DOI',
+                            related_metadata_scheme: null,
+                            scheme_uri: null,
+                            scheme_type: null,
+                            position: 1,
+                            titles: [{ id: 10, title: 'Featured dataset description', title_type: 'MainTitle', language: 'en' }],
+                            creators: [],
+                            contributors: [],
+                        },
+                    ],
+                },
+                landingPage: mockLandingPage,
+                isPreview: false,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+
+        render(<DefaultGfzTemplate />);
+
+        const license = screen.getByTestId('license-and-rights-section');
+        const keyPublication = screen.getByTestId('key-publication-section');
+        const datasetDescription = screen.getByTestId('dataset-description-section');
+        const relatedWork = screen.getByTestId('related-works-section');
+
+        expect(license.compareDocumentPosition(keyPublication) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(keyPublication.compareDocumentPosition(datasetDescription) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(within(keyPublication).getByText('Featured key publication')).toBeInTheDocument();
+        expect(within(datasetDescription).getByText('Featured dataset description')).toBeInTheDocument();
+        expect(within(relatedWork).getByText('Ordinary related work')).toBeInTheDocument();
+        expect(within(relatedWork).queryByText('Featured key publication')).not.toBeInTheDocument();
+        expect(within(relatedWork).queryByText('Featured dataset description')).not.toBeInTheDocument();
+    });
+
+    it('keeps highlighted relations attached when License & Rights moves to the right column', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: {
+                    ...mockResource,
+                    related_identifiers: [
+                        {
+                            id: 1,
+                            identifier: '10.5880/key-publication',
+                            identifier_type: 'DOI',
+                            relation_type: 'IsSupplementTo',
+                            citation_label: 'Moved key publication',
+                        },
+                    ],
+                },
+                landingPage: mockLandingPage,
+                isPreview: false,
+                sectionOrder: {
+                    leftColumn: ['files', 'citation', 'dates', 'contact', 'related_work'],
+                    rightColumn: ['licenses'],
+                },
+            },
+        } as unknown as ReturnType<typeof usePage>);
+
+        render(<DefaultGfzTemplate />);
+
+        expect(within(screen.getByTestId('landing-page-right-column')).getByTestId('key-publication-section')).toBeInTheDocument();
+        expect(within(screen.getByTestId('landing-page-left-column')).queryByTestId('key-publication-section')).not.toBeInTheDocument();
+    });
+
+    it('applies type visibility only to Dates and Related Work while preserving highlighted relation cards', () => {
         mockUsePage.mockReturnValue({
             props: {
                 resource: {
@@ -894,13 +1003,20 @@ describe('DefaultGfzTemplate', () => {
                             relation_type: 'References',
                             citation_label: 'Hidden related work',
                         },
+                        {
+                            id: 3,
+                            identifier: '10.5880/documentation',
+                            identifier_type: 'DOI',
+                            relation_type: 'IsDocumentedBy',
+                            citation_label: 'Visible dataset documentation',
+                        },
                     ],
                 },
                 landingPage: mockLandingPage,
                 isPreview: false,
                 typeVisibility: {
                     excludedDateTypes: ['Created'],
-                    excludedRelationTypes: ['References'],
+                    excludedRelationTypes: ['References', 'IsSupplementTo', 'IsDocumentedBy'],
                 },
             },
         } as unknown as ReturnType<typeof usePage>);
@@ -910,6 +1026,8 @@ describe('DefaultGfzTemplate', () => {
         expect(screen.queryByRole('heading', { name: 'Dates' })).not.toBeInTheDocument();
         expect(screen.queryByText('Hidden related work')).not.toBeInTheDocument();
         expect(screen.getByText('Visible model supplement')).toBeInTheDocument();
+        expect(screen.getByText('Visible dataset documentation')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Key Publication' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Dataset Description' })).toBeInTheDocument();
     });
 

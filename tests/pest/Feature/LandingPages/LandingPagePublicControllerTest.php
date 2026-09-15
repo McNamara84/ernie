@@ -1031,7 +1031,6 @@ describe('Landing Page with Custom Template', function () {
             'citation',
             'dates',
             'contact',
-            'model_description',
             'related_work',
             'location',
         ];
@@ -1196,7 +1195,6 @@ describe('Landing Page with Custom Template', function () {
                     'contact',
                     'files',
                     'licenses',
-                    'model_description',
                     'related_work',
                     'dates',
                     'citation',

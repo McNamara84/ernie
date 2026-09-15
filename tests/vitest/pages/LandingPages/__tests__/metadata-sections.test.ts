@@ -68,7 +68,7 @@ describe('section-catalog helpers', () => {
             'metadata_download',
             'location',
         ]);
-        expect(RESOURCE_LEFT_COLUMN_SECTIONS).toEqual(['files', 'licenses', 'citation', 'dates', 'contact', 'model_description', 'related_work']);
+        expect(RESOURCE_LEFT_COLUMN_SECTIONS).toEqual(['files', 'licenses', 'citation', 'dates', 'contact', 'related_work']);
         expect(IGSN_LEFT_COLUMN_SECTIONS).toEqual([
             'general',
             'sample_family',
@@ -116,7 +116,6 @@ describe('section-catalog helpers', () => {
             'files',
             'licenses',
             'dates',
-            'model_description',
             'related_work',
             'citation',
         ]);
@@ -139,7 +138,6 @@ describe('section-catalog helpers', () => {
             'files',
             'licenses',
             'dates',
-            'model_description',
             'related_work',
         ]);
         expect(normalizeLeftColumnOrder(['citation', 'contact', 'general'] as never, 'igsn')).toEqual([
@@ -160,7 +158,6 @@ describe('section-catalog helpers', () => {
             'licenses',
             'files',
             'dates',
-            'model_description',
             'related_work',
             'citation',
         ]);
