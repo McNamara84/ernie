@@ -93,14 +93,22 @@ it('migrates existing IGSN layouts into visible and hidden zones without losing 
     $rolledBack = DB::table('landing_page_templates')->find($igsn->id);
     $rolledBackDefault = DB::table('landing_page_templates')->find($default->id);
     $rolledBackVisibleDrilling = DB::table('landing_page_templates')->find($visibleDrillingIgsn->id);
+    $rolledBackLeft = decodeLandingPageTemplateOrder($rolledBack->left_column_order);
+    $rolledBackRight = decodeLandingPageTemplateOrder($rolledBack->right_column_order);
+    $rolledBackVisibleLeft = decodeLandingPageTemplateOrder($rolledBackVisibleDrilling->left_column_order);
+    $rolledBackVisibleRight = decodeLandingPageTemplateOrder($rolledBackVisibleDrilling->right_column_order);
 
     expect(Schema::hasColumn('landing_page_templates', 'hidden_sections'))->toBeFalse()
         ->and(Schema::hasColumn('landing_page_templates', 'show_igsn_drilling'))->toBeTrue()
         ->and((bool) $rolledBack->show_igsn_drilling)->toBeFalse()
         ->and((bool) $rolledBackDefault->show_igsn_drilling)->toBeTrue()
         ->and((bool) $rolledBackVisibleDrilling->show_igsn_drilling)->toBeTrue()
-        ->and(decodeLandingPageTemplateOrder($rolledBack->left_column_order))->not->toContain('map', 'version_notice')
-        ->and(decodeLandingPageTemplateOrder($rolledBack->right_column_order))->not->toContain('map', 'version_notice');
+        ->and(array_slice($rolledBackLeft, 0, 2))->toBe(['general', 'location'])
+        ->and(array_slice($rolledBackRight, 0, 2))->toBe(['contributors', 'creators'])
+        ->and(array_slice($rolledBackVisibleLeft, 0, 2))->toBe(['general', 'contributors'])
+        ->and(array_slice($rolledBackVisibleRight, 0, 3))->toBe(['location', 'igsn_drilling', 'creators'])
+        ->and($rolledBackLeft)->not->toContain('map', 'version_notice')
+        ->and($rolledBackRight)->not->toContain('map', 'version_notice');
 
     $legacyLeft = [
         'general', 'sample_family', 'acquisition', 'igsn_methods', 'igsn_drilling',
@@ -112,6 +120,14 @@ it('migrates existing IGSN layouts into visible and hidden zones without losing 
         'table_of_contents', 'other', 'creators', 'contributors', 'funders',
         'keywords', 'metadata_download', 'location',
     ];
+    $legacyRightWithSampleImage = [
+        ...array_slice($legacyRight, 0, -1),
+        'sample_image',
+        'location',
+    ];
+
+    expect(decodeLandingPageTemplateOrder($rolledBackDefault->left_column_order))->toBe($legacyLeft)
+        ->and(decodeLandingPageTemplateOrder($rolledBackDefault->right_column_order))->toBe($legacyRightWithSampleImage);
 
     loadSupersededFlexibleIgsnTemplateMigration()->down();
     $rolledBackPastFlexibleLayout = DB::table('landing_page_templates')->find($igsn->id);

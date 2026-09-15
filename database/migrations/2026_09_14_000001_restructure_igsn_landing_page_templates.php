@@ -136,10 +136,9 @@ return new class extends Migration
                 $right = $this->decodeOrder($row->right_column_order);
                 $hidden = $this->decodeOrder($row->hidden_sections);
                 $showDrilling = (bool) $row->is_default || ! in_array('igsn_drilling', $hidden, true);
-                $visibleAndHidden = [...$left, ...$right, ...$hidden];
-
-                $legacyLeft = $this->orderedSubset($visibleAndHidden, self::LEGACY_LEFT);
-                $legacyRight = $this->orderedSubset($visibleAndHidden, self::LEGACY_RIGHT);
+                [$legacyLeft, $legacyRight] = (bool) $row->is_default
+                    ? [self::LEGACY_LEFT, self::LEGACY_RIGHT]
+                    : $this->restoreCustomLegacyLayout($left, $right, $hidden);
 
                 DB::table('landing_page_templates')->where('id', $row->id)->update([
                     'left_column_order' => json_encode($legacyLeft, JSON_THROW_ON_ERROR),
@@ -177,28 +176,49 @@ return new class extends Migration
         return [$filter($left), $filter($right)];
     }
 
-    /** @param list<string> $values
-     * @param  list<string>  $allowed
-     * @return list<string>
+    /**
+     * Keep visible custom sections in their current columns, then return hidden
+     * or missing sections to their historical column ownership.
+     *
+     * @param  list<string>  $left
+     * @param  list<string>  $right
+     * @param  list<string>  $hidden
+     * @return array{list<string>, list<string>}
      */
-    private function orderedSubset(array $values, array $allowed): array
+    private function restoreCustomLegacyLayout(array $left, array $right, array $hidden): array
     {
-        $allowedSet = array_fill_keys($allowed, true);
-        $seen = [];
-        $result = [];
-        foreach ($values as $value) {
-            if (isset($allowedSet[$value]) && ! isset($seen[$value])) {
-                $seen[$value] = true;
-                $result[] = $value;
+        $known = array_fill_keys([...self::LEGACY_LEFT, ...self::LEGACY_RIGHT], true);
+        $leftOwnership = array_fill_keys(self::LEGACY_LEFT, true);
+        [$legacyLeft, $legacyRight] = $this->uniqueKnownLayout($left, $right);
+        $seen = array_fill_keys([...$legacyLeft, ...$legacyRight], true);
+
+        foreach ($hidden as $section) {
+            if (! isset($known[$section]) || isset($seen[$section])) {
+                continue;
             }
-        }
-        foreach ($allowed as $value) {
-            if (! isset($seen[$value])) {
-                $result[] = $value;
+
+            $seen[$section] = true;
+            if (isset($leftOwnership[$section])) {
+                $legacyLeft[] = $section;
+            } else {
+                $legacyRight[] = $section;
             }
         }
 
-        return $result;
+        foreach (self::LEGACY_LEFT as $section) {
+            if (! isset($seen[$section])) {
+                $seen[$section] = true;
+                $legacyLeft[] = $section;
+            }
+        }
+        foreach (self::LEGACY_RIGHT as $section) {
+            if (! isset($seen[$section])) {
+                $seen[$section] = true;
+                $legacyRight[] = $section;
+            }
+        }
+
+        return [$legacyLeft, $legacyRight];
     }
 
     /** @param list<string> $values
