@@ -32,7 +32,11 @@ export class LandingPage {
   readonly abstractSection: Locator;
   readonly abstractText: Locator;
 
-  // Model Description section
+  // Highlighted relation sections
+  readonly keyPublicationSection: Locator;
+  readonly datasetDescriptionSection: Locator;
+
+  // IGSN Model Description section
   readonly modelDescriptionSection: Locator;
 
   // Creators section
@@ -101,7 +105,11 @@ export class LandingPage {
     this.abstractSection = page.locator('[data-testid="abstract-section"]').or(page.locator('section[aria-labelledby="heading-abstract"]'));
     this.abstractText = this.abstractSection.locator('p, [data-testid="abstract-text"]').first();
 
-    // Model Description section
+    // Highlighted Resource relation sections
+    this.keyPublicationSection = page.getByTestId('key-publication-section');
+    this.datasetDescriptionSection = page.getByTestId('dataset-description-section');
+
+    // IGSN Model Description section
     this.modelDescriptionSection = page.locator('section[aria-labelledby="heading-model-description"]');
 
     // Creators section
@@ -377,6 +385,24 @@ export class LandingPage {
    */
   async verifyRelatedWorkDoi(doi: string) {
     const doiLink = this.relatedWorksSection.locator(`a[href*="${doi}"]`);
+    await expect(doiLink).toBeVisible();
+  }
+
+  /**
+   * Verify a key publication DOI is displayed and clickable
+   */
+  async verifyKeyPublicationDoi(doi: string) {
+    await expect(this.keyPublicationSection).toBeVisible();
+    const doiLink = this.keyPublicationSection.locator(`a[href*="${doi}"]`);
+    await expect(doiLink).toBeVisible();
+  }
+
+  /**
+   * Verify a dataset description DOI is displayed and clickable
+   */
+  async verifyDatasetDescriptionDoi(doi: string) {
+    await expect(this.datasetDescriptionSection).toBeVisible();
+    const doiLink = this.datasetDescriptionSection.locator(`a[href*="${doi}"]`);
     await expect(doiLink).toBeVisible();
   }
 

@@ -6,6 +6,16 @@ use App\Models\LandingPageTemplate;
 
 uses()->group('landing-page-templates');
 
+const FLEXIBLE_RESOURCE_LEGACY_LEFT_COLUMN_SECTIONS = [
+    'files',
+    'licenses',
+    'citation',
+    'dates',
+    'contact',
+    'model_description',
+    'related_work',
+];
+
 function flexibleResourceTemplateSectionsMigration(): object
 {
     return require database_path('migrations/2026_08_31_000001_enable_flexible_resource_template_sections.php');
@@ -19,7 +29,7 @@ it('normalizes Resource templates while preserving clean cross-column ownership 
         'left_column_order' => ['location'],
         'right_column_order' => ['files'],
     ]);
-    $crossColumnLeft = ['location', ...LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS];
+    $crossColumnLeft = ['location', ...FLEXIBLE_RESOURCE_LEGACY_LEFT_COLUMN_SECTIONS];
     $crossColumnRight = array_values(array_filter(
         LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
         static fn (string $key): bool => $key !== 'location',
@@ -37,7 +47,7 @@ it('normalizes Resource templates while preserving clean cross-column ownership 
 
     flexibleResourceTemplateSectionsMigration()->up();
 
-    expect($builtIn->fresh()->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS)
+    expect($builtIn->fresh()->left_column_order)->toBe(FLEXIBLE_RESOURCE_LEGACY_LEFT_COLUMN_SECTIONS)
         ->and($builtIn->fresh()->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
         ->and($custom->fresh()->left_column_order)->toBe($crossColumnLeft)
         ->and($custom->fresh()->right_column_order)->toBe($crossColumnRight)
@@ -56,8 +66,12 @@ it('expands legacy metadata and repairs malformed Resource layouts idempotently'
     $template->refresh();
     $firstLeft = $template->left_column_order;
     $firstRight = $template->right_column_order;
+    $expectedSections = [...FLEXIBLE_RESOURCE_LEGACY_LEFT_COLUMN_SECTIONS, ...LandingPageTemplate::RIGHT_COLUMN_SECTIONS];
+    $actualSections = [...$firstLeft, ...$firstRight];
+    sort($expectedSections);
+    sort($actualSections);
 
-    expect(LandingPageTemplate::isValidResourceSectionLayout($firstLeft, $firstRight))->toBeTrue()
+    expect($actualSections)->toBe($expectedSections)
         ->and(collect([...$firstLeft, ...$firstRight])->duplicates()->all())->toBe([])
         ->and($firstLeft[0])->toBe('location')
         ->and($firstLeft)->toContain('abstract', 'methods', 'files', 'licenses')
@@ -75,7 +89,7 @@ it('restores legacy Resource column ownership on rollback without changing IGSN 
         'location',
         'abstract',
         ...array_values(array_filter(
-            LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS,
+            FLEXIBLE_RESOURCE_LEGACY_LEFT_COLUMN_SECTIONS,
             static fn (string $key): bool => $key !== 'files',
         )),
     ];
@@ -99,7 +113,7 @@ it('restores legacy Resource column ownership on rollback without changing IGSN 
 
     flexibleResourceTemplateSectionsMigration()->down();
 
-    expect($template->fresh()->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS)
+    expect($template->fresh()->left_column_order)->toBe(FLEXIBLE_RESOURCE_LEGACY_LEFT_COLUMN_SECTIONS)
         ->and($template->fresh()->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
         ->and($igsn->fresh()->left_column_order)->toBe($igsnLeft)
         ->and($igsn->fresh()->right_column_order)->toBe($igsnRight);

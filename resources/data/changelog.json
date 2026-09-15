@@ -5,6 +5,22 @@
         "features": [],
         "improvements": [
             {
+                "title": "Highlighted Resource Publications and Descriptions",
+                "description": "Resource landing pages now present IsSupplementTo relations as Key Publication and IsDocumentedBy relations as Dataset Description in dedicated cards directly after License & Rights. Both related identifiers and related items with inline metadata are supported, while all other relations remain in Related Work without duplication; IGSN landing pages retain their existing layout.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1295,
+                        "url": "https://github.com/McNamara84/ernie/issues/1295"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1335,
+                        "url": "https://github.com/McNamara84/ernie/pull/1335"
+                    }
+                ]
+            },
+            {
                 "title": "Resource-Efficient Stage Deployments",
                 "description": "Stage deployments now pull prebuilt application and Nginx images from GitHub Container Registry instead of compiling them on the resource-constrained server. Deployment-blocking CI checks, scans of the exact published image digests, immutable Compose references, and an automatically maintained deployment branch ensure that Portainer receives a consistent validated image pair while retaining a documented rollback path.",
                 "references": [

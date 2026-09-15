@@ -95,7 +95,6 @@ export const RESOURCE_LEFT_COLUMN_SECTIONS: Array<Extract<ResourceSection, LeftC
     'citation',
     'dates',
     'contact',
-    'model_description',
     'related_work',
 ];
 

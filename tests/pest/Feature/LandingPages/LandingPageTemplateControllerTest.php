@@ -215,7 +215,7 @@ describe('Flexible Resource template columns', function (): void {
                 'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('left_column_order.7');
+            ->assertJsonValidationErrors('left_column_order.6');
 
         $splitRight = [
             'abstract',
@@ -673,7 +673,7 @@ describe('Update', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         $newRightOrder = locationFirstRightColumnOrder();
-        $newLeftOrder = ['contact', 'files', 'licenses', 'citation', 'dates', 'related_work', 'model_description'];
+        $newLeftOrder = ['contact', 'files', 'licenses', 'citation', 'dates', 'related_work'];
 
         $response = $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
@@ -1065,9 +1065,9 @@ describe('Update', function (): void {
             ])
             ->assertJsonValidationErrors(['right_column_order']);
     })->with([
-        'missing citation' => [['files', 'dates', 'contact', 'model_description', 'related_work']],
+        'missing citation' => [['files', 'dates', 'contact', 'related_work']],
         'duplicate citation' => [
-            ['files', 'citation', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
+            ['files', 'citation', 'citation', 'dates', 'contact', 'related_work'],
         ],
     ]);
 });
@@ -1376,14 +1376,13 @@ describe('API List', function (): void {
 describe('Model', function (): void {
     it('appends citation after all other missing sections in sparse legacy orders', function (): void {
         expect(LandingPageTemplate::normalizeLeftColumnOrder(
-            ['contact', 'files', 'unknown'],
+            ['contact', 'files', 'model_description', 'unknown'],
             LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
         ))->toBe([
             'contact',
             'files',
             'licenses',
             'dates',
-            'model_description',
             'related_work',
             'citation',
         ])->and(LandingPageTemplate::normalizeLeftColumnOrder(
@@ -1411,7 +1410,6 @@ describe('Model', function (): void {
             'files',
             'licenses',
             'dates',
-            'model_description',
             'related_work',
         ])->and(LandingPageTemplate::normalizeLeftColumnOrder(
             ['citation', 'contact', 'general'],
@@ -1696,7 +1694,7 @@ describe('Factory', function (): void {
 
     it('creates a template with custom section order', function (): void {
         $rightOrder = locationFirstRightColumnOrder();
-        $leftOrder = ['contact', 'files', 'citation', 'dates', 'model_description', 'related_work'];
+        $leftOrder = ['contact', 'files', 'citation', 'dates', 'related_work'];
 
         $template = LandingPageTemplate::factory()
             ->withSectionOrder($rightOrder, $leftOrder)
@@ -1787,7 +1785,6 @@ describe('Update Edge Cases', function (): void {
                 'files',
                 'licenses',
                 'dates',
-                'model_description',
                 'related_work',
                 'citation',
             ]);
@@ -1814,7 +1811,7 @@ describe('Update Edge Cases', function (): void {
             ->assertOk();
 
         $response->assertJsonPath('template.left_column_order', [
-            'contact', 'files', 'licenses', 'dates', 'model_description', 'related_work', 'citation',
+            'contact', 'files', 'licenses', 'dates', 'related_work', 'citation',
         ]);
 
         $template->refresh();
