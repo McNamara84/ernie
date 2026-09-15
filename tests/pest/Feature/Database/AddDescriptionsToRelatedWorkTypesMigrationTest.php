@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use App\Models\IdentifierType;
 use App\Models\RelationType;
-use Database\Seeders\IdentifierTypeSeeder;
-use Database\Seeders\RelationTypeSeeder;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -41,19 +39,16 @@ it('drops and re-adds both description columns', function (): void {
 });
 
 it('backfills known slugs while preserving rows and configuration', function (): void {
-    test()->seed([
-        RelationTypeSeeder::class,
-        IdentifierTypeSeeder::class,
-    ]);
-
-    RelationType::query()->where('slug', 'Cites')->update([
+    RelationType::create([
         'name' => 'Custom citation label',
+        'slug' => 'Cites',
         'description' => 'Legacy relation description',
         'is_active' => false,
         'is_elmo_active' => false,
     ]);
-    IdentifierType::query()->where('slug', 'DOI')->update([
+    IdentifierType::create([
         'name' => 'Custom DOI label',
+        'slug' => 'DOI',
         'description' => 'Legacy identifier description',
         'is_active' => false,
         'is_elmo_active' => false,
