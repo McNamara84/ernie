@@ -222,16 +222,8 @@ jobs:
             type=gha,scope=stage-nginx
           cache-to: type=gha,mode=max,scope=stage-nginx
 
-      - name: Cache Trivy databases
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .trivy-cache
-          key: ${{ runner.os }}-trivy-${{ steps.system-packages-refresh.outputs.date }}
-          restore-keys: |
-            ${{ runner.os }}-trivy-
-
       - name: Prepare Trivy cache
-        run: mkdir -p .trivy-cache
+        run: mkdir -p "${{ runner.temp }}/trivy-cache"
 
       - name: Scan exact published image digests
         env:
@@ -255,10 +247,9 @@ jobs:
               -e TRIVY_DISABLE_VEX_NOTICE \
               -e TRIVY_PASSWORD \
               -e TRIVY_USERNAME \
-              -v "${{ github.workspace }}:/work" \
-              -w /work \
+              -v "${{ runner.temp }}/trivy-cache:/root/.cache/trivy" \
               aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image \
-              --cache-dir /work/.trivy-cache \
+              --cache-dir /root/.cache/trivy \
               --scanners vuln \
               --format table \
               --exit-code 1 \
@@ -270,13 +261,6 @@ jobs:
           done
 
           exit "$scan_status"
-
-      - name: Restore Trivy cache ownership
-        if: always()
-        run: |
-          if [ -d .trivy-cache ]; then
-            sudo chown -R "$(id -u):$(id -g)" .trivy-cache
-          fi
 
       - name: Confirm that the candidate is still current
         id: latest

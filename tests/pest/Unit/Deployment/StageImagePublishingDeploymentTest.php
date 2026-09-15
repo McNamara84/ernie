@@ -72,12 +72,18 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->and($workflowContents)->not->toContain('docker buildx imagetools create --tag');
 
     $publishSteps = collect($workflow['jobs']['publish']['steps'] ?? [])->keyBy('name');
+    $prepareTrivyCache = $publishSteps->get('Prepare Trivy cache');
     $publishedDigestScan = $publishSteps->get('Scan exact published image digests');
-    $cacheOwnershipStep = $publishSteps->get('Restore Trivy cache ownership');
     $createDeployment = $publishSteps->get('Create digest-pinned Stage deployment commit');
     $advanceDeployment = $publishSteps->get('Advance the digest-pinned Stage deployment branch');
 
-    expect($publishedDigestScan)
+    expect($workflowContents)
+        ->not->toContain('uses: actions/cache@')
+        ->and($prepareTrivyCache)
+        ->toBeArray()
+        ->and($prepareTrivyCache['run'] ?? null)
+        ->toBe('mkdir -p "${{ runner.temp }}/trivy-cache"')
+        ->and($publishedDigestScan)
         ->toBeArray()
         ->and($publishedDigestScan['env']['APP_IMAGE_REF'] ?? null)
         ->toBe('${{ needs.validate.outputs.app_image }}@${{ steps.app-build.outputs.digest }}')
@@ -90,13 +96,12 @@ it('publishes a digest-pinned Stage deployment with a compare-and-swap branch up
         ->toContain('for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF"')
         ->toContain('@sha256:[0-9a-f]{64}$')
         ->toContain('aquasec/trivy:0.74.0@sha256:')
+        ->toContain('-v "${{ runner.temp }}/trivy-cache:/root/.cache/trivy"')
+        ->toContain('--cache-dir /root/.cache/trivy')
         ->toContain('--exit-code 1')
         ->toContain('--severity CRITICAL,HIGH')
         ->toContain('"$image_ref" || scan_status=1')
         ->toContain('exit "$scan_status"')
-        ->and($cacheOwnershipStep)
-        ->toBeArray()
-        ->and($cacheOwnershipStep['if'] ?? null)->toBe('always()')
         ->and($createDeployment)
         ->toBeArray()
         ->and($createDeployment['id'] ?? null)->toBe('deployment')
