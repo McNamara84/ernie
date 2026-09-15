@@ -202,8 +202,10 @@ test.describe('Landing Page - GeoLocations', () => {
     const markerCount = await markers.count();
     expect(markerCount).toBeGreaterThan(0);
 
-    // Clicking a point marker should expose its imported coverage description.
-    await markers.first().click();
+    // At the intentionally broad automatic zoom, nearby markers may overlap.
+    // Activating the focused Leaflet marker via keyboard remains deterministic.
+    await markers.first().focus();
+    await markers.first().press('Enter');
     const popup = page.locator('.leaflet-popup-content');
     await expect(popup).toBeVisible();
     await expect(popup).toContainText('GFZ Potsdam');

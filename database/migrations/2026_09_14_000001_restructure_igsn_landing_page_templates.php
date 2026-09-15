@@ -149,11 +149,9 @@ return new class extends Migration
                 ]);
             });
 
-        if (Schema::hasColumn('landing_page_templates', 'hidden_sections')) {
-            Schema::table('landing_page_templates', function (Blueprint $table): void {
-                $table->dropColumn('hidden_sections');
-            });
-        }
+        Schema::table('landing_page_templates', function (Blueprint $table): void {
+            $table->dropColumn('hidden_sections');
+        });
     }
 
     /** @param list<string> $left
