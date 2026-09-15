@@ -411,7 +411,7 @@ export function SampleFamilySection({ family, currentResourceId }: SampleFamilyS
                 aria-valuemin={Math.round(minHeight)}
                 aria-valuemax={Math.round(maxHeight)}
                 aria-valuenow={height === null ? undefined : Math.round(height)}
-                tabIndex={0}
+                tabIndex={height === null ? undefined : 0}
                 className="mt-2 flex h-6 cursor-ns-resize touch-none items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus-visible:ring-2 focus-visible:ring-gfz-primary focus-visible:outline-none dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:focus-visible:ring-blue-400"
                 onPointerDown={handleResizeStart}
                 onPointerMove={handleResizeMove}

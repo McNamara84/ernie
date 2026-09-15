@@ -163,6 +163,7 @@ describe('SampleFamilySection', () => {
 
         const grip = screen.getByRole('separator', { name: 'Resize Sample Family' });
         expect(grip).toHaveAttribute('aria-orientation', 'horizontal');
+        expect(grip).toHaveAttribute('tabindex', '0');
         expect(grip).toHaveAttribute('aria-valuenow');
 
         fireEvent.keyDown(grip, { key: 'Home' });
@@ -179,5 +180,10 @@ describe('SampleFamilySection', () => {
         expect(navigation).not.toBeNull();
         expect((navigation as HTMLElement).style.height).toBe('');
         expect((navigation as HTMLElement).style.maxHeight).toBe('512px');
+
+        const grip = container.querySelector('[role="separator"]');
+        expect(grip).not.toBeNull();
+        expect(grip).not.toHaveAttribute('tabindex');
+        expect(grip).not.toHaveAttribute('aria-valuenow');
     });
 });
