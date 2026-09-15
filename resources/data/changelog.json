@@ -6,7 +6,7 @@
         "improvements": [
             {
                 "title": "Self-Describing Related Work Types",
-                "description": "All relation-type and related-identifier-type API responses now include the official DataCite 4.7 definition for each standard value. ERNIE and ELMO can therefore display consistent contextual help from the same versioned source without maintaining a separate name-based definition mapping.",
+                "description": "All relation-type and related-identifier-type API responses now include the official DataCite 4.7 definition for each standard value. ELMO and other API consumers can therefore display consistent contextual help from the same versioned source without maintaining a separate name-based definition mapping.",
                 "references": [
                     {
                         "type": "issue",
