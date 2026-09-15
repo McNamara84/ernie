@@ -47,6 +47,29 @@ return new class extends Migration
         'location',
     ];
 
+    /** @var list<string> */
+    private const FLEXIBLE_RIGHT_COLUMN_SECTIONS = [
+        'abstract',
+        'methods',
+        'technical_info',
+        'series_information',
+        'table_of_contents',
+        'other',
+        'creators',
+        'contributors',
+        'funders',
+        'keywords',
+        'metadata_download',
+        'sample_image',
+        'location',
+    ];
+
+    /** @var list<string> */
+    private const FLEXIBLE_SECTIONS = [
+        ...self::LEGACY_LEFT_COLUMN_SECTIONS,
+        ...self::FLEXIBLE_RIGHT_COLUMN_SECTIONS,
+    ];
+
     public function up(): void
     {
         DB::table('landing_page_templates')
@@ -54,7 +77,7 @@ return new class extends Migration
             ->select(['id', 'left_column_order', 'right_column_order'])
             ->orderBy('id')
             ->each(function (object $row): void {
-                $orders = LandingPageTemplate::normalizeIgsnSectionOrders(
+                $orders = $this->normalizeOrders(
                     $this->decodeOrder($row->left_column_order),
                     $this->decodeOrder($row->right_column_order),
                 );
@@ -85,6 +108,68 @@ return new class extends Migration
 
                 $this->updateOrders((int) $row->id, $left, $right);
             });
+    }
+
+    /**
+     * Preserve the two-column normalization behavior from this migration's
+     * release instead of depending on the application's current layout model.
+     *
+     * @param  list<string>  $left
+     * @param  list<string>  $right
+     * @return array{left: list<string>, right: list<string>}
+     */
+    private function normalizeOrders(array $left, array $right): array
+    {
+        $valid = array_fill_keys(self::FLEXIBLE_SECTIONS, true);
+        $seen = [];
+        $normalizedLeft = [];
+        $normalizedRight = [];
+
+        foreach ($left as $key) {
+            if (isset($valid[$key]) && ! isset($seen[$key])) {
+                $seen[$key] = true;
+                $normalizedLeft[] = $key;
+            }
+        }
+        foreach ($right as $key) {
+            if (isset($valid[$key]) && ! isset($seen[$key])) {
+                $seen[$key] = true;
+                $normalizedRight[] = $key;
+            }
+        }
+
+        $hasStoredCitation = isset($seen['citation']);
+        foreach (self::LEGACY_LEFT_COLUMN_SECTIONS as $key) {
+            if ($key === 'citation' && ! $hasStoredCitation) {
+                continue;
+            }
+            if (! isset($seen[$key])) {
+                $seen[$key] = true;
+                $normalizedLeft[] = $key;
+            }
+        }
+        if (! $hasStoredCitation) {
+            $seen['citation'] = true;
+            $normalizedLeft[] = 'citation';
+        }
+
+        foreach (self::FLEXIBLE_RIGHT_COLUMN_SECTIONS as $key) {
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $locationIndex = $key === 'sample_image'
+                ? array_search('location', $normalizedRight, true)
+                : false;
+            if ($locationIndex === false) {
+                $normalizedRight[] = $key;
+            } else {
+                array_splice($normalizedRight, $locationIndex, 0, [$key]);
+            }
+        }
+
+        return ['left' => $normalizedLeft, 'right' => $normalizedRight];
     }
 
     /** @return list<string> */
