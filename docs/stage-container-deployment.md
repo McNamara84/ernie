@@ -13,7 +13,8 @@ validated.
 
 1. Feature and fix branches are reviewed and merged into `main`.
 2. The Security, Pest, Vitest, lint/PHPStan, and Playwright workflows validate
-   the merged commit.
+   the merged commit. The security gate builds and scans both deployable
+   runtime targets (`app` and `nginx`) for HIGH and CRITICAL vulnerabilities.
 3. `Publish Stage Images` verifies that all five workflows succeeded for the
    exact current `main` commit, then builds and pushes the images under
    traceable `sha-<full-commit-sha>` tags and captures their immutable
