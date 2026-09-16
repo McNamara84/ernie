@@ -278,6 +278,8 @@ describe('Session Preview Display', function () {
                 ->where('citationStyles.3.id', 'agu')
                 ->where('citationStyles.4.id', 'gsa')
                 ->where('hasDataPublicationTeamRecipient', true)
+                ->where('supportsIso19115', true)
+                ->missing('metadataLinks')
                 ->where('isPreview', true)
             );
     });

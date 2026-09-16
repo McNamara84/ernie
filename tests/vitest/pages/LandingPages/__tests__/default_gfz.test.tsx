@@ -131,6 +131,7 @@ describe('DefaultGfzTemplate', () => {
                 resource: mockResource,
                 landingPage: mockLandingPage,
                 isPreview: true,
+                supportsIso19115: true,
             },
         } as unknown as ReturnType<typeof usePage>);
 
@@ -139,6 +140,14 @@ describe('DefaultGfzTemplate', () => {
         expect(screen.getByText('Preview Mode')).toBeInTheDocument();
         expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
         expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('data-inertia', 'landing-page-robots');
+
+        const metadataAction = screen.getByTitle('Download as DataCite XML');
+        expect(metadataAction).toHaveRole('button');
+        expect(screen.getByRole('button', { name: 'Download ISO 19115-3:2023 metadata as XML' })).toBeInTheDocument();
+        fireEvent.click(metadataAction);
+        expect(screen.getByRole('dialog', { name: 'Metadata download unavailable' })).toHaveTextContent(
+            'The feature you requested is only available after your dataset has been registered with DataCite.',
+        );
     });
 
     it('does not show preview banner when isPreview is false', () => {

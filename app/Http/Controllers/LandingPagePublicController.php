@@ -13,6 +13,7 @@ use App\Services\BotProtection\LandingPageViewCounterService;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataPublicationTeamRecipientService;
+use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\LandingPageDocumentMetadataService;
 use App\Services\LandingPageMachineMetadataService;
 use App\Services\LandingPageMetadataLinkService;
@@ -89,6 +90,7 @@ class LandingPagePublicController extends Controller
         LandingPageDocumentMetadataService $documentMetadataService,
         LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
+        Iso19115ResourceProfileService $isoProfile,
         DataPublicationTeamRecipientService $dataPublicationTeamRecipientService,
         string $doiPrefix,
         string $slug
@@ -145,6 +147,7 @@ class LandingPagePublicController extends Controller
             $documentMetadataService,
             $machineMetadataService,
             $metadataLinkService,
+            $isoProfile,
             $dataPublicationTeamRecipientService,
             $previewToken,
         );
@@ -167,6 +170,7 @@ class LandingPagePublicController extends Controller
         LandingPageDocumentMetadataService $documentMetadataService,
         LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
+        Iso19115ResourceProfileService $isoProfile,
         DataPublicationTeamRecipientService $dataPublicationTeamRecipientService,
         int $resourceId,
         string $slug
@@ -201,6 +205,7 @@ class LandingPagePublicController extends Controller
             $documentMetadataService,
             $machineMetadataService,
             $metadataLinkService,
+            $isoProfile,
             $dataPublicationTeamRecipientService,
             $previewToken,
         );
@@ -279,6 +284,7 @@ class LandingPagePublicController extends Controller
         LandingPageDocumentMetadataService $documentMetadataService,
         LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
+        Iso19115ResourceProfileService $isoProfile,
         DataPublicationTeamRecipientService $dataPublicationTeamRecipientService,
         ?string $previewToken
     ): HttpResponse|RedirectResponse {
@@ -338,7 +344,7 @@ class LandingPagePublicController extends Controller
             $viewCounter->record($request, $landingPage);
         }
 
-        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $templateResolver, $documentMetadataService, $machineMetadataService, $isPreview): array {
+        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $templateResolver, $documentMetadataService, $machineMetadataService, $isoProfile, $isPreview): array {
             // Load resource with all necessary relationships
             $resource = Resource::with($transformer->requiredRelations())
                 ->findOrFail($landingPage->resource_id);
@@ -397,6 +403,7 @@ class LandingPagePublicController extends Controller
                     'citationStyles' => $citationService->format($resource),
                     'landingPage' => $landingPageData,
                     'metadataLinks' => $machineMetadata['metadataLinks'] ?? [],
+                    'supportsIso19115' => $isoProfile->supports($resource),
                     'isPreview' => $isPreview,
                     'sectionOrder' => $sectionOrder,
                     'customLogoUrl' => $customLogoUrl,

@@ -2261,6 +2261,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow; deleting
                             draft landing pages remains available only to Curators and above.
                         </p>
+                        <h4>Metadata Downloads in Previews</h4>
+                        <p>
+                            The <strong>Download Metadata</strong> section remains visible while you review a Resource or IGSN landing page. Selecting
+                            XML, JSON, JSON-LD, or the ISO 19115-3 option available for eligible records shows a notice that metadata downloads become
+                            available after registration with DataCite. On the published landing page, the same actions download the available
+                            metadata representations directly.
+                        </p>
                         <h4>Newer-Version and Superseded Notices</h4>
                         <p>
                             Resource and IGSN landing pages show a prominent notice when the metadata contains <code>IsPreviousVersionOf</code> or{' '}
