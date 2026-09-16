@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Assistance;
 
+use App\Enums\CacheKey;
 use App\Services\Resources\ResourceImpactFilterService;
 use App\Support\ResourceImpactFilter;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -18,6 +20,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class AssistanceReviewService
 {
+    use ChecksCacheTagging;
+
     public function __construct(
         private readonly AssistantRegistrar $registrar,
         private readonly ResourceImpactFilterService $filterService,
@@ -35,9 +39,8 @@ final class AssistanceReviewService
     {
         $filter ??= new ResourceImpactFilter;
         $assistants = $this->registrar->getAll();
-        $pendingImpacts = $this->pendingImpactQuery($assistants);
-        $datacenterOptions = $this->datacenterOptions($pendingImpacts);
-        $filteredImpacts = $this->filteredImpactQuery($pendingImpacts, $filter);
+        $filteredImpacts = $this->pendingImpactsForFilter($assistants, $filter);
+        $datacenterOptions = $this->cachedDatacenterOptions($assistants);
         $pendingCounts = $this->pendingCounts($filteredImpacts, array_keys($assistants));
 
         $allPaginator = $this->paginateResources(
@@ -73,6 +76,77 @@ final class AssistanceReviewService
     }
 
     /**
+     * @return array{
+     *     pendingCounts: array<string, int>,
+     *     datacenterOptions: list<array{id: int, name: string}>
+     * }
+     */
+    public function summary(?ResourceImpactFilter $filter = null): array
+    {
+        $filter ??= new ResourceImpactFilter;
+        $assistants = $this->registrar->getAll();
+
+        return [
+            'pendingCounts' => $this->pendingCounts(
+                $this->pendingImpactsForFilter($assistants, $filter),
+                array_keys($assistants),
+            ),
+            'datacenterOptions' => $this->cachedDatacenterOptions($assistants),
+        ];
+    }
+
+    /**
+     * @return LengthAwarePaginator<int, array<string, mixed>>
+     */
+    public function paginateAll(
+        Request $request,
+        int $perPage,
+        ?ResourceImpactFilter $filter = null,
+    ): LengthAwarePaginator {
+        $filter ??= new ResourceImpactFilter;
+        $assistants = $this->registrar->getAll();
+
+        return $this->paginateResources(
+            impacts: $this->pendingImpactsForFilter($assistants, $filter),
+            assistants: $assistants,
+            filter: $filter,
+            datacenterOptions: $this->selectedDatacenterOption($filter),
+            perPage: $perPage,
+            pageName: 'page',
+            request: $request,
+        );
+    }
+
+    /**
+     * @return LengthAwarePaginator<int, array<string, mixed>>|null
+     */
+    public function paginateAssistant(
+        string $assistantId,
+        Request $request,
+        int $perPage,
+        ?ResourceImpactFilter $filter = null,
+    ): ?LengthAwarePaginator {
+        $assistant = $this->registrar->get($assistantId);
+
+        if ($assistant === null) {
+            return null;
+        }
+
+        $filter ??= new ResourceImpactFilter;
+        $assistants = [$assistantId => $assistant];
+
+        return $this->paginateResources(
+            impacts: $this->pendingImpactsForFilter($assistants, $filter),
+            assistants: $assistants,
+            filter: $filter,
+            datacenterOptions: $this->selectedDatacenterOption($filter),
+            perPage: $perPage,
+            pageName: 'page',
+            request: $request,
+        );
+    }
+
+    /**
      * Return the supplied resource IDs that are affected by at least one
      * currently pending suggestion from a registered assistant.
      *
@@ -90,7 +164,13 @@ final class AssistanceReviewService
             return [];
         }
 
-        $pendingImpacts = $this->pendingImpactQuery($this->registrar->getAll());
+        $requestedResourceIdsQuery = DB::table('resources')
+            ->whereIn('resources.id', $resourceIds)
+            ->select('resources.id');
+        $pendingImpacts = $this->pendingImpactQuery(
+            $this->registrar->getAll(),
+            $requestedResourceIdsQuery,
+        );
 
         /** @var list<int> $matchingResourceIds */
         $matchingResourceIds = DB::query()
@@ -109,13 +189,15 @@ final class AssistanceReviewService
     /**
      * @param  array<string, AssistantContract>  $assistants
      */
-    private function pendingImpactQuery(array $assistants): QueryBuilder
+    private function pendingImpactQuery(array $assistants, ?QueryBuilder $impactResourceIds = null): QueryBuilder
     {
         $combined = null;
 
         foreach ($assistants as $assistant) {
             $query = DB::query()
-                ->fromSub($assistant->pendingSuggestionImpactQuery(), 'assistant_impacts')
+                ->fromSub($assistant->pendingSuggestionImpactQuery(
+                    $impactResourceIds === null ? null : clone $impactResourceIds,
+                ), 'assistant_impacts')
                 ->select([
                     'assistant_impacts.assistant_id',
                     'assistant_impacts.suggestion_id',
@@ -140,18 +222,106 @@ final class AssistanceReviewService
             ->select('pending_impacts.*');
     }
 
-    private function filteredImpactQuery(QueryBuilder $pendingImpacts, ResourceImpactFilter $filter): QueryBuilder
+    /**
+     * @param  array<string, AssistantContract>  $assistants
+     */
+    private function pendingSuggestionQuery(array $assistants): QueryBuilder
     {
-        $query = DB::query()
-            ->fromSub(clone $pendingImpacts, 'pending_impacts')
-            ->select('pending_impacts.*');
+        $combined = null;
 
-        if ($filter->isActive()) {
-            $query->join('resources AS impact_resources', 'pending_impacts.impact_resource_id', '=', 'impact_resources.id');
-            $this->filterService->apply($query, $filter, 'impact_resources');
+        foreach ($assistants as $assistant) {
+            $query = DB::query()
+                ->fromSub($assistant->pendingSuggestionQuery(), 'assistant_suggestions')
+                ->select([
+                    'assistant_suggestions.assistant_id',
+                    'assistant_suggestions.suggestion_id',
+                    'assistant_suggestions.resource_id',
+                    'assistant_suggestions.impact_resource_id',
+                    'assistant_suggestions.resource_created_at',
+                ]);
+
+            if ($combined === null) {
+                $combined = $query;
+            } else {
+                $combined->unionAll($query);
+            }
         }
 
-        return $query;
+        $combined ??= DB::query()
+            ->selectRaw('NULL AS assistant_id, NULL AS suggestion_id, NULL AS resource_id, NULL AS impact_resource_id, NULL AS resource_created_at')
+            ->whereRaw('1 = 0');
+
+        return DB::query()
+            ->fromSub($combined, 'pending_suggestions')
+            ->select('pending_suggestions.*');
+    }
+
+    /**
+     * @param  array<string, AssistantContract>  $assistants
+     */
+    private function pendingResourceImpactQuery(array $assistants): QueryBuilder
+    {
+        $combined = null;
+
+        foreach ($assistants as $assistant) {
+            $query = DB::query()
+                ->fromSub($assistant->pendingResourceImpactQuery(), 'assistant_resource_impacts')
+                ->select('assistant_resource_impacts.impact_resource_id');
+
+            if ($combined === null) {
+                $combined = $query;
+            } else {
+                $combined->union($query);
+            }
+        }
+
+        $combined ??= DB::query()
+            ->selectRaw('NULL AS impact_resource_id')
+            ->whereRaw('1 = 0');
+
+        return DB::query()
+            ->fromSub($combined, 'pending_resource_impacts')
+            ->select('pending_resource_impacts.impact_resource_id')
+            ->distinct();
+    }
+
+    /**
+     * @param  array<string, AssistantContract>  $assistants
+     */
+    private function pendingImpactsForFilter(array $assistants, ResourceImpactFilter $filter): QueryBuilder
+    {
+        if (! $filter->isActive()) {
+            return $this->pendingSuggestionQuery($assistants);
+        }
+
+        $impactResourceIds = DB::table('resources AS impact_resources')
+            ->select('impact_resources.id');
+        $this->filterService->apply($impactResourceIds, $filter, 'impact_resources');
+
+        return $this->pendingImpactQuery($assistants, $impactResourceIds);
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function selectedDatacenterOption(ResourceImpactFilter $filter): array
+    {
+        if ($filter->datacenterId === null) {
+            return [];
+        }
+
+        $option = DB::table('datacenters')
+            ->where('id', $filter->datacenterId)
+            ->first(['id', 'name']);
+
+        if ($option === null) {
+            return [];
+        }
+
+        return [[
+            'id' => (int) $option->id,
+            'name' => (string) $option->name,
+        ]];
     }
 
     /**
@@ -380,11 +550,11 @@ final class AssistanceReviewService
     /**
      * @return list<array{id: int, name: string}>
      */
-    private function datacenterOptions(QueryBuilder $pendingImpacts): array
+    private function datacenterOptions(QueryBuilder $pendingResourceImpacts): array
     {
         $options = DB::query()
-            ->fromSub(clone $pendingImpacts, 'pending_impacts')
-            ->join('resources AS impact_resources', 'pending_impacts.impact_resource_id', '=', 'impact_resources.id')
+            ->fromSub(clone $pendingResourceImpacts, 'pending_resource_impacts')
+            ->join('resources AS impact_resources', 'pending_resource_impacts.impact_resource_id', '=', 'impact_resources.id')
             ->join('datacenters', 'impact_resources.datacenter_id', '=', 'datacenters.id')
             ->select([
                 'datacenters.id',
@@ -402,6 +572,24 @@ final class AssistanceReviewService
             ->all();
 
         /** @var list<array{id: int, name: string}> $options */
+        return $options;
+    }
+
+    /**
+     * @param  array<string, AssistantContract>  $assistants
+     * @return list<array{id: int, name: string}>
+     */
+    private function cachedDatacenterOptions(array $assistants): array
+    {
+        $cacheKey = CacheKey::ASSISTANCE_DATACENTER_OPTIONS;
+
+        /** @var list<array{id: int, name: string}> $options */
+        $options = $this->getCacheInstance($cacheKey->tags())->remember(
+            $cacheKey->key(),
+            $cacheKey->ttl(),
+            fn (): array => $this->datacenterOptions($this->pendingResourceImpactQuery($assistants)),
+        );
+
         return $options;
     }
 

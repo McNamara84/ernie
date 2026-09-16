@@ -12,7 +12,6 @@ use App\Http\Requests\Assistance\DeclineSuggestionRequest;
 use App\Http\Requests\Assistance\IndexAssistanceRequest;
 use App\Models\RelationType;
 use App\Models\User;
-use App\Services\Assistance\AssistanceReviewService;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\Assistance\BatchSuggestionActionService;
 use App\Services\RorDiscoveryService;
@@ -33,7 +32,6 @@ class AssistanceController extends Controller
 {
     public function __construct(
         private readonly AssistantRegistrar $registrar,
-        private readonly AssistanceReviewService $reviewService,
         private readonly BatchSuggestionActionService $batchActionService,
         private readonly RorDiscoveryService $rorDiscoveryService,
     ) {}
@@ -43,7 +41,6 @@ class AssistanceController extends Controller
      */
     public function index(IndexAssistanceRequest $request): Response
     {
-        $perPage = max(1, min((int) $request->input('per_page', 25), 100));
         $filter = $request->resourceImpactFilter();
         $assistants = $this->registrar->getAll();
         $manifests = [];
@@ -52,7 +49,6 @@ class AssistanceController extends Controller
             $manifests[] = $assistant->getManifest()->toArray();
         }
 
-        $review = $this->reviewService->build($request, $perPage, $filter);
         $user = $request->user();
         $savedCollapsedAssistantIds = $user instanceof User ? $user->assistance_collapsed_assistant_ids : null;
         $collapsedAssistantIds = is_array($savedCollapsedAssistantIds)
@@ -60,7 +56,6 @@ class AssistanceController extends Controller
             : null;
 
         return Inertia::render('assistance', [
-            ...$review,
             'filters' => $filter->toArray(),
             'manifests' => $manifests,
             'assistanceCollapsedAssistantIds' => $collapsedAssistantIds,

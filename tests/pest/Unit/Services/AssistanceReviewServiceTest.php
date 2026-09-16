@@ -44,7 +44,7 @@ function reviewServiceAssistant(string $id, array $resources, array $suggestions
     $assistant = Mockery::mock(AssistantContract::class);
     $assistant->shouldReceive('getId')->andReturn($id);
     $timestamps = collect($resources)->pluck('resource_created_at_timestamp', 'resource_id');
-    $assistant->shouldReceive('pendingSuggestionImpactQuery')->andReturnUsing(function () use ($id, $suggestions, $timestamps) {
+    $directQuery = function () use ($id, $suggestions, $timestamps) {
         $combined = null;
 
         foreach ($suggestions as $suggestion) {
@@ -69,7 +69,15 @@ function reviewServiceAssistant(string $id, array $resources, array $suggestions
         return $combined ?? DB::query()
             ->selectRaw('NULL AS assistant_id, NULL AS suggestion_id, NULL AS resource_id, NULL AS impact_resource_id, NULL AS resource_created_at')
             ->whereRaw('1 = 0');
-    });
+    };
+    $assistant->shouldReceive('pendingSuggestionQuery')->andReturnUsing($directQuery);
+    $assistant->shouldReceive('pendingSuggestionImpactQuery')->andReturnUsing($directQuery);
+    $assistant->shouldReceive('pendingResourceImpactQuery')->andReturnUsing(
+        fn () => DB::query()
+            ->fromSub($directQuery(), 'direct_suggestions')
+            ->select('direct_suggestions.impact_resource_id')
+            ->distinct(),
+    );
     $assistant->shouldReceive('loadSuggestionsForResources')
         ->andReturnUsing(fn (array $resourceIds, ?array $suggestionIds = null): array => array_values(array_filter(
             $suggestions,

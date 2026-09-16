@@ -270,19 +270,16 @@ it('exposes size and format suggestion preview metadata', function () {
     ]);
 
     $this->actingAs($user)
-        ->get('/assistance')
+        ->getJson('/assistance/data/size-format-suggestion')
         ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('assistance')
-            ->has('sections.size-format-suggestion.data', 1)
-            ->has('sections.size-format-suggestion.data.0.suggestions', 1)
-            ->where('sections.size-format-suggestion.data.0.suggestions.0.suggested_value', 'application/zip')
-            ->where('sections.size-format-suggestion.data.0.suggestions.0.suggested_label', 'FORMAT: application/zip')
-            ->where('sections.size-format-suggestion.data.0.suggestions.0.metadata.inferred_value', 'application/zip')
-            ->where('sections.size-format-suggestion.data.0.suggestions.0.metadata.source_url', 'https://datapub.gfz.de/download/10.5880/TEST.SIZEFORMAT')
-            ->where('sections.size-format-suggestion.data.0.suggestions.0.metadata.probe_method', 'DIRECTORY_LISTING')
-            ->where('sections.size-format-suggestion.data.0.suggestions.0.metadata.evidence', 'File extension detected from download listing.')
-        );
+        ->assertJsonCount(1, 'data')
+        ->assertJsonCount(1, 'data.0.suggestions')
+        ->assertJsonPath('data.0.suggestions.0.suggested_value', 'application/zip')
+        ->assertJsonPath('data.0.suggestions.0.suggested_label', 'FORMAT: application/zip')
+        ->assertJsonPath('data.0.suggestions.0.metadata.inferred_value', 'application/zip')
+        ->assertJsonPath('data.0.suggestions.0.metadata.source_url', 'https://datapub.gfz.de/download/10.5880/TEST.SIZEFORMAT')
+        ->assertJsonPath('data.0.suggestions.0.metadata.probe_method', 'DIRECTORY_LISTING')
+        ->assertJsonPath('data.0.suggestions.0.metadata.evidence', 'File extension detected from download listing.');
 });
 
 it('accepts a format suggestion and creates a format record', function (): void {

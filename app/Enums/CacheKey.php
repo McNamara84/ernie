@@ -81,8 +81,9 @@ enum CacheKey: string
     case PUBLIC_TRAFFIC_HEALTH_PROBE = 'public-traffic:health';
     case PUBLIC_TRAFFIC_WARNING = 'public-traffic:warning';
 
-    // Assistance suggestion counts
+    // Assistance suggestion counts and filter options
     case ASSISTANCE_TOTAL_PENDING_COUNT = 'assistance:total_pending_count';
+    case ASSISTANCE_DATACENTER_OPTIONS = 'assistance:datacenter_options';
 
     // Assessment summary metrics
     case ASSESSMENT_AVERAGE_SUMMARY = 'assessment:average_summary';
@@ -201,8 +202,9 @@ enum CacheKey: string
             self::PUBLIC_TRAFFIC_HEALTH_PROBE => 10,
             self::PUBLIC_TRAFFIC_WARNING => 3600,
 
-            // Assistance total pending count - 2 minutes (changes after discovery jobs)
-            self::ASSISTANCE_TOTAL_PENDING_COUNT => 120,
+            // Assistance summaries - 2 minutes (invalidated after discovery/review actions)
+            self::ASSISTANCE_TOTAL_PENDING_COUNT,
+            self::ASSISTANCE_DATACENTER_OPTIONS => 120,
 
             // Assessment average summary - 2 minutes (invalidated on assessment save/delete)
             self::ASSESSMENT_AVERAGE_SUMMARY => 120,
@@ -296,7 +298,8 @@ enum CacheKey: string
             self::PUBLIC_TRAFFIC_HEALTH_PROBE,
             self::PUBLIC_TRAFFIC_WARNING => [],
 
-            self::ASSISTANCE_TOTAL_PENDING_COUNT => ['assistance'],
+            self::ASSISTANCE_TOTAL_PENDING_COUNT,
+            self::ASSISTANCE_DATACENTER_OPTIONS => ['assistance'],
 
             self::ASSESSMENT_AVERAGE_SUMMARY => ['assessments'],
 

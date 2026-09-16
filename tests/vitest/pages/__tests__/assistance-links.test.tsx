@@ -51,6 +51,7 @@ vi.mock('axios', () => {
 });
 
 const mockedAxiosPost = axios.post as Mock;
+const mockedAxiosGet = axios.get as Mock;
 const mockedRouterGet = router.get as Mock;
 const mockedRouterReload = router.reload as Mock;
 const mockedToastInfo = toast.info as Mock;
@@ -88,6 +89,7 @@ const BULK_TOKEN_DECLINE = '00000000-0000-4000-8000-000000000956';
 
 beforeEach(() => {
     mockedAxiosPost.mockReset();
+    mockedAxiosGet.mockReset();
     mockedRouterGet.mockReset();
     mockedRouterReload.mockReset();
     mockedToastInfo.mockReset();
@@ -513,6 +515,32 @@ function paginated<T>(data: T[], overrides: Partial<PaginatedData<BaseSuggestion
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('Assistance resource filters', () => {
+    it('loads summary and the active review scope after rendering the lightweight page shell', async () => {
+        const emptyPage: PaginatedData<AssistanceResourceGroup> = {
+            data: [],
+            current_page: 1,
+            last_page: 1,
+            per_page: 25,
+            total: 0,
+            from: null,
+            to: null,
+            links: [],
+        };
+        mockedAxiosGet.mockImplementation((url: string) => {
+            if (url === '/assistance/data/summary') {
+                return Promise.resolve({ data: { pendingCounts: { [SIZE_FORMAT_ASSISTANT_ID]: 0 }, datacenterOptions: [] } });
+            }
+
+            return Promise.resolve({ data: emptyPage });
+        });
+
+        render(<AssistancePage manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]} />);
+
+        expect(await screen.findByText('No pending suggestions')).toBeInTheDocument();
+        expect(mockedAxiosGet).toHaveBeenCalledWith('/assistance/data/summary', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+        expect(mockedAxiosGet).toHaveBeenCalledWith('/assistance/data/all', expect.objectContaining({ params: { page: 1, per_page: 25 } }));
+    });
+
     it('applies a normalized DOI while resetting pagination and preserving unrelated query parameters', async () => {
         window.history.replaceState({}, '', '/assistance?all_page=3&size_format_page=2&per_page=50&view=compact&doi=10.5880%2Fold');
         const user = userEvent.setup();

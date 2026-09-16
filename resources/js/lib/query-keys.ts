@@ -29,6 +29,12 @@ export const queryKeys = {
         keywordSuggestions: (basePath: string, query: string) => ['portal', 'keyword-suggestions', basePath, query] as const,
         resourcePreview: (basePath: string, resourceId: number) => ['portal', 'resource-preview', basePath, resourceId] as const,
     },
+    assistance: {
+        root: () => ['assistance', 'review'] as const,
+        summary: (doi: string | null, datacenterId: number | null) => [...queryKeys.assistance.root(), 'summary', doi, datacenterId] as const,
+        review: (scope: string, doi: string | null, datacenterId: number | null, page: number, perPage: number) =>
+            [...queryKeys.assistance.root(), scope, doi, datacenterId, page, perPage] as const,
+    },
 } as const;
 
 /**

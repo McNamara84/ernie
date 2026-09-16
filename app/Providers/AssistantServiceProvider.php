@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Http\Controllers\AssistanceController;
+use App\Http\Controllers\AssistanceDataController;
 use App\Services\Assistance\AssistantRegistrar;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Support\Facades\Event;
@@ -66,6 +67,16 @@ class AssistantServiceProvider extends ServiceProvider
                 // Index page — always present
                 Route::get('/', [AssistanceController::class, 'index'])
                     ->name('assistance');
+
+                Route::get('/data/summary', [AssistanceDataController::class, 'summary'])
+                    ->name('assistance.data.summary');
+
+                Route::get('/data/all', [AssistanceDataController::class, 'all'])
+                    ->name('assistance.data.all');
+
+                Route::get('/data/{assistantId}', [AssistanceDataController::class, 'assistant'])
+                    ->where('assistantId', '[a-z0-9-]+')
+                    ->name('assistance.data.assistant');
 
                 // Check all — always present
                 Route::post('/check-all', [AssistanceController::class, 'checkAll'])
