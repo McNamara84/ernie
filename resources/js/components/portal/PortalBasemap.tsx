@@ -50,7 +50,7 @@ export function PortalBasemap({ config, maxZoom, onStatusChange }: PortalBasemap
 
         const initialize = async () => {
             try {
-                const [{ maplibreGL }, { localizeStyle }, { setWorkerUrl }] = await Promise.all([
+                const [{ maplibreGL }, { getGlobalStateForLocalization, localizeStyle }, { setWorkerUrl }] = await Promise.all([
                     import('@maplibre/maplibre-gl-leaflet'),
                     import('@americana/diplomat'),
                     import('maplibre-gl'),
@@ -83,6 +83,10 @@ export function PortalBasemap({ config, maxZoom, onStatusChange }: PortalBasemap
                     localizationAttempted = true;
 
                     try {
+                        const localizationState = getGlobalStateForLocalization([language]);
+                        for (const [key, value] of Object.entries(localizationState)) {
+                            maplibreMap.setGlobalStateProperty(key, value);
+                        }
                         localizeStyle(maplibreMap, [language], { glossLocalNames: false });
                         localized = true;
                     } catch (error) {

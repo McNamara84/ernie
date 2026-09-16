@@ -44,6 +44,11 @@ interface PortalMapProps {
 }
 
 const VIEWPORT_RESIZE_DEBOUNCE_MS = 250;
+// Recommended by the adapter to keep Leaflet and MapLibre synchronized during polar pans.
+const MAPLIBRE_LEAFLET_MAX_BOUNDS: L.LatLngBoundsExpression = [
+    [180, Number.NEGATIVE_INFINITY],
+    [-180, Number.POSITIVE_INFINITY],
+];
 
 function MapResizeHandler() {
     const map = useMap();
@@ -378,6 +383,8 @@ export function PortalMap({
                 zoom={Math.min(2, compatibleMaxZoom)}
                 minZoom={PORTAL_MAP_MIN_ZOOM}
                 maxZoom={compatibleMaxZoom}
+                maxBounds={MAPLIBRE_LEAFLET_MAX_BOUNDS}
+                maxBoundsViscosity={1}
                 className="h-full w-full"
             >
                 <PortalBasemap config={basemap} maxZoom={compatibleMaxZoom} onStatusChange={handleBasemapStatusChange} />

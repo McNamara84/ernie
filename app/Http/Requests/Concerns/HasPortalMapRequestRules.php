@@ -38,7 +38,7 @@ trait HasPortalMapRequestRules
             'viewport.west' => ['required', 'numeric', 'between:-180,180'],
             'viewport.width' => ['required', 'integer', 'between:1,4096'],
             'viewport.height' => ['required', 'integer', 'between:1,4096'],
-            'zoom' => ['required', 'integer', "between:1,{$maxZoom}"],
+            'zoom' => ['required', 'integer', "between:0,{$maxZoom}"],
             'include_extent' => ['sometimes', 'boolean'],
             'north' => ['nullable', 'numeric', 'between:-90,90'],
             'south' => ['nullable', 'numeric', 'between:-90,90'],
@@ -114,6 +114,6 @@ trait HasPortalMapRequestRules
 
     public function zoom(): int
     {
-        return (int) $this->validated('zoom');
+        return max(1, (int) $this->validated('zoom'));
     }
 }

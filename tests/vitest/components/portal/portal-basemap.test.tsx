@@ -8,6 +8,7 @@ import type { PortalMapTilerBasemapConfig } from '@/types/portal';
 const maplibreEvents = vi.hoisted(() => new Map<string, (...args: unknown[]) => void>());
 const maplibreMapMock = vi.hoisted(() => ({
     on: vi.fn((event: string, callback: (...args: unknown[]) => void) => maplibreEvents.set(event, callback)),
+    setGlobalStateProperty: vi.fn(),
 }));
 const layerMock = vi.hoisted(() => ({
     addTo: vi.fn(),
@@ -17,6 +18,10 @@ const layerMock = vi.hoisted(() => ({
 const maplibreGLMock = vi.hoisted(() => vi.fn(() => layerMock));
 const setWorkerUrlMock = vi.hoisted(() => vi.fn());
 const localizeStyleMock = vi.hoisted(() => vi.fn());
+const boundaryCountryNames = vi.hoisted(() => ({ DEU: 'Germany', POL: 'Poland' }));
+const getGlobalStateForLocalizationMock = vi.hoisted(() =>
+    vi.fn(() => ({ diplomat__countryNamesByCode: boundaryCountryNames })),
+);
 const attributionControlMock = vi.hoisted(() => ({
     addAttribution: vi.fn(),
     removeAttribution: vi.fn(),
@@ -28,7 +33,10 @@ vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url', () => ({ default: 
 vi.mock('maplibre-gl', () => ({ setWorkerUrl: setWorkerUrlMock }));
 vi.mock('react-leaflet', () => ({ useMap: () => leafletMapMock }));
 vi.mock('@maplibre/maplibre-gl-leaflet', () => ({ maplibreGL: maplibreGLMock }));
-vi.mock('@americana/diplomat', () => ({ localizeStyle: localizeStyleMock }));
+vi.mock('@americana/diplomat', () => ({
+    getGlobalStateForLocalization: getGlobalStateForLocalizationMock,
+    localizeStyle: localizeStyleMock,
+}));
 
 import { buildMaptilerStyleUrl, MAPTILER_ATTRIBUTION, PortalBasemap } from '@/components/portal/PortalBasemap';
 
@@ -62,7 +70,7 @@ describe('PortalBasemap', () => {
         expect(links.every((link) => link.target === '_blank' && link.rel === 'noopener noreferrer')).toBe(true);
     });
 
-    it('configures the emitted worker before adding a MapLibre layer and localizes all supported labels to English', async () => {
+    it('configures the worker and initializes English labels including boundary country names', async () => {
         const onStatusChange = vi.fn();
         const { unmount } = render(<PortalBasemap config={config} maxZoom={9} onStatusChange={onStatusChange} />);
 
@@ -81,7 +89,12 @@ describe('PortalBasemap', () => {
 
         act(() => maplibreEvents.get('styledata')?.());
 
+        expect(getGlobalStateForLocalizationMock).toHaveBeenCalledWith(['en']);
+        expect(maplibreMapMock.setGlobalStateProperty).toHaveBeenCalledWith('diplomat__countryNamesByCode', boundaryCountryNames);
         expect(localizeStyleMock).toHaveBeenCalledWith(maplibreMapMock, ['en'], { glossLocalNames: false });
+        expect(maplibreMapMock.setGlobalStateProperty.mock.invocationCallOrder[0]).toBeLessThan(
+            localizeStyleMock.mock.invocationCallOrder[0],
+        );
         expect(onStatusChange).toHaveBeenLastCalledWith('loading');
 
         act(() => maplibreEvents.get('idle')?.());

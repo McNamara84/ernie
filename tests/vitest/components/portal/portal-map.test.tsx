@@ -144,8 +144,29 @@ vi.mock('leaflet', () => ({
     },
 }));
 vi.mock('react-leaflet', () => ({
-    MapContainer: ({ children, maxZoom, minZoom, zoom }: { children: React.ReactNode; maxZoom: number; minZoom: number; zoom: number }) => (
-        <div data-testid="leaflet-map" data-max-zoom={maxZoom} data-min-zoom={minZoom} data-initial-zoom={zoom}>
+    MapContainer: ({
+        children,
+        maxBounds,
+        maxBoundsViscosity,
+        maxZoom,
+        minZoom,
+        zoom,
+    }: {
+        children: React.ReactNode;
+        maxBounds: unknown;
+        maxBoundsViscosity: number;
+        maxZoom: number;
+        minZoom: number;
+        zoom: number;
+    }) => (
+        <div
+            data-testid="leaflet-map"
+            data-max-bounds={String(maxBounds)}
+            data-max-bounds-viscosity={maxBoundsViscosity}
+            data-max-zoom={maxZoom}
+            data-min-zoom={minZoom}
+            data-initial-zoom={zoom}
+        >
             {children}
         </div>
     ),
@@ -252,6 +273,13 @@ describe('PortalMap', () => {
         await waitFor(() =>
             expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), false, '/doi-search', 7),
         );
+    });
+
+    it('uses the adapter constraints to prevent polar panning from desynchronizing the layers', () => {
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
+
+        expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-max-bounds', '180,-Infinity,-180,Infinity');
+        expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-max-bounds-viscosity', '1');
     });
 
     it('normalizes a legacy zero zoom limit to the adapter-compatible minimum', async () => {
