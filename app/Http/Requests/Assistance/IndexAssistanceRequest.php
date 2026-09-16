@@ -11,6 +11,10 @@ final class IndexAssistanceRequest extends FormRequest
 {
     use ResolvesResourceImpactFilter;
 
+    private const int DEFAULT_PER_PAGE = 25;
+
+    private const int MAX_PER_PAGE = 100;
+
     protected function prepareForValidation(): void
     {
         $this->prepareResourceImpactFilterForValidation();
@@ -28,7 +32,12 @@ final class IndexAssistanceRequest extends FormRequest
     {
         return [
             ...$this->resourceImpactFilterRules(),
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_PER_PAGE],
         ];
+    }
+
+    public function perPage(): int
+    {
+        return max(1, min((int) ($this->validated('per_page') ?? self::DEFAULT_PER_PAGE), self::MAX_PER_PAGE));
     }
 }

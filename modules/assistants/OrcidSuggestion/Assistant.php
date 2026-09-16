@@ -98,9 +98,9 @@ class Assistant extends AbstractAssistant
     }
 
     #[\Override]
-    public function pendingSuggestionImpactQuery(): QueryBuilder
+    public function pendingSuggestionQuery(): QueryBuilder
     {
-        $direct = DB::table('suggested_orcids')
+        return DB::table('suggested_orcids')
             ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
             ->select([
                 'suggested_orcids.id AS suggestion_id',
@@ -109,6 +109,12 @@ class Assistant extends AbstractAssistant
                 'resources.created_at AS resource_created_at',
             ])
             ->selectRaw('? AS assistant_id', [$this->getId()]);
+    }
+
+    #[\Override]
+    public function pendingSuggestionImpactQuery(?QueryBuilder $impactResourceIds = null): QueryBuilder
+    {
+        $direct = $this->pendingSuggestionQuery();
 
         $creatorImpacts = DB::table('suggested_orcids')
             ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
@@ -137,6 +143,39 @@ class Assistant extends AbstractAssistant
                 'resources.created_at AS resource_created_at',
             ])
             ->selectRaw('? AS assistant_id', [$this->getId()]);
+
+        if ($impactResourceIds !== null) {
+            $direct->whereIn('suggested_orcids.resource_id', clone $impactResourceIds);
+            $creatorImpacts->whereIn('impact_creators.resource_id', clone $impactResourceIds);
+            $contributorImpacts->whereIn('impact_contributors.resource_id', clone $impactResourceIds);
+        }
+
+        return $direct->union($creatorImpacts)->union($contributorImpacts);
+    }
+
+    #[\Override]
+    public function pendingResourceImpactQuery(): QueryBuilder
+    {
+        $pendingPersonIds = DB::table('suggested_orcids')
+            ->select('suggested_orcids.person_id')
+            ->distinct();
+        $direct = DB::table('suggested_orcids')
+            ->selectRaw('suggested_orcids.resource_id AS impact_resource_id')
+            ->distinct();
+        $creatorImpacts = DB::table('resource_creators AS impact_creators')
+            ->joinSub(clone $pendingPersonIds, 'pending_orcid_people', function (JoinClause $join): void {
+                $join->on('pending_orcid_people.person_id', '=', 'impact_creators.creatorable_id');
+            })
+            ->where('impact_creators.creatorable_type', Person::class)
+            ->selectRaw('impact_creators.resource_id AS impact_resource_id')
+            ->distinct();
+        $contributorImpacts = DB::table('resource_contributors AS impact_contributors')
+            ->joinSub(clone $pendingPersonIds, 'pending_orcid_people', function (JoinClause $join): void {
+                $join->on('pending_orcid_people.person_id', '=', 'impact_contributors.contributorable_id');
+            })
+            ->where('impact_contributors.contributorable_type', Person::class)
+            ->selectRaw('impact_contributors.resource_id AS impact_resource_id')
+            ->distinct();
 
         return $direct->union($creatorImpacts)->union($contributorImpacts);
     }

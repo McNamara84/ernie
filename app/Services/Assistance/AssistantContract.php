@@ -52,11 +52,26 @@ interface AssistantContract
     public function loadSuggestions(int $perPage): LengthAwarePaginator;
 
     /**
+     * Build a direct pending-suggestion query with exactly one row per
+     * suggestion. The query must expose assistant_id, suggestion_id,
+     * resource_id, impact_resource_id, and resource_created_at. For this
+     * direct projection, impact_resource_id equals resource_id.
+     */
+    public function pendingSuggestionQuery(): QueryBuilder;
+
+    /**
      * Build a database-side query that maps each pending suggestion to every
      * resource it can affect. The query must expose the columns assistant_id,
      * suggestion_id, resource_id, impact_resource_id, and resource_created_at.
      */
-    public function pendingSuggestionImpactQuery(): QueryBuilder;
+    public function pendingSuggestionImpactQuery(?QueryBuilder $impactResourceIds = null): QueryBuilder;
+
+    /**
+     * Build a deduplicated query of resource IDs affected by this assistant.
+     * The query must expose impact_resource_id and must not multiply a shared
+     * entity by the number of candidate suggestions for that entity.
+     */
+    public function pendingResourceImpactQuery(): QueryBuilder;
 
     /**
      * Load pending suggestions for the supplied resources and, when provided,

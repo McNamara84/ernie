@@ -198,6 +198,7 @@ class RorAffiliationBulkAcceptanceService
 
         $syncResult = $this->syncResources($syncResourceIds);
         CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
+        CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
 
         if ($syncResult['failed']) {
             return [

@@ -1,7 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { AlertTriangle, Building2, Check, Plus, RefreshCw, User, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { RelationTypeSelect } from '@/components/assistance/relation-type-select';
@@ -13,7 +14,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
+import { AssistanceRequestError, useAssistanceSummary } from '@/hooks/use-assistance-review';
 import AppLayout from '@/layouts/app-layout';
+import { queryKeys } from '@/lib/query-keys';
 import { resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -1530,8 +1533,15 @@ export default function AssistancePage({
     assistanceCollapsedAssistantIds,
     relationTypes = [],
     filters = { doi: null, datacenter_id: null },
-    datacenterOptions = [],
+    datacenterOptions: initialDatacenterOptions,
+    perPage = 25,
 }: AssistancePageProps) {
+    const hasInitialReviewData = sections !== undefined;
+    const initialSections = useMemo(() => sections ?? {}, [sections]);
+    const queryClient = useQueryClient();
+    const summaryQuery = useAssistanceSummary(filters, !hasInitialReviewData);
+    const summaryError = summaryQuery.error instanceof AssistanceRequestError ? summaryQuery.error : null;
+    const datacenterOptions = initialDatacenterOptions ?? summaryQuery.data?.datacenterOptions ?? [];
     const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
     const [acceptanceInputs, setAcceptanceInputs] = useState<Record<string, SuggestionAcceptanceInput>>({});
 
@@ -1539,7 +1549,7 @@ export default function AssistancePage({
         const available = new Set<string>();
 
         for (const manifest of manifests) {
-            const section = sections[manifest.id];
+            const section = initialSections[manifest.id];
 
             for (const entry of section?.data ?? []) {
                 const group = entry as AssistanceResourceGroup;
@@ -1559,7 +1569,7 @@ export default function AssistancePage({
 
             return Object.keys(next).length === Object.keys(current).length ? current : next;
         });
-    }, [manifests, sections]);
+    }, [initialSections, manifests]);
 
     const changeAcceptanceInput = useCallback((identity: string, input: SuggestionAcceptanceInput) => {
         setAcceptanceInputs((current) => {
@@ -1580,33 +1590,42 @@ export default function AssistancePage({
     const [isAcceptingRorBulkMatch, setIsAcceptingRorBulkMatch] = useState(false);
 
     const reloadAssistanceSections = useCallback(() => {
+        if (!hasInitialReviewData) {
+            void queryClient.invalidateQueries({ queryKey: queryKeys.assistance.root() });
+            router.reload({ only: ['pendingAssistanceTotalCount'] });
+            return;
+        }
+
         router.reload({
             only: allAssistantResources
                 ? ['sections', 'allAssistantResources', 'pendingCounts', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount']
                 : ['sections', 'datacenterOptions', 'relationTypes', 'pendingAssistanceTotalCount'],
         });
-    }, [allAssistantResources]);
+    }, [allAssistantResources, hasInitialReviewData, queryClient]);
 
-    const handleFiltersChange = useCallback((nextFilters: ResourceImpactFilterState) => {
-        const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+    const handleFiltersChange = useCallback(
+        (nextFilters: ResourceImpactFilterState) => {
+            const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
 
-        for (const key of [...params.keys()]) {
-            if (key === 'all_page' || (key !== 'per_page' && key.endsWith('_page'))) params.delete(key);
-        }
+            for (const key of [...params.keys()]) {
+                if (key === 'all_page' || (key !== 'per_page' && key.endsWith('_page'))) params.delete(key);
+            }
 
-        if (nextFilters.doi === null) params.delete('doi');
-        else params.set('doi', nextFilters.doi);
+            if (nextFilters.doi === null) params.delete('doi');
+            else params.set('doi', nextFilters.doi);
 
-        if (nextFilters.datacenter_id === null) params.delete('datacenter_id');
-        else params.set('datacenter_id', String(nextFilters.datacenter_id));
+            if (nextFilters.datacenter_id === null) params.delete('datacenter_id');
+            else params.set('datacenter_id', String(nextFilters.datacenter_id));
 
-        router.get('/assistance', Object.fromEntries(params.entries()), {
-            only: ['filters', 'datacenterOptions', 'sections', 'allAssistantResources', 'pendingCounts'],
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-        });
-    }, []);
+            router.get('/assistance', Object.fromEntries(params.entries()), {
+                only: hasInitialReviewData ? ['filters', 'datacenterOptions', 'sections', 'allAssistantResources', 'pendingCounts'] : ['filters'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            });
+        },
+        [hasInitialReviewData],
+    );
 
     const enqueueRorBulkMatches = useCallback((matches: RorAffiliationBulkMatch[]) => {
         setRorBulkMatchQueue((current) => [...current, ...matches.filter((match) => match.available && match.count > 0)]);
@@ -2024,6 +2043,29 @@ export default function AssistancePage({
                     </Button>
                 </div>
 
+                {summaryQuery.isPending && !hasInitialReviewData && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Spinner size="sm" /> Loading counts and Datacenter options...
+                    </div>
+                )}
+
+                {summaryQuery.isError && !hasInitialReviewData && (
+                    <div
+                        role="alert"
+                        className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm"
+                    >
+                        <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden="true" />
+                        <span>
+                            Counts and Datacenter options could not be loaded
+                            {summaryError?.status ? ` (HTTP ${summaryError.status})` : ''}.
+                        </span>
+                        {summaryError && <span className="font-mono text-xs text-muted-foreground">Request ID: {summaryError.requestId}</span>}
+                        <Button type="button" variant="outline" size="sm" onClick={() => void summaryQuery.refetch()}>
+                            Retry summary
+                        </Button>
+                    </div>
+                )}
+
                 <ResourceImpactFilters filters={filters} datacenterOptions={datacenterOptions} onChange={handleFiltersChange} />
 
                 {/* Progress indicators */}
@@ -2041,10 +2083,10 @@ export default function AssistancePage({
                     );
                 })}
 
-                {allAssistantResources && (
+                {(allAssistantResources || !hasInitialReviewData) && (
                     <ResourceReview
                         allAssistantResources={allAssistantResources}
-                        sections={sections}
+                        sections={hasInitialReviewData ? initialSections : undefined}
                         manifests={manifests}
                         assistanceCollapsedAssistantIds={assistanceCollapsedAssistantIds}
                         checking={Object.fromEntries(manifests.map((manifest) => [manifest.id, states[manifest.id]?.isChecking ?? false]))}
@@ -2054,14 +2096,16 @@ export default function AssistancePage({
                         renderSuggestion={renderCard}
                         acceptanceInputs={acceptanceInputs}
                         hasActiveFilters={filters.doi !== null || filters.datacenter_id !== null}
+                        filters={filters}
+                        perPage={perPage}
                     />
                 )}
 
                 {/* Kept temporarily as a compatibility render path for legacy page fixtures. */}
                 {manifests
-                    .filter(() => allAssistantResources === undefined)
+                    .filter(() => hasInitialReviewData && allAssistantResources === undefined)
                     .map((manifest) => {
-                        const sectionData = sections[manifest.id] as PaginatedData<BaseSuggestionItem> | undefined;
+                        const sectionData = initialSections[manifest.id] as PaginatedData<BaseSuggestionItem> | undefined;
                         const state = states[manifest.id];
 
                         if (!sectionData) return null;

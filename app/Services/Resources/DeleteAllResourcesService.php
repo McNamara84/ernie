@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Resources;
 
+use App\Enums\CacheKey;
 use App\Enums\PortalCacheArea;
 use App\Enums\PortalScope;
 use App\Models\Affiliation;
@@ -181,6 +182,7 @@ final class DeleteAllResourcesService
     private function invalidateCaches(): void
     {
         $this->resourceCacheService->invalidateAllResourceCaches();
+        CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
         $this->portalCacheInvalidationService->schedule(
             PortalScope::cases(),
             PortalCacheArea::all(),

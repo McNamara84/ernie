@@ -17,7 +17,7 @@ vi.mock('@inertiajs/react', () => ({
     ),
     router: { get: vi.fn(), put: vi.fn() },
 }));
-vi.mock('axios', () => ({ default: { post: vi.fn(), isAxiosError: vi.fn(() => false) } }));
+vi.mock('axios', () => ({ default: { get: vi.fn(), post: vi.fn(), isAxiosError: vi.fn(() => false) } }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn() } }));
 
 const manifest: AssistantManifest = {
@@ -124,9 +124,162 @@ beforeEach(() => {
     }
 
     window.localStorage.clear();
+    vi.mocked(axios.isAxiosError).mockReturnValue(false);
 });
 
 describe('resource-oriented assistance review', () => {
+    it('loads only the active all-assistants scope on the initial remote render', async () => {
+        const data = page({
+            resource_id: 10,
+            resource_doi: '10.1234/test',
+            resource_title: 'Test resource',
+            suggestion_count: 1,
+            suggestions: [suggestion(1, 'Remote candidate')],
+        });
+        vi.mocked(axios.get).mockResolvedValueOnce({ data });
+
+        render(
+            <ResourceReview
+                manifests={[manifest]}
+                checking={{ [manifest.id]: false }}
+                onCheck={vi.fn()}
+                onReload={vi.fn()}
+                onRorFollowUps={vi.fn()}
+                renderSuggestion={(_manifest, item) => <p>{String(item.suggested_label)}</p>}
+            />,
+        );
+
+        expect(await screen.findByText('Remote candidate')).toBeInTheDocument();
+        expect(axios.get).toHaveBeenCalledOnce();
+        expect(axios.get).toHaveBeenCalledWith(
+            '/assistance/data/all',
+            expect.objectContaining({ params: { page: 1, per_page: 25 }, signal: expect.any(AbortSignal) }),
+        );
+    });
+
+    it('loads opened assistant scopes instead of the all-assistants scope for the saved assistant view', async () => {
+        window.localStorage.setItem('assistance.review-view', 'assistant');
+        vi.mocked(axios.get).mockResolvedValueOnce({
+            data: page({
+                resource_id: 10,
+                resource_doi: '10.1234/test',
+                resource_title: 'Test resource',
+                suggestion_count: 1,
+                suggestions: [suggestion(1, 'Assistant candidate')],
+            }),
+        });
+
+        render(
+            <ResourceReview
+                manifests={[manifest]}
+                assistanceCollapsedAssistantIds={[]}
+                checking={{ [manifest.id]: false }}
+                onCheck={vi.fn()}
+                onReload={vi.fn()}
+                onRorFollowUps={vi.fn()}
+                renderSuggestion={(_manifest, item) => <p>{String(item.suggested_label)}</p>}
+            />,
+        );
+
+        expect(await screen.findByText('Assistant candidate')).toBeInTheDocument();
+        expect(axios.get).toHaveBeenCalledOnce();
+        expect(axios.get).toHaveBeenCalledWith(`/assistance/data/${manifest.id}`, expect.objectContaining({ params: { page: 1, per_page: 25 } }));
+    });
+
+    it('keeps a failed 504 local to the review area and retries it with a request ID', async () => {
+        const user = userEvent.setup();
+        vi.mocked(axios.isAxiosError).mockReturnValue(true);
+        vi.mocked(axios.get)
+            .mockRejectedValueOnce({ isAxiosError: true, response: { status: 504, data: {}, headers: {} } })
+            .mockResolvedValueOnce({
+                data: page({
+                    resource_id: 10,
+                    resource_doi: '10.1234/test',
+                    resource_title: 'Test resource',
+                    suggestion_count: 1,
+                    suggestions: [suggestion(1, 'Recovered candidate')],
+                }),
+            });
+
+        render(
+            <ResourceReview
+                manifests={[manifest]}
+                checking={{ [manifest.id]: false }}
+                onCheck={vi.fn()}
+                onReload={vi.fn()}
+                onRorFollowUps={vi.fn()}
+                renderSuggestion={(_manifest, item) => <p>{String(item.suggested_label)}</p>}
+            />,
+        );
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('HTTP 504');
+        expect(alert).toHaveTextContent('Request ID:');
+
+        await user.click(screen.getByRole('button', { name: 'Retry' }));
+
+        expect(await screen.findByText('Recovered candidate')).toBeInTheDocument();
+        expect(axios.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('paginates only the remote scope without an Inertia navigation', async () => {
+        const user = userEvent.setup();
+        const firstPage = page({
+            resource_id: 10,
+            resource_doi: '10.1234/first',
+            resource_title: 'First resource',
+            suggestion_count: 1,
+            suggestions: [suggestion(1, 'First candidate')],
+        });
+        firstPage.last_page = 2;
+        firstPage.links = [
+            { url: null, label: '&laquo; Previous', active: false },
+            { url: '/assistance/data/all?page=1', label: '1', active: true },
+            { url: '/assistance/data/all?page=2', label: '2', active: false },
+        ];
+        const secondPage = {
+            ...firstPage,
+            current_page: 2,
+            data: [
+                {
+                    ...firstPage.data[0],
+                    resource_id: 20,
+                    suggestions: [{ ...suggestion(2, 'Second candidate'), resource_id: 20 }],
+                },
+            ],
+        };
+        let resolveSecondPage!: (response: { data: typeof secondPage }) => void;
+        const secondPageRequest = new Promise<{ data: typeof secondPage }>((resolve) => {
+            resolveSecondPage = resolve;
+        });
+        vi.mocked(axios.get).mockResolvedValueOnce({ data: firstPage }).mockReturnValueOnce(secondPageRequest);
+
+        render(
+            <ResourceReview
+                manifests={[manifest]}
+                checking={{ [manifest.id]: false }}
+                onCheck={vi.fn()}
+                onReload={vi.fn()}
+                onRorFollowUps={vi.fn()}
+                renderSuggestion={(_manifest, item) => <p>{String(item.suggested_label)}</p>}
+            />,
+        );
+
+        await screen.findByText('First candidate');
+        expect(screen.getByRole('button', { name: 'Select all compatible' })).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: '2' }));
+
+        await waitFor(() => expect(screen.queryByText('First candidate')).not.toBeInTheDocument());
+        expect(screen.getByText('Loading suggestions...')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Select all compatible' })).not.toBeInTheDocument();
+
+        resolveSecondPage({ data: secondPage });
+
+        expect(await screen.findByText('Second candidate')).toBeInTheDocument();
+        expect(axios.get).toHaveBeenLastCalledWith('/assistance/data/all', expect.objectContaining({ params: { page: 2, per_page: 25 } }));
+        expect(router.get).not.toHaveBeenCalled();
+    });
+
     it('describes filtered empty states as an absence of suggestion impacts', async () => {
         const user = userEvent.setup();
         const emptyPage: PaginatedData<AssistanceResourceGroup> = {

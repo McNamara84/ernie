@@ -71,7 +71,7 @@ abstract class GenericTableAssistant extends AbstractAssistant
     }
 
     #[\Override]
-    public function pendingSuggestionImpactQuery(): QueryBuilder
+    public function pendingSuggestionQuery(): QueryBuilder
     {
         return DB::table('assistant_suggestions')
             ->where('assistant_id', $this->getId())
@@ -83,6 +83,27 @@ abstract class GenericTableAssistant extends AbstractAssistant
                 'resources.created_at AS resource_created_at',
             ])
             ->selectRaw('? AS assistant_id', [$this->getId()]);
+    }
+
+    #[\Override]
+    public function pendingSuggestionImpactQuery(?QueryBuilder $impactResourceIds = null): QueryBuilder
+    {
+        $query = $this->pendingSuggestionQuery();
+
+        if ($impactResourceIds !== null) {
+            $query->whereIn('assistant_suggestions.resource_id', clone $impactResourceIds);
+        }
+
+        return $query;
+    }
+
+    #[\Override]
+    public function pendingResourceImpactQuery(): QueryBuilder
+    {
+        return DB::table('assistant_suggestions')
+            ->where('assistant_id', $this->getId())
+            ->selectRaw('assistant_suggestions.resource_id AS impact_resource_id')
+            ->distinct();
     }
 
     #[\Override]

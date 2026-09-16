@@ -1,6 +1,7 @@
 import { Link, router } from '@inertiajs/react';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { Check, ChevronsDown, ChevronsUp, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronsDown, ChevronsUp, RefreshCw, X } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -11,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AssistanceRequestError, assistanceReviewQueryOptions } from '@/hooks/use-assistance-review';
 import { editor as editorRoute } from '@/routes';
 import {
     type AssistanceResourceGroup,
@@ -22,6 +24,7 @@ import {
     type SuggestionAcceptanceInput,
     type SuggestionReviewMetadata,
 } from '@/types/assistance';
+import type { ResourceImpactFilterState } from '@/types/resource-impact-filters';
 
 const VIEW_STORAGE_KEY = 'assistance.review-view';
 const ASSISTANCE_ACCORDION_PREFERENCE_URL = '/settings/assistance-accordion';
@@ -51,7 +54,7 @@ type SectionData = PaginatedData<AssistanceResourceGroup> | PaginatedData<BaseSu
 
 interface ResourceReviewProps {
     allAssistantResources?: PaginatedData<AssistanceResourceGroup>;
-    sections: Record<string, SectionData>;
+    sections?: Record<string, SectionData>;
     manifests: AssistantManifest[];
     assistanceCollapsedAssistantIds?: string[] | null;
     checking: Record<string, boolean>;
@@ -61,6 +64,33 @@ interface ResourceReviewProps {
     renderSuggestion: (manifest: AssistantManifest, item: BaseSuggestionItem, processing: boolean) => ReactNode;
     acceptanceInputs?: Record<string, SuggestionAcceptanceInput>;
     hasActiveFilters?: boolean;
+    filters?: ResourceImpactFilterState;
+    perPage?: number;
+}
+
+function ReviewRequestError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+    const requestError = error instanceof AssistanceRequestError ? error : null;
+    const status = requestError?.status;
+
+    return (
+        <div
+            role="alert"
+            className="flex flex-col items-center justify-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-6 py-12 text-center"
+        >
+            <AlertTriangle className="h-8 w-8 text-destructive" aria-hidden="true" />
+            <div>
+                <p className="font-medium">Assistance data could not be loaded</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    {status ? `The request failed with HTTP ${status}.` : 'The request did not complete.'} You can retry this section without
+                    reloading the page.
+                </p>
+                {requestError && <p className="mt-2 font-mono text-xs text-muted-foreground">Request ID: {requestError.requestId}</p>}
+            </div>
+            <Button type="button" variant="outline" onClick={onRetry}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Retry
+            </Button>
+        </div>
+    );
 }
 
 function fallbackReview(item: BaseSuggestionItem, manifest: AssistantManifest): SuggestionReviewMetadata {
@@ -156,7 +186,10 @@ export function ResourceReview({
     renderSuggestion,
     acceptanceInputs = {},
     hasActiveFilters = false,
+    filters = { doi: null, datacenter_id: null },
+    perPage = 25,
 }: ResourceReviewProps) {
+    const usesRemoteData = sections === undefined && allAssistantResources === undefined;
     const manifestsById = useMemo(() => new Map(manifests.map((manifest) => [manifest.id, manifest])), [manifests]);
     const [activeView, setActiveView] = useState<'all' | 'assistant'>(initialReviewView);
     const savedCollapsedAssistantIds = useMemo(
@@ -167,12 +200,43 @@ export function ResourceReview({
     const preferenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [processingResources, setProcessingResources] = useState<Set<number>>(() => new Set());
+    const [allPage, setAllPage] = useState(1);
+    const [assistantPages, setAssistantPages] = useState<Record<string, number>>({});
+
+    const openAssistantIds = useMemo(() => {
+        const collapsed = new Set(collapsedAssistantIds);
+
+        return manifests.map((manifest) => manifest.id).filter((id) => !collapsed.has(id));
+    }, [collapsedAssistantIds, manifests]);
+    const allQuery = useQuery(assistanceReviewQueryOptions('all', filters, allPage, perPage, usesRemoteData && activeView === 'all'));
+    const assistantQueries = useQueries({
+        queries: manifests.map((manifest) =>
+            assistanceReviewQueryOptions(
+                manifest.id,
+                filters,
+                assistantPages[manifest.id] ?? 1,
+                perPage,
+                usesRemoteData && activeView === 'assistant' && openAssistantIds.includes(manifest.id),
+            ),
+        ),
+    });
+    const assistantQueryById = new Map(manifests.map((manifest, index) => [manifest.id, assistantQueries[index]]));
+    const remoteSections = Object.fromEntries(
+        manifests.flatMap((manifest) => {
+            const data = assistantQueryById.get(manifest.id)?.data;
+
+            return data ? [[manifest.id, data] as const] : [];
+        }),
+    );
+    const sectionSource = sections ?? remoteSections;
 
     const normalizedSections = useMemo(
-        () => Object.fromEntries(manifests.map((manifest) => [manifest.id, normalizeSection(sections[manifest.id] ?? emptyPage(), manifest)])),
-        [manifests, sections],
+        () => Object.fromEntries(manifests.map((manifest) => [manifest.id, normalizeSection(sectionSource[manifest.id] ?? emptyPage(), manifest)])),
+        [manifests, sectionSource],
     );
-    const allResources = allAssistantResources ?? mergeSections(Object.values(normalizedSections));
+    const allResources =
+        allAssistantResources ??
+        (usesRemoteData ? (allQuery.data ?? emptyPage<AssistanceResourceGroup>()) : mergeSections(Object.values(normalizedSections)));
     const availableIdentities = useMemo(
         () =>
             new Set(
@@ -194,6 +258,11 @@ export function ResourceReview({
     useEffect(() => {
         setCollapsedAssistantIds((current) => (equalStringArrays(current, savedCollapsedAssistantIds) ? current : savedCollapsedAssistantIds));
     }, [savedCollapsedAssistantIds]);
+
+    useEffect(() => {
+        setAllPage(1);
+        setAssistantPages({});
+    }, [filters.datacenter_id, filters.doi, perPage]);
 
     const persistCollapsedAssistantIds = useCallback((ids: readonly string[], immediate = false) => {
         const persist = () => {
@@ -232,11 +301,6 @@ export function ResourceReview({
         [manifests, persistCollapsedAssistantIds],
     );
 
-    const openAssistantIds = useMemo(() => {
-        const collapsed = new Set(collapsedAssistantIds);
-
-        return manifests.map((manifest) => manifest.id).filter((id) => !collapsed.has(id));
-    }, [collapsedAssistantIds, manifests]);
     const allAssistantsCollapsed = manifests.length > 0 && collapsedAssistantIds.length === manifests.length;
     const allAssistantsExpanded = collapsedAssistantIds.length === 0;
 
@@ -489,7 +553,20 @@ export function ResourceReview({
                             variant={link.active ? 'default' : 'outline'}
                             size="sm"
                             disabled={!link.url}
-                            onClick={() => link.url && router.get(link.url, {}, { preserveState: true, preserveScroll: true })}
+                            onClick={() => {
+                                if (!link.url) return;
+
+                                if (!usesRemoteData) {
+                                    router.get(link.url, {}, { preserveState: true, preserveScroll: true });
+                                    return;
+                                }
+
+                                const nextPage = Number(new URL(link.url, window.location.origin).searchParams.get('page'));
+                                if (!Number.isFinite(nextPage) || nextPage < 1) return;
+
+                                if (sectionKey === 'all') setAllPage(nextPage);
+                                else setAssistantPages((current) => ({ ...current, [sectionKey]: nextPage }));
+                            }}
                             dangerouslySetInnerHTML={{ __html: link.label }}
                         />
                     ))}
@@ -508,7 +585,13 @@ export function ResourceReview({
                     </div>
                 </CardHeader>
                 <CardContent id={`assistance-results-${sectionKey}`} data-testid={`assistance-results-${sectionKey}`}>
-                    {data.data.length > 0 ? (
+                    {usesRemoteData && allQuery.isPending ? (
+                        <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+                            <Spinner size="sm" /> Loading suggestions...
+                        </div>
+                    ) : usesRemoteData && allQuery.isError ? (
+                        <ReviewRequestError error={allQuery.error} onRetry={() => void allQuery.refetch()} />
+                    ) : data.data.length > 0 ? (
                         <div className="space-y-4">{data.data.map((group) => renderResource(group, sectionKey))}</div>
                     ) : (
                         <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -530,7 +613,11 @@ export function ResourceReview({
     const renderAssistantSection = (manifest: AssistantManifest) => {
         const data = normalizedSections[manifest.id];
         const isOpen = openAssistantIds.includes(manifest.id);
-        const resourceLabel = `${data.total} ${data.total === 1 ? 'resource' : 'resources'} with suggestions`;
+        const query = assistantQueryById.get(manifest.id);
+        const hasLoadedRemoteData = !usesRemoteData || query?.data !== undefined;
+        const resourceLabel = hasLoadedRemoteData
+            ? `${data.total} ${data.total === 1 ? 'resource' : 'resources'} with suggestions`
+            : 'Suggestions load when opened';
 
         return (
             <AccordionItem
@@ -559,7 +646,13 @@ export function ResourceReview({
                 </AccordionTrigger>
                 <AccordionContent className="px-6 pb-6">
                     <div id={`assistance-results-${manifest.id}`} data-testid={`assistance-results-${manifest.id}`}>
-                        {data.data.length > 0 ? (
+                        {usesRemoteData && query?.isPending ? (
+                            <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+                                <Spinner size="sm" /> Loading suggestions...
+                            </div>
+                        ) : usesRemoteData && query?.isError ? (
+                            <ReviewRequestError error={query.error} onRetry={() => void query.refetch()} />
+                        ) : data.data.length > 0 ? (
                             <div className="space-y-4">{data.data.map((group) => renderResource(group, manifest.id, manifest))}</div>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -617,7 +710,7 @@ export function ResourceReview({
     );
 }
 
-function emptyPage(): PaginatedData<BaseSuggestionItem> {
+function emptyPage<T = BaseSuggestionItem>(): PaginatedData<T> {
     return { data: [], current_page: 1, last_page: 1, per_page: 25, total: 0, from: null, to: null, links: [] };
 }
 

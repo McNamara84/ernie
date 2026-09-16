@@ -46,7 +46,7 @@ class Assistant extends AbstractAssistant
     }
 
     #[\Override]
-    public function pendingSuggestionImpactQuery(): QueryBuilder
+    public function pendingSuggestionQuery(): QueryBuilder
     {
         return DB::table('suggested_relations')
             ->join('resources', 'suggested_relations.resource_id', '=', 'resources.id')
@@ -57,6 +57,26 @@ class Assistant extends AbstractAssistant
                 'resources.created_at AS resource_created_at',
             ])
             ->selectRaw('? AS assistant_id', [$this->getId()]);
+    }
+
+    #[\Override]
+    public function pendingSuggestionImpactQuery(?QueryBuilder $impactResourceIds = null): QueryBuilder
+    {
+        $query = $this->pendingSuggestionQuery();
+
+        if ($impactResourceIds !== null) {
+            $query->whereIn('suggested_relations.resource_id', clone $impactResourceIds);
+        }
+
+        return $query;
+    }
+
+    #[\Override]
+    public function pendingResourceImpactQuery(): QueryBuilder
+    {
+        return DB::table('suggested_relations')
+            ->selectRaw('suggested_relations.resource_id AS impact_resource_id')
+            ->distinct();
     }
 
     #[\Override]

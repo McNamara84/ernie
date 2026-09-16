@@ -337,7 +337,7 @@ describe('acceptSuggestion', function () {
         expect($result['success'])->toBeFalse();
     });
 
-    it('invalidates total pending count cache', function () {
+    it('invalidates assistance summary caches', function () {
         $resource = Resource::factory()->create();
         $assistant = new TestGenericAssistant;
 
@@ -345,6 +345,8 @@ describe('acceptSuggestion', function () {
         $cacheKey = $cacheEnum->key();
         $tags = $cacheEnum->tags();
         Cache::tags($tags)->put($cacheKey, 5, now()->addHour());
+        $datacenterCache = CacheKey::ASSISTANCE_DATACENTER_OPTIONS;
+        Cache::tags($datacenterCache->tags())->put($datacenterCache->key(), [['id' => 1, 'name' => 'Cached']], now()->addHour());
 
         $suggestion = AssistantSuggestion::create([
             'assistant_id' => $assistant->getId(),
@@ -358,7 +360,8 @@ describe('acceptSuggestion', function () {
 
         $assistant->acceptSuggestion($suggestion->id);
 
-        expect(Cache::tags($tags)->has($cacheKey))->toBeFalse();
+        expect(Cache::tags($tags)->has($cacheKey))->toBeFalse()
+            ->and(Cache::tags($datacenterCache->tags())->has($datacenterCache->key()))->toBeFalse();
     });
 });
 
@@ -393,7 +396,7 @@ describe('declineSuggestion', function () {
             ->and($dismissed->reason)->toBe('Not applicable');
     });
 
-    it('invalidates total pending count cache', function () {
+    it('invalidates assistance summary caches', function () {
         $resource = Resource::factory()->create();
         $user = User::factory()->create();
         $assistant = new TestGenericAssistant;
@@ -402,6 +405,8 @@ describe('declineSuggestion', function () {
         $cacheKey = $cacheEnum->key();
         $tags = $cacheEnum->tags();
         Cache::tags($tags)->put($cacheKey, 5, now()->addHour());
+        $datacenterCache = CacheKey::ASSISTANCE_DATACENTER_OPTIONS;
+        Cache::tags($datacenterCache->tags())->put($datacenterCache->key(), [['id' => 1, 'name' => 'Cached']], now()->addHour());
 
         $suggestion = AssistantSuggestion::create([
             'assistant_id' => $assistant->getId(),
@@ -415,7 +420,8 @@ describe('declineSuggestion', function () {
 
         $assistant->declineSuggestion($suggestion->id, $user, 'Not relevant');
 
-        expect(Cache::tags($tags)->has($cacheKey))->toBeFalse();
+        expect(Cache::tags($tags)->has($cacheKey))->toBeFalse()
+            ->and(Cache::tags($datacenterCache->tags())->has($datacenterCache->key()))->toBeFalse();
     });
 });
 
