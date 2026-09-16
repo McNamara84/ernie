@@ -210,9 +210,13 @@ describe('CreatorsSection', () => {
         expect(listItems).toHaveLength(4);
         expect(listItems.filter((item) => !item.classList.contains('hidden'))).toHaveLength(2);
 
-        fireEvent.click(screen.getByRole('button', { name: /Show all 4 creators/i }));
+        const toggle = screen.getByRole('button', { name: 'Show all 4 creators' });
+
+        fireEvent.click(toggle);
 
         expect(screen.getByText('Showing all 4 creators')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.queryByText('Show fewer creators')).not.toBeInTheDocument();
         expect(screen.getAllByRole('listitem').filter((item) => !item.classList.contains('hidden'))).toHaveLength(4);
     });
 });

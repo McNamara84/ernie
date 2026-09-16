@@ -14,7 +14,7 @@ interface CollapsibleListProps<T> {
     renderItem: (item: T, index: number) => ReactNode;
     /** Number of items above which the list is collapsible (defaults to 10) */
     threshold?: number;
-    /** Label for the expand/collapse button (e.g. "contributors") */
+    /** Item label used for the region, expand button, and optional summary (e.g. "contributors") */
     itemLabel: string;
     /** Optional wrapper around the rendered items (e.g. a `<ul>` element). Receives the visible items as children. */
     wrapper?: (children: ReactNode) => ReactNode;
@@ -86,7 +86,7 @@ export function CollapsibleList<T>({
                     className={cn('h-4 w-4', !reducedMotion && 'transition-transform duration-200', isExpanded && 'rotate-180')}
                     aria-hidden="true"
                 />
-                {isExpanded ? `Show fewer ${itemLabel}` : `Show all ${items.length} ${itemLabel}`}
+                {isExpanded ? 'Show less' : `Show all ${items.length} ${itemLabel}`}
             </Button>
         </div>
     );

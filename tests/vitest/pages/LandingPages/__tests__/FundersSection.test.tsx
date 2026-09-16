@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, screen } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { FundersSection } from '@/pages/LandingPages/components/FundersSection';
@@ -111,6 +111,11 @@ describe('FundersSection', () => {
     it('shows expand button when above threshold', () => {
         const funders = Array.from({ length: 15 }, (_, i) => mockFunder({ id: i + 1, funder_name: `Funder ${i + 1}` }));
         render(<FundersSection fundingReferences={funders} />);
-        expect(screen.getByText('Show all 15 funders')).toBeInTheDocument();
+        const toggle = screen.getByRole('button', { name: 'Show all 15 funders' });
+
+        fireEvent.click(toggle);
+
+        expect(screen.getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.queryByText('Show fewer funders')).not.toBeInTheDocument();
     });
 });
