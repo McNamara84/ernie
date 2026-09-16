@@ -42,13 +42,87 @@ jobs:
               ...context.repo,
             });
             const release = response.data;
-            const stableTag = /^v\d+\.\d+\.\d+$/.test(release.tag_name);
+            const stableTagPattern = /^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+            const stableTag = stableTagPattern.test(release.tag_name);
+
+            const compareVersions = (leftTag, rightTag) => {
+              const left = leftTag.slice(1).split('.').map((part) => BigInt(part));
+              const right = rightTag.slice(1).split('.').map((part) => BigInt(part));
+
+              for (let index = 0; index < 3; index += 1) {
+                if (left[index] > right[index]) return 1;
+                if (left[index] < right[index]) return -1;
+              }
+
+              return 0;
+            };
 
             if (release.draft || release.prerelease || !stableTag) {
               core.setFailed(
                 `GitHub's latest release is not a stable vMAJOR.MINOR.PATCH release: ${release.tag_name}`
               );
               return;
+            }
+
+            const releases = await github.paginate(
+              github.rest.repos.listReleases,
+              {
+                ...context.repo,
+                per_page: 100,
+              }
+            );
+            const stableReleaseTags = releases
+              .filter((candidate) =>
+                !candidate.draft &&
+                !candidate.prerelease &&
+                stableTagPattern.test(candidate.tag_name)
+              )
+              .map((candidate) => candidate.tag_name);
+
+            if (!stableReleaseTags.includes(release.tag_name)) {
+              stableReleaseTags.push(release.tag_name);
+            }
+
+            const highestStableTag = stableReleaseTags.reduce(
+              (highest, candidate) =>
+                compareVersions(candidate, highest) > 0 ? candidate : highest
+            );
+
+            if (compareVersions(release.tag_name, highestStableTag) < 0) {
+              core.setFailed(
+                `Production release candidate ${release.tag_name} is not the highest published stable release ${highestStableTag}.`
+              );
+              return;
+            }
+
+            try {
+              const deployedBranch = await github.rest.repos.getBranch({
+                ...context.repo,
+                branch: 'deploy/prod',
+              });
+              const deployedSubject = deployedBranch.data.commit.commit.message
+                .split('\n', 1)[0];
+              const deploymentMatch = deployedSubject.match(
+                /^Deploy Production (v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)) from [0-9a-f]{40}$/
+              );
+
+              if (!deploymentMatch) {
+                core.setFailed(
+                  `The deploy/prod head has an invalid deployment subject: ${deployedSubject}`
+                );
+                return;
+              }
+
+              const deployedReleaseTag = deploymentMatch[1];
+
+              if (compareVersions(release.tag_name, deployedReleaseTag) < 0) {
+                core.setFailed(
+                  `Production release candidate ${release.tag_name} is older than deployed release ${deployedReleaseTag}.`
+                );
+                return;
+              }
+            } catch (error) {
+              if (error.status !== 404) throw error;
             }
 
             core.setOutput('id', String(release.id));
@@ -359,6 +433,39 @@ jobs:
         run: |
           set -euo pipefail
 
+          semver_is_at_least() {
+            local candidate_version="${1#v}"
+            local baseline_version="${2#v}"
+            local LC_ALL=C
+            local -a candidate_parts baseline_parts
+
+            IFS='.' read -r -a candidate_parts <<< "$candidate_version"
+            IFS='.' read -r -a baseline_parts <<< "$baseline_version"
+
+            for index in 0 1 2; do
+              local candidate_part="${candidate_parts[$index]}"
+              local baseline_part="${baseline_parts[$index]}"
+
+              if (( ${#candidate_part} > ${#baseline_part} )); then
+                return 0
+              fi
+
+              if (( ${#candidate_part} < ${#baseline_part} )); then
+                return 1
+              fi
+
+              if [[ "$candidate_part" > "$baseline_part" ]]; then
+                return 0
+              fi
+
+              if [[ "$candidate_part" < "$baseline_part" ]]; then
+                return 1
+              fi
+            done
+
+            return 0
+          }
+
           if [[ ! "$APP_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
             echo "Invalid application image digest: $APP_DIGEST" >&2
             exit 1
@@ -407,6 +514,22 @@ jobs:
           if [[ -n "$PREVIOUS_DEPLOY_SHA" ]]; then
             git fetch --no-tags origin \
               "+refs/heads/deploy/prod:refs/remotes/origin/deploy/prod"
+
+            DEPLOYMENT_SUBJECT_PATTERN='^Deploy Production (v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)) from [0-9a-f]{40}$'
+            DEPLOYED_SUBJECT="$(git show -s --format=%s "$PREVIOUS_DEPLOY_SHA")"
+
+            if [[ ! "$DEPLOYED_SUBJECT" =~ $DEPLOYMENT_SUBJECT_PATTERN ]]; then
+              echo "The deploy/prod head has an invalid deployment subject: $DEPLOYED_SUBJECT" >&2
+              exit 1
+            fi
+
+            DEPLOYED_RELEASE_TAG="${BASH_REMATCH[1]}"
+
+            if ! semver_is_at_least "$RELEASE_TAG" "$DEPLOYED_RELEASE_TAG"; then
+              echo "Refusing to replace deployed release $DEPLOYED_RELEASE_TAG with older candidate $RELEASE_TAG." >&2
+              exit 1
+            fi
+
             PARENTS=(-p "$PREVIOUS_DEPLOY_SHA")
 
             if [[ "$PREVIOUS_DEPLOY_SHA" != "$SOURCE_SHA" ]]; then
@@ -433,6 +556,39 @@ jobs:
         run: |
           set -euo pipefail
 
+          semver_is_at_least() {
+            local candidate_version="${1#v}"
+            local baseline_version="${2#v}"
+            local LC_ALL=C
+            local -a candidate_parts baseline_parts
+
+            IFS='.' read -r -a candidate_parts <<< "$candidate_version"
+            IFS='.' read -r -a baseline_parts <<< "$baseline_version"
+
+            for index in 0 1 2; do
+              local candidate_part="${candidate_parts[$index]}"
+              local baseline_part="${baseline_parts[$index]}"
+
+              if (( ${#candidate_part} > ${#baseline_part} )); then
+                return 0
+              fi
+
+              if (( ${#candidate_part} < ${#baseline_part} )); then
+                return 1
+              fi
+
+              if [[ "$candidate_part" > "$baseline_part" ]]; then
+                return 0
+              fi
+
+              if [[ "$candidate_part" < "$baseline_part" ]]; then
+                return 1
+              fi
+            done
+
+            return 0
+          }
+
           LATEST_RELEASE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.id')"
           LATEST_RELEASE_TAG="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')"
           git fetch --force --no-tags origin \
@@ -444,6 +600,24 @@ jobs:
               "$LATEST_RELEASE_TAG" != "$RELEASE_TAG" ||
               "$LATEST_SOURCE_SHA" != "$SOURCE_SHA" ]]; then
             echo "A newer stable release appeared while preparing Production; leaving deploy/prod unchanged."
+            exit 0
+          fi
+
+          STABLE_TAG_PATTERN='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          HIGHEST_STABLE_TAG="$RELEASE_TAG"
+
+          while IFS= read -r published_tag; do
+            if [[ "$published_tag" =~ $STABLE_TAG_PATTERN ]] &&
+                semver_is_at_least "$published_tag" "$HIGHEST_STABLE_TAG"; then
+              HIGHEST_STABLE_TAG="$published_tag"
+            fi
+          done < <(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq '.[] | select((.draft | not) and (.prerelease | not)) | .tag_name'
+          )
+
+          if [[ "$HIGHEST_STABLE_TAG" != "$RELEASE_TAG" ]]; then
+            echo "A higher stable release $HIGHEST_STABLE_TAG appeared while preparing $RELEASE_TAG; leaving deploy/prod unchanged."
             exit 0
           fi
 

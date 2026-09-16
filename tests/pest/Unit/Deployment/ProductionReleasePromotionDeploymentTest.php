@@ -65,7 +65,7 @@ it('accepts only the latest stable semantic release on validated main history', 
         ->toBeString()
         ->toContain('github.rest.repos.getLatestRelease')
         ->toContain('release.draft || release.prerelease || !stableTag')
-        ->toContain('/^v\\d+\\.\\d+\\.\\d+$/')
+        ->toContain('const stableTagPattern = /^v(?:0|[1-9]\\d*)')
         ->and($source)->toBeArray()
         ->and($source['env']['TRIGGER_SHA'] ?? null)
         ->toBe('${{ github.event.workflow_run.head_sha }}')
@@ -85,6 +85,34 @@ it('accepts only the latest stable semantic release on validated main history', 
         ->toContain("event: 'push'")
         ->toContain('head_sha: sourceSha')
         ->toContain("result.status === 'completed' && result.conclusion === 'success'");
+});
+
+it('rejects v1.0.8 after v1.0.9 even when GitHub marks the older release latest', function (): void {
+    $workflow = Yaml::parseFile(base_path('.github/workflows/promote-production-release.yml'));
+    $validateSteps = collect($workflow['jobs']['validate']['steps'] ?? [])->keyBy('name');
+    $promoteSteps = collect($workflow['jobs']['promote']['steps'] ?? [])->keyBy('name');
+    $release = $validateSteps->get('Resolve the latest stable release');
+    $deployment = $promoteSteps->get('Create the digest-pinned Production deployment commit');
+
+    expect($release)->toBeArray()
+        ->and($release['with']['script'] ?? null)
+        ->toBeString()
+        ->toContain('github.paginate')
+        ->toContain('github.rest.repos.listReleases')
+        ->toContain('compareVersions(candidate, highest) > 0')
+        ->toContain('compareVersions(release.tag_name, highestStableTag) < 0')
+        ->toContain('is not the highest published stable release')
+        ->toContain('github.rest.repos.getBranch')
+        ->toContain("branch: 'deploy/prod'")
+        ->toContain('compareVersions(release.tag_name, deployedReleaseTag) < 0')
+        ->toContain('is older than deployed release')
+        ->and($deployment)->toBeArray()
+        ->and($deployment['run'] ?? null)
+        ->toBeString()
+        ->toContain('semver_is_at_least()')
+        ->toContain('DEPLOYMENT_SUBJECT_PATTERN=')
+        ->toContain('semver_is_at_least "$RELEASE_TAG" "$DEPLOYED_RELEASE_TAG"')
+        ->toContain('Refusing to replace deployed release');
 });
 
 it('promotes the exact digest pair previously deployed to Stage', function (): void {
@@ -171,6 +199,10 @@ it('publishes a latest-release-only digest-pinned Production deployment branch',
         ->and($advance['run'] ?? null)
         ->toBeString()
         ->toContain('releases/latest')
+        ->toContain('releases?per_page=100')
+        ->toContain('HIGHEST_STABLE_TAG="$RELEASE_TAG"')
+        ->toContain('semver_is_at_least "$published_tag" "$HIGHEST_STABLE_TAG"')
+        ->toContain('A higher stable release $HIGHEST_STABLE_TAG appeared')
         ->toContain('refs/heads/main:refs/remotes/origin/main')
         ->toContain('--force-with-lease=refs/heads/deploy/prod:${PREVIOUS_DEPLOY_SHA}')
         ->toContain('--force-with-lease=refs/heads/deploy/prod:')

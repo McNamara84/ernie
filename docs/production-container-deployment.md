@@ -42,7 +42,13 @@ Automatic Production promotion requires all of the following:
 
 - the GitHub release was published and is neither a draft nor a prerelease;
 - GitHub reports it as the latest release;
-- its tag has the strict stable format `vMAJOR.MINOR.PATCH`;
+- its tag has the strict stable format `vMAJOR.MINOR.PATCH` without leading
+  zeroes;
+- its numeric version is the highest published stable semantic version, even
+  if GitHub's mutable latest designation points to an older release;
+- its version is not lower than the release recorded by the current
+  `deploy/prod` head, including when that deployed release was later deleted
+  from GitHub;
 - the tag resolves to a commit contained in `main`;
 - all five deployment-blocking push workflows succeeded for that exact
   commit;
@@ -51,9 +57,11 @@ Automatic Production promotion requires all of the following:
 - the release remains latest immediately before `deploy/prod` is updated.
 
 Publishing a prerelease, an older release, or a release for an unvalidated or
-not-yet-staged commit cannot change `deploy/prod`. Deleting or reclassifying a
-release also does not automatically roll Production back; rollback remains an
-explicit operational action.
+not-yet-staged commit cannot change `deploy/prod`. The workflow compares
+numeric semantic versions rather than trusting GitHub's mutable latest label
+and repeats the deployed-version guard before creating the compare-and-swap
+update. Deleting or reclassifying a release also does not automatically roll
+Production back; rollback remains an explicit operational action.
 
 The release event is intentionally separated from the privileged promotion.
 A release workflow runs in the context of its tag, whereas the
