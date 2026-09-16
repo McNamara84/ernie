@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { resolveVitestMaxWorkers } from '../../../vite.config';
+import { resolveVitestMaxWorkers, resolveVitestRetry } from '../../../vite.config';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const configPath = resolve(currentDir, '../../..', 'vite.config.ts');
@@ -39,5 +39,13 @@ describe('vite configuration', () => {
 
     it.each([undefined, '', 'invalid', '0'])('ignores the worker override %j in CI', (configuredWorkers) => {
         expect(resolveVitestMaxWorkers(true, configuredWorkers)).toBeUndefined();
+    });
+
+    it('retries a failed test once in CI', () => {
+        expect(resolveVitestRetry(true)).toBe(1);
+    });
+
+    it('keeps local test runs strict', () => {
+        expect(resolveVitestRetry(false)).toBe(0);
     });
 });

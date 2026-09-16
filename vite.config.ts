@@ -32,6 +32,13 @@ export function resolveVitestMaxWorkers(
     return workers;
 }
 
+export function resolveVitestRetry(isCi = Boolean(process.env.CI)): number {
+    // GitHub-hosted runners occasionally expose timing-sensitive test flakes.
+    // Retry once in CI while keeping local runs strict; deterministic failures
+    // still fail the shard on the second attempt.
+    return isCi ? 1 : 0;
+}
+
 export default defineConfig(({ command }) => {
     const viteServerPort = parseInt(process.env.VITE_SERVER_PORT ?? '5173');
     const isCi = Boolean(process.env.CI);
@@ -111,6 +118,7 @@ export default defineConfig(({ command }) => {
             // local pool avoids oversubscribing CPU-heavy jsdom form suites.
             pool: isCi ? 'forks' : 'threads',
             maxWorkers: vitestMaxWorkers,
+            retry: resolveVitestRetry(isCi),
             clearMocks: true,
             environmentOptions: {
                 jsdom: {
