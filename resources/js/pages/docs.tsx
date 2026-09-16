@@ -2170,6 +2170,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Resource Types. In the IGSN Portal, colors represent the top-level Material category instead, and each cluster segment
                             shows that material&apos;s share of the locations in the cluster.
                         </p>
+                        <p>
+                            The background map is provided by MapTiler and prefers English labels for countries, regions, cities, roads, water
+                            features, terrain, and points of interest. Where no English label is available, the local OpenStreetMap name is shown. If
+                            the background is temporarily unavailable, the portal displays a separate notice; reload the page later or contact support
+                            if the problem continues. Search results, filters, and ERNIE&apos;s record markers and shapes remain separate from the
+                            background service.
+                        </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Click a cluster, or zoom in, to separate it into smaller clusters and individual records</li>
                             <li>

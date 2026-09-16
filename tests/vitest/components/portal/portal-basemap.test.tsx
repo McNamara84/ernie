@@ -5,10 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PortalMapTilerBasemapConfig } from '@/types/portal';
 
-const maplibreEvents = vi.hoisted(() => new Map<string, () => void>());
+const maplibreEvents = vi.hoisted(() => new Map<string, (...args: unknown[]) => void>());
 const maplibreMapMock = vi.hoisted(() => ({
-    once: vi.fn((event: string, callback: () => void) => maplibreEvents.set(event, callback)),
-    on: vi.fn((event: string, callback: () => void) => maplibreEvents.set(event, callback)),
+    on: vi.fn((event: string, callback: (...args: unknown[]) => void) => maplibreEvents.set(event, callback)),
 }));
 const layerMock = vi.hoisted(() => ({
     addTo: vi.fn(),
@@ -69,18 +68,49 @@ describe('PortalBasemap', () => {
         act(() => maplibreEvents.get('styledata')?.());
 
         expect(localizeStyleMock).toHaveBeenCalledWith(maplibreMapMock, ['en'], { glossLocalNames: false });
+        expect(onStatusChange).toHaveBeenLastCalledWith('loading');
+
+        act(() => maplibreEvents.get('idle')?.());
         expect(onStatusChange).toHaveBeenLastCalledWith('ready');
 
-        act(() => {
-            maplibreEvents.get('styledata')?.();
-            maplibreEvents.get('error')?.();
-        });
+        act(() => maplibreEvents.get('styledata')?.());
         expect(localizeStyleMock).toHaveBeenCalledOnce();
         expect(onStatusChange).toHaveBeenLastCalledWith('ready');
 
         unmount();
         expect(layerMock.remove).toHaveBeenCalledOnce();
         expect(attributionControlMock.removeAttribution).toHaveBeenCalledWith(MAPTILER_ATTRIBUTION);
+    });
+
+    it('keeps observing resource errors and becomes ready only after a successful recovery cycle', async () => {
+        const onStatusChange = vi.fn();
+        render(<PortalBasemap config={config} maxZoom={18} onStatusChange={onStatusChange} />);
+        await waitFor(() => expect(maplibreEvents.has('idle')).toBe(true));
+
+        act(() => {
+            maplibreEvents.get('styledata')?.();
+            maplibreEvents.get('idle')?.();
+        });
+        expect(onStatusChange).toHaveBeenLastCalledWith('ready');
+
+        act(() => maplibreEvents.get('error')?.({ error: new Error('Tile request failed') }));
+        expect(onStatusChange).toHaveBeenLastCalledWith('error');
+
+        act(() => maplibreEvents.get('idle')?.());
+        expect(onStatusChange).toHaveBeenLastCalledWith('error');
+
+        act(() => {
+            maplibreEvents.get('dataloading')?.();
+            maplibreEvents.get('error')?.({ error: new Error('Tile retry failed') });
+            maplibreEvents.get('idle')?.();
+        });
+        expect(onStatusChange).toHaveBeenLastCalledWith('error');
+
+        act(() => {
+            maplibreEvents.get('dataloading')?.();
+            maplibreEvents.get('idle')?.();
+        });
+        expect(onStatusChange).toHaveBeenLastCalledWith('ready');
     });
 
     it.each([
@@ -115,7 +145,7 @@ describe('PortalBasemap', () => {
         render(<PortalBasemap config={config} maxZoom={18} onStatusChange={styleStatus} />);
         await waitFor(() => expect(maplibreEvents.has('error')).toBe(true));
 
-        act(() => maplibreEvents.get('error')?.());
+        act(() => maplibreEvents.get('error')?.({ error: new Error('Style request failed') }));
         expect(styleStatus).toHaveBeenLastCalledWith('error');
     });
 

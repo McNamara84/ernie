@@ -35,6 +35,9 @@ export function PortalBasemap({ config, maxZoom, onStatusChange }: PortalBasemap
         let disposed = false;
         let layer: L.MaplibreGL | null = null;
         let localized = false;
+        let localizationAttempted = false;
+        let loadFailed = false;
+        let recoveryStarted = false;
 
         onStatusChange('loading');
         map.attributionControl?.addAttribution(MAPTILER_ATTRIBUTION);
@@ -62,22 +65,50 @@ export function PortalBasemap({ config, maxZoom, onStatusChange }: PortalBasemap
                 layer.addTo(map);
                 const maplibreMap = layer.getMaplibreMap();
 
-                maplibreMap.once('styledata', () => {
-                    if (disposed || localized) return;
+                const reportLoadError = (error: unknown) => {
+                    if (disposed) return;
+
+                    loadFailed = true;
+                    recoveryStarted = false;
+                    console.error('Portal basemap loading failed.', error);
+                    onStatusChange('error');
+                };
+
+                const handleStyleData = () => {
+                    if (disposed || localizationAttempted) return;
+
+                    localizationAttempted = true;
 
                     try {
-                        localized = true;
                         localizeStyle(maplibreMap, [language], { glossLocalNames: false });
-                        onStatusChange('ready');
-                    } catch {
-                        onStatusChange('error');
+                        localized = true;
+                    } catch (error) {
+                        reportLoadError(error);
                     }
-                });
-                maplibreMap.on('error', () => {
-                    if (!disposed && !localized) onStatusChange('error');
-                });
-            } catch {
-                if (!disposed) onStatusChange('error');
+                };
+                const handleDataLoading = () => {
+                    if (!disposed && loadFailed) recoveryStarted = true;
+                };
+                const handleIdle = () => {
+                    // MapLibre also becomes idle when requests finish in an errored state.
+                    // Require a new loading cycle before treating a post-load error as recovered.
+                    if (disposed || !localized || (loadFailed && !recoveryStarted)) return;
+
+                    loadFailed = false;
+                    recoveryStarted = false;
+                    onStatusChange('ready');
+                };
+                const handleError = (event: { error: unknown }) => reportLoadError(event.error);
+
+                maplibreMap.on('styledata', handleStyleData);
+                maplibreMap.on('dataloading', handleDataLoading);
+                maplibreMap.on('idle', handleIdle);
+                maplibreMap.on('error', handleError);
+            } catch (error) {
+                if (!disposed) {
+                    console.error('Portal basemap initialization failed.', error);
+                    onStatusChange('error');
+                }
             }
         };
 

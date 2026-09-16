@@ -258,7 +258,10 @@ describe('PortalMap', () => {
 
         fireEvent.click(screen.getByTestId('fail-basemap'));
 
-        expect(screen.getByRole('alert')).toHaveTextContent('Map background could not be loaded');
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            'The map background is temporarily unavailable. Reload the page later or contact support if the problem continues.',
+        );
+        expect(screen.getByRole('alert')).not.toHaveTextContent('MapTiler configuration');
         expect(screen.getByRole('link', { name: 'MapTiler' })).toHaveAttribute('href', 'https://www.maptiler.com');
     });
 

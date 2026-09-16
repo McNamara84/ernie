@@ -432,7 +432,7 @@ export function PortalMap({
                     className="pointer-events-none absolute inset-x-4 bottom-10 z-1000 rounded-md border border-destructive/30 bg-background/95 p-3 text-sm shadow"
                     role="alert"
                 >
-                    Map background could not be loaded. Check the MapTiler configuration and try again.
+                    The map background is temporarily unavailable. Reload the page later or contact support if the problem continues.
                 </div>
             )}
 
