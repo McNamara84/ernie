@@ -50,6 +50,7 @@ interface DefaultGfzTemplatePageProps {
     documentTitle: string;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
+    supportsIso19115?: boolean;
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
@@ -101,6 +102,7 @@ export default function DefaultGfzTemplate() {
         documentTitle,
         landingPage,
         isPreview,
+        supportsIso19115 = false,
         metadataLinks,
         sectionOrder,
         customLogoUrl,
@@ -146,6 +148,8 @@ export default function DefaultGfzTemplate() {
                     fundingReferences={resource.funding_references || []}
                     subjects={resource.subjects || []}
                     resourceId={resource.id}
+                    isPreview={isPreview}
+                    supportsIso19115={supportsIso19115}
                     jsonLdExportUrl={jsonLdExportUrl}
                     metadataLinks={metadataLinks}
                     sectionOrder={metadataOrder}
@@ -157,7 +161,7 @@ export default function DefaultGfzTemplate() {
             left: renderMetadataSection('left-metadata', leftMetadataOrder),
             right: renderMetadataSection('right-metadata', rightMetadataOrder),
         };
-    }, [resource, landingPage, leftMetadataOrder, rightMetadataOrder, peopleDisplayLimits, metadataLinks]);
+    }, [resource, landingPage, isPreview, supportsIso19115, leftMetadataOrder, rightMetadataOrder, peopleDisplayLimits, metadataLinks]);
 
     const standaloneSectionRegistry = useMemo((): Partial<Record<ResourceSection, ReactNode>> => {
         return {

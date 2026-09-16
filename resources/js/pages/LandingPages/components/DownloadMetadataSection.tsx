@@ -1,22 +1,78 @@
-import { BadgeCheck, Braces, FileCode, FileJson } from 'lucide-react';
+import { BadgeCheck, Braces, FileCode, FileJson, type LucideIcon } from 'lucide-react';
+import { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { LandingPageMetadataLink } from '@/types/landing-page';
 
 import { DarkModeImage } from './DarkModeImage';
 
 interface DownloadMetadataSectionProps {
     resourceId: number;
+    isPreview?: boolean;
+    supportsIso19115?: boolean;
     jsonLdExportUrl?: string;
     metadataLinks?: LandingPageMetadataLink[];
+}
+
+interface MetadataDownloadActionProps {
+    href?: string;
+    icon: LucideIcon;
+    label: string;
+    title: string;
+    ariaLabel?: string;
+    isPreview: boolean;
+    onPreviewClick: () => void;
+}
+
+const DOWNLOAD_ACTION_CLASSES =
+    'h-auto rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-700 shadow-none hover:bg-gray-50 hover:text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:hover:text-gray-200';
+
+function MetadataDownloadAction({ href, icon: Icon, label, title, ariaLabel, isPreview, onPreviewClick }: MetadataDownloadActionProps) {
+    const content = (
+        <>
+            <Icon className="h-5 w-5" aria-hidden="true" />
+            {label}
+        </>
+    );
+
+    if (isPreview) {
+        return (
+            <Button type="button" variant="outline" className={DOWNLOAD_ACTION_CLASSES} title={title} aria-label={ariaLabel} onClick={onPreviewClick}>
+                {content}
+            </Button>
+        );
+    }
+
+    if (href === undefined) {
+        return null;
+    }
+
+    return (
+        <Button asChild variant="outline" className={DOWNLOAD_ACTION_CLASSES}>
+            <a href={href} title={title} aria-label={ariaLabel}>
+                {content}
+            </a>
+        </Button>
+    );
 }
 
 /**
  * Renders canonical DataCite downloads and the selective ISO 19115-3 export.
  */
-export function DownloadMetadataSection({ resourceId, jsonLdExportUrl, metadataLinks = [] }: DownloadMetadataSectionProps) {
+export function DownloadMetadataSection({
+    resourceId,
+    isPreview = false,
+    supportsIso19115 = false,
+    jsonLdExportUrl,
+    metadataLinks = [],
+}: DownloadMetadataSectionProps) {
+    const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
     const urlFor = (format: LandingPageMetadataLink['format'], fallback: string): string =>
         metadataLinks.find((link) => link.format === format)?.url ?? fallback;
     const isoMetadataLink = metadataLinks.find((link) => link.format === 'iso19115-3');
+    const showIsoMetadata = isoMetadataLink !== undefined || (isPreview && supportsIso19115);
+    const openPreviewDialog = () => setIsPreviewDialogOpen(true);
 
     return (
         <section className="mt-6" aria-labelledby="heading-download-metadata">
@@ -26,35 +82,35 @@ export function DownloadMetadataSection({ resourceId, jsonLdExportUrl, metadataL
             <div className="flex flex-wrap items-center gap-4">
                 <DarkModeImage lightSrc="/images/datacite-logo.png" darkSrc="/images/datacite-logo-light.svg" alt="DataCite" className="h-8" />
 
-                <a
+                <MetadataDownloadAction
                     href={urlFor('datacite-xml', `/resources/${resourceId}/export-datacite-xml`)}
-                    className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                    icon={FileCode}
+                    label="XML"
                     title="Download as DataCite XML"
-                >
-                    <FileCode className="h-5 w-5" aria-hidden="true" />
-                    XML
-                </a>
+                    isPreview={isPreview}
+                    onPreviewClick={openPreviewDialog}
+                />
 
-                <a
+                <MetadataDownloadAction
                     href={urlFor('datacite-json', `/resources/${resourceId}/export-datacite-json`)}
-                    className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                    icon={FileJson}
+                    label="JSON"
                     title="Download as DataCite JSON"
-                >
-                    <FileJson className="h-5 w-5" aria-hidden="true" />
-                    JSON
-                </a>
+                    isPreview={isPreview}
+                    onPreviewClick={openPreviewDialog}
+                />
 
-                <a
+                <MetadataDownloadAction
                     href={urlFor('datacite-jsonld', jsonLdExportUrl ?? `/resources/${resourceId}/export-jsonld`)}
-                    className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                    icon={Braces}
+                    label="JSON-LD"
                     title="Download as JSON-LD (Linked Data)"
-                >
-                    <Braces className="h-5 w-5" aria-hidden="true" />
-                    JSON-LD
-                </a>
+                    isPreview={isPreview}
+                    onPreviewClick={openPreviewDialog}
+                />
             </div>
 
-            {isoMetadataLink && (
+            {showIsoMetadata && (
                 <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-gray-200 pt-4 dark:border-gray-700">
                     <div
                         aria-label="ISO 19115-3 metadata available"
@@ -67,16 +123,33 @@ export function DownloadMetadataSection({ resourceId, jsonLdExportUrl, metadataL
                         <span className="px-2.5 py-1.5 text-sm font-semibold">19115-3:2023 Metadata</span>
                     </div>
 
-                    <a
-                        href={isoMetadataLink.url}
-                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                    <MetadataDownloadAction
+                        href={isoMetadataLink?.url}
+                        icon={FileCode}
+                        label="XML"
                         title="Download as ISO 19115-3 XML"
-                        aria-label="Download ISO 19115-3:2023 metadata as XML"
-                    >
-                        <FileCode className="h-5 w-5" aria-hidden="true" />
-                        XML
-                    </a>
+                        ariaLabel="Download ISO 19115-3:2023 metadata as XML"
+                        isPreview={isPreview}
+                        onPreviewClick={openPreviewDialog}
+                    />
                 </div>
+            )}
+
+            {isPreview && (
+                <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Metadata download unavailable</DialogTitle>
+                            <DialogDescription className="space-y-3 text-left">
+                                <span className="block">Dear User,</span>
+                                <span className="block">
+                                    The feature you requested is only available after your dataset has been registered with DataCite.
+                                </span>
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter showCloseButton />
+                    </DialogContent>
+                </Dialog>
             )}
         </section>
     );

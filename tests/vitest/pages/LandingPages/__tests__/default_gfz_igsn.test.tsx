@@ -1,4 +1,4 @@
-import { render, screen, within } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen, within } from '@tests/vitest/utils/render';
 import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -307,12 +307,21 @@ describe('DefaultGfzIgsnTemplate', () => {
                     resource: mockResource,
                     landingPage: mockLandingPage,
                     isPreview: true,
+                    supportsIso19115: true,
                 },
             } as unknown as ReturnType<typeof usePage>);
 
             render(<DefaultGfzIgsnTemplate />);
 
             expect(screen.getByText('Preview Mode')).toBeInTheDocument();
+
+            const metadataAction = screen.getByTitle('Download as DataCite XML');
+            expect(metadataAction).toHaveRole('button');
+            expect(screen.getByRole('button', { name: 'Download ISO 19115-3:2023 metadata as XML' })).toBeInTheDocument();
+            fireEvent.click(metadataAction);
+            expect(screen.getByRole('dialog', { name: 'Metadata download unavailable' })).toHaveTextContent(
+                'The feature you requested is only available after your dataset has been registered with DataCite.',
+            );
         });
 
         it('does not show preview banner when isPreview is false', () => {

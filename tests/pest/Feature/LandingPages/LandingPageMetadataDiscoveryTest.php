@@ -54,6 +54,7 @@ test('eligible landing pages expose canonical metadata links and ISO describedby
         ->assertOk()
         ->assertHeader('Link', $linkHeader)
         ->assertInertia(fn ($page) => $page
+            ->where('supportsIso19115', true)
             ->has('metadataLinks', 4)
             ->where('metadataLinks.0.format', 'datacite-xml')
             ->where('metadataLinks.0.url', "{$metadataBaseUrl}/datacite.xml")
@@ -78,6 +79,7 @@ test('excluded resource types retain DataCite links without advertising ISO meta
         ->assertOk()
         ->assertHeader('Link', $linkHeader)
         ->assertInertia(fn ($page) => $page
+            ->where('supportsIso19115', false)
             ->has('metadataLinks', 3)
             ->where('metadataLinks.0.format', 'datacite-xml')
             ->where('metadataLinks.1.format', 'datacite-json')
@@ -95,7 +97,10 @@ test('ISO feature flag removes discovery without affecting DataCite representati
     $this->get($landingPage->getPublicPath())
         ->assertOk()
         ->assertHeader('Link', $linkHeader)
-        ->assertInertia(fn ($page) => $page->has('metadataLinks', 3));
+        ->assertInertia(fn ($page) => $page
+            ->where('supportsIso19115', false)
+            ->has('metadataLinks', 3)
+        );
 });
 
 test('draft previews never advertise public metadata endpoints', function () {
@@ -106,6 +111,7 @@ test('draft previews never advertise public metadata endpoints', function () {
         ->assertHeaderMissing('Link')
         ->assertInertia(fn ($page) => $page
             ->where('isPreview', true)
+            ->where('supportsIso19115', true)
             ->where('metadataLinks', [])
         );
 });

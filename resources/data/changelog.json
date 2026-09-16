@@ -5,6 +5,17 @@
         "features": [],
         "improvements": [
             {
+                "title": "Clear Metadata Guidance in Landing Page Previews",
+                "description": "Metadata download actions on Resource and IGSN landing page previews now explain that DataCite XML, JSON, JSON-LD, and eligible ISO 19115-3 metadata become available after registration instead of opening an unavailable export or login page. The same accessible notice is used in session-based and shared review previews, while published metadata downloads continue to work unchanged.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1302,
+                        "url": "https://github.com/McNamara84/ernie/issues/1302"
+                    }
+                ]
+            },
+            {
                 "title": "Consistent Landing Page Collapse Controls",
                 "description": "Expandable keyword, creator, contributor, funder, and Related Work sections on Resource and IGSN landing pages now consistently use Show less when their complete contents are visible, while their contextual Show all labels continue to identify the hidden content and item count.",
                 "references": [

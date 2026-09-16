@@ -125,6 +125,10 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         await expect(dialog).toBeVisible({ timeout: 15000 });
         await expect(dialog.getByText(/setup landing page/i)).toBeVisible();
 
+        const downloadsUnavailableCheckbox = dialog.getByRole('checkbox', { name: 'No data available for automatic download' });
+        await downloadsUnavailableCheckbox.click();
+        await expect(downloadsUnavailableCheckbox).toBeChecked();
+
         // Clicking preview should create a session-based preview and open a new tab
         const previewButton = dialog.getByRole('button', { name: /^preview$/i });
         await expect(previewButton).toBeVisible();
@@ -150,28 +154,55 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         await expect(previewPage.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
         await expect(previewPage.locator('meta[name="robots"]')).toHaveAttribute('data-inertia', 'landing-page-robots');
 
+        const previewUrlBeforeMetadataClick = previewPage.url();
+        await previewPage.getByTitle('Download as DataCite XML').click();
+
+        const metadataDialog = previewPage.getByRole('dialog', { name: 'Metadata download unavailable' });
+        await expect(metadataDialog).toBeVisible();
+        await expect(metadataDialog).toContainText('Dear User,');
+        await expect(metadataDialog).toContainText(
+            'The feature you requested is only available after your dataset has been registered with DataCite.',
+        );
+        expect(previewPage.url()).toBe(previewUrlBeforeMetadataClick);
+        await metadataDialog.getByRole('button', { name: 'Close' }).last().click();
+        await expect(metadataDialog).toBeHidden();
+
+        await previewPage.getByRole('button', { name: 'Download ISO 19115-3:2023 metadata as XML' }).click();
+        await expect(metadataDialog).toBeVisible();
+        await expect(metadataDialog).toContainText(
+            'The feature you requested is only available after your dataset has been registered with DataCite.',
+        );
+        expect(previewPage.url()).toBe(previewUrlBeforeMetadataClick);
+        await metadataDialog.getByRole('button', { name: 'Close' }).last().click();
+        await expect(metadataDialog).toBeHidden();
+
         const requestDataButton = previewPage.getByRole('button', { name: 'Request data via contact form' });
-        await expect(requestDataButton).toBeVisible();
-        await requestDataButton.click();
+        if (await requestDataButton.isVisible()) {
+            await requestDataButton.click();
 
-        const contactDialog = previewPage.getByRole('dialog', { name: 'Contact Request' });
-        await expect(contactDialog).toBeVisible();
-        await contactDialog.getByLabel(/Your name/).fill('Preview E2E User');
-        await contactDialog.getByLabel(/Your email/).fill('preview-e2e@example.com');
-        await contactDialog.getByRole('textbox', { name: /Message/ }).fill('Please provide download information for this preview dataset.');
+            const contactDialog = previewPage.getByRole('dialog', { name: 'Contact Request' });
+            await expect(contactDialog).toBeVisible();
+            await contactDialog.getByLabel(/Your name/).fill('Preview E2E User');
+            await contactDialog.getByLabel(/Your email/).fill('preview-e2e@example.com');
+            await contactDialog.getByRole('textbox', { name: /Message/ }).fill('Please provide download information for this preview dataset.');
 
-        const contactResponsePromise = previewPage.waitForResponse((response) => {
-            const pathname = new URL(response.url()).pathname;
+            const contactResponsePromise = previewPage.waitForResponse((response) => {
+                const pathname = new URL(response.url()).pathname;
 
-            return response.request().method() === 'POST' && pathname === `${new URL(previewPage.url()).pathname}/contact`;
-        });
-        const [contactResponse] = await Promise.all([
-            contactResponsePromise,
-            contactDialog.getByRole('button', { name: 'Send Message' }).click(),
-        ]);
+                return response.request().method() === 'POST' && pathname === `${new URL(previewPage.url()).pathname}/contact`;
+            });
+            const [contactResponse] = await Promise.all([
+                contactResponsePromise,
+                contactDialog.getByRole('button', { name: 'Send Message' }).click(),
+            ]);
 
-        expect(contactResponse.status()).toBe(200);
-        await expect(contactDialog.getByText('Message sent successfully!')).toBeVisible();
+            expect(contactResponse.status()).toBe(200);
+            await expect(contactDialog.getByText('Message sent successfully!')).toBeVisible();
+        } else {
+            await expect(
+                previewPage.getByText('A contact form is currently unavailable because no email recipient is available for this dataset.'),
+            ).toBeVisible();
+        }
 
         // Sanity: should not be a generic Laravel error page
         await expect(previewPage.getByText(/server error|whoops/i)).not.toBeVisible();

@@ -28,6 +28,8 @@ interface AbstractSectionProps {
     fundingReferences: LandingPageFundingReference[];
     subjects: LandingPageSubject[];
     resourceId: number;
+    isPreview?: boolean;
+    supportsIso19115?: boolean;
     /** Public JSON-LD export URL for landing pages (avoids auth-protected routes) */
     jsonLdExportUrl?: string;
     metadataLinks?: LandingPageMetadataLink[];
@@ -51,6 +53,8 @@ export function AbstractSection({
     fundingReferences,
     subjects,
     resourceId,
+    isPreview = false,
+    supportsIso19115 = false,
     jsonLdExportUrl,
     metadataLinks,
     sectionOrder = ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
@@ -103,6 +107,8 @@ export function AbstractSection({
                         <DownloadMetadataSection
                             key="metadata_download"
                             resourceId={resourceId}
+                            isPreview={isPreview}
+                            supportsIso19115={supportsIso19115}
                             jsonLdExportUrl={jsonLdExportUrl}
                             metadataLinks={metadataLinks}
                         />
