@@ -605,16 +605,32 @@ jobs:
 
           STABLE_TAG_PATTERN='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
           HIGHEST_STABLE_TAG="$RELEASE_TAG"
+          CANDIDATE_RELEASE_LISTED=false
+          PUBLISHED_STABLE_TAGS="$(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq '.[] | select((.draft | not) and (.prerelease | not)) | .tag_name'
+          )"
+
+          if [[ -z "$PUBLISHED_STABLE_TAGS" ]]; then
+            echo "GitHub returned no published stable releases; refusing to update deploy/prod." >&2
+            exit 1
+          fi
 
           while IFS= read -r published_tag; do
+            if [[ "$published_tag" == "$RELEASE_TAG" ]]; then
+              CANDIDATE_RELEASE_LISTED=true
+            fi
+
             if [[ "$published_tag" =~ $STABLE_TAG_PATTERN ]] &&
                 semver_is_at_least "$published_tag" "$HIGHEST_STABLE_TAG"; then
               HIGHEST_STABLE_TAG="$published_tag"
             fi
-          done < <(
-            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-              --jq '.[] | select((.draft | not) and (.prerelease | not)) | .tag_name'
-          )
+          done <<< "$PUBLISHED_STABLE_TAGS"
+
+          if [[ "$CANDIDATE_RELEASE_LISTED" != true ]]; then
+            echo "Release candidate $RELEASE_TAG is missing from GitHub's published stable release list; refusing to update deploy/prod." >&2
+            exit 1
+          fi
 
           if [[ "$HIGHEST_STABLE_TAG" != "$RELEASE_TAG" ]]; then
             echo "A higher stable release $HIGHEST_STABLE_TAG appeared while preparing $RELEASE_TAG; leaving deploy/prod unchanged."
