@@ -161,7 +161,7 @@ vi.mock('react-leaflet', () => ({
     }) => (
         <div
             data-testid="leaflet-map"
-            data-max-bounds={String(maxBounds)}
+            data-max-bounds={JSON.stringify(maxBounds)}
             data-max-bounds-viscosity={maxBoundsViscosity}
             data-max-zoom={maxZoom}
             data-min-zoom={minZoom}
@@ -278,7 +278,7 @@ describe('PortalMap', () => {
     it('uses the adapter constraints to prevent polar panning from desynchronizing the layers', () => {
         render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
 
-        expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-max-bounds', '180,-Infinity,-180,Infinity');
+        expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-max-bounds', '[[-90,-180],[90,180]]');
         expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-max-bounds-viscosity', '1');
     });
 
