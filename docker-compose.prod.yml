@@ -208,7 +208,7 @@ services:
       - "traefik.docker.network=traefik"
 
   db:
-    image: mysql:9.7.2@sha256:257388edf9c84dbc04c763625446d5f3fa6ed60d1b0873bc552c614ba0a7ab4e
+    image: mysql:9.7.2@sha256:29abb0a179982e4a8928138bfc7f918af9eda64e7eeb1b1d084c1720a20159e6
     container_name: dockerized-laravel-db
     restart: unless-stopped
     environment:
@@ -244,7 +244,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: ghcr.io/pangaea-data-publisher/fuji@sha256:a75a9c88fb46918afafb09593aa52aecc1adb12eb9f19a2fc2ebb8740be03d97
+    image: ghcr.io/pangaea-data-publisher/fuji@sha256:3eca94076b2272a18dcd8cddd1adad7675c2ac98a390799dd60f62369688a6fa
     container_name: ernie-fuji-prod
     restart: unless-stopped
     entrypoint:

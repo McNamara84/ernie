@@ -335,7 +335,7 @@ class IgsnImportService
             }
 
             $cursor = null;
-            if (is_array($json) && isset($json['links']['next'])) {
+            if (isset($json['links']['next'])) {
                 $queryParams = UriHelper::getQueryParams($json['links']['next']);
                 $cursor = $queryParams['page']['cursor'] ?? $queryParams['page[cursor]'] ?? null;
             }
