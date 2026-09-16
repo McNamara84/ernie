@@ -745,7 +745,7 @@ class DataCiteToResourceTransformer
                 Log::warning('Skipping affiliation with missing name', [
                     'parent_type' => $parent::class,
                     'parent_id' => $parent->id,
-                    'affiliation_data' => is_array($affiliationData) ? $affiliationData : 'string without name',
+                    'affiliation_data' => $affiliationData,
                 ]);
 
                 continue;
