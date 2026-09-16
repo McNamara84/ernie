@@ -50,6 +50,7 @@ describe('DownloadMetadataSection', () => {
         render(<DownloadMetadataSection resourceId={42} />);
         const xmlLink = screen.getByTitle('Download as DataCite XML');
         expect(xmlLink).toHaveAttribute('href', '/resources/42/export-datacite-xml');
+        expect(xmlLink).toHaveAttribute('data-slot', 'button');
     });
 
     it('renders JSON download link', () => {
@@ -117,6 +118,7 @@ describe('DownloadMetadataSection', () => {
             expect(action).toHaveRole('button');
             expect(action).not.toHaveAttribute('href');
             expect(action).toHaveAttribute('type', 'button');
+            expect(action).toHaveAttribute('data-slot', 'button');
         }
     });
 
@@ -136,9 +138,9 @@ describe('DownloadMetadataSection', () => {
         }
     });
 
-    it('uses the preview dialog for an ISO representation if one is provided', async () => {
+    it('uses the preview dialog for an ISO-eligible resource without exposing a download URL', async () => {
         const user = userEvent.setup();
-        render(<DownloadMetadataSection resourceId={42} isPreview metadataLinks={canonicalMetadataLinks} />);
+        render(<DownloadMetadataSection resourceId={42} isPreview supportsIso19115 />);
 
         const isoAction = screen.getByRole('button', { name: 'Download ISO 19115-3:2023 metadata as XML' });
         expect(isoAction).not.toHaveAttribute('href');
@@ -146,5 +148,12 @@ describe('DownloadMetadataSection', () => {
         await user.click(isoAction);
 
         expect(screen.getByRole('dialog', { name: 'Metadata download unavailable' })).toHaveTextContent(previewMessage);
+    });
+
+    it('does not show an ISO preview action for an ineligible resource', () => {
+        render(<DownloadMetadataSection resourceId={42} isPreview supportsIso19115={false} />);
+
+        expect(screen.queryByLabelText('ISO 19115-3 metadata available')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Download ISO 19115-3:2023 metadata as XML' })).not.toBeInTheDocument();
     });
 });

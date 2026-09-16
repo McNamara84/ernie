@@ -166,6 +166,15 @@ test.describe('DOI Registration Workflow', () => {
             'The feature you requested is only available after your dataset has been registered with DataCite.',
         );
         expect(previewPage.url()).toBe(previewUrlBeforeMetadataClick);
+        await metadataDialog.getByRole('button', { name: 'Close' }).last().click();
+        await expect(metadataDialog).toBeHidden();
+
+        await previewPage.getByRole('button', { name: 'Download ISO 19115-3:2023 metadata as XML' }).click();
+        await expect(metadataDialog).toBeVisible();
+        await expect(metadataDialog).toContainText(
+            'The feature you requested is only available after your dataset has been registered with DataCite.',
+        );
+        expect(previewPage.url()).toBe(previewUrlBeforeMetadataClick);
 
         await previewPage.close();
     });

@@ -6,7 +6,7 @@
         "improvements": [
             {
                 "title": "Clear Metadata Guidance in Landing Page Previews",
-                "description": "Metadata download actions on Resource and IGSN landing page previews now explain that DataCite XML, JSON, and JSON-LD become available after registration instead of opening an unavailable export or login page. The same accessible notice is used in session-based and shared review previews, while published metadata downloads continue to work unchanged.",
+                "description": "Metadata download actions on Resource and IGSN landing page previews now explain that DataCite XML, JSON, JSON-LD, and eligible ISO 19115-3 metadata become available after registration instead of opening an unavailable export or login page. The same accessible notice is used in session-based and shared review previews, while published metadata downloads continue to work unchanged.",
                 "references": [
                     {
                         "type": "issue",

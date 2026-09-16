@@ -45,6 +45,7 @@ interface DefaultGfzIgsnTemplatePageProps {
     documentTitle: string;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
+    supportsIso19115?: boolean;
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
@@ -73,6 +74,7 @@ export default function DefaultGfzIgsnTemplate() {
         documentTitle,
         landingPage,
         isPreview,
+        supportsIso19115 = false,
         metadataLinks,
         sectionOrder,
         customLogoUrl,
@@ -107,6 +109,7 @@ export default function DefaultGfzIgsnTemplate() {
                 portalBasePath="/igsn-search"
                 resourceId={resource.id}
                 isPreview={isPreview}
+                supportsIso19115={supportsIso19115}
                 jsonLdExportUrl={jsonLdExportUrl}
                 metadataLinks={metadataLinks}
                 sectionOrder={[key]}
@@ -203,7 +206,19 @@ export default function DefaultGfzIgsnTemplate() {
                 />
             ),
         };
-    }, [resource, landingPage, isPreview, isDark, peopleDisplayLimits, metadataLinks, mainTitle, citationStyles, typeVisibility, isIcdp]);
+    }, [
+        resource,
+        landingPage,
+        isPreview,
+        supportsIso19115,
+        isDark,
+        peopleDisplayLimits,
+        metadataLinks,
+        mainTitle,
+        citationStyles,
+        typeVisibility,
+        isIcdp,
+    ]);
 
     return (
         <>

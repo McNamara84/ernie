@@ -10,6 +10,7 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataPublicationTeamRecipientService;
+use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\LandingPageDocumentMetadataService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
@@ -144,6 +145,7 @@ class LandingPagePreviewController extends Controller
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
         LandingPageDocumentMetadataService $documentMetadataService,
+        Iso19115ResourceProfileService $isoProfile,
         DataPublicationTeamRecipientService $dataPublicationTeamRecipientService,
     ): Response {
         $sessionKey = "landing_page_preview.{$resource->id}";
@@ -249,6 +251,7 @@ class LandingPagePreviewController extends Controller
             'citationStyles' => $citationService->format($resource),
             'landingPage' => $tempLandingPage,
             'hasDataPublicationTeamRecipient' => $dataPublicationTeamRecipientService->isAvailable(),
+            'supportsIso19115' => $isoProfile->supports($resource),
             'isPreview' => true,
             'sectionOrder' => $sectionOrder,
             'customLogoUrl' => $customLogoUrl,

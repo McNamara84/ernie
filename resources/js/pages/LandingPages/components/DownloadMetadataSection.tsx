@@ -1,6 +1,7 @@
 import { BadgeCheck, Braces, FileCode, FileJson, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { LandingPageMetadataLink } from '@/types/landing-page';
 
@@ -9,12 +10,13 @@ import { DarkModeImage } from './DarkModeImage';
 interface DownloadMetadataSectionProps {
     resourceId: number;
     isPreview?: boolean;
+    supportsIso19115?: boolean;
     jsonLdExportUrl?: string;
     metadataLinks?: LandingPageMetadataLink[];
 }
 
 interface MetadataDownloadActionProps {
-    href: string;
+    href?: string;
     icon: LucideIcon;
     label: string;
     title: string;
@@ -24,7 +26,7 @@ interface MetadataDownloadActionProps {
 }
 
 const DOWNLOAD_ACTION_CLASSES =
-    'flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600';
+    'h-auto rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-700 shadow-none hover:bg-gray-50 hover:text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:hover:text-gray-200';
 
 function MetadataDownloadAction({ href, icon: Icon, label, title, ariaLabel, isPreview, onPreviewClick }: MetadataDownloadActionProps) {
     const content = (
@@ -36,27 +38,40 @@ function MetadataDownloadAction({ href, icon: Icon, label, title, ariaLabel, isP
 
     if (isPreview) {
         return (
-            <button type="button" className={DOWNLOAD_ACTION_CLASSES} title={title} aria-label={ariaLabel} onClick={onPreviewClick}>
+            <Button type="button" variant="outline" className={DOWNLOAD_ACTION_CLASSES} title={title} aria-label={ariaLabel} onClick={onPreviewClick}>
                 {content}
-            </button>
+            </Button>
         );
     }
 
+    if (href === undefined) {
+        return null;
+    }
+
     return (
-        <a href={href} className={DOWNLOAD_ACTION_CLASSES} title={title} aria-label={ariaLabel}>
-            {content}
-        </a>
+        <Button asChild variant="outline" className={DOWNLOAD_ACTION_CLASSES}>
+            <a href={href} title={title} aria-label={ariaLabel}>
+                {content}
+            </a>
+        </Button>
     );
 }
 
 /**
  * Renders canonical DataCite downloads and the selective ISO 19115-3 export.
  */
-export function DownloadMetadataSection({ resourceId, isPreview = false, jsonLdExportUrl, metadataLinks = [] }: DownloadMetadataSectionProps) {
+export function DownloadMetadataSection({
+    resourceId,
+    isPreview = false,
+    supportsIso19115 = false,
+    jsonLdExportUrl,
+    metadataLinks = [],
+}: DownloadMetadataSectionProps) {
     const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
     const urlFor = (format: LandingPageMetadataLink['format'], fallback: string): string =>
         metadataLinks.find((link) => link.format === format)?.url ?? fallback;
     const isoMetadataLink = metadataLinks.find((link) => link.format === 'iso19115-3');
+    const showIsoMetadata = isoMetadataLink !== undefined || (isPreview && supportsIso19115);
     const openPreviewDialog = () => setIsPreviewDialogOpen(true);
 
     return (
@@ -95,7 +110,7 @@ export function DownloadMetadataSection({ resourceId, isPreview = false, jsonLdE
                 />
             </div>
 
-            {isoMetadataLink && (
+            {showIsoMetadata && (
                 <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-gray-200 pt-4 dark:border-gray-700">
                     <div
                         aria-label="ISO 19115-3 metadata available"
@@ -109,7 +124,7 @@ export function DownloadMetadataSection({ resourceId, isPreview = false, jsonLdE
                     </div>
 
                     <MetadataDownloadAction
-                        href={isoMetadataLink.url}
+                        href={isoMetadataLink?.url}
                         icon={FileCode}
                         label="XML"
                         title="Download as ISO 19115-3 XML"
