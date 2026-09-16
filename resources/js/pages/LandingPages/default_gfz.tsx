@@ -146,6 +146,7 @@ export default function DefaultGfzTemplate() {
                     fundingReferences={resource.funding_references || []}
                     subjects={resource.subjects || []}
                     resourceId={resource.id}
+                    isPreview={isPreview}
                     jsonLdExportUrl={jsonLdExportUrl}
                     metadataLinks={metadataLinks}
                     sectionOrder={metadataOrder}
@@ -157,7 +158,7 @@ export default function DefaultGfzTemplate() {
             left: renderMetadataSection('left-metadata', leftMetadataOrder),
             right: renderMetadataSection('right-metadata', rightMetadataOrder),
         };
-    }, [resource, landingPage, leftMetadataOrder, rightMetadataOrder, peopleDisplayLimits, metadataLinks]);
+    }, [resource, landingPage, isPreview, leftMetadataOrder, rightMetadataOrder, peopleDisplayLimits, metadataLinks]);
 
     const standaloneSectionRegistry = useMemo((): Partial<Record<ResourceSection, ReactNode>> => {
         return {

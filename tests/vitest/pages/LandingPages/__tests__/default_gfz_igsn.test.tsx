@@ -1,4 +1,4 @@
-import { render, screen, within } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen, within } from '@tests/vitest/utils/render';
 import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -313,6 +313,13 @@ describe('DefaultGfzIgsnTemplate', () => {
             render(<DefaultGfzIgsnTemplate />);
 
             expect(screen.getByText('Preview Mode')).toBeInTheDocument();
+
+            const metadataAction = screen.getByTitle('Download as DataCite XML');
+            expect(metadataAction).toHaveRole('button');
+            fireEvent.click(metadataAction);
+            expect(screen.getByRole('dialog', { name: 'Metadata download unavailable' })).toHaveTextContent(
+                'The feature you requested is only available after your dataset has been registered with DataCite.',
+            );
         });
 
         it('does not show preview banner when isPreview is false', () => {

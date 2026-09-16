@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, screen } from '@tests/vitest/utils/render';
+import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { DownloadMetadataSection } from '@/pages/LandingPages/components/DownloadMetadataSection';
@@ -41,6 +42,8 @@ const canonicalMetadataLinks = [
         profile: 'https://schemas.isotc211.org/19115/-1/mdb/1.3',
     },
 ] satisfies LandingPageMetadataLink[];
+
+const previewMessage = 'The feature you requested is only available after your dataset has been registered with DataCite.';
 
 describe('DownloadMetadataSection', () => {
     it('renders XML download link', () => {
@@ -103,5 +106,45 @@ describe('DownloadMetadataSection', () => {
         expect(logo).toHaveAttribute('src', '/images/datacite-logo.png');
         expect(logo).toHaveClass('h-8');
         expect(logo.closest('picture')?.querySelector('source')).toHaveAttribute('srcset', '/images/datacite-logo-light.svg');
+    });
+
+    it('renders preview actions as buttons without navigable export URLs', () => {
+        render(<DownloadMetadataSection resourceId={42} isPreview />);
+
+        for (const title of ['Download as DataCite XML', 'Download as DataCite JSON', 'Download as JSON-LD (Linked Data)']) {
+            const action = screen.getByTitle(title);
+
+            expect(action).toHaveRole('button');
+            expect(action).not.toHaveAttribute('href');
+            expect(action).toHaveAttribute('type', 'button');
+        }
+    });
+
+    it('shows the same registration message for every DataCite format in preview mode', async () => {
+        const user = userEvent.setup();
+        render(<DownloadMetadataSection resourceId={42} isPreview />);
+
+        for (const title of ['Download as DataCite XML', 'Download as DataCite JSON', 'Download as JSON-LD (Linked Data)']) {
+            await user.click(screen.getByTitle(title));
+
+            const dialog = screen.getByRole('dialog', { name: 'Metadata download unavailable' });
+            expect(dialog).toHaveTextContent('Dear User,');
+            expect(dialog).toHaveTextContent(previewMessage);
+
+            await user.keyboard('{Escape}');
+            await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Metadata download unavailable' })).not.toBeInTheDocument());
+        }
+    });
+
+    it('uses the preview dialog for an ISO representation if one is provided', async () => {
+        const user = userEvent.setup();
+        render(<DownloadMetadataSection resourceId={42} isPreview metadataLinks={canonicalMetadataLinks} />);
+
+        const isoAction = screen.getByRole('button', { name: 'Download ISO 19115-3:2023 metadata as XML' });
+        expect(isoAction).not.toHaveAttribute('href');
+
+        await user.click(isoAction);
+
+        expect(screen.getByRole('dialog', { name: 'Metadata download unavailable' })).toHaveTextContent(previewMessage);
     });
 });

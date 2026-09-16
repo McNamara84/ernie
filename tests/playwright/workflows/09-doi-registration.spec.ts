@@ -157,6 +157,16 @@ test.describe('DOI Registration Workflow', () => {
         expect(previewUrl.searchParams.get('preview')).toBeTruthy();
         expect(previewUrl.pathname).toContain('/10.1234/playwright-qa/');
 
+        const previewUrlBeforeMetadataClick = previewPage.url();
+        await previewPage.getByTitle('Download as DataCite JSON').click();
+
+        const metadataDialog = previewPage.getByRole('dialog', { name: 'Metadata download unavailable' });
+        await expect(metadataDialog).toBeVisible();
+        await expect(metadataDialog).toContainText(
+            'The feature you requested is only available after your dataset has been registered with DataCite.',
+        );
+        expect(previewPage.url()).toBe(previewUrlBeforeMetadataClick);
+
         await previewPage.close();
     });
 

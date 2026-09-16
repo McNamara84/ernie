@@ -106,6 +106,7 @@ export default function DefaultGfzIgsnTemplate() {
                 subjects={resource.subjects || []}
                 portalBasePath="/igsn-search"
                 resourceId={resource.id}
+                isPreview={isPreview}
                 jsonLdExportUrl={jsonLdExportUrl}
                 metadataLinks={metadataLinks}
                 sectionOrder={[key]}
@@ -202,7 +203,7 @@ export default function DefaultGfzIgsnTemplate() {
                 />
             ),
         };
-    }, [resource, landingPage, isDark, peopleDisplayLimits, metadataLinks, mainTitle, citationStyles, typeVisibility, isIcdp]);
+    }, [resource, landingPage, isPreview, isDark, peopleDisplayLimits, metadataLinks, mainTitle, citationStyles, typeVisibility, isIcdp]);
 
     return (
         <>
