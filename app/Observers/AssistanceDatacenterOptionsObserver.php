@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
-use App\Enums\CacheKey;
 use App\Models\Affiliation;
 use App\Models\Datacenter;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Services\Assistance\AssistanceDatacenterOptionsCacheInvalidationService;
 use Illuminate\Database\Eloquent\Model;
 
 /** Invalidates Assistance Datacenter options when an impact dependency changes. */
 final class AssistanceDatacenterOptionsObserver
 {
+    public function __construct(
+        private readonly AssistanceDatacenterOptionsCacheInvalidationService $cacheInvalidationService,
+    ) {}
+
     public function created(Model $model): void
     {
         $this->forget();
@@ -55,6 +59,6 @@ final class AssistanceDatacenterOptionsObserver
 
     private function forget(): void
     {
-        CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
+        $this->cacheInvalidationService->scheduleAfterCommit();
     }
 }

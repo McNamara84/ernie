@@ -597,6 +597,7 @@ class ResourceStorageService
             ])
             ->all();
         $existingCreators->each(static function (ResourceCreator $creator): void {
+            $creator->affiliations()->delete();
             $creator->delete();
         });
 

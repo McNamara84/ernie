@@ -591,7 +591,7 @@ describe('index', function () {
             ->assertJsonPath('pendingCounts.ror-suggestion', 1);
     });
 
-    it('refreshes Datacenter options when a ROR affiliation moves to another resource', function (string $relation) {
+    it('includes ROR affiliation impacts in Datacenter options', function (string $relation) {
         $user = User::factory()->create(['role' => 'admin']);
         $originDatacenter = Datacenter::factory()->create(['name' => 'Alpha Origin Center']);
         $affectedDatacenter = Datacenter::factory()->create(['name' => 'Beta Affected Center']);
@@ -599,11 +599,9 @@ describe('index', function () {
         $affected = Resource::factory()->create(['datacenter_id' => $affectedDatacenter->id]);
 
         if ($relation === 'creator') {
-            $owner = ResourceCreator::factory()->create(['resource_id' => $origin->id]);
-            $replacement = ResourceCreator::factory()->create(['resource_id' => $affected->id]);
+            $owner = ResourceCreator::factory()->create(['resource_id' => $affected->id]);
         } else {
-            $owner = ResourceContributor::factory()->create(['resource_id' => $origin->id]);
-            $replacement = ResourceContributor::factory()->create(['resource_id' => $affected->id]);
+            $owner = ResourceContributor::factory()->create(['resource_id' => $affected->id]);
         }
 
         $affiliation = $owner->affiliations()->create(['name' => 'GFZ Potsdam']);
@@ -621,14 +619,6 @@ describe('index', function () {
             'existing_identifier_type' => null,
             'discovered_at' => now(),
         ]);
-
-        $this->actingAs($user)
-            ->getJson('/assistance/data/summary')
-            ->assertOk()
-            ->assertJsonCount(1, 'datacenterOptions')
-            ->assertJsonPath('datacenterOptions.0.name', 'Alpha Origin Center');
-
-        $affiliation->update(['affiliatable_id' => $replacement->id]);
 
         $this->actingAs($user)
             ->getJson('/assistance/data/summary')

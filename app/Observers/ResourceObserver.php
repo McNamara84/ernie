@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
-use App\Enums\CacheKey;
 use App\Enums\PortalCacheArea;
 use App\Enums\PortalScope;
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
 use App\Services\Assessment\AssessmentAverageSummaryVersionService;
+use App\Services\Assistance\AssistanceDatacenterOptionsCacheInvalidationService;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\PortalCacheInvalidationService;
@@ -36,6 +36,7 @@ class ResourceObserver
         private readonly OaiPmhSetService $oaiPmhSetService,
         private readonly LandingPageRenderDataCacheService $landingPageRenderDataCache,
         private readonly PortalCacheInvalidationService $portalCacheInvalidationService,
+        private readonly AssistanceDatacenterOptionsCacheInvalidationService $assistanceCacheInvalidationService,
     ) {}
 
     /**
@@ -77,7 +78,7 @@ class ResourceObserver
         $this->invalidateLandingPageRenderCache($resource);
 
         if ($resource->wasChanged('datacenter_id')) {
-            CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
+            $this->assistanceCacheInvalidationService->scheduleAfterCommit();
         }
 
         if ($resource->wasChanged('resource_type_id') && $resource->resourceAssessment()->exists()) {
@@ -225,7 +226,7 @@ class ResourceObserver
     public function deleted(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
-        CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
+        $this->assistanceCacheInvalidationService->scheduleAfterCommit();
         $this->schedulePortalRemovalInvalidation($resource);
         $this->invalidateLandingPageRenderCache($resource);
 
@@ -245,7 +246,7 @@ class ResourceObserver
     public function forceDeleted(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
-        CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
+        $this->assistanceCacheInvalidationService->scheduleAfterCommit();
         $this->schedulePortalRemovalInvalidation($resource);
         $this->invalidateLandingPageRenderCache($resource);
     }

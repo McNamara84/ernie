@@ -64,6 +64,7 @@ use App\Observers\ResourceObserver;
 use App\Observers\ResourceTypeObserver;
 use App\Observers\SizeObserver;
 use App\Observers\SubjectObserver;
+use App\Services\Assistance\AssistanceDatacenterOptionsCacheInvalidationService;
 use App\Services\BotProtection\BotClassifierService;
 use App\Services\DashboardMetricsCacheInvalidationService;
 use App\Services\DatabaseDumps\DatabaseDumpProcessRunner;
@@ -107,6 +108,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PortalKeywordCacheInvalidationService::class);
         $this->app->singleton(PortalCacheInvalidationService::class);
         $this->app->singleton(PortalCacheVersionService::class);
+        $this->app->singleton(AssistanceDatacenterOptionsCacheInvalidationService::class);
         $this->app->singleton(DashboardMetricsCacheInvalidationService::class);
         $this->app->singleton(ResourceFilterOptionsCacheInvalidationService::class);
         $this->app->singleton(ResourceListingProjectorService::class);

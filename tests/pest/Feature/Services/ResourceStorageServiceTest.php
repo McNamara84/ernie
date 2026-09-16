@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\CacheKey;
 use App\Enums\CitationLabelResolutionMode;
 use App\Enums\PortalCacheArea;
+use App\Models\Affiliation;
 use App\Models\DateType;
 use App\Models\DescriptionType;
 use App\Models\FunderIdentifierType;
@@ -14,6 +15,7 @@ use App\Models\Person;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
 use App\Models\ResourceInstrument;
 use App\Models\ResourceRight;
 use App\Models\ResourceType;
@@ -109,6 +111,50 @@ describe('ResourceStorageService', function () {
         expect($resource->descriptions()->count())->toBe(1);
         $description = $resource->descriptions->first();
         expect($description->value)->toBe('Test abstract description.');
+    });
+
+    it('removes replaced creator affiliations during a resource update', function () {
+        $resourceType = ResourceType::firstOrFail();
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Affiliation replacement', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'firstName' => 'Marie',
+                'lastName' => 'Curie',
+                'position' => 0,
+                'affiliations' => [['value' => 'Old Institute']],
+            ]],
+        ], $this->user->id);
+        $oldCreator = $resource->creators()->sole();
+        $oldAffiliation = $oldCreator->affiliations()->sole();
+
+        [$updated] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Affiliation replacement', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'resourceCreatorId' => $oldCreator->id,
+                'type' => 'person',
+                'firstName' => 'Marie',
+                'lastName' => 'Curie',
+                'position' => 0,
+                'affiliations' => [['value' => 'New Institute']],
+            ]],
+        ], $this->user->id);
+
+        $newCreator = $updated->creators()->sole();
+
+        expect($newCreator->id)->not->toBe($oldCreator->id)
+            ->and($newCreator->affiliations()->sole()->name)->toBe('New Institute')
+            ->and(Affiliation::whereKey($oldAffiliation->id)->exists())->toBeFalse()
+            ->and(Affiliation::query()
+                ->where('affiliatable_type', ResourceCreator::class)
+                ->where('affiliatable_id', $oldCreator->id)
+                ->exists())->toBeFalse()
+            ->and(Affiliation::count())->toBe(1);
     });
 
     it('stores an unstructured creator snapshot without inventing structured name parts', function () {

@@ -2,146 +2,90 @@
 
 declare(strict_types=1);
 
-use App\Enums\CacheKey;
+use App\Models\Affiliation;
 use App\Models\Datacenter;
-use App\Models\Person;
-use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Observers\AssistanceDatacenterOptionsObserver;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Config;
+use App\Services\Assistance\AssistanceDatacenterOptionsCacheInvalidationService;
+use Illuminate\Database\Eloquent\Model;
 
 covers(AssistanceDatacenterOptionsObserver::class);
 
 beforeEach(function (): void {
-    Config::set('cache.default', 'array');
-    Cache::flush();
+    $this->cacheInvalidationService = Mockery::mock(AssistanceDatacenterOptionsCacheInvalidationService::class);
+    $this->observer = new AssistanceDatacenterOptionsObserver($this->cacheInvalidationService);
 });
 
-function seedAssistanceDatacenterOptionsCache(): void
-{
-    $cacheKey = CacheKey::ASSISTANCE_DATACENTER_OPTIONS;
-    $repository = method_exists(Cache::getStore(), 'tags')
-        ? Cache::tags($cacheKey->tags())
-        : Cache::store();
+it('routes dependency creation and deletion through the transaction-aware invalidator', function (): void {
+    $affiliation = new Affiliation;
 
-    $repository->put($cacheKey->key(), [
-        ['id' => 1, 'name' => 'Cached Datacenter'],
-    ]);
-}
+    $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')->twice();
 
-function hasAssistanceDatacenterOptionsCache(): bool
-{
-    $cacheKey = CacheKey::ASSISTANCE_DATACENTER_OPTIONS;
-    $repository = method_exists(Cache::getStore(), 'tags')
-        ? Cache::tags($cacheKey->tags())
-        : Cache::store();
-
-    return $repository->has($cacheKey->key());
-}
-
-it('invalidates cached options when a Datacenter is renamed or deleted', function () {
-    $datacenter = Datacenter::factory()->create();
-    seedAssistanceDatacenterOptionsCache();
-
-    $datacenter->update(['name' => 'Renamed Datacenter']);
-
-    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
-
-    seedAssistanceDatacenterOptionsCache();
-    $datacenter->delete();
-
-    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
+    $this->observer->created($affiliation);
+    $this->observer->deleted($affiliation);
 });
 
-it('invalidates cached options for relevant creator relationship changes', function () {
-    $resource = Resource::factory()->create();
-    $person = Person::factory()->create();
-    seedAssistanceDatacenterOptionsCache();
+it('schedules invalidation for relevant dependency updates', function (
+    string $modelClass,
+    array $original,
+    string $attribute,
+    mixed $value,
+): void {
+    /** @var Model $model */
+    $model = new $modelClass;
+    $model->forceFill($original);
+    $model->syncOriginal();
+    $model->setAttribute($attribute, $value);
+    $model->syncChanges();
 
-    $creator = ResourceCreator::create([
-        'resource_id' => $resource->id,
-        'creatorable_type' => Person::class,
-        'creatorable_id' => $person->id,
-        'position' => 1,
-    ]);
+    $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')->once();
 
-    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
+    $this->observer->updated($model);
+})->with([
+    'affiliation owner' => [
+        Affiliation::class,
+        ['affiliatable_type' => ResourceCreator::class, 'affiliatable_id' => 1],
+        'affiliatable_id',
+        2,
+    ],
+    'creator relationship' => [
+        ResourceCreator::class,
+        ['resource_id' => 1, 'creatorable_type' => 'person', 'creatorable_id' => 1],
+        'creatorable_id',
+        2,
+    ],
+    'contributor relationship' => [
+        ResourceContributor::class,
+        ['resource_id' => 1, 'contributorable_type' => 'person', 'contributorable_id' => 1],
+        'contributorable_id',
+        2,
+    ],
+    'Datacenter name' => [
+        Datacenter::class,
+        ['name' => 'Old Datacenter'],
+        'name',
+        'Renamed Datacenter',
+    ],
+]);
 
-    $replacement = Person::factory()->create();
-    seedAssistanceDatacenterOptionsCache();
-    $creator->update(['creatorable_id' => $replacement->id]);
+it('ignores unrelated dependency metadata updates', function (
+    string $modelClass,
+    array $original,
+    string $attribute,
+    mixed $value,
+): void {
+    /** @var Model $model */
+    $model = new $modelClass;
+    $model->forceFill($original);
+    $model->syncOriginal();
+    $model->setAttribute($attribute, $value);
+    $model->syncChanges();
 
-    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
+    $this->cacheInvalidationService->shouldNotReceive('scheduleAfterCommit');
 
-    seedAssistanceDatacenterOptionsCache();
-    $creator->delete();
-
-    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
-});
-
-it('invalidates cached options for relevant contributor relationship changes', function () {
-    $resource = Resource::factory()->create();
-    $person = Person::factory()->create();
-    seedAssistanceDatacenterOptionsCache();
-
-    $contributor = ResourceContributor::create([
-        'resource_id' => $resource->id,
-        'contributorable_type' => Person::class,
-        'contributorable_id' => $person->id,
-        'position' => 1,
-    ]);
-
-    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
-
-    $replacement = Person::factory()->create();
-    seedAssistanceDatacenterOptionsCache();
-    $contributor->update(['contributorable_id' => $replacement->id]);
-
-    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
-
-    seedAssistanceDatacenterOptionsCache();
-    $contributor->delete();
-
-    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
-});
-
-it('invalidates cached options for relevant affiliation relationship changes', function () {
-    $creator = ResourceCreator::factory()->create();
-    seedAssistanceDatacenterOptionsCache();
-
-    $affiliation = $creator->affiliations()->create(['name' => 'GFZ Potsdam']);
-
-    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
-
-    $replacement = ResourceCreator::factory()->create();
-    seedAssistanceDatacenterOptionsCache();
-    $affiliation->update(['affiliatable_id' => $replacement->id]);
-
-    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
-
-    seedAssistanceDatacenterOptionsCache();
-    $affiliation->delete();
-
-    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
-});
-
-it('keeps cached options for unrelated creator metadata changes', function () {
-    $creator = ResourceCreator::factory()->create();
-    seedAssistanceDatacenterOptionsCache();
-
-    $creator->update(['position' => 2]);
-
-    expect(hasAssistanceDatacenterOptionsCache())->toBeTrue();
-});
-
-it('keeps cached options for unrelated affiliation metadata changes', function () {
-    $affiliation = ResourceCreator::factory()->create()
-        ->affiliations()->create(['name' => 'GFZ Potsdam']);
-    seedAssistanceDatacenterOptionsCache();
-
-    $affiliation->update(['name' => 'GFZ Helmholtz Centre for Geosciences']);
-
-    expect(hasAssistanceDatacenterOptionsCache())->toBeTrue();
-});
+    $this->observer->updated($model);
+})->with([
+    'creator position' => [ResourceCreator::class, ['position' => 1], 'position', 2],
+    'affiliation name' => [Affiliation::class, ['name' => 'Old Name'], 'name', 'New Name'],
+]);
