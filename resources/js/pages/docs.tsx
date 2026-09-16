@@ -2279,6 +2279,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             label, exposes the full path on hover, uses darker linked badges for controlled terms and lighter blue badges for free
                             keywords, and opens the matching portal filter either from the label itself or from the dedicated magnifying-glass action.
                         </p>
+                        <h4>Expanding Long Metadata Lists</h4>
+                        <p>
+                            Long keyword, creator, contributor, and funder lists initially show only the configured number of entries. On small
+                            screens, long <strong>Related Work</strong> lists are shortened in the same way. Activate the contextual{' '}
+                            <strong>Show all</strong> control to reveal the complete list. Once expanded, the same control consistently reads{' '}
+                            <strong>Show less</strong>; activate it again to return to the shortened list.
+                        </p>
                         <p>
                             In the landing page setup modal, the primary <strong>Download URL</strong> field now suggests frequently reused base
                             domains and full URLs from existing landing pages. Click into the field to open the suggestions, pick a base domain such

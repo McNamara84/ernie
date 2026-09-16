@@ -859,6 +859,20 @@ describe('Docs page', () => {
         expect(screen.getByText(/It remains visible even when Related Work is collapsed/i)).toBeInTheDocument();
     });
 
+    it('documents consistent controls for expanding landing page metadata lists', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        const heading = screen.getByRole('heading', { name: 'Expanding Long Metadata Lists', level: 4 });
+        const sectionContent = heading.nextElementSibling?.textContent ?? '';
+
+        expect(sectionContent).toMatch(/keyword, creator, contributor, and funder lists/i);
+        expect(sectionContent).toMatch(/On small screens, long Related Work lists are shortened in the same way/i);
+        expect(sectionContent).toMatch(/Show all.*reveal the complete list/i);
+        expect(sectionContent).toMatch(/same control consistently reads Show less/i);
+    });
+
     it('shows landing pages documentation for curator', async () => {
         const user = userEvent.setup();
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
