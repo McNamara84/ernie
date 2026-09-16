@@ -766,6 +766,10 @@ it('validates viewport dimensions, coordinate ordering, and complete filter boun
     ]))
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['viewport.north', 'viewport.width', 'zoom', 'north']);
+
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery(['zoom' => 0])))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['zoom']);
 });
 
 it('limits every IGSN metadata filter accepted by the map endpoint', function (): void {

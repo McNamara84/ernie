@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-$maxZoom = min(18, max(0, (int) env('PORTAL_MAP_MAX_ZOOM', 18)));
+$maxZoom = min(18, max(1, (int) env('PORTAL_MAP_MAX_ZOOM', 18)));
 
 return [
     'enabled' => (bool) env('PORTAL_MAP_ENABLED', true),

@@ -28,7 +28,7 @@ trait HasPortalMapRequestRules
             }
         };
 
-        $maxZoom = max(0, (int) config('portal_map.max_zoom', 18));
+        $maxZoom = max(1, (int) config('portal_map.max_zoom', 18));
 
         return [
             'viewport' => ['required', 'array'],
@@ -38,7 +38,7 @@ trait HasPortalMapRequestRules
             'viewport.west' => ['required', 'numeric', 'between:-180,180'],
             'viewport.width' => ['required', 'integer', 'between:1,4096'],
             'viewport.height' => ['required', 'integer', 'between:1,4096'],
-            'zoom' => ['required', 'integer', "between:0,{$maxZoom}"],
+            'zoom' => ['required', 'integer', "between:1,{$maxZoom}"],
             'include_extent' => ['sometimes', 'boolean'],
             'north' => ['nullable', 'numeric', 'between:-90,90'],
             'south' => ['nullable', 'numeric', 'between:-90,90'],

@@ -12,6 +12,7 @@ import { usePortalMapClusterMembers } from '@/hooks/use-portal-map-cluster-membe
 import { usePortalMapData } from '@/hooks/use-portal-map-data';
 import { formatAuthorsShort, getMaterialCategoryStyle, getMaterialDisplayLabel, getPresentationShapePathOptions } from '@/lib/portal-map-config';
 import { normalizeLongitude, unwrapLongitudeBounds, unwrapPathLongitudes } from '@/lib/portal-map-longitude';
+import { normalizePortalMapMaxZoom, PORTAL_MAP_MIN_ZOOM } from '@/lib/portal-map-zoom';
 import { cn } from '@/lib/utils';
 import type {
     GeoBounds,
@@ -317,6 +318,7 @@ export function PortalMap({
     const signature = filterSignature(filters);
     const previousSignature = useRef(signature);
     const handleBasemapStatusChange = useCallback((status: PortalBasemapStatus) => setBasemapStatus(status), []);
+    const compatibleMaxZoom = normalizePortalMapMaxZoom(maxZoom);
 
     useEffect(() => {
         if (previousSignature.current === signature) return;
@@ -338,7 +340,7 @@ export function PortalMap({
         [geoFilterEnabled],
     );
 
-    const mapQuery = usePortalMapData(filters, request?.viewport ?? null, request?.includeExtent ?? false, basePath, maxZoom);
+    const mapQuery = usePortalMapData(filters, request?.viewport ?? null, request?.includeExtent ?? false, basePath, compatibleMaxZoom);
     const features = mapQuery.data?.features ?? [];
     const clusterMembersQuery = usePortalMapClusterMembers(
         filters,
@@ -371,8 +373,14 @@ export function PortalMap({
 
     const mapContent = (
         <div className="relative h-full w-full" aria-busy={mapQuery.isFetching}>
-            <MapContainer center={[30, 0]} zoom={Math.min(2, maxZoom)} maxZoom={maxZoom} className="h-full w-full">
-                <PortalBasemap config={basemap} maxZoom={maxZoom} onStatusChange={handleBasemapStatusChange} />
+            <MapContainer
+                center={[30, 0]}
+                zoom={Math.min(2, compatibleMaxZoom)}
+                minZoom={PORTAL_MAP_MIN_ZOOM}
+                maxZoom={compatibleMaxZoom}
+                className="h-full w-full"
+            >
+                <PortalBasemap config={basemap} maxZoom={compatibleMaxZoom} onStatusChange={handleBasemapStatusChange} />
                 <MapResizeHandler />
                 <ViewportTracker
                     onTechnicalViewport={handleTechnicalViewport}
@@ -381,7 +389,12 @@ export function PortalMap({
                 />
                 {!geoFilterEnabled && <FitExtentControl extent={extent} skipFilterUpdate={skipFilterUpdate} />}
                 <MapBoundsUpdater bounds={flyToBounds ?? null} skipFilterUpdate={skipFilterUpdate} />
-                <ClusterLayer features={features} maxZoom={maxZoom} interactive={!mapQuery.isFetching} onExpandCluster={handleExpandCluster} />
+                <ClusterLayer
+                    features={features}
+                    maxZoom={compatibleMaxZoom}
+                    interactive={!mapQuery.isFetching}
+                    onExpandCluster={handleExpandCluster}
+                />
                 {clusterMembersQuery.data && (
                     <ClusterMembersLayer members={clusterMembersQuery.data.members} total={clusterMembersQuery.data.total} />
                 )}

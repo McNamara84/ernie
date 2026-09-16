@@ -108,6 +108,16 @@ describe('Portal Page Display', function () {
             );
     });
 
+    it('normalizes a legacy zero map zoom limit for the MapLibre Leaflet adapter', function () {
+        config(['portal_map.max_zoom' => 0]);
+
+        $this->get(route('portal.doi'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('mapConfig.maxZoom', 1)
+            );
+    });
+
     it('strongly throttles known ai bots without throttling normal visitors on the same ip', function () {
         config([
             'bot_protection.enabled' => true,

@@ -144,8 +144,8 @@ vi.mock('leaflet', () => ({
     },
 }));
 vi.mock('react-leaflet', () => ({
-    MapContainer: ({ children, maxZoom, zoom }: { children: React.ReactNode; maxZoom: number; zoom: number }) => (
-        <div data-testid="leaflet-map" data-max-zoom={maxZoom} data-initial-zoom={zoom}>
+    MapContainer: ({ children, maxZoom, minZoom, zoom }: { children: React.ReactNode; maxZoom: number; minZoom: number; zoom: number }) => (
+        <div data-testid="leaflet-map" data-max-zoom={maxZoom} data-min-zoom={minZoom} data-initial-zoom={zoom}>
             {children}
         </div>
     ),
@@ -245,11 +245,25 @@ describe('PortalMap', () => {
         render(<PortalMap filters={filters} maxZoom={7} basemap={basemap} />);
 
         expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-max-zoom', '7');
+        expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-min-zoom', '1');
         expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-max-zoom', '7');
         expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-language', 'en');
         expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-max-zoom', '7');
         await waitFor(() =>
             expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), false, '/doi-search', 7),
+        );
+    });
+
+    it('normalizes a legacy zero zoom limit to the adapter-compatible minimum', async () => {
+        render(<PortalMap filters={filters} maxZoom={0} basemap={basemap} />);
+
+        expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-min-zoom', '1');
+        expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-max-zoom', '1');
+        expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-initial-zoom', '1');
+        expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-max-zoom', '1');
+        expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-max-zoom', '1');
+        await waitFor(() =>
+            expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), false, '/doi-search', 1),
         );
     });
 
