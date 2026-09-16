@@ -72,8 +72,8 @@ RUN update-ca-certificates
 FROM app-base AS app-build
 
 ARG NPM_VERSION=12.0.2
-ARG NODE_CHECKSUM_ARM64=23c1b4d19e2f12a7d06fe8aa3d6e0e4923cf77a47e13c5ccdf32fadaa33960f2
-ARG NODE_CHECKSUM_X64=3e301118d7df53d563b7e96c1617545f26e2f76f9724be668d6cab65c15dda5d
+ARG NODE_CHECKSUM_ARM64=81d8f0fdea9dcd3bfdcfeafc5f8359c151f097e9880b0007c0645ca670d07971
+ARG NODE_CHECKSUM_X64=40e1d3225c1c9ae9a2671c98ecb9857e4d5555026394f348645676798840d5c5
 
 # Install Node.js only in the build stage so the runtime image contains no Node package manifests.
 # Download the exact stable release from nodejs.org and verify it for supported architectures.
