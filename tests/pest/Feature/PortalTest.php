@@ -78,13 +78,33 @@ describe('Portal Page Display', function () {
             ->assertInertia(fn (Assert $page) => $page->component('portal'));
     });
 
-    it('exposes the configured map zoom limit to the frontend', function () {
-        config(['portal_map.max_zoom' => 7]);
+    it('exposes the configured English MapTiler basemap to both portals', function () {
+        config([
+            'portal_map.max_zoom' => 7,
+            'portal_map.basemap_style' => 'test-streets',
+            'services.maptiler.api_key' => 'test-maptiler-key',
+        ]);
+
+        foreach ([route('portal.doi'), route('portal.igsn')] as $route) {
+            $this->get($route)
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->where('mapConfig.maxZoom', 7)
+                    ->where('mapConfig.basemap.provider', 'maptiler')
+                    ->where('mapConfig.basemap.style', 'test-streets')
+                    ->where('mapConfig.basemap.language', 'en')
+                    ->where('mapConfig.basemap.apiKey', 'test-maptiler-key')
+                );
+        }
+    });
+
+    it('exposes a blank MapTiler key as a deterministic frontend error state', function () {
+        config(['services.maptiler.api_key' => '']);
 
         $this->get(route('portal.doi'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('mapConfig.maxZoom', 7)
+                ->where('mapConfig.basemap.apiKey', '')
             );
     });
 

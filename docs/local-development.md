@@ -193,6 +193,19 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml --profile assess
 
 - `.env.docker` is the Docker-oriented local environment file.
 - `.env` is the Laravel application environment used inside the containers.
+
+### Portal basemap
+
+The DOI and IGSN portal maps use MapTiler Cloud vector styles so geographic labels can prefer English and fall back to the local name when no English value exists. Add a browser key to `.env.docker` before opening either portal:
+
+```dotenv
+MAPTILER_API_KEY=your-local-browser-key
+PORTAL_MAP_BASEMAP_STYLE=streets-v4
+```
+
+The key is sent to the browser and is therefore not a server secret. Create a separate development key in MapTiler Cloud and restrict its allowed HTTP origins to the local URLs you actually use, normally `https://ernie.localhost:3333` and, when enabled, `https://localhost:3333`. Never reuse the Stage or Production key locally.
+
+If the key is missing, invalid, quota-limited, or rejected for the current origin, the portal remains usable and its ERNIE data overlays can still load, but the map shows a distinct “Map background could not be loaded” message instead of falling back to a differently labelled map.
 - The development entrypoint copies `.env.docker` to `.env` when `.env` does not already exist.
 - The npm Docker wrappers always pass `--env-file .env.docker` so Compose and Laravel use the same source of truth.
 - Docker-managed `node_modules` live in the named Docker volume, not in your host checkout.

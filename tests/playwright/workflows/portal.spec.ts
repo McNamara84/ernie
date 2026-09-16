@@ -216,8 +216,9 @@ test.describe('Portal Page', () => {
             await expect(page.locator('.leaflet-container').first()).toBeVisible();
         });
 
-        test('map shows OpenStreetMap attribution', async ({ page }) => {
-            await expect(page.getByRole('link', { name: 'OpenStreetMap' }).first()).toBeVisible();
+        test('map shows MapTiler and OpenStreetMap attribution', async ({ page }) => {
+            await expect(page.getByRole('link', { name: /MapTiler/ }).first()).toBeVisible();
+            await expect(page.getByRole('link', { name: /OpenStreetMap/ }).first()).toBeVisible();
         });
     });
 

@@ -110,6 +110,28 @@ vi.mock('@/components/portal/PortalMapClusterMembers', () => ({
 vi.mock('@/components/portal/PortalMapLegend', () => ({
     PortalMapLegend: ({ features }: { features: unknown[] }) => <div data-testid="map-legend">{features.length}</div>,
 }));
+vi.mock('@/components/portal/PortalBasemap', () => ({
+    PortalBasemap: ({
+        config,
+        maxZoom,
+        onStatusChange,
+    }: {
+        config: { provider: string; language: string; style: string };
+        maxZoom: number;
+        onStatusChange: (status: 'loading' | 'ready' | 'error') => void;
+    }) => (
+        <div>
+            <div
+                data-testid="portal-basemap"
+                data-provider={config.provider}
+                data-language={config.language}
+                data-style={config.style}
+                data-max-zoom={maxZoom}
+            />
+            <button type="button" data-testid="fail-basemap" onClick={() => onStatusChange('error')} />
+        </div>
+    ),
+}));
 vi.mock('leaflet/dist/leaflet.css', () => ({}));
 vi.mock('leaflet', () => ({
     default: {
@@ -126,9 +148,6 @@ vi.mock('react-leaflet', () => ({
         <div data-testid="leaflet-map" data-max-zoom={maxZoom} data-initial-zoom={zoom}>
             {children}
         </div>
-    ),
-    TileLayer: ({ maxZoom, maxNativeZoom }: { maxZoom: number; maxNativeZoom: number }) => (
-        <div data-testid="tile-layer" data-max-zoom={maxZoom} data-max-native-zoom={maxNativeZoom} />
     ),
     Popup: ({ children }: { children: React.ReactNode }) => <div data-testid="popup">{children}</div>,
     Rectangle: ({ children, bounds, pathOptions }: { children: React.ReactNode; bounds: unknown; pathOptions: unknown }) => (
@@ -167,6 +186,13 @@ const filters: PortalFilters = {
     temporal: null,
 };
 
+const basemap = {
+    provider: 'maptiler',
+    style: 'streets-v4',
+    language: 'en',
+    apiKey: 'test-maptiler-key',
+} as const;
+
 const response = (overrides: Partial<PortalMapResponse> = {}): PortalMapResponse => ({
     schemaVersion: 3,
     features: [],
@@ -202,7 +228,7 @@ describe('PortalMap', () => {
     });
 
     it('requests map data only after Leaflet reports a visible viewport', async () => {
-        render(<PortalMap filters={filters} maxZoom={18} />);
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
 
         await waitFor(() =>
             expect(usePortalMapDataMock).toHaveBeenCalledWith(
@@ -216,14 +242,24 @@ describe('PortalMap', () => {
     });
 
     it('uses the configured zoom limit for the map, clusters, and requests', async () => {
-        render(<PortalMap filters={filters} maxZoom={7} />);
+        render(<PortalMap filters={filters} maxZoom={7} basemap={basemap} />);
 
         expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-max-zoom', '7');
-        expect(screen.getAllByTestId('tile-layer')[0]).toHaveAttribute('data-max-zoom', '7');
+        expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-max-zoom', '7');
+        expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-language', 'en');
         expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-max-zoom', '7');
         await waitFor(() =>
             expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), false, '/doi-search', 7),
         );
+    });
+
+    it('shows a distinct accessible error when the map background fails', () => {
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} hideHeader />);
+
+        fireEvent.click(screen.getByTestId('fail-basemap'));
+
+        expect(screen.getByRole('alert')).toHaveTextContent('Map background could not be loaded');
+        expect(screen.getByRole('link', { name: 'MapTiler' })).toHaveAttribute('href', 'https://www.maptiler.com');
     });
 
     it('passes bounded server features to marker and legend layers', () => {
@@ -240,7 +276,7 @@ describe('PortalMap', () => {
             ],
         });
 
-        render(<PortalMap filters={filters} maxZoom={18} />);
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
 
         expect(screen.getAllByTestId('cluster-layer')[0]).toHaveTextContent('1');
         expect(screen.getAllByTestId('map-legend')[0]).toHaveTextContent('1');
@@ -282,7 +318,7 @@ describe('PortalMap', () => {
             ],
         });
 
-        render(<PortalMap filters={filters} maxZoom={18} />);
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
 
         const renderedGeometry = screen.getAllByTestId(testId)[0];
         expect(renderedGeometry).toBeInTheDocument();
@@ -332,7 +368,7 @@ describe('PortalMap', () => {
             ],
         });
 
-        render(<PortalMap filters={filters} maxZoom={18} basePath="/igsn-search" />);
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} basePath="/igsn-search" />);
 
         const renderedGeometry = screen.getAllByTestId(testId)[0];
         expect(JSON.parse(renderedGeometry.getAttribute('data-path-options') ?? '{}')).toMatchObject({
@@ -362,7 +398,7 @@ describe('PortalMap', () => {
             ],
         });
 
-        render(<PortalMap filters={filters} maxZoom={18} />);
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
 
         expect(screen.getAllByTestId('rectangle')[0]).toHaveAttribute(
             'data-bounds',
@@ -401,7 +437,7 @@ describe('PortalMap', () => {
             ],
         });
 
-        render(<PortalMap filters={filters} maxZoom={18} />);
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
 
         expect(screen.getAllByTestId('polygon')[0]).toHaveAttribute(
             'data-positions',
@@ -415,7 +451,7 @@ describe('PortalMap', () => {
 
     it('reports move-end bounds to the spatial filter while always refreshing technical map data', async () => {
         const onViewportChange = vi.fn();
-        render(<PortalMap filters={filters} maxZoom={18} geoFilterEnabled onViewportChange={onViewportChange} />);
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} geoFilterEnabled onViewportChange={onViewportChange} />);
 
         await waitFor(() => expect(mapEvents.has('moveend')).toBe(true));
         act(() => mapEvents.get('moveend')?.());
@@ -434,7 +470,7 @@ describe('PortalMap', () => {
         vi.useFakeTimers();
 
         try {
-            render(<PortalMap filters={filters} maxZoom={18} hideHeader />);
+            render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} hideHeader />);
             act(() => vi.runOnlyPendingTimers());
             usePortalMapDataMock.mockClear();
 
@@ -465,7 +501,7 @@ describe('PortalMap', () => {
     it('shows loading, empty, and recoverable error feedback', () => {
         mapQueryState.result.data = response();
         mapQueryState.result.isFetching = true;
-        const { rerender } = render(<PortalMap filters={filters} maxZoom={18} />);
+        const { rerender } = render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
         expect(screen.getAllByRole('status')[0]).toHaveTextContent('Updating map');
         expect(screen.getAllByTestId('leaflet-map')[0].parentElement).toHaveAttribute('aria-busy', 'true');
         expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-interactive', 'false');
@@ -473,7 +509,7 @@ describe('PortalMap', () => {
 
         mapQueryState.result.isFetching = false;
         mapQueryState.result.isError = true;
-        rerender(<PortalMap filters={filters} maxZoom={18} />);
+        rerender(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
         const retryButton = screen.getAllByRole('button', { name: /try again/i })[0];
         expect(retryButton).toHaveAttribute('data-slot', 'button');
         fireEvent.click(retryButton);
@@ -499,7 +535,7 @@ describe('PortalMap', () => {
             pagination: { currentPage: 1, lastPage: 1, perPage: 50 },
         };
 
-        render(<PortalMap filters={filters} maxZoom={18} hideHeader />);
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} hideHeader />);
         await waitFor(() =>
             expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), true, '/doi-search', 18),
         );
@@ -530,7 +566,7 @@ describe('PortalMap', () => {
         const onLocationCountChange = vi.fn();
         mapQueryState.result.data = response({ meta: { ...response().meta, totalLocations: 35_638, visibleLocations: 120 } });
 
-        render(<PortalMap filters={filters} maxZoom={18} onLocationCountChange={onLocationCountChange} />);
+        render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} onLocationCountChange={onLocationCountChange} />);
 
         expect(onLocationCountChange).toHaveBeenCalledWith(35_638);
         expect(screen.getAllByText(/35[.,]638 locations/)[0]).toBeInTheDocument();

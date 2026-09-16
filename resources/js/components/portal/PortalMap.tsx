@@ -3,7 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { ChevronDown, ChevronUp, Map as MapIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, Polygon, Polyline, Popup, Rectangle, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Polygon, Polyline, Popup, Rectangle, useMap } from 'react-leaflet';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,9 +20,11 @@ import type {
     PortalMapClusterFeature,
     PortalMapFeature,
     PortalMapResourceFeature,
+    PortalMapTilerBasemapConfig,
     PortalMapViewport,
 } from '@/types/portal';
 
+import { PortalBasemap, type PortalBasemapStatus } from './PortalBasemap';
 import { ClusterLayer } from './PortalMapCluster';
 import { ClusterMembersLayer, ClusterMembersPanel } from './PortalMapClusterMembers';
 import { PortalMapLegend } from './PortalMapLegend';
@@ -31,6 +33,7 @@ interface PortalMapProps {
     basePath?: PortalBasePath;
     filters: PortalFilters;
     maxZoom: number;
+    basemap: PortalMapTilerBasemapConfig;
     className?: string;
     hideHeader?: boolean;
     geoFilterEnabled?: boolean;
@@ -40,7 +43,6 @@ interface PortalMapProps {
 }
 
 const VIEWPORT_RESIZE_DEBOUNCE_MS = 250;
-const OPENSTREETMAP_MAX_NATIVE_ZOOM = 18;
 
 function MapResizeHandler() {
     const map = useMap();
@@ -292,6 +294,7 @@ export function PortalMap({
     basePath = '/doi-search',
     filters,
     maxZoom,
+    basemap,
     className,
     hideHeader = false,
     geoFilterEnabled = false,
@@ -307,11 +310,13 @@ export function PortalMap({
         page: number;
     } | null>(null);
     const [locationCount, setLocationCount] = useState(0);
+    const [basemapStatus, setBasemapStatus] = useState<PortalBasemapStatus>('loading');
     const skipFilterUpdate = useRef(false);
     const requestExtent = useRef(!geoFilterEnabled);
     const knownTotalLocations = useRef<number | null>(null);
     const signature = filterSignature(filters);
     const previousSignature = useRef(signature);
+    const handleBasemapStatusChange = useCallback((status: PortalBasemapStatus) => setBasemapStatus(status), []);
 
     useEffect(() => {
         if (previousSignature.current === signature) return;
@@ -367,12 +372,7 @@ export function PortalMap({
     const mapContent = (
         <div className="relative h-full w-full" aria-busy={mapQuery.isFetching}>
             <MapContainer center={[30, 0]} zoom={Math.min(2, maxZoom)} maxZoom={maxZoom} className="h-full w-full">
-                <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    maxNativeZoom={Math.min(maxZoom, OPENSTREETMAP_MAX_NATIVE_ZOOM)}
-                    maxZoom={maxZoom}
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
+                <PortalBasemap config={basemap} maxZoom={maxZoom} onStatusChange={handleBasemapStatusChange} />
                 <MapResizeHandler />
                 <ViewportTracker
                     onTechnicalViewport={handleTechnicalViewport}
@@ -390,6 +390,15 @@ export function PortalMap({
 
             <PortalMapLegend features={features} />
 
+            <a
+                href="https://www.maptiler.com"
+                target="_blank"
+                rel="noreferrer"
+                className="absolute bottom-3 left-3 z-1000 rounded bg-white/90 p-1 shadow"
+            >
+                <img src="https://api.maptiler.com/resources/logo.svg" alt="MapTiler" className="h-5 w-auto" />
+            </a>
+
             {expandedCluster && (
                 <ClusterMembersPanel
                     result={clusterMembersQuery.data}
@@ -406,6 +415,24 @@ export function PortalMap({
                     role="status"
                 >
                     Updating map...
+                </div>
+            )}
+
+            {basemapStatus === 'loading' && (
+                <div
+                    className="pointer-events-none absolute right-4 bottom-10 z-1000 rounded-md bg-background/90 px-3 py-1.5 text-xs shadow"
+                    role="status"
+                >
+                    Loading map background...
+                </div>
+            )}
+
+            {basemapStatus === 'error' && (
+                <div
+                    className="pointer-events-none absolute inset-x-4 bottom-10 z-1000 rounded-md border border-destructive/30 bg-background/95 p-3 text-sm shadow"
+                    role="alert"
+                >
+                    Map background could not be loaded. Check the MapTiler configuration and try again.
                 </div>
             )}
 

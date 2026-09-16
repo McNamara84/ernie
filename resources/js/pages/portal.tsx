@@ -264,6 +264,7 @@ export default function Portal({
             basePath={portal.basePath}
             filters={filters}
             maxZoom={mapConfig.maxZoom}
+            basemap={mapConfig.basemap}
             hideHeader
             geoFilterEnabled={geoFilterEnabled}
             onViewportChange={handleViewportChange}
