@@ -209,6 +209,8 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./{portal}-search/map.get.tags.0', 'Portal')
         ->assertJsonPath('paths./{portal}-search/map.get.security', [])
         ->assertJsonPath('paths./{portal}-search/map.get.parameters.0.name', 'portal')
+        ->assertJsonPath('paths./{portal}-search/map.get.parameters.7.name', 'zoom')
+        ->assertJsonPath('paths./{portal}-search/map.get.parameters.7.schema.minimum', 1)
         ->assertJsonPath('paths./{portal}-search/map.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/PortalMapResponse')
         ->assertJsonPath('paths./{portal}-search/map.get.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
         ->assertJsonPath('paths./{portal}-search/map.get.responses.429.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')

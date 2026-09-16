@@ -2364,7 +2364,7 @@
                         "in": "query",
                         "required": true,
                         "description": "Leaflet zoom level requested by the client, up to the deployment's configured portal-map maximum.",
-                        "schema": { "type": "integer", "minimum": 0, "example": 8 }
+                        "schema": { "type": "integer", "minimum": 1, "example": 8 }
                     },
                     {
                         "name": "include_extent",
