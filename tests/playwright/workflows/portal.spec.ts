@@ -117,8 +117,20 @@ test.describe('Portal Page', () => {
 
         test('clear search button clears the draft query', async ({ page }) => {
             await searchInput(page).fill('something');
+
+            await page.evaluate(() => {
+                document.documentElement.dataset.playwrightInertiaFinished = 'false';
+                document.addEventListener(
+                    'inertia:finish',
+                    () => {
+                        document.documentElement.dataset.playwrightInertiaFinished = 'true';
+                    },
+                    { once: true },
+                );
+            });
             await page.getByRole('button', { name: 'Search', exact: true }).click();
             await expect(page).toHaveURL(/q=something/);
+            await expect(page.locator('html')).toHaveAttribute('data-playwright-inertia-finished', 'true');
 
             await page.getByRole('button', { name: 'Clear search' }).click();
 
