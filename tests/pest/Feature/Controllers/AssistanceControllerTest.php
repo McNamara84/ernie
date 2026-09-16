@@ -57,11 +57,23 @@ describe('index', function () {
                 ->component('assistance')
                 ->has('manifests')
                 ->has('filters')
+                ->where('perPage', 25)
                 ->missing('sections')
                 ->missing('allAssistantResources')
                 ->missing('pendingCounts')
                 ->missing('datacenterOptions')
                 ->where('assistanceCollapsedAssistantIds', null)
+            );
+    });
+
+    it('passes the validated page size to the lightweight page shell', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->get('/assistance?per_page=50')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('perPage', 50)
             );
     });
 

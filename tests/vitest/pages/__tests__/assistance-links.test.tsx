@@ -515,7 +515,7 @@ function paginated<T>(data: T[], overrides: Partial<PaginatedData<BaseSuggestion
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('Assistance resource filters', () => {
-    it('loads summary and the active review scope after rendering the lightweight page shell', async () => {
+    it('loads summary and the active review scope with the validated non-default page size', async () => {
         const emptyPage: PaginatedData<AssistanceResourceGroup> = {
             data: [],
             current_page: 1,
@@ -534,11 +534,16 @@ describe('Assistance resource filters', () => {
             return Promise.resolve({ data: emptyPage });
         });
 
-        render(<AssistancePage manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]} />);
+        render(
+            <AssistancePage
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+                perPage={50}
+            />,
+        );
 
         expect(await screen.findByText('No pending suggestions')).toBeInTheDocument();
         expect(mockedAxiosGet).toHaveBeenCalledWith('/assistance/data/summary', expect.objectContaining({ signal: expect.any(AbortSignal) }));
-        expect(mockedAxiosGet).toHaveBeenCalledWith('/assistance/data/all', expect.objectContaining({ params: { page: 1, per_page: 25 } }));
+        expect(mockedAxiosGet).toHaveBeenCalledWith('/assistance/data/all', expect.objectContaining({ params: { page: 1, per_page: 50 } }));
     });
 
     it('applies a normalized DOI while resetting pagination and preserving unrelated query parameters', async () => {

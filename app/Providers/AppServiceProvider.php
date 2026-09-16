@@ -47,6 +47,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Observers\AssistanceDatacenterOptionsObserver;
 use App\Observers\DashboardMetricsObserver;
 use App\Observers\DatacenterLandingPageTemplateAssignmentObserver;
 use App\Observers\FormatObserver;
@@ -130,7 +131,9 @@ class AppServiceProvider extends ServiceProvider
         Description::observe(PortalResourceDependencyObserver::class);
         ResourceCreator::observe(ResourceListingProjectionObserver::class);
         ResourceCreator::observe(PortalResourceDependencyObserver::class);
+        ResourceCreator::observe(AssistanceDatacenterOptionsObserver::class);
         ResourceContributor::observe(ResourceListingProjectionObserver::class);
+        ResourceContributor::observe(AssistanceDatacenterOptionsObserver::class);
         ResourceDate::observe(ResourceListingProjectionObserver::class);
         ResourceDate::observe(PortalResourceDependencyObserver::class);
         ResourceRight::observe(ResourceListingProjectionObserver::class);
@@ -147,6 +150,7 @@ class AppServiceProvider extends ServiceProvider
         Datacenter::observe(DatacenterLandingPageTemplateAssignmentObserver::class);
         Datacenter::observe(ResourceListingProjectionDependencyObserver::class);
         Datacenter::observe(PortalSharedDependencyObserver::class);
+        Datacenter::observe(AssistanceDatacenterOptionsObserver::class);
         Right::observe(ResourceListingProjectionDependencyObserver::class);
         User::observe(ResourceListingProjectionDependencyObserver::class);
         Person::observe(ResourceListingProjectionDependencyObserver::class);

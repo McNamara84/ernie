@@ -1534,6 +1534,7 @@ export default function AssistancePage({
     relationTypes = [],
     filters = { doi: null, datacenter_id: null },
     datacenterOptions: initialDatacenterOptions,
+    perPage = 25,
 }: AssistancePageProps) {
     const hasInitialReviewData = sections !== undefined;
     const initialSections = useMemo(() => sections ?? {}, [sections]);
@@ -2096,6 +2097,7 @@ export default function AssistancePage({
                         acceptanceInputs={acceptanceInputs}
                         hasActiveFilters={filters.doi !== null || filters.datacenter_id !== null}
                         filters={filters}
+                        perPage={perPage}
                     />
                 )}
 

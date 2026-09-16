@@ -91,7 +91,6 @@ export function assistanceReviewQueryOptions(
         queryFn: ({ signal }) => get<PaginatedData<AssistanceResourceGroup>>(url, filters, signal, page, perPage),
         enabled,
         retry: false,
-        placeholderData: (previousData) => previousData,
     });
 }
 

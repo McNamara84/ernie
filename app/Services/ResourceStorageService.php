@@ -586,16 +586,19 @@ class ResourceStorageService
      */
     private function storeCreators(Resource $resource, array $data, bool $isUpdate): void
     {
-        /** @var array<int, Person> $existingCreatorPeople */
-        $existingCreatorPeople = $resource->creators()
+        $existingCreators = $resource->creators()
             ->with('creatorable')
-            ->get()
+            ->get();
+        /** @var array<int, Person> $existingCreatorPeople */
+        $existingCreatorPeople = $existingCreators
             ->filter(fn (ResourceCreator $creator): bool => $creator->creatorable instanceof Person)
             ->mapWithKeys(fn (ResourceCreator $creator): array => [
                 (int) $creator->id => $creator->creatorable,
             ])
             ->all();
-        $resource->creators()->delete();
+        $existingCreators->each(static function (ResourceCreator $creator): void {
+            $creator->delete();
+        });
 
         $authors = $data['authors'] ?? [];
 

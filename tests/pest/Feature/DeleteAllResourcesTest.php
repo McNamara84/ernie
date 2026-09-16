@@ -37,13 +37,19 @@ beforeEach(function (): void {
 it('allows admin to delete all resources', function () {
     $admin = User::factory()->create(['role' => UserRole::ADMIN]);
     Resource::factory()->count(3)->create();
+    $assistanceCacheKey = CacheKey::ASSISTANCE_DATACENTER_OPTIONS;
+    $assistanceCache = method_exists(Cache::getStore(), 'tags')
+        ? Cache::tags($assistanceCacheKey->tags())
+        : Cache::store();
+    $assistanceCache->put($assistanceCacheKey->key(), [['id' => 1, 'name' => 'Cached']]);
 
     actingAs($admin)
         ->delete(route('resources.destroy-all'), ['confirmation' => 'delete'])
         ->assertRedirect(route('logs.index'))
         ->assertSessionHas('success');
 
-    expect(Resource::count())->toBe(0);
+    expect(Resource::count())->toBe(0)
+        ->and($assistanceCache->has($assistanceCacheKey->key()))->toBeFalse();
 });
 
 it('forbids non-admin users from deleting all resources', function (UserRole $role) {

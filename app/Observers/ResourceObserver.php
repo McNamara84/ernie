@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Enums\CacheKey;
 use App\Enums\PortalCacheArea;
 use App\Enums\PortalScope;
 use App\Models\LandingPage;
@@ -74,6 +75,10 @@ class ResourceObserver
         $this->cacheService->invalidateResourceCache($resource->id);
         $this->schedulePortalUpdateInvalidation($resource);
         $this->invalidateLandingPageRenderCache($resource);
+
+        if ($resource->wasChanged('datacenter_id')) {
+            CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
+        }
 
         if ($resource->wasChanged('resource_type_id') && $resource->resourceAssessment()->exists()) {
             app(AssessmentAverageSummaryVersionService::class)->bump();
@@ -220,6 +225,7 @@ class ResourceObserver
     public function deleted(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
+        CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
         $this->schedulePortalRemovalInvalidation($resource);
         $this->invalidateLandingPageRenderCache($resource);
 
@@ -239,6 +245,7 @@ class ResourceObserver
     public function forceDeleted(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
+        CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
         $this->schedulePortalRemovalInvalidation($resource);
         $this->invalidateLandingPageRenderCache($resource);
     }

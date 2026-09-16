@@ -248,7 +248,11 @@ describe('resource-oriented assistance review', () => {
                 },
             ],
         };
-        vi.mocked(axios.get).mockResolvedValueOnce({ data: firstPage }).mockResolvedValueOnce({ data: secondPage });
+        let resolveSecondPage!: (response: { data: typeof secondPage }) => void;
+        const secondPageRequest = new Promise<{ data: typeof secondPage }>((resolve) => {
+            resolveSecondPage = resolve;
+        });
+        vi.mocked(axios.get).mockResolvedValueOnce({ data: firstPage }).mockReturnValueOnce(secondPageRequest);
 
         render(
             <ResourceReview
@@ -262,7 +266,14 @@ describe('resource-oriented assistance review', () => {
         );
 
         await screen.findByText('First candidate');
+        expect(screen.getByRole('button', { name: 'Select all compatible' })).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: '2' }));
+
+        await waitFor(() => expect(screen.queryByText('First candidate')).not.toBeInTheDocument());
+        expect(screen.getByText('Loading suggestions...')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Select all compatible' })).not.toBeInTheDocument();
+
+        resolveSecondPage({ data: secondPage });
 
         expect(await screen.findByText('Second candidate')).toBeInTheDocument();
         expect(axios.get).toHaveBeenLastCalledWith('/assistance/data/all', expect.objectContaining({ params: { page: 2, per_page: 25 } }));

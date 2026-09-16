@@ -328,6 +328,7 @@ export interface AssistancePageProps {
     relationTypes?: AssistanceRelationTypeOption[];
     filters?: ResourceImpactFilterState;
     datacenterOptions?: ResourceImpactDatacenterOption[];
+    perPage?: number;
 }
 
 export interface AssistanceSummary {

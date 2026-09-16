@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Enums\CitationLabelResolutionMode;
 use App\Enums\PortalCacheArea;
 use App\Models\DateType;
@@ -25,6 +26,7 @@ use App\Services\KeywordSuggestionService;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -1001,6 +1003,39 @@ describe('ResourceStorageService', function () {
         // Check updated descriptions
         $description = $updatedResource->descriptions->first();
         expect($description->value)->toBe('Updated abstract.');
+    });
+
+    it('invalidates Assistance Datacenter options when an update removes every creator', function () {
+        $resourceType = ResourceType::firstOrFail();
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Creator removal', 'titleType' => 'MainTitle']],
+            'authors' => [[
+                'type' => 'person',
+                'firstName' => 'Jane',
+                'lastName' => 'Smith',
+                'position' => 0,
+            ]],
+        ], $this->user->id);
+        $cacheKey = CacheKey::ASSISTANCE_DATACENTER_OPTIONS;
+        $cache = method_exists(Cache::getStore(), 'tags')
+            ? Cache::tags($cacheKey->tags())
+            : Cache::store();
+        $cache->put($cacheKey->key(), [['id' => 1, 'name' => 'Cached']]);
+
+        [$updatedResource, $isUpdate] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [['title' => 'Creator removal', 'titleType' => 'MainTitle']],
+            'authors' => [],
+        ], $this->user->id);
+
+        expect($isUpdate)->toBeTrue()
+            ->and($updatedResource->is($resource))->toBeTrue()
+            ->and($updatedResource->creators()->count())->toBe(0)
+            ->and($cache->has($cacheKey->key()))->toBeFalse();
     });
 
     it('stores licenses correctly', function () {

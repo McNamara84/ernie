@@ -41,7 +41,7 @@ final class AssistanceDataController extends Controller
             scope: 'all',
             callback: fn (): LengthAwarePaginator => $this->reviewService->paginateAll(
                 request: $request,
-                perPage: $this->perPage($request),
+                perPage: $request->perPage(),
                 filter: $request->resourceImpactFilter(),
             ),
         );
@@ -59,15 +59,10 @@ final class AssistanceDataController extends Controller
             callback: fn (): LengthAwarePaginator => $this->reviewService->paginateAssistant(
                 assistantId: $assistantId,
                 request: $request,
-                perPage: $this->perPage($request),
+                perPage: $request->perPage(),
                 filter: $request->resourceImpactFilter(),
             ) ?? throw new \LogicException('Registered assistant could not be loaded.'),
         );
-    }
-
-    private function perPage(IndexAssistanceRequest $request): int
-    {
-        return max(1, min((int) $request->input('per_page', 25), 100));
     }
 
     /**
@@ -86,7 +81,7 @@ final class AssistanceDataController extends Controller
             'has_doi_filter' => $filter->doi !== null,
             'datacenter_id' => $filter->datacenterId,
             'page' => max(1, (int) $request->input('page', 1)),
-            'per_page' => $this->perPage($request),
+            'per_page' => $request->perPage(),
         ];
 
         DB::listen(static function (QueryExecuted $query) use (&$queryCount, &$queryDurationMs): void {

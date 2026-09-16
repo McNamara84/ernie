@@ -57,6 +57,7 @@ class AssistanceController extends Controller
 
         return Inertia::render('assistance', [
             'filters' => $filter->toArray(),
+            'perPage' => $request->perPage(),
             'manifests' => $manifests,
             'assistanceCollapsedAssistantIds' => $collapsedAssistantIds,
             'relationTypes' => $this->relationTypeOptions(),

@@ -253,7 +253,7 @@
         "fixes": [
             {
                 "title": "Reliable Assistance Review for Large Backlogs",
-                "description": "The Assistance page now opens independently of the number of pending checks and loads only the active review view or expanded assistant sections. ORCID and ROR impact queries avoid the previous cross-product for unfiltered reviews, while local loading, retry, request-ID diagnostics, structured performance logs, and cached Datacenter options keep large backlogs responsive and make individual data-request failures traceable."
+                "description": "The Assistance page now opens independently of the number of pending checks and loads only the active review view or expanded assistant sections. ORCID and ROR impact queries avoid the previous cross-product for unfiltered reviews, while local loading, retry, request-ID diagnostics, structured performance logs, and cached Datacenter options keep large backlogs responsive and make individual data-request failures traceable. Page-size choices remain effective for lazy-loaded results, scope changes hide stale actions until replacement data arrives, and Datacenter options are refreshed after relevant resource, creator, contributor, or Datacenter changes."
             },
             {
                 "title": "DOI Corrections Before Publication",
