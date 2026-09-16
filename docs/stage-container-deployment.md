@@ -5,9 +5,10 @@ application and Nginx images, publishes them to GitHub Container Registry
 (GHCR), and creates a machine-managed `deploy/stage` commit whose Compose file
 pins both images by immutable digest.
 
-Production is intentionally not part of this workflow. Its Compose file and
-deployment process remain unchanged until the Stage rollout has been
-validated.
+Production promotion remains separate from this workflow. It promotes a
+published latest stable release only after locating the exact digest pair in
+Stage deployment history. See
+[production-container-deployment.md](production-container-deployment.md).
 
 ## Deployment flow
 
