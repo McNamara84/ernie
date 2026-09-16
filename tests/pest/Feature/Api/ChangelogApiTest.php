@@ -94,7 +94,6 @@ it('returns the related GitHub references for every version 1.0.9 changelog entr
         ->keyBy('title');
 
     $expectedReferences = [
-        'Release-Gated Production Deployments' => [],
         'Resource-Efficient Stage Deployments' => [
             [
                 'type' => 'pull_request',

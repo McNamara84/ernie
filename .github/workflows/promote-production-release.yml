@@ -181,10 +181,10 @@ jobs:
       stage_commit: ${{ steps.artifacts.outputs.stage_commit }}
 
     steps:
-      - name: Checkout the validated release commit
+      - name: Checkout the trusted default branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.validate.outputs.sha }}
+          ref: refs/heads/main
           fetch-depth: 0
 
       - name: Log in to GitHub Container Registry
@@ -341,10 +341,10 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout the validated release commit
+      - name: Checkout the trusted default branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.validate.outputs.sha }}
+          ref: refs/heads/main
           fetch-depth: 0
 
       - name: Create the digest-pinned Production deployment commit
@@ -371,27 +371,35 @@ jobs:
 
           APP_TEMPLATE="${APP_IMAGE}:deployment-template"
           NGINX_TEMPLATE="${NGINX_IMAGE}:deployment-template"
-          APP_TEMPLATE_COUNT="$(grep -Fc "$APP_TEMPLATE" docker-compose.prod.yml)"
-          NGINX_TEMPLATE_COUNT="$(grep -Fc "$NGINX_TEMPLATE" docker-compose.prod.yml)"
+          PROD_COMPOSE="${RUNNER_TEMP}/docker-compose.prod.yml"
+
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+          git show "${SOURCE_SHA}:docker-compose.prod.yml" > "$PROD_COMPOSE"
+
+          APP_TEMPLATE_COUNT="$(grep -Fc "$APP_TEMPLATE" "$PROD_COMPOSE")"
+          NGINX_TEMPLATE_COUNT="$(grep -Fc "$NGINX_TEMPLATE" "$PROD_COMPOSE")"
 
           if [[ "$APP_TEMPLATE_COUNT" -ne 4 || "$NGINX_TEMPLATE_COUNT" -ne 1 ]]; then
             echo "Unexpected Production image template count: app=$APP_TEMPLATE_COUNT nginx=$NGINX_TEMPLATE_COUNT" >&2
             exit 1
           fi
 
-          sed -i "s|${APP_TEMPLATE}|${APP_IMAGE}@${APP_DIGEST}|g" docker-compose.prod.yml
-          sed -i "s|${NGINX_TEMPLATE}|${NGINX_IMAGE}@${NGINX_DIGEST}|g" docker-compose.prod.yml
+          sed -i "s|${APP_TEMPLATE}|${APP_IMAGE}@${APP_DIGEST}|g" "$PROD_COMPOSE"
+          sed -i "s|${NGINX_TEMPLATE}|${NGINX_IMAGE}@${NGINX_DIGEST}|g" "$PROD_COMPOSE"
 
-          if grep -Fq "$APP_TEMPLATE" docker-compose.prod.yml || grep -Fq "$NGINX_TEMPLATE" docker-compose.prod.yml; then
+          if grep -Fq "$APP_TEMPLATE" "$PROD_COMPOSE" || grep -Fq "$NGINX_TEMPLATE" "$PROD_COMPOSE"; then
             echo "Production image templates remain after digest pinning." >&2
             exit 1
           fi
 
-          docker compose -f docker-compose.prod.yml config --quiet
+          docker compose -f "$PROD_COMPOSE" config --quiet
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docker-compose.prod.yml
+
+          DEPLOY_BLOB="$(git hash-object -w "$PROD_COMPOSE")"
+          git read-tree "${SOURCE_SHA}^{tree}"
+          git update-index --add --cacheinfo "100644,${DEPLOY_BLOB},docker-compose.prod.yml"
 
           PREVIOUS_DEPLOY_SHA="$(git ls-remote --heads origin refs/heads/deploy/prod | awk '{print $1}')"
           PARENTS=(-p "$SOURCE_SHA")

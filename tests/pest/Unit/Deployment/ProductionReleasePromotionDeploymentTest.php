@@ -123,14 +123,23 @@ it('promotes the exact digest pair previously deployed to Stage', function (): v
 });
 
 it('publishes a latest-release-only digest-pinned Production deployment branch', function (): void {
+    $workflowContents = file_get_contents(base_path('.github/workflows/promote-production-release.yml'));
     $workflow = Yaml::parseFile(base_path('.github/workflows/promote-production-release.yml'));
     $inspectSteps = collect($workflow['jobs']['inspect']['steps'] ?? [])->keyBy('name');
     $promoteSteps = collect($workflow['jobs']['promote']['steps'] ?? [])->keyBy('name');
     $latest = $inspectSteps->get('Confirm that the release is still latest');
+    $inspectCheckout = $inspectSteps->get('Checkout the trusted default branch');
+    $promoteCheckout = $promoteSteps->get('Checkout the trusted default branch');
     $deployment = $promoteSteps->get('Create the digest-pinned Production deployment commit');
     $advance = $promoteSteps->get('Advance the digest-pinned Production deployment branch');
 
-    expect($latest)->toBeArray()
+    expect($workflowContents)->toBeString()
+        ->not->toContain('ref: ${{ needs.validate.outputs.sha }}')
+        ->and($inspectCheckout)->toBeArray()
+        ->and($inspectCheckout['with']['ref'] ?? null)->toBe('refs/heads/main')
+        ->and($promoteCheckout)->toBeArray()
+        ->and($promoteCheckout['with']['ref'] ?? null)->toBe('refs/heads/main')
+        ->and($latest)->toBeArray()
         ->and($latest['run'] ?? null)
         ->toBeString()
         ->toContain('releases/latest')
@@ -147,7 +156,11 @@ it('publishes a latest-release-only digest-pinned Production deployment branch',
         ->toBeString()
         ->toContain('APP_TEMPLATE="${APP_IMAGE}:deployment-template"')
         ->toContain('NGINX_TEMPLATE="${NGINX_IMAGE}:deployment-template"')
-        ->toContain('docker compose -f docker-compose.prod.yml config --quiet')
+        ->toContain('git show "${SOURCE_SHA}:docker-compose.prod.yml" > "$PROD_COMPOSE"')
+        ->toContain('docker compose -f "$PROD_COMPOSE" config --quiet')
+        ->toContain('git hash-object -w "$PROD_COMPOSE"')
+        ->toContain('git read-tree "${SOURCE_SHA}^{tree}"')
+        ->toContain('git update-index --add --cacheinfo')
         ->toContain('refs/heads/deploy/prod')
         ->toContain('PARENTS=(-p "$PREVIOUS_DEPLOY_SHA")')
         ->toContain('PARENTS+=(-p "$SOURCE_SHA")')
