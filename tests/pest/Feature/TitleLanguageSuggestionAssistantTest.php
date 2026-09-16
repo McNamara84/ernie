@@ -119,8 +119,15 @@ it('returns title language suggestions for the assistance page', function (): vo
         ->assertInertia(fn ($page) => $page
             ->component('assistance')
             ->has('manifests')
-            ->has('sections')
+            ->missing('sections')
         );
+
+    $this->actingAs($user)
+        ->getJson('/assistance/data/title-language-suggestion')
+        ->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('data.0.suggestions.0.resource_id', $resource->id)
+        ->assertJsonPath('data.0.suggestions.0.target_id', $title->id);
 });
 
 it('does not accept a title language suggestion for an unsupported target type', function (): void {

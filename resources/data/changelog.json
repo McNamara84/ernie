@@ -263,6 +263,10 @@
         ],
         "fixes": [
             {
+                "title": "Reliable Assistance Review for Large Backlogs",
+                "description": "The Assistance page now opens independently of the number of pending checks and loads only the active review view or expanded assistant sections. ORCID and ROR impact queries avoid the previous cross-product for unfiltered reviews, while local loading, retry, request-ID diagnostics, structured performance logs, and cached Datacenter options keep large backlogs responsive and make individual data-request failures traceable. Page-size choices remain effective for lazy-loaded results, scope changes hide stale actions until replacement data arrives, resource updates no longer leave replaced creator affiliations behind, and Datacenter options are refreshed only after committed relevant resource, creator, contributor, affiliation, or Datacenter changes."
+            },
+            {
                 "title": "DOI Corrections Before Publication",
                 "description": "Admins, Group Leaders, and Curators can now enter, replace, or remove a saved resource DOI before DOI publication, including the pre-registration state where its landing page is already public. Changes to a DOI on a public landing page remain restricted to Admins, Beginners cannot alter the DOI field of saved resources, and transaction-level permission checks protect validated saves, draft saves, autosaves, and landing page previews.",
                 "references": [

@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Http\Controllers\AssistanceController;
+use App\Http\Controllers\AssistanceDataController;
 use App\Models\AssistantSuggestion;
 use App\Models\Datacenter;
 use App\Models\DismissedRelation;
@@ -27,7 +29,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
-covers(AssistanceController::class);
+covers(AssistanceController::class, AssistanceDataController::class);
 
 beforeEach(function (): void {
     Config::set('cache.default', 'array');
@@ -53,11 +55,25 @@ describe('index', function () {
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('assistance')
-                ->has('sections')
-                ->has('allAssistantResources')
-                ->has('pendingCounts')
                 ->has('manifests')
+                ->has('filters')
+                ->where('perPage', 25)
+                ->missing('sections')
+                ->missing('allAssistantResources')
+                ->missing('pendingCounts')
+                ->missing('datacenterOptions')
                 ->where('assistanceCollapsedAssistantIds', null)
+            );
+    });
+
+    it('passes the validated page size to the lightweight page shell', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->get('/assistance?per_page=50')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('perPage', 50)
             );
     });
 
@@ -173,9 +189,13 @@ describe('index', function () {
                 ->where('relationTypes.5.slug', 'AlphaUnused')
                 ->where('relationTypes.5.is_most_used', false)
                 ->where('relationTypes.6.slug', 'ZuluUnused')
-                ->where('sections.relation-suggestion.data.0.suggestions.0.id', $suggestion->id)
-                ->where('sections.relation-suggestion.data.0.suggestions.0.relation_type_id', $relationTypes['Cites']->id)
             );
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/relation-suggestion')
+            ->assertOk()
+            ->assertJsonPath('data.0.suggestions.0.id', $suggestion->id)
+            ->assertJsonPath('data.0.suggestions.0.relation_type_id', $relationTypes['Cites']->id);
     });
 
     it('includes the associated person name for affiliation ROR suggestions', function () {
@@ -213,11 +233,9 @@ describe('index', function () {
         ]);
 
         $this->actingAs($user)
-            ->get('/assistance')
+            ->getJson('/assistance/data/ror-suggestion')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('sections.ror-suggestion.data.0.suggestions.0.person_name', 'Curie, Marie')
-            );
+            ->assertJsonPath('data.0.suggestions.0.person_name', 'Curie, Marie');
     });
 
     it('includes the associated person name for contributor affiliation ROR suggestions', function () {
@@ -255,11 +273,9 @@ describe('index', function () {
         ]);
 
         $this->actingAs($user)
-            ->get('/assistance')
+            ->getJson('/assistance/data/ror-suggestion')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('sections.ror-suggestion.data.0.suggestions.0.person_name', 'Einstein, Albert')
-            );
+            ->assertJsonPath('data.0.suggestions.0.person_name', 'Einstein, Albert');
     });
 
     it('paginates complete resources and merges assistants in the all-assistants view', function () {
@@ -299,17 +315,23 @@ describe('index', function () {
         ]);
 
         $this->actingAs($user)
-            ->get('/assistance?per_page=1')
+            ->getJson('/assistance/data/date-type-suggestion?per_page=1')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('sections.date-type-suggestion.total', 2)
-                ->where('sections.date-type-suggestion.data.0.resource_id', $newerResource->id)
-                ->has('sections.date-type-suggestion.data.0.suggestions', 2)
-                ->where('allAssistantResources.total', 2)
-                ->has('allAssistantResources.data.0.suggestions', 3)
-                ->where('pendingCounts.date-type-suggestion', 3)
-                ->where('pendingCounts.size-format-suggestion', 1)
-            );
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('data.0.resource_id', $newerResource->id)
+            ->assertJsonCount(2, 'data.0.suggestions');
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/all?per_page=1')
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonCount(3, 'data.0.suggestions');
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/summary')
+            ->assertOk()
+            ->assertJsonPath('pendingCounts.date-type-suggestion', 3)
+            ->assertJsonPath('pendingCounts.size-format-suggestion', 1);
     });
 
     it('filters suggestions by indirect ORCID impact and keeps counts and datacenter options consistent', function () {
@@ -357,49 +379,72 @@ describe('index', function () {
             'discovered_at' => now(),
         ]);
 
+        $affectedQuery = '?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FASSISTANCE.AFFECTED&datacenter_id='.$affectedDatacenter->id;
+
         $this->actingAs($user)
-            ->get('/assistance?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FASSISTANCE.AFFECTED&datacenter_id='.$affectedDatacenter->id)
+            ->get('/assistance'.$affectedQuery)
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('filters.doi', '10.5880/assistance.affected')
                 ->where('filters.datacenter_id', $affectedDatacenter->id)
-                ->where('pendingCounts.orcid-suggestion', 1)
-                ->where('pendingCounts.date-type-suggestion', 0)
-                ->where('sections.orcid-suggestion.total', 1)
-                ->where('sections.orcid-suggestion.data.0.resource_id', $origin->id)
-                ->where('sections.orcid-suggestion.data.0.suggestions.0.id', $orcidSuggestion->id)
-                ->where('sections.orcid-suggestion.data.0.suggestions.0.review.filter_match.kind', 'indirect')
-                ->where('sections.orcid-suggestion.data.0.suggestions.0.review.filter_match.matched_resource_count', 1)
-                ->where('sections.orcid-suggestion.data.0.suggestions.0.review.filter_match.matched_doi', '10.5880/assistance.affected')
-                ->where('sections.date-type-suggestion.total', 0)
-                ->where('allAssistantResources.total', 1)
-                ->has('allAssistantResources.data.0.suggestions', 1)
-                ->has('datacenterOptions', 2)
-                ->where('datacenterOptions.0.name', 'Alpha Origin Center')
-                ->where('datacenterOptions.1.name', 'Beta Affected Center')
             );
 
-        $this->actingAs($user)
-            ->get('/assistance?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FASSISTANCE.ORIGIN&datacenter_id='.$originDatacenter->id)
+        $summaryResponse = $this->actingAs($user)
+            ->getJson('/assistance/data/summary'.$affectedQuery)
             ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('filters.doi', '10.5880/assistance.origin')
-                ->where('pendingCounts.orcid-suggestion', 1)
-                ->where('pendingCounts.date-type-suggestion', 1)
-                ->where('sections.orcid-suggestion.total', 1)
-                ->where('sections.date-type-suggestion.total', 1)
-                ->where('allAssistantResources.total', 1)
-                ->has('allAssistantResources.data.0.suggestions', 2)
-            );
+            ->assertJsonPath('pendingCounts.orcid-suggestion', 1)
+            ->assertJsonPath('pendingCounts.date-type-suggestion', 0)
+            ->assertJsonCount(2, 'datacenterOptions')
+            ->assertJsonPath('datacenterOptions.0.name', 'Alpha Origin Center')
+            ->assertJsonPath('datacenterOptions.1.name', 'Beta Affected Center');
+
+        expect(Str::isUuid((string) $summaryResponse->headers->get('X-Assistance-Request-Id')))->toBeTrue();
+        $datacenterCache = CacheKey::ASSISTANCE_DATACENTER_OPTIONS;
+        expect(Cache::tags($datacenterCache->tags())->has($datacenterCache->key()))->toBeTrue();
 
         $this->actingAs($user)
-            ->get('/assistance?doi=10.5880%2Fassistance.affected&datacenter_id='.$originDatacenter->id)
+            ->getJson('/assistance/data/orcid-suggestion'.$affectedQuery)
             ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('pendingCounts.orcid-suggestion', 0)
-                ->where('sections.orcid-suggestion.total', 0)
-                ->where('allAssistantResources.total', 0)
-            );
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.resource_id', $origin->id)
+            ->assertJsonPath('data.0.suggestions.0.id', $orcidSuggestion->id)
+            ->assertJsonPath('data.0.suggestions.0.review.filter_match.kind', 'indirect')
+            ->assertJsonPath('data.0.suggestions.0.review.filter_match.matched_resource_count', 1)
+            ->assertJsonPath('data.0.suggestions.0.review.filter_match.matched_doi', '10.5880/assistance.affected');
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/date-type-suggestion'.$affectedQuery)
+            ->assertOk()
+            ->assertJsonPath('total', 0);
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/all'.$affectedQuery)
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonCount(1, 'data.0.suggestions');
+
+        $originQuery = '?doi=https%3A%2F%2Fdoi.org%2F10.5880%2FASSISTANCE.ORIGIN&datacenter_id='.$originDatacenter->id;
+        $this->actingAs($user)
+            ->getJson('/assistance/data/summary'.$originQuery)
+            ->assertOk()
+            ->assertJsonPath('pendingCounts.orcid-suggestion', 1)
+            ->assertJsonPath('pendingCounts.date-type-suggestion', 1);
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/all'.$originQuery)
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonCount(2, 'data.0.suggestions');
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/summary?doi=10.5880%2Fassistance.affected&datacenter_id='.$originDatacenter->id)
+            ->assertOk()
+            ->assertJsonPath('pendingCounts.orcid-suggestion', 0);
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/all?doi=10.5880%2Fassistance.affected&datacenter_id='.$originDatacenter->id)
+            ->assertOk()
+            ->assertJsonPath('total', 0);
     });
 
     it('keeps shared-entity impact filtering database-side for a large backlog', function () {
@@ -460,13 +505,10 @@ describe('index', function () {
         });
 
         $this->actingAs($user)
-            ->get('/assistance?doi=10.5880%2Fbacklog.250&per_page=1')
+            ->getJson('/assistance/data/orcid-suggestion?doi=10.5880%2Fbacklog.250&per_page=1')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('pendingCounts.orcid-suggestion', 1)
-                ->where('sections.orcid-suggestion.total', 1)
-                ->has('sections.orcid-suggestion.data.0.suggestions', 1)
-            );
+            ->assertJsonPath('total', 1)
+            ->assertJsonCount(1, 'data.0.suggestions');
 
         expect($maximumBindingCount)->toBeLessThan(100);
     });
@@ -491,16 +533,18 @@ describe('index', function () {
         }
 
         $this->actingAs($user)
-            ->get('/assistance?datacenter_id='.$datacenter->id.'&per_page=1')
+            ->getJson('/assistance/data/date-type-suggestion?datacenter_id='.$datacenter->id.'&per_page=1')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('sections.date-type-suggestion.total', 2)
-                ->where('sections.date-type-suggestion.per_page', 1)
-                ->where('sections.date-type-suggestion.next_page_url', fn (string $url): bool => str_contains($url, 'datacenter_id='.$datacenter->id)
-                    && str_contains($url, 'per_page=1'))
-                ->where('allAssistantResources.next_page_url', fn (string $url): bool => str_contains($url, 'datacenter_id='.$datacenter->id)
-                    && str_contains($url, 'per_page=1'))
-            );
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('per_page', 1)
+            ->assertJsonPath('next_page_url', fn (string $url): bool => str_contains($url, 'datacenter_id='.$datacenter->id)
+                && str_contains($url, 'per_page=1'));
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/all?datacenter_id='.$datacenter->id.'&per_page=1')
+            ->assertOk()
+            ->assertJsonPath('next_page_url', fn (string $url): bool => str_contains($url, 'datacenter_id='.$datacenter->id)
+                && str_contains($url, 'per_page=1'));
     });
 
     it('includes ROR institution suggestions when the filtered resource shares the institution', function () {
@@ -534,16 +578,55 @@ describe('index', function () {
         ]);
 
         $this->actingAs($user)
-            ->get('/assistance?doi=10.5880%2Fror.affected')
+            ->getJson('/assistance/data/ror-suggestion?doi=10.5880%2Fror.affected')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('pendingCounts.ror-suggestion', 1)
-                ->where('sections.ror-suggestion.total', 1)
-                ->where('sections.ror-suggestion.data.0.resource_id', $origin->id)
-                ->where('sections.ror-suggestion.data.0.suggestions.0.review.filter_match.kind', 'indirect')
-                ->where('sections.ror-suggestion.data.0.suggestions.0.review.filter_match.matched_doi', '10.5880/ror.affected')
-            );
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.resource_id', $origin->id)
+            ->assertJsonPath('data.0.suggestions.0.review.filter_match.kind', 'indirect')
+            ->assertJsonPath('data.0.suggestions.0.review.filter_match.matched_doi', '10.5880/ror.affected');
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/summary?doi=10.5880%2Fror.affected')
+            ->assertOk()
+            ->assertJsonPath('pendingCounts.ror-suggestion', 1);
     });
+
+    it('includes ROR affiliation impacts in Datacenter options', function (string $relation) {
+        $user = User::factory()->create(['role' => 'admin']);
+        $originDatacenter = Datacenter::factory()->create(['name' => 'Alpha Origin Center']);
+        $affectedDatacenter = Datacenter::factory()->create(['name' => 'Beta Affected Center']);
+        $origin = Resource::factory()->create(['datacenter_id' => $originDatacenter->id]);
+        $affected = Resource::factory()->create(['datacenter_id' => $affectedDatacenter->id]);
+
+        if ($relation === 'creator') {
+            $owner = ResourceCreator::factory()->create(['resource_id' => $affected->id]);
+        } else {
+            $owner = ResourceContributor::factory()->create(['resource_id' => $affected->id]);
+        }
+
+        $affiliation = $owner->affiliations()->create(['name' => 'GFZ Potsdam']);
+        SuggestedRor::create([
+            'resource_id' => $origin->id,
+            'entity_type' => 'affiliation',
+            'entity_id' => $affiliation->id,
+            'entity_name' => $affiliation->name,
+            'suggested_ror_id' => 'https://ror.org/04z8jg394',
+            'suggested_name' => 'GFZ Helmholtz Centre for Geosciences',
+            'similarity_score' => 0.98,
+            'ror_aliases' => [],
+            'locations' => [],
+            'existing_identifier' => null,
+            'existing_identifier_type' => null,
+            'discovered_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/summary')
+            ->assertOk()
+            ->assertJsonCount(2, 'datacenterOptions')
+            ->assertJsonPath('datacenterOptions.0.name', 'Alpha Origin Center')
+            ->assertJsonPath('datacenterOptions.1.name', 'Beta Affected Center');
+    })->with(['creator', 'contributor']);
 
     it('rejects invalid assistance filter values', function () {
         $user = User::factory()->create(['role' => 'admin']);
@@ -561,11 +644,24 @@ describe('index', function () {
             ->get('/assistance?datacenter_id=999999')
             ->assertRedirect('/assistance')
             ->assertSessionHasErrors('datacenter_id');
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/all?per_page=101')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('per_page');
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/unknown-assistant')
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Unknown assistant.');
     });
 
     it('rejects unauthenticated users', function () {
         $this->get('/assistance')
             ->assertRedirect('/login');
+
+        $this->getJson('/assistance/data/summary')
+            ->assertUnauthorized();
     });
 });
 

@@ -235,7 +235,7 @@ describe('handle', function () {
         $newLock->release();
     });
 
-    it('invalidates total pending count when new suggestions found', function () {
+    it('invalidates assistance summary caches when new suggestions are found', function () {
         $uuid = Str::uuid()->toString();
         $assistantId = 'test-assistant';
         $cacheKey = "test_cache:{$uuid}";
@@ -244,6 +244,8 @@ describe('handle', function () {
         $totalCountKey = $cacheEnum->key();
         $tags = $cacheEnum->tags();
         Cache::tags($tags)->put($totalCountKey, 10, now()->addHour());
+        $datacenterCache = CacheKey::ASSISTANCE_DATACENTER_OPTIONS;
+        Cache::tags($datacenterCache->tags())->put($datacenterCache->key(), [['id' => 1, 'name' => 'Cached']], now()->addHour());
 
         $mockAssistant = Mockery::mock(GenericTableAssistant::class);
         $mockAssistant->shouldReceive('getJobStatusCacheKey')
@@ -264,10 +266,11 @@ describe('handle', function () {
         $job = new DiscoverAssistantSuggestionsJob($assistantId, $uuid);
         $job->handle($registrar);
 
-        expect(Cache::tags($tags)->has($totalCountKey))->toBeFalse();
+        expect(Cache::tags($tags)->has($totalCountKey))->toBeFalse()
+            ->and(Cache::tags($datacenterCache->tags())->has($datacenterCache->key()))->toBeFalse();
     });
 
-    it('preserves total pending count when no new suggestions found', function () {
+    it('preserves assistance summary caches when no new suggestions are found', function () {
         $uuid = Str::uuid()->toString();
         $assistantId = 'test-assistant';
         $cacheKey = "test_cache:{$uuid}";
@@ -276,6 +279,8 @@ describe('handle', function () {
         $totalCountKey = $cacheEnum->key();
         $tags = $cacheEnum->tags();
         Cache::tags($tags)->put($totalCountKey, 10, now()->addHour());
+        $datacenterCache = CacheKey::ASSISTANCE_DATACENTER_OPTIONS;
+        Cache::tags($datacenterCache->tags())->put($datacenterCache->key(), [['id' => 1, 'name' => 'Cached']], now()->addHour());
 
         $mockAssistant = Mockery::mock(GenericTableAssistant::class);
         $mockAssistant->shouldReceive('getJobStatusCacheKey')
@@ -298,6 +303,7 @@ describe('handle', function () {
 
         expect(Cache::tags($tags)->has($totalCountKey))->toBeTrue();
         expect((int) Cache::tags($tags)->get($totalCountKey))->toBe(10);
+        expect(Cache::tags($datacenterCache->tags())->has($datacenterCache->key()))->toBeTrue();
     });
 });
 

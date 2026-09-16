@@ -13,6 +13,7 @@ use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
 use App\Observers\ResourceObserver;
+use App\Services\Assistance\AssistanceDatacenterOptionsCacheInvalidationService;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\PortalCacheInvalidationService;
@@ -29,11 +30,13 @@ beforeEach(function () {
     $this->cacheInvalidationService = Mockery::mock(PortalCacheInvalidationService::class); // @phpstan-ignore variable.undefined
     $this->oaiPmhSetService = Mockery::mock(OaiPmhSetService::class); // @phpstan-ignore variable.undefined
     $this->landingPageRenderDataCache = Mockery::mock(LandingPageRenderDataCacheService::class); // @phpstan-ignore variable.undefined
+    $this->assistanceCacheInvalidationService = Mockery::mock(AssistanceDatacenterOptionsCacheInvalidationService::class); // @phpstan-ignore variable.undefined
     $this->observer = new ResourceObserver(
         $this->cacheService,
         $this->oaiPmhSetService,
         $this->landingPageRenderDataCache,
         $this->cacheInvalidationService,
+        $this->assistanceCacheInvalidationService,
     );
 });
 
@@ -218,7 +221,6 @@ describe('updated', function () {
             $resource->datacenter_id = $newDatacenter->id;
             $resource->save();
         });
-
         $this->cacheService->shouldReceive('invalidateResourceCache')->once()->with($resource->id);
         $this->cacheInvalidationService->shouldReceive('isPublished')->once()->with($resource)->andReturn(true);
         $this->cacheInvalidationService->shouldReceive('scopeForResource')->once()->andReturn(PortalScope::IGSN);
@@ -230,6 +232,7 @@ describe('updated', function () {
             PortalCacheArea::DATACENTER_FACETS,
             PortalCacheArea::IGSN_FACETS,
         ]);
+        $this->assistanceCacheInvalidationService->shouldReceive('scheduleAfterCommit')->once();
 
         $this->observer->updated($resource);
     });
@@ -337,9 +340,9 @@ describe('deleted', function () {
 
     it('invalidates all resource caches', function () {
         $resource = Resource::factory()->create();
-
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
+        $this->assistanceCacheInvalidationService->shouldReceive('scheduleAfterCommit')->once();
         $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
         $this->oaiPmhSetService->shouldReceive('getSetsForResource')
             ->andReturn([]);
@@ -363,6 +366,7 @@ describe('deleted', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
+        $this->assistanceCacheInvalidationService->shouldReceive('scheduleAfterCommit')->once();
         $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
         $this->oaiPmhSetService->shouldNotReceive('getSetsForResource');
 
@@ -376,6 +380,7 @@ describe('deleted', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
+        $this->assistanceCacheInvalidationService->shouldReceive('scheduleAfterCommit')->once();
         $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
         $this->oaiPmhSetService->shouldNotReceive('getSetsForResource');
 
@@ -392,9 +397,9 @@ describe('deleted', function () {
 describe('forceDeleted', function () {
     it('invalidates all resource caches', function () {
         $resource = Resource::factory()->create();
-
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
+        $this->assistanceCacheInvalidationService->shouldReceive('scheduleAfterCommit')->once();
         $this->cacheInvalidationService->shouldReceive('isPublished')->once()->andReturn(false);
 
         $this->observer->forceDeleted($resource);

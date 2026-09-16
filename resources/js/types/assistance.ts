@@ -320,7 +320,7 @@ export interface SuggestedDescriptionSegmentationItem extends BaseSuggestionItem
     metadata: DescriptionSegmentationSuggestionMetadata | null;
 }
 export interface AssistancePageProps {
-    sections: Record<string, PaginatedData<AssistanceResourceGroup> | PaginatedData<BaseSuggestionItem>>;
+    sections?: Record<string, PaginatedData<AssistanceResourceGroup> | PaginatedData<BaseSuggestionItem>>;
     allAssistantResources?: PaginatedData<AssistanceResourceGroup>;
     pendingCounts?: Record<string, number>;
     assistanceCollapsedAssistantIds?: string[] | null;
@@ -328,6 +328,12 @@ export interface AssistancePageProps {
     relationTypes?: AssistanceRelationTypeOption[];
     filters?: ResourceImpactFilterState;
     datacenterOptions?: ResourceImpactDatacenterOption[];
+    perPage?: number;
+}
+
+export interface AssistanceSummary {
+    pendingCounts: Record<string, number>;
+    datacenterOptions: ResourceImpactDatacenterOption[];
 }
 
 export interface BatchSuggestionResult {

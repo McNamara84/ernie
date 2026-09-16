@@ -60,9 +60,9 @@ class Assistant extends AbstractAssistant
     }
 
     #[\Override]
-    public function pendingSuggestionImpactQuery(): QueryBuilder
+    public function pendingSuggestionQuery(): QueryBuilder
     {
-        $direct = DB::table('suggested_rors')
+        return DB::table('suggested_rors')
             ->join('resources', 'suggested_rors.resource_id', '=', 'resources.id')
             ->select([
                 'suggested_rors.id AS suggestion_id',
@@ -71,6 +71,12 @@ class Assistant extends AbstractAssistant
                 'resources.created_at AS resource_created_at',
             ])
             ->selectRaw('? AS assistant_id', [$this->getId()]);
+    }
+
+    #[\Override]
+    public function pendingSuggestionImpactQuery(?QueryBuilder $impactResourceIds = null): QueryBuilder
+    {
+        $direct = $this->pendingSuggestionQuery();
 
         $institutionCreatorImpacts = $this->institutionImpactQuery(
             table: 'resource_creators',
@@ -95,9 +101,65 @@ class Assistant extends AbstractAssistant
             affiliatableType: ResourceContributor::class,
         );
 
+        if ($impactResourceIds !== null) {
+            $direct->whereIn('suggested_rors.resource_id', clone $impactResourceIds);
+            $institutionCreatorImpacts->whereIn('impact_creators.resource_id', clone $impactResourceIds);
+            $institutionContributorImpacts->whereIn('impact_contributors.resource_id', clone $impactResourceIds);
+            $affiliationCreatorImpacts->whereIn('impact_creators.resource_id', clone $impactResourceIds);
+            $affiliationContributorImpacts->whereIn('impact_contributors.resource_id', clone $impactResourceIds);
+        }
+
         return $direct
             ->union($institutionCreatorImpacts)
             ->union($institutionContributorImpacts)
+            ->union($affiliationCreatorImpacts)
+            ->union($affiliationContributorImpacts);
+    }
+
+    #[\Override]
+    public function pendingResourceImpactQuery(): QueryBuilder
+    {
+        $pendingInstitutionIds = DB::table('suggested_rors')
+            ->where('suggested_rors.entity_type', 'institution')
+            ->select('suggested_rors.entity_id')
+            ->distinct();
+        $pendingAffiliationIds = DB::table('suggested_rors')
+            ->where('suggested_rors.entity_type', 'affiliation')
+            ->select('suggested_rors.entity_id')
+            ->distinct();
+        $direct = DB::table('suggested_rors')
+            ->selectRaw('suggested_rors.resource_id AS impact_resource_id')
+            ->distinct();
+        $creatorImpacts = DB::table('resource_creators AS impact_creators')
+            ->joinSub(clone $pendingInstitutionIds, 'pending_ror_institutions', function (JoinClause $join): void {
+                $join->on('pending_ror_institutions.entity_id', '=', 'impact_creators.creatorable_id');
+            })
+            ->where('impact_creators.creatorable_type', Institution::class)
+            ->selectRaw('impact_creators.resource_id AS impact_resource_id')
+            ->distinct();
+        $contributorImpacts = DB::table('resource_contributors AS impact_contributors')
+            ->joinSub(clone $pendingInstitutionIds, 'pending_ror_institutions', function (JoinClause $join): void {
+                $join->on('pending_ror_institutions.entity_id', '=', 'impact_contributors.contributorable_id');
+            })
+            ->where('impact_contributors.contributorable_type', Institution::class)
+            ->selectRaw('impact_contributors.resource_id AS impact_resource_id')
+            ->distinct();
+        $affiliationCreatorImpacts = $this->affiliationResourceImpactQuery(
+            pendingAffiliationIds: $pendingAffiliationIds,
+            table: 'resource_creators',
+            alias: 'impact_creators',
+            affiliatableType: ResourceCreator::class,
+        );
+        $affiliationContributorImpacts = $this->affiliationResourceImpactQuery(
+            pendingAffiliationIds: $pendingAffiliationIds,
+            table: 'resource_contributors',
+            alias: 'impact_contributors',
+            affiliatableType: ResourceContributor::class,
+        );
+
+        return $direct
+            ->union($creatorImpacts)
+            ->union($contributorImpacts)
             ->union($affiliationCreatorImpacts)
             ->union($affiliationContributorImpacts);
     }
@@ -170,6 +232,24 @@ class Assistant extends AbstractAssistant
                 'resources.created_at AS resource_created_at',
             ])
             ->selectRaw('? AS assistant_id', [$this->getId()]);
+    }
+
+    private function affiliationResourceImpactQuery(
+        QueryBuilder $pendingAffiliationIds,
+        string $table,
+        string $alias,
+        string $affiliatableType,
+    ): QueryBuilder {
+        return DB::table('affiliations AS impact_affiliations')
+            ->joinSub(clone $pendingAffiliationIds, 'pending_ror_affiliations', function (JoinClause $join): void {
+                $join->on('pending_ror_affiliations.entity_id', '=', 'impact_affiliations.id');
+            })
+            ->join($table.' AS '.$alias, function (JoinClause $join) use ($alias, $affiliatableType): void {
+                $join->on($alias.'.id', '=', 'impact_affiliations.affiliatable_id')
+                    ->where('impact_affiliations.affiliatable_type', $affiliatableType);
+            })
+            ->selectRaw($alias.'.resource_id AS impact_resource_id')
+            ->distinct();
     }
 
     /**

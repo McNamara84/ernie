@@ -472,5 +472,6 @@ class RelationDiscoveryService
     private function invalidateAssistanceCache(): void
     {
         CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
+        CacheKey::ASSISTANCE_DATACENTER_OPTIONS->forget();
     }
 }
