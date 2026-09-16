@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Enums\CacheKey;
+use App\Models\Affiliation;
 use App\Models\Datacenter;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
@@ -33,6 +34,10 @@ final class AssistanceDatacenterOptionsObserver
     private function updatedChangeAffectsOptions(Model $model): bool
     {
         return match (true) {
+            $model instanceof Affiliation => $model->wasChanged([
+                'affiliatable_type',
+                'affiliatable_id',
+            ]),
             $model instanceof ResourceCreator => $model->wasChanged([
                 'resource_id',
                 'creatorable_type',

@@ -163,6 +163,7 @@ class AppServiceProvider extends ServiceProvider
         DescriptionType::observe(PortalSharedDependencyObserver::class);
         DateType::observe(ResourceListingProjectionDependencyObserver::class);
         Affiliation::observe(DashboardMetricsObserver::class);
+        Affiliation::observe(AssistanceDatacenterOptionsObserver::class);
         Format::observe(FormatObserver::class);
         Size::observe(SizeObserver::class);
         LandingPageFile::observe(LandingPageFileObserver::class);

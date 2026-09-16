@@ -123,6 +123,10 @@ class Assistant extends AbstractAssistant
             ->where('suggested_rors.entity_type', 'institution')
             ->select('suggested_rors.entity_id')
             ->distinct();
+        $pendingAffiliationIds = DB::table('suggested_rors')
+            ->where('suggested_rors.entity_type', 'affiliation')
+            ->select('suggested_rors.entity_id')
+            ->distinct();
         $direct = DB::table('suggested_rors')
             ->selectRaw('suggested_rors.resource_id AS impact_resource_id')
             ->distinct();
@@ -140,8 +144,24 @@ class Assistant extends AbstractAssistant
             ->where('impact_contributors.contributorable_type', Institution::class)
             ->selectRaw('impact_contributors.resource_id AS impact_resource_id')
             ->distinct();
+        $affiliationCreatorImpacts = $this->affiliationResourceImpactQuery(
+            pendingAffiliationIds: $pendingAffiliationIds,
+            table: 'resource_creators',
+            alias: 'impact_creators',
+            affiliatableType: ResourceCreator::class,
+        );
+        $affiliationContributorImpacts = $this->affiliationResourceImpactQuery(
+            pendingAffiliationIds: $pendingAffiliationIds,
+            table: 'resource_contributors',
+            alias: 'impact_contributors',
+            affiliatableType: ResourceContributor::class,
+        );
 
-        return $direct->union($creatorImpacts)->union($contributorImpacts);
+        return $direct
+            ->union($creatorImpacts)
+            ->union($contributorImpacts)
+            ->union($affiliationCreatorImpacts)
+            ->union($affiliationContributorImpacts);
     }
 
     #[\Override]
@@ -212,6 +232,24 @@ class Assistant extends AbstractAssistant
                 'resources.created_at AS resource_created_at',
             ])
             ->selectRaw('? AS assistant_id', [$this->getId()]);
+    }
+
+    private function affiliationResourceImpactQuery(
+        QueryBuilder $pendingAffiliationIds,
+        string $table,
+        string $alias,
+        string $affiliatableType,
+    ): QueryBuilder {
+        return DB::table('affiliations AS impact_affiliations')
+            ->joinSub(clone $pendingAffiliationIds, 'pending_ror_affiliations', function (JoinClause $join): void {
+                $join->on('pending_ror_affiliations.entity_id', '=', 'impact_affiliations.id');
+            })
+            ->join($table.' AS '.$alias, function (JoinClause $join) use ($alias, $affiliatableType): void {
+                $join->on($alias.'.id', '=', 'impact_affiliations.affiliatable_id')
+                    ->where('impact_affiliations.affiliatable_type', $affiliatableType);
+            })
+            ->selectRaw($alias.'.resource_id AS impact_resource_id')
+            ->distinct();
     }
 
     /**

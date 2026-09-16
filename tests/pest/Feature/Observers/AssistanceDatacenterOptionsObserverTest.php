@@ -107,11 +107,41 @@ it('invalidates cached options for relevant contributor relationship changes', f
     expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
 });
 
+it('invalidates cached options for relevant affiliation relationship changes', function () {
+    $creator = ResourceCreator::factory()->create();
+    seedAssistanceDatacenterOptionsCache();
+
+    $affiliation = $creator->affiliations()->create(['name' => 'GFZ Potsdam']);
+
+    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
+
+    $replacement = ResourceCreator::factory()->create();
+    seedAssistanceDatacenterOptionsCache();
+    $affiliation->update(['affiliatable_id' => $replacement->id]);
+
+    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
+
+    seedAssistanceDatacenterOptionsCache();
+    $affiliation->delete();
+
+    expect(hasAssistanceDatacenterOptionsCache())->toBeFalse();
+});
+
 it('keeps cached options for unrelated creator metadata changes', function () {
     $creator = ResourceCreator::factory()->create();
     seedAssistanceDatacenterOptionsCache();
 
     $creator->update(['position' => 2]);
+
+    expect(hasAssistanceDatacenterOptionsCache())->toBeTrue();
+});
+
+it('keeps cached options for unrelated affiliation metadata changes', function () {
+    $affiliation = ResourceCreator::factory()->create()
+        ->affiliations()->create(['name' => 'GFZ Potsdam']);
+    seedAssistanceDatacenterOptionsCache();
+
+    $affiliation->update(['name' => 'GFZ Helmholtz Centre for Geosciences']);
 
     expect(hasAssistanceDatacenterOptionsCache())->toBeTrue();
 });

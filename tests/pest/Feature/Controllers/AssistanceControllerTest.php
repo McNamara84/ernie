@@ -591,6 +591,53 @@ describe('index', function () {
             ->assertJsonPath('pendingCounts.ror-suggestion', 1);
     });
 
+    it('refreshes Datacenter options when a ROR affiliation moves to another resource', function (string $relation) {
+        $user = User::factory()->create(['role' => 'admin']);
+        $originDatacenter = Datacenter::factory()->create(['name' => 'Alpha Origin Center']);
+        $affectedDatacenter = Datacenter::factory()->create(['name' => 'Beta Affected Center']);
+        $origin = Resource::factory()->create(['datacenter_id' => $originDatacenter->id]);
+        $affected = Resource::factory()->create(['datacenter_id' => $affectedDatacenter->id]);
+
+        if ($relation === 'creator') {
+            $owner = ResourceCreator::factory()->create(['resource_id' => $origin->id]);
+            $replacement = ResourceCreator::factory()->create(['resource_id' => $affected->id]);
+        } else {
+            $owner = ResourceContributor::factory()->create(['resource_id' => $origin->id]);
+            $replacement = ResourceContributor::factory()->create(['resource_id' => $affected->id]);
+        }
+
+        $affiliation = $owner->affiliations()->create(['name' => 'GFZ Potsdam']);
+        SuggestedRor::create([
+            'resource_id' => $origin->id,
+            'entity_type' => 'affiliation',
+            'entity_id' => $affiliation->id,
+            'entity_name' => $affiliation->name,
+            'suggested_ror_id' => 'https://ror.org/04z8jg394',
+            'suggested_name' => 'GFZ Helmholtz Centre for Geosciences',
+            'similarity_score' => 0.98,
+            'ror_aliases' => [],
+            'locations' => [],
+            'existing_identifier' => null,
+            'existing_identifier_type' => null,
+            'discovered_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/summary')
+            ->assertOk()
+            ->assertJsonCount(1, 'datacenterOptions')
+            ->assertJsonPath('datacenterOptions.0.name', 'Alpha Origin Center');
+
+        $affiliation->update(['affiliatable_id' => $replacement->id]);
+
+        $this->actingAs($user)
+            ->getJson('/assistance/data/summary')
+            ->assertOk()
+            ->assertJsonCount(2, 'datacenterOptions')
+            ->assertJsonPath('datacenterOptions.0.name', 'Alpha Origin Center')
+            ->assertJsonPath('datacenterOptions.1.name', 'Beta Affected Center');
+    })->with(['creator', 'contributor']);
+
     it('rejects invalid assistance filter values', function () {
         $user = User::factory()->create(['role' => 'admin']);
 
