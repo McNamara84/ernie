@@ -1,6 +1,6 @@
-FROM mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb AS legacy-mysql-dump-client
+FROM mysql:8.4.11@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a AS legacy-mysql-dump-client
 
-FROM php:8.5.10-fpm-trixie@sha256:70076c1cae0cd0ba6761832417e3a1df3e5560f0544eb0fe40357373e54420fe AS app-base
+FROM php:8.5.10-fpm-trixie@sha256:f697f5e5a02534fff868345cc77e29925a852bbea339c2ad53b690d28dba2868 AS app-base
 
 WORKDIR /var/www/html
 
@@ -53,7 +53,7 @@ RUN set -eux; \
     docker-php-ext-install redis; \
     rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
-COPY --from=composer:2.10.3@sha256:4d045ea9f71d5d111a95e608400da61d187e487adf9eaf2dfe068998a8d4f584 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.10.3@sha256:add7779823f272dcbc4b47b092d8a9e26fd304fb72f7209e0725737d2a5ba6a6 /usr/bin/composer /usr/bin/composer
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
