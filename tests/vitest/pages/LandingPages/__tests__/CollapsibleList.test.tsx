@@ -62,7 +62,8 @@ describe('CollapsibleList', () => {
         expect(allItems.filter((el) => !el.classList.contains('hidden'))).toHaveLength(10);
 
         fireEvent.click(button);
-        expect(button).toHaveTextContent('Show fewer items');
+        expect(button).toHaveTextContent('Show less');
+        expect(button).not.toHaveTextContent('items');
         expect(button).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getAllByRole('listitem')).toHaveLength(15);
         expect(screen.getAllByRole('listitem').filter((el) => el.classList.contains('hidden'))).toHaveLength(0);

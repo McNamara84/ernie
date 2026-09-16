@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, screen } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { ContributorsSection } from '@/pages/LandingPages/components/ContributorsSection';
@@ -117,6 +117,12 @@ describe('ContributorsSection', () => {
         const contributors = Array.from({ length: 12 }, (_, i) => mockContributor({ id: i + 1 }));
         render(<ContributorsSection contributors={contributors} displayLimit={10} />);
         expect(screen.getByText('Showing 10 of 12 contributors')).toBeInTheDocument();
-        expect(screen.getByText('Show all 12 contributors')).toBeInTheDocument();
+        const toggle = screen.getByRole('button', { name: 'Show all 12 contributors' });
+
+        fireEvent.click(toggle);
+
+        expect(screen.getByText('Showing all 12 contributors')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.queryByText('Show fewer contributors')).not.toBeInTheDocument();
     });
 });
