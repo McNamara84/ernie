@@ -1,0 +1,450 @@
+name: Promote Production Release
+
+on:
+  workflow_run:
+    workflows:
+      - Production Release Signal
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote-production-release
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: >-
+      github.event.workflow_run.event == 'release' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      app_image: ${{ steps.source.outputs.app_image }}
+      checks_ready: ${{ steps.deployment-checks.outputs.ready }}
+      current: ${{ steps.source.outputs.current }}
+      nginx_image: ${{ steps.source.outputs.nginx_image }}
+      release_id: ${{ steps.release.outputs.id }}
+      release_tag: ${{ steps.release.outputs.tag }}
+      sha: ${{ steps.source.outputs.sha }}
+
+    steps:
+      - name: Resolve the latest stable release
+        id: release
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const response = await github.rest.repos.getLatestRelease({
+              ...context.repo,
+            });
+            const release = response.data;
+            const stableTag = /^v\d+\.\d+\.\d+$/.test(release.tag_name);
+
+            if (release.draft || release.prerelease || !stableTag) {
+              core.setFailed(
+                `GitHub's latest release is not a stable vMAJOR.MINOR.PATCH release: ${release.tag_name}`
+              );
+              return;
+            }
+
+            core.setOutput('id', String(release.id));
+            core.setOutput('tag', release.tag_name);
+
+      - name: Checkout the latest stable release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ steps.release.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Resolve and validate the release source
+        id: source
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          git check-ref-format "refs/tags/${RELEASE_TAG}"
+          git fetch --force --no-tags origin \
+            "refs/heads/main:refs/remotes/origin/main" \
+            "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+
+          SOURCE_SHA="$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")"
+          OWNER="$(printf '%s' "$REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          CURRENT=false
+
+          git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/main
+
+          if [[ "$SOURCE_SHA" == "$TRIGGER_SHA" ]]; then
+            CURRENT=true
+          else
+            echo "Skipping release signal for $TRIGGER_SHA because GitHub's latest stable release resolves to $SOURCE_SHA."
+          fi
+
+          {
+            echo "current=$CURRENT"
+            echo "sha=$SOURCE_SHA"
+            echo "app_image=ghcr.io/${OWNER}/ernie-app"
+            echo "nginx_image=ghcr.io/${OWNER}/ernie-nginx"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Require successful deployment checks
+        if: steps.source.outputs.current == 'true'
+        id: deployment-checks
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        with:
+          script: |
+            const requiredWorkflows = [
+              ['security.yml', 'Security Checks'],
+              ['tests.yml', 'Pest PHP Unit Tests'],
+              ['vitest.yml', 'Vitest TS integration Tests'],
+              ['lint.yml', 'Linter Tests'],
+              ['playwright.yml', 'Playwright UI Tests'],
+            ];
+            const sourceSha = process.env.SOURCE_SHA;
+            const results = [];
+
+            for (const [workflowId, workflowName] of requiredWorkflows) {
+              const response = await github.rest.actions.listWorkflowRuns({
+                ...context.repo,
+                workflow_id: workflowId,
+                branch: 'main',
+                event: 'push',
+                head_sha: sourceSha,
+                per_page: 10,
+              });
+              const run = response.data.workflow_runs
+                .filter((candidate) =>
+                  candidate.head_sha === sourceSha && candidate.event === 'push'
+                )
+                .sort((left, right) => right.id - left.id)[0];
+
+              results.push({
+                name: workflowName,
+                status: run?.status ?? 'missing',
+                conclusion: run?.conclusion ?? '-',
+                url: run?.html_url ?? '',
+              });
+            }
+
+            await core.summary
+              .addHeading(`Production release checks for ${sourceSha}`)
+              .addTable([
+                [
+                  { data: 'Workflow', header: true },
+                  { data: 'Status', header: true },
+                  { data: 'Conclusion', header: true },
+                ],
+                ...results.map((result) => [
+                  result.url ? `<a href="${result.url}">${result.name}</a>` : result.name,
+                  result.status,
+                  result.conclusion,
+                ]),
+              ])
+              .write();
+
+            const ready = results.every((result) =>
+              result.status === 'completed' && result.conclusion === 'success'
+            );
+            core.setOutput('ready', ready ? 'true' : 'false');
+
+            if (!ready) {
+              const details = results
+                .filter((result) =>
+                  result.status !== 'completed' || result.conclusion !== 'success'
+                )
+                .map((result) => `${result.name}: ${result.status}/${result.conclusion}`)
+                .join(', ');
+              core.notice(`Production promotion is blocked for ${sourceSha}: ${details}`);
+            }
+
+  inspect:
+    needs: validate
+    if: >-
+      needs.validate.outputs.current == 'true' &&
+      needs.validate.outputs.checks_ready == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      app_digest: ${{ steps.artifacts.outputs.app_digest }}
+      current: ${{ steps.latest.outputs.current }}
+      nginx_digest: ${{ steps.artifacts.outputs.nginx_digest }}
+      stage_commit: ${{ steps.artifacts.outputs.stage_commit }}
+
+    steps:
+      - name: Checkout the validated release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve the exact Stage deployment artifacts
+        id: artifacts
+        env:
+          APP_IMAGE: ${{ needs.validate.outputs.app_image }}
+          NGINX_IMAGE: ${{ needs.validate.outputs.nginx_image }}
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          git fetch --no-tags origin \
+            "+refs/heads/deploy/stage:refs/remotes/origin/deploy/stage"
+
+          STAGE_DEPLOY_COMMIT=""
+
+          while IFS= read -r candidate; do
+            if [[ "$(git show -s --format=%s "$candidate")" == "Deploy Stage from $SOURCE_SHA" ]]; then
+              STAGE_DEPLOY_COMMIT="$candidate"
+              break
+            fi
+          done < <(git rev-list --first-parent refs/remotes/origin/deploy/stage)
+
+          if [[ -z "$STAGE_DEPLOY_COMMIT" ]]; then
+            echo "No Stage deployment commit exists for release source $SOURCE_SHA." >&2
+            exit 1
+          fi
+
+          SOURCE_IS_PARENT=false
+
+          for parent in $(git show -s --format=%P "$STAGE_DEPLOY_COMMIT"); do
+            if [[ "$parent" == "$SOURCE_SHA" ]]; then
+              SOURCE_IS_PARENT=true
+              break
+            fi
+          done
+
+          if [[ "$SOURCE_IS_PARENT" != true ]]; then
+            echo "Stage deployment commit $STAGE_DEPLOY_COMMIT does not retain source $SOURCE_SHA as a parent." >&2
+            exit 1
+          fi
+
+          STAGE_COMPOSE="${RUNNER_TEMP}/docker-compose.stage.yml"
+          git show "${STAGE_DEPLOY_COMMIT}:docker-compose.stage.yml" > "$STAGE_COMPOSE"
+          STAGE_CONFIG="$(docker compose -f "$STAGE_COMPOSE" config --format json)"
+
+          APP_REF="$(jq -r '.services.app.image' <<< "$STAGE_CONFIG")"
+          NGINX_REF="$(jq -r '.services.webserver.image' <<< "$STAGE_CONFIG")"
+          APP_DIGEST="${APP_REF#"${APP_IMAGE}@"}"
+          NGINX_DIGEST="${NGINX_REF#"${NGINX_IMAGE}@"}"
+
+          if [[ "$APP_REF" != "${APP_IMAGE}@${APP_DIGEST}" ||
+              ! "$APP_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid Stage application image reference: $APP_REF" >&2
+            exit 1
+          fi
+
+          if [[ "$NGINX_REF" != "${NGINX_IMAGE}@${NGINX_DIGEST}" ||
+              ! "$NGINX_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid Stage Nginx image reference: $NGINX_REF" >&2
+            exit 1
+          fi
+
+          for service in queue assessment-queue scheduler; do
+            if [[ "$(jq -r --arg service "$service" '.services[$service].image' <<< "$STAGE_CONFIG")" != "$APP_REF" ]]; then
+              echo "Stage service $service does not use the release application image." >&2
+              exit 1
+            fi
+          done
+
+          docker buildx imagetools inspect "$APP_REF" >/dev/null
+          docker buildx imagetools inspect "$NGINX_REF" >/dev/null
+
+          {
+            echo "app_digest=$APP_DIGEST"
+            echo "nginx_digest=$NGINX_DIGEST"
+            echo "stage_commit=$STAGE_DEPLOY_COMMIT"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Scan the exact promoted image digests
+        env:
+          APP_IMAGE_REF: ${{ needs.validate.outputs.app_image }}@${{ steps.artifacts.outputs.app_digest }}
+          NGINX_IMAGE_REF: ${{ needs.validate.outputs.nginx_image }}@${{ steps.artifacts.outputs.nginx_digest }}
+          TRIVY_DISABLE_VEX_NOTICE: 'true'
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_USERNAME: ${{ github.actor }}
+        run: |
+          set -uo pipefail
+          scan_status=0
+
+          for image_ref in "$APP_IMAGE_REF" "$NGINX_IMAGE_REF"; do
+            if [[ ! "$image_ref" =~ @sha256:[0-9a-f]{64}$ ]]; then
+              echo "Invalid Production image reference: $image_ref" >&2
+              scan_status=1
+              continue
+            fi
+
+            docker run --rm \
+              -e TRIVY_DISABLE_VEX_NOTICE \
+              -e TRIVY_PASSWORD \
+              -e TRIVY_USERNAME \
+              aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 image \
+              --scanners vuln \
+              --format table \
+              --exit-code 1 \
+              --ignore-unfixed \
+              --pkg-types os,library \
+              --severity CRITICAL,HIGH \
+              --skip-version-check \
+              "$image_ref" || scan_status=1
+          done
+
+          exit "$scan_status"
+
+      - name: Confirm that the release is still latest
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ needs.validate.outputs.release_id }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          LATEST_RELEASE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.id')"
+          LATEST_RELEASE_TAG="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')"
+          git fetch --force --no-tags origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          LATEST_SOURCE_SHA="$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")"
+
+          if [[ "$LATEST_RELEASE_ID" == "$RELEASE_ID" &&
+              "$LATEST_RELEASE_TAG" == "$RELEASE_TAG" &&
+              "$LATEST_SOURCE_SHA" == "$SOURCE_SHA" ]]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping superseded Production release $RELEASE_TAG."
+          fi
+
+  promote:
+    needs:
+      - validate
+      - inspect
+    if: >-
+      needs.inspect.outputs.current == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout the validated release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Create the digest-pinned Production deployment commit
+        id: deployment
+        env:
+          APP_DIGEST: ${{ needs.inspect.outputs.app_digest }}
+          APP_IMAGE: ${{ needs.validate.outputs.app_image }}
+          NGINX_DIGEST: ${{ needs.inspect.outputs.nginx_digest }}
+          NGINX_IMAGE: ${{ needs.validate.outputs.nginx_image }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$APP_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid application image digest: $APP_DIGEST" >&2
+            exit 1
+          fi
+
+          if [[ ! "$NGINX_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid Nginx image digest: $NGINX_DIGEST" >&2
+            exit 1
+          fi
+
+          APP_TEMPLATE="${APP_IMAGE}:deployment-template"
+          NGINX_TEMPLATE="${NGINX_IMAGE}:deployment-template"
+          APP_TEMPLATE_COUNT="$(grep -Fc "$APP_TEMPLATE" docker-compose.prod.yml)"
+          NGINX_TEMPLATE_COUNT="$(grep -Fc "$NGINX_TEMPLATE" docker-compose.prod.yml)"
+
+          if [[ "$APP_TEMPLATE_COUNT" -ne 4 || "$NGINX_TEMPLATE_COUNT" -ne 1 ]]; then
+            echo "Unexpected Production image template count: app=$APP_TEMPLATE_COUNT nginx=$NGINX_TEMPLATE_COUNT" >&2
+            exit 1
+          fi
+
+          sed -i "s|${APP_TEMPLATE}|${APP_IMAGE}@${APP_DIGEST}|g" docker-compose.prod.yml
+          sed -i "s|${NGINX_TEMPLATE}|${NGINX_IMAGE}@${NGINX_DIGEST}|g" docker-compose.prod.yml
+
+          if grep -Fq "$APP_TEMPLATE" docker-compose.prod.yml || grep -Fq "$NGINX_TEMPLATE" docker-compose.prod.yml; then
+            echo "Production image templates remain after digest pinning." >&2
+            exit 1
+          fi
+
+          docker compose -f docker-compose.prod.yml config --quiet
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docker-compose.prod.yml
+
+          PREVIOUS_DEPLOY_SHA="$(git ls-remote --heads origin refs/heads/deploy/prod | awk '{print $1}')"
+          PARENTS=(-p "$SOURCE_SHA")
+
+          if [[ -n "$PREVIOUS_DEPLOY_SHA" ]]; then
+            git fetch --no-tags origin \
+              "+refs/heads/deploy/prod:refs/remotes/origin/deploy/prod"
+            PARENTS=(-p "$PREVIOUS_DEPLOY_SHA")
+
+            if [[ "$PREVIOUS_DEPLOY_SHA" != "$SOURCE_SHA" ]]; then
+              PARENTS+=(-p "$SOURCE_SHA")
+            fi
+          fi
+
+          DEPLOY_TREE="$(git write-tree)"
+          DEPLOY_COMMIT="$(git commit-tree "$DEPLOY_TREE" "${PARENTS[@]}" -m "Deploy Production $RELEASE_TAG from $SOURCE_SHA")"
+
+          {
+            echo "commit=$DEPLOY_COMMIT"
+            echo "previous=$PREVIOUS_DEPLOY_SHA"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Advance the digest-pinned Production deployment branch
+        env:
+          DEPLOY_COMMIT: ${{ steps.deployment.outputs.commit }}
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS_DEPLOY_SHA: ${{ steps.deployment.outputs.previous }}
+          RELEASE_ID: ${{ needs.validate.outputs.release_id }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          SOURCE_SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          LATEST_RELEASE_ID="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.id')"
+          LATEST_RELEASE_TAG="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')"
+          git fetch --force --no-tags origin \
+            "refs/heads/main:refs/remotes/origin/main" \
+            "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          LATEST_SOURCE_SHA="$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")"
+
+          if [[ "$LATEST_RELEASE_ID" != "$RELEASE_ID" ||
+              "$LATEST_RELEASE_TAG" != "$RELEASE_TAG" ||
+              "$LATEST_SOURCE_SHA" != "$SOURCE_SHA" ]]; then
+            echo "A newer stable release appeared while preparing Production; leaving deploy/prod unchanged."
+            exit 0
+          fi
+
+          git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/main
+
+          if [[ -n "$PREVIOUS_DEPLOY_SHA" ]]; then
+            DEPLOY_LEASE="--force-with-lease=refs/heads/deploy/prod:${PREVIOUS_DEPLOY_SHA}"
+          else
+            DEPLOY_LEASE="--force-with-lease=refs/heads/deploy/prod:"
+          fi
+
+          git push "$DEPLOY_LEASE" origin "${DEPLOY_COMMIT}:refs/heads/deploy/prod"

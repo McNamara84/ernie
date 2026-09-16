@@ -126,7 +126,7 @@ describe('landing page template logo deployment regression guard', function () {
         }
     });
 
-    it('keeps production app and webserver on their Dockerfile build targets', function () use ($parsedCompose) {
+    it('uses prebuilt Production image templates without local builds', function () use ($parsedCompose) {
         $compose = $parsedCompose('docker-compose.prod.yml');
         $services = $compose['services'] ?? null;
 
@@ -134,9 +134,21 @@ describe('landing page template logo deployment regression guard', function () {
             throw new RuntimeException('Production Compose file is missing the services map.');
         }
 
-        expect($services['app']['build']['dockerfile'] ?? null)->toBe('Dockerfile')
-            ->and($services['app']['build']['target'] ?? null)->toBe('app')
-            ->and($services['webserver']['build']['dockerfile'] ?? null)->toBe('Dockerfile')
-            ->and($services['webserver']['build']['target'] ?? null)->toBe('nginx');
+        $expectedImages = [
+            'app' => '${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}',
+            'webserver' => '${ERNIE_PROD_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx:deployment-template}',
+            'queue' => '${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}',
+            'assessment-queue' => '${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}',
+            'scheduler' => '${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}',
+        ];
+
+        foreach ($expectedImages as $serviceName => $expectedImage) {
+            $service = $services[$serviceName] ?? null;
+
+            expect($service)->toBeArray()
+                ->and($service)->not->toHaveKey('build')
+                ->and($service['image'] ?? null)->toBe($expectedImage)
+                ->and($service['pull_policy'] ?? null)->toBe('always');
+        }
     });
 });

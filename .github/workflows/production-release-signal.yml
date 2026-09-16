@@ -1,0 +1,23 @@
+name: Production Release Signal
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Record the unprivileged release signal
+        env:
+          RELEASE_DRAFT: ${{ github.event.release.draft }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          printf 'Release signal: tag=%s draft=%s prerelease=%s\n' \
+            "$RELEASE_TAG" "$RELEASE_DRAFT" "$RELEASE_PRERELEASE"
