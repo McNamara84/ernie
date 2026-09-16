@@ -15,6 +15,7 @@ const layerMock = vi.hoisted(() => ({
     remove: vi.fn(),
 }));
 const maplibreGLMock = vi.hoisted(() => vi.fn(() => layerMock));
+const setWorkerUrlMock = vi.hoisted(() => vi.fn());
 const localizeStyleMock = vi.hoisted(() => vi.fn());
 const attributionControlMock = vi.hoisted(() => ({
     addAttribution: vi.fn(),
@@ -23,6 +24,8 @@ const attributionControlMock = vi.hoisted(() => ({
 const leafletMapMock = vi.hoisted(() => ({ attributionControl: attributionControlMock }));
 
 vi.mock('maplibre-gl/dist/maplibre-gl.css', () => ({}));
+vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url', () => ({ default: '/build/assets/maplibre-gl-worker-test.js' }));
+vi.mock('maplibre-gl', () => ({ setWorkerUrl: setWorkerUrlMock }));
 vi.mock('react-leaflet', () => ({ useMap: () => leafletMapMock }));
 vi.mock('@maplibre/maplibre-gl-leaflet', () => ({ maplibreGL: maplibreGLMock }));
 vi.mock('@americana/diplomat', () => ({ localizeStyle: localizeStyleMock }));
@@ -50,11 +53,22 @@ describe('PortalBasemap', () => {
         );
     });
 
-    it('adds a MapLibre layer and localizes all supported labels to English', async () => {
+    it('protects attribution links that open in a new tab', () => {
+        const container = document.createElement('div');
+        container.innerHTML = MAPTILER_ATTRIBUTION;
+
+        const links = Array.from(container.querySelectorAll('a'));
+        expect(links).toHaveLength(2);
+        expect(links.every((link) => link.target === '_blank' && link.rel === 'noopener noreferrer')).toBe(true);
+    });
+
+    it('configures the emitted worker before adding a MapLibre layer and localizes all supported labels to English', async () => {
         const onStatusChange = vi.fn();
         const { unmount } = render(<PortalBasemap config={config} maxZoom={9} onStatusChange={onStatusChange} />);
 
         await waitFor(() => expect(maplibreGLMock).toHaveBeenCalledOnce());
+        expect(setWorkerUrlMock).toHaveBeenCalledWith('/build/assets/maplibre-gl-worker-test.js');
+        expect(setWorkerUrlMock.mock.invocationCallOrder[0]).toBeLessThan(maplibreGLMock.mock.invocationCallOrder[0]);
         expect(maplibreGLMock).toHaveBeenCalledWith({
             style: 'https://api.maptiler.com/maps/streets-v4/style.json?key=test%20key%2F%2B',
             interactive: false,

@@ -1,6 +1,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import type * as L from 'leaflet';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { useEffect } from 'react';
 import { useMap } from 'react-leaflet';
 
@@ -9,8 +10,8 @@ import type { PortalMapTilerBasemapConfig } from '@/types/portal';
 export type PortalBasemapStatus = 'loading' | 'ready' | 'error';
 
 export const MAPTILER_ATTRIBUTION =
-    '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> ' +
-    '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>';
+    '<a href="https://www.maptiler.com/copyright/" target="_blank" rel="noopener noreferrer">&copy; MapTiler</a> ' +
+    '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">&copy; OpenStreetMap contributors</a>';
 
 interface PortalBasemapProps {
     config: PortalMapTilerBasemapConfig;
@@ -49,13 +50,15 @@ export function PortalBasemap({ config, maxZoom, onStatusChange }: PortalBasemap
 
         const initialize = async () => {
             try {
-                const [{ maplibreGL }, { localizeStyle }] = await Promise.all([
+                const [{ maplibreGL }, { localizeStyle }, { setWorkerUrl }] = await Promise.all([
                     import('@maplibre/maplibre-gl-leaflet'),
                     import('@americana/diplomat'),
+                    import('maplibre-gl'),
                 ]);
 
                 if (disposed) return;
 
+                setWorkerUrl(maplibreWorkerUrl);
                 layer = maplibreGL({
                     style: styleUrl,
                     interactive: false,
