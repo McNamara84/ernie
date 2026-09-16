@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bb1f252a847fda078ee1ba93133e9d741d8ae24f64c06d907ed2779ffe94f63f}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -151,7 +151,7 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
 
   webserver:
-    image: "${ERNIE_PROD_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx:deployment-template}"
+    image: "${ERNIE_PROD_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:b807c9b3f3b2c9286f09b61c965a4c9e506ee28a44f86ad8ea8bc0fe01dbee75}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -275,7 +275,7 @@ services:
       start_period: 60s
 
   queue:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bb1f252a847fda078ee1ba93133e9d741d8ae24f64c06d907ed2779ffe94f63f}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
@@ -373,7 +373,7 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
 
   assessment-queue:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bb1f252a847fda078ee1ba93133e9d741d8ae24f64c06d907ed2779ffe94f63f}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -431,7 +431,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app:deployment-template}"
+    image: "${ERNIE_PROD_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:bb1f252a847fda078ee1ba93133e9d741d8ae24f64c06d907ed2779ffe94f63f}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped
