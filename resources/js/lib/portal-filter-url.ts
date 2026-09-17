@@ -1,5 +1,7 @@
 import type { PortalBasePath, PortalFilters, PortalMapViewport } from '@/types/portal';
 
+import { clampPortalMapZoom } from './portal-map-zoom';
+
 function appendArrayParams(params: URLSearchParams, key: string, values: string[]): void {
     values.forEach((value) => {
         params.append(`${key}[]`, value);
@@ -133,7 +135,7 @@ export function buildPortalMapUrl(
     maxZoom: number,
 ): string {
     const params = buildPortalMapParams(filters, viewport, basePath);
-    params.set('zoom', String(Math.max(0, Math.min(maxZoom, Math.round(viewport.zoom)))));
+    params.set('zoom', String(clampPortalMapZoom(viewport.zoom, maxZoom)));
 
     if (includeExtent) {
         params.set('include_extent', '1');

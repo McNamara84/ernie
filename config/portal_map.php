@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-$maxZoom = min(18, max(0, (int) env('PORTAL_MAP_MAX_ZOOM', 18)));
+$maxZoom = min(18, max(1, (int) env('PORTAL_MAP_MAX_ZOOM', 18)));
 
 return [
     'enabled' => (bool) env('PORTAL_MAP_ENABLED', true),
     'max_zoom' => $maxZoom,
+    'basemap_style' => env('PORTAL_MAP_BASEMAP_STYLE', 'streets-v4'),
     'max_features' => max(100, (int) env('PORTAL_MAP_MAX_FEATURES', 1000)),
     'cluster_radius' => max(20, (int) env('PORTAL_MAP_CLUSTER_RADIUS', 60)),
     'shape_detail_zoom' => min(

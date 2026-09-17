@@ -170,9 +170,14 @@ describe('portal filter URL builders', () => {
     it('clamps map requests while member requests rely on the cluster ID zoom', () => {
         const viewport = { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 18 };
         const mapUrl = new URL(buildPortalMapUrl(filters, viewport, false, '/doi-search', 7), 'https://ernie.test');
+        const minimumMapUrl = new URL(
+            buildPortalMapUrl(filters, { ...viewport, zoom: 0 }, false, '/doi-search', 0),
+            'https://ernie.test',
+        );
         const membersUrl = new URL(buildPortalMapClusterMembersUrl(filters, viewport, 'z7:1:2', 1, '/doi-search'), 'https://ernie.test');
 
         expect(mapUrl.searchParams.get('zoom')).toBe('7');
+        expect(minimumMapUrl.searchParams.get('zoom')).toBe('1');
         expect(membersUrl.searchParams.has('zoom')).toBe(false);
     });
 

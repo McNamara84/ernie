@@ -62,6 +62,20 @@ describe('index', function () {
             ->assertInertia(fn ($page) => $page->component('portal'));
     });
 
+    it('keeps the MapTiler runtime configuration outside the cached portal payload', function () {
+        config(['services.maptiler.api_key' => 'first-key']);
+
+        $this->get('/doi-search')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('mapConfig.basemap.apiKey', 'first-key'));
+
+        config(['services.maptiler.api_key' => 'rotated-key']);
+
+        $this->get('/doi-search')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('mapConfig.basemap.apiKey', 'rotated-key'));
+    });
+
     it('returns empty results when no published resources exist', function () {
         $response = $this->get('/doi-search');
 

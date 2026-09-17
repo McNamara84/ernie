@@ -768,6 +768,13 @@ it('validates viewport dimensions, coordinate ordering, and complete filter boun
         ->assertJsonValidationErrors(['viewport.north', 'viewport.width', 'zoom', 'north']);
 });
 
+it('accepts legacy zoom zero requests and processes them at the adapter-compatible minimum', function (): void {
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery(['zoom' => 0])))
+        ->assertOk()
+        ->assertJsonPath('meta.requestedZoom', 1)
+        ->assertJsonPath('meta.effectiveZoom', 1);
+});
+
 it('limits every IGSN metadata filter accepted by the map endpoint', function (): void {
     $tooManyValues = array_map(static fn (int $number): string => "Value {$number}", range(1, 21));
 

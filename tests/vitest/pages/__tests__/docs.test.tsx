@@ -1470,6 +1470,20 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('documents the English portal basemap and its unavailable state for beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        const heading = screen.getByRole('heading', { name: 'Exploring Results on the Map', level: 4 });
+        const sectionContent = heading.parentElement;
+
+        expect(sectionContent?.textContent).toMatch(/background map is provided by MapTiler/i);
+        expect(sectionContent?.textContent).toMatch(/prefers English labels for countries, regions, cities, roads/i);
+        expect(sectionContent?.textContent).toMatch(/Where no English label is available, the local OpenStreetMap name is shown/i);
+        expect(sectionContent?.textContent).toMatch(/reload the page later or contact support/i);
+    });
+
     it('documents the current schema version for IGSN exports', async () => {
         const { user } = renderDocsPage('beginner');
 

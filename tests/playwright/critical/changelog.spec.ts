@@ -40,7 +40,13 @@ test.describe('Changelog Page', () => {
     });
 
     test('links changelog entries to their related GitHub context in a new tab', async ({ page }) => {
-        const currentRelease = page.locator('#release-0');
+        const releaseButton = page.getByRole('button', { name: /^Version 1\.0\.9\b/i });
+        await releaseButton.click();
+
+        const panelId = await releaseButton.getAttribute('aria-controls');
+        expect(panelId).toBeTruthy();
+
+        const currentRelease = page.locator(`#${panelId as string}`);
         const issueGroup = currentRelease.getByRole('group', {
             name: 'Related GitHub references for Traceable Changelog Entries',
         });

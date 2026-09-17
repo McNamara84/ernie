@@ -2363,7 +2363,7 @@
                         "name": "zoom",
                         "in": "query",
                         "required": true,
-                        "description": "Leaflet zoom level requested by the client, up to the deployment's configured portal-map maximum.",
+                        "description": "Leaflet zoom level requested by the client, up to the deployment's configured portal-map maximum. Legacy zoom 0 requests are accepted and processed at zoom 1.",
                         "schema": { "type": "integer", "minimum": 0, "example": 8 }
                     },
                     {
