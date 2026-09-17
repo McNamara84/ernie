@@ -381,14 +381,17 @@ it('resolves members of terminal parent cells and rejects invalid cluster IDs', 
         ->and($service->members($locations, 'z0-t31:0:0', 1, 50))->toBeNull();
 });
 
-it('honors the configured maximum zoom', function (): void {
-    config(['portal_map.max_zoom' => 7]);
+it('honors the configured maximum zoom and normalizes its legacy zero value', function (int $configuredMaxZoom, int $expectedMaxZoom): void {
+    config(['portal_map.max_zoom' => $configuredMaxZoom]);
     $result = (new PortalMapClusterService)->cluster(
         [portalMapClusterLocation(1, 52.5, 13.4)],
         portalMapClusterViewport(),
         18,
     );
 
-    expect($result['meta']['effectiveZoom'])->toBe(7)
+    expect($result['meta']['effectiveZoom'])->toBe($expectedMaxZoom)
         ->and($result['meta']['coarsened'])->toBeTrue();
-});
+})->with([
+    'configured limit' => [7, 7],
+    'legacy zero limit' => [0, 1],
+]);

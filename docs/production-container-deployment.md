@@ -150,6 +150,15 @@ The Compose file also sets `pull_policy: always`. Its generated image
 references are immutable digests, so every actual stack update requests the
 exact promoted manifests.
 
+Configure a dedicated MapTiler browser key in the Production stack environment:
+
+```dotenv
+MAPTILER_API_KEY=<production-browser-key>
+PORTAL_MAP_BASEMAP_STYLE=streets-v4
+```
+
+Restrict this key in MapTiler Cloud to the Production HTTP origin only. Do not reuse the local or Stage key. The value is intentionally delivered to browsers; origin restrictions, quota monitoring, and key rotation are the security controls.
+
 ### 5. Verify the first deployment
 
 Save the changes and manually select **Pull and redeploy** for the stack.

@@ -140,6 +140,15 @@ exact validated manifests.
 Save and redeploy the stack, then re-enable automatic polling if changing the
 Git reference did not already enable it.
 
+Configure a dedicated MapTiler browser key in the Stage stack environment:
+
+```dotenv
+MAPTILER_API_KEY=<stage-browser-key>
+PORTAL_MAP_BASEMAP_STYLE=streets-v4
+```
+
+Restrict this key in MapTiler Cloud to the Stage HTTP origin only. Do not reuse the local or Production key. The value is intentionally delivered to browsers; origin restrictions, quota monitoring, and key rotation are the security controls.
+
 ### 6. Verify the first deployment
 
 Portainer must show these image references:

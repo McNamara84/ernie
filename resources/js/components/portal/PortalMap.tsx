@@ -3,15 +3,17 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { ChevronDown, ChevronUp, Map as MapIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, Polygon, Polyline, Popup, Rectangle, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Polygon, Polyline, Popup, Rectangle, useMap } from 'react-leaflet';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { usePortalMapClusterMembers } from '@/hooks/use-portal-map-cluster-members';
 import { usePortalMapData } from '@/hooks/use-portal-map-data';
 import { formatAuthorsShort, getMaterialCategoryStyle, getMaterialDisplayLabel, getPresentationShapePathOptions } from '@/lib/portal-map-config';
 import { normalizeLongitude, unwrapLongitudeBounds, unwrapPathLongitudes } from '@/lib/portal-map-longitude';
+import { normalizePortalMapMaxZoom, PORTAL_MAP_MIN_ZOOM } from '@/lib/portal-map-zoom';
 import { cn } from '@/lib/utils';
 import type {
     GeoBounds,
@@ -20,9 +22,11 @@ import type {
     PortalMapClusterFeature,
     PortalMapFeature,
     PortalMapResourceFeature,
+    PortalMapTilerBasemapConfig,
     PortalMapViewport,
 } from '@/types/portal';
 
+import { PortalBasemap, type PortalBasemapStatus } from './PortalBasemap';
 import { ClusterLayer } from './PortalMapCluster';
 import { ClusterMembersLayer, ClusterMembersPanel } from './PortalMapClusterMembers';
 import { PortalMapLegend } from './PortalMapLegend';
@@ -31,6 +35,7 @@ interface PortalMapProps {
     basePath?: PortalBasePath;
     filters: PortalFilters;
     maxZoom: number;
+    basemap: PortalMapTilerBasemapConfig;
     className?: string;
     hideHeader?: boolean;
     geoFilterEnabled?: boolean;
@@ -40,7 +45,44 @@ interface PortalMapProps {
 }
 
 const VIEWPORT_RESIZE_DEBOUNCE_MS = 250;
-const OPENSTREETMAP_MAX_NATIVE_ZOOM = 18;
+const PORTAL_MAP_WIDE_LAYOUT_QUERY = '(min-width: 1536px)';
+const PORTAL_MAP_MIN_LATITUDE = -90;
+const PORTAL_MAP_MAX_LATITUDE = 90;
+const PORTAL_MAP_LONGITUDE_GUARD_HALF_SPAN = 180;
+
+function LatitudeBoundsGuard() {
+    const map = useMap();
+
+    useEffect(() => {
+        let isEnforcing = false;
+
+        const enforceLatitudeBounds = () => {
+            if (isEnforcing) return;
+
+            const longitude = map.getCenter().lng;
+            const bounds = L.latLngBounds(
+                [PORTAL_MAP_MIN_LATITUDE, longitude - PORTAL_MAP_LONGITUDE_GUARD_HALF_SPAN],
+                [PORTAL_MAP_MAX_LATITUDE, longitude + PORTAL_MAP_LONGITUDE_GUARD_HALF_SPAN],
+            );
+
+            isEnforcing = true;
+            try {
+                map.panInsideBounds(bounds, { animate: false });
+            } finally {
+                isEnforcing = false;
+            }
+        };
+
+        map.on('move', enforceLatitudeBounds);
+        enforceLatitudeBounds();
+
+        return () => {
+            map.off('move', enforceLatitudeBounds);
+        };
+    }, [map]);
+
+    return null;
+}
 
 function MapResizeHandler() {
     const map = useMap();
@@ -292,6 +334,7 @@ export function PortalMap({
     basePath = '/doi-search',
     filters,
     maxZoom,
+    basemap,
     className,
     hideHeader = false,
     geoFilterEnabled = false,
@@ -307,11 +350,15 @@ export function PortalMap({
         page: number;
     } | null>(null);
     const [locationCount, setLocationCount] = useState(0);
+    const [basemapStatus, setBasemapStatus] = useState<PortalBasemapStatus>('loading');
     const skipFilterUpdate = useRef(false);
     const requestExtent = useRef(!geoFilterEnabled);
     const knownTotalLocations = useRef<number | null>(null);
     const signature = filterSignature(filters);
     const previousSignature = useRef(signature);
+    const handleBasemapStatusChange = useCallback((status: PortalBasemapStatus) => setBasemapStatus(status), []);
+    const compatibleMaxZoom = normalizePortalMapMaxZoom(maxZoom);
+    const isWideLayout = useMediaQuery(PORTAL_MAP_WIDE_LAYOUT_QUERY);
 
     useEffect(() => {
         if (previousSignature.current === signature) return;
@@ -333,7 +380,7 @@ export function PortalMap({
         [geoFilterEnabled],
     );
 
-    const mapQuery = usePortalMapData(filters, request?.viewport ?? null, request?.includeExtent ?? false, basePath, maxZoom);
+    const mapQuery = usePortalMapData(filters, request?.viewport ?? null, request?.includeExtent ?? false, basePath, compatibleMaxZoom);
     const features = mapQuery.data?.features ?? [];
     const clusterMembersQuery = usePortalMapClusterMembers(
         filters,
@@ -366,13 +413,15 @@ export function PortalMap({
 
     const mapContent = (
         <div className="relative h-full w-full" aria-busy={mapQuery.isFetching}>
-            <MapContainer center={[30, 0]} zoom={Math.min(2, maxZoom)} maxZoom={maxZoom} className="h-full w-full">
-                <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    maxNativeZoom={Math.min(maxZoom, OPENSTREETMAP_MAX_NATIVE_ZOOM)}
-                    maxZoom={maxZoom}
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
+            <MapContainer
+                center={[30, 0]}
+                zoom={Math.min(2, compatibleMaxZoom)}
+                minZoom={PORTAL_MAP_MIN_ZOOM}
+                maxZoom={compatibleMaxZoom}
+                className="h-full w-full"
+            >
+                <PortalBasemap config={basemap} maxZoom={compatibleMaxZoom} onStatusChange={handleBasemapStatusChange} />
+                <LatitudeBoundsGuard />
                 <MapResizeHandler />
                 <ViewportTracker
                     onTechnicalViewport={handleTechnicalViewport}
@@ -381,7 +430,12 @@ export function PortalMap({
                 />
                 {!geoFilterEnabled && <FitExtentControl extent={extent} skipFilterUpdate={skipFilterUpdate} />}
                 <MapBoundsUpdater bounds={flyToBounds ?? null} skipFilterUpdate={skipFilterUpdate} />
-                <ClusterLayer features={features} maxZoom={maxZoom} interactive={!mapQuery.isFetching} onExpandCluster={handleExpandCluster} />
+                <ClusterLayer
+                    features={features}
+                    maxZoom={compatibleMaxZoom}
+                    interactive={!mapQuery.isFetching}
+                    onExpandCluster={handleExpandCluster}
+                />
                 {clusterMembersQuery.data && (
                     <ClusterMembersLayer members={clusterMembersQuery.data.members} total={clusterMembersQuery.data.total} />
                 )}
@@ -389,6 +443,15 @@ export function PortalMap({
             </MapContainer>
 
             <PortalMapLegend features={features} />
+
+            <a
+                href="https://www.maptiler.com"
+                target="_blank"
+                rel="noreferrer"
+                className="absolute bottom-3 left-3 z-1000 rounded bg-white/90 p-1 shadow"
+            >
+                <img src="https://api.maptiler.com/resources/logo.svg" alt="MapTiler" className="h-5 w-auto" />
+            </a>
 
             {expandedCluster && (
                 <ClusterMembersPanel
@@ -406,6 +469,24 @@ export function PortalMap({
                     role="status"
                 >
                     Updating map...
+                </div>
+            )}
+
+            {basemapStatus === 'loading' && (
+                <div
+                    className="pointer-events-none absolute right-4 bottom-10 z-1000 rounded-md bg-background/90 px-3 py-1.5 text-xs shadow"
+                    role="status"
+                >
+                    Loading map background...
+                </div>
+            )}
+
+            {basemapStatus === 'error' && (
+                <div
+                    className="pointer-events-none absolute inset-x-4 bottom-10 z-1000 rounded-md border border-destructive/30 bg-background/95 p-3 text-sm shadow"
+                    role="alert"
+                >
+                    The map background is temporarily unavailable. Reload the page later or contact support if the problem continues.
                 </div>
             )}
 
@@ -435,8 +516,8 @@ export function PortalMap({
         <div className={cn('flex h-full flex-col', className)} data-testid="portal-map-container">
             {hideHeader && <div className="h-full w-full">{mapContent}</div>}
 
-            {!hideHeader && (
-                <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)} className="2xl:hidden">
+            {!hideHeader && !isWideLayout && (
+                <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
                     <CollapsibleTrigger asChild>
                         <Button
                             variant="ghost"
@@ -456,8 +537,8 @@ export function PortalMap({
                 </Collapsible>
             )}
 
-            {!hideHeader && (
-                <div className="hidden h-full flex-col 2xl:flex">
+            {!hideHeader && isWideLayout && (
+                <div className="flex h-full flex-col">
                     <div className="flex items-center gap-2 border-b px-4 py-3">
                         <MapIcon className="h-4 w-4" />
                         <span className="font-medium">Map</span>

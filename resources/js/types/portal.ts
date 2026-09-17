@@ -14,6 +14,14 @@ export interface PortalContext {
 
 export interface PortalMapConfig {
     maxZoom: number;
+    basemap: PortalMapTilerBasemapConfig;
+}
+
+export interface PortalMapTilerBasemapConfig {
+    provider: 'maptiler';
+    style: string;
+    language: 'en';
+    apiKey: string;
 }
 
 /**

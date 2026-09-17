@@ -6,7 +6,7 @@ import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Portal from '@/pages/portal';
-import type { PortalPageProps } from '@/types/portal';
+import type { PortalMapTilerBasemapConfig, PortalPageProps } from '@/types/portal';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
@@ -186,12 +186,14 @@ vi.mock('@/components/portal/PortalMap', () => ({
     PortalMap: ({
         filters,
         maxZoom,
+        basemap,
         onViewportChange,
         onLocationCountChange,
         geoFilterEnabled,
     }: {
         filters: { query: string | null };
         maxZoom: number;
+        basemap: PortalMapTilerBasemapConfig;
         onViewportChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
         onLocationCountChange?: (count: number) => void;
         geoFilterEnabled?: boolean;
@@ -199,6 +201,7 @@ vi.mock('@/components/portal/PortalMap', () => ({
         <div data-testid="portal-map">
             <span data-testid="map-filter-query">{filters.query ?? ''}</span>
             <span data-testid="map-max-zoom">{maxZoom}</span>
+            <span data-testid="map-basemap">{`${basemap.provider}:${basemap.style}:${basemap.language}:${basemap.apiKey}`}</span>
             <span data-testid="map-geo-enabled">{String(geoFilterEnabled ?? false)}</span>
             {onViewportChange && (
                 <button data-testid="trigger-viewport-change" onClick={() => onViewportChange({ north: 54, south: 50, east: 15, west: 11 })}>
@@ -273,7 +276,10 @@ const defaultProps: PortalPageProps = {
         basePath: '/doi-search',
         showResourceTypeFilter: true,
     },
-    mapConfig: { maxZoom: 7 },
+    mapConfig: {
+        maxZoom: 7,
+        basemap: { provider: 'maptiler', style: 'streets-v4', language: 'en', apiKey: 'test-maptiler-key' },
+    },
     resources: [
         {
             id: 1,
@@ -350,6 +356,7 @@ describe('Portal', () => {
         render(<Portal {...defaultProps} />);
         expect(screen.getByTestId('portal-layout')).toBeInTheDocument();
         expect(screen.getAllByTestId('map-max-zoom')[0]).toHaveTextContent('7');
+        expect(screen.getAllByTestId('map-basemap')[0]).toHaveTextContent('maptiler:streets-v4:en:test-maptiler-key');
     });
 
     it('uses the configured title and hides the IGSN resource type filter', () => {

@@ -31,6 +31,24 @@ it('caps the configured portal map zoom at the supported tile limit', function (
     }
 });
 
+it('keeps the configured portal map zoom compatible with the MapLibre Leaflet adapter', function (): void {
+    $previousMaxZoom = $_SERVER['PORTAL_MAP_MAX_ZOOM'] ?? null;
+
+    try {
+        $_SERVER['PORTAL_MAP_MAX_ZOOM'] = '0';
+
+        $config = require config_path('portal_map.php');
+
+        expect($config['max_zoom'])->toBe(1);
+    } finally {
+        if ($previousMaxZoom === null) {
+            unset($_SERVER['PORTAL_MAP_MAX_ZOOM']);
+        } else {
+            $_SERVER['PORTAL_MAP_MAX_ZOOM'] = $previousMaxZoom;
+        }
+    }
+});
+
 it('forwards the portal map settings to the app container', function (string $composeFile): void {
     $compose = Yaml::parseFile(base_path($composeFile));
 
@@ -38,6 +56,8 @@ it('forwards the portal map settings to the app container', function (string $co
         ->and($compose['services']['app']['environment'] ?? null)
         ->toBeArray()
         ->toContain('PORTAL_MAP_MAX_ZOOM=${PORTAL_MAP_MAX_ZOOM:-18}')
+        ->toContain('MAPTILER_API_KEY=${MAPTILER_API_KEY:-}')
+        ->toContain('PORTAL_MAP_BASEMAP_STYLE=${PORTAL_MAP_BASEMAP_STYLE:-streets-v4}')
         ->toContain('PORTAL_MAP_CLUSTER_MEMBERS_PER_PAGE=${PORTAL_MAP_CLUSTER_MEMBERS_PER_PAGE:-50}')
         ->toContain('PORTAL_IGSN_MAP_MATERIAL_VISUALIZATION_ENABLED=${PORTAL_IGSN_MAP_MATERIAL_VISUALIZATION_ENABLED:-true}');
 })->with([
@@ -51,6 +71,8 @@ it('documents the portal map settings for Docker deployments', function (): void
 
     expect($environment)->toBeString()
         ->toContain('PORTAL_MAP_MAX_ZOOM=18')
+        ->toContain('MAPTILER_API_KEY=')
+        ->toContain('PORTAL_MAP_BASEMAP_STYLE=streets-v4')
         ->toContain('PORTAL_MAP_CLUSTER_MEMBERS_PER_PAGE=50')
         ->toContain('PORTAL_IGSN_MAP_MATERIAL_VISUALIZATION_ENABLED=true');
 });

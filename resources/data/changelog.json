@@ -1,5 +1,24 @@
 [
     {
+        "version": "1.1.0",
+        "date": "2026-09-16",
+        "features": [],
+        "improvements": [
+            {
+                "title": "English Labels on Portal Maps",
+                "description": "The Data and IGSN portal maps now use a shared MapTiler vector basemap that prefers English labels for countries, regions, cities, roads, water features, terrain, and points of interest while retaining local names wherever no English label is available. Existing resource clusters, shapes, popups, and spatial filters remain on the Leaflet map, and configuration failures are reported separately from ERNIE map-data errors.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1308,
+                        "url": "https://github.com/McNamara84/ernie/issues/1308"
+                    }
+                ]
+            }
+        ],
+        "fixes": []
+    },
+    {
         "version": "1.0.9",
         "date": "2026-09-16",
         "features": [],
