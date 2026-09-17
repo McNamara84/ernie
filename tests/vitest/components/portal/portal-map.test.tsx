@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { act, fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PortalFilters, PortalMapClusterMembersResponse, PortalMapFeature, PortalMapResponse } from '@/types/portal';
+import type { PortalBasemapConfig, PortalFilters, PortalMapClusterMembersResponse, PortalMapFeature, PortalMapResponse } from '@/types/portal';
 
 const mapEvents = vi.hoisted(() => new Map<string, () => void>());
 const mapQueryState = vi.hoisted(() => ({
@@ -127,7 +127,7 @@ vi.mock('@/components/portal/PortalBasemap', () => ({
         maxZoom,
         onStatusChange,
     }: {
-        config: { provider: string; language: string; style: string };
+        config: PortalBasemapConfig;
         maxZoom: number;
         onStatusChange: (status: 'loading' | 'ready' | 'error') => void;
     }) => (
@@ -136,7 +136,7 @@ vi.mock('@/components/portal/PortalBasemap', () => ({
                 data-testid="portal-basemap"
                 data-provider={config.provider}
                 data-language={config.language}
-                data-style={config.style}
+                data-style-url={config.styleUrl}
                 data-max-zoom={maxZoom}
             />
             <button type="button" data-testid="fail-basemap" onClick={() => onStatusChange('error')} />
@@ -275,6 +275,7 @@ describe('PortalMap', () => {
         expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-min-zoom', '1');
         expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-max-zoom', '7');
         expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-language', 'en');
+        expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-style-url', basemap.styleUrl);
         expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-max-zoom', '7');
         await waitFor(() => expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), true, '/doi-search', 7));
     });
