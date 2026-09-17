@@ -56,7 +56,7 @@ it('forwards the portal map settings to the app container', function (string $co
         ->and($compose['services']['app']['environment'] ?? null)
         ->toBeArray()
         ->toContain('PORTAL_MAP_MAX_ZOOM=${PORTAL_MAP_MAX_ZOOM:-18}')
-        ->toContain('PORTAL_MAP_BASEMAP_STYLE_URL=${PORTAL_MAP_BASEMAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}')
+        ->toContain('PORTAL_MAP_BASEMAP_STYLE_URL=${PORTAL_MAP_BASEMAP_STYLE_URL-https://tiles.openfreemap.org/styles/liberty}')
         ->toContain('PORTAL_MAP_CLUSTER_MEMBERS_PER_PAGE=${PORTAL_MAP_CLUSTER_MEMBERS_PER_PAGE:-50}')
         ->toContain('PORTAL_IGSN_MAP_MATERIAL_VISUALIZATION_ENABLED=${PORTAL_IGSN_MAP_MATERIAL_VISUALIZATION_ENABLED:-true}');
 })->with([
