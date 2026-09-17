@@ -60,7 +60,11 @@ export default function Home({ topics }: { topics: ScienceTopic[] }) {
 
             <div className="mx-auto max-w-6xl px-5 py-9 sm:px-8 sm:py-12">
                 <div className="mb-12 flex flex-col gap-5 sm:flex-row sm:items-end sm:gap-8">
-                    <Button asChild size="lg" className="h-12 shrink-0 px-6 tracking-wider">
+                    <Button
+                        asChild
+                        size="lg"
+                        className="h-12 shrink-0 bg-[#012965] px-6 tracking-wider text-white ring-offset-background hover:bg-[#012965]/90 focus-visible:ring-[#012965] focus-visible:ring-offset-2 dark:focus-visible:ring-blue-300"
+                    >
                         <a href={elmoUrl} target="_blank" rel="noopener noreferrer">
                             SUBMIT METADATA <ExternalLink className="size-4" aria-hidden="true" />
                             <span className="sr-only"> (opens in a new tab)</span>
@@ -86,7 +90,12 @@ export default function Home({ topics }: { topics: ScienceTopic[] }) {
                                 placeholder="Search for data, datacenters, science keywords"
                                 className="h-12 bg-background"
                             />
-                            <Button type="submit" size="lg" className="h-12 px-4" aria-label="Search">
+                            <Button
+                                type="submit"
+                                size="lg"
+                                className="h-12 bg-[#012965] px-4 text-white ring-offset-background hover:bg-[#012965]/90 focus-visible:ring-[#012965] focus-visible:ring-offset-2 dark:focus-visible:ring-blue-300"
+                                aria-label="Search"
+                            >
                                 <Search className="size-5" aria-hidden="true" />
                             </Button>
                         </div>
