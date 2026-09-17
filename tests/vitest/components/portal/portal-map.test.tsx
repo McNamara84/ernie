@@ -214,10 +214,9 @@ const filters: PortalFilters = {
 };
 
 const basemap = {
-    provider: 'maptiler',
-    style: 'streets-v4',
+    provider: 'openfreemap',
+    styleUrl: 'https://tiles.openfreemap.org/styles/liberty',
     language: 'en',
-    apiKey: 'test-maptiler-key',
 } as const;
 
 const response = (overrides: Partial<PortalMapResponse> = {}): PortalMapResponse => ({
@@ -326,8 +325,7 @@ describe('PortalMap', () => {
         expect(screen.getByRole('alert')).toHaveTextContent(
             'The map background is temporarily unavailable. Reload the page later or contact support if the problem continues.',
         );
-        expect(screen.getByRole('alert')).not.toHaveTextContent('MapTiler configuration');
-        expect(screen.getByRole('link', { name: 'MapTiler' })).toHaveAttribute('href', 'https://www.maptiler.com');
+        expect(screen.getByRole('alert')).not.toHaveTextContent('OpenFreeMap configuration');
     });
 
     it('passes bounded server features to marker and legend layers', () => {

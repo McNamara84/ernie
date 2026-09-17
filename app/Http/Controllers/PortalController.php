@@ -39,10 +39,9 @@ class PortalController extends Controller
         $payload['mapConfig'] = [
             'maxZoom' => max(1, (int) config('portal_map.max_zoom', 18)),
             'basemap' => [
-                'provider' => 'maptiler',
-                'style' => (string) config('portal_map.basemap_style', 'streets-v4'),
+                'provider' => 'openfreemap',
+                'styleUrl' => (string) config('portal_map.basemap_style_url', 'https://tiles.openfreemap.org/styles/liberty'),
                 'language' => 'en',
-                'apiKey' => (string) config('services.maptiler.api_key', ''),
             ],
         ];
 

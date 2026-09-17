@@ -17,12 +17,12 @@ import { normalizePortalMapMaxZoom, PORTAL_MAP_MIN_ZOOM } from '@/lib/portal-map
 import { cn } from '@/lib/utils';
 import type {
     GeoBounds,
+    PortalBasemapConfig,
     PortalBasePath,
     PortalFilters,
     PortalMapClusterFeature,
     PortalMapFeature,
     PortalMapResourceFeature,
-    PortalMapTilerBasemapConfig,
     PortalMapViewport,
 } from '@/types/portal';
 
@@ -35,7 +35,7 @@ interface PortalMapProps {
     basePath?: PortalBasePath;
     filters: PortalFilters;
     maxZoom: number;
-    basemap: PortalMapTilerBasemapConfig;
+    basemap: PortalBasemapConfig;
     className?: string;
     hideHeader?: boolean;
     geoFilterEnabled?: boolean;
@@ -443,15 +443,6 @@ export function PortalMap({
             </MapContainer>
 
             <PortalMapLegend features={features} />
-
-            <a
-                href="https://www.maptiler.com"
-                target="_blank"
-                rel="noreferrer"
-                className="absolute bottom-3 left-3 z-1000 rounded bg-white/90 p-1 shadow"
-            >
-                <img src="https://api.maptiler.com/resources/logo.svg" alt="MapTiler" className="h-5 w-auto" />
-            </a>
 
             {expandedCluster && (
                 <ClusterMembersPanel

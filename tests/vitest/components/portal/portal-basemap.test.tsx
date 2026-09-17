@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { act, render, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PortalMapTilerBasemapConfig } from '@/types/portal';
+import type { PortalBasemapConfig } from '@/types/portal';
 
 const maplibreEvents = vi.hoisted(() => new Map<string, (...args: unknown[]) => void>());
 const maplibreMapMock = vi.hoisted(() => ({
@@ -38,13 +38,12 @@ vi.mock('@americana/diplomat', () => ({
     localizeStyle: localizeStyleMock,
 }));
 
-import { buildMaptilerStyleUrl, MAPTILER_ATTRIBUTION, PortalBasemap } from '@/components/portal/PortalBasemap';
+import { OPENFREEMAP_ATTRIBUTION, PortalBasemap } from '@/components/portal/PortalBasemap';
 
-const config: PortalMapTilerBasemapConfig = {
-    provider: 'maptiler',
-    style: 'streets-v4',
+const config: PortalBasemapConfig = {
+    provider: 'openfreemap',
+    styleUrl: 'https://tiles.openfreemap.org/styles/liberty',
     language: 'en',
-    apiKey: 'test key/+',
 };
 
 describe('PortalBasemap', () => {
@@ -55,18 +54,12 @@ describe('PortalBasemap', () => {
         localizeStyleMock.mockImplementation(() => undefined);
     });
 
-    it('builds an encoded MapTiler Cloud style URL', () => {
-        expect(buildMaptilerStyleUrl({ ...config, style: ' custom/style ' })).toBe(
-            'https://api.maptiler.com/maps/custom%2Fstyle/style.json?key=test%20key%2F%2B',
-        );
-    });
-
     it('protects attribution links that open in a new tab', () => {
         const container = document.createElement('div');
-        container.innerHTML = MAPTILER_ATTRIBUTION;
+        container.innerHTML = OPENFREEMAP_ATTRIBUTION;
 
         const links = Array.from(container.querySelectorAll('a'));
-        expect(links).toHaveLength(2);
+        expect(links).toHaveLength(3);
         expect(links.every((link) => link.target === '_blank' && link.rel === 'noopener noreferrer')).toBe(true);
     });
 
@@ -78,13 +71,13 @@ describe('PortalBasemap', () => {
         expect(setWorkerUrlMock).toHaveBeenCalledWith('/build/assets/maplibre-gl-worker-test.js');
         expect(setWorkerUrlMock.mock.invocationCallOrder[0]).toBeLessThan(maplibreGLMock.mock.invocationCallOrder[0]);
         expect(maplibreGLMock).toHaveBeenCalledWith({
-            style: 'https://api.maptiler.com/maps/streets-v4/style.json?key=test%20key%2F%2B',
+            style: 'https://tiles.openfreemap.org/styles/liberty',
             interactive: false,
             maxZoom: 9,
             attributionControl: false,
         });
         expect(layerMock.addTo).toHaveBeenCalledWith(leafletMapMock);
-        expect(attributionControlMock.addAttribution).toHaveBeenCalledWith(MAPTILER_ATTRIBUTION);
+        expect(attributionControlMock.addAttribution).toHaveBeenCalledWith(OPENFREEMAP_ATTRIBUTION);
         expect(onStatusChange).toHaveBeenCalledWith('loading');
 
         act(() => maplibreEvents.get('styledata')?.());
@@ -106,7 +99,7 @@ describe('PortalBasemap', () => {
 
         unmount();
         expect(layerMock.remove).toHaveBeenCalledOnce();
-        expect(attributionControlMock.removeAttribution).toHaveBeenCalledWith(MAPTILER_ATTRIBUTION);
+        expect(attributionControlMock.removeAttribution).toHaveBeenCalledWith(OPENFREEMAP_ATTRIBUTION);
     });
 
     it('keeps observing resource errors and becomes ready only after a successful recovery cycle', async () => {
@@ -140,19 +133,16 @@ describe('PortalBasemap', () => {
         expect(onStatusChange).toHaveBeenLastCalledWith('ready');
     });
 
-    it.each([
-        ['API key', { apiKey: ' ' }],
-        ['style', { style: ' ' }],
-    ])('reports a missing %s without initializing MapLibre', (_field, override) => {
+    it('reports a missing style URL without initializing MapLibre', () => {
         const onStatusChange = vi.fn();
-        const { unmount } = render(<PortalBasemap config={{ ...config, ...override }} maxZoom={18} onStatusChange={onStatusChange} />);
+        const { unmount } = render(<PortalBasemap config={{ ...config, styleUrl: ' ' }} maxZoom={18} onStatusChange={onStatusChange} />);
 
         expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual(['loading', 'error']);
         expect(maplibreGLMock).not.toHaveBeenCalled();
-        expect(attributionControlMock.addAttribution).toHaveBeenCalledWith(MAPTILER_ATTRIBUTION);
+        expect(attributionControlMock.addAttribution).toHaveBeenCalledWith(OPENFREEMAP_ATTRIBUTION);
 
         unmount();
-        expect(attributionControlMock.removeAttribution).toHaveBeenCalledWith(MAPTILER_ATTRIBUTION);
+        expect(attributionControlMock.removeAttribution).toHaveBeenCalledWith(OPENFREEMAP_ATTRIBUTION);
     });
 
     it('reports initialization and pre-load style errors', async () => {

@@ -140,14 +140,13 @@ exact validated manifests.
 Save and redeploy the stack, then re-enable automatic polling if changing the
 Git reference did not already enable it.
 
-Configure a dedicated MapTiler browser key in the Stage stack environment:
+The portal basemap uses the keyless OpenFreeMap public instance by default. No account, API key, or additional Stage variable is required. To use a compatible self-hosted instance instead, configure its style URL in the Stage stack environment:
 
 ```dotenv
-MAPTILER_API_KEY=<stage-browser-key>
-PORTAL_MAP_BASEMAP_STYLE=streets-v4
+PORTAL_MAP_BASEMAP_STYLE_URL=https://maps.example.org/styles/liberty
 ```
 
-Restrict this key in MapTiler Cloud to the Stage HTTP origin only. Do not reuse the local or Production key. The value is intentionally delivered to browsers; origin restrictions, quota monitoring, and key rotation are the security controls.
+The default is `https://tiles.openfreemap.org/styles/liberty`. OpenFreeMap does not provide an SLA; keep the default for ordinary use or self-host when operational guarantees are required.
 
 ### 6. Verify the first deployment
 

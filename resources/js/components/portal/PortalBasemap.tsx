@@ -5,32 +5,26 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
 import { useEffect } from 'react';
 import { useMap } from 'react-leaflet';
 
-import type { PortalMapTilerBasemapConfig } from '@/types/portal';
+import type { PortalBasemapConfig } from '@/types/portal';
 
 export type PortalBasemapStatus = 'loading' | 'ready' | 'error';
 
-export const MAPTILER_ATTRIBUTION =
-    '<a href="https://www.maptiler.com/copyright/" target="_blank" rel="noopener noreferrer">&copy; MapTiler</a> ' +
-    '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">&copy; OpenStreetMap contributors</a>';
+export const OPENFREEMAP_ATTRIBUTION =
+    '<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> ' +
+    '<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">&copy; OpenMapTiles</a> ' +
+    'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
 
 interface PortalBasemapProps {
-    config: PortalMapTilerBasemapConfig;
+    config: PortalBasemapConfig;
     maxZoom: number;
     onStatusChange: (status: PortalBasemapStatus) => void;
 }
 
-export function buildMaptilerStyleUrl(config: PortalMapTilerBasemapConfig): string {
-    const style = encodeURIComponent(config.style.trim());
-    const apiKey = encodeURIComponent(config.apiKey.trim());
-
-    return `https://api.maptiler.com/maps/${style}/style.json?key=${apiKey}`;
-}
-
 export function PortalBasemap({ config, maxZoom, onStatusChange }: PortalBasemapProps) {
     const map = useMap();
-    const hasConfiguration = config.apiKey.trim() !== '' && config.style.trim() !== '';
+    const styleUrl = config.styleUrl.trim();
+    const hasConfiguration = styleUrl !== '';
     const language = config.language;
-    const styleUrl = buildMaptilerStyleUrl(config);
 
     useEffect(() => {
         let disposed = false;
@@ -41,11 +35,11 @@ export function PortalBasemap({ config, maxZoom, onStatusChange }: PortalBasemap
         let recoveryStarted = false;
 
         onStatusChange('loading');
-        map.attributionControl?.addAttribution(MAPTILER_ATTRIBUTION);
+        map.attributionControl?.addAttribution(OPENFREEMAP_ATTRIBUTION);
 
         if (!hasConfiguration) {
             onStatusChange('error');
-            return () => map.attributionControl?.removeAttribution(MAPTILER_ATTRIBUTION);
+            return () => map.attributionControl?.removeAttribution(OPENFREEMAP_ATTRIBUTION);
         }
 
         const initialize = async () => {
@@ -124,7 +118,7 @@ export function PortalBasemap({ config, maxZoom, onStatusChange }: PortalBasemap
         return () => {
             disposed = true;
             layer?.remove();
-            map.attributionControl?.removeAttribution(MAPTILER_ATTRIBUTION);
+            map.attributionControl?.removeAttribution(OPENFREEMAP_ATTRIBUTION);
         };
     }, [hasConfiguration, language, map, maxZoom, onStatusChange, styleUrl]);
 
