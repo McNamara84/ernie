@@ -22,7 +22,13 @@
                 ]
             }
         ],
-        "fixes": []
+        "fixes": [
+            {
+                "title": "Reliable Maps for Science Topic Filters",
+                "description": "Portal maps now load correctly with science-topic and thesaurus filters on SQLite installations with a bounded SQL parser stack. Legacy breadcrumb keywords, map extents, and cluster members retain the same filtering rules as search results.",
+                "references": []
+            }
+        ]
     },
     {
         "version": "1.0.9",

@@ -187,6 +187,48 @@ it('preserves identical restrictions and separate cache entries for list count m
     $this->getJson('/doi-search/count?topic=atmosphere')->assertJsonPath('total', 2);
 });
 
+it('preserves thesaurus matches and viewport boundaries across map queries', function (array $filters, bool $legacyValues): void {
+    $first = homepageTopicResource('First atmosphere dataset');
+    $second = homepageTopicResource('Second atmosphere dataset');
+    $outside = homepageTopicResource('Atmosphere dataset outside the viewport');
+    $draft = homepageTopicResource(published: false);
+    $sample = homepageTopicResource(type: 'physical-object');
+    $conflict = homepageTopicResource();
+    $wrongScheme = homepageTopicResource();
+
+    $attributes = $legacyValues ? ['value' => ' ATMOSPHERE &amp;gt; MEASUREMENTS ', 'value_uri' => null] : [];
+    foreach ([$first, $second, $outside, $draft, $sample] as $resource) {
+        homepageTopicSubject($resource, 'atmosphere', $attributes);
+    }
+    // Multiple matching subjects must not duplicate a resource's locations.
+    homepageTopicSubject($first, 'atmosphere', $attributes);
+    homepageTopicSubject($conflict, 'oceans', ['value' => 'ATMOSPHERE > MEASUREMENTS']);
+    homepageTopicSubject($wrongScheme, 'atmosphere', ['subject_scheme' => 'Other Vocabulary']);
+    foreach ([$first, $second, $draft, $sample, $conflict, $wrongScheme] as $resource) {
+        GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $resource->id]);
+    }
+    GeoLocation::factory()->withPoint(-120, 40)->create(['resource_id' => $outside->id]);
+
+    $this->getJson('/doi-search/count?'.http_build_query($filters))->assertOk()->assertJsonPath('total', 3);
+    $query = homepageTopicMapQuery([...$filters, 'include_extent' => 1]);
+    $cluster = $this->getJson('/doi-search/map?'.http_build_query($query))->assertOk()
+        ->assertJsonPath('meta.totalLocations', 3)
+        ->assertJsonPath('meta.extent.west', -120)
+        ->assertJsonCount(1, 'features')
+        ->assertJsonPath('features.0.kind', 'cluster')
+        ->assertJsonPath('features.0.count', 2)
+        ->json('features.0.id');
+    unset($query['zoom'], $query['include_extent']);
+    $members = $this->getJson('/doi-search/map/clusters/'.urlencode($cluster).'?'.http_build_query($query))
+        ->assertOk()->assertJsonPath('total', 2)->json('members');
+
+    expect(array_column(array_column($members, 'resource'), 'id'))->toEqualCanonicalizing([$first->id, $second->id]);
+})->with([
+    'homepage topic' => [['topic' => 'atmosphere']],
+    'manual thesaurus selection' => [['thesaurus_keywords' => ['https://example.test/atmosphere']]],
+    'combined topic and thesaurus selection' => [['topic' => 'atmosphere', 'thesaurus_keywords' => ['https://example.test/atmosphere']]],
+])->with(['URI subjects' => false, 'legacy breadcrumb subjects' => true]);
+
 it('rejects malformed or unknown DOI topics on every public search surface', function (mixed $topic): void {
     $query = homepageTopicMapQuery(['topic' => $topic]);
     $this->getJson('/doi-search?'.http_build_query(['topic' => $topic]))->assertUnprocessable();
