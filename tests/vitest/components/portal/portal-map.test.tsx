@@ -24,6 +24,7 @@ const clusterMembersQueryState = vi.hoisted(() => ({
     },
 }));
 const usePortalMapClusterMembersMock = vi.hoisted(() => vi.fn(() => clusterMembersQueryState.result));
+const useMediaQueryMock = vi.hoisted(() => vi.fn(() => false));
 const clusterLayerMock = vi.hoisted(() =>
     vi.fn(
         ({
@@ -78,6 +79,7 @@ const mockMap = vi.hoisted(() => ({
 
 vi.mock('@/hooks/use-portal-map-data', () => ({ usePortalMapData: usePortalMapDataMock }));
 vi.mock('@/hooks/use-portal-map-cluster-members', () => ({ usePortalMapClusterMembers: usePortalMapClusterMembersMock }));
+vi.mock('@/hooks/use-media-query', () => ({ useMediaQuery: useMediaQueryMock }));
 vi.mock('@/components/portal/PortalMapCluster', () => ({ ClusterLayer: clusterLayerMock }));
 vi.mock('@/components/portal/PortalMapClusterMembers', () => ({
     ClusterMembersLayer: ({ members, total }: { members: unknown[]; total: number }) => (
@@ -161,7 +163,12 @@ vi.mock('react-leaflet', () => ({
     }) => (
         <div
             data-testid="leaflet-map"
-            data-max-bounds={JSON.stringify(maxBounds)}
+            data-max-bounds={JSON.stringify(maxBounds, (_key, value) => {
+                if (value === Number.NEGATIVE_INFINITY) return '-Infinity';
+                if (value === Number.POSITIVE_INFINITY) return 'Infinity';
+
+                return value;
+            })}
             data-max-bounds-viscosity={maxBoundsViscosity}
             data-max-zoom={maxZoom}
             data-min-zoom={minZoom}
@@ -232,6 +239,7 @@ const response = (overrides: Partial<PortalMapResponse> = {}): PortalMapResponse
 describe('PortalMap', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        useMediaQueryMock.mockReturnValue(false);
         mapEvents.clear();
         mockMap.getCenter.mockReturnValue({ lat: 0, lng: 180 });
         mapQueryState.result = {
@@ -255,7 +263,7 @@ describe('PortalMap', () => {
             expect(usePortalMapDataMock).toHaveBeenCalledWith(
                 filters,
                 expect.objectContaining({ north: 53, south: 51, east: 14, west: 12, width: 800, height: 600, zoom: 4 }),
-                false,
+                true,
                 '/doi-search',
                 18,
             ),
@@ -270,16 +278,27 @@ describe('PortalMap', () => {
         expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-max-zoom', '7');
         expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-language', 'en');
         expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-max-zoom', '7');
-        await waitFor(() =>
-            expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), false, '/doi-search', 7),
-        );
+        await waitFor(() => expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), true, '/doi-search', 7));
     });
 
-    it('uses the adapter constraints to prevent polar panning from desynchronizing the layers', () => {
+    it('renders only one Leaflet and MapLibre map for each responsive layout', () => {
+        const { rerender } = render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
+
+        expect(screen.getAllByTestId('leaflet-map')).toHaveLength(1);
+        expect(screen.getAllByTestId('portal-basemap')).toHaveLength(1);
+
+        useMediaQueryMock.mockReturnValue(true);
+        rerender(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
+
+        expect(screen.getAllByTestId('leaflet-map')).toHaveLength(1);
+        expect(screen.getAllByTestId('portal-basemap')).toHaveLength(1);
+    });
+
+    it('prevents polar panning without restricting longitude world copies', () => {
         render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
 
-        expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-max-bounds', '[[-90,-180],[90,180]]');
-        expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-max-bounds-viscosity', '1');
+        expect(screen.getByTestId('leaflet-map')).toHaveAttribute('data-max-bounds', '[[-90,"-Infinity"],[90,"Infinity"]]');
+        expect(screen.getByTestId('leaflet-map')).toHaveAttribute('data-max-bounds-viscosity', '1');
     });
 
     it('normalizes a legacy zero zoom limit to the adapter-compatible minimum', async () => {
@@ -290,9 +309,7 @@ describe('PortalMap', () => {
         expect(screen.getAllByTestId('leaflet-map')[0]).toHaveAttribute('data-initial-zoom', '1');
         expect(screen.getAllByTestId('portal-basemap')[0]).toHaveAttribute('data-max-zoom', '1');
         expect(screen.getAllByTestId('cluster-layer')[0]).toHaveAttribute('data-max-zoom', '1');
-        await waitFor(() =>
-            expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), false, '/doi-search', 1),
-        );
+        await waitFor(() => expect(usePortalMapDataMock).toHaveBeenCalledWith(filters, expect.objectContaining({ zoom: 4 }), true, '/doi-search', 1));
     });
 
     it('shows a distinct accessible error when the map background fails', () => {
@@ -451,6 +468,22 @@ describe('PortalMap', () => {
                 [-10, 170],
                 [10, 190],
             ]),
+        );
+    });
+
+    it('keeps wrapped fly-to navigation on the adjacent longitude world copy', async () => {
+        render(
+            <PortalMap filters={filters} maxZoom={18} basemap={basemap} hideHeader flyToBounds={{ north: 10, south: -10, west: 170, east: -170 }} />,
+        );
+
+        await waitFor(() =>
+            expect(mockMap.fitBounds).toHaveBeenCalledWith(
+                [
+                    [-10, 170],
+                    [10, 190],
+                ],
+                { padding: [20, 20], animate: true },
+            ),
         );
     });
 

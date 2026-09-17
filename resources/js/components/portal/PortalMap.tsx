@@ -8,6 +8,7 @@ import { MapContainer, Polygon, Polyline, Popup, Rectangle, useMap } from 'react
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { usePortalMapClusterMembers } from '@/hooks/use-portal-map-cluster-members';
 import { usePortalMapData } from '@/hooks/use-portal-map-data';
 import { formatAuthorsShort, getMaterialCategoryStyle, getMaterialDisplayLabel, getPresentationShapePathOptions } from '@/lib/portal-map-config';
@@ -44,10 +45,11 @@ interface PortalMapProps {
 }
 
 const VIEWPORT_RESIZE_DEBOUNCE_MS = 250;
-// Keep Leaflet inside valid geographic coordinates so the MapLibre layer remains synchronized during polar pans.
-const PORTAL_MAP_WORLD_BOUNDS: L.LatLngBoundsExpression = [
-    [-90, -180],
-    [90, 180],
+const PORTAL_MAP_WIDE_LAYOUT_QUERY = '(min-width: 1536px)';
+// Limit polar panning for MapLibre while retaining Leaflet's longitude world copies for antimeridian data.
+const PORTAL_MAP_LATITUDE_BOUNDS: L.LatLngBoundsExpression = [
+    [-90, Number.NEGATIVE_INFINITY],
+    [90, Number.POSITIVE_INFINITY],
 ];
 
 function MapResizeHandler() {
@@ -324,6 +326,7 @@ export function PortalMap({
     const previousSignature = useRef(signature);
     const handleBasemapStatusChange = useCallback((status: PortalBasemapStatus) => setBasemapStatus(status), []);
     const compatibleMaxZoom = normalizePortalMapMaxZoom(maxZoom);
+    const isWideLayout = useMediaQuery(PORTAL_MAP_WIDE_LAYOUT_QUERY);
 
     useEffect(() => {
         if (previousSignature.current === signature) return;
@@ -383,7 +386,7 @@ export function PortalMap({
                 zoom={Math.min(2, compatibleMaxZoom)}
                 minZoom={PORTAL_MAP_MIN_ZOOM}
                 maxZoom={compatibleMaxZoom}
-                maxBounds={PORTAL_MAP_WORLD_BOUNDS}
+                maxBounds={PORTAL_MAP_LATITUDE_BOUNDS}
                 maxBoundsViscosity={1}
                 className="h-full w-full"
             >
@@ -482,8 +485,8 @@ export function PortalMap({
         <div className={cn('flex h-full flex-col', className)} data-testid="portal-map-container">
             {hideHeader && <div className="h-full w-full">{mapContent}</div>}
 
-            {!hideHeader && (
-                <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)} className="2xl:hidden">
+            {!hideHeader && !isWideLayout && (
+                <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
                     <CollapsibleTrigger asChild>
                         <Button
                             variant="ghost"
@@ -503,8 +506,8 @@ export function PortalMap({
                 </Collapsible>
             )}
 
-            {!hideHeader && (
-                <div className="hidden h-full flex-col 2xl:flex">
+            {!hideHeader && isWideLayout && (
+                <div className="flex h-full flex-col">
                     <div className="flex items-center gap-2 border-b px-4 py-3">
                         <MapIcon className="h-4 w-4" />
                         <span className="font-medium">Map</span>
