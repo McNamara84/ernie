@@ -46,11 +46,43 @@ interface PortalMapProps {
 
 const VIEWPORT_RESIZE_DEBOUNCE_MS = 250;
 const PORTAL_MAP_WIDE_LAYOUT_QUERY = '(min-width: 1536px)';
-// Limit polar panning for MapLibre while retaining Leaflet's longitude world copies for antimeridian data.
-const PORTAL_MAP_LATITUDE_BOUNDS: L.LatLngBoundsExpression = [
-    [-90, Number.NEGATIVE_INFINITY],
-    [90, Number.POSITIVE_INFINITY],
-];
+const PORTAL_MAP_MIN_LATITUDE = -90;
+const PORTAL_MAP_MAX_LATITUDE = 90;
+const PORTAL_MAP_LONGITUDE_GUARD_HALF_SPAN = 180;
+
+function LatitudeBoundsGuard() {
+    const map = useMap();
+
+    useEffect(() => {
+        let isEnforcing = false;
+
+        const enforceLatitudeBounds = () => {
+            if (isEnforcing) return;
+
+            const longitude = map.getCenter().lng;
+            const bounds = L.latLngBounds(
+                [PORTAL_MAP_MIN_LATITUDE, longitude - PORTAL_MAP_LONGITUDE_GUARD_HALF_SPAN],
+                [PORTAL_MAP_MAX_LATITUDE, longitude + PORTAL_MAP_LONGITUDE_GUARD_HALF_SPAN],
+            );
+
+            isEnforcing = true;
+            try {
+                map.panInsideBounds(bounds, { animate: false });
+            } finally {
+                isEnforcing = false;
+            }
+        };
+
+        map.on('move', enforceLatitudeBounds);
+        enforceLatitudeBounds();
+
+        return () => {
+            map.off('move', enforceLatitudeBounds);
+        };
+    }, [map]);
+
+    return null;
+}
 
 function MapResizeHandler() {
     const map = useMap();
@@ -386,11 +418,10 @@ export function PortalMap({
                 zoom={Math.min(2, compatibleMaxZoom)}
                 minZoom={PORTAL_MAP_MIN_ZOOM}
                 maxZoom={compatibleMaxZoom}
-                maxBounds={PORTAL_MAP_LATITUDE_BOUNDS}
-                maxBoundsViscosity={1}
                 className="h-full w-full"
             >
                 <PortalBasemap config={basemap} maxZoom={compatibleMaxZoom} onStatusChange={handleBasemapStatusChange} />
+                <LatitudeBoundsGuard />
                 <MapResizeHandler />
                 <ViewportTracker
                     onTechnicalViewport={handleTechnicalViewport}

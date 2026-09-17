@@ -25,6 +25,14 @@ const clusterMembersQueryState = vi.hoisted(() => ({
 }));
 const usePortalMapClusterMembersMock = vi.hoisted(() => vi.fn(() => clusterMembersQueryState.result));
 const useMediaQueryMock = vi.hoisted(() => vi.fn(() => false));
+const latLngBoundsMock = vi.hoisted(() =>
+    vi.fn(() => ({
+        isValid: () => true,
+        getNorthEast: () => ({ equals: () => false }),
+        getSouthWest: () => ({}),
+        getCenter: () => ({ lat: 52, lng: 13 }),
+    })),
+);
 const clusterLayerMock = vi.hoisted(() =>
     vi.fn(
         ({
@@ -57,6 +65,7 @@ const clusterLayerMock = vi.hoisted(() =>
 
 const mockMap = vi.hoisted(() => ({
     fitBounds: vi.fn(),
+    panInsideBounds: vi.fn(),
     setView: vi.fn(),
     invalidateSize: vi.fn(),
     getZoom: vi.fn(() => 4),
@@ -137,12 +146,7 @@ vi.mock('@/components/portal/PortalBasemap', () => ({
 vi.mock('leaflet/dist/leaflet.css', () => ({}));
 vi.mock('leaflet', () => ({
     default: {
-        latLngBounds: vi.fn(() => ({
-            isValid: () => true,
-            getNorthEast: () => ({ equals: () => false }),
-            getSouthWest: () => ({}),
-            getCenter: () => ({ lat: 52, lng: 13 }),
-        })),
+        latLngBounds: latLngBoundsMock,
     },
 }));
 vi.mock('react-leaflet', () => ({
@@ -155,20 +159,15 @@ vi.mock('react-leaflet', () => ({
         zoom,
     }: {
         children: React.ReactNode;
-        maxBounds: unknown;
-        maxBoundsViscosity: number;
+        maxBounds?: unknown;
+        maxBoundsViscosity?: number;
         maxZoom: number;
         minZoom: number;
         zoom: number;
     }) => (
         <div
             data-testid="leaflet-map"
-            data-max-bounds={JSON.stringify(maxBounds, (_key, value) => {
-                if (value === Number.NEGATIVE_INFINITY) return '-Infinity';
-                if (value === Number.POSITIVE_INFINITY) return 'Infinity';
-
-                return value;
-            })}
+            data-max-bounds={JSON.stringify(maxBounds)}
             data-max-bounds-viscosity={maxBoundsViscosity}
             data-max-zoom={maxZoom}
             data-min-zoom={minZoom}
@@ -294,11 +293,18 @@ describe('PortalMap', () => {
         expect(screen.getAllByTestId('portal-basemap')).toHaveLength(1);
     });
 
-    it('prevents polar panning without restricting longitude world copies', () => {
+    it('guards polar panning with finite bounds centered on the active longitude world copy', () => {
         render(<PortalMap filters={filters} maxZoom={18} basemap={basemap} />);
 
-        expect(screen.getByTestId('leaflet-map')).toHaveAttribute('data-max-bounds', '[[-90,"-Infinity"],[90,"Infinity"]]');
-        expect(screen.getByTestId('leaflet-map')).toHaveAttribute('data-max-bounds-viscosity', '1');
+        expect(screen.getByTestId('leaflet-map')).not.toHaveAttribute('data-max-bounds');
+        expect(screen.getByTestId('leaflet-map')).not.toHaveAttribute('data-max-bounds-viscosity');
+        expect(latLngBoundsMock).toHaveBeenCalledWith([-90, 0], [90, 360]);
+        expect(mockMap.panInsideBounds).toHaveBeenCalledWith(expect.anything(), { animate: false });
+
+        mockMap.getCenter.mockReturnValue({ lat: 0, lng: 540 });
+        act(() => mapEvents.get('move')?.());
+
+        expect(latLngBoundsMock).toHaveBeenLastCalledWith([-90, 360], [90, 720]);
     });
 
     it('normalizes a legacy zero zoom limit to the adapter-compatible minimum', async () => {
