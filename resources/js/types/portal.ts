@@ -14,14 +14,13 @@ export interface PortalContext {
 
 export interface PortalMapConfig {
     maxZoom: number;
-    basemap: PortalMapTilerBasemapConfig;
+    basemap: PortalBasemapConfig;
 }
 
-export interface PortalMapTilerBasemapConfig {
-    provider: 'maptiler';
-    style: string;
+export interface PortalBasemapConfig {
+    provider: 'openfreemap';
+    styleUrl: string;
     language: 'en';
-    apiKey: string;
 }
 
 /**

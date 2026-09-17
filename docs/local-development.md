@@ -196,16 +196,15 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml --profile assess
 
 ### Portal basemap
 
-The DOI and IGSN portal maps use MapTiler Cloud vector styles so geographic labels can prefer English and fall back to the local name when no English value exists. Add a browser key to `.env.docker` before opening either portal:
+The DOI and IGSN portal maps use the keyless OpenFreeMap vector basemap so geographic labels can prefer English and fall back to the local name when no English value exists. No account or API key is required. The public OpenFreeMap Liberty style is the default:
 
 ```dotenv
-MAPTILER_API_KEY=your-local-browser-key
-PORTAL_MAP_BASEMAP_STYLE=streets-v4
+PORTAL_MAP_BASEMAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty
 ```
 
-The key is sent to the browser and is therefore not a server secret. Create a separate development key in MapTiler Cloud and restrict its allowed HTTP origins to the local URLs you actually use, normally `https://ernie.localhost:3333` and, when enabled, `https://localhost:3333`. Never reuse the Stage or Production key locally.
+Override the URL only to use a compatible style served by a self-hosted OpenFreeMap instance. Arbitrary MapLibre styles are not supported because the portal displays the fixed OpenFreeMap, OpenMapTiles, and OpenStreetMap attribution required by this basemap. The public service has no SLA, so self-hosting remains available if operational guarantees become necessary.
 
-If the key is missing, invalid, quota-limited, or rejected for the current origin, the portal remains usable and its ERNIE data overlays can still load, but the map shows the notice “The map background is temporarily unavailable. Reload the page later or contact support if the problem continues.” instead of falling back to a differently labelled map.
+If the configured style or its tiles cannot be loaded, the portal remains usable and its ERNIE data overlays can still load, but the map shows the notice “The map background is temporarily unavailable. Reload the page later or contact support if the problem continues.” instead of falling back to a differently labelled map.
 - The development entrypoint copies `.env.docker` to `.env` when `.env` does not already exist.
 - The npm Docker wrappers always pass `--env-file .env.docker` so Compose and Laravel use the same source of truth.
 - Docker-managed `node_modules` live in the named Docker volume, not in your host checkout.

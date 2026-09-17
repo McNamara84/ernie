@@ -1,6 +1,6 @@
 services:
   app:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:4042997e7277373188a445ab468b9509ae3eed6d2be65ae23324e65729553e82}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:02139bbb1188ed42de6063c2a834b61e8a8c464ca1b149e5e6399d99929c9574}"
     pull_policy: always
     container_name: dockerized-laravel-app
     restart: unless-stopped
@@ -77,8 +77,7 @@ services:
       - BOT_PROTECTION_PORTAL_CACHE_LOCK_WAIT_SECONDS=${BOT_PROTECTION_PORTAL_CACHE_LOCK_WAIT_SECONDS:-10}
       - PORTAL_MAP_ENABLED=${PORTAL_MAP_ENABLED:-true}
       - PORTAL_MAP_MAX_ZOOM=${PORTAL_MAP_MAX_ZOOM:-18}
-      - MAPTILER_API_KEY=${MAPTILER_API_KEY:-}
-      - PORTAL_MAP_BASEMAP_STYLE=${PORTAL_MAP_BASEMAP_STYLE:-streets-v4}
+      - PORTAL_MAP_BASEMAP_STYLE_URL=${PORTAL_MAP_BASEMAP_STYLE_URL-https://tiles.openfreemap.org/styles/liberty}
       - PORTAL_MAP_MAX_FEATURES=${PORTAL_MAP_MAX_FEATURES:-1000}
       - PORTAL_MAP_CLUSTER_RADIUS=${PORTAL_MAP_CLUSTER_RADIUS:-60}
       - PORTAL_MAP_SHAPE_DETAIL_ZOOM=${PORTAL_MAP_SHAPE_DETAIL_ZOOM:-10}
@@ -140,7 +139,7 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
 
   webserver:
-    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:ec2c8e77427510645cd2c1229fe1b9ce49f5d8d0827323bf41a349740f9e806e}"
+    image: "${ERNIE_STAGE_NGINX_IMAGE:-ghcr.io/mcnamara84/ernie-nginx@sha256:1eb6ed60d3b210de1b671da2e43cba6f916e9728bd9f50766abe836a37b53636}"
     pull_policy: always
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
@@ -231,7 +230,7 @@ services:
       start_period: 60s
 
   queue:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:4042997e7277373188a445ab468b9509ae3eed6d2be65ae23324e65729553e82}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:02139bbb1188ed42de6063c2a834b61e8a8c464ca1b149e5e6399d99929c9574}"
     pull_policy: always
     container_name: dockerized-laravel-queue
     restart: unless-stopped
@@ -321,7 +320,7 @@ services:
       - LANDING_PAGE_CONTACT_CC_EMAIL=${LANDING_PAGE_CONTACT_CC_EMAIL:-}
 
   assessment-queue:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:4042997e7277373188a445ab468b9509ae3eed6d2be65ae23324e65729553e82}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:02139bbb1188ed42de6063c2a834b61e8a8c464ca1b149e5e6399d99929c9574}"
     pull_policy: always
     restart: unless-stopped
     deploy:
@@ -379,7 +378,7 @@ services:
       - FUJI_ASSESSMENT_QUEUE_RETRY_AFTER=${FUJI_ASSESSMENT_QUEUE_RETRY_AFTER:-390}
 
   scheduler:
-    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:4042997e7277373188a445ab468b9509ae3eed6d2be65ae23324e65729553e82}"
+    image: "${ERNIE_STAGE_APP_IMAGE:-ghcr.io/mcnamara84/ernie-app@sha256:02139bbb1188ed42de6063c2a834b61e8a8c464ca1b149e5e6399d99929c9574}"
     pull_policy: always
     container_name: dockerized-laravel-scheduler
     restart: unless-stopped

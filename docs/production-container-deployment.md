@@ -150,14 +150,13 @@ The Compose file also sets `pull_policy: always`. Its generated image
 references are immutable digests, so every actual stack update requests the
 exact promoted manifests.
 
-Configure a dedicated MapTiler browser key in the Production stack environment:
+The portal basemap uses the keyless OpenFreeMap public instance by default. No account, API key, or additional Production variable is required. To use a compatible self-hosted instance instead, configure its style URL in the Production stack environment:
 
 ```dotenv
-MAPTILER_API_KEY=<production-browser-key>
-PORTAL_MAP_BASEMAP_STYLE=streets-v4
+PORTAL_MAP_BASEMAP_STYLE_URL=https://maps.example.org/styles/liberty
 ```
 
-Restrict this key in MapTiler Cloud to the Production HTTP origin only. Do not reuse the local or Stage key. The value is intentionally delivered to browsers; origin restrictions, quota monitoring, and key rotation are the security controls.
+The default is `https://tiles.openfreemap.org/styles/liberty`. OpenFreeMap does not provide an SLA; keep the default for ordinary use or self-host when operational guarantees are required.
 
 ### 5. Verify the first deployment
 
