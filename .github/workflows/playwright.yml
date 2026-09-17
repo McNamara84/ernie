@@ -132,6 +132,9 @@ jobs:
         CACHE_DRIVER: file
         QUEUE_CONNECTION: sync
         BROADCAST_DRIVER: log
+        # Portal behavior is covered here without starting a WebGL renderer in
+        # every test. Basemap integration has focused frontend tests.
+        PORTAL_MAP_BASEMAP_STYLE_URL: ''
     - name: Wait for server to be ready
       run: |
         echo "Waiting for Laravel server to start..."

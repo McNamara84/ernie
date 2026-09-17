@@ -343,7 +343,7 @@ export function createMockPortalPageProps(overrides?: {
         },
         mapConfig: {
             maxZoom: 18,
-            basemap: { provider: 'maptiler', style: 'streets-v4', language: 'en', apiKey: 'test-maptiler-key' },
+            basemap: { provider: 'openfreemap', styleUrl: 'https://tiles.openfreemap.org/styles/liberty', language: 'en' },
         },
         resources,
         pagination: createMockPortalPagination({

@@ -1478,7 +1478,7 @@ describe('Docs page', () => {
         const heading = screen.getByRole('heading', { name: 'Exploring Results on the Map', level: 4 });
         const sectionContent = heading.parentElement;
 
-        expect(sectionContent?.textContent).toMatch(/background map is provided by MapTiler/i);
+        expect(sectionContent?.textContent).toMatch(/background map is provided by OpenFreeMap/i);
         expect(sectionContent?.textContent).toMatch(/prefers English labels for countries, regions, cities, roads/i);
         expect(sectionContent?.textContent).toMatch(/Where no English label is available, the local OpenStreetMap name is shown/i);
         expect(sectionContent?.textContent).toMatch(/reload the page later or contact support/i);

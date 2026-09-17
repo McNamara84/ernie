@@ -62,18 +62,18 @@ describe('index', function () {
             ->assertInertia(fn ($page) => $page->component('portal'));
     });
 
-    it('keeps the MapTiler runtime configuration outside the cached portal payload', function () {
-        config(['services.maptiler.api_key' => 'first-key']);
+    it('keeps the basemap runtime configuration outside the cached portal payload', function () {
+        config(['portal_map.basemap_style_url' => 'https://maps.example.test/styles/first']);
 
         $this->get('/doi-search')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->where('mapConfig.basemap.apiKey', 'first-key'));
+            ->assertInertia(fn ($page) => $page->where('mapConfig.basemap.styleUrl', 'https://maps.example.test/styles/first'));
 
-        config(['services.maptiler.api_key' => 'rotated-key']);
+        config(['portal_map.basemap_style_url' => 'https://maps.example.test/styles/second']);
 
         $this->get('/doi-search')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->where('mapConfig.basemap.apiKey', 'rotated-key'));
+            ->assertInertia(fn ($page) => $page->where('mapConfig.basemap.styleUrl', 'https://maps.example.test/styles/second'));
     });
 
     it('returns empty results when no published resources exist', function () {
