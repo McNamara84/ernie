@@ -8,6 +8,25 @@ import { expect, type Page, test } from '@playwright/test';
  */
 
 const searchInput = (page: Page) => page.getByRole('combobox', { name: 'Search' });
+const playwrightBasemapStyle = JSON.stringify({
+    version: 8,
+    name: 'Playwright basemap',
+    sources: {},
+    layers: [],
+});
+
+async function stubPortalBasemap(page: Page) {
+    await page.route('https://tiles.openfreemap.org/**', async (route) => {
+        await route.fulfill({
+            contentType: 'application/json',
+            body: playwrightBasemapStyle,
+        });
+    });
+}
+
+test.beforeEach(async ({ page }) => {
+    await stubPortalBasemap(page);
+});
 
 async function openPortal(page: Page, path = '/doi-search') {
     const navigate = () => page.goto(path, { waitUntil: 'domcontentloaded' as const, timeout: 60_000 });
