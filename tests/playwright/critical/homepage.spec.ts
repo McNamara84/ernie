@@ -12,8 +12,8 @@ async function openHomepage(page: Page) {
 }
 
 test.describe('GFZ Data Services homepage', () => {
-    for (const width of [320, 390, 768, 1440]) {
-        test(`keeps all 25 hexagons and public content usable at ${width}px`, async ({ page }, testInfo) => {
+    for (const width of [320, 390, 639, 640, 768, 1440]) {
+        test(`keeps all 25 topics and public content usable at ${width}px`, async ({ page }, testInfo) => {
             await page.setViewportSize({ width, height: 900 });
             const response = await openHomepage(page);
             expect(response?.status()).toBe(200);
@@ -29,7 +29,23 @@ test.describe('GFZ Data Services homepage', () => {
                 await expect
                     .poll(() => link.locator('img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0))
                     .toBe(true);
-                expect(await link.locator('.science-topic-hexagon').evaluate((element) => getComputedStyle(element).clipPath)).toContain('polygon');
+                const clipPath = await link.locator('.science-topic-hexagon').evaluate((element) => getComputedStyle(element).clipPath);
+                if (width < 640) {
+                    expect(clipPath).toBe('none');
+                    const caption = link.locator('.science-topic-caption');
+                    await expect(caption).toHaveCSS('opacity', '1');
+                    expect(await caption.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true);
+                    const bounds = await link.boundingBox();
+                    expect(bounds?.width).toBeGreaterThanOrEqual(44);
+                    expect(bounds?.height).toBeGreaterThanOrEqual(44);
+                } else {
+                    expect(clipPath).toContain('polygon');
+                }
+            }
+            if (width < 640) {
+                const rows = await topics.getByRole('link').evaluateAll((links) => links.slice(0, 3).map((link) => link.getBoundingClientRect().top));
+                expect(rows[0]).toBe(rows[1]);
+                expect(rows[2]).toBeGreaterThan(rows[0]);
             }
             await expect(page.getByRole('heading', { name: 'Services', exact: true })).toBeVisible();
             await expect(page.getByRole('heading', { name: 'Guides', exact: true })).toBeVisible();
@@ -60,31 +76,36 @@ test.describe('GFZ Data Services homepage', () => {
         expect(await topic.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none');
     });
 
-    test('keeps labels visible on touch and opens a topic with one tap', async ({ browser, baseURL }) => {
-        const context = await browser.newContext({
-            baseURL,
-            ignoreHTTPSErrors: true,
-            viewport: { width: 390, height: 844 },
-            hasTouch: true,
-            extraHTTPHeaders: { 'X-ERNIE-Playwright-Test': '1' },
+    for (const width of [390, 768]) {
+        test(`keeps labels visible on touch and opens a topic with one tap at ${width}px`, async ({ browser, baseURL }) => {
+            const context = await browser.newContext({
+                baseURL,
+                ignoreHTTPSErrors: true,
+                viewport: { width, height: 1024 },
+                hasTouch: true,
+                extraHTTPHeaders: { 'X-ERNIE-Playwright-Test': '1' },
+            });
+            const page = await context.newPage();
+            await openHomepage(page);
+            const topic = page.getByRole('link', { name: 'Scientific Drilling', exact: true });
+            await topic.scrollIntoViewIfNeeded();
+            await expect(topic.locator('.science-topic-caption')).toHaveCSS('opacity', '1');
+            const clipPath = await topic.locator('.science-topic-hexagon').evaluate((element) => getComputedStyle(element).clipPath);
+            if (width < 640) expect(clipPath).toBe('none');
+            else expect(clipPath).toContain('polygon');
+            for (const caption of await page.locator('.science-topic-caption').all()) {
+                expect(await caption.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true);
+            }
+            await topic.tap();
+            await expect(page).toHaveURL(/\/doi-search\?topic=scientific-drilling$/);
+            await page
+                .getByRole('button', { name: /Filters/ })
+                .first()
+                .click();
+            await expect(page.getByTestId('portal-topic-filter')).toContainText('Scientific Drilling');
+            await context.close();
         });
-        const page = await context.newPage();
-        await openHomepage(page);
-        const topic = page.getByRole('link', { name: 'Scientific Drilling', exact: true });
-        await topic.scrollIntoViewIfNeeded();
-        await expect(topic.locator('.science-topic-caption')).toHaveCSS('opacity', '1');
-        for (const caption of await page.locator('.science-topic-caption').all()) {
-            expect(await caption.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true);
-        }
-        await topic.tap();
-        await expect(page).toHaveURL(/\/doi-search\?topic=scientific-drilling$/);
-        await page
-            .getByRole('button', { name: /Filters/ })
-            .first()
-            .click();
-        await expect(page.getByTestId('portal-topic-filter')).toContainText('Scientific Drilling');
-        await context.close();
-    });
+    }
 
     test('submits encoded searches with Enter and supports a blank search', async ({ page }) => {
         await openHomepage(page);

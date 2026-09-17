@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { ExternalLink, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import type { FormEvent } from 'react';
 
 import { HomeNews } from '@/components/home/HomeNews';
@@ -66,7 +66,7 @@ export default function Home({ topics }: { topics: ScienceTopic[] }) {
                         className="h-12 shrink-0 bg-[#012965] px-6 tracking-wider text-white ring-offset-background hover:bg-[#012965]/90 focus-visible:ring-[#012965] focus-visible:ring-offset-2 dark:focus-visible:ring-blue-300"
                     >
                         <a href={elmoUrl} target="_blank" rel="noopener noreferrer">
-                            SUBMIT METADATA <ExternalLink className="size-4" aria-hidden="true" />
+                            SUBMIT METADATA
                             <span className="sr-only"> (opens in a new tab)</span>
                         </a>
                     </Button>

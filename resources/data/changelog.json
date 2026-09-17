@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "GFZ Data Services Homepage",
-                "description": "GFZ Data Services now welcomes visitors directly in ERNIE with shared portal navigation, the ELMO announcement, metadata submission, and DOI search. All 25 original science-topic images return in a responsive hexagonal grid with accessible hover, keyboard, and touch labels. Topic links apply curated filters consistently to search results, counts, maps, and clusters, while the existing welcome references, service links, guides, and external catalogues remain available.",
+                "description": "GFZ Data Services now welcomes visitors directly in ERNIE with shared portal navigation, the ELMO announcement, and GFZ-blue metadata submission and DOI search buttons. All 25 original science-topic images appear as compact image cards with permanent labels on smartphones and retain the familiar hexagonal grid on tablets and desktops, with accessible hover, keyboard, and touch labels. Topic links apply curated filters consistently to search results, counts, maps, and clusters, while the existing welcome references, service links, guides, and external catalogues remain available.",
                 "references": []
             }
         ],

@@ -94,6 +94,57 @@
     }
 }
 
+@media (width < 640px) {
+    .science-topic-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-auto-rows: auto;
+        gap: 12px;
+        width: 100%;
+        padding-bottom: 0;
+    }
+
+    .science-topic-cell {
+        width: auto;
+        height: auto;
+    }
+
+    .science-topic-cell:nth-child(odd) {
+        transform: none;
+    }
+
+    .science-topic-link {
+        overflow: hidden;
+        border-radius: 12px;
+        background: #012965;
+        box-shadow: 0 2px 6px rgb(1 41 101 / 15%);
+    }
+
+    .science-topic-hexagon {
+        display: flex;
+        flex-direction: column;
+        clip-path: none;
+        background: #012965;
+    }
+
+    .science-topic-hexagon img {
+        aspect-ratio: 16 / 9;
+        height: auto;
+    }
+
+    .science-topic-caption {
+        position: static;
+        flex: 1;
+        justify-content: flex-start;
+        min-height: 3.25rem;
+        padding: 10px 12px;
+        background: #012965;
+        text-align: left;
+        overflow-wrap: anywhere;
+        text-shadow: none;
+        opacity: 1;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .science-topic-caption {
         transition: none;

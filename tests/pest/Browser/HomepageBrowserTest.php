@@ -12,7 +12,7 @@ beforeEach(function (): void {
         ->useBuildDirectory('build');
 });
 
-it('renders the public homepage with scrollable hexagons at every screen size', function (int $width, int $height): void {
+it('renders topic cards on smartphones and preserves hexagons on larger screens', function (int $width, int $height): void {
     $page = visit('/')
         ->resize($width, $height)
         ->waitForText('Welcome to GFZ Data Services')
@@ -39,7 +39,11 @@ it('renders the public homepage with scrollable hexagons at every screen size', 
     expect($state['title'])->toBe('GFZ Data Services');
     expect($state['width'])->toBeLessThanOrEqual($state['viewportWidth'] + 1);
     expect($state['height'])->toBeGreaterThan($state['viewportHeight']);
-    expect($state['hexagon'])->toContain('polygon');
+    if ($width < 640) {
+        expect($state['hexagon'])->toBe('none');
+    } else {
+        expect($state['hexagon'])->toContain('polygon');
+    }
     foreach ($state['links'] as $link) {
         expect($link['label'])->not->toBeEmpty();
         expect($link['href'])->toStartWith('/doi-search?topic=');
@@ -48,4 +52,6 @@ it('renders the public homepage with scrollable hexagons at every screen size', 
     'desktop' => [1440, 900],
     'tablet' => [768, 1024],
     'mobile' => [390, 844],
+    'last card width' => [639, 900],
+    'first hexagon width' => [640, 900],
 ]);
