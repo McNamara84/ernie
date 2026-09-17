@@ -12,7 +12,7 @@ async function openHomepage(page: Page) {
 }
 
 test.describe('GFZ Data Services homepage', () => {
-    for (const width of [320, 390, 639, 640, 768, 1440]) {
+    for (const width of [320, 390, 639, 640, 663, 664, 768, 1013, 1014, 1440, 1920]) {
         test(`keeps all 25 topics and public content usable at ${width}px`, async ({ page }, testInfo) => {
             await page.setViewportSize({ width, height: 900 });
             const response = await openHomepage(page);
@@ -46,6 +46,38 @@ test.describe('GFZ Data Services homepage', () => {
                 const rows = await topics.getByRole('link').evaluateAll((links) => links.slice(0, 3).map((link) => link.getBoundingClientRect().top));
                 expect(rows[0]).toBe(rows[1]);
                 expect(rows[2]).toBeGreaterThan(rows[0]);
+            }
+            const bounds = await topics.getByRole('link').evaluateAll((links) =>
+                links.map((link) => {
+                    const { x, y, width, height } = link.getBoundingClientRect();
+                    return { x, y, width, height };
+                }),
+            );
+            const rows: (typeof bounds)[] = [];
+            for (const bound of bounds) {
+                const previousRow = rows.at(-1);
+                if (!previousRow || bound.x <= previousRow.at(-1)!.x) rows.push([bound]);
+                else previousRow.push(bound);
+            }
+            const rowSizes = rows.map((row) => row.length);
+            expect(Math.max(...rowSizes) - Math.min(...rowSizes)).toBeLessThanOrEqual(1);
+            if (Math.max(...rowSizes) > 2) expect(Math.min(...rowSizes)).toBeGreaterThan(1);
+            const grid = await topics.boundingBox();
+            expect(grid).not.toBeNull();
+            for (const row of rows) {
+                const rowCenter = (row[0].x + row.at(-1)!.x + row.at(-1)!.width) / 2;
+                expect(Math.abs(rowCenter - (grid!.x + grid!.width / 2))).toBeLessThanOrEqual(1);
+            }
+            if (width >= 640) {
+                // Flat-topped hexagons must remain disjoint, including where
+                // consecutive rows contain different numbers of topics.
+                for (const [index, first] of bounds.entries()) {
+                    for (const second of bounds.slice(index + 1)) {
+                        const dx = Math.abs(first.x - second.x) / first.width;
+                        const dy = Math.abs(first.y - second.y) / first.height;
+                        expect(dx >= 1 || dy >= 1 || 2 * dx + dy >= 2).toBe(true);
+                    }
+                }
             }
             await expect(page.getByRole('heading', { name: 'Services', exact: true })).toBeVisible();
             await expect(page.getByRole('heading', { name: 'Guides', exact: true })).toBeVisible();

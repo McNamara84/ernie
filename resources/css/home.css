@@ -3,38 +3,45 @@
 }
 
 .science-topic-grid {
-    --columns: 2;
+    --columns: var(--small-columns);
     --gap: 10px;
     --hex-width: min(200px, calc((100cqw - (var(--columns) - 1) * var(--gap)) / (var(--columns) * 0.75 + 0.25)));
     --hex-height: calc(var(--hex-width) * 0.8660254);
     display: grid;
-    grid-template-columns: repeat(var(--columns), calc(var(--hex-width) * 0.75 + var(--gap)));
-    grid-auto-rows: calc(var(--hex-height) + var(--gap));
+    grid-template-columns: repeat(calc(var(--columns) * 2), calc((var(--hex-width) * 0.75 + var(--gap)) / 2));
+    grid-auto-rows: calc((var(--hex-height) + var(--gap)) / 2);
     width: calc(var(--hex-width) * (var(--columns) * 0.75 + 0.25) + (var(--columns) - 1) * var(--gap));
     margin-inline: auto;
-    padding-bottom: calc(var(--hex-height) * 0.5 + var(--gap));
     list-style: none;
+}
+
+.science-topic-cell {
+    grid-column: var(--small-column) / span 2;
+    grid-row: var(--small-row) / span 2;
+    width: var(--hex-width);
+    height: var(--hex-height);
 }
 
 @container science-topics (min-width: 600px) {
     .science-topic-grid {
-        --columns: 4;
+        --columns: var(--medium-columns);
+    }
+
+    .science-topic-cell {
+        grid-column-start: var(--medium-column);
+        grid-row-start: var(--medium-row);
     }
 }
 
 @container science-topics (min-width: 950px) {
     .science-topic-grid {
-        --columns: 6;
+        --columns: var(--large-columns);
     }
-}
 
-.science-topic-cell {
-    width: var(--hex-width);
-    height: var(--hex-height);
-}
-
-.science-topic-cell:nth-child(odd) {
-    transform: translateY(calc(50% + var(--gap) * 0.5));
+    .science-topic-cell {
+        grid-column-start: var(--large-column);
+        grid-row-start: var(--large-row);
+    }
 }
 
 .science-topic-link {
@@ -96,20 +103,16 @@
 
 @media (width < 640px) {
     .science-topic-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        grid-auto-rows: auto;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
         gap: 12px;
         width: 100%;
-        padding-bottom: 0;
     }
 
     .science-topic-cell {
-        width: auto;
+        width: calc((100% - 12px) / 2);
         height: auto;
-    }
-
-    .science-topic-cell:nth-child(odd) {
-        transform: none;
     }
 
     .science-topic-link {
