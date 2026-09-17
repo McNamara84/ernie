@@ -27,6 +27,23 @@ const filters: PortalFilters = {
 };
 
 describe('portal filter URL builders', () => {
+    it('retains the science topic for pagination, counts, maps and cluster members', () => {
+        const selected = { ...filters, topic: { slug: 'scientific-drilling', label: 'Scientific Drilling' } };
+        const viewport = { north: 54, south: 50, east: 15, west: 11, width: 800, height: 600, zoom: 18 };
+        for (const href of [
+            buildPortalFilterUrl(selected, '/doi-search', 3),
+            buildPortalMapUrl(selected, viewport, true, '/doi-search', 18),
+            buildPortalMapClusterMembersUrl(selected, viewport, 'z18:1:1', 2, '/doi-search'),
+            buildPortalCountUrl('?topic=scientific-drilling&page=3'),
+        ]) {
+            expect(new URL(href, 'https://ernie.test').searchParams.get('topic')).toBe('scientific-drilling');
+        }
+        expect(mergePortalFilters(selected, { query: 'cores' }).topic).toEqual(selected.topic);
+        expect(buildPortalFilterUrl(mergePortalFilters(selected, { topic: null }))).not.toContain('topic=');
+        expect(buildPortalFilterUrl(selected, '/igsn-search')).not.toContain('topic=');
+        expect(buildPortalCountUrl('?topic=scientific-drilling&topic[]=other', '/igsn-search')).not.toContain('topic');
+    });
+
     it('serializes all list filters without empty defaults', () => {
         const url = new URL(buildPortalFilterUrl(filters), 'https://ernie.test');
 

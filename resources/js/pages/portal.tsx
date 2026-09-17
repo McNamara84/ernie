@@ -127,6 +127,7 @@ export default function Portal({
         clearBounds,
         setTemporal,
         clearFilters,
+        clearTopic,
         hasActiveFilters,
     } = usePortalFilters({ filters, currentPage: pagination.current_page, basePath: portal.basePath });
     const hasLegacyKeywordFilters =
@@ -231,6 +232,7 @@ export default function Portal({
         onGeologicalAgesChange: setGeologicalAges,
         onGeologicalUnitsChange: setGeologicalUnits,
         onClearFilters: handleClearAllFilters,
+        onClearTopic: clearTopic,
         hasActiveFilters,
         thesaurusFacets,
         igsnFacets,

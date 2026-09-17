@@ -203,6 +203,19 @@ Stop immediately if:
 
 ### 2.3 Public Availability
 
+- [ ] `/` returns the GFZ Data Services homepage, including the welcome text,
+      ELMO news, Submit Metadata link, DOI search, 25 science-topic hexagons,
+      and all three service/guide/external-link groups. Check desktop and mobile.
+
+- [ ] A topic opens `/doi-search?topic=...`; its label is visible in the filters,
+      can be removed, and remains selected during search and map interactions.
+      Scientific Drilling filters the SDDB datacenter. Keyboard focus reveals
+      topic labels, and touch devices show them without requiring a first tap.
+
+- [ ] On Production, `/` no longer redirects to TYPO3 after the updated Traefik
+      labels are deployed. `/web/`, `/portal/`, `/igsn-new/`, and ELMO still reach
+      their existing applications.
+
 - [ ] <https://ernie.rz-vm182.gfz.de/> opens without certificate, gateway, server,
       or blank-page errors.
 

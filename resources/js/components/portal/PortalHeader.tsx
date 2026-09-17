@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import { legalNotice } from '@/routes';
 import type { PortalKind } from '@/types/portal';
 
@@ -16,7 +17,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-    { label: 'Home', href: 'https://dataservices.gfz-potsdam.de/web', external: true, icon: <Home className="h-4 w-4" /> },
+    { label: 'Home', href: '/', external: false, icon: <Home className="h-4 w-4" /> },
     { label: 'Publish Data', href: 'https://dataservices.gfz-potsdam.de/web/publish-data/publication-instructions', external: true },
     { label: 'Samples (IGSN)', href: 'https://dataservices.gfz-potsdam.de/web/samples/introduction', external: true },
     { label: 'Support', href: 'https://dataservices.gfz-potsdam.de/web/about-us', external: true },
@@ -86,19 +87,21 @@ function MobileNavLink({ item, onClick }: { item: NavItem; onClick: () => void }
     );
 }
 
-export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind }) {
+export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind | 'home' }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const isHome = portalKind === 'home';
+    const homeItem = { ...NAV_ITEMS[0], active: isHome };
 
     return (
         <header data-slot="portal-header">
             {/* Top Branding Bar */}
             <div className="bg-portal-header">
-                <div className="flex h-16 items-center justify-between px-6">
+                <div className={cn('flex min-h-16 items-center justify-between gap-4 px-6', isHome && 'flex-wrap py-3 sm:flex-nowrap')}>
                     <h1
-                        className="sr-only text-xl font-semibold tracking-wide text-portal-header-foreground md:not-sr-only"
+                        className={cn('text-xl font-semibold tracking-wide text-portal-header-foreground', !isHome && 'sr-only md:not-sr-only')}
                         data-testid="portal-wordmark"
                     >
-                        GFZ Data Services Portal
+                        {isHome ? 'GFZ Data Services' : 'GFZ Data Services Portal'}
                     </h1>
                     <img src="/images/gfz-logo_en.svg" alt="GFZ Helmholtz Centre for Geosciences" className="ml-auto h-10" />
                 </div>
@@ -110,7 +113,7 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind }
                     {/* Desktop menu */}
                     <ul className="hidden items-center gap-1 py-1 md:flex">
                         <li>
-                            <NavLink item={NAV_ITEMS[0]} />
+                            <NavLink item={homeItem} />
                         </li>
                         <li>
                             <DropdownMenu>
@@ -118,8 +121,11 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind }
                                     <Button
                                         type="button"
                                         variant="ghost"
-                                        className="h-auto gap-1 rounded-sm bg-portal-nav-active px-3 py-2 text-sm font-semibold text-portal-nav-foreground hover:bg-portal-nav-active hover:text-portal-nav-foreground"
-                                        aria-current="page"
+                                        className={cn(
+                                            'h-auto gap-1 rounded-sm px-3 py-2 text-sm text-portal-nav-foreground hover:bg-portal-nav-active hover:text-portal-nav-foreground',
+                                            !isHome && 'bg-portal-nav-active font-semibold',
+                                        )}
+                                        aria-current={isHome ? undefined : 'page'}
                                     >
                                         Find
                                         <ChevronDown className="size-3.5" aria-hidden="true" />
@@ -165,7 +171,7 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind }
                     <div className="border-t border-portal-nav-active md:hidden" data-testid="mobile-menu">
                         <ul className="py-1">
                             <li>
-                                <MobileNavLink item={NAV_ITEMS[0]} onClick={() => setMobileMenuOpen(false)} />
+                                <MobileNavLink item={homeItem} onClick={() => setMobileMenuOpen(false)} />
                             </li>
                             <li>
                                 <span className="block px-4 pt-3 pb-1 text-xs font-semibold tracking-wide text-portal-nav-foreground/75 uppercase">
