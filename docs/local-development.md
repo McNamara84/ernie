@@ -202,7 +202,7 @@ The DOI and IGSN portal maps use the keyless OpenFreeMap vector basemap so geogr
 PORTAL_MAP_BASEMAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty
 ```
 
-Override the URL only to use another compatible MapLibre style or a self-hosted OpenFreeMap instance. The public service has no SLA, so self-hosting remains available if operational guarantees become necessary.
+Override the URL only to use a compatible style served by a self-hosted OpenFreeMap instance. Arbitrary MapLibre styles are not supported because the portal displays the fixed OpenFreeMap, OpenMapTiles, and OpenStreetMap attribution required by this basemap. The public service has no SLA, so self-hosting remains available if operational guarantees become necessary.
 
 If the configured style or its tiles cannot be loaded, the portal remains usable and its ERNIE data overlays can still load, but the map shows the notice “The map background is temporarily unavailable. Reload the page later or contact support if the problem continues.” instead of falling back to a differently labelled map.
 - The development entrypoint copies `.env.docker` to `.env` when `.env` does not already exist.
