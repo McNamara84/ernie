@@ -71,7 +71,9 @@ class ResourceContributor extends Model
         $relation = $this->belongsToMany(
             ContributorType::class,
             'resource_contributor_contributor_type',
-        )->withTimestamps();
+        )
+            ->using(ResourceContributorTypePivot::class)
+            ->withTimestamps();
 
         return $relation;
     }

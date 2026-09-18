@@ -37,6 +37,13 @@ final class PortalSharedDependencyObserver
 
     public function deleted(Model $model): void
     {
+        // The dependency job can still resolve the polymorphic creator and
+        // contributor rows after a party is deleted. It owns cache invalidation
+        // so the old projected name cannot refill a new cache generation.
+        if ($model instanceof Person || $model instanceof Institution) {
+            return;
+        }
+
         $this->schedule($model);
     }
 

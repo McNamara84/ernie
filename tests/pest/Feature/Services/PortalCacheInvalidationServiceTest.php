@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use App\Enums\CacheKey;
+use App\Enums\ContributorCategory;
 use App\Enums\PortalCacheArea;
 use App\Enums\PortalScope;
+use App\Models\ContributorType;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Models\ResourceContributor;
 use App\Models\ResourceType;
 use App\Services\PortalCacheInvalidationService;
 use App\Services\PortalCacheVersionService;
@@ -62,6 +65,41 @@ it('invalidates only the requested area and published portal scope', function ()
     expect($versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::IGSN))->toBe(2)
         ->and($versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI))->toBe(1)
         ->and($versions->current(CacheKey::PORTAL_MAP_PAYLOAD, PortalScope::IGSN))->toBe(1);
+});
+
+it('invalidates DOI page payloads when contributor roles are synced or detached', function (): void {
+    $resource = Resource::withoutEvents(fn (): Resource => Resource::factory()->create());
+    LandingPage::withoutEvents(fn (): LandingPage => LandingPage::factory()->published()->create([
+        'resource_id' => $resource->id,
+    ]));
+    $contributor = ResourceContributor::factory()->create(['resource_id' => $resource->id]);
+    $contactPersonType = ContributorType::query()->create([
+        'name' => 'Contact Person',
+        'slug' => 'ContactPerson',
+        'category' => ContributorCategory::PERSON,
+        'is_active' => true,
+        'is_elmo_active' => true,
+    ]);
+
+    Cache::flush();
+    app()->forgetInstance(PortalCacheInvalidationService::class);
+    $versions = app(PortalCacheVersionService::class);
+    $service = app(PortalCacheInvalidationService::class);
+    expect($versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI))->toBe(1)
+        ->and($versions->current(CacheKey::PORTAL_LISTING_COUNT, PortalScope::DOI))->toBe(1);
+
+    $contributor->contributorTypes()->sync([$contactPersonType->id]);
+    $service->flushPending();
+
+    $versionAfterSync = $versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI);
+    expect($versionAfterSync)->toBeGreaterThan(1)
+        ->and($versions->current(CacheKey::PORTAL_LISTING_COUNT, PortalScope::DOI))->toBe(1);
+
+    $contributor->contributorTypes()->detach($contactPersonType->id);
+    $service->flushPending();
+
+    expect($versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, PortalScope::DOI))->toBeGreaterThan($versionAfterSync)
+        ->and($versions->current(CacheKey::PORTAL_LISTING_COUNT, PortalScope::DOI))->toBe(1);
 });
 
 it('coalesces a resource batch into its published portal scopes', function (): void {

@@ -105,6 +105,54 @@ it('invalidates DOI portal caches only after refreshing a contributor-only perso
     }
 });
 
+it('invalidates DOI portal caches only after removing a deleted contributor from the projection', function (): void {
+    $resource = Resource::factory()->create();
+    LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+    $person = Person::factory()->create(['given_name' => 'Deleted', 'family_name' => 'Contributor']);
+    ResourceContributor::factory()->forPerson($person)->create(['resource_id' => $resource->id]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    Cache::flush();
+    Queue::fake();
+    app()->forgetInstance(PortalCacheInvalidationService::class);
+    $versions = app(PortalCacheVersionService::class);
+    $cacheKeys = [
+        CacheKey::PORTAL_PAGE_PAYLOAD,
+        CacheKey::PORTAL_LISTING_COUNT,
+        CacheKey::PORTAL_IGSN_FACETS,
+        CacheKey::PORTAL_MAP_PAYLOAD,
+        CacheKey::PORTAL_MAP_EXTENT,
+    ];
+    foreach ($cacheKeys as $cacheKey) {
+        expect($versions->current($cacheKey, PortalScope::DOI))->toBe(1);
+    }
+
+    $person->delete();
+
+    Queue::assertPushed(
+        RefreshResourceListingProjectionsForDependencyJob::class,
+        fn (RefreshResourceListingProjectionsForDependencyJob $job): bool => $job->dependencyType === Person::class
+            && $job->dependencyId === $person->id
+            && $job->event === RefreshResourceListingProjectionsForDependencyJob::EVENT_DELETED,
+    );
+    foreach ($cacheKeys as $cacheKey) {
+        expect($versions->current($cacheKey, PortalScope::DOI))->toBe(1);
+    }
+
+    /** @var RefreshResourceListingProjectionsForDependencyJob $job */
+    $job = Queue::pushed(RefreshResourceListingProjectionsForDependencyJob::class)
+        ->first(fn (RefreshResourceListingProjectionsForDependencyJob $queuedJob): bool => $queuedJob->event === RefreshResourceListingProjectionsForDependencyJob::EVENT_DELETED);
+    runResourceListingProjectionDependencyJob($job);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    app(PortalCacheInvalidationService::class)->flushPending();
+
+    expect(ResourceListingProjection::query()->findOrFail($resource->id)->party_name_search_text)
+        ->not->toContain('deleted contributor');
+    foreach ($cacheKeys as $cacheKey) {
+        expect($versions->current($cacheKey, PortalScope::DOI))->toBe(2);
+    }
+});
+
 it('invalidates only the filter-options cache when a datacenter name changes', function (): void {
     Queue::fake();
     $cacheInvalidationService = Mockery::mock(ResourceFilterOptionsCacheInvalidationService::class);

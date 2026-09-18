@@ -105,3 +105,13 @@ it('defers contributor-only party invalidation until the listing projection refr
 
     $this->observer->saved($contributor);
 })->with([Person::class, Institution::class]);
+
+it('defers party deletion invalidation until the listing projection refreshes', function (string $partyClass): void {
+    /** @var class-string<Person|Institution> $partyClass */
+    $party = $partyClass::factory()->create();
+
+    $this->invalidation->shouldNotReceive('scopeForResourceTypeId');
+    $this->invalidation->shouldNotReceive('schedule');
+
+    $this->observer->deleted($party);
+})->with([Person::class, Institution::class]);
