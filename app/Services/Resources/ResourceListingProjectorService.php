@@ -249,8 +249,7 @@ final class ResourceListingProjectorService
         Resource $resource,
         bool $hasPartySearchColumn,
         bool $hasPartyNameSearchColumn,
-    ): array
-    {
+    ): array {
         $values = $this->values($resource);
         if (! $hasPartySearchColumn) {
             unset($values['party_search_text']);

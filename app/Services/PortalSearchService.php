@@ -564,8 +564,7 @@ class PortalSearchService
         Builder $query,
         ?string $searchQuery,
         bool $includePartyNameSearch = false,
-    ): void
-    {
+    ): void {
         if ($searchQuery === null || trim($searchQuery) === '') {
             return;
         }
@@ -637,10 +636,6 @@ class PortalSearchService
                         ->whereColumn('portal_listing.resource_id', 'resources.id')
                         ->where(function (QueryBuilder $nameQuery) use ($partyQueryTerms): void {
                             $firstTerm = array_shift($partyQueryTerms);
-                            if ($firstTerm === null) {
-                                return;
-                            }
-
                             $nameQuery->whereRaw(
                                 "portal_listing.party_name_search_text LIKE ? ESCAPE '!'",
                                 [$this->partySearchNormalizer->likePattern($firstTerm)],

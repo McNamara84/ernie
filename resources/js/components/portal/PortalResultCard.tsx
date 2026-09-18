@@ -70,10 +70,7 @@ function PortalPartySearchMatches({ matches }: { matches: PartySearchMatch[] }) 
     return (
         <div className="min-w-0 space-y-0.5" data-testid="portal-party-search-matches">
             {matches.map((match, index) => (
-                <div
-                    key={`${match.display_value}-${index}`}
-                    className="flex min-w-0 items-baseline gap-1 text-xs text-muted-foreground"
-                >
+                <div key={`${match.display_value}-${index}`} className="flex min-w-0 items-baseline gap-1 text-xs text-muted-foreground">
                     <span className="shrink-0 font-semibold text-foreground">{formatPartyRoles(match.roles)}:</span>
                     <span className="min-w-0 truncate" title={match.display_value}>
                         {match.display_value}
