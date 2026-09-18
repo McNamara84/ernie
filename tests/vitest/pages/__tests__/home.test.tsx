@@ -98,5 +98,6 @@ describe('GFZ Data Services homepage', () => {
             'https://dataservices.gfz-potsdam.de/web/about-us/copyrights',
         );
         expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute('href', '#home-content');
+        expect(screen.getByRole('main')).toHaveAttribute('tabindex', '-1');
     });
 });

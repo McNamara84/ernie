@@ -1,3 +1,32 @@
+.home-page {
+    --home-focus: #012965;
+}
+
+.dark .home-page {
+    --home-focus: #93c5fd;
+}
+
+.home-page nav[aria-label='Portal navigation'] {
+    --home-focus: #012965;
+}
+
+.home-page footer {
+    --home-focus: white;
+}
+
+.dark .home-page [role='menu'] {
+    --home-focus: #93c5fd;
+}
+
+.home-page :is(a, button, input):focus-visible {
+    outline: 3px solid var(--home-focus);
+    outline-offset: 3px;
+}
+
+.home-page [role='menuitem']:focus-visible {
+    outline-offset: -3px;
+}
+
 .science-topics {
     container: science-topics / inline-size;
 }
@@ -5,7 +34,7 @@
 .science-topic-grid {
     --columns: var(--small-columns);
     --gap: 10px;
-    --hex-width: min(200px, calc((100cqw - (var(--columns) - 1) * var(--gap)) / (var(--columns) * 0.75 + 0.25)));
+    --hex-width: min(12.5rem, calc((100cqw - (var(--columns) - 1) * var(--gap)) / (var(--columns) * 0.75 + 0.25)));
     --hex-height: calc(var(--hex-width) * 0.8660254);
     display: grid;
     grid-template-columns: repeat(calc(var(--columns) * 2), calc((var(--hex-width) * 0.75 + var(--gap)) / 2));
@@ -22,7 +51,7 @@
     height: var(--hex-height);
 }
 
-@container science-topics (min-width: 600px) {
+@container science-topics (min-width: 37.5rem) {
     .science-topic-grid {
         --columns: var(--medium-columns);
     }
@@ -33,7 +62,7 @@
     }
 }
 
-@container science-topics (min-width: 950px) {
+@container science-topics (min-width: 59.375rem) {
     .science-topic-grid {
         --columns: var(--large-columns);
     }
@@ -49,11 +78,6 @@
     width: 100%;
     height: 100%;
     border-radius: 6px;
-}
-
-.science-topic-link:focus-visible {
-    outline: 3px solid var(--ring);
-    outline-offset: 4px;
 }
 
 .science-topic-hexagon {
@@ -96,7 +120,7 @@
 @media (hover: none), (pointer: coarse) {
     .science-topic-caption {
         opacity: 1;
-        background: linear-gradient(transparent, rgb(16 42 99 / 92%));
+        background: linear-gradient(rgb(16 42 99 / 70%), rgb(16 42 99 / 92%));
         text-shadow: 0 1px 4px black;
     }
 }

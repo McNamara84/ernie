@@ -8,12 +8,12 @@ export default function HomeLayout({ children }: PropsWithChildren) {
     useNProgress();
 
     return (
-        <div className="flex min-h-dvh flex-col bg-background text-foreground">
+        <div className="home-page flex min-h-dvh flex-col bg-background text-foreground">
             <a href="#home-content" className="sr-only z-50 rounded bg-background p-3 text-foreground focus:not-sr-only focus:absolute">
                 Skip to content
             </a>
             <PortalHeader portalKind="home" />
-            <main id="home-content" className="flex-1">
+            <main id="home-content" tabIndex={-1} className="flex-1">
                 {children}
             </main>
             <footer className="border-t bg-portal-header px-6 py-8 text-sm text-portal-header-foreground">

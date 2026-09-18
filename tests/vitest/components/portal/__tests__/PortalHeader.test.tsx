@@ -140,6 +140,19 @@ describe('PortalHeader', () => {
     });
 
     describe('mobile menu', () => {
+        it('associates the menu with its trigger and restores focus after Escape', async () => {
+            const user = userEvent.setup();
+            render(<PortalHeader />);
+            await user.click(screen.getByRole('button', { name: 'Open menu' }));
+            const menu = screen.getByTestId('mobile-menu');
+            expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-controls', menu.id);
+            within(menu).getByRole('link', { name: 'Home' }).focus();
+            await user.keyboard('{Escape}');
+            expect(screen.queryByTestId('mobile-menu')).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
+            expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute('aria-expanded', 'false');
+        });
+
         it('does not show mobile menu by default', () => {
             render(<PortalHeader />);
             // Hamburger button is present

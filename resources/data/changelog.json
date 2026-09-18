@@ -11,6 +11,11 @@
         ],
         "improvements": [
             {
+                "title": "Homepage Accessibility Regression Checks",
+                "description": "The homepage now has dedicated accessibility tests for desktop, tablet, and mobile layouts in light and dark mode, including open menus, keyboard navigation, text enlargement, text spacing, and high contrast. Fixes improve skip-link focus, menu contrast and Escape handling, visible focus indicators, and topic-label readability with enlarged text. These automated checks support ongoing accessibility work and do not replace a complete manual accessibility assessment.",
+                "references": []
+            },
+            {
                 "title": "English Labels on Portal Maps",
                 "description": "The Data and IGSN portal maps now use a shared MapTiler vector basemap that prefers English labels for countries, regions, cities, roads, water features, terrain, and points of interest while retaining local names wherever no English label is available. Existing resource clusters, shapes, popups, and spatial filters remain on the Leaflet map, and configuration failures are reported separately from ERNIE map-data errors.",
                 "references": [

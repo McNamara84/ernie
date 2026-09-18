@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { ChevronDown, Home, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -89,6 +89,9 @@ function MobileNavLink({ item, onClick }: { item: NavItem; onClick: () => void }
 
 export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind | 'home' }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [menuContainer, setMenuContainer] = useState<HTMLElement | null>(null);
+    const mobileMenuId = useId();
+    const mobileMenuTrigger = useRef<HTMLButtonElement>(null);
     const isHome = portalKind === 'home';
     const homeItem = { ...NAV_ITEMS[0], active: isHome };
 
@@ -108,21 +111,32 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind |
             </div>
 
             {/* Navigation Bar – Desktop */}
-            <nav className="bg-portal-nav" aria-label="Portal navigation">
+            <nav
+                ref={setMenuContainer}
+                className="bg-portal-nav"
+                aria-label="Portal navigation"
+                onKeyDown={(event) => {
+                    if (event.key === 'Escape' && mobileMenuOpen) {
+                        event.preventDefault();
+                        setMobileMenuOpen(false);
+                        mobileMenuTrigger.current?.focus();
+                    }
+                }}
+            >
                 <div className="flex items-center justify-between px-6">
                     {/* Desktop menu */}
-                    <ul className="hidden items-center gap-1 py-1 md:flex">
+                    <ul className="hidden flex-wrap items-center gap-1 py-1 md:flex">
                         <li>
                             <NavLink item={homeItem} />
                         </li>
                         <li>
-                            <DropdownMenu>
+                            <DropdownMenu modal={false}>
                                 <DropdownMenuTrigger asChild>
                                     <Button
                                         type="button"
                                         variant="ghost"
                                         className={cn(
-                                            'h-auto gap-1 rounded-sm px-3 py-2 text-sm text-portal-nav-foreground hover:bg-portal-nav-active hover:text-portal-nav-foreground',
+                                            'h-auto gap-1 rounded-sm px-3 py-2 text-sm text-portal-nav-foreground hover:bg-portal-nav-active hover:text-portal-nav-foreground dark:hover:bg-portal-nav-active',
                                             !isHome && 'bg-portal-nav-active font-semibold',
                                         )}
                                         aria-current={isHome ? undefined : 'page'}
@@ -131,7 +145,7 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind |
                                         <ChevronDown className="size-3.5" aria-hidden="true" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" className="min-w-44">
+                                <DropdownMenuContent portalContainer={menuContainer} align="start" className="min-w-44">
                                     {FIND_ITEMS.map((item) => (
                                         <DropdownMenuItem key={item.kind} asChild>
                                             <Link href={item.href} aria-current={portalKind === item.kind ? 'page' : undefined}>
@@ -153,13 +167,15 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind |
                     <div className="flex w-full items-center justify-between py-2 md:hidden">
                         <span className="text-sm font-semibold text-portal-nav-foreground">Menu</span>
                         <Button
+                            ref={mobileMenuTrigger}
                             type="button"
                             variant="ghost"
                             size="icon"
                             onClick={() => setMobileMenuOpen((prev) => !prev)}
                             aria-expanded={mobileMenuOpen}
+                            aria-controls={mobileMenuId}
                             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-                            className="text-portal-nav-foreground hover:bg-portal-nav-active"
+                            className="text-portal-nav-foreground hover:bg-portal-nav-active hover:text-portal-nav-foreground dark:hover:bg-portal-nav-active"
                         >
                             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                         </Button>
@@ -168,13 +184,13 @@ export function PortalHeader({ portalKind = 'doi' }: { portalKind?: PortalKind |
 
                 {/* Mobile menu dropdown */}
                 {mobileMenuOpen && (
-                    <div className="border-t border-portal-nav-active md:hidden" data-testid="mobile-menu">
+                    <div id={mobileMenuId} className="border-t border-portal-nav-active md:hidden" data-testid="mobile-menu">
                         <ul className="py-1">
                             <li>
                                 <MobileNavLink item={homeItem} onClick={() => setMobileMenuOpen(false)} />
                             </li>
                             <li>
-                                <span className="block px-4 pt-3 pb-1 text-xs font-semibold tracking-wide text-portal-nav-foreground/75 uppercase">
+                                <span className="block px-4 pt-3 pb-1 text-xs font-semibold tracking-wide text-portal-nav-foreground uppercase">
                                     Find
                                 </span>
                                 <ul>

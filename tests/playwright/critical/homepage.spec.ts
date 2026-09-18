@@ -1,15 +1,6 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-async function openHomepage(page: Page) {
-    const navigate = () => page.goto('/', { waitUntil: 'domcontentloaded' });
-    return navigate().catch((error: unknown) => {
-        if (!(error instanceof Error) || !error.message.includes('SSL connect error')) throw error;
-        // Match the existing portal tests: Windows WebKit can reject the local
-        // Traefik certificate on its first handshake, despite ignoreHTTPSErrors.
-        return navigate();
-    });
-}
+import { openHomepage } from '../helpers/homepage';
 
 test.describe('GFZ Data Services homepage', () => {
     for (const width of [320, 390, 639, 640, 663, 664, 768, 1013, 1014, 1440, 1920]) {
@@ -188,7 +179,7 @@ test.describe('GFZ Data Services homepage', () => {
         await popup.close();
     });
 
-    test('provides mobile navigation and accessible light and dark content', async ({ page }) => {
+    test('provides mobile navigation', async ({ page }) => {
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await page.setViewportSize({ width: 390, height: 844 });
         await openHomepage(page);
@@ -198,16 +189,5 @@ test.describe('GFZ Data Services homepage', () => {
         await expect(menu.getByRole('link', { name: 'Data Portal' })).toHaveAttribute('href', '/doi-search');
         await expect(menu.getByRole('link', { name: 'IGSN Portal' })).toHaveAttribute('href', '/igsn-search');
         await page.getByRole('button', { name: 'Close menu' }).click();
-        for (const dark of [false, true]) {
-            await page.emulateMedia({ colorScheme: dark ? 'dark' : 'light' });
-            await openHomepage(page);
-            await expect(page.getByRole('heading', { name: 'Welcome to GFZ Data Services' })).toBeVisible();
-            expect(await page.locator('html').evaluate((element) => element.classList.contains('dark'))).toBe(dark);
-            await page.getByRole('link', { name: /SUBMIT METADATA/ }).evaluate(async (element) => {
-                await Promise.all(element.getAnimations().map((animation) => animation.finished));
-            });
-            const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
-            expect(results.violations).toEqual([]);
-        }
     });
 });
