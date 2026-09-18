@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\PortalScope;
+use App\Enums\ScienceTopic;
 use Illuminate\Http\Request;
 
 /**
@@ -20,6 +21,7 @@ final class PortalFilterService
      * @return array{
      *     portal_scope: string|null,
      *     query: string|null,
+     *     topic: string|null,
      *     type: list<string>,
      *     exclude_type: string|null,
      *     keywords: list<string>,
@@ -71,6 +73,7 @@ final class PortalFilterService
         return [
             'portal_scope' => $scope?->value,
             'query' => is_string($query) ? $query : null,
+            'topic' => $scope === PortalScope::IGSN ? null : $this->topicFromRequest($request),
             'type' => $typeSlugs,
             'exclude_type' => $scope === null && $isLegacyDoi ? PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE : null,
             'keywords' => $legacyKeywords,
@@ -109,6 +112,7 @@ final class PortalFilterService
     {
         return [
             'query' => $filters['query'],
+            'topic' => isset($filters['topic']) ? ScienceTopic::from($filters['topic'])->selection() : null,
             'type' => array_values($filters['type']),
             'exclude_type' => $filters['exclude_type'],
             'keywords' => array_values($filters['keywords']),
@@ -123,6 +127,19 @@ final class PortalFilterService
             'bounds' => $filters['bounds'],
             'temporal' => $filters['temporal'],
         ];
+    }
+
+    private function topicFromRequest(Request $request): ?string
+    {
+        $topic = $request->query('topic');
+        if ($topic === null || $topic === '') {
+            return null;
+        }
+
+        // All portal consumers use this normalizer, including map and count.
+        abort_unless(is_string($topic) && ScienceTopic::tryFrom($topic) !== null, 422, 'Unknown science topic.');
+
+        return $topic;
     }
 
     /**

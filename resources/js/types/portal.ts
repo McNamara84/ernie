@@ -108,6 +108,7 @@ export interface PortalPagination {
  * Active filter state.
  */
 export interface PortalFilters {
+    topic?: { slug: string; label: string } | null;
     query: string | null;
     type: string[];
     exclude_type?: string | null;

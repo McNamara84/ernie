@@ -99,13 +99,13 @@ it('leaves the ELMO paths to their separate Docker stacks', function (): void {
         ->and(preg_match('~'.$externalPattern.'~', '/api/v1/elmo/vocabularies'))->toBe(0);
 });
 
-it('routes only the exact root and confirmed whole legacy path segments away from ERNIE', function (): void {
+it('keeps the homepage in ERNIE and redirects only confirmed whole legacy path segments', function (): void {
     $compose = productionDomainCompose();
     $labels = productionTraefikLabels($compose['services']['webserver']['labels'] ?? []);
 
     $legacyRule = $labels['traefik.http.routers.dataservices-legacy-router.rule'] ?? '';
     expect($legacyRule)->toContain('Host(`dataservices.gfz.de`)')
-        ->and($legacyRule)->toContain('Path(`/`)')
+        ->and($legacyRule)->not->toContain('Path(`/`)')
         ->and($legacyRule)->toContain('PathRegexp(`')
         ->and($legacyRule)->toContain('(/|$$)');
 
@@ -130,7 +130,7 @@ it('routes only the exact root and confirmed whole legacy path segments away fro
             ->and(preg_match('~'.$legacyPattern.'~', "/{$segment}/example"))->toBe(1);
     }
 
-    foreach (['/search', '/search/map', '/doi-search', '/doi-search/map', '/igsn-search', '/igsn-search/map', '/login', '/igsns', '/igsns-map', '/thesauri', '/images/gfz-logo_en.svg', '/10.5880/example/slug'] as $erniePath) {
+    foreach (['/', '/search', '/search/map', '/doi-search', '/doi-search/map', '/igsn-search', '/igsn-search/map', '/login', '/igsns', '/igsns-map', '/thesauri', '/images/gfz-logo_en.svg', '/images/home/topics/HEx_buttons_atmosphere.png', '/10.5880/example/slug'] as $erniePath) {
         expect(preg_match('~'.$legacyPattern.'~', $erniePath))->toBe(0);
     }
 
@@ -146,8 +146,6 @@ it('routes only the exact root and confirmed whole legacy path segments away fro
     expect(preg_replace('~'.$legacyRedirectRegex.'~', $legacyRedirectReplacement, $legacyUrl))
         ->toBe('https://dataservices.gfz-potsdam.de/panmetaworks/showshort.php?id=example');
 
-    expect(preg_replace('~'.$legacyRedirectRegex.'~', $legacyRedirectReplacement, 'https://dataservices.gfz.de/'))
-        ->toBe('https://dataservices.gfz-potsdam.de/');
 });
 
 it('maps former ERNIE portal bookmarks to the DOI portal before applying the canonical redirect', function (): void {

@@ -27,6 +27,24 @@ vi.mock('@/components/ui/button', () => ({
 import { PortalHeader } from '@/components/portal/PortalHeader';
 
 describe('PortalHeader', () => {
+    it('marks Home instead of Find on the homepage in desktop and mobile navigation', async () => {
+        const user = userEvent.setup();
+        render(<PortalHeader portalKind="home" />);
+        expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('GFZ Data Services');
+        expect(screen.getByRole('heading', { level: 1 })).not.toHaveClass('sr-only');
+        expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('button', { name: 'Find' })).not.toHaveAttribute('aria-current');
+        await user.click(screen.getByRole('button', { name: 'Find' }));
+        expect(await screen.findByRole('menuitem', { name: 'Data Portal' })).not.toHaveAttribute('aria-current');
+        expect(screen.getByRole('menuitem', { name: 'IGSN Portal' })).not.toHaveAttribute('aria-current');
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('button', { name: 'Open menu' }));
+        const mobile = within(screen.getByTestId('mobile-menu'));
+        expect(mobile.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+        expect(mobile.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+        expect(mobile.getByRole('link', { name: 'Data Portal' })).not.toHaveAttribute('aria-current');
+    });
+
     describe('branding bar', () => {
         it('renders portal title as h1 heading', () => {
             render(<PortalHeader />);
@@ -57,11 +75,12 @@ describe('PortalHeader', () => {
             expect(screen.getByText('Data Protection')).toBeInTheDocument();
         });
 
-        it('uses external links for external items', () => {
+        it('uses an internal link for Home and external links for TYPO3 pages', () => {
             render(<PortalHeader />);
             const homeLink = screen.getByText('Home').closest('a');
-            expect(homeLink).toHaveAttribute('href', 'https://dataservices.gfz-potsdam.de/web');
-            expect(homeLink).not.toHaveAttribute('data-testid', 'inertia-link');
+            expect(homeLink).toHaveAttribute('href', '/');
+            expect(homeLink).toHaveAttribute('data-testid', 'inertia-link');
+            expect(screen.getByText('Publish Data').closest('a')).not.toHaveAttribute('data-testid', 'inertia-link');
         });
 
         it('uses Inertia Link for internal items', async () => {
@@ -121,6 +140,19 @@ describe('PortalHeader', () => {
     });
 
     describe('mobile menu', () => {
+        it('associates the menu with its trigger and restores focus after Escape', async () => {
+            const user = userEvent.setup();
+            render(<PortalHeader />);
+            await user.click(screen.getByRole('button', { name: 'Open menu' }));
+            const menu = screen.getByTestId('mobile-menu');
+            expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-controls', menu.id);
+            within(menu).getByRole('link', { name: 'Home' }).focus();
+            await user.keyboard('{Escape}');
+            expect(screen.queryByTestId('mobile-menu')).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
+            expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute('aria-expanded', 'false');
+        });
+
         it('does not show mobile menu by default', () => {
             render(<PortalHeader />);
             // Hamburger button is present

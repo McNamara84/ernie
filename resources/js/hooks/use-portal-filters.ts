@@ -30,6 +30,7 @@ interface UsePortalFiltersReturn {
     clearBounds: () => void;
     setTemporal: (temporal: TemporalFilterValue | null) => void;
     clearFilters: () => void;
+    clearTopic: () => void;
     hasActiveFilters: boolean;
 }
 
@@ -149,8 +150,19 @@ export function usePortalFilters({ filters, currentPage, basePath = '/doi-search
         router.get(basePath, {}, { preserveState: true, preserveScroll: true });
     }, [basePath]);
 
+    const clearTopic = useCallback(() => {
+        // Inertia updates the URL before React commits new props. Read that URL
+        // so removing a topic immediately after a search preserves its filters.
+        const params = new URLSearchParams(window.location.search);
+        params.delete('topic');
+        params.delete('page');
+        const query = params.toString();
+        router.get(`${basePath}${query ? `?${query}` : ''}`, {}, { preserveState: true, preserveScroll: true });
+    }, [basePath]);
+
     const hasActiveFilters = useMemo(() => {
         return (
+            (basePath === '/doi-search' && filters.topic != null) ||
             (filters.query !== null && filters.query.trim() !== '') ||
             (filters.type !== undefined && filters.type.length > 0) ||
             filters.exclude_type != null ||
@@ -166,7 +178,7 @@ export function usePortalFilters({ filters, currentPage, basePath = '/doi-search
             filters.bounds !== null ||
             filters.temporal !== null
         );
-    }, [filters]);
+    }, [basePath, filters]);
 
     return {
         filters,
@@ -188,6 +200,7 @@ export function usePortalFilters({ filters, currentPage, basePath = '/doi-search
         clearBounds,
         setTemporal,
         clearFilters,
+        clearTopic,
         hasActiveFilters,
     };
 }
