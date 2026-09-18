@@ -22,6 +22,11 @@
                         "type": "issue",
                         "number": 1343,
                         "url": "https://github.com/McNamara84/ernie/issues/1343"
+                    },
+                    {
+                        "type": "pull_request",
+                        "number": 1346,
+                        "url": "https://github.com/McNamara84/ernie/pull/1346"
                     }
                 ]
             }
