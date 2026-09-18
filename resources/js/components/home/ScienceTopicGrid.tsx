@@ -28,7 +28,7 @@ function topicLayout(count: number, maximumColumns: number) {
 
 export function ScienceTopicGrid({ topics }: { topics: ScienceTopic[] }) {
     const small = topicLayout(topics.length, 2);
-    const medium = topicLayout(topics.length, 4);
+    const medium = topicLayout(topics.length, 5);
     const large = topicLayout(topics.length, 6);
 
     return (

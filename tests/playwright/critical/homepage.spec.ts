@@ -69,6 +69,15 @@ test.describe('GFZ Data Services homepage', () => {
                 expect(Math.abs(rowCenter - (grid!.x + grid!.width / 2))).toBeLessThanOrEqual(1);
             }
             if (width >= 640) {
+                if (Math.max(...rowSizes) > 2) {
+                    // All 25 topics form one continuous five-by-five honeycomb
+                    // on tablets and desktops, without a detached smaller block.
+                    expect(rowSizes).toEqual([5, 5, 5, 5, 5]);
+                    const rowStep = rows[1][0].y - rows[0][0].y;
+                    for (const [index, row] of rows.slice(1).entries()) {
+                        expect(Math.abs(row[0].y - rows[index][0].y - rowStep)).toBeLessThanOrEqual(1);
+                    }
+                }
                 // Flat-topped hexagons must remain disjoint, including where
                 // consecutive rows contain different numbers of topics.
                 for (const [index, first] of bounds.entries()) {
@@ -108,7 +117,7 @@ test.describe('GFZ Data Services homepage', () => {
         expect(await topic.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none');
     });
 
-    for (const width of [390, 768]) {
+    for (const width of [390, 664, 768]) {
         test(`keeps labels visible on touch and opens a topic with one tap at ${width}px`, async ({ browser, baseURL }) => {
             const context = await browser.newContext({
                 baseURL,
