@@ -1,7 +1,7 @@
 [
     {
-        "version": "1.1.0",
-        "date": "2026-09-17",
+        "version": "1.1.0dev",
+        "date": "2026-09-18",
         "features": [
             {
                 "title": "GFZ Data Services Homepage",
@@ -11,6 +11,17 @@
                         "type": "pull_request",
                         "number": 1345,
                         "url": "https://github.com/McNamara84/ernie/pull/1345"
+                    }
+                ]
+            },
+            {
+                "title": "People Search in the DOI Data Portal",
+                "description": "The public DOI Data Portal now finds published resources by case-insensitive partial names of authors, contact persons, contributors, and their institutions. Searches support both personal-name orders and compact forms without punctuation, while matching result cards identify the person or institution with the full Contact Person, Author, and Contributor role labels. Email addresses remain excluded from public search and display, and the IGSN Portal retains its existing search behavior.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1343,
+                        "url": "https://github.com/McNamara84/ernie/issues/1343"
                     }
                 ]
             }

@@ -122,10 +122,18 @@ final class PortalSharedDependencyObserver
         }
 
         if ($model instanceof Person || $model instanceof Institution) {
-            $resourceQuery->whereHas('creators', static function (Builder $query) use ($model): void {
-                $query
-                    ->where('creatorable_type', $model::class)
-                    ->where('creatorable_id', $model->getKey());
+            $resourceQuery->where(function (Builder $partyQuery) use ($model): void {
+                $partyQuery
+                    ->whereHas('creators', static function (Builder $query) use ($model): void {
+                        $query
+                            ->where('creatorable_type', $model::class)
+                            ->where('creatorable_id', $model->getKey());
+                    })
+                    ->orWhereHas('contributors', static function (Builder $query) use ($model): void {
+                        $query
+                            ->where('contributorable_type', $model::class)
+                            ->where('contributorable_id', $model->getKey());
+                    });
             });
 
             return [

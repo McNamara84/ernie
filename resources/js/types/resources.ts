@@ -3,6 +3,8 @@
  * These types are used across components and tests to ensure consistency.
  */
 
+import type { PartySearchMatch, PartySearchRole } from '@/types/party-search';
+
 export type ResourceSortKey =
     | 'id'
     | 'doi'
@@ -68,13 +70,9 @@ export interface ResourceListLandingPage {
     preview_url?: string | null;
 }
 
-export type ResourcePartySearchRole = 'contact_person' | 'author' | 'contributor';
+export type ResourcePartySearchRole = PartySearchRole;
 
-export interface ResourcePartySearchMatch {
-    display_value: string;
-    matched_field: 'name' | 'email';
-    roles: ResourcePartySearchRole[];
-}
+export type ResourcePartySearchMatch = PartySearchMatch;
 
 export interface ResourceListItem {
     id: number;

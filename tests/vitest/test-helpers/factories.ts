@@ -257,6 +257,7 @@ export function createMockPortalResource(overrides?: Partial<PortalResource>): P
         doi: `10.5880/portal.2026.${String(id).padStart(3, '0')}`,
         title: `Portal Resource ${id}`,
         creators: [{ name: 'Doe, John', givenName: 'John' }],
+        searchMatches: [],
         year: 2026,
         resourceType: 'Dataset',
         resourceTypeSlug: 'dataset',

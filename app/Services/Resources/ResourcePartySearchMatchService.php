@@ -28,6 +28,29 @@ final readonly class ResourcePartySearchMatchService
      */
     public function resolve(Collection $resources, ?string $query): array
     {
+        return $this->resolveMatches($resources, $query, includeEmailMatches: true);
+    }
+
+    /**
+     * Resolve public-safe party matches without considering or exposing emails.
+     *
+     * @param  Collection<int, Resource>  $resources
+     * @return array<int, list<array{display_value:string, matched_field:'name', roles:list<string>}>>
+     */
+    public function resolveNames(Collection $resources, ?string $query): array
+    {
+        /** @var array<int, list<array{display_value:string, matched_field:'name', roles:list<string>}>> $matches */
+        $matches = $this->resolveMatches($resources, $query, includeEmailMatches: false);
+
+        return $matches;
+    }
+
+    /**
+     * @param  Collection<int, Resource>  $resources
+     * @return array<int, list<array{display_value:string, matched_field:'name'|'email', roles:list<string>}>>
+     */
+    private function resolveMatches(Collection $resources, ?string $query, bool $includeEmailMatches): array
+    {
         $query = trim((string) $query);
         if ($query === '' || $resources->isEmpty()) {
             return [];
@@ -45,14 +68,14 @@ final readonly class ResourcePartySearchMatchService
 
         $matches = [];
         foreach ($resources as $resource) {
-            $matches[$resource->id] = $this->resourceMatches($resource, $query);
+            $matches[$resource->id] = $this->resourceMatches($resource, $query, $includeEmailMatches);
         }
 
         return $matches;
     }
 
     /** @return list<array{display_value:string, matched_field:'name'|'email', roles:list<string>}> */
-    private function resourceMatches(Resource $resource, string $query): array
+    private function resourceMatches(Resource $resource, string $query, bool $includeEmailMatches): array
     {
         $identityGroups = $this->identityResolver->resolve($resource);
 
@@ -87,7 +110,9 @@ final readonly class ResourcePartySearchMatchService
                     $this->addPartyMatch($groups[$groupKey], $party, $query);
                 }
             }
-            $this->addEmailMatch($groups[$groupKey], $creator->email, $query);
+            if ($includeEmailMatches) {
+                $this->addEmailMatch($groups[$groupKey], $creator->email, $query);
+            }
         }
 
         foreach ($resource->contributors as $contributor) {
@@ -113,7 +138,9 @@ final readonly class ResourcePartySearchMatchService
             if ($party !== null) {
                 $this->addPartyMatch($groups[$groupKey], $party, $query);
             }
-            $this->addEmailMatch($groups[$groupKey], $contributor->email, $query);
+            if ($includeEmailMatches) {
+                $this->addEmailMatch($groups[$groupKey], $contributor->email, $query);
+            }
         }
 
         uasort($groups, static fn (array $left, array $right): int => $left['sort'] <=> $right['sort']);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\CacheKey;
+use App\Enums\PortalCacheArea;
 use App\Models\Datacenter;
 use App\Models\DateType;
 use App\Models\Description;
@@ -21,6 +22,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\ListingCountService;
+use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceCacheService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Bus\Queueable;
@@ -83,6 +85,7 @@ final class RefreshResourceListingProjectionsForDependencyJob implements ShouldQ
         ResourceListingProjectionRefreshService $scheduler,
         ResourceCacheService $resourceCacheService,
         ListingCountService $listingCountService,
+        PortalCacheInvalidationService $portalCacheInvalidationService,
     ): void {
         if (! Schema::hasTable('resource_listing_projections')) {
             return;
@@ -103,6 +106,15 @@ final class RefreshResourceListingProjectionsForDependencyJob implements ShouldQ
         }
 
         $scheduler->scheduleMany($resourceIds);
+
+        if ($this->dependencyType === Person::class || $this->dependencyType === Institution::class) {
+            $portalCacheInvalidationService->scheduleForResourceIds($resourceIds, [
+                PortalCacheArea::PAGE,
+                PortalCacheArea::COUNT,
+                PortalCacheArea::MAP_PAYLOAD,
+                PortalCacheArea::MAP_EXTENT,
+            ]);
+        }
 
         if ($this->affectedResourceIds !== null || $resourceIds->count() < self::BATCH_SIZE) {
             return;

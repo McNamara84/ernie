@@ -21,6 +21,7 @@ function createMockResource(id: number, overrides: Partial<PortalResource> = {})
         year: 2024,
         landingPageUrl: `/landing/resource-${id}`,
         creators: [{ name: `Author ${id}` }],
+        searchMatches: [],
         geoLocations: [],
         ...overrides,
     };

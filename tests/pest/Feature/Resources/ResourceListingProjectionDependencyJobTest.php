@@ -3,12 +3,16 @@
 declare(strict_types=1);
 
 use App\Enums\AccessLevel;
+use App\Enums\CacheKey;
+use App\Enums\PortalScope;
 use App\Jobs\RefreshResourceListingProjectionsForDependencyJob;
 use App\Models\Datacenter;
 use App\Models\Description;
+use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceContributor;
 use App\Models\ResourceListingProjection;
 use App\Models\ResourceRight;
 use App\Models\ResourceType;
@@ -17,12 +21,15 @@ use App\Models\Title;
 use App\Models\User;
 use App\Observers\ResourceListingProjectionDependencyObserver;
 use App\Services\ListingCountService;
+use App\Services\PortalCacheInvalidationService;
+use App\Services\PortalCacheVersionService;
 use App\Services\ResourceCacheService;
 use App\Services\Resources\ResourceFilterOptionsCacheInvalidationService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use App\Services\Spdx\SpdxLicenseLookup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
@@ -33,8 +40,50 @@ function runResourceListingProjectionDependencyJob(RefreshResourceListingProject
         app(ResourceListingProjectionRefreshService::class),
         app(ResourceCacheService::class),
         app(ListingCountService::class),
+        app(PortalCacheInvalidationService::class),
     );
 }
+
+it('invalidates DOI portal caches again after refreshing a contributor-only person projection', function (): void {
+    $resource = Resource::factory()->create();
+    LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+    $person = Person::factory()->create(['given_name' => 'Before', 'family_name' => 'Contributor']);
+    ResourceContributor::factory()->forPerson($person)->create(['resource_id' => $resource->id]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    Cache::flush();
+    app()->forgetInstance(PortalCacheInvalidationService::class);
+    $versions = app(PortalCacheVersionService::class);
+    foreach ([
+        CacheKey::PORTAL_PAGE_PAYLOAD,
+        CacheKey::PORTAL_LISTING_COUNT,
+        CacheKey::PORTAL_MAP_PAYLOAD,
+        CacheKey::PORTAL_MAP_EXTENT,
+    ] as $cacheKey) {
+        $versions->current($cacheKey, PortalScope::DOI);
+    }
+
+    $person->updateQuietly(['given_name' => 'After']);
+    runResourceListingProjectionDependencyJob(new RefreshResourceListingProjectionsForDependencyJob(
+        Person::class,
+        $person->id,
+        RefreshResourceListingProjectionsForDependencyJob::EVENT_UPDATED,
+    ));
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    app(PortalCacheInvalidationService::class)->flushPending();
+
+    expect(ResourceListingProjection::query()->findOrFail($resource->id)->party_name_search_text)
+        ->toContain('after contributor')
+        ->not->toContain('before contributor');
+    foreach ([
+        CacheKey::PORTAL_PAGE_PAYLOAD,
+        CacheKey::PORTAL_LISTING_COUNT,
+        CacheKey::PORTAL_MAP_PAYLOAD,
+        CacheKey::PORTAL_MAP_EXTENT,
+    ] as $cacheKey) {
+        expect($versions->current($cacheKey, PortalScope::DOI))->toBe(2);
+    }
+});
 
 it('invalidates only the filter-options cache when a datacenter name changes', function (): void {
     Queue::fake();

@@ -64,6 +64,42 @@ it('invalidates only the requested area and published portal scope', function ()
         ->and($versions->current(CacheKey::PORTAL_MAP_PAYLOAD, PortalScope::IGSN))->toBe(1);
 });
 
+it('coalesces a resource batch into its published portal scopes', function (): void {
+    $physicalObjectType = ResourceType::withoutEvents(fn (): ResourceType => ResourceType::factory()->create([
+        'slug' => PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE,
+    ]));
+    $doiResource = Resource::withoutEvents(fn (): Resource => Resource::factory()->create());
+    $igsnResource = Resource::withoutEvents(fn (): Resource => Resource::factory()->create([
+        'resource_type_id' => $physicalObjectType->id,
+    ]));
+    $draftResource = Resource::withoutEvents(fn (): Resource => Resource::factory()->create());
+    foreach ([$doiResource, $igsnResource] as $resource) {
+        LandingPage::withoutEvents(fn (): LandingPage => LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+        ]));
+    }
+    Cache::flush();
+    app()->forgetInstance(PortalCacheInvalidationService::class);
+
+    $versions = app(PortalCacheVersionService::class);
+    $service = app(PortalCacheInvalidationService::class);
+    foreach (PortalScope::cases() as $scope) {
+        $versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, $scope);
+        $versions->current(CacheKey::PORTAL_LISTING_COUNT, $scope);
+    }
+
+    $service->scheduleForResourceIds(
+        [$doiResource->id, $igsnResource->id, $draftResource->id, $doiResource->id],
+        [PortalCacheArea::PAGE, PortalCacheArea::COUNT],
+    );
+    $service->flushPending();
+
+    foreach (PortalScope::cases() as $scope) {
+        expect($versions->current(CacheKey::PORTAL_PAGE_PAYLOAD, $scope))->toBe(2)
+            ->and($versions->current(CacheKey::PORTAL_LISTING_COUNT, $scope))->toBe(2);
+    }
+});
+
 it('coalesces duplicate invalidations before they are flushed', function (): void {
     $versions = app(PortalCacheVersionService::class);
     $service = app(PortalCacheInvalidationService::class);

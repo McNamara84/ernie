@@ -10,6 +10,7 @@ use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
+use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Services\PortalCacheInvalidationService;
@@ -80,11 +81,13 @@ final class PortalResourceDependencyObserver
                 PortalCacheArea::MAP_PAYLOAD,
                 PortalCacheArea::MAP_EXTENT,
             ],
-            $model instanceof ResourceCreator => [
+            $model instanceof ResourceCreator,
+            $model instanceof ResourceContributor => [
                 PortalCacheArea::PAGE,
                 PortalCacheArea::COUNT,
                 PortalCacheArea::IGSN_FACETS,
                 PortalCacheArea::MAP_PAYLOAD,
+                PortalCacheArea::MAP_EXTENT,
             ],
             default => [
                 PortalCacheArea::PAGE,

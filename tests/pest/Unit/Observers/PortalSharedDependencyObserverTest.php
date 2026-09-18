@@ -10,6 +10,7 @@ use App\Models\LandingPageDomain;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceContributor;
 use App\Models\TitleType;
 use App\Observers\PortalSharedDependencyObserver;
 use App\Services\PortalCacheInvalidationService;
@@ -88,4 +89,37 @@ it('invalidates query-filtered IGSN facets when a creator name changes', functio
     ]);
 
     $this->observer->saved($creator);
+})->with([Person::class, Institution::class]);
+
+it('invalidates query-filtered portal caches when a contributor-only party name changes', function (string $contributorClass): void {
+    /** @var class-string<Person|Institution> $contributorClass */
+    $contributor = $contributorClass::factory()->create();
+    $resource = Resource::withoutEvents(fn (): Resource => Resource::factory()->create());
+    LandingPage::withoutEvents(fn (): LandingPage => LandingPage::factory()->published()->create([
+        'resource_id' => $resource->id,
+    ]));
+    ResourceContributor::withoutEvents(fn (): ResourceContributor => ResourceContributor::factory()->create([
+        'resource_id' => $resource->id,
+        'contributorable_type' => $contributorClass,
+        'contributorable_id' => $contributor->getKey(),
+    ]));
+    $updatedName = $contributor instanceof Person
+        ? ['family_name' => 'Updated contributor name']
+        : ['name' => 'Updated contributor institution'];
+    $contributor::withoutEvents(fn (): bool => $contributor->update($updatedName));
+    $contributor->wasRecentlyCreated = false;
+
+    $this->invalidation->shouldReceive('scopeForResourceTypeId')
+        ->once()
+        ->with($resource->resource_type_id)
+        ->andReturn(PortalScope::DOI);
+    $this->invalidation->shouldReceive('schedule')->once()->with([PortalScope::DOI], [
+        PortalCacheArea::PAGE,
+        PortalCacheArea::COUNT,
+        PortalCacheArea::IGSN_FACETS,
+        PortalCacheArea::MAP_PAYLOAD,
+        PortalCacheArea::MAP_EXTENT,
+    ]);
+
+    $this->observer->saved($contributor);
 })->with([Person::class, Institution::class]);

@@ -135,6 +135,7 @@ class AppServiceProvider extends ServiceProvider
         ResourceCreator::observe(PortalResourceDependencyObserver::class);
         ResourceCreator::observe(AssistanceDatacenterOptionsObserver::class);
         ResourceContributor::observe(ResourceListingProjectionObserver::class);
+        ResourceContributor::observe(PortalResourceDependencyObserver::class);
         ResourceContributor::observe(AssistanceDatacenterOptionsObserver::class);
         ResourceDate::observe(ResourceListingProjectionObserver::class);
         ResourceDate::observe(PortalResourceDependencyObserver::class);

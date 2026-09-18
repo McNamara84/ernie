@@ -1444,6 +1444,19 @@ describe('Docs page', () => {
 
         expect(screen.getByRole('heading', { name: 'Text Search and Free Keyword Suggestions', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/Choose a suggestion to add it as an exact keyword chip/i)).toBeInTheDocument();
+        expect(screen.getByText(/normal text search also finds Authors and Contributors by person or institution name/i)).toBeInTheDocument();
+        expect(screen.getByText(/stored contact email addresses are not part of the public search/i)).toBeInTheDocument();
+        const partyLabelsHelp = screen.getByText((_, element) => {
+            if (element?.tagName !== 'P') return false;
+
+            const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+            return (
+                text.includes('full labels Contact Person, Author, and Contributor') &&
+                text.includes('additional Contributor search applies to /doi-search')
+            );
+        });
+        expect(partyLabelsHelp).toBeInTheDocument();
         expect(screen.getByText(/All controlled vocabularies share one hierarchy/i)).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Filter Order and Active Selections', level: 4 })).toBeInTheDocument();
         expect(
