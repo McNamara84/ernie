@@ -5,8 +5,14 @@
         "features": [
             {
                 "title": "GFZ Data Services Homepage",
-                "description": "GFZ Data Services now welcomes visitors directly in ERNIE with shared portal navigation, the ELMO announcement, and GFZ-blue metadata submission and DOI search buttons. All 25 original science-topic images appear as compact image cards with permanent labels on smartphones and retain the familiar hexagonal grid on tablets and desktops, with accessible hover, keyboard, and touch labels. Topic rows are balanced and centered at every screen size, forming a continuous five-by-five honeycomb on tablets and desktops without detached groups or an isolated left-aligned final topic. Topic links apply curated filters consistently to search results, counts, maps, and clusters, while the existing welcome references, service links, guides, and external catalogues remain available.",
-                "references": []
+                "description": "GFZ Data Services now welcomes visitors directly in ERNIE with shared portal navigation, the ELMO announcement, and metadata submission and DOI search buttons using the shared GFZ branding token, now consistently set to #012965. All 25 original science-topic images appear as compact image cards with permanent labels on smartphones and retain the familiar hexagonal grid on tablets and desktops, with accessible hover, keyboard, and touch labels. Topic rows are balanced and centered at every screen size, forming a continuous five-by-five honeycomb on tablets and desktops without detached groups or an isolated left-aligned final topic. Topic links apply curated filters consistently to search results, counts, maps, and clusters, while the existing welcome references, service links, guides, and external catalogues remain available. The user guide explains topic selection, removal, and persistence; the public API specification documents all 25 DOI-only topic values.",
+                "references": [
+                    {
+                        "type": "pull_request",
+                        "number": 1345,
+                        "url": "https://github.com/McNamara84/ernie/pull/1345"
+                    }
+                ]
             }
         ],
         "improvements": [

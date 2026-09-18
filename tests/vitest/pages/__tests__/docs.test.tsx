@@ -1470,6 +1470,25 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('makes the homepage topic workflow available to beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        const heading = screen.getByRole('heading', { name: 'Starting with a Science Topic', level: 4 });
+        expect(screen.getByRole('link', { name: 'GFZ Data Services homepage' })).toHaveAttribute('href', '/');
+        expect(screen.getByRole('link', { name: 'Volcanism' })).toHaveAttribute('href', '/doi-search?topic=volcanism');
+        const content = heading.parentElement?.textContent?.replace(/\s+/g, ' ');
+        expect(content).toContain('Science topic panel below the search field');
+        expect(content).toContain('open the Filters drawer to find this panel');
+        expect(content).toContain('the topic remains active and combines with those selections');
+        expect(content).toContain('Result counts, map features, and cluster members use the same active topic');
+        expect(content).toContain('panning and zooming the map keeps the topic selected');
+        expect(content).toContain('remove only the topic while keeping the search and other filters');
+        expect(content).toContain('Use Clear to reset all filters, including the topic');
+        expect(content).toContain('they are not filters in the IGSN Portal');
+    });
+
     it('documents the English portal basemap and its unavailable state for beginners', async () => {
         const { user } = renderDocsPage('beginner');
 

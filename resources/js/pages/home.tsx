@@ -63,7 +63,7 @@ export default function Home({ topics }: { topics: ScienceTopic[] }) {
                     <Button
                         asChild
                         size="lg"
-                        className="h-12 shrink-0 bg-[#012965] px-6 tracking-wider text-white ring-offset-background hover:bg-[#012965]/90 focus-visible:ring-[#012965] focus-visible:ring-offset-2 dark:focus-visible:ring-blue-300"
+                        className="h-12 shrink-0 bg-gfz-primary px-6 tracking-wider text-gfz-primary-foreground ring-offset-background hover:bg-gfz-primary/90 focus-visible:ring-gfz-primary focus-visible:ring-offset-2 dark:focus-visible:ring-blue-300"
                     >
                         <a href={elmoUrl} target="_blank" rel="noopener noreferrer">
                             SUBMIT METADATA
@@ -93,7 +93,7 @@ export default function Home({ topics }: { topics: ScienceTopic[] }) {
                             <Button
                                 type="submit"
                                 size="lg"
-                                className="h-12 bg-[#012965] px-4 text-white ring-offset-background hover:bg-[#012965]/90 focus-visible:ring-[#012965] focus-visible:ring-offset-2 dark:focus-visible:ring-blue-300"
+                                className="h-12 bg-gfz-primary px-4 text-gfz-primary-foreground ring-offset-background hover:bg-gfz-primary/90 focus-visible:ring-gfz-primary focus-visible:ring-offset-2 dark:focus-visible:ring-blue-300"
                                 aria-label="Search"
                             >
                                 <Search className="size-5" aria-hidden="true" />

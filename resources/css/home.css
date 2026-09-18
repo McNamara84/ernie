@@ -1,5 +1,5 @@
 .home-page {
-    --home-focus: #012965;
+    --home-focus: var(--gfz-primary);
 }
 
 .dark .home-page {
@@ -7,7 +7,7 @@
 }
 
 .home-page nav[aria-label='Portal navigation'] {
-    --home-focus: #012965;
+    --home-focus: var(--gfz-primary);
 }
 
 .home-page footer {
@@ -102,8 +102,8 @@
     align-items: center;
     justify-content: center;
     padding: 12% 20%;
-    background: rgb(16 42 99 / 70%);
-    color: white;
+    background: color-mix(in srgb, var(--gfz-primary) 70%, transparent);
+    color: var(--gfz-primary-foreground);
     font-size: 0.875rem;
     font-weight: 600;
     line-height: 1.35;
@@ -120,7 +120,7 @@
 @media (hover: none), (pointer: coarse) {
     .science-topic-caption {
         opacity: 1;
-        background: linear-gradient(rgb(16 42 99 / 70%), rgb(16 42 99 / 92%));
+        background: linear-gradient(color-mix(in srgb, var(--gfz-primary) 70%, transparent), color-mix(in srgb, var(--gfz-primary) 92%, transparent));
         text-shadow: 0 1px 4px black;
     }
 }
@@ -142,15 +142,15 @@
     .science-topic-link {
         overflow: hidden;
         border-radius: 12px;
-        background: #012965;
-        box-shadow: 0 2px 6px rgb(1 41 101 / 15%);
+        background: var(--gfz-primary);
+        box-shadow: 0 2px 6px color-mix(in srgb, var(--gfz-primary) 15%, transparent);
     }
 
     .science-topic-hexagon {
         display: flex;
         flex-direction: column;
         clip-path: none;
-        background: #012965;
+        background: var(--gfz-primary);
     }
 
     .science-topic-hexagon img {
@@ -164,7 +164,7 @@
         justify-content: flex-start;
         min-height: 3.25rem;
         padding: 10px 12px;
-        background: #012965;
+        background: var(--gfz-primary);
         text-align: left;
         overflow-wrap: anywhere;
         text-shadow: none;

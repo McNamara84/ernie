@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ScienceTopic;
 use Illuminate\Support\Facades\File;
 
 use function Pest\Laravel\get;
@@ -188,7 +189,7 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./{portal}-search/count.get.parameters.7.name', 'thesaurus_keywords[]')
         ->assertJsonPath('paths./{portal}-search/count.get.parameters.19.name', 'year_to')
         ->assertJsonPath('paths./{portal}-search/count.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/PortalCountResponse')
-        ->assertJsonPath('paths./{portal}-search/count.get.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
+        ->assertJsonPath('paths./{portal}-search/count.get.responses.422.content.application/json.schema.$ref', '#/components/schemas/PortalFilterErrorResponse')
         ->assertJsonPath('paths./{portal}-search/count.get.responses.429.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('paths./{portal}-search/count.get.responses.500.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('components.schemas.PortalCountResponse.properties.filter_fingerprint.pattern', '^[a-f0-9]{64}$')
@@ -212,7 +213,7 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./{portal}-search/map.get.parameters.7.name', 'zoom')
         ->assertJsonPath('paths./{portal}-search/map.get.parameters.7.schema.minimum', 0)
         ->assertJsonPath('paths./{portal}-search/map.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/PortalMapResponse')
-        ->assertJsonPath('paths./{portal}-search/map.get.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
+        ->assertJsonPath('paths./{portal}-search/map.get.responses.422.content.application/json.schema.$ref', '#/components/schemas/PortalFilterErrorResponse')
         ->assertJsonPath('paths./{portal}-search/map.get.responses.429.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('paths./{portal}-search/map.get.responses.500.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         ->assertJsonPath('paths./{portal}-search/map.get.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
@@ -356,9 +357,9 @@ it('returns the OpenAPI documentation as JSON', function () {
     ];
 
     expect(collect(data_get($spec, 'paths./{portal}-search/count.get.parameters'))->pluck('name')->all())
-        ->toContain(...$igsnFilterParameters)
+        ->toContain('topic', ...$igsnFilterParameters)
         ->and(collect(data_get($spec, 'paths./{portal}-search/map.get.parameters'))->pluck('name')->all())
-        ->toContain('portal', 'viewport[north]', 'viewport[width]', 'zoom', 'include_extent', 'type[]', 'north', 'date_type', ...$igsnFilterParameters)
+        ->toContain('portal', 'viewport[north]', 'viewport[width]', 'zoom', 'include_extent', 'topic', 'type[]', 'north', 'date_type', ...$igsnFilterParameters)
         ->and(collect(data_get($spec, 'paths./{portal}-search/map/clusters/{clusterId}.get.parameters'))->pluck('name')->all())
         ->toContain(
             'portal',
@@ -367,6 +368,7 @@ it('returns the OpenAPI documentation as JSON', function () {
             'viewport[width]',
             'page',
             'q',
+            'topic',
             'type',
             'type[]',
             'datacenter[]',
@@ -384,6 +386,35 @@ it('returns the OpenAPI documentation as JSON', function () {
         )
         ->not->toContain('zoom');
 });
+
+it('documents the complete DOI-only science-topic contract for each public filter endpoint', function (string $path) {
+    $spec = getJson('/api/v1/doc')->assertOk()->json();
+    $parameters = collect($spec['paths'][$path]['get']['parameters'])->where('name', 'topic');
+
+    expect($parameters)->toHaveCount(1);
+    $parameter = $parameters->first();
+
+    expect($parameter)->toMatchArray([
+        'in' => 'query',
+        'required' => false,
+        'schema' => ['$ref' => '#/components/schemas/PortalScienceTopic'],
+    ])
+        ->and($parameter['description'])->toContain('DOI portal only', 'IGSN portal ignores', 'HTTP 422')
+        ->and($spec['components']['schemas']['PortalScienceTopic']['type'])->toBe('string')
+        ->and($spec['components']['schemas']['PortalScienceTopic']['enum'])
+        ->toBe(array_map(static fn (ScienceTopic $topic): string => $topic->value, ScienceTopic::cases()))
+        ->and($parameter['example'])->toBe(ScienceTopic::Volcanism->value)
+        ->and($spec['paths'][$path]['get']['responses']['422']['content']['application/json']['schema']['$ref'])
+        ->toBe('#/components/schemas/PortalFilterErrorResponse')
+        ->and($spec['components']['schemas']['PortalFilterErrorResponse']['anyOf'])->toBe([
+            ['$ref' => '#/components/schemas/ValidationErrorResponse'],
+            ['$ref' => '#/components/schemas/MessageResponse'],
+        ]);
+})->with([
+    'count' => '/{portal}-search/count',
+    'map' => '/{portal}-search/map',
+    'cluster members' => '/{portal}-search/map/clusters/{clusterId}',
+]);
 
 it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {
     $spec = getJson('/api/v1/doc')

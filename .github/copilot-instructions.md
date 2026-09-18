@@ -525,7 +525,7 @@ className="bg-gfz-primary hover:bg-gfz-primary/90"
 ```
 
 Defined in `resources/css/app.css`:
-- `--gfz-primary: #0C2A63` (GFZ dark blue)
+- `--gfz-primary: #012965` (GFZ dark blue)
 - `--gfz-primary-foreground: #ffffff`
 
 ### Forbidden Patterns

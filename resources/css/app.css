@@ -121,7 +121,7 @@
     --header-hover: #003da6;
 
     /* GFZ Branding */
-    --gfz-primary: #0c2a63;
+    --gfz-primary: #012965;
     --gfz-primary-foreground: #ffffff;
 
     /* Portal Header */
@@ -167,7 +167,7 @@
     --sidebar-ring: oklch(0.439 0 0);
 
     /* GFZ Branding - same in dark mode */
-    --gfz-primary: #0c2a63;
+    --gfz-primary: #012965;
     --gfz-primary-foreground: #ffffff;
 }
 

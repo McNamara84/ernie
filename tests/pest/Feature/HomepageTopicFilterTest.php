@@ -232,10 +232,13 @@ it('preserves thesaurus matches and viewport boundaries across map queries', fun
 it('rejects malformed or unknown DOI topics on every public search surface', function (mixed $topic): void {
     $query = homepageTopicMapQuery(['topic' => $topic]);
     $this->getJson('/doi-search?'.http_build_query(['topic' => $topic]))->assertUnprocessable();
-    $this->getJson('/doi-search/count?'.http_build_query(['topic' => $topic]))->assertUnprocessable();
-    $this->getJson('/doi-search/map?'.http_build_query($query))->assertUnprocessable();
+    $this->getJson('/doi-search/count?'.http_build_query(['topic' => $topic]))
+        ->assertUnprocessable()->assertJsonPath('message', 'Unknown science topic.')->assertJsonMissingPath('errors');
+    $this->getJson('/doi-search/map?'.http_build_query($query))
+        ->assertUnprocessable()->assertJsonPath('message', 'Unknown science topic.')->assertJsonMissingPath('errors');
     unset($query['zoom']);
-    $this->getJson('/doi-search/map/clusters/z18:1:1?'.http_build_query($query))->assertUnprocessable();
+    $this->getJson('/doi-search/map/clusters/z18:1:1?'.http_build_query($query))
+        ->assertUnprocessable()->assertJsonPath('message', 'Unknown science topic.')->assertJsonMissingPath('errors');
 })->with(['unknown' => 'not-a-topic', 'array' => [['atmosphere']], 'object' => [['slug' => 'atmosphere']]]);
 
 it('ignores DOI topic parameters in the IGSN portal', function (): void {
