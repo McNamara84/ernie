@@ -42,6 +42,7 @@ export function portalMapPopupResource(feature: PortalMapResourceFeature): Porta
         doi: feature.resource.identifier,
         title: feature.resource.title,
         creators: feature.resource.creators,
+        searchMatches: [],
         year: null,
         resourceType: type?.name ?? 'Other',
         resourceTypeSlug: type?.slug ?? null,

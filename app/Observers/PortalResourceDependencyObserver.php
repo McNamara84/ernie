@@ -10,6 +10,8 @@ use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
+use App\Models\ResourceContributor;
+use App\Models\ResourceContributorTypePivot;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Services\PortalCacheInvalidationService;
@@ -40,7 +42,11 @@ final class PortalResourceDependencyObserver
 
     private function schedule(Model $model): void
     {
-        $resourceId = $model->getAttribute('resource_id');
+        $resourceId = $model instanceof ResourceContributorTypePivot
+            ? ResourceContributor::query()
+                ->whereKey($model->getAttribute('resource_contributor_id'))
+                ->value('resource_id')
+            : $model->getAttribute('resource_id');
         if (! is_numeric($resourceId)) {
             return;
         }
@@ -55,6 +61,9 @@ final class PortalResourceDependencyObserver
     private function areasFor(Model $model): array
     {
         return match (true) {
+            $model instanceof ResourceContributorTypePivot => [
+                PortalCacheArea::PAGE,
+            ],
             $model instanceof GeoLocation => [
                 PortalCacheArea::PAGE,
                 PortalCacheArea::COUNT,
@@ -80,11 +89,13 @@ final class PortalResourceDependencyObserver
                 PortalCacheArea::MAP_PAYLOAD,
                 PortalCacheArea::MAP_EXTENT,
             ],
-            $model instanceof ResourceCreator => [
+            $model instanceof ResourceCreator,
+            $model instanceof ResourceContributor => [
                 PortalCacheArea::PAGE,
                 PortalCacheArea::COUNT,
                 PortalCacheArea::IGSN_FACETS,
                 PortalCacheArea::MAP_PAYLOAD,
+                PortalCacheArea::MAP_EXTENT,
             ],
             default => [
                 PortalCacheArea::PAGE,

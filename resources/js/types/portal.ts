@@ -2,6 +2,8 @@
  * Portal types for the public dataset discovery page.
  */
 
+import type { PartySearchMatch } from '@/types/party-search';
+
 export type PortalKind = 'doi' | 'igsn';
 export type PortalBasePath = '/doi-search' | '/igsn-search';
 
@@ -68,6 +70,7 @@ export interface PortalResource {
     doi: string | null;
     title: string;
     creators: PortalCreator[];
+    searchMatches: PartySearchMatch[];
     year: number | null;
     resourceType: string;
     resourceTypeSlug: string | null;

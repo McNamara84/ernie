@@ -37,6 +37,13 @@ final class PortalSharedDependencyObserver
 
     public function deleted(Model $model): void
     {
+        // The dependency job can still resolve the polymorphic creator and
+        // contributor rows after a party is deleted. It owns cache invalidation
+        // so the old projected name cannot refill a new cache generation.
+        if ($model instanceof Person || $model instanceof Institution) {
+            return;
+        }
+
         $this->schedule($model);
     }
 
@@ -56,13 +63,19 @@ final class PortalSharedDependencyObserver
             return true;
         }
 
+        // Party names are denormalized into the listing projection. Their
+        // dependency job invalidates the affected scopes only after that
+        // projection has been refreshed, so a stale projection cannot refill
+        // freshly invalidated public caches while the job is still queued.
+        if ($model instanceof Person || $model instanceof Institution) {
+            return false;
+        }
+
         return match (true) {
             $model instanceof LandingPageTemplate => $model->wasChanged('citation_author_display_limit'),
             $model instanceof LandingPageDomain => $model->wasChanged('domain'),
             $model instanceof ResourceType => $model->wasChanged(['name', 'slug']),
             $model instanceof Datacenter => $model->wasChanged('name'),
-            $model instanceof Person => $model->wasChanged(['family_name', 'given_name']),
-            $model instanceof Institution => $model->wasChanged('name'),
             $model instanceof TitleType,
             $model instanceof DescriptionType => $model->wasChanged('slug'),
             default => false,
@@ -122,10 +135,18 @@ final class PortalSharedDependencyObserver
         }
 
         if ($model instanceof Person || $model instanceof Institution) {
-            $resourceQuery->whereHas('creators', static function (Builder $query) use ($model): void {
-                $query
-                    ->where('creatorable_type', $model::class)
-                    ->where('creatorable_id', $model->getKey());
+            $resourceQuery->where(function (Builder $partyQuery) use ($model): void {
+                $partyQuery
+                    ->whereHas('creators', static function (Builder $query) use ($model): void {
+                        $query
+                            ->where('creatorable_type', $model::class)
+                            ->where('creatorable_id', $model->getKey());
+                    })
+                    ->orWhereHas('contributors', static function (Builder $query) use ($model): void {
+                        $query
+                            ->where('contributorable_type', $model::class)
+                            ->where('contributorable_id', $model->getKey());
+                    });
             });
 
             return [
