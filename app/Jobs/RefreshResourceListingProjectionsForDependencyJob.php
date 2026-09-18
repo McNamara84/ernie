@@ -111,6 +111,7 @@ final class RefreshResourceListingProjectionsForDependencyJob implements ShouldQ
             $portalCacheInvalidationService->scheduleForResourceIds($resourceIds, [
                 PortalCacheArea::PAGE,
                 PortalCacheArea::COUNT,
+                PortalCacheArea::IGSN_FACETS,
                 PortalCacheArea::MAP_PAYLOAD,
                 PortalCacheArea::MAP_EXTENT,
             ]);

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Enums\PortalCacheArea;
+use App\Enums\PortalScope;
+use App\Services\PortalCacheInvalidationService;
 use App\Services\Resources\ResourceListingProjectorService;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -26,6 +29,15 @@ return new class extends Migration
         }
 
         app(ResourceListingProjectorService::class)->rebuildAll();
+        app(PortalCacheInvalidationService::class)->schedule(
+            [PortalScope::DOI],
+            [
+                PortalCacheArea::PAGE,
+                PortalCacheArea::COUNT,
+                PortalCacheArea::MAP_PAYLOAD,
+                PortalCacheArea::MAP_EXTENT,
+            ],
+        );
     }
 
     public function down(): void

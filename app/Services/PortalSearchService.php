@@ -276,6 +276,8 @@ class PortalSearchService
 
         // Apply search query. DOI people search uses the read-optimized name-only
         // projection; pending in-process projection writes must be visible first.
+        // Cross-process dependency jobs retain the current cache generation and
+        // invalidate it only after their projection refresh has completed.
         $searchQuery = $filters['query'] ?? null;
         $includePartyNameSearch = $scope === PortalScope::DOI
             && is_string($searchQuery)

@@ -2,14 +2,19 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
+use App\Enums\PortalScope;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceListingProjection;
+use App\Services\PortalCacheInvalidationService;
+use App\Services\PortalCacheVersionService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
 uses()->group('database', 'mysql-sensitive');
@@ -139,9 +144,26 @@ it('retries the name-only backfill when the column already exists', function ():
 
     ResourceListingProjection::query()->whereKey($resource->id)->update(['party_name_search_text' => null]);
 
+    Cache::flush();
+    app()->forgetInstance(PortalCacheInvalidationService::class);
+    $versions = app(PortalCacheVersionService::class);
+    $cacheKeys = [
+        CacheKey::PORTAL_PAGE_PAYLOAD,
+        CacheKey::PORTAL_LISTING_COUNT,
+        CacheKey::PORTAL_MAP_PAYLOAD,
+        CacheKey::PORTAL_MAP_EXTENT,
+    ];
+    foreach ($cacheKeys as $cacheKey) {
+        expect($versions->current($cacheKey, PortalScope::DOI))->toBe(1);
+    }
+
     resourceListingProjectionPartyNameSearchMigration()->up();
+    app(PortalCacheInvalidationService::class)->flushPending();
 
     expect(ResourceListingProjection::query()->findOrFail($resource->id)->party_name_search_text)
         ->toContain('retry publicname')
         ->not->toContain('retry-private@example.test');
+    foreach ($cacheKeys as $cacheKey) {
+        expect($versions->current($cacheKey, PortalScope::DOI))->toBe(2);
+    }
 });

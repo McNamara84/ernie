@@ -56,13 +56,19 @@ final class PortalSharedDependencyObserver
             return true;
         }
 
+        // Party names are denormalized into the listing projection. Their
+        // dependency job invalidates the affected scopes only after that
+        // projection has been refreshed, so a stale projection cannot refill
+        // freshly invalidated public caches while the job is still queued.
+        if ($model instanceof Person || $model instanceof Institution) {
+            return false;
+        }
+
         return match (true) {
             $model instanceof LandingPageTemplate => $model->wasChanged('citation_author_display_limit'),
             $model instanceof LandingPageDomain => $model->wasChanged('domain'),
             $model instanceof ResourceType => $model->wasChanged(['name', 'slug']),
             $model instanceof Datacenter => $model->wasChanged('name'),
-            $model instanceof Person => $model->wasChanged(['family_name', 'given_name']),
-            $model instanceof Institution => $model->wasChanged('name'),
             $model instanceof TitleType,
             $model instanceof DescriptionType => $model->wasChanged('slug'),
             default => false,

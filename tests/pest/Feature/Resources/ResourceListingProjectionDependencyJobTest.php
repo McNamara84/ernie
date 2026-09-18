@@ -44,7 +44,7 @@ function runResourceListingProjectionDependencyJob(RefreshResourceListingProject
     );
 }
 
-it('invalidates DOI portal caches again after refreshing a contributor-only person projection', function (): void {
+it('invalidates DOI portal caches only after refreshing a contributor-only person projection', function (): void {
     $resource = Resource::factory()->create();
     LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
     $person = Person::factory()->create(['given_name' => 'Before', 'family_name' => 'Contributor']);
@@ -52,23 +52,42 @@ it('invalidates DOI portal caches again after refreshing a contributor-only pers
     app(ResourceListingProjectionRefreshService::class)->flushPending();
 
     Cache::flush();
+    Queue::fake();
     app()->forgetInstance(PortalCacheInvalidationService::class);
     $versions = app(PortalCacheVersionService::class);
     foreach ([
         CacheKey::PORTAL_PAGE_PAYLOAD,
         CacheKey::PORTAL_LISTING_COUNT,
+        CacheKey::PORTAL_IGSN_FACETS,
         CacheKey::PORTAL_MAP_PAYLOAD,
         CacheKey::PORTAL_MAP_EXTENT,
     ] as $cacheKey) {
         $versions->current($cacheKey, PortalScope::DOI);
     }
 
-    $person->updateQuietly(['given_name' => 'After']);
-    runResourceListingProjectionDependencyJob(new RefreshResourceListingProjectionsForDependencyJob(
-        Person::class,
-        $person->id,
-        RefreshResourceListingProjectionsForDependencyJob::EVENT_UPDATED,
-    ));
+    $person->wasRecentlyCreated = false;
+    $person->update(['given_name' => 'After']);
+
+    Queue::assertPushed(
+        RefreshResourceListingProjectionsForDependencyJob::class,
+        fn (RefreshResourceListingProjectionsForDependencyJob $job): bool => $job->dependencyType === Person::class
+            && $job->dependencyId === $person->id
+            && $job->event === RefreshResourceListingProjectionsForDependencyJob::EVENT_UPDATED,
+    );
+    foreach ([
+        CacheKey::PORTAL_PAGE_PAYLOAD,
+        CacheKey::PORTAL_LISTING_COUNT,
+        CacheKey::PORTAL_IGSN_FACETS,
+        CacheKey::PORTAL_MAP_PAYLOAD,
+        CacheKey::PORTAL_MAP_EXTENT,
+    ] as $cacheKey) {
+        expect($versions->current($cacheKey, PortalScope::DOI))->toBe(1);
+    }
+
+    /** @var RefreshResourceListingProjectionsForDependencyJob $job */
+    $job = Queue::pushed(RefreshResourceListingProjectionsForDependencyJob::class)
+        ->first(fn (RefreshResourceListingProjectionsForDependencyJob $queuedJob): bool => $queuedJob->dependencyType === Person::class);
+    runResourceListingProjectionDependencyJob($job);
     app(ResourceListingProjectionRefreshService::class)->flushPending();
     app(PortalCacheInvalidationService::class)->flushPending();
 
@@ -78,6 +97,7 @@ it('invalidates DOI portal caches again after refreshing a contributor-only pers
     foreach ([
         CacheKey::PORTAL_PAGE_PAYLOAD,
         CacheKey::PORTAL_LISTING_COUNT,
+        CacheKey::PORTAL_IGSN_FACETS,
         CacheKey::PORTAL_MAP_PAYLOAD,
         CacheKey::PORTAL_MAP_EXTENT,
     ] as $cacheKey) {
