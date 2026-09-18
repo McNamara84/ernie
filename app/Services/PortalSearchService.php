@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Enums\PortalScope;
+use App\Enums\ScienceTopic;
 use App\Models\Datacenter;
 use App\Models\DateType;
 use App\Models\GeoLocation;
@@ -86,6 +87,7 @@ class PortalSearchService
      *
      * @param  array{
      *     portal_scope?: string|null,
+     *     topic?: string|null,
      *     query?: string|null,
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
@@ -161,6 +163,7 @@ class PortalSearchService
      *
      * @param  array{
      *     portal_scope?: string|null,
+     *     topic?: string|null,
      *     query?: string|null,
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
@@ -210,6 +213,7 @@ class PortalSearchService
      *
      * @param  array{
      *     portal_scope?: string|null,
+     *     topic?: string|null,
      *     query?: string|null,
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
@@ -264,6 +268,9 @@ class PortalSearchService
 
         // Apply search query
         $this->applySearchQuery($query, $filters['query'] ?? null);
+        if ($scope !== PortalScope::IGSN) {
+            $this->applyScienceTopicFilter($query, $filters['topic'] ?? null);
+        }
 
         // Apply legacy exact keyword filter
         $this->applyKeywordFilter($query, $filters['keywords'] ?? null);
@@ -719,7 +726,7 @@ class PortalSearchService
      * @param  Builder<Resource>  $query
      * @param  string[]|null  $selectedNodeIds
      */
-    private function applyThesaurusKeywordFilter(Builder $query, ?array $selectedNodeIds, ?PortalScope $scope = null): void
+    private function applyThesaurusKeywordFilter(Builder $query, ?array $selectedNodeIds, ?PortalScope $scope = null, bool $unionScienceBranches = false): void
     {
         if ($selectedNodeIds === null || $selectedNodeIds === []) {
             return;
@@ -757,6 +764,16 @@ class PortalSearchService
             $query->whereRaw('1 = 0');
 
             return;
+        }
+
+        if ($unionScienceBranches) {
+            // Homepage branches all belong to Science Keywords. Their union
+            // is one subject predicate, while manual node selections remain AND.
+            $union = $resolvedNodes[0];
+            foreach (['subject_schemes', 'descendant_ids', 'descendant_values'] as $key) {
+                $union[$key] = array_values(array_unique(array_merge(...array_column($resolvedNodes, $key))));
+            }
+            $resolvedNodes = [$union];
         }
 
         foreach ($resolvedNodes as $resolvedNode) {
@@ -819,6 +836,52 @@ class PortalSearchService
                         ));
                     });
             });
+        }
+    }
+
+    /** @param Builder<Resource> $query */
+    private function applyScienceTopicFilter(Builder $query, ?string $slug): void
+    {
+        if ($slug === null || $slug === '') {
+            return;
+        }
+
+        $topic = ScienceTopic::tryFrom($slug);
+        if ($topic === null) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        switch ($topic) {
+            case ScienceTopic::Archaeobotany:
+                $query->whereHas('subjects', fn (Builder $subject): Builder => $subject->whereRaw('LOWER(TRIM(value)) = ?', ['archaeobotany']));
+
+                return;
+            case ScienceTopic::ScientificDrilling:
+                $this->applyDatacenterFilter($query, [LegacyMetaworksDatacenterLookupService::SDDB_DATACENTER]);
+
+                return;
+            case ScienceTopic::Modeling:
+                $this->applySearchQuery($query, 'modeling');
+
+                return;
+            case ScienceTopic::RemoteSensing:
+                $this->applySearchQuery($query, 'remote sensing');
+
+                return;
+            case ScienceTopic::Seismology:
+                $this->applySearchQuery($query, 'seismic');
+
+                return;
+            default:
+                $nodeIds = $this->keywordService->scienceTopicNodeIds($topic);
+                if ($nodeIds === []) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                $this->applyThesaurusKeywordFilter($query, $nodeIds, PortalScope::DOI, unionScienceBranches: true);
         }
     }
 

@@ -36,7 +36,29 @@ and form a linear deployment history. The generated Compose file references
 both images as `ghcr.io/...@sha256:<digest>`; it never deploys from a mutable
 `latest`, `production`, or version tag.
 
+## Public homepage routing
+
+The public `/` route on `dataservices.gfz.de` is served by ERNIE. The production
+Compose configuration removes this exact path from the higher-priority legacy
+router; confirmed legacy segments such as `/web/`, `/portal/`, and `/igsn-new/`
+continue to redirect to `dataservices.gfz-potsdam.de`. `/elmo` and `/elmo-msl`
+remain owned by their separate stacks.
+
+When releasing the homepage, deploy both the application and the updated
+`webserver` service definition so Traefik receives the new labels. Updating only
+the application image leaves the old root redirect active. Verify `/` returns
+the ERNIE homepage with HTTP 200, local topic images load, `/doi-search` and
+`/igsn-search` remain available, and legacy URLs still redirect correctly.
+
+The initial news item lives in `resources/js/data/homepage.ts`. Administration
+through `/manage-news` is a separate future feature. Homepage topic definitions
+live in `App\Enums\ScienceTopic`; GCMD topics resolve against the current local
+Science Keywords vocabulary, preserving alternative matching branches. A missing
+or disabled vocabulary produces no matches rather than an unfiltered result set.
+
 ## Release eligibility
+
+### Promotion requirements
 
 Automatic Production promotion requires all of the following:
 

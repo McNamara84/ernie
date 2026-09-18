@@ -82,7 +82,7 @@ if (app()->environment('local', 'testing')) {
     Route::get('/debug', DebugController::class)->name('debug');
 }
 
-Route::redirect('/', 'https://dataservices.gfz-potsdam.de')->name('home');
+Route::get('/', [StaticPageController::class, 'home'])->name('home');
 
 Route::get('/about', [StaticPageController::class, 'about'])->name('about');
 

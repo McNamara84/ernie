@@ -2153,6 +2153,32 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             filter state is stored in the URL, so filtered views can be bookmarked and shared.
                         </p>
 
+                        <h4>Starting with a Science Topic</h4>
+                        <p>
+                            Open the <a href="/">GFZ Data Services homepage</a> and choose a subject under <strong>Explore by science topic</strong>.
+                            Topics appear as hexagons on tablets and desktops and as labelled image cards on smartphones. Selecting a topic, such as{' '}
+                            <a href="/doi-search?topic=volcanism">Volcanism</a>, opens the Data Portal with that topic already applied.
+                        </p>
+                        <p>
+                            The selected subject appears in the <strong>Science topic</strong> panel below the search field. On smaller screens, open
+                            the <strong>Filters</strong> drawer to find this panel. Science topics apply to the DOI Data Portal; they are not filters
+                            in the IGSN Portal.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                Refine the text search or add other filters: the topic remains active and combines with those selections. The URL
+                                preserves the topic so you can bookmark or share the filtered view.
+                            </li>
+                            <li>
+                                Result counts, map features, and cluster members use the same active topic. Switching between Results and Map or
+                                panning and zooming the map keeps the topic selected.
+                            </li>
+                            <li>
+                                Use the X button beside the topic name to remove only the topic while keeping the search and other filters. The result
+                                list returns to its first page. Use Clear to reset all filters, including the topic.
+                            </li>
+                        </ul>
+
                         <h4>Filter Order and Active Selections</h4>
                         <p>
                             Filter groups without an active URL filter start collapsed. Below the <strong>Search</strong> field, the Data Portal

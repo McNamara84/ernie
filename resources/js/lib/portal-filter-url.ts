@@ -53,6 +53,10 @@ export function buildPortalFilterUrl(filters: PortalFilters, basePath: PortalBas
     const params = new URLSearchParams();
     const hasSplitKeywordFilters = (filters.freeKeywords?.length ?? 0) > 0 || (filters.thesaurusKeywords?.length ?? 0) > 0;
 
+    if (basePath === '/doi-search' && filters.topic) {
+        params.set('topic', filters.topic.slug);
+    }
+
     if (filters.query && filters.query.trim() !== '') {
         params.set('q', filters.query.trim());
     }
@@ -116,6 +120,8 @@ export function buildPortalCountUrl(currentSearch: string, basePath: PortalBaseP
 
     if (basePath === '/igsn-search') {
         params.delete('type');
+        params.delete('topic');
+        params.delete('topic[]');
         params.delete('type[]');
         params.delete('thesaurus_keywords');
         params.delete('thesaurus_keywords[]');

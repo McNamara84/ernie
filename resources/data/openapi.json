@@ -2165,6 +2165,14 @@
                         "required": false,
                         "description": "Inclusive last year of the optional temporal filter.",
                         "schema": { "type": "integer", "minimum": 1900, "example": 2026 }
+                    },
+                    {
+                        "name": "topic",
+                        "in": "query",
+                        "required": false,
+                        "description": "Curated science-topic filter from the GFZ Data Services homepage. DOI portal only; the IGSN portal ignores this parameter. Combines with the other active filters. Unknown topic slugs in the DOI portal return HTTP 422.",
+                        "schema": { "$ref": "#/components/schemas/PortalScienceTopic" },
+                        "example": "volcanism"
                     }
                 ],
                 "responses": {
@@ -2177,10 +2185,10 @@
                         }
                     },
                     "422": {
-                        "description": "One or more IGSN metadata filter parameters are invalid.",
+                        "description": "One or more portal filter parameters are invalid.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                                "schema": { "$ref": "#/components/schemas/PortalFilterErrorResponse" }
                             }
                         }
                     },
@@ -2525,6 +2533,14 @@
                         "required": false,
                         "description": "Inclusive last year of the optional temporal filter.",
                         "schema": { "type": "integer", "minimum": 1900, "example": 2026 }
+                    },
+                    {
+                        "name": "topic",
+                        "in": "query",
+                        "required": false,
+                        "description": "Curated science-topic filter from the GFZ Data Services homepage. DOI portal only; the IGSN portal ignores this parameter. Combines with the other active filters. Unknown topic slugs in the DOI portal return HTTP 422.",
+                        "schema": { "$ref": "#/components/schemas/PortalScienceTopic" },
+                        "example": "volcanism"
                     }
                 ],
                 "responses": {
@@ -2540,7 +2556,7 @@
                         "description": "One or more viewport or filter parameters are invalid.",
                         "content": {
                             "application/json": {
-                                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+                                "schema": { "$ref": "#/components/schemas/PortalFilterErrorResponse" }
                             }
                         }
                     },
@@ -2800,6 +2816,14 @@
                         "required": false,
                         "description": "Inclusive last year of the optional temporal filter.",
                         "schema": { "type": "integer", "minimum": 1900, "example": 2026 }
+                    },
+                    {
+                        "name": "topic",
+                        "in": "query",
+                        "required": false,
+                        "description": "Curated science-topic filter from the GFZ Data Services homepage. DOI portal only; the IGSN portal ignores this parameter. Combines with the other active filters. Unknown topic slugs in the DOI portal return HTTP 422.",
+                        "schema": { "$ref": "#/components/schemas/PortalScienceTopic" },
+                        "example": "volcanism"
                     }
                 ],
                 "responses": {
@@ -2820,7 +2844,7 @@
                     "422": {
                         "description": "The cluster ID, viewport, pagination, or filter parameters are invalid.",
                         "content": {
-                            "application/json": { "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" } }
+                            "application/json": { "schema": { "$ref": "#/components/schemas/PortalFilterErrorResponse" } }
                         }
                     },
                     "429": {
@@ -3050,6 +3074,41 @@
                 },
                 "required": ["data"],
                 "additionalProperties": false
+            },
+            "PortalFilterErrorResponse": {
+                "description": "Field validation errors or a message-only filter error, such as an unknown science-topic slug.",
+                "anyOf": [{ "$ref": "#/components/schemas/ValidationErrorResponse" }, { "$ref": "#/components/schemas/MessageResponse" }]
+            },
+            "PortalScienceTopic": {
+                "type": "string",
+                "description": "One of the 25 curated science-topic slugs available on the GFZ Data Services homepage.",
+                "enum": [
+                    "atmosphere",
+                    "agriculture",
+                    "archaeobotany",
+                    "biosphere",
+                    "climate-science",
+                    "cryosphere",
+                    "geochemistry",
+                    "geodetics",
+                    "geomagnetism",
+                    "geothermics",
+                    "gravity",
+                    "human-dimensions",
+                    "hydrology",
+                    "land-surface",
+                    "modeling",
+                    "natural-hazards",
+                    "oceans",
+                    "paleoclimate",
+                    "scientific-drilling",
+                    "solid-earth",
+                    "remote-sensing",
+                    "rocks-minerals",
+                    "sun-earth-interactions",
+                    "seismology",
+                    "volcanism"
+                ]
             },
             "PortalCountResponse": {
                 "type": "object",
