@@ -2225,6 +2225,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Enter or the magnifying-glass button to run a normal full-text search. Text and multiple exact keyword chips can be
                             combined, and each chip can be removed independently.
                         </p>
+                        <p>
+                            In the DOI Data Portal, normal text search also finds Authors and Contributors by person or institution name. Name
+                            matching is case-insensitive and accepts partial names, given-name/family-name order in either direction, and compact
+                            forms without spaces or punctuation. For example, <code>Hans Peter</code>, <code>Peter Hans</code>, and{' '}
+                            <code>HansPeter</code> can find the same person. Spelling mistakes are not corrected, and stored contact email addresses
+                            are not part of the public search.
+                        </p>
+                        <p>
+                            When a name matches, the result row identifies the matching party with the full labels <strong>Contact Person</strong>,{' '}
+                            <strong>Author</strong>, and <strong>Contributor</strong>. Several roles for the same identity are combined, while several
+                            matching identities appear separately. Results found only through another metadata field do not show a party label. This
+                            additional Contributor search applies to <code>/doi-search</code>; the IGSN Portal and free-keyword suggestions remain
+                            unchanged.
+                        </p>
 
                         <h4>DOI Thesaurus Keywords</h4>
                         <p>

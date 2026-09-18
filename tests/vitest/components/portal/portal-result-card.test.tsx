@@ -20,6 +20,7 @@ function createMockResource(overrides: Partial<PortalResource> = {}): PortalReso
         year: 2024,
         landingPageUrl: '/landing/test-slug',
         creators: [{ name: 'Smith' }],
+        searchMatches: [],
         geoLocations: [],
         ...overrides,
     };
@@ -94,6 +95,58 @@ describe('PortalResultCard', () => {
             renderCard(createMockResource({ isIgsn: true, resourceType: 'PhysicalObject' }), '/igsn-search');
 
             expect(screen.getByText('IGSN')).toBeInTheDocument();
+        });
+
+        it('omits the party-match area when the search did not match a party name', () => {
+            renderCard(createMockResource({ searchMatches: [] }));
+
+            expect(screen.queryByTestId('portal-party-search-matches')).not.toBeInTheDocument();
+        });
+
+        it('shows matching identities with stable, public role labels', () => {
+            renderCard(
+                createMockResource({
+                    searchMatches: [
+                        {
+                            display_value: 'Hans, Peter',
+                            matched_field: 'name',
+                            roles: ['contributor', 'contact_person', 'author'],
+                        },
+                        {
+                            display_value: 'GFZ Data Services',
+                            matched_field: 'name',
+                            roles: ['contributor'],
+                        },
+                    ],
+                }),
+            );
+
+            const matches = screen.getByTestId('portal-party-search-matches');
+            expect(within(matches).getByText('Contact Person & Author & Contributor:')).toBeInTheDocument();
+            expect(within(matches).getByText('Hans, Peter')).toHaveAttribute('title', 'Hans, Peter');
+            expect(within(matches).getByText('Contributor:')).toBeInTheDocument();
+            expect(within(matches).getByText('GFZ Data Services')).toBeInTheDocument();
+            expect(screen.getByRole('link')).toHaveAccessibleName(
+                /Contact Person & Author & Contributor: Hans, Peter\. Contributor: GFZ Data Services/,
+            );
+        });
+
+        it('renders a matching party name as text', () => {
+            renderCard(
+                createMockResource({
+                    searchMatches: [
+                        {
+                            display_value: '<script>window.hacked = true</script>',
+                            matched_field: 'name',
+                            roles: ['author'],
+                        },
+                    ],
+                }),
+            );
+
+            const matches = screen.getByTestId('portal-party-search-matches');
+            expect(within(matches).getByText('<script>window.hacked = true</script>')).toBeInTheDocument();
+            expect(matches.querySelector('script')).toBeNull();
         });
     });
 

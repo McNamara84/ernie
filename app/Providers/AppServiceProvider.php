@@ -36,6 +36,7 @@ use App\Models\RelatedIdentifier;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceContributor;
+use App\Models\ResourceContributorTypePivot;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\ResourceRight;
@@ -135,7 +136,9 @@ class AppServiceProvider extends ServiceProvider
         ResourceCreator::observe(PortalResourceDependencyObserver::class);
         ResourceCreator::observe(AssistanceDatacenterOptionsObserver::class);
         ResourceContributor::observe(ResourceListingProjectionObserver::class);
+        ResourceContributor::observe(PortalResourceDependencyObserver::class);
         ResourceContributor::observe(AssistanceDatacenterOptionsObserver::class);
+        ResourceContributorTypePivot::observe(PortalResourceDependencyObserver::class);
         ResourceDate::observe(ResourceListingProjectionObserver::class);
         ResourceDate::observe(PortalResourceDependencyObserver::class);
         ResourceRight::observe(ResourceListingProjectionObserver::class);

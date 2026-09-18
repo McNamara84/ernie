@@ -142,11 +142,12 @@ final class ResourceListingProjectorService
         /** @var Resource $firstResource */
         $firstResource = $resources->first();
         $hasPartySearchColumn = Schema::hasColumn('resource_listing_projections', 'party_search_text');
+        $hasPartyNameSearchColumn = Schema::hasColumn('resource_listing_projections', 'party_name_search_text');
 
         $now = now();
         $rows = $resources->map(fn (Resource $resource): array => [
             'resource_id' => $resource->id,
-            ...$this->valuesForSchema($resource, $hasPartySearchColumn),
+            ...$this->valuesForSchema($resource, $hasPartySearchColumn, $hasPartyNameSearchColumn),
             'created_at' => $now,
             'updated_at' => $now,
         ])->all();
@@ -154,7 +155,7 @@ final class ResourceListingProjectorService
         ResourceListingProjection::query()->upsert(
             $rows,
             ['resource_id'],
-            array_keys($this->valuesForSchema($firstResource, $hasPartySearchColumn)),
+            array_keys($this->valuesForSchema($firstResource, $hasPartySearchColumn, $hasPartyNameSearchColumn)),
         );
         $this->metricsCacheInvalidationService->scheduleAfterCommit();
     }
@@ -191,6 +192,7 @@ final class ResourceListingProjectorService
         $status = $resource->publicStatus();
         $curator = $resource->updatedBy ?? $resource->createdBy;
         $resourceType = $resource->resourceType;
+        $partyTerms = $this->partySearchTerms($resource);
 
         return [
             'is_igsn' => $resourceType?->slug === 'physical-object',
@@ -224,7 +226,11 @@ final class ResourceListingProjectorService
                 $resource->doi,
                 ...$resource->titles->pluck('value')->all(),
             ]))),
-            'party_search_text' => implode("\n", $this->partySearchTerms($resource)),
+            'party_search_text' => implode("\n", array_values(array_unique([
+                ...$partyTerms['names'],
+                ...$partyTerms['emails'],
+            ]))),
+            'party_name_search_text' => implode("\n", $partyTerms['names']),
         ];
     }
 
@@ -234,49 +240,60 @@ final class ResourceListingProjectorService
         return $this->valuesForSchema(
             $resource,
             Schema::hasColumn('resource_listing_projections', 'party_search_text'),
+            Schema::hasColumn('resource_listing_projections', 'party_name_search_text'),
         );
     }
 
     /** @return array<string, mixed> */
-    private function valuesForSchema(Resource $resource, bool $hasPartySearchColumn): array
-    {
+    private function valuesForSchema(
+        Resource $resource,
+        bool $hasPartySearchColumn,
+        bool $hasPartyNameSearchColumn,
+    ): array {
         $values = $this->values($resource);
         if (! $hasPartySearchColumn) {
             unset($values['party_search_text']);
+        }
+        if (! $hasPartyNameSearchColumn) {
+            unset($values['party_name_search_text']);
         }
 
         return $values;
     }
 
-    /** @return list<string> */
+    /** @return array{names:list<string>, emails:list<string>} */
     private function partySearchTerms(Resource $resource): array
     {
-        $terms = [];
+        $nameTerms = [];
+        $emailTerms = [];
 
         foreach ($resource->creators as $creator) {
             $party = $this->searchableParty($creator->creatorable);
             if ($party instanceof Person) {
                 $resolvedName = $this->creatorNameResolver->resolve($creator, $party);
-                array_push($terms, ...$this->partySearchNormalizer->personNameTerms(
+                array_push($nameTerms, ...$this->partySearchNormalizer->personNameTerms(
                     $resolvedName['given_name'],
                     $resolvedName['family_name'],
                     $resolvedName['name'],
                 ));
             } elseif ($party !== null) {
-                array_push($terms, ...$this->partySearchNormalizer->entityTerms($party));
+                array_push($nameTerms, ...$this->partySearchNormalizer->entityTerms($party));
             }
-            array_push($terms, ...$this->partySearchNormalizer->emailTerms($creator->email));
+            array_push($emailTerms, ...$this->partySearchNormalizer->emailTerms($creator->email));
         }
 
         foreach ($resource->contributors as $contributor) {
             $party = $this->searchableParty($contributor->contributorable);
             if ($party !== null) {
-                array_push($terms, ...$this->partySearchNormalizer->entityTerms($party));
+                array_push($nameTerms, ...$this->partySearchNormalizer->entityTerms($party));
             }
-            array_push($terms, ...$this->partySearchNormalizer->emailTerms($contributor->email));
+            array_push($emailTerms, ...$this->partySearchNormalizer->emailTerms($contributor->email));
         }
 
-        return array_values(array_unique($terms));
+        return [
+            'names' => array_values(array_unique($nameTerms)),
+            'emails' => array_values(array_unique($emailTerms)),
+        ];
     }
 
     private function searchableParty(mixed $party): Person|Institution|null

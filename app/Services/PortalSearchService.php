@@ -20,6 +20,8 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Services\Creators\ResourceCreatorNameResolverService;
 use App\Services\Igsn\IgsnMaterialHierarchyService;
+use App\Services\Resources\ResourceListingProjectionRefreshService;
+use App\Services\Resources\ResourcePartySearchNormalizerService;
 use App\Support\LegacyMslScheme;
 use App\Support\PortalCacheNamespace;
 use App\Support\PortalSubjectNormalizer;
@@ -27,8 +29,10 @@ use App\Support\Traits\ChecksCacheTagging;
 use Closure;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Service for searching and filtering resources in the public portal.
@@ -42,9 +46,13 @@ class PortalSearchService
 
     private readonly ResourceCreatorNameResolverService $creatorNameResolver;
 
+    private ?bool $hasPartyNameSearchColumn = null;
+
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
         private readonly IgsnMaterialHierarchyService $materialHierarchyService,
+        private readonly ResourcePartySearchNormalizerService $partySearchNormalizer,
+        private readonly ResourceListingProjectionRefreshService $projectionRefreshScheduler,
         ?ResourceCreatorNameResolverService $creatorNameResolver = null,
     ) {
         $this->creatorNameResolver = $creatorNameResolver ?? new ResourceCreatorNameResolverService;
@@ -266,8 +274,19 @@ class PortalSearchService
             $this->applyTypeFilter($query, $type);
         }
 
-        // Apply search query
-        $this->applySearchQuery($query, $filters['query'] ?? null);
+        // Apply search query. DOI people search uses the read-optimized name-only
+        // projection; pending in-process projection writes must be visible first.
+        // Cross-process dependency jobs retain the current cache generation and
+        // invalidate it only after their projection refresh has completed.
+        $searchQuery = $filters['query'] ?? null;
+        $includePartyNameSearch = $scope === PortalScope::DOI
+            && is_string($searchQuery)
+            && trim($searchQuery) !== ''
+            && $this->partyNameSearchProjectionAvailable();
+        if ($includePartyNameSearch) {
+            $this->projectionRefreshScheduler->flushPending();
+        }
+        $this->applySearchQuery($query, $searchQuery, $includePartyNameSearch);
         if ($scope !== PortalScope::IGSN) {
             $this->applyScienceTopicFilter($query, $filters['topic'] ?? null);
         }
@@ -543,8 +562,11 @@ class PortalSearchService
      *
      * @param  Builder<Resource>  $query
      */
-    private function applySearchQuery(Builder $query, ?string $searchQuery): void
-    {
+    private function applySearchQuery(
+        Builder $query,
+        ?string $searchQuery,
+        bool $includePartyNameSearch = false,
+    ): void {
         if ($searchQuery === null || trim($searchQuery) === '') {
             return;
         }
@@ -552,8 +574,11 @@ class PortalSearchService
         $trimmedQuery = trim($searchQuery);
         $searchTerm = '%'.$trimmedQuery.'%';
         $identifierVariants = $this->identifierSearchVariants($trimmedQuery);
+        $partyQueryTerms = $includePartyNameSearch
+            ? $this->partySearchNormalizer->queryTerms($trimmedQuery)
+            : [];
 
-        $query->where(function (Builder $q) use ($identifierVariants, $searchTerm): void {
+        $query->where(function (Builder $q) use ($identifierVariants, $partyQueryTerms, $searchTerm): void {
             // Search in DOI
             $q->where('doi', 'like', $searchTerm)
                 // Search in titles
@@ -605,6 +630,29 @@ class PortalSearchService
                     $subjectQuery->where('value', 'like', $searchTerm);
                 });
 
+            if ($partyQueryTerms !== []) {
+                $q->orWhereExists(function (QueryBuilder $projectionQuery) use ($partyQueryTerms): void {
+                    $projectionQuery
+                        ->selectRaw('1')
+                        ->from('resource_listing_projections as portal_listing')
+                        ->whereColumn('portal_listing.resource_id', 'resources.id')
+                        ->where(function (QueryBuilder $nameQuery) use ($partyQueryTerms): void {
+                            $firstTerm = array_shift($partyQueryTerms);
+                            $nameQuery->whereRaw(
+                                "portal_listing.party_name_search_text LIKE ? ESCAPE '!'",
+                                [$this->partySearchNormalizer->likePattern($firstTerm)],
+                            );
+
+                            foreach ($partyQueryTerms as $term) {
+                                $nameQuery->orWhereRaw(
+                                    "portal_listing.party_name_search_text LIKE ? ESCAPE '!'",
+                                    [$this->partySearchNormalizer->likePattern($term)],
+                                );
+                            }
+                        });
+                });
+            }
+
             if ($identifierVariants !== []) {
                 // Alternate identifiers are aliases of the resource itself.
                 $q->orWhereHas('alternateIdentifiers', function (Builder $alternateQuery) use ($identifierVariants): void {
@@ -621,6 +669,14 @@ class PortalSearchService
                     });
             }
         });
+    }
+
+    private function partyNameSearchProjectionAvailable(): bool
+    {
+        return $this->hasPartyNameSearchColumn ??= Schema::hasColumn(
+            'resource_listing_projections',
+            'party_name_search_text',
+        );
     }
 
     /**

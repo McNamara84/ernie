@@ -114,6 +114,40 @@ class PortalCacheInvalidationService
         $this->schedule([$scope], $areas);
     }
 
+    /**
+     * Schedule one invalidation per affected published portal scope.
+     *
+     * @param  iterable<int>  $resourceIds
+     * @param  iterable<PortalCacheArea>  $areas
+     */
+    public function scheduleForResourceIds(iterable $resourceIds, iterable $areas): void
+    {
+        $ids = collect($resourceIds)
+            ->map(static fn (mixed $resourceId): int => (int) $resourceId)
+            ->filter(static fn (int $resourceId): bool => $resourceId > 0)
+            ->unique()
+            ->values();
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $scopes = Resource::query()
+            ->whereKey($ids->all())
+            ->whereHas(
+                'landingPage',
+                static fn ($query) => $query->where('is_published', true),
+            )
+            ->distinct()
+            ->pluck('resource_type_id')
+            ->map(fn (mixed $resourceTypeId): PortalScope => $this->scopeForResourceTypeId(
+                is_numeric($resourceTypeId) ? (int) $resourceTypeId : null,
+            ))
+            ->unique(static fn (PortalScope $scope): string => $scope->value)
+            ->values();
+
+        $this->schedule($scopes, $areas);
+    }
+
     public function isPublished(Resource $resource): bool
     {
         if ($resource->relationLoaded('landingPage')) {

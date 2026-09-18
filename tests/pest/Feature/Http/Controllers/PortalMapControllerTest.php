@@ -7,6 +7,7 @@ use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Title;
@@ -97,6 +98,30 @@ it('returns a lightweight resource feature for a published point in the viewport
         ->assertJsonPath('features.0.resource.presentation.key', 'dataset')
         ->assertJsonPath('meta.visualizationDimension', 'resource-type')
         ->assertJsonPath('meta.visibleLocations', 1)
+        ->assertJsonPath('meta.totalLocations', 1)
+        ->assertJsonPath('meta.returnedFeatures', 1);
+});
+
+it('keeps list count and map results aligned for a normalized contributor-name search', function (): void {
+    $matching = createPublishedPortalMapResource($this->datasetType, 'Matching contributor resource');
+    $person = Person::factory()->create(['given_name' => 'Peter', 'family_name' => 'Hans']);
+    ResourceContributor::factory()->forPerson($person)->create(['resource_id' => $matching->id]);
+    GeoLocation::factory()->withPoint(13.4, 52.5)->create(['resource_id' => $matching->id]);
+
+    $unrelated = createPublishedPortalMapResource($this->datasetType, 'Unrelated mapped resource');
+    GeoLocation::factory()->withPoint(14.0, 52.0)->create(['resource_id' => $unrelated->id]);
+
+    $this->getJson(route('portal.doi.count', ['q' => 'HansPeter']))
+        ->assertOk()
+        ->assertJsonPath('total', 1);
+
+    $this->getJson(route('portal.doi.map', portalMapRequestQuery([
+        'q' => 'HansPeter',
+        'include_extent' => 1,
+    ])))
+        ->assertOk()
+        ->assertJsonCount(1, 'features')
+        ->assertJsonPath('features.0.resource.id', $matching->id)
         ->assertJsonPath('meta.totalLocations', 1)
         ->assertJsonPath('meta.returnedFeatures', 1);
 });

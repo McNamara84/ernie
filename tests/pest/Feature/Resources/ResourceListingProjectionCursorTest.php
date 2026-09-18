@@ -19,6 +19,7 @@ use App\Models\Right;
 use App\Models\Title;
 use App\Models\User;
 use App\Services\ListingCountService;
+use App\Services\PortalCacheInvalidationService;
 use App\Services\ResourceCacheService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use App\Services\Resources\ResourceListingProjectorService;
@@ -76,6 +77,7 @@ it('maintains denormalized listing values for resource and relation changes', fu
         app(ResourceListingProjectionRefreshService::class),
         app(ResourceCacheService::class),
         app(ListingCountService::class),
+        app(PortalCacheInvalidationService::class),
     );
 
     $projection->refresh();
@@ -319,6 +321,7 @@ it('keeps the projection consistent across rollbacks, removals, and dependency c
         app(ResourceListingProjectionRefreshService::class),
         app(ResourceCacheService::class),
         app(ListingCountService::class),
+        app(PortalCacheInvalidationService::class),
     );
     (new RefreshResourceListingProjectionsForDependencyJob(
         ResourceType::class,
@@ -328,6 +331,7 @@ it('keeps the projection consistent across rollbacks, removals, and dependency c
         app(ResourceListingProjectionRefreshService::class),
         app(ResourceCacheService::class),
         app(ListingCountService::class),
+        app(PortalCacheInvalidationService::class),
     );
     (new RefreshResourceListingProjectionsForDependencyJob(
         Person::class,
@@ -337,6 +341,7 @@ it('keeps the projection consistent across rollbacks, removals, and dependency c
         app(ResourceListingProjectionRefreshService::class),
         app(ResourceCacheService::class),
         app(ListingCountService::class),
+        app(PortalCacheInvalidationService::class),
     );
 
     $projection = ResourceListingProjection::query()->findOrFail($resource->id);
@@ -355,6 +360,7 @@ it('keeps the projection consistent across rollbacks, removals, and dependency c
         app(ResourceListingProjectionRefreshService::class),
         app(ResourceCacheService::class),
         app(ListingCountService::class),
+        app(PortalCacheInvalidationService::class),
     );
     expect(ResourceListingProjection::query()->findOrFail($resource->id)->workflow_status)->toBe('draft');
 

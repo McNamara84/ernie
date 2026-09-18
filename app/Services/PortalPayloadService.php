@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\PortalScope;
+use App\Services\Resources\ResourcePartySearchMatchService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
 /** Builds the initial public portal payload for HTTP and cache warm-up callers. */
@@ -16,6 +18,7 @@ final class PortalPayloadService
         private readonly PortalFilterService $filterService,
         private readonly ListingCountService $listingCountService,
         private readonly IgsnPortalFacetService $igsnFacetService,
+        private readonly ResourcePartySearchMatchService $partySearchMatchService,
     ) {}
 
     /** @return array<string, mixed> */
@@ -29,8 +32,17 @@ final class PortalPayloadService
             ? $this->igsnFacetService->getFacets($filters)
             : null;
 
-        $resources = collect($paginator->items())
-            ->map(fn ($resource) => $this->searchService->transformForPortal($resource))
+        $resourceModels = new Collection($paginator->items());
+        $query = is_string($filters['query']) ? $filters['query'] : null;
+        $matchesByResource = $scope === PortalScope::DOI
+            ? $this->partySearchMatchService->resolveNames($resourceModels, $query)
+            : [];
+
+        $resources = $resourceModels
+            ->map(fn ($resource): array => [
+                ...$this->searchService->transformForPortal($resource),
+                'searchMatches' => $matchesByResource[$resource->id] ?? [],
+            ])
             ->all();
 
         return [
