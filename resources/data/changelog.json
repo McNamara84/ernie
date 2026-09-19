@@ -33,6 +33,11 @@
         ],
         "improvements": [
             {
+                "title": "Reliable Size and Format Suggestions",
+                "description": "The Size and Format Suggestions assistant now inspects the configured FTP URL and Additional Download Links directly instead of scraping legacy DOI landing pages. It records exact primary-data byte counts, reports archive containers together with their contained formats, excludes Data Description documents from size and format calculations, detects conflicting existing digital sizes, removes stale suggestions only after complete checks, and shows detailed discovery diagnostics. Accepted changes synchronize registered resources with DataCite once per review action, with a retry option if synchronization fails while preserving the locally saved metadata.",
+                "references": []
+            },
+            {
                 "title": "Homepage Accessibility Regression Checks",
                 "description": "The homepage now has dedicated accessibility tests for desktop, tablet, and mobile layouts in light and dark mode, including open menus, keyboard navigation, text enlargement, text spacing, and high contrast. Fixes improve skip-link focus, menu contrast and Escape handling, visible focus indicators, and topic-label readability with enlarged text. These automated checks support ongoing accessibility work and do not replace a complete manual accessibility assessment.",
                 "references": []

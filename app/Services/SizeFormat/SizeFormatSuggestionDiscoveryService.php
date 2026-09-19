@@ -4,18 +4,28 @@ declare(strict_types=1);
 
 namespace App\Services\SizeFormat;
 
+use App\Models\AssistantSuggestion;
+use App\Models\LandingPageLink;
 use App\Models\Resource;
 use App\Services\SizeFormatFileProbeService;
+use App\Support\SizeFormatFileRoleClassifier;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 
 final class SizeFormatSuggestionDiscoveryService
 {
+    public const ASSISTANT_ID = 'size-format-suggestion';
+
     private const int CHUNK_SIZE = 50;
+
+    /** @var array<string, int> */
+    private array $lastReport = [];
 
     public function __construct(
         private readonly SizeFormatFileProbeService $probeService,
-        private readonly SizeFormatSizeParserService $sizeParser,
+        private readonly SizeFormatSourceResolverService $sourceResolver,
+        private readonly SizeFormatFileRoleClassifier $roleClassifier,
+        private readonly DigitalContentSizeService $digitalContentSizeService,
     ) {}
 
     /**
@@ -26,146 +36,340 @@ final class SizeFormatSuggestionDiscoveryService
     {
         $count = 0;
         $processed = 0;
+        $resourcesWithSuggestions = 0;
+        $failedResources = 0;
+        $staleRemoved = $this->removeSuggestionsForIneligibleResources($assistantId);
         $query = $this->candidateQuery();
         $total = (clone $query)->count();
 
         $query
-            ->with(['formats:id,resource_id,value'])
-            ->withExists(['sizes'])
+            ->with([
+                'formats:id,resource_id,value',
+                'sizes:id,resource_id,numeric_value,unit,type',
+                'landingPage.links' => fn ($query) => $query->orderBy('position'),
+            ])
             ->orderBy('id')
-            ->chunkById(self::CHUNK_SIZE, function ($resources) use (&$count, &$processed, $total, $assistantId, $storeSuggestion, $onProgress): void {
+            ->chunkById(self::CHUNK_SIZE, function ($resources) use (
+                &$count,
+                &$processed,
+                &$resourcesWithSuggestions,
+                &$failedResources,
+                &$staleRemoved,
+                $total,
+                $assistantId,
+                $storeSuggestion,
+                $onProgress,
+            ): void {
                 /** @var iterable<int, Resource> $resources */
                 foreach ($resources as $resource) {
                     $processed++;
                     $onProgress("Checking resource {$processed} of {$total}");
 
-                    $count += $this->discoverForResource($assistantId, $resource, $storeSuggestion);
+                    $result = $this->discoverForResource($assistantId, $resource, $storeSuggestion);
+                    $count += $result['created'];
+                    $staleRemoved += $result['stale_removed'];
+                    $resourcesWithSuggestions += $result['pending'] > 0 ? 1 : 0;
+                    $failedResources += $result['complete'] ? 0 : 1;
                 }
             });
+
+        $this->lastReport = [
+            'candidate_resources' => $total,
+            'checked_resources' => $processed,
+            'resources_with_suggestions' => $resourcesWithSuggestions,
+            'new_suggestions' => $count,
+            'stale_suggestions_removed' => $staleRemoved,
+            'incomplete_or_failed_resources' => $failedResources,
+        ];
+
+        $onProgress(sprintf(
+            'Checked %d resource(s); %d with suggestions; %d new; %d stale removed; %d incomplete or failed.',
+            $processed,
+            $resourcesWithSuggestions,
+            $count,
+            $staleRemoved,
+            $failedResources,
+        ));
 
         return $count;
     }
 
+    /** @return array<string, int> */
+    public function lastReport(): array
+    {
+        return $this->lastReport;
+    }
+
     /**
      * @param  Closure(int, string, int, string, string, float|null, array<string, mixed>|null): bool  $storeSuggestion
+     * @return array{created: int, stale_removed: int, pending: int, complete: bool}
      */
-    private function discoverForResource(string $assistantId, Resource $resource, Closure $storeSuggestion): int
+    private function discoverForResource(string $assistantId, Resource $resource, Closure $storeSuggestion): array
     {
-        $storedCount = 0;
-        $suggestions = $this->lookupSizeFormats($resource);
-        $hasMeaningfulFormats = $this->hasMeaningfulFormats($resource);
-        $hasZipFormat = $this->hasZipFormat($resource);
-        $hasSizes = (bool) $resource->getAttribute('sizes_exists');
+        $sources = $this->sourceResolver->resolve($resource);
+        $formatCandidates = [];
+        $sizeCandidates = [];
+        $allProbesComplete = true;
+        $primarySourceCount = 0;
 
-        foreach ($suggestions as $suggestion) {
-            $type = (string) ($suggestion['type'] ?? '');
+        foreach ($sources as $source) {
+            if ($source['kind'] === 'additional_download_link') {
+                $sourceRole = $this->roleClassifier->classify($source['url'], $source['label']);
 
-            if (! in_array($type, ['format', 'size'], true)) {
-                continue;
-            }
-
-            $suggestedValue = (string) ($suggestion['inferred_value'] ?? '');
-            if ($suggestedValue === '') {
-                continue;
-            }
-
-            if ($type === 'format') {
-                $normalizedSuggestedValue = SizeFormatFormatNormalizerService::normalize($suggestedValue);
-
-                if ($hasMeaningfulFormats) {
-                    continue;
-                }
-
-                if ($normalizedSuggestedValue === 'application/zip' && $hasZipFormat) {
+                if ($sourceRole['role'] !== SizeFormatFileRoleClassifier::PRIMARY_DATA) {
                     continue;
                 }
             }
 
-            if ($type === 'size' && $hasSizes) {
+            $primarySourceCount++;
+
+            $probeResult = $this->probeService->probeDownloadUrl($source['url']);
+
+            if (($probeResult['probe_method'] ?? null) === 'SKIP') {
+                $allProbesComplete = false;
+
                 continue;
             }
 
-            $metadata = $suggestion;
-
-            if ($type === 'size') {
-                $metadata['parsed_size'] = $this->sizeParser->parse($suggestedValue);
+            if (($probeResult['probe_complete'] ?? true) === false) {
+                $allProbesComplete = false;
             }
 
-            $stored = $storeSuggestion(
-                $resource->id,
-                $type,
-                $resource->id,
-                $suggestedValue,
-                strtoupper($type).': '.$suggestedValue,
-                $this->confidenceToScore($suggestion['confidence'] ?? null),
-                $metadata,
-            );
+            $suggestions = $this->probeService->buildSuggestions([$probeResult]);
 
-            if ($stored) {
-                $storedCount++;
+            foreach ($suggestions as $suggestion) {
+                $type = (string) ($suggestion['type'] ?? '');
+                $value = trim((string) ($suggestion['inferred_value'] ?? ''));
+
+                if ($value === '') {
+                    continue;
+                }
+
+                $metadata = [
+                    ...$suggestion,
+                    'source' => $source,
+                ];
+
+                if ($type === 'format') {
+                    $normalized = SizeFormatFormatNormalizerService::normalize($value);
+
+                    if ($normalized !== '') {
+                        $metadata['inferred_value'] = $normalized;
+                        $formatCandidates[$normalized] = $metadata;
+                    }
+
+                    continue;
+                }
+
+                if ($type !== 'size' || ($probeResult['probe_complete'] ?? true) === false) {
+                    continue;
+                }
+
+                $evidence = is_array($suggestion['evidence'] ?? null) ? $suggestion['evidence'] : [];
+                $bytes = $evidence['total_bytes'] ?? $evidence['uncompressed_bytes'] ?? $evidence['content_length'] ?? null;
+
+                if (! is_numeric($bytes) || (float) $bytes < 0 || (float) $bytes > PHP_INT_MAX) {
+                    continue;
+                }
+
+                $byteCount = (int) round((float) $bytes);
+                $semantics = ($evidence['size_semantics'] ?? null) === 'uncompressed_primary_data'
+                    ? 'uncompressed_primary_data'
+                    : 'primary_data';
+                $typeLabel = $semantics === 'uncompressed_primary_data'
+                    ? 'Uncompressed Primary Data Size'
+                    : 'Primary Data Size';
+                $value = $byteCount.' '.$typeLabel.' [bytes]';
+                $metadata['suggestion_kind'] = 'size_addition';
+                $metadata['inferred_value'] = $value;
+                $metadata['proposed_size'] = [
+                    'numeric_value' => (string) $byteCount,
+                    'unit' => 'bytes',
+                    'type' => $typeLabel,
+                    'bytes' => $byteCount,
+                    'semantics' => $semantics,
+                ];
+                $metadata['parsed_size'] = [
+                    'numeric_value' => (string) $byteCount,
+                    'unit' => 'bytes',
+                    'type' => $typeLabel,
+                ];
+                $sizeCandidates[$value] = $metadata;
             }
         }
 
-        return $storedCount;
+        $existingFormats = [];
+
+        foreach ($resource->formats as $format) {
+            $normalized = SizeFormatFormatNormalizerService::normalize((string) $format->value);
+
+            if ($normalized !== '') {
+                $existingFormats[$normalized] = true;
+            }
+        }
+
+        $desired = ['format' => [], 'size' => []];
+        $created = 0;
+
+        foreach ($formatCandidates as $value => $metadata) {
+            if (isset($existingFormats[$value])) {
+                continue;
+            }
+
+            $metadata['suggestion_kind'] = 'format_addition';
+            $desired['format'][] = $value;
+            $created += $storeSuggestion(
+                $resource->id,
+                'format',
+                $resource->id,
+                $value,
+                'FORMAT: '.$value,
+                $this->confidenceToScore($metadata['confidence'] ?? null),
+                $metadata,
+            ) ? 1 : 0;
+        }
+
+        $sizeComplete = $allProbesComplete;
+
+        if ($primarySourceCount > 1) {
+            $sizeCandidates = [];
+        }
+
+        if (count($sizeCandidates) > 1) {
+            $sizeCandidates = [];
+            $sizeComplete = false;
+        }
+
+        foreach ($sizeCandidates as $value => $metadata) {
+            $comparison = $this->compareExistingSizes($resource, (int) $metadata['proposed_size']['bytes']);
+
+            if ($comparison['same']) {
+                continue;
+            }
+
+            if ($comparison['current'] !== []) {
+                $metadata['suggestion_kind'] = 'size_conflict';
+                $metadata['current_sizes'] = $comparison['current'];
+            }
+
+            $desired['size'][] = $value;
+            $created += $storeSuggestion(
+                $resource->id,
+                'size',
+                $resource->id,
+                $value,
+                'SIZE: '.$value,
+                $this->confidenceToScore($metadata['confidence'] ?? null),
+                $metadata,
+            ) ? 1 : 0;
+        }
+
+        $staleRemoved = 0;
+
+        if ($allProbesComplete) {
+            $staleRemoved += $this->reconcile($assistantId, $resource->id, 'format', $desired['format']);
+        }
+
+        if ($sizeComplete) {
+            $staleRemoved += $this->reconcile($assistantId, $resource->id, 'size', $desired['size']);
+        }
+
+        $pending = AssistantSuggestion::query()
+            ->where('assistant_id', $assistantId)
+            ->where('resource_id', $resource->id)
+            ->count();
+
+        return [
+            'created' => $created,
+            'stale_removed' => $staleRemoved,
+            'pending' => $pending,
+            'complete' => $allProbesComplete && $sizeComplete,
+        ];
     }
 
     /** @return Builder<Resource> */
     private function candidateQuery(): Builder
     {
-        /** @var Builder<Resource> $query */
-        $query = Resource::query()
-            ->whereNotNull('doi')
+        return Resource::query()
             ->whereDoesntHave('igsnMetadata')
             ->whereDoesntHave('resourceType', fn (Builder $query): Builder => $query->where('slug', 'physical-object'))
-            ->where(function (Builder $query): void {
-                $query->whereDoesntHave('formats')
-                    ->orWhereDoesntHave('sizes')
-                    ->orWhere(function (Builder $query): void {
-                        $query->whereHas('formats')
-                            ->whereDoesntHave('formats', fn (Builder $query): Builder => $query
-                                ->whereRaw('LOWER(TRIM(value)) NOT IN (?, ?, ?)', ['application/zip', 'zip', '.zip'])
-                                ->whereRaw("REPLACE(LOWER(TRIM(value)), ' ', '') NOT LIKE ?", ['application/zip;%']));
+            ->whereHas('landingPage', function (Builder $query): void {
+                $query
+                    ->where('template', '!=', 'external')
+                    ->where('downloads_unavailable', false)
+                    ->where(function (Builder $query): void {
+                        $query
+                            ->where(function (Builder $query): void {
+                                $query->whereNotNull('ftp_url')->where('ftp_url', '!=', '');
+                            })
+                            ->orWhereHas('links', fn (Builder $query): Builder => $query
+                                ->where('kind', LandingPageLink::KIND_DOWNLOAD)
+                                ->where('url', '!=', ''));
                     });
             });
-
-        return $query;
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * @return array{same: bool, current: list<array{id: int, value: string, bytes: string}>}
      */
-    private function lookupSizeFormats(Resource $resource): array
+    private function compareExistingSizes(Resource $resource, int $proposedBytes): array
     {
-        $doi = trim((string) $resource->doi);
+        $current = [];
+        $same = false;
 
-        if ($doi === '') {
-            return [];
+        foreach ($resource->sizes as $size) {
+            $bytes = $this->digitalContentSizeService->forResource($size, $resource);
+
+            if ($bytes === null) {
+                continue;
+            }
+
+            $current[] = [
+                'id' => $size->id,
+                'value' => $size->export_string,
+                'bytes' => $bytes,
+            ];
+            $same = $same || $bytes === (string) $proposedBytes;
         }
 
-        $results = $this->probeService->extractAndProbe('https://doi.org/'.$doi);
-
-        return $this->probeService->buildSuggestions($results);
+        return ['same' => $same, 'current' => $current];
     }
 
-    private function hasMeaningfulFormats(Resource $resource): bool
+    /** @param list<string> $desiredValues */
+    private function reconcile(string $assistantId, int $resourceId, string $targetType, array $desiredValues): int
     {
-        return $resource->formats->contains(function ($format): bool {
-            $normalizedValue = $this->normalizedFormatValue($format->value ?? null);
+        $query = AssistantSuggestion::query()
+            ->where('assistant_id', $assistantId)
+            ->where('resource_id', $resourceId)
+            ->where('target_type', $targetType);
 
-            return $normalizedValue !== '' && $normalizedValue !== 'application/zip';
-        });
+        if ($desiredValues !== []) {
+            $query->whereNotIn('suggested_value', $desiredValues);
+        }
+
+        return $query->delete();
     }
 
-    private function hasZipFormat(Resource $resource): bool
+    private function removeSuggestionsForIneligibleResources(string $assistantId): int
     {
-        return $resource->formats->contains(
-            fn ($format): bool => $this->normalizedFormatValue($format->value ?? null) === 'application/zip'
-        );
-    }
+        $removed = 0;
+        $resourceIds = AssistantSuggestion::query()
+            ->where('assistant_id', $assistantId)
+            ->distinct()
+            ->pluck('resource_id');
 
-    private function normalizedFormatValue(mixed $value): string
-    {
-        return is_string($value) ? SizeFormatFormatNormalizerService::normalize($value) : '';
+        foreach ($resourceIds as $resourceId) {
+            if ($this->candidateQuery()->whereKey($resourceId)->exists()) {
+                continue;
+            }
+
+            $removed += AssistantSuggestion::query()
+                ->where('assistant_id', $assistantId)
+                ->where('resource_id', $resourceId)
+                ->delete();
+        }
+
+        return $removed;
     }
 
     private function confidenceToScore(mixed $confidence): ?float

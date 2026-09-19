@@ -148,6 +148,12 @@ function identity(item: BaseSuggestionItem): string {
     return `${item.review?.assistant_id ?? item.assistant_id}:${item.id}`;
 }
 
+function isUnresolvedSizeConflict(item: BaseSuggestionItem, input: SuggestionAcceptanceInput | undefined): boolean {
+    const metadata = typeof item.metadata === 'object' && item.metadata !== null ? (item.metadata as Record<string, unknown>) : null;
+
+    return metadata?.suggestion_kind === 'size_conflict' && input?.size_conflict_resolution !== 'replace';
+}
+
 function indirectMatchDescription(match: NonNullable<SuggestionReviewMetadata['filter_match']>): string {
     if (match.matched_doi) return `Affects ${match.matched_doi}`;
 
@@ -387,7 +393,24 @@ export function ResourceReview({
             });
             const details = data.results.map((result) => `${result.assistant_name}: ${result.label} — ${result.message}`).join('\n');
 
-            if (data.failure_count === 0) toast.success(data.message, { description: details });
+            const syncFailure = data.datacite_sync_failures?.[0];
+
+            if (syncFailure) {
+                toast.warning(data.message, {
+                    description: `${details}\nDataCite: ${syncFailure.message ?? 'Unknown synchronization error'}`,
+                    action: {
+                        label: 'Retry sync',
+                        onClick: () => {
+                            void axios
+                                .post<{ success: boolean; message: string }>(syncFailure.retry_url)
+                                .then(({ data: retryResult }) =>
+                                    retryResult.success ? toast.success(retryResult.message) : toast.warning(retryResult.message),
+                                )
+                                .catch(() => toast.error('DataCite synchronization retry failed.'));
+                        },
+                    },
+                });
+            } else if (data.failure_count === 0) toast.success(data.message, { description: details });
             else toast.warning(data.message, { description: details });
 
             setSelected((current) => {
@@ -417,6 +440,7 @@ export function ResourceReview({
         const selectedItems = group.suggestions.filter((item) => selected.has(identity(item)));
         const processing = processingResources.has(group.resource_id);
         const declineOnlySelected = selectedItems.some((item) => item.review?.can_accept !== true);
+        const unresolvedSizeConflict = selectedItems.some((item) => isUnresolvedSizeConflict(item, acceptanceInputs[identity(item)]));
         const selectedTargetCounts = new Map<string, number>();
 
         for (const item of selectedItems) {
@@ -429,7 +453,9 @@ export function ResourceReview({
             ? 'The selection contains a hint that can only be declined.'
             : conflictingAlternatives
               ? 'Select at most one ORCID or ROR alternative per target before accepting.'
-              : null;
+              : unresolvedSizeConflict
+                ? 'Confirm replacement of the listed existing digital size before accepting.'
+                : null;
         const resourceLabel = group.resource_doi.trim() || `Resource #${group.resource_id}`;
         const resourceTitle = group.resource_title.trim() || 'Untitled';
 

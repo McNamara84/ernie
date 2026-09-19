@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Enums\CacheKey;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\Assistance\GenericTableAssistant;
+use App\Contracts\ReportsDiscoveryDetails;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -121,6 +122,9 @@ class DiscoverAssistantSuggestionsJob implements ShouldQueue
                 'status' => 'completed',
                 'progress' => 'Discovery completed.',
                 'newSuggestionsFound' => $newCount,
+                'details' => $assistant instanceof ReportsDiscoveryDetails
+                    ? $assistant->discoveryDetails()
+                    : null,
                 'startedAt' => $startedAt,
                 'completedAt' => now()->toIso8601String(),
             ], now()->addHours(2));

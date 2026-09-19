@@ -6,6 +6,15 @@ use App\Models\AssistantSuggestion;
 use App\Models\Format;
 use App\Models\Resource;
 use App\Models\Size;
+use App\Models\User;
+use App\Services\Assistance\AssistantRegistrar;
+use App\Services\Assistance\BatchSuggestionActionService;
+use App\Services\DataCiteSyncResult;
+use App\Services\DataCiteSyncService;
+use App\Services\SizeFormat\DigitalContentSizeService;
+use App\Services\SizeFormat\SizeFormatSizeParserService;
+use App\Services\SizeFormat\SizeFormatSuggestionAcceptanceService;
+use App\Services\SizeFormat\SizeFormatSuggestionDiscoveryService;
 use Modules\Assistants\SizeFormatSuggestion\Assistant;
 
 function createSizeFormatSuggestion(
@@ -188,4 +197,129 @@ it('keeps an unsupported suggestion pending and reports failure', function () {
         'message' => 'Unknown suggestion type.',
     ])
         ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull();
+});
+
+it('requires explicit replacement before applying a conflicting digital size', function () {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $current = $resource->sizes()->create([
+        'numeric_value' => '1000',
+        'unit' => 'bytes',
+        'type' => 'Primary Data Size',
+    ]);
+    $pages = $resource->sizes()->create([
+        'numeric_value' => '15',
+        'unit' => 'pages',
+    ]);
+    $suggestion = createSizeFormatSuggestion(
+        assistant: $assistant,
+        resource: $resource,
+        targetType: 'size',
+        suggestedValue: '2048 Uncompressed Primary Data Size [bytes]',
+        metadata: [
+            'suggestion_kind' => 'size_conflict',
+            'proposed_size' => [
+                'numeric_value' => '2048',
+                'unit' => 'bytes',
+                'type' => 'Uncompressed Primary Data Size',
+                'bytes' => 2048,
+                'semantics' => 'uncompressed_primary_data',
+            ],
+            'current_sizes' => [[
+                'id' => $current->id,
+                'value' => $current->export_string,
+                'bytes' => '1000',
+            ]],
+        ],
+    );
+
+    $rejected = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($rejected['success'])->toBeFalse()
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull()
+        ->and(Size::find($current->id))->not->toBeNull();
+
+    $accepted = $assistant->acceptSuggestion($suggestion->id, ['size_conflict_resolution' => 'replace']);
+    $acceptedSize = Size::query()
+        ->where('resource_id', $resource->id)
+        ->where('unit', 'bytes')
+        ->sole();
+
+    expect($accepted['success'])->toBeTrue()
+        ->and(Size::find($current->id))->toBeNull()
+        ->and(Size::find($pages->id))->not->toBeNull()
+        ->and($acceptedSize->numeric_value)->toBe('2048.0000')
+        ->and($acceptedSize->type)->toBe('Uncompressed Primary Data Size')
+        ->and($acceptedSize->export_string)->toBe('2048 Uncompressed Primary Data Size [bytes]');
+});
+
+it('synchronizes DataCite once after a single accepted suggestion', function (): void {
+    $syncService = Mockery::mock(DataCiteSyncService::class);
+    $syncService->shouldReceive('syncIfRegistered')
+        ->once()
+        ->andReturnUsing(fn (Resource $resource): DataCiteSyncResult => DataCiteSyncResult::succeeded((string) $resource->doi));
+
+    $acceptanceService = new SizeFormatSuggestionAcceptanceService(
+        app(SizeFormatSizeParserService::class),
+        app(DigitalContentSizeService::class),
+        $syncService,
+    );
+    $assistant = new Assistant(
+        app(SizeFormatSuggestionDiscoveryService::class),
+        $acceptanceService,
+    );
+    $resource = Resource::factory()->create();
+    $suggestion = createSizeFormatSuggestion($assistant, $resource, 'format', 'text/csv');
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result['success'])->toBeTrue()
+        ->and($result['datacite_sync']['success'])->toBeTrue()
+        ->and($result['synced_dois'])->toBe([$resource->doi]);
+});
+
+it('synchronizes DataCite only once for a batch of size and format suggestions', function (): void {
+    $syncService = Mockery::mock(DataCiteSyncService::class);
+    $syncService->shouldReceive('syncIfRegistered')
+        ->once()
+        ->andReturnUsing(fn (Resource $resource): DataCiteSyncResult => DataCiteSyncResult::succeeded((string) $resource->doi));
+    $assistant = new Assistant(
+        app(SizeFormatSuggestionDiscoveryService::class),
+        new SizeFormatSuggestionAcceptanceService(
+            app(SizeFormatSizeParserService::class),
+            app(DigitalContentSizeService::class),
+            $syncService,
+        ),
+    );
+    $registrar = new AssistantRegistrar;
+    $registrar->register($assistant);
+    $resource = Resource::factory()->create();
+    $format = createSizeFormatSuggestion($assistant, $resource, 'format', 'text/csv');
+    $size = createSizeFormatSuggestion(
+        $assistant,
+        $resource,
+        'size',
+        '2048 Primary Data Size [bytes]',
+        ['proposed_size' => [
+            'numeric_value' => '2048',
+            'unit' => 'bytes',
+            'type' => 'Primary Data Size',
+            'bytes' => 2048,
+            'semantics' => 'primary_data',
+        ]],
+    );
+
+    $result = (new BatchSuggestionActionService($registrar, $syncService))->execute(
+        'accept',
+        $resource->id,
+        [
+            ['assistant_id' => $assistant->getId(), 'suggestion_id' => $format->id],
+            ['assistant_id' => $assistant->getId(), 'suggestion_id' => $size->id],
+        ],
+        User::factory()->create(),
+    );
+
+    expect($result['success'])->toBeTrue()
+        ->and($result['success_count'])->toBe(2)
+        ->and($result['synced_dois'])->toBe([$resource->doi]);
 });

@@ -1376,6 +1376,51 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
         expect(screen.getByText('Files counted: 2 of 3')).toBeInTheDocument();
     });
 
+    it('shows exact byte evidence and requires explicit replacement for a size conflict', async () => {
+        const suggestion = makeSizeFormatSuggestion({
+            id: 78,
+            suggested_value: '2665858 Uncompressed Primary Data Size [bytes]',
+            suggested_label: 'SIZE: 2665858 Uncompressed Primary Data Size [bytes]',
+            target_type: 'size',
+            metadata: {
+                suggestion_kind: 'size_conflict',
+                source_url: 'https://datapub.gfz.de/download/example/',
+                probe_method: 'ZIP_CONTENT_LISTING',
+                proposed_size: {
+                    bytes: 2665858,
+                    semantics: 'uncompressed_primary_data',
+                },
+                current_sizes: [{ id: 9, value: '1 MB Primary Data Size' }],
+                evidence: {
+                    excluded_files: [{ filename: 'example_data-description.pdf', role: 'data_description' }],
+                },
+            },
+        });
+        const user = userEvent.setup();
+        mockedAxiosPost.mockResolvedValueOnce({ data: { success: true, message: 'Size applied.' } });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByText(/Exact size: 2,665,858 bytes/)).toHaveTextContent('uncompressed primary data');
+        expect(screen.getByText(/example_data-description\.pdf/)).toBeInTheDocument();
+
+        const acceptButton = screen.getByRole('button', { name: 'Accept' });
+        expect(acceptButton).toBeDisabled();
+
+        await user.click(screen.getByRole('checkbox', { name: /Replace the listed existing digital size/i }));
+        expect(acceptButton).toBeEnabled();
+        await user.click(acceptButton);
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenCalledWith('/assistance/size-format/78/accept', { size_conflict_resolution: 'replace' });
+        });
+    });
+
     it('renders filename-extension evidence without exposing internal probe constants', () => {
         const suggestion = makeSizeFormatSuggestion({
             suggested_value: 'application/pdf',
