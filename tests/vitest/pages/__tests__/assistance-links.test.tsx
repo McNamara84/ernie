@@ -1280,6 +1280,25 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
 });
 
 describe('SizeFormatSuggestionCard - size and format preview', () => {
+    it('does not render unsafe evidence URLs as executable links', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            metadata: {
+                source_url: 'javascript:alert(document.domain)',
+                probe_method: 'FILENAME_EXTENSION',
+                confidence: 'medium',
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.queryByRole('link', { name: 'Open source' })).not.toBeInTheDocument();
+    });
+
     it('highlights ZIP archive suggestions as review-sensitive download packages', () => {
         const suggestion = makeSizeFormatSuggestion();
 

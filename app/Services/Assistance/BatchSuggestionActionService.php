@@ -51,7 +51,7 @@ final class BatchSuggestionActionService
             $suggestionId = $selection['suggestion_id'];
             $acceptanceInput = $selection['acceptance_input'];
 
-            if ($action === 'accept' && $assistant->getId() === 'size-format-suggestion') {
+            if ($action === 'accept') {
                 $acceptanceInput['defer_datacite_sync'] = true;
             }
 
@@ -81,8 +81,16 @@ final class BatchSuggestionActionService
             if ($success) {
                 array_push($syncedDois, ...$itemSyncedDois);
 
-                if (($result['datacite_sync_deferred'] ?? false) === true && isset($result['resource_id'])) {
-                    $deferredSyncResourceIds[(int) $result['resource_id']] = true;
+                if (($result['datacite_sync_deferred'] ?? false) === true) {
+                    $syncResourceIds = is_array($result['datacite_sync_resource_ids'] ?? null)
+                        ? $result['datacite_sync_resource_ids']
+                        : [$result['resource_id'] ?? null];
+
+                    foreach ($syncResourceIds as $syncResourceId) {
+                        if (is_int($syncResourceId) || (is_string($syncResourceId) && ctype_digit($syncResourceId))) {
+                            $deferredSyncResourceIds[(int) $syncResourceId] = true;
+                        }
+                    }
                 }
 
                 if ($followUp !== null && ($followUp['available'] ?? false)) {

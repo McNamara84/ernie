@@ -378,6 +378,37 @@ it('removes stale suggestions after a complete probe and preserves them after a 
     expect(AssistantSuggestion::find($preserved->id))->not->toBeNull();
 });
 
+it('keeps stale suggestions when only filename fallback evidence is available', function (): void {
+    $resource = Resource::factory()->create();
+    LandingPage::factory()->for($resource)->create([
+        'ftp_url' => 'https://datapub.gfz.de/download/unreachable.csv',
+        'template' => 'default_gfz',
+        'downloads_unavailable' => false,
+    ]);
+    $stale = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'format',
+        'target_id' => $resource->id,
+        'suggested_value' => 'application/pdf',
+        'suggested_label' => 'FORMAT: application/pdf',
+        'metadata' => [],
+        'discovered_at' => now()->subDay(),
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/unreachable.csv' => Http::response('', 500),
+    ]);
+
+    app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    expect(AssistantSuggestion::find($stale->id))->not->toBeNull()
+        ->and(AssistantSuggestion::query()
+            ->where('resource_id', $resource->id)
+            ->where('suggested_value', 'text/csv')
+            ->exists())->toBeTrue();
+});
+
 it('exposes size and format suggestion preview metadata', function () {
     $user = User::factory()->create(['role' => 'admin']);
     $resource = Resource::factory()->create(['doi' => '10.5880/TEST.SIZEFORMAT']);

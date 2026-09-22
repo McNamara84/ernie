@@ -394,3 +394,21 @@ it('keeps local normalization when DataCite sync fails after accept', function (
         ->and($fundingReference->funder_identifier)->toBe('https://ror.org/018mejw64')
         ->and(AssistantSuggestion::find($suggestion->id))->toBeNull();
 });
+
+it('defers Crossref-to-ROR DataCite synchronization for batch acceptance', function (): void {
+    [$resource, $fundingReference] = crossrefFunderRorAcceptanceFixture('10.5880/GFZ.2026.017');
+    $suggestion = crossrefFunderRorAcceptanceSuggestion($resource, $fundingReference);
+    $syncService = Mockery::mock(DataCiteSyncService::class);
+    $syncService->shouldNotReceive('syncIfRegistered');
+    app()->instance(DataCiteSyncService::class, $syncService);
+
+    $result = app(Assistant::class)->acceptSuggestion($suggestion->id, [
+        'defer_datacite_sync' => true,
+    ]);
+
+    expect($result)->toMatchArray([
+        'success' => true,
+        'datacite_sync_deferred' => true,
+        'datacite_sync_resource_ids' => [$resource->id],
+    ])->and(AssistantSuggestion::find($suggestion->id))->toBeNull();
+});

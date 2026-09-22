@@ -22,6 +22,8 @@ class SizeFormatFileProbeService
 
     private const MAX_DIRECTORY_ZIP_INSPECTIONS = 5;
 
+    private const MAX_DIRECTORY_FILE_SIZE_REQUESTS = 100;
+
     private const MAX_ZIP_DOWNLOAD_BYTES = 1073741824;
 
     private const MAX_ZIP_ENTRY_COUNT = 10000;
@@ -156,7 +158,13 @@ class SizeFormatFileProbeService
 
             $files = $this->deduplicateFiles($files);
             $files = $this->inspectDirectoryZipFiles($files);
-            $files = $this->inspectDirectoryFileSizes($files);
+            $fileSizeRequestCount = 0;
+            $fileSizeProbeBudgetExhausted = false;
+            $files = $this->inspectDirectoryFileSizes(
+                $files,
+                $fileSizeRequestCount,
+                $fileSizeProbeBudgetExhausted,
+            );
 
             if (empty($files)) {
                 return $this->skip($url, 'no_files_found');
@@ -165,10 +173,17 @@ class SizeFormatFileProbeService
             $result = [
                 'source_url' => $directoryUrl,
                 'probe_method' => 'DIRECTORY_LISTING',
-                'probe_complete' => $traversalComplete && $this->directoryProbeComplete($files),
+                'probe_complete' => $traversalComplete
+                    && ! $fileSizeProbeBudgetExhausted
+                    && $this->directoryProbeComplete($files),
                 'http_status' => $response->status(),
                 'raw_evidence' => [
                     'files' => $files,
+                    'file_size_probe' => [
+                        'max_requests' => self::MAX_DIRECTORY_FILE_SIZE_REQUESTS,
+                        'requests_used' => $fileSizeRequestCount,
+                        'budget_exhausted' => $fileSizeProbeBudgetExhausted,
+                    ],
                 ],
             ];
 
@@ -515,6 +530,7 @@ class SizeFormatFileProbeService
         return [
             'source_url' => $fileUrl,
             'probe_method' => 'FILENAME_EXTENSION_FALLBACK',
+            'probe_complete' => false,
             'http_status' => null,
             'raw_evidence' => [
                 'filename' => $filename,
@@ -567,11 +583,17 @@ class SizeFormatFileProbeService
                 continue;
             }
 
+            $fileUrl = $this->resolveListingUrlReference($baseUrl, $href);
+
+            if (! $this->isAllowedDownloadUrl($fileUrl)) {
+                continue;
+            }
+
             $role = $this->roleClassifier->classify($filename);
             $fileMetadata = $this->extractFileMetadata($filename);
 
             $files[] = [
-                'file_url' => $this->resolveUrlReference($baseUrl, $href),
+                'file_url' => $fileUrl,
                 'filename' => $filename,
                 'format' => $fileMetadata,
                 'last_modified' => $lastModified,
@@ -685,7 +707,7 @@ class SizeFormatFileProbeService
             }
 
             $directoryUrl = $this->canonicalDirectoryUrl(
-                $this->resolveUrlReference($currentUrl, $href),
+                $this->resolveListingUrlReference($currentUrl, $href),
             );
 
             if (! $this->isDescendantDirectory($rootUrl, $directoryUrl)) {
@@ -745,8 +767,9 @@ class SizeFormatFileProbeService
 
         $port = isset($parts['port']) ? ':'.$parts['port'] : '';
         $path = '/'.implode('/', $pathSegments).'/';
+        $query = isset($parts['query']) && $parts['query'] !== '' ? '?'.$parts['query'] : '';
 
-        return strtolower($parts['scheme']).'://'.strtolower($parts['host']).$port.$path;
+        return strtolower($parts['scheme']).'://'.strtolower($parts['host']).$port.$path.$query;
     }
 
     /**
@@ -817,7 +840,11 @@ class SizeFormatFileProbeService
      * @param  array<int, array<string, mixed>>  $files
      * @return array<int, array<string, mixed>>
      */
-    private function inspectDirectoryFileSizes(array $files): array
+    private function inspectDirectoryFileSizes(
+        array $files,
+        int &$requestCount,
+        bool &$budgetExhausted,
+    ): array
     {
         foreach ($files as $index => $file) {
             if (($file['role'] ?? SizeFormatFileRoleClassifier::PRIMARY_DATA) !== SizeFormatFileRoleClassifier::PRIMARY_DATA) {
@@ -831,7 +858,13 @@ class SizeFormatFileProbeService
                 continue;
             }
 
-            $exactSize = $this->probeExactRemoteFileSize($fileUrl);
+            if ($requestCount >= self::MAX_DIRECTORY_FILE_SIZE_REQUESTS) {
+                $budgetExhausted = true;
+
+                continue;
+            }
+
+            $exactSize = $this->probeExactRemoteFileSize($fileUrl, $requestCount, $budgetExhausted);
 
             if ($exactSize === null) {
                 continue;
@@ -845,12 +878,26 @@ class SizeFormatFileProbeService
     }
 
     /** @return array{bytes: int, probe_method: string}|null */
-    private function probeExactRemoteFileSize(string $fileUrl): ?array
+    private function probeExactRemoteFileSize(
+        string $fileUrl,
+        int &$requestCount,
+        bool &$budgetExhausted,
+    ): ?array
     {
+        $consumeRequestBudget = function () use (&$requestCount, &$budgetExhausted): void {
+            if ($requestCount >= self::MAX_DIRECTORY_FILE_SIZE_REQUESTS) {
+                $budgetExhausted = true;
+
+                throw new \RuntimeException('directory_file_size_request_budget_exhausted');
+            }
+
+            $requestCount++;
+        };
+
         try {
             $headResponse = $this->sendWithSafeRedirects(Http::timeout(10)
                 ->connectTimeout(5)
-                ->withoutRedirecting(), 'HEAD', $fileUrl);
+                ->withoutRedirecting(), 'HEAD', $fileUrl, $consumeRequestBudget);
             $contentLength = $this->contentLengthToBytes($headResponse->header('Content-Length'));
 
             if ($headResponse->successful() && $contentLength !== null) {
@@ -860,11 +907,17 @@ class SizeFormatFileProbeService
                 ];
             }
 
+            if ($requestCount >= self::MAX_DIRECTORY_FILE_SIZE_REQUESTS) {
+                $budgetExhausted = true;
+
+                return null;
+            }
+
             $rangeResponse = $this->sendWithSafeRedirects(Http::timeout(10)
                 ->connectTimeout(5)
                 ->withoutRedirecting()
                 ->withOptions(['stream' => true])
-                ->withHeaders(['Range' => 'bytes=0-0']), 'GET', $fileUrl);
+                ->withHeaders(['Range' => 'bytes=0-0']), 'GET', $fileUrl, $consumeRequestBudget);
 
             if (
                 $rangeResponse->status() === 206
@@ -1268,6 +1321,60 @@ class SizeFormatFileProbeService
         }
     }
 
+    private function resolveListingUrlReference(string $baseUrl, string $reference): string
+    {
+        $resolvedUrl = $this->resolveUrlReference($baseUrl, $reference);
+        $baseQuery = parse_url($baseUrl, PHP_URL_QUERY);
+        $resolvedQuery = parse_url($resolvedUrl, PHP_URL_QUERY);
+
+        if (
+            is_string($baseQuery)
+            && $baseQuery !== ''
+            && $resolvedQuery === null
+            && $this->hasSameOrigin($baseUrl, $resolvedUrl)
+        ) {
+            try {
+                return (string) (new Uri($resolvedUrl))->withQuery($baseQuery);
+            } catch (\Throwable) {
+                return $resolvedUrl;
+            }
+        }
+
+        return $resolvedUrl;
+    }
+
+    private function hasSameOrigin(string $firstUrl, string $secondUrl): bool
+    {
+        $first = parse_url($firstUrl);
+        $second = parse_url($secondUrl);
+
+        if (! is_array($first) || ! is_array($second)) {
+            return false;
+        }
+
+        $firstScheme = strtolower((string) ($first['scheme'] ?? ''));
+        $secondScheme = strtolower((string) ($second['scheme'] ?? ''));
+
+        return $firstScheme !== ''
+            && $firstScheme === $secondScheme
+            && strtolower((string) ($first['host'] ?? '')) === strtolower((string) ($second['host'] ?? ''))
+            && $this->effectivePort($firstScheme, $first['port'] ?? null)
+                === $this->effectivePort($secondScheme, $second['port'] ?? null);
+    }
+
+    private function effectivePort(string $scheme, mixed $port): ?int
+    {
+        if (is_int($port)) {
+            return $port;
+        }
+
+        return match ($scheme) {
+            'http' => 80,
+            'https' => 443,
+            default => null,
+        };
+    }
+
     private function isHttpUrl(string $url): bool
     {
         $url = trim($url);
@@ -1280,7 +1387,12 @@ class SizeFormatFileProbeService
         return $this->targetResolver->resolve($url) !== null;
     }
 
-    private function sendWithSafeRedirects(PendingRequest $request, string $method, string $url): Response
+    private function sendWithSafeRedirects(
+        PendingRequest $request,
+        string $method,
+        string $url,
+        ?callable $beforeRequest = null,
+    ): Response
     {
         $currentUrl = $url;
 
@@ -1289,6 +1401,10 @@ class SizeFormatFileProbeService
 
             if ($target === null) {
                 throw new \RuntimeException('unsafe_download_url');
+            }
+
+            if ($beforeRequest !== null) {
+                $beforeRequest();
             }
 
             // Keep the hostname in the URL so cURL preserves the Host header

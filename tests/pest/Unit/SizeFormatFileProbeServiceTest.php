@@ -166,6 +166,34 @@ it('rejects private download targets through every public probe method', functio
     Http::assertNothingSent();
 });
 
+it('discards unsafe file links from untrusted directory listings', function () {
+    $directoryUrl = 'https://93.184.216.34/download/dataset/';
+    $safeFileUrl = $directoryUrl.'safe.csv';
+
+    Http::fake([
+        $directoryUrl => Http::response(<<<'HTML'
+            <a href="safe.csv">safe.csv</a> 2026-06-14 10:00 1K
+            <a href="javascript:alert(1)">script.csv</a> 2026-06-14 10:01 1K
+            <a href="http://127.0.0.1/private.csv">private.csv</a> 2026-06-14 10:02 1K
+            HTML),
+        $safeFileUrl => Http::response('', 200, ['Content-Length' => '1024']),
+    ]);
+
+    $result = app(SizeFormatFileProbeService::class)->probeDirectoryListing($directoryUrl);
+
+    expect($result['raw_evidence']['files'])->toHaveCount(1)
+        ->and($result['raw_evidence']['files'][0]['file_url'])->toBe($safeFileUrl)
+        ->and(array_column($result['suggestions'], 'source_url'))->not->toContain(
+            'javascript:alert(1)',
+            'http://127.0.0.1/private.csv',
+        );
+
+    Http::assertSentCount(2);
+    Http::assertNotSent(
+        fn (Request $request): bool => str_starts_with($request->url(), 'http://127.0.0.1'),
+    );
+});
+
 it('validates every redirect target before following it', function () {
     $url = 'https://datapub.gfz.de/download/data.csv';
 
@@ -176,6 +204,7 @@ it('validates every redirect target before following it', function () {
     $result = app(SizeFormatFileProbeService::class)->inferMetadataFromFileUrl($url);
 
     expect($result['probe_method'])->toBe('FILENAME_EXTENSION_FALLBACK')
+        ->and($result['probe_complete'])->toBeFalse()
         ->and($result['raw_evidence']['error'])->toBe('unsafe_download_url');
 
     Http::assertSentCount(1);
@@ -211,6 +240,31 @@ it('resolves query-only redirect locations against the complete file URL', funct
 
     Http::assertSent(fn (Request $request): bool => $request->url() === $redirectedUrl);
     Http::assertNotSent(fn (Request $request): bool => $request->url() === 'https://93.184.216.34/?token=signed');
+});
+
+it('preserves signed directory queries for recursive listings and file probes', function () {
+    $directoryUrl = 'https://93.184.216.34/download/dataset/?token=signed';
+    $childUrl = 'https://93.184.216.34/download/dataset/child/?token=signed';
+    $fileUrl = 'https://93.184.216.34/download/dataset/child/data.csv?token=signed';
+
+    Http::fake([
+        $directoryUrl => Http::response('<a href="child/">child/</a>'),
+        $childUrl => Http::response(<<<'HTML'
+            <a href="data.csv">data.csv</a> 2026-06-14 10:00 1K
+            HTML),
+        $fileUrl => Http::response('', 200, ['Content-Length' => '1024']),
+    ]);
+
+    $result = app(SizeFormatFileProbeService::class)->probeDirectoryListing($directoryUrl);
+
+    expect($result['probe_complete'])->toBeTrue()
+        ->and($result['source_url'])->toBe($directoryUrl)
+        ->and($result['raw_evidence']['files'][0]['file_url'])->toBe($fileUrl)
+        ->and(array_column($result['suggestions'], 'inferred_value'))
+        ->toContain('1024 Primary Data Size [bytes]');
+
+    Http::assertSent(fn (Request $request): bool => $request->url() === $childUrl);
+    Http::assertSent(fn (Request $request): bool => $request->url() === $fileUrl);
 });
 
 it('recognizes data descriptions behind encoded path separators', function () {
@@ -426,6 +480,42 @@ it('marks a directory probe incomplete when a child directory cannot be inspecte
     expect($result['probe_complete'])->toBeFalse()
         ->and($result['raw_evidence']['files'])->toHaveCount(1)
         ->and($sizeSuggestions)->toBeEmpty();
+});
+
+it('bounds exact file-size requests and marks the directory result incomplete', function () {
+    $directoryUrl = 'https://93.184.216.34/download/dataset/';
+    $requestLimit = (int) (new ReflectionClass(SizeFormatFileProbeService::class))
+        ->getConstant('MAX_DIRECTORY_FILE_SIZE_REQUESTS');
+    $rows = [];
+
+    for ($index = 0; $index <= $requestLimit; $index++) {
+        $filename = 'data-'.str_pad((string) $index, 3, '0', STR_PAD_LEFT).'.csv';
+        $rows[] = sprintf('<a href="%s">%s</a> 2026-06-14 10:00 1K', $filename, $filename);
+    }
+
+    Http::fake(function (Request $request) use ($directoryUrl, $rows) {
+        if ($request->url() === $directoryUrl) {
+            return Http::response(implode("\n", $rows));
+        }
+
+        return Http::response('', 200, ['Content-Length' => '1024']);
+    });
+
+    $result = app(SizeFormatFileProbeService::class)->probeDirectoryListing($directoryUrl);
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect($result['probe_complete'])->toBeFalse()
+        ->and($result['raw_evidence']['file_size_probe'])->toMatchArray([
+            'max_requests' => $requestLimit,
+            'requests_used' => $requestLimit,
+            'budget_exhausted' => true,
+        ])
+        ->and($sizeSuggestions)->toBeEmpty();
+
+    Http::assertSentCount($requestLimit + 1);
 });
 
 it('infers high confidence size and format suggestions from HEAD headers', function () {
@@ -898,6 +988,7 @@ it('ignores ranged GET responses when the server returns the full body', functio
     $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/archive.zip');
 
     expect($result['probe_method'])->toBe('FILENAME_EXTENSION_FALLBACK')
+        ->and($result['probe_complete'])->toBeFalse()
         ->and($result['suggestions'])->toHaveCount(1)
         ->and($result['suggestions'][0]['inferred_value'])->toBe('application/zip');
 
@@ -916,6 +1007,7 @@ it('falls back to compressed filename extensions when remote metadata is unavail
     $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/export.csv.gz');
 
     expect($result['probe_method'])->toBe('FILENAME_EXTENSION_FALLBACK')
+        ->and($result['probe_complete'])->toBeFalse()
         ->and($result['suggestions'])->toHaveCount(1)
         ->and($result['suggestions'][0])->toMatchArray([
             'type' => 'format',

@@ -18,7 +18,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { AssistanceRequestError, useAssistanceSummary } from '@/hooks/use-assistance-review';
 import AppLayout from '@/layouts/app-layout';
 import { queryKeys } from '@/lib/query-keys';
-import { resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
+import { isSafeHttpUrl, resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -1122,7 +1122,7 @@ function SizeFormatSuggestionCard({
     const displayLabel = sizeFormatDisplayLabel(suggestion.target_type, value, label);
     const metadata = isRecord(suggestion.metadata) ? suggestion.metadata : null;
     const evidence = isRecord(metadata?.evidence) ? metadata.evidence : null;
-    const sourceUrl = typeof metadata?.source_url === 'string' ? metadata.source_url : null;
+    const sourceUrl = typeof metadata?.source_url === 'string' && isSafeHttpUrl(metadata.source_url) ? metadata.source_url : null;
     const probeMethod = typeof metadata?.probe_method === 'string' ? metadata.probe_method : null;
     const confidence = typeof metadata?.confidence === 'string' ? metadata.confidence : null;
     const displayConfidence = confidenceLabel(confidence);
