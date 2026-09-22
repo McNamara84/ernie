@@ -11,6 +11,7 @@ import { ResourceImpactFilters } from '@/components/resource-impact-filters';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
@@ -1171,10 +1172,11 @@ function SizeFormatSuggestionCard({
                                 <p key={String(current.id ?? index)}>Current: {String(current.value ?? current.bytes ?? 'Unknown')}</p>
                             ))}
                             <label className="flex items-center gap-2">
-                                <input
-                                    type="checkbox"
+                                <Checkbox
                                     checked={replacesExistingSize}
-                                    onChange={(event) => onAcceptanceInputChange(event.target.checked ? { size_conflict_resolution: 'replace' } : {})}
+                                    onCheckedChange={(checked) =>
+                                        onAcceptanceInputChange(checked === true ? { size_conflict_resolution: 'replace' } : {})
+                                    }
                                 />
                                 Replace the listed existing digital size
                             </label>
@@ -1869,7 +1871,13 @@ export default function AssistancePage({
                                           .then(({ data: retryResult }) =>
                                               retryResult.success ? toast.success(retryResult.message) : toast.warning(retryResult.message),
                                           )
-                                          .catch(() => toast.error('DataCite synchronization retry failed.'));
+                                          .catch((error: unknown) => {
+                                              const message =
+                                                  axios.isAxiosError(error) && typeof error.response?.data?.message === 'string'
+                                                      ? error.response.data.message
+                                                      : 'DataCite synchronization retry failed.';
+                                              toast.error(message);
+                                          });
                                   },
                               }
                             : undefined,

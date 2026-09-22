@@ -643,6 +643,67 @@ describe('resource-oriented assistance review', () => {
         });
     });
 
+    it('shows the detailed batch DataCite retry failure returned with HTTP 502', async () => {
+        const user = userEvent.setup();
+        vi.mocked(axios.isAxiosError).mockImplementation(
+            (value: unknown) => typeof value === 'object' && value !== null && (value as { isAxiosError?: boolean }).isAxiosError === true,
+        );
+        vi.mocked(axios.post)
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    action: 'accept',
+                    resource_id: 10,
+                    resource_label: '10.1234/test',
+                    processed_count: 1,
+                    success_count: 1,
+                    failure_count: 0,
+                    message: 'Accepted locally.',
+                    synced_dois: [],
+                    datacite_sync_failures: [
+                        {
+                            resource_id: 10,
+                            doi: '10.1234/test',
+                            message: 'Initial synchronization failed.',
+                            retry_url: '/assistance/resources/10/datacite-sync/retry',
+                        },
+                    ],
+                    follow_ups: [],
+                    results: [
+                        {
+                            assistant_id: manifest.id,
+                            assistant_name: manifest.name,
+                            suggestion_id: 1,
+                            label: 'Normal candidate',
+                            success: true,
+                            message: 'Accepted.',
+                            synced_dois: [],
+                        },
+                    ],
+                },
+            })
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: {
+                    status: 502,
+                    data: { message: 'DataCite is temporarily unavailable for this DOI.' },
+                },
+            });
+        renderReview([suggestion(1, 'Normal candidate')]);
+
+        await user.click(screen.getByRole('checkbox', { name: 'Select Test assistant: Normal candidate' }));
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+        await waitFor(() => expect(toast.warning).toHaveBeenCalled());
+
+        const retryAction = vi.mocked(toast.warning).mock.calls[0][1]?.action as unknown as { onClick: () => void };
+        retryAction.onClick();
+
+        await waitFor(() => {
+            expect(axios.post).toHaveBeenNthCalledWith(2, '/assistance/resources/10/datacite-sync/retry');
+            expect(toast.error).toHaveBeenCalledWith('DataCite is temporarily unavailable for this DOI.');
+        });
+    });
+
     it('never sends an acceptance override when declining a selection', async () => {
         const user = userEvent.setup();
         vi.mocked(axios.post).mockResolvedValueOnce({

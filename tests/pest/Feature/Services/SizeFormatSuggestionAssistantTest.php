@@ -253,6 +253,87 @@ it('requires explicit replacement before applying a conflicting digital size', f
         ->and($acceptedSize->export_string)->toBe('2048 Uncompressed Primary Data Size [bytes]');
 });
 
+it('rejects a size conflict when a snapshotted byte value changed before acceptance', function (): void {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $current = $resource->sizes()->create([
+        'numeric_value' => '1000',
+        'unit' => 'bytes',
+        'type' => 'Primary Data Size',
+    ]);
+    $suggestion = createSizeFormatSuggestion(
+        assistant: $assistant,
+        resource: $resource,
+        targetType: 'size',
+        suggestedValue: '2048 Primary Data Size [bytes]',
+        metadata: [
+            'suggestion_kind' => 'size_conflict',
+            'proposed_size' => [
+                'numeric_value' => '2048',
+                'unit' => 'bytes',
+                'type' => 'Primary Data Size',
+            ],
+            'current_sizes' => [[
+                'id' => $current->id,
+                'value' => $current->export_string,
+                'bytes' => '1000',
+            ]],
+        ],
+    );
+
+    $current->update(['numeric_value' => '1001']);
+    $result = $assistant->acceptSuggestion($suggestion->id, ['size_conflict_resolution' => 'replace']);
+
+    expect($result)->toMatchArray([
+        'success' => false,
+        'message' => 'The existing size metadata changed. Run discovery again.',
+    ])
+        ->and($current->fresh()?->numeric_value)->toBe('1001.0000')
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull()
+        ->and(Size::query()->where('resource_id', $resource->id)->count())->toBe(1);
+});
+
+it('rejects a size conflict when another eligible digital size was added before acceptance', function (): void {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $current = $resource->sizes()->create([
+        'numeric_value' => '1000',
+        'unit' => 'bytes',
+        'type' => 'Primary Data Size',
+    ]);
+    $suggestion = createSizeFormatSuggestion(
+        assistant: $assistant,
+        resource: $resource,
+        targetType: 'size',
+        suggestedValue: '2048 Primary Data Size [bytes]',
+        metadata: [
+            'suggestion_kind' => 'size_conflict',
+            'proposed_size' => [
+                'numeric_value' => '2048',
+                'unit' => 'bytes',
+                'type' => 'Primary Data Size',
+            ],
+            'current_sizes' => [[
+                'id' => $current->id,
+                'value' => $current->export_string,
+                'bytes' => '1000',
+            ]],
+        ],
+    );
+    $added = $resource->sizes()->create([
+        'numeric_value' => '2',
+        'unit' => 'KB',
+        'type' => 'Primary Data Size',
+    ]);
+
+    $result = $assistant->acceptSuggestion($suggestion->id, ['size_conflict_resolution' => 'replace']);
+
+    expect($result['success'])->toBeFalse()
+        ->and(Size::find($current->id))->not->toBeNull()
+        ->and(Size::find($added->id))->not->toBeNull()
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull();
+});
+
 it('synchronizes DataCite once after a single accepted suggestion', function (): void {
     $syncService = Mockery::mock(DataCiteSyncService::class);
     $syncService->shouldReceive('syncIfRegistered')

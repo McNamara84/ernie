@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Assistants\SizeFormatSuggestion;
 
+use App\Contracts\ReportsDiscoveryDetails;
 use App\Models\AssistantSuggestion;
 use App\Services\Assistance\GenericTableAssistant;
-use App\Contracts\ReportsDiscoveryDetails;
 use App\Services\SizeFormat\SizeFormatSuggestionAcceptanceService;
 use App\Services\SizeFormat\SizeFormatSuggestionDiscoveryService;
 use Closure;

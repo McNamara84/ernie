@@ -48,6 +48,9 @@ it('explores nested directories and creates one total size suggestion', function
         'https://datapub.gfz.de/download/dataset/nested/deeper/' => Http::response(<<<'HTML'
             <a href="data.json">data.json</a> 2026-06-14 10:02 0.5M
             HTML),
+        'https://datapub.gfz.de/download/dataset/root.csv' => Http::response('', 200, ['Content-Length' => '1048576']),
+        'https://datapub.gfz.de/download/dataset/nested/child.txt' => Http::response('', 200, ['Content-Length' => '524288']),
+        'https://datapub.gfz.de/download/dataset/nested/deeper/data.json' => Http::response('', 200, ['Content-Length' => '524288']),
     ]);
 
     $service = app(SizeFormatFileProbeService::class);
@@ -66,7 +69,7 @@ it('explores nested directories and creates one total size suggestion', function
         ->and($sizeSuggestions[0]['confidence'])->toBe('high')
         ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(3);
 
-    Http::assertSentCount(3);
+    Http::assertSentCount(6);
 });
 
 it('excludes data description files from directory format and size suggestions', function () {
@@ -79,6 +82,8 @@ it('excludes data description files from directory format and size suggestions',
             <a href="2026-047_Moreira-et-al_data-Lisbon1.csv">2026-047_Moreira-et-al_data-Lisbon1.csv</a> 2026-07-03 14:38 41K
             <a href="2026-047_Moreira-et-al_data-Lisbon2.csv">2026-047_Moreira-et-al_data-Lisbon2.csv</a> 2026-07-03 14:38 53K
             HTML),
+        'https://datapub.gfz.de/download/10.5880.FIDGEO.2026.047-Mnbvfgh/2026-047_Moreira-et-al_data/2026-047_Moreira-et-al_data-Lisbon1.csv' => Http::response('', 200, ['Content-Length' => '41984']),
+        'https://datapub.gfz.de/download/10.5880.FIDGEO.2026.047-Mnbvfgh/2026-047_Moreira-et-al_data/2026-047_Moreira-et-al_data-Lisbon2.csv' => Http::response('', 200, ['Content-Length' => '54272']),
     ]);
 
     $service = app(SizeFormatFileProbeService::class);
@@ -109,7 +114,7 @@ it('excludes data description files from directory format and size suggestions',
         ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(2)
         ->and($sizeSuggestions[0]['evidence']['excluded_files'][0]['role'])->toBe('data_description');
 
-    Http::assertSentCount(2);
+    Http::assertSentCount(4);
 });
 
 it('skips direct data description file probes before sending http requests', function () {
@@ -179,6 +184,35 @@ it('validates every redirect target before following it', function () {
     );
 });
 
+it('resolves query-only redirect locations against the complete file URL', function () {
+    $url = 'https://93.184.216.34/download/data.csv';
+    $redirectedUrl = $url.'?token=signed';
+
+    Http::fake(function (Request $request) use ($url, $redirectedUrl) {
+        if ($request->url() === $url) {
+            return Http::response('', 302, ['Location' => '?token=signed']);
+        }
+
+        if ($request->url() === $redirectedUrl) {
+            return Http::response('', 200, [
+                'Content-Type' => 'text/csv',
+                'Content-Length' => '321',
+            ]);
+        }
+
+        return Http::response('', 404);
+    });
+
+    $result = app(SizeFormatFileProbeService::class)->inferMetadataFromFileUrl($url);
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and(array_column($result['suggestions'], 'inferred_value'))
+        ->toContain('321 Primary Data Size [bytes]');
+
+    Http::assertSent(fn (Request $request): bool => $request->url() === $redirectedUrl);
+    Http::assertNotSent(fn (Request $request): bool => $request->url() === 'https://93.184.216.34/?token=signed');
+});
+
 it('recognizes data descriptions behind encoded path separators', function () {
     $url = 'https://datapub.gfz.de/download/dataset/archive%2Fdata-description.pdf';
 
@@ -210,6 +244,10 @@ it('applies data description filename matching narrowly and case insensitively',
             <a href="readme.pdf">readme.pdf</a> 2026-06-14 10:05 5K
             <a href="data.csv">data.csv</a> 2026-06-14 10:06 6K
             HTML),
+        'https://datapub.gfz.de/download/dataset/sample_description.pdf' => Http::response('', 200, ['Content-Length' => '4096']),
+        'https://datapub.gfz.de/download/dataset/metadata_description.pdf' => Http::response('', 200, ['Content-Length' => '7168']),
+        'https://datapub.gfz.de/download/dataset/readme.pdf' => Http::response('', 200, ['Content-Length' => '5120']),
+        'https://datapub.gfz.de/download/dataset/data.csv' => Http::response('', 200, ['Content-Length' => '6144']),
     ]);
 
     $service = app(SizeFormatFileProbeService::class);
@@ -254,6 +292,7 @@ it('does not explore directories outside the original download tree', function (
             <a href="https://example.org/external/">external</a>
             <a href="/download/other/">sibling</a>
             HTML),
+        'https://datapub.gfz.de/download/dataset/file.csv' => Http::response('', 200, ['Content-Length' => '1048576']),
     ]);
 
     $service = app(SizeFormatFileProbeService::class);
@@ -261,7 +300,7 @@ it('does not explore directories outside the original download tree', function (
 
     expect($result['raw_evidence']['files'])->toHaveCount(1);
 
-    Http::assertSentCount(1);
+    Http::assertSentCount(2);
     Http::assertNotSent(
         fn (Request $request): bool => str_contains($request->url(), 'example.org')
             || str_contains($request->url(), '/download/other/'),
@@ -306,6 +345,86 @@ it('keeps Apache listing files with unknown size for format and confidence evide
     expect($formatSuggestions)
         ->toHaveCount(2)
         ->and($formatSuggestions[1]['evidence']['filename'])->toBe('unknown.dat')
+        ->and($sizeSuggestions)->toBeEmpty();
+});
+
+it('uses exact response metadata instead of rounded Apache display sizes', function () {
+    $directoryUrl = 'https://datapub.gfz.de/download/dataset/';
+    $fileUrl = $directoryUrl.'measurement.csv';
+
+    Http::fake([
+        $directoryUrl => Http::response(<<<'HTML'
+            <a href="measurement.csv">measurement.csv</a> 2026-06-14 10:00 1.9M
+            HTML),
+        $fileUrl => Http::response('', 200, ['Content-Length' => '1945321']),
+    ]);
+
+    $result = app(SizeFormatFileProbeService::class)->probeDirectoryListing($directoryUrl);
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect($result['probe_complete'])->toBeTrue()
+        ->and($result['raw_evidence']['files'][0]['file-size'])->toBe('1.9M')
+        ->and($result['raw_evidence']['files'][0]['exact_size_bytes'])->toBe(1945321)
+        ->and($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('1945321 Primary Data Size [bytes]');
+});
+
+it('uses an exact content range when a directory file HEAD response has no size', function () {
+    $directoryUrl = 'https://datapub.gfz.de/download/dataset/';
+    $fileUrl = $directoryUrl.'measurement.csv';
+
+    Http::fake(function (Request $request) use ($directoryUrl, $fileUrl) {
+        if ($request->url() === $directoryUrl) {
+            return Http::response(<<<'HTML'
+                <a href="measurement.csv">measurement.csv</a> 2026-06-14 10:00 1.9M
+                HTML);
+        }
+
+        if ($request->url() === $fileUrl && $request->method() === 'HEAD') {
+            return Http::response('', 200);
+        }
+
+        return Http::response('', 206, ['Content-Range' => 'bytes 0-0/1945321']);
+    });
+
+    $result = app(SizeFormatFileProbeService::class)->probeDirectoryListing($directoryUrl);
+
+    expect($result['probe_complete'])->toBeTrue()
+        ->and($result['raw_evidence']['files'][0]['exact_size_bytes'])->toBe(1945321)
+        ->and($result['raw_evidence']['files'][0]['exact_size_probe_method'])->toBe('RANGED_GET_CONTENT_RANGE')
+        ->and(array_column($result['suggestions'], 'inferred_value'))
+        ->toContain('1945321 Primary Data Size [bytes]');
+
+    Http::assertSent(
+        fn (Request $request): bool => $request->url() === $fileUrl
+            && $request->method() === 'GET'
+            && $request->hasHeader('Range', ['bytes=0-0']),
+    );
+});
+
+it('marks a directory probe incomplete when a child directory cannot be inspected', function () {
+    $directoryUrl = 'https://datapub.gfz.de/download/dataset/';
+
+    Http::fake([
+        $directoryUrl => Http::response(<<<'HTML'
+            <a href="root.csv">root.csv</a> 2026-06-14 10:00 1K
+            <a href="child/">child/</a>
+            HTML),
+        $directoryUrl.'child/' => Http::response('', 500),
+        $directoryUrl.'root.csv' => Http::response('', 200, ['Content-Length' => '1024']),
+    ]);
+
+    $result = app(SizeFormatFileProbeService::class)->probeDirectoryListing($directoryUrl);
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect($result['probe_complete'])->toBeFalse()
+        ->and($result['raw_evidence']['files'])->toHaveCount(1)
         ->and($sizeSuggestions)->toBeEmpty();
 });
 
@@ -424,6 +543,7 @@ it('uses ZIP contents from directory listings for formats and aggregate size', f
             <a href="readme.txt">readme.txt</a> 2026-06-14 10:00 1K
             <a href="archive.zip">archive.zip</a> 2026-06-14 10:01 4K
             HTML),
+        'https://datapub.gfz.de/download/dataset/readme.txt' => Http::response('', 200, ['Content-Length' => '1024']),
         'https://datapub.gfz.de/download/dataset/archive.zip' => Http::response($zipData, 200, [
             'Content-Type' => 'application/zip',
             'Content-Length' => (string) strlen($zipData),
@@ -455,7 +575,7 @@ it('uses ZIP contents from directory listings for formats and aggregate size', f
         ->and($sizeSuggestions[0]['evidence']['zip_archive_count'])->toBe(1)
         ->and($sizeSuggestions[0]['evidence']['zip_entry_count'])->toBe(2);
 
-    Http::assertSentCount(2);
+    Http::assertSentCount(3);
 });
 
 it('limits ZIP content inspections per directory listing', function () {
@@ -822,6 +942,7 @@ it('builds low confidence aggregate size when only some directory file sizes par
                         'filename' => 'archive.tar.gz',
                         'format' => 'tar.gz',
                         'file-size' => '1G',
+                        'exact_size_bytes' => 1073741824,
                     ],
                     [
                         'file_url' => 'https://datapub.gfz.de/download/dataset/bundle.zip',

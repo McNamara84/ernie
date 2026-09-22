@@ -137,45 +137,37 @@ final class SizeFormatSuggestionAcceptanceService
                 ];
             }
 
-            $currentIds = [];
-            $storedCurrentSizes = $metadata['current_sizes'] ?? [];
-
-            if (is_array($storedCurrentSizes)) {
-                foreach ($storedCurrentSizes as $storedCurrentSize) {
-                    if (! is_array($storedCurrentSize)) {
-                        continue;
-                    }
-
-                    $id = $storedCurrentSize['id'] ?? null;
-
-                    if (is_int($id) || ctype_digit((string) $id)) {
-                        $currentIds[] = (int) $id;
-                    }
-                }
-            }
-            $currentSizes = Size::query()
+            $storedSnapshot = $this->storedSizeSnapshot($metadata['current_sizes'] ?? null);
+            $lockedSizes = Size::query()
                 ->where('resource_id', $resource->id)
-                ->whereIn('id', $currentIds)
                 ->lockForUpdate()
                 ->get();
+            $currentSnapshot = [];
 
-            if ($currentSizes->count() !== count(array_unique($currentIds))) {
+            foreach ($lockedSizes as $currentSize) {
+                $bytes = $this->digitalContentSizeService->forResource($currentSize, $resource);
+
+                if ($bytes !== null) {
+                    $currentSnapshot[] = [
+                        'id' => $currentSize->id,
+                        'bytes' => $bytes,
+                    ];
+                }
+            }
+
+            usort($currentSnapshot, static fn (array $left, array $right): int => $left['id'] <=> $right['id']);
+
+            if ($storedSnapshot === null || $storedSnapshot !== $currentSnapshot) {
                 return [
                     'success' => false,
                     'message' => 'The existing size metadata changed. Run discovery again.',
                 ];
             }
 
-            foreach ($currentSizes as $currentSize) {
-                if (! $this->digitalContentSizeService->isEligible($currentSize, $resource)) {
-                    return [
-                        'success' => false,
-                        'message' => 'A selected existing size is not a digital byte size.',
-                    ];
-                }
-            }
-
-            Size::query()->whereIn('id', $currentIds)->delete();
+            Size::query()
+                ->where('resource_id', $resource->id)
+                ->whereIn('id', array_column($currentSnapshot, 'id'))
+                ->delete();
         }
 
         $size = Size::query()->firstOrCreate([
@@ -190,5 +182,39 @@ final class SizeFormatSuggestionAcceptanceService
             'message' => "Size '{$size->export_string}' applied.",
             'resource_id' => $resource->id,
         ];
+    }
+
+    /**
+     * @return list<array{id: int, bytes: string}>|null
+     */
+    private function storedSizeSnapshot(mixed $storedCurrentSizes): ?array
+    {
+        if (! is_array($storedCurrentSizes)) {
+            return null;
+        }
+
+        $snapshot = [];
+
+        foreach ($storedCurrentSizes as $storedCurrentSize) {
+            if (! is_array($storedCurrentSize)) {
+                return null;
+            }
+
+            $id = $storedCurrentSize['id'] ?? null;
+            $bytes = trim((string) ($storedCurrentSize['bytes'] ?? ''));
+
+            if ((! is_int($id) && ! ctype_digit((string) $id)) || ! ctype_digit($bytes)) {
+                return null;
+            }
+
+            $snapshot[] = [
+                'id' => (int) $id,
+                'bytes' => ltrim($bytes, '0') ?: '0',
+            ];
+        }
+
+        usort($snapshot, static fn (array $left, array $right): int => $left['id'] <=> $right['id']);
+
+        return $snapshot;
     }
 }

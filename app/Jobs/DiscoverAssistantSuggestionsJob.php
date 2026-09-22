@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Contracts\ReportsDiscoveryDetails;
 use App\Enums\CacheKey;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\Assistance\GenericTableAssistant;
-use App\Contracts\ReportsDiscoveryDetails;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;

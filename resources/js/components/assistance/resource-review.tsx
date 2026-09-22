@@ -406,7 +406,13 @@ export function ResourceReview({
                                 .then(({ data: retryResult }) =>
                                     retryResult.success ? toast.success(retryResult.message) : toast.warning(retryResult.message),
                                 )
-                                .catch(() => toast.error('DataCite synchronization retry failed.'));
+                                .catch((error: unknown) => {
+                                    const message =
+                                        axios.isAxiosError(error) && typeof error.response?.data?.message === 'string'
+                                            ? error.response.data.message
+                                            : 'DataCite synchronization retry failed.';
+                                    toast.error(message);
+                                });
                         },
                     },
                 });

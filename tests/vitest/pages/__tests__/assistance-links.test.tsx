@@ -56,6 +56,7 @@ const mockedRouterGet = router.get as Mock;
 const mockedRouterReload = router.reload as Mock;
 const mockedToastInfo = toast.info as Mock;
 const mockedToastWarning = toast.warning as Mock;
+const mockedToastError = toast.error as Mock;
 
 // ── Import component under test (after mocks) ───────────────────────
 
@@ -1475,6 +1476,50 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/size-format/77/decline');
+        });
+    });
+
+    it('shows the detailed DataCite retry failure returned with HTTP 502', async () => {
+        const suggestion = makeSizeFormatSuggestion({ id: 79 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    message: 'Format applied locally.',
+                    datacite_sync: {
+                        attempted: true,
+                        success: false,
+                        errorMessage: 'Initial synchronization failed.',
+                    },
+                    datacite_sync_retry_url: '/assistance/resources/10/datacite-sync/retry',
+                },
+            })
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: {
+                    status: 502,
+                    data: { message: 'DataCite rejected the retry with a validation error.' },
+                },
+            });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+        await waitFor(() => expect(mockedToastWarning).toHaveBeenCalled());
+
+        const retryAction = mockedToastWarning.mock.calls[0][1].action as { onClick: () => void };
+        retryAction.onClick();
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/resources/10/datacite-sync/retry');
+            expect(mockedToastError).toHaveBeenCalledWith('DataCite rejected the retry with a validation error.');
         });
     });
 });
