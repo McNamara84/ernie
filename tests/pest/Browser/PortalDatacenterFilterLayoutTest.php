@@ -168,3 +168,73 @@ it('shows complete datacenter names and selected values without horizontal clipp
     'IGSN Portal desktop' => ['/igsn-search', 'physical-object', 1440, 900],
     'IGSN Portal mobile' => ['/igsn-search', 'physical-object', 393, 852],
 ]);
+
+it('keeps an unbroken selected datacenter value inside the filter', function (
+    string $path,
+    string $typeSlug,
+    int $width,
+    int $height
+): void {
+    $name = 'DatacenterWithAnUnbrokenIdentifierABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    $datacenter = Datacenter::factory()->create(['name' => $name]);
+    $type = ResourceType::firstOrCreate(['slug' => $typeSlug], ['name' => $typeSlug, 'is_active' => true]);
+    $titleType = TitleType::firstOrCreate(['slug' => 'MainTitle'], ['name' => 'Main Title']);
+    $resource = Resource::factory()->create(['datacenter_id' => $datacenter->id, 'resource_type_id' => $type->id]);
+    Title::factory()->create(['resource_id' => $resource->id, 'title_type_id' => $titleType->id, 'value' => 'Unbroken datacenter fixture']);
+    LandingPage::factory()->published()->create(['resource_id' => $resource->id, 'doi_prefix' => $resource->doi]);
+
+    $page = visit($path.'?datacenter%5B%5D='.rawurlencode($name))
+        ->resize($width, $height)
+        ->waitForText('Filters')
+        ->assertNoSmoke();
+
+    if ($width < 1280) {
+        $page->click('[data-testid="portal-filter-drawer-trigger"]')
+            ->assertVisible('[data-testid="portal-filter-sidebar"]');
+    }
+
+    $page->waitForText($name)
+        ->assertVisible('button[aria-label="Remove '.$name.'"]');
+
+    $selected = $page->script(<<<'JS'
+        () => {
+            const sidebar = document.querySelector('[data-testid="portal-filter-sidebar"]');
+            const viewport = sidebar?.querySelector('[data-slot="scroll-area-viewport"]');
+            const remove = sidebar?.querySelector('button[aria-label^="Remove DatacenterWithAnUnbrokenIdentifier"]');
+            const chip = remove?.closest('[data-slot="badge"]');
+            const name = chip?.querySelector(':scope > span');
+            if (!(sidebar instanceof HTMLElement) || !(viewport instanceof HTMLElement)
+                || !(chip instanceof HTMLElement) || !(name instanceof HTMLElement)
+                || !(remove instanceof HTMLButtonElement)) return null;
+
+            const right = sidebar.getBoundingClientRect().right;
+            const lineHeight = Number.parseFloat(getComputedStyle(name).lineHeight);
+            return {
+                text: name.textContent?.trim(),
+                wraps: name.getBoundingClientRect().height > lineHeight * 1.5,
+                chipInside: chip.getBoundingClientRect().right <= right + 1,
+                nameInside: name.getBoundingClientRect().right <= right + 1,
+                removeInside: remove.getBoundingClientRect().right <= right + 1,
+                noHorizontalOverflow: viewport.scrollWidth <= viewport.clientWidth + 1,
+                selectedFromUrl: Array.from(new URLSearchParams(location.search))
+                    .filter(([key]) => /^datacenter(?:\[\d*\])?$/.test(key))
+                    .map(([, value]) => value),
+            };
+        }
+        JS);
+
+    expect($selected)->not->toBeNull();
+    expect($selected['text'])->toBe($name);
+    expect($selected['wraps'])->toBeTrue();
+    expect($selected['chipInside'])->toBeTrue();
+    expect($selected['nameInside'])->toBeTrue();
+    expect($selected['removeInside'])->toBeTrue();
+    expect($selected['noHorizontalOverflow'])->toBeTrue();
+    expect($selected['selectedFromUrl'])->toBe([$name]);
+    $page->assertNoSmoke();
+})->with([
+    'Data Portal desktop' => ['/doi-search', 'dataset', 1440, 900],
+    'Data Portal mobile' => ['/doi-search', 'dataset', 393, 852],
+    'IGSN Portal desktop' => ['/igsn-search', 'physical-object', 1440, 900],
+    'IGSN Portal mobile' => ['/igsn-search', 'physical-object', 393, 852],
+]);
