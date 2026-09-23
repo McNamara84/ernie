@@ -12,6 +12,8 @@ use App\Models\ResourceType;
 use App\Models\Size;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
+use App\Services\SizeFormat\SizeFormatSuggestionDiscoveryService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Modules\Assistants\SizeFormatSuggestion\Assistant;
 
@@ -83,6 +85,50 @@ it('does not discover suggestions for physical object resources', function (): v
     expect($count)->toBe(0)
         ->and(AssistantSuggestion::where('assistant_id', 'size-format-suggestion')->count())->toBe(0);
     Http::assertNothingSent();
+});
+
+it('removes an ineligible suggestion backlog with set-based eligibility queries', function (): void {
+    $resources = Resource::factory()->count(30)->create();
+
+    foreach ($resources as $resource) {
+        AssistantSuggestion::query()->create([
+            'assistant_id' => SizeFormatSuggestionDiscoveryService::ASSISTANT_ID,
+            'resource_id' => $resource->id,
+            'target_type' => 'format',
+            'target_id' => $resource->id,
+            'suggested_value' => 'text/csv',
+            'suggested_label' => 'FORMAT: text/csv',
+            'metadata' => [],
+            'discovered_at' => now(),
+        ]);
+    }
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    $service = app(SizeFormatSuggestionDiscoveryService::class);
+    $created = $service->discover(
+        SizeFormatSuggestionDiscoveryService::ASSISTANT_ID,
+        static fn (int $resourceId, string $targetType, int $targetId, string $value, string $label, ?float $score, ?array $metadata): bool => false,
+        static function (string $message): void {},
+    );
+
+    $queries = DB::getQueryLog();
+    DB::disableQueryLog();
+    $eligibilityQueries = array_filter(
+        $queries,
+        static fn (array $query): bool => str_contains(strtolower($query['query']), 'landing_pages'),
+    );
+    $suggestionDeletes = array_filter(
+        $queries,
+        static fn (array $query): bool => str_starts_with(strtolower($query['query']), 'delete from "assistant_suggestions"'),
+    );
+
+    expect($created)->toBe(0)
+        ->and(AssistantSuggestion::query()->where('assistant_id', SizeFormatSuggestionDiscoveryService::ASSISTANT_ID)->count())->toBe(0)
+        ->and($service->lastReport()['stale_suggestions_removed'])->toBe(30)
+        ->and($eligibilityQueries)->toHaveCount(3)
+        ->and($suggestionDeletes)->toHaveCount(1);
 });
 
 it('withholds a total size when multiple top-level download sources may overlap', function (): void {

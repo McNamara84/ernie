@@ -352,24 +352,12 @@ final class SizeFormatSuggestionDiscoveryService
 
     private function removeSuggestionsForIneligibleResources(string $assistantId): int
     {
-        $removed = 0;
-        $resourceIds = AssistantSuggestion::query()
+        $eligibleResourceIds = $this->candidateQuery()->select('resources.id');
+
+        return AssistantSuggestion::query()
             ->where('assistant_id', $assistantId)
-            ->distinct()
-            ->pluck('resource_id');
-
-        foreach ($resourceIds as $resourceId) {
-            if ($this->candidateQuery()->whereKey($resourceId)->exists()) {
-                continue;
-            }
-
-            $removed += AssistantSuggestion::query()
-                ->where('assistant_id', $assistantId)
-                ->where('resource_id', $resourceId)
-                ->delete();
-        }
-
-        return $removed;
+            ->whereNotIn('resource_id', $eligibleResourceIds)
+            ->delete();
     }
 
     private function confidenceToScore(mixed $confidence): ?float
