@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
 use App\Models\SuggestedOrcid;
 use App\Models\SuggestedRor;
 use App\Services\Assistance\ResourceEntityImpactResolverService;
@@ -24,6 +26,18 @@ it('defers ORCID synchronization and returns every affected resource', function 
     $origin = Resource::factory()->create();
     $affected = Resource::factory()->create();
     $person = Person::factory()->create();
+    ResourceCreator::create([
+        'resource_id' => $origin->id,
+        'creatorable_type' => Person::class,
+        'creatorable_id' => $person->id,
+        'position' => 1,
+    ]);
+    ResourceContributor::create([
+        'resource_id' => $affected->id,
+        'contributorable_type' => Person::class,
+        'contributorable_id' => $person->id,
+        'position' => 1,
+    ]);
     $suggestion = SuggestedOrcid::create([
         'resource_id' => $origin->id,
         'person_id' => $person->id,
@@ -37,15 +51,10 @@ it('defers ORCID synchronization and returns every affected resource', function 
     ]);
     $syncService = Mockery::mock(DataCiteSyncService::class);
     $syncService->shouldNotReceive('syncIfRegistered');
-    $impactResolver = Mockery::mock(ResourceEntityImpactResolverService::class);
-    $impactResolver->shouldReceive('forPersons')
-        ->once()
-        ->with([$person->id])
-        ->andReturn([$person->id => [$origin->id, $affected->id]]);
     $service = new OrcidDiscoveryService(
         Mockery::mock(OrcidService::class),
         $syncService,
-        $impactResolver,
+        app(ResourceEntityImpactResolverService::class),
     );
 
     $result = (new OrcidSuggestionAssistant($service))->acceptSuggestion($suggestion->id, [
@@ -68,6 +77,14 @@ it('defers ROR synchronization and returns every affected resource', function ()
         'name_identifier_scheme' => null,
         'scheme_uri' => null,
     ]);
+    foreach ([$origin, $affected] as $resource) {
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Institution::class,
+            'creatorable_id' => $institution->id,
+            'position' => 1,
+        ]);
+    }
     $suggestion = SuggestedRor::create([
         'resource_id' => $origin->id,
         'entity_type' => 'institution',
@@ -84,16 +101,15 @@ it('defers ROR synchronization and returns every affected resource', function ()
     ]);
     $syncService = Mockery::mock(DataCiteSyncService::class);
     $syncService->shouldNotReceive('syncIfRegistered');
-    $impactResolver = Mockery::mock(ResourceEntityImpactResolverService::class);
-    $impactResolver->shouldReceive('forInstitutions')
-        ->once()
-        ->with([$institution->id])
-        ->andReturn([$institution->id => [$origin->id, $affected->id]]);
     $bulkAcceptanceService = Mockery::mock(RorAffiliationBulkAcceptanceService::class);
     $bulkAcceptanceService->shouldReceive('createPreviewForAcceptedSuggestion')
         ->once()
         ->andReturnNull();
-    $service = new RorDiscoveryService($syncService, $bulkAcceptanceService, $impactResolver);
+    $service = new RorDiscoveryService(
+        $syncService,
+        $bulkAcceptanceService,
+        app(ResourceEntityImpactResolverService::class),
+    );
 
     $result = (new RorSuggestionAssistant($service))->acceptSuggestion($suggestion->id, [
         'defer_datacite_sync' => true,

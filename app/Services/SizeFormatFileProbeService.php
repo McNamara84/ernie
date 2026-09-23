@@ -844,8 +844,7 @@ class SizeFormatFileProbeService
         array $files,
         int &$requestCount,
         bool &$budgetExhausted,
-    ): array
-    {
+    ): array {
         foreach ($files as $index => $file) {
             if (($file['role'] ?? SizeFormatFileRoleClassifier::PRIMARY_DATA) !== SizeFormatFileRoleClassifier::PRIMARY_DATA) {
                 continue;
@@ -882,8 +881,7 @@ class SizeFormatFileProbeService
         string $fileUrl,
         int &$requestCount,
         bool &$budgetExhausted,
-    ): ?array
-    {
+    ): ?array {
         $consumeRequestBudget = function () use (&$requestCount, &$budgetExhausted): void {
             if ($requestCount >= self::MAX_DIRECTORY_FILE_SIZE_REQUESTS) {
                 $budgetExhausted = true;
@@ -1392,8 +1390,7 @@ class SizeFormatFileProbeService
         string $method,
         string $url,
         ?callable $beforeRequest = null,
-    ): Response
-    {
+    ): Response {
         $currentUrl = $url;
 
         for ($redirectCount = 0; $redirectCount <= self::MAX_REDIRECTS; $redirectCount++) {

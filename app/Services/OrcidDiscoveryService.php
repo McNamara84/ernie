@@ -637,6 +637,7 @@ class OrcidDiscoveryService
     /**
      * Sync all resources where a person is a creator or contributor.
      *
+     * @param  array<int, int>  $resourceIds
      * @return array<int, string> List of DOIs that were synced
      */
     private function syncAffectedResources(array $resourceIds): array

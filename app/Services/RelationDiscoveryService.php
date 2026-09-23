@@ -306,8 +306,7 @@ class RelationDiscoveryService
         SuggestedRelation $suggestion,
         ?int $relationTypeId = null,
         bool $syncDataCite = true,
-    ): array
-    {
+    ): array {
         if ($relationTypeId !== null && ! RelationType::query()->active()->whereKey($relationTypeId)->exists()) {
             return [
                 'success' => false,

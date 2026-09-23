@@ -57,9 +57,7 @@ final class BatchSuggestionActionService
 
             try {
                 $result = $action === 'accept'
-                    ? ($acceptanceInput === []
-                        ? $assistant->acceptSuggestion($suggestionId)
-                        : $assistant->acceptSuggestion($suggestionId, $acceptanceInput))
+                    ? $assistant->acceptSuggestion($suggestionId, $acceptanceInput)
                     : $assistant->declineSuggestion($suggestionId, $user, $reason);
             } catch (Throwable $exception) {
                 report($exception);

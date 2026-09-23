@@ -935,6 +935,7 @@ class RorDiscoveryService
     /**
      * Sync resources affected by an entity update with DataCite.
      *
+     * @param  array<int, int>  $resourceIds
      * @return array<int, string>
      */
     private function syncResourcesForEntity(array $resourceIds): array
