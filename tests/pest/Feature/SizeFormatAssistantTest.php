@@ -5,11 +5,16 @@ declare(strict_types=1);
 use App\Models\AssistantSuggestion;
 use App\Models\Format;
 use App\Models\IgsnMetadata;
+use App\Models\LandingPage;
+use App\Models\LandingPageLink;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Size;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
+use App\Services\SizeFormat\SizeFormatSuggestionDiscoveryService;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Modules\Assistants\SizeFormatSuggestion\Assistant;
 
@@ -22,29 +27,19 @@ function applySizeFormatSuggestion(Assistant $assistant, AssistantSuggestion $su
     return $method->invoke($assistant, $suggestion);
 }
 
-function fakeSizeFormatZipDiscovery(string $doi, array $zipFiles): void
+function fakeSizeFormatZipDiscovery(Resource $resource, array $zipFiles): void
 {
     $zipData = sizeFormatZipFixtureData($zipFiles);
-    $downloadUrl = 'https://dataservices.gfz-potsdam.de/download/archive.zip';
+    $downloadUrl = 'https://datapub.gfz.de/download/archive.zip';
 
-    Http::fake(function ($request) use ($doi, $zipData, $downloadUrl) {
+    LandingPage::factory()->for($resource)->create([
+        'ftp_url' => $downloadUrl,
+        'downloads_unavailable' => false,
+        'template' => 'default_gfz',
+    ]);
+
+    Http::fake(function ($request) use ($zipData, $downloadUrl) {
         $url = $request->url();
-
-        if ($url === 'https://doi.org/'.$doi) {
-            return Http::response('', 302, [
-                'Location' => 'https://dataservices.gfz-potsdam.de/landing-zip',
-            ]);
-        }
-
-        if ($url === 'https://dataservices.gfz-potsdam.de/landing-zip') {
-            return Http::response(<<<'HTML'
-                <html>
-                    <body>
-                        <a class="piwik_download" href="/download/archive.zip">Download data</a>
-                    </body>
-                </html>
-                HTML);
-        }
 
         if ($url === $downloadUrl && $request->method() === 'HEAD') {
             return Http::response('', 200, [
@@ -93,30 +88,69 @@ it('does not discover suggestions for physical object resources', function (): v
     Http::assertNothingSent();
 });
 
-it('keeps multiple discovered size suggestions for the same resource', function (): void {
-    Resource::factory()->create(['doi' => '10.1234/MULTI.SIZE']);
+it('removes an ineligible suggestion backlog with set-based eligibility queries', function (): void {
+    $resources = Resource::factory()->count(30)->create();
+
+    foreach ($resources as $resource) {
+        AssistantSuggestion::query()->create([
+            'assistant_id' => SizeFormatSuggestionDiscoveryService::ASSISTANT_ID,
+            'resource_id' => $resource->id,
+            'target_type' => 'format',
+            'target_id' => $resource->id,
+            'suggested_value' => 'text/csv',
+            'suggested_label' => 'FORMAT: text/csv',
+            'metadata' => [],
+            'discovered_at' => now(),
+        ]);
+    }
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    $service = app(SizeFormatSuggestionDiscoveryService::class);
+    $created = $service->discover(
+        SizeFormatSuggestionDiscoveryService::ASSISTANT_ID,
+        static fn (int $resourceId, string $targetType, int $targetId, string $value, string $label, ?float $score, ?array $metadata): bool => false,
+        static function (string $message): void {},
+    );
+
+    $queries = DB::getQueryLog();
+    DB::disableQueryLog();
+    $eligibilityQueries = array_filter(
+        $queries,
+        static fn (array $query): bool => str_contains(strtolower($query['query']), 'landing_pages'),
+    );
+    $suggestionDeletes = array_filter(
+        $queries,
+        static fn (array $query): bool => str_starts_with(strtolower($query['query']), 'delete from "assistant_suggestions"'),
+    );
+
+    expect($created)->toBe(0)
+        ->and(AssistantSuggestion::query()->where('assistant_id', SizeFormatSuggestionDiscoveryService::ASSISTANT_ID)->count())->toBe(0)
+        ->and($service->lastReport()['stale_suggestions_removed'])->toBe(30)
+        ->and($eligibilityQueries)->toHaveCount(3)
+        ->and($suggestionDeletes)->toHaveCount(1);
+});
+
+it('withholds a total size when multiple top-level download sources may overlap', function (): void {
+    $resource = Resource::factory()->create(['doi' => '10.1234/MULTI.SIZE']);
+    $landingPage = LandingPage::factory()->for($resource)->create([
+        'ftp_url' => 'https://datapub.gfz.de/download/first/',
+        'downloads_unavailable' => false,
+        'template' => 'default_gfz',
+    ]);
+    LandingPageLink::query()->create([
+        'landing_page_id' => $landingPage->id,
+        'url' => 'https://datapub.gfz.de/download/second/',
+        'label' => 'Second download',
+        'kind' => LandingPageLink::KIND_DOWNLOAD,
+        'position' => 0,
+    ]);
 
     Http::fake(function ($request) {
         $url = $request->url();
 
-        if ($url === 'https://doi.org/10.1234/MULTI.SIZE') {
-            return Http::response('', 302, [
-                'Location' => 'https://dataservices.gfz-potsdam.de/landing-multi-size',
-            ]);
-        }
-
-        if ($url === 'https://dataservices.gfz-potsdam.de/landing-multi-size') {
-            return Http::response(<<<'HTML'
-                <html>
-                    <body>
-                        <a class="piwik_download" href="/download/first/">Download data</a>
-                        <a class="piwik_download" href="/download/second/">Download data</a>
-                    </body>
-                </html>
-                HTML);
-        }
-
-        if ($url === 'https://dataservices.gfz-potsdam.de/download/first/') {
+        if ($url === 'https://datapub.gfz.de/download/first/') {
             return Http::response(<<<'HTML'
                 <a href="first.csv">first.csv</a> 2026-06-14 10:00 1M
                 HTML, 200, [
@@ -124,7 +158,7 @@ it('keeps multiple discovered size suggestions for the same resource', function 
             ]);
         }
 
-        if ($url === 'https://dataservices.gfz-potsdam.de/download/second/') {
+        if ($url === 'https://datapub.gfz.de/download/second/') {
             return Http::response(<<<'HTML'
                 <a href="second.csv">second.csv</a> 2026-06-14 10:00 2M
                 HTML, 200, [
@@ -142,14 +176,14 @@ it('keeps multiple discovered size suggestions for the same resource', function 
         ->pluck('suggested_value')
         ->all();
 
-    expect($sizeSuggestions)->toEqualCanonicalizing(['1 MB', '2 MB']);
+    expect($sizeSuggestions)->toBeEmpty();
 });
 
 it('discovers ZIP-contained formats and uncompressed size suggestions', function (): void {
     $doi = '10.1234/ZIP.CONTENT';
-    Resource::factory()->create(['doi' => $doi]);
+    $resource = Resource::factory()->create(['doi' => $doi]);
 
-    fakeSizeFormatZipDiscovery($doi, [
+    fakeSizeFormatZipDiscovery($resource, [
         'data/table.csv' => str_repeat('c', 1024),
         'docs/manual.pdf' => str_repeat('p', 2048),
     ]);
@@ -165,10 +199,68 @@ it('discovers ZIP-contained formats and uncompressed size suggestions', function
         ->pluck('suggested_value')
         ->all();
 
-    expect($count)->toBe(3)
-        ->and($formatValues)->toEqualCanonicalizing(['text/csv', 'application/pdf'])
-        ->and($formatValues)->not->toContain('application/zip')
-        ->and($sizeValues)->toEqual(['3 KB']);
+    expect($count)->toBe(4)
+        ->and($formatValues)->toEqualCanonicalizing(['application/zip', 'text/csv', 'application/pdf'])
+        ->and($sizeValues)->toEqual(['3072 Uncompressed Primary Data Size [bytes]']);
+});
+
+it('regresses the production EXPQ download directory without counting its data description', function (): void {
+    $resource = Resource::factory()->create(['doi' => '10.5880/gfz.expq.2026.004']);
+    $directoryUrl = 'https://datapub.gfz.de/download/10.5880.GFZ.EXPQ.2026.004-Ertzhg/';
+    $zipUrl = $directoryUrl.'2026-004_Chen-et-al_data.zip';
+    LandingPage::factory()->for($resource)->create([
+        'ftp_url' => rtrim($directoryUrl, '/'),
+        'primary_download_label' => 'Download data and description',
+        'downloads_unavailable' => false,
+        'template' => 'default_gfz',
+    ]);
+
+    $zipFiles = [];
+
+    for ($index = 1; $index <= 8; $index++) {
+        $zipFiles["data/table-{$index}.csv"] = str_repeat('c', 100000);
+    }
+
+    $zipFiles['data/workbook.xlsx'] = str_repeat('x', 1865858);
+    $zipData = sizeFormatZipFixtureData($zipFiles);
+
+    Http::fake(function ($request) use ($directoryUrl, $zipUrl, $zipData) {
+        if (rtrim($request->url(), '/').'/' === $directoryUrl && $request->method() !== 'HEAD') {
+            return Http::response(<<<'HTML'
+                <a href="2026-004_Chen-et-al_data.zip">2026-004_Chen-et-al_data.zip</a> 2026-09-10 18:06 1.9M
+                <a href="2026-004_Chen-et-al_data-description.pdf">2026-004_Chen-et-al_data-description.pdf</a> 2026-09-10 18:06 508K
+                HTML);
+        }
+
+        if ($request->url() === $zipUrl) {
+            return Http::response($zipData, 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => (string) strlen($zipData),
+            ]);
+        }
+
+        return Http::response('', 405);
+    });
+
+    $count = app(Assistant::class)->runDiscovery(fn (): null => null);
+    $suggestions = AssistantSuggestion::query()
+        ->where('assistant_id', 'size-format-suggestion')
+        ->where('resource_id', $resource->id)
+        ->get();
+
+    expect($count)->toBe(4)
+        ->and($suggestions->where('target_type', 'format')->pluck('suggested_value')->all())
+        ->toEqualCanonicalizing([
+            'application/zip',
+            'text/csv',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])
+        ->and($suggestions->where('target_type', 'size')->sole()->suggested_value)
+        ->toBe('2665858 Uncompressed Primary Data Size [bytes]')
+        ->and($suggestions->where('target_type', 'size')->sole()->metadata['evidence']['excluded_files'][0]['filename'])
+        ->toBe('2026-004_Chen-et-al_data-description.pdf');
+
+    Http::assertNotSent(fn ($request): bool => str_starts_with($request->url(), 'https://doi.org/'));
 });
 
 it('discovers content formats when the only existing format is application zip', function (): void {
@@ -180,11 +272,11 @@ it('discovers content formats when the only existing format is application zip',
     ]);
     Size::create([
         'resource_id' => $resource->id,
-        'numeric_value' => '1',
-        'unit' => 'KB',
+        'numeric_value' => '1024',
+        'unit' => 'bytes',
     ]);
 
-    fakeSizeFormatZipDiscovery($doi, [
+    fakeSizeFormatZipDiscovery($resource, [
         'data/table.csv' => str_repeat('c', 1024),
     ]);
 
@@ -208,11 +300,11 @@ it('discovers content formats when the only existing format is application zip w
     ]);
     Size::create([
         'resource_id' => $resource->id,
-        'numeric_value' => '1',
-        'unit' => 'KB',
+        'numeric_value' => '1024',
+        'unit' => 'bytes',
     ]);
 
-    fakeSizeFormatZipDiscovery($doi, [
+    fakeSizeFormatZipDiscovery($resource, [
         'data/table.csv' => str_repeat('c', 1024),
     ]);
 
@@ -227,7 +319,7 @@ it('discovers content formats when the only existing format is application zip w
         ->and($formatValues)->toEqual(['text/csv']);
 });
 
-it('keeps existing non-ZIP formats as the format discovery stop condition', function (): void {
+it('adds missing formats even when another non-ZIP format exists', function (): void {
     $doi = '10.1234/NONZIP.EXISTING';
     $resource = Resource::factory()->create(['doi' => $doi]);
     Format::create([
@@ -235,15 +327,226 @@ it('keeps existing non-ZIP formats as the format discovery stop condition', func
         'value' => 'text/plain',
     ]);
 
-    fakeSizeFormatZipDiscovery($doi, [
+    fakeSizeFormatZipDiscovery($resource, [
         'data/table.csv' => str_repeat('c', 1024),
     ]);
 
     $count = app(Assistant::class)->runDiscovery(fn (): null => null);
 
-    expect($count)->toBe(1)
-        ->and(AssistantSuggestion::where('assistant_id', 'size-format-suggestion')->where('target_type', 'format')->count())->toBe(0)
-        ->and(AssistantSuggestion::where('assistant_id', 'size-format-suggestion')->where('target_type', 'size')->value('suggested_value'))->toBe('1 KB');
+    expect($count)->toBe(3)
+        ->and(AssistantSuggestion::where('assistant_id', 'size-format-suggestion')->where('target_type', 'format')->pluck('suggested_value')->all())
+        ->toEqualCanonicalizing(['application/zip', 'text/csv'])
+        ->and(AssistantSuggestion::where('assistant_id', 'size-format-suggestion')->where('target_type', 'size')->value('suggested_value'))
+        ->toBe('1024 Uncompressed Primary Data Size [bytes]');
+});
+
+it('creates an explicit conflict for a differing existing digital size', function (): void {
+    $resource = Resource::factory()->create();
+    LandingPage::factory()->for($resource)->create([
+        'ftp_url' => 'https://datapub.gfz.de/download/data.csv',
+        'template' => 'default_gfz',
+        'downloads_unavailable' => false,
+    ]);
+    Format::query()->create(['resource_id' => $resource->id, 'value' => 'text/csv']);
+    $current = Size::query()->create([
+        'resource_id' => $resource->id,
+        'numeric_value' => '1000',
+        'unit' => 'bytes',
+        'type' => 'Primary Data Size',
+    ]);
+    Http::fake([
+        'https://datapub.gfz.de/download/data.csv' => Http::response('', 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Length' => '2048',
+        ]),
+    ]);
+
+    app(Assistant::class)->runDiscovery(fn (): null => null);
+    $suggestion = AssistantSuggestion::query()
+        ->where('assistant_id', 'size-format-suggestion')
+        ->where('resource_id', $resource->id)
+        ->where('target_type', 'size')
+        ->sole();
+
+    expect($suggestion->metadata['suggestion_kind'])->toBe('size_conflict')
+        ->and($suggestion->metadata['current_sizes'][0]['id'])->toBe($current->id)
+        ->and($suggestion->metadata['proposed_size']['bytes'])->toBe(2048);
+});
+
+it('removes stale suggestions after a complete probe and preserves them after a failed probe', function (): void {
+    $resource = Resource::factory()->create();
+    $landingPage = LandingPage::factory()->for($resource)->create([
+        'ftp_url' => 'https://datapub.gfz.de/download/data.csv',
+        'template' => 'default_gfz',
+        'downloads_unavailable' => false,
+    ]);
+    $stale = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'format',
+        'target_id' => $resource->id,
+        'suggested_value' => 'application/pdf',
+        'suggested_label' => 'FORMAT: application/pdf',
+        'metadata' => [],
+        'discovered_at' => now()->subDay(),
+    ]);
+    Http::fake([
+        'https://datapub.gfz.de/download/data.csv' => Http::response('', 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Length' => '2048',
+        ]),
+    ]);
+
+    app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    expect(AssistantSuggestion::find($stale->id))->toBeNull()
+        ->and(AssistantSuggestion::query()
+            ->where('resource_id', $resource->id)
+            ->where('suggested_value', 'text/csv')
+            ->exists())->toBeTrue();
+
+    $preserved = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'format',
+        'target_id' => $resource->id,
+        'suggested_value' => 'application/pdf',
+        'suggested_label' => 'FORMAT: application/pdf',
+        'metadata' => [],
+        'discovered_at' => now(),
+    ]);
+    $landingPage->update(['ftp_url' => 'https://datapub.gfz.de/download/unreachable/']);
+    Http::fake([
+        'https://datapub.gfz.de/download/unreachable/*' => Http::response('', 500),
+    ]);
+
+    app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    expect(AssistantSuggestion::find($preserved->id))->not->toBeNull();
+});
+
+it('reconciles formats but preserves sizes when HEAD evidence has no size', function (): void {
+    $resource = Resource::factory()->create();
+    LandingPage::factory()->for($resource)->create([
+        'ftp_url' => 'https://datapub.gfz.de/download/data.csv',
+        'template' => 'default_gfz',
+        'downloads_unavailable' => false,
+    ]);
+    $staleFormat = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'format',
+        'target_id' => $resource->id,
+        'suggested_value' => 'application/pdf',
+        'suggested_label' => 'FORMAT: application/pdf',
+        'metadata' => [],
+        'discovered_at' => now()->subDay(),
+    ]);
+    $staleSize = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'size',
+        'target_id' => $resource->id,
+        'suggested_value' => '1024 Primary Data Size [bytes]',
+        'suggested_label' => 'SIZE: 1024 Primary Data Size [bytes]',
+        'metadata' => [],
+        'discovered_at' => now()->subDay(),
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/data.csv' => Http::response('', 200, [
+            'Content-Type' => 'text/csv',
+        ]),
+    ]);
+
+    app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    expect(AssistantSuggestion::find($staleFormat->id))->toBeNull()
+        ->and(AssistantSuggestion::find($staleSize->id))->not->toBeNull()
+        ->and(AssistantSuggestion::query()
+            ->where('resource_id', $resource->id)
+            ->where('target_type', 'format')
+            ->where('suggested_value', 'text/csv')
+            ->exists())->toBeTrue();
+});
+
+it('reconciles sizes but preserves formats when ranged evidence has no format', function (): void {
+    $resource = Resource::factory()->create();
+    $url = 'https://datapub.gfz.de/download/data.bin';
+    LandingPage::factory()->for($resource)->create([
+        'ftp_url' => $url,
+        'template' => 'default_gfz',
+        'downloads_unavailable' => false,
+    ]);
+    $staleFormat = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'format',
+        'target_id' => $resource->id,
+        'suggested_value' => 'application/pdf',
+        'suggested_label' => 'FORMAT: application/pdf',
+        'metadata' => [],
+        'discovered_at' => now()->subDay(),
+    ]);
+    $staleSize = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'size',
+        'target_id' => $resource->id,
+        'suggested_value' => '1024 Primary Data Size [bytes]',
+        'suggested_label' => 'SIZE: 1024 Primary Data Size [bytes]',
+        'metadata' => [],
+        'discovered_at' => now()->subDay(),
+    ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200);
+        }
+
+        return Http::response('', 206, ['Content-Range' => 'bytes 0-1023/4096']);
+    });
+
+    app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    expect(AssistantSuggestion::find($staleFormat->id))->not->toBeNull()
+        ->and(AssistantSuggestion::find($staleSize->id))->toBeNull()
+        ->and(AssistantSuggestion::query()
+            ->where('resource_id', $resource->id)
+            ->where('target_type', 'size')
+            ->where('suggested_value', '4096 Primary Data Size [bytes]')
+            ->exists())->toBeTrue();
+});
+
+it('keeps stale suggestions when only filename fallback evidence is available', function (): void {
+    $resource = Resource::factory()->create();
+    LandingPage::factory()->for($resource)->create([
+        'ftp_url' => 'https://datapub.gfz.de/download/unreachable.csv',
+        'template' => 'default_gfz',
+        'downloads_unavailable' => false,
+    ]);
+    $stale = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'format',
+        'target_id' => $resource->id,
+        'suggested_value' => 'application/pdf',
+        'suggested_label' => 'FORMAT: application/pdf',
+        'metadata' => [],
+        'discovered_at' => now()->subDay(),
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/unreachable.csv' => Http::response('', 500),
+    ]);
+
+    app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    expect(AssistantSuggestion::find($stale->id))->not->toBeNull()
+        ->and(AssistantSuggestion::query()
+            ->where('resource_id', $resource->id)
+            ->where('suggested_value', 'text/csv')
+            ->exists())->toBeTrue();
 });
 
 it('exposes size and format suggestion preview metadata', function () {
@@ -310,7 +613,7 @@ it('accepts a format suggestion and creates a format record', function (): void 
         ->and(Format::where('resource_id', $resource->id)->where('value', 'application/pdf')->exists())->toBeTrue();
 });
 
-it('removes an existing ZIP container format when accepting a ZIP-content format suggestion', function (): void {
+it('keeps an existing ZIP container format when accepting a ZIP-content format suggestion', function (): void {
     $resource = Resource::factory()->create();
     Format::create([
         'resource_id' => $resource->id,
@@ -339,7 +642,7 @@ it('removes an existing ZIP container format when accepting a ZIP-content format
 
     expect($result['success'])->toBeTrue()
         ->and(Format::where('resource_id', $resource->id)->where('value', 'text/csv')->exists())->toBeTrue()
-        ->and(Format::where('resource_id', $resource->id)->where('value', 'application/zip')->exists())->toBeFalse();
+        ->and(Format::where('resource_id', $resource->id)->where('value', 'application/zip')->exists())->toBeTrue();
 });
 
 it('does not create duplicate format records when accepting the same suggestion twice', function (): void {

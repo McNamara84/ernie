@@ -28,6 +28,7 @@ final class AcceptSuggestionRequest extends FormRequest
                     fn (Builder $query): Builder => $query->where('is_active', true),
                 ),
             ],
+            'size_conflict_resolution' => ['sometimes', 'string', Rule::in(['replace'])],
         ];
     }
 }

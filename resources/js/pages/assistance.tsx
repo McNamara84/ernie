@@ -11,13 +11,14 @@ import { ResourceImpactFilters } from '@/components/resource-impact-filters';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
 import { AssistanceRequestError, useAssistanceSummary } from '@/hooks/use-assistance-review';
 import AppLayout from '@/layouts/app-layout';
 import { queryKeys } from '@/lib/query-keys';
-import { resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
+import { isSafeHttpUrl, resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -77,8 +78,13 @@ export function completionFeedback(manifest: AssistantManifest, status: CheckSta
         label = manifest.statusLabels.completed_empty ?? `${manifest.name} completed: No new suggestions found.`;
     }
 
+    const details = isRecord(status.details) ? status.details : null;
+    const diagnosticSummary = details
+        ? ` Checked ${Number(details.checked_resources ?? 0)} resource(s); ${Number(details.resources_with_suggestions ?? 0)} with suggestions; ${Number(details.stale_suggestions_removed ?? 0)} stale removed; ${Number(details.incomplete_or_failed_resources ?? 0)} incomplete or failed.`
+        : '';
+
     return {
-        message: label.replace('{count}', String(created)).replace('{updated}', String(updated)),
+        message: label.replace('{count}', String(created)).replace('{updated}', String(updated)) + diagnosticSummary,
         hasResults: created > 0 || updated > 0,
     };
 }
@@ -1015,6 +1021,19 @@ function sizeValueLabel(value: string): string {
     });
 }
 
+function humanByteSize(bytes: number): string {
+    const units = ['bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+    let value = bytes;
+    let unitIndex = 0;
+
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex++;
+    }
+
+    return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value)} ${units[unitIndex]}`;
+}
+
 function formatValueLabel(value: string): string {
     const trimmed = value.trim();
     const normalized = trimmed.toLowerCase().replace(/^\./, '');
@@ -1087,11 +1106,15 @@ function SizeFormatSuggestionCard({
     onAccept,
     onDecline,
     isProcessing,
+    acceptanceInput,
+    onAcceptanceInputChange,
 }: {
     suggestion: BaseSuggestionItem;
-    onAccept: (id: number) => void;
+    onAccept: (id: number, input?: SuggestionAcceptanceInput) => void;
     onDecline: (id: number) => void;
     isProcessing: boolean;
+    acceptanceInput: SuggestionAcceptanceInput;
+    onAcceptanceInputChange: (input: SuggestionAcceptanceInput) => void;
 }) {
     const value = String(suggestion.suggested_value ?? '');
     const label = String(suggestion.suggested_label ?? value);
@@ -1099,7 +1122,7 @@ function SizeFormatSuggestionCard({
     const displayLabel = sizeFormatDisplayLabel(suggestion.target_type, value, label);
     const metadata = isRecord(suggestion.metadata) ? suggestion.metadata : null;
     const evidence = isRecord(metadata?.evidence) ? metadata.evidence : null;
-    const sourceUrl = typeof metadata?.source_url === 'string' ? metadata.source_url : null;
+    const sourceUrl = typeof metadata?.source_url === 'string' && isSafeHttpUrl(metadata.source_url) ? metadata.source_url : null;
     const probeMethod = typeof metadata?.probe_method === 'string' ? metadata.probe_method : null;
     const confidence = typeof metadata?.confidence === 'string' ? metadata.confidence : null;
     const displayConfidence = confidenceLabel(confidence);
@@ -1107,6 +1130,15 @@ function SizeFormatSuggestionCard({
     const parsedFileCount = typeof evidence?.parsed_file_count === 'number' ? evidence.parsed_file_count : null;
     const totalFileCount = typeof evidence?.total_file_count === 'number' ? evidence.total_file_count : null;
     const filename = typeof evidence?.filename === 'string' ? evidence.filename : null;
+    const suggestionKind = typeof metadata?.suggestion_kind === 'string' ? metadata.suggestion_kind : null;
+    const proposedSize = isRecord(metadata?.proposed_size) ? metadata.proposed_size : null;
+    const proposedBytes = typeof proposedSize?.bytes === 'number' ? proposedSize.bytes : null;
+    const sizeSemantics = typeof proposedSize?.semantics === 'string' ? proposedSize.semantics : null;
+    const currentSizes = Array.isArray(metadata?.current_sizes) ? metadata.current_sizes.filter(isRecord) : [];
+    const excludedFiles = Array.isArray(evidence?.excluded_files) ? evidence.excluded_files.filter(isRecord) : [];
+    const formatRole = typeof evidence?.format_role === 'string' ? evidence.format_role : null;
+    const replacesExistingSize = acceptanceInput.size_conflict_resolution === 'replace';
+    const humanSize = proposedBytes === null ? null : humanByteSize(proposedBytes);
 
     return (
         <div className={isZip ? 'border-l-4 border-orange-500 bg-orange-50 p-2 sm:p-3 dark:bg-orange-950/20' : 'bg-card p-2 sm:p-3'}>
@@ -1120,9 +1152,43 @@ function SizeFormatSuggestionCard({
                                 {displayProbeMethod}
                             </Badge>
                         )}
+                        {formatRole && <Badge variant="outline">{formatRole === 'container' ? 'Container format' : 'Content format'}</Badge>}
                     </div>
 
                     <p className="text-sm font-medium">{displayLabel}</p>
+
+                    {proposedBytes !== null && (
+                        <p className="text-xs text-muted-foreground">
+                            Exact size: {proposedBytes.toLocaleString('en-US')} bytes
+                            {humanSize ? ` (${humanSize})` : ''}
+                            {sizeSemantics === 'uncompressed_primary_data' ? ' — uncompressed primary data' : ' — primary data'}
+                        </p>
+                    )}
+
+                    {suggestionKind === 'size_conflict' && (
+                        <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+                            <p className="font-medium">The detected total differs from existing digital size metadata.</p>
+                            {currentSizes.map((current, index) => (
+                                <p key={String(current.id ?? index)}>Current: {String(current.value ?? current.bytes ?? 'Unknown')}</p>
+                            ))}
+                            <label className="flex items-center gap-2">
+                                <Checkbox
+                                    checked={replacesExistingSize}
+                                    onCheckedChange={(checked) =>
+                                        onAcceptanceInputChange(checked === true ? { size_conflict_resolution: 'replace' } : {})
+                                    }
+                                />
+                                Replace the listed existing digital size
+                            </label>
+                        </div>
+                    )}
+
+                    {excludedFiles.length > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                            <span className="font-medium">Excluded metadata/documentation:</span>{' '}
+                            {excludedFiles.map((file) => String(file.filename ?? file.source_url ?? 'Unknown file')).join(', ')}
+                        </div>
+                    )}
 
                     {(sourceUrl || filename || parsedFileCount !== null) && (
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -1156,7 +1222,11 @@ function SizeFormatSuggestionCard({
                         <X className="mr-1 h-4 w-4" />
                         Decline
                     </Button>
-                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                    <Button
+                        size="sm"
+                        disabled={isProcessing || (suggestionKind === 'size_conflict' && !replacesExistingSize)}
+                        onClick={() => onAccept(suggestion.id, acceptanceInput)}
+                    >
                         <Check className="mr-1 h-4 w-4" />
                         Accept
                     </Button>
@@ -1789,7 +1859,30 @@ export default function AssistancePage({
                 const response = Object.keys(input).length > 0 ? await axios.post<AcceptResponse>(url, input) : await axios.post<AcceptResponse>(url);
                 const { data } = response;
 
-                if (data.success) {
+                if (data.datacite_sync?.attempted && !data.datacite_sync.success) {
+                    toast.warning(data.message, {
+                        description: `Local metadata was saved, but DataCite synchronization failed: ${data.datacite_sync.errorMessage ?? 'Unknown error'}`,
+                        action: data.datacite_sync_retry_url
+                            ? {
+                                  label: 'Retry sync',
+                                  onClick: () => {
+                                      void axios
+                                          .post<{ success: boolean; message: string }>(data.datacite_sync_retry_url as string)
+                                          .then(({ data: retryResult }) =>
+                                              retryResult.success ? toast.success(retryResult.message) : toast.warning(retryResult.message),
+                                          )
+                                          .catch((error: unknown) => {
+                                              const message =
+                                                  axios.isAxiosError(error) && typeof error.response?.data?.message === 'string'
+                                                      ? error.response.data.message
+                                                      : 'DataCite synchronization retry failed.';
+                                              toast.error(message);
+                                          });
+                                  },
+                              }
+                            : undefined,
+                    });
+                } else if (data.success) {
                     toast.success(data.message);
                 } else {
                     toast.warning(data.message);
@@ -1884,6 +1977,11 @@ export default function AssistancePage({
         const descriptionSegmentationTestId = manifest.id === 'description-segmentation' ? 'description-segmentation' : null;
         const suggestionIdentity = `${item.review?.assistant_id ?? item.assistant_id ?? manifest.id}:${item.id}`;
         const acceptanceInput = acceptanceInputs[suggestionIdentity] ?? {};
+        const unresolvedSizeConflict =
+            manifest.id === 'size-format-suggestion' &&
+            isRecord(item.metadata) &&
+            item.metadata.suggestion_kind === 'size_conflict' &&
+            acceptanceInput.size_conflict_resolution !== 'replace';
 
         return (
             <div className="flex flex-wrap justify-end gap-2">
@@ -1900,7 +1998,8 @@ export default function AssistancePage({
                 {!isDateTypeHint && (
                     <Button
                         size="sm"
-                        disabled={isProcessing}
+                        disabled={isProcessing || unresolvedSizeConflict}
+                        title={unresolvedSizeConflict ? 'Confirm replacement of the existing digital size first.' : undefined}
                         data-testid={descriptionSegmentationTestId ? `${descriptionSegmentationTestId}-accept-${item.id}` : undefined}
                         onClick={() => handleAccept(manifest, item.id, acceptanceInput)}
                     >
@@ -1951,7 +2050,16 @@ export default function AssistancePage({
                     />
                 );
             case 'size-format-suggestion':
-                return <SizeFormatSuggestionCard suggestion={item} onAccept={onAccept} onDecline={onDecline} isProcessing={isProcessing} />;
+                return (
+                    <SizeFormatSuggestionCard
+                        suggestion={item}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                        acceptanceInput={acceptanceInput}
+                        onAcceptanceInputChange={onAcceptanceInputChange}
+                    />
+                );
             case 'date-type-suggestion':
                 return <DateTypeSuggestionCard suggestion={item} onAccept={onAccept} onDecline={onDecline} isProcessing={isProcessing} />;
             case 'description-segmentation':

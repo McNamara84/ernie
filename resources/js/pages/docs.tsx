@@ -947,8 +947,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 metadata before export
                             </li>
                             <li>
-                                <strong>Size and Format Suggestions</strong> – Inspects approved GFZ landing-page and download URLs to propose missing
-                                DataCite size and file-format metadata
+                                <strong>Size and Format Suggestions</strong> – Inspects configured primary and additional download URLs to propose
+                                missing DataCite size and file-format metadata
                             </li>
                             <li>
                                 <strong>Subject Metadata Enrichment</strong> - Completes DataCite Subject metadata from supported local vocabulary
@@ -986,9 +986,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     unchanged and dismisses the suggestion.
                                 </p>
                                 <p className="mt-2">
-                                    Size and format suggestions show the detected value, source URL, probe method, and confidence level. Size values
-                                    use the same spaced format as DataCite export, such as <strong>2 MB</strong>. Review the evidence before accepting
-                                    a suggestion when a resource has multiple download locations.
+                                    Size and format suggestions use the landing page&apos;s configured primary download URL and Additional Download
+                                    Links. ZIP files contribute both their container format and detected content formats. Complete totals are stored
+                                    as exact bytes; ZIP totals are marked as uncompressed primary-data size. Data Description files are listed as
+                                    excluded evidence and do not contribute size or format. Ambiguous multiple download locations do not produce a
+                                    total-size suggestion, and differing existing byte sizes require explicit replacement.
                                 </p>
                                 <p className="mt-2">
                                     Crossref Funder ROR suggestions compare the current Crossref Funder ID with the proposed ROR identifier,

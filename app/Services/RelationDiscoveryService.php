@@ -300,10 +300,13 @@ class RelationDiscoveryService
      * Uses a DB transaction for atomicity and re-checks duplicates under a
      * resource-level lock before assigning the next position.
      *
-     * @return array{success: bool, datacite_synced: bool, message: string}
+     * @return array<string, mixed>
      */
-    public function acceptRelation(SuggestedRelation $suggestion, ?int $relationTypeId = null): array
-    {
+    public function acceptRelation(
+        SuggestedRelation $suggestion,
+        ?int $relationTypeId = null,
+        bool $syncDataCite = true,
+    ): array {
         if ($relationTypeId !== null && ! RelationType::query()->active()->whereKey($relationTypeId)->exists()) {
             return [
                 'success' => false,
@@ -361,6 +364,16 @@ class RelationDiscoveryService
 
         // Invalidate sidebar badge cache
         $this->invalidateAssistanceCache();
+
+        if (! $syncDataCite) {
+            return [
+                'success' => true,
+                'datacite_synced' => false,
+                'datacite_sync_deferred' => true,
+                'datacite_sync_resource_ids' => [$resource->id],
+                'message' => 'Relation accepted. DataCite synchronization deferred.',
+            ];
+        }
 
         // Sync to DataCite
         $syncResult = $this->dataCiteSyncService->syncIfRegistered($resource);

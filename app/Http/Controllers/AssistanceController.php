@@ -11,9 +11,11 @@ use App\Http\Requests\Assistance\BatchSuggestionsRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
 use App\Http\Requests\Assistance\IndexAssistanceRequest;
 use App\Models\RelationType;
+use App\Models\Resource;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\Assistance\BatchSuggestionActionService;
+use App\Services\DataCiteSyncService;
 use App\Services\RorDiscoveryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,6 +36,7 @@ class AssistanceController extends Controller
         private readonly AssistantRegistrar $registrar,
         private readonly BatchSuggestionActionService $batchActionService,
         private readonly RorDiscoveryService $rorDiscoveryService,
+        private readonly DataCiteSyncService $dataCiteSyncService,
     ) {}
 
     /**
@@ -192,6 +195,22 @@ class AssistanceController extends Controller
     public function batchDecline(BatchSuggestionsRequest $request): JsonResponse
     {
         return $this->batchAction($request, 'decline');
+    }
+
+    /**
+     * Retry a failed automatic DataCite synchronization after local acceptance.
+     */
+    public function retryDataCiteSync(Resource $resource): JsonResponse
+    {
+        $result = $this->dataCiteSyncService->syncIfRegistered($resource);
+
+        return response()->json([
+            'success' => $result->success,
+            'datacite_sync' => $result->toArray(),
+            'message' => $result->hasFailed()
+                ? 'DataCite synchronization failed: '.$result->errorMessage
+                : ($result->attempted ? 'DataCite synchronization completed.' : 'No DataCite synchronization was required.'),
+        ], $result->hasFailed() ? 502 : 200);
     }
 
     /**

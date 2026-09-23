@@ -56,6 +56,7 @@ const mockedRouterGet = router.get as Mock;
 const mockedRouterReload = router.reload as Mock;
 const mockedToastInfo = toast.info as Mock;
 const mockedToastWarning = toast.warning as Mock;
+const mockedToastError = toast.error as Mock;
 
 // ── Import component under test (after mocks) ───────────────────────
 
@@ -1279,6 +1280,25 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
 });
 
 describe('SizeFormatSuggestionCard - size and format preview', () => {
+    it('does not render unsafe evidence URLs as executable links', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            metadata: {
+                source_url: 'javascript:alert(document.domain)',
+                probe_method: 'FILENAME_EXTENSION',
+                confidence: 'medium',
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.queryByRole('link', { name: 'Open source' })).not.toBeInTheDocument();
+    });
+
     it('highlights ZIP archive suggestions as review-sensitive download packages', () => {
         const suggestion = makeSizeFormatSuggestion();
 
@@ -1376,6 +1396,51 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
         expect(screen.getByText('Files counted: 2 of 3')).toBeInTheDocument();
     });
 
+    it('shows exact byte evidence and requires explicit replacement for a size conflict', async () => {
+        const suggestion = makeSizeFormatSuggestion({
+            id: 78,
+            suggested_value: '2665858 Uncompressed Primary Data Size [bytes]',
+            suggested_label: 'SIZE: 2665858 Uncompressed Primary Data Size [bytes]',
+            target_type: 'size',
+            metadata: {
+                suggestion_kind: 'size_conflict',
+                source_url: 'https://datapub.gfz.de/download/example/',
+                probe_method: 'ZIP_CONTENT_LISTING',
+                proposed_size: {
+                    bytes: 2665858,
+                    semantics: 'uncompressed_primary_data',
+                },
+                current_sizes: [{ id: 9, value: '1 MB Primary Data Size' }],
+                evidence: {
+                    excluded_files: [{ filename: 'example_data-description.pdf', role: 'data_description' }],
+                },
+            },
+        });
+        const user = userEvent.setup();
+        mockedAxiosPost.mockResolvedValueOnce({ data: { success: true, message: 'Size applied.' } });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByText(/Exact size: 2,665,858 bytes/)).toHaveTextContent('uncompressed primary data');
+        expect(screen.getByText(/example_data-description\.pdf/)).toBeInTheDocument();
+
+        const acceptButton = screen.getByRole('button', { name: 'Accept' });
+        expect(acceptButton).toBeDisabled();
+
+        await user.click(screen.getByRole('checkbox', { name: /Replace the listed existing digital size/i }));
+        expect(acceptButton).toBeEnabled();
+        await user.click(acceptButton);
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenCalledWith('/assistance/size-format/78/accept', { size_conflict_resolution: 'replace' });
+        });
+    });
+
     it('renders filename-extension evidence without exposing internal probe constants', () => {
         const suggestion = makeSizeFormatSuggestion({
             suggested_value: 'application/pdf',
@@ -1430,6 +1495,50 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/size-format/77/decline');
+        });
+    });
+
+    it('shows the detailed DataCite retry failure returned with HTTP 502', async () => {
+        const suggestion = makeSizeFormatSuggestion({ id: 79 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    message: 'Format applied locally.',
+                    datacite_sync: {
+                        attempted: true,
+                        success: false,
+                        errorMessage: 'Initial synchronization failed.',
+                    },
+                    datacite_sync_retry_url: '/assistance/resources/10/datacite-sync/retry',
+                },
+            })
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: {
+                    status: 502,
+                    data: { message: 'DataCite rejected the retry with a validation error.' },
+                },
+            });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+        await waitFor(() => expect(mockedToastWarning).toHaveBeenCalled());
+
+        const retryAction = mockedToastWarning.mock.calls[0][1].action as { onClick: () => void };
+        retryAction.onClick();
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/resources/10/datacite-sync/retry');
+            expect(mockedToastError).toHaveBeenCalledWith('DataCite rejected the retry with a validation error.');
         });
     });
 });

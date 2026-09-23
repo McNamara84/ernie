@@ -32,6 +32,7 @@ final class BatchSuggestionsRequest extends FormRequest
                     fn (Builder $query): Builder => $query->where('is_active', true),
                 ),
             ],
+            'suggestions.*.size_conflict_resolution' => ['sometimes', 'string', Rule::in(['replace'])],
             'reason' => ['nullable', 'string', 'max:255'],
         ];
     }

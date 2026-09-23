@@ -147,6 +147,20 @@ describe('DataCiteJsonExporter - Sizes & Formats', function () {
         expect($attributes)->not->toHaveKey('sizes')
             ->and($attributes)->not->toHaveKey('formats');
     });
+
+    test('exports exact uncompressed primary bytes without converting them to KB', function () {
+        $resource = Resource::factory()->create();
+        Size::create([
+            'resource_id' => $resource->id,
+            'numeric_value' => '2665858',
+            'unit' => 'bytes',
+            'type' => 'Uncompressed Primary Data Size',
+        ]);
+
+        $attributes = $this->exporter->export($resource->fresh())['data']['attributes'];
+
+        expect($attributes['sizes'])->toBe(['2665858 Uncompressed Primary Data Size [bytes]']);
+    });
 });
 
 describe('DataCiteJsonExporter - Titles', function () {
