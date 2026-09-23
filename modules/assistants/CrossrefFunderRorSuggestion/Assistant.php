@@ -9,6 +9,7 @@ use App\Services\Assistance\GenericTableAssistant;
 use App\Services\CrossrefFunderRor\CrossrefFunderRorAcceptanceService;
 use App\Services\CrossrefFunderRor\CrossrefFunderRorDiscoveryService;
 use Closure;
+use Illuminate\Database\Eloquent\Model;
 
 final class Assistant extends GenericTableAssistant
 {
@@ -58,5 +59,31 @@ final class Assistant extends GenericTableAssistant
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
         return $this->acceptanceService->accept($suggestion);
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    #[\Override]
+    protected function acceptWithInput(Model $suggestion, array $input): array
+    {
+        if (! $suggestion instanceof AssistantSuggestion) {
+            return [
+                'success' => false,
+                'message' => 'Suggestion not found.',
+            ];
+        }
+
+        $result = $this->acceptanceService->accept(
+            $suggestion,
+            ($input['defer_datacite_sync'] ?? false) !== true,
+        );
+
+        if (($result['success'] ?? false) === true) {
+            $suggestion->delete();
+        }
+
+        return $result;
     }
 }

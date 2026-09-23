@@ -21,9 +21,9 @@ final readonly class CrossrefFunderRorAcceptanceService
     ) {}
 
     /**
-     * @return array{success: bool, message: string}
+     * @return array<string, mixed>
      */
-    public function accept(AssistantSuggestion $suggestion): array
+    public function accept(AssistantSuggestion $suggestion, bool $syncDataCite = true): array
     {
         $validation = $this->validatedPayload($suggestion);
 
@@ -105,6 +105,16 @@ final readonly class CrossrefFunderRorAcceptanceService
         }
 
         $fundingReference = $result['funding_reference'];
+
+        if (! $syncDataCite) {
+            return [
+                'success' => true,
+                'datacite_sync_deferred' => true,
+                'datacite_sync_resource_ids' => [$fundingReference->resource_id],
+                'message' => 'Funding reference identifier normalized to ROR. DataCite synchronization deferred.',
+            ];
+        }
+
         $syncResult = $this->dataCiteSyncService->syncIfRegistered($fundingReference->resource);
 
         if ($syncResult->hasFailed()) {

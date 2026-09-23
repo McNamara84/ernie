@@ -30,6 +30,77 @@ const VIEW_STORAGE_KEY = 'assistance.review-view';
 const ASSISTANCE_ACCORDION_PREFERENCE_URL = '/settings/assistance-accordion';
 const ASSISTANCE_ACCORDION_PREFERENCE_DELAY_MS = 400;
 
+type DataCiteSyncFailure = NonNullable<BatchSuggestionResponse['datacite_sync_failures']>[number];
+
+function dataCiteSyncFailureLabel(failure: DataCiteSyncFailure): string {
+    const doi = failure.doi?.trim();
+
+    return doi ? `DataCite ${doi}` : `DataCite resource #${failure.resource_id}`;
+}
+
+function dataCiteSyncFailureDetails(failures: DataCiteSyncFailure[]): string {
+    return failures.map((failure) => `${dataCiteSyncFailureLabel(failure)}: ${failure.message ?? 'Unknown synchronization error'}`).join('\n');
+}
+
+function dataCiteSyncRetryAction(failures: DataCiteSyncFailure[]) {
+    return {
+        label: failures.length === 1 ? 'Retry sync' : 'Retry all syncs',
+        onClick: () => {
+            void retryDataCiteSyncFailures(failures);
+        },
+    };
+}
+
+async function retryDataCiteSyncFailures(failures: DataCiteSyncFailure[]): Promise<void> {
+    const outcomes = await Promise.all(
+        failures.map(async (failure) => {
+            try {
+                const { data } = await axios.post<{ success: boolean; message: string }>(failure.retry_url);
+
+                return {
+                    failure,
+                    success: data.success,
+                    message: data.message,
+                    rejected: false,
+                };
+            } catch (error: unknown) {
+                return {
+                    failure,
+                    success: false,
+                    message:
+                        axios.isAxiosError(error) && typeof error.response?.data?.message === 'string'
+                            ? error.response.data.message
+                            : 'DataCite synchronization retry failed.',
+                    rejected: true,
+                };
+            }
+        }),
+    );
+
+    if (outcomes.length === 1) {
+        const outcome = outcomes[0];
+
+        if (outcome.success) toast.success(outcome.message);
+        else if (outcome.rejected) toast.error(outcome.message, { action: dataCiteSyncRetryAction([outcome.failure]) });
+        else toast.warning(outcome.message, { action: dataCiteSyncRetryAction([outcome.failure]) });
+
+        return;
+    }
+
+    const failed = outcomes.filter((outcome) => !outcome.success);
+
+    if (failed.length === 0) {
+        toast.success(`${outcomes.length} DataCite synchronizations completed.`);
+
+        return;
+    }
+
+    toast.error(`${failed.length} of ${outcomes.length} DataCite synchronizations failed.`, {
+        description: failed.map((outcome) => `${dataCiteSyncFailureLabel(outcome.failure)}: ${outcome.message}`).join('\n'),
+        action: dataCiteSyncRetryAction(failed.map((outcome) => outcome.failure)),
+    });
+}
+
 function initialReviewView(): 'all' | 'assistant' {
     if (typeof window === 'undefined') return 'all';
 
@@ -146,6 +217,12 @@ function normalizeSection(section: SectionData, manifest: AssistantManifest): Pa
 
 function identity(item: BaseSuggestionItem): string {
     return `${item.review?.assistant_id ?? item.assistant_id}:${item.id}`;
+}
+
+function isUnresolvedSizeConflict(item: BaseSuggestionItem, input: SuggestionAcceptanceInput | undefined): boolean {
+    const metadata = typeof item.metadata === 'object' && item.metadata !== null ? (item.metadata as Record<string, unknown>) : null;
+
+    return metadata?.suggestion_kind === 'size_conflict' && input?.size_conflict_resolution !== 'replace';
 }
 
 function indirectMatchDescription(match: NonNullable<SuggestionReviewMetadata['filter_match']>): string {
@@ -387,7 +464,14 @@ export function ResourceReview({
             });
             const details = data.results.map((result) => `${result.assistant_name}: ${result.label} — ${result.message}`).join('\n');
 
-            if (data.failure_count === 0) toast.success(data.message, { description: details });
+            const syncFailures = data.datacite_sync_failures ?? [];
+
+            if (syncFailures.length > 0) {
+                toast.warning(data.message, {
+                    description: `${details}\n${dataCiteSyncFailureDetails(syncFailures)}`,
+                    action: dataCiteSyncRetryAction(syncFailures),
+                });
+            } else if (data.failure_count === 0) toast.success(data.message, { description: details });
             else toast.warning(data.message, { description: details });
 
             setSelected((current) => {
@@ -417,6 +501,7 @@ export function ResourceReview({
         const selectedItems = group.suggestions.filter((item) => selected.has(identity(item)));
         const processing = processingResources.has(group.resource_id);
         const declineOnlySelected = selectedItems.some((item) => item.review?.can_accept !== true);
+        const unresolvedSizeConflict = selectedItems.some((item) => isUnresolvedSizeConflict(item, acceptanceInputs[identity(item)]));
         const selectedTargetCounts = new Map<string, number>();
 
         for (const item of selectedItems) {
@@ -429,7 +514,9 @@ export function ResourceReview({
             ? 'The selection contains a hint that can only be declined.'
             : conflictingAlternatives
               ? 'Select at most one ORCID or ROR alternative per target before accepting.'
-              : null;
+              : unresolvedSizeConflict
+                ? 'Confirm replacement of the listed existing digital size before accepting.'
+                : null;
         const resourceLabel = group.resource_doi.trim() || `Resource #${group.resource_id}`;
         const resourceTitle = group.resource_title.trim() || 'Untitled';
 
