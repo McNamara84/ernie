@@ -30,6 +30,77 @@ const VIEW_STORAGE_KEY = 'assistance.review-view';
 const ASSISTANCE_ACCORDION_PREFERENCE_URL = '/settings/assistance-accordion';
 const ASSISTANCE_ACCORDION_PREFERENCE_DELAY_MS = 400;
 
+type DataCiteSyncFailure = NonNullable<BatchSuggestionResponse['datacite_sync_failures']>[number];
+
+function dataCiteSyncFailureLabel(failure: DataCiteSyncFailure): string {
+    const doi = failure.doi?.trim();
+
+    return doi ? `DataCite ${doi}` : `DataCite resource #${failure.resource_id}`;
+}
+
+function dataCiteSyncFailureDetails(failures: DataCiteSyncFailure[]): string {
+    return failures.map((failure) => `${dataCiteSyncFailureLabel(failure)}: ${failure.message ?? 'Unknown synchronization error'}`).join('\n');
+}
+
+function dataCiteSyncRetryAction(failures: DataCiteSyncFailure[]) {
+    return {
+        label: failures.length === 1 ? 'Retry sync' : 'Retry all syncs',
+        onClick: () => {
+            void retryDataCiteSyncFailures(failures);
+        },
+    };
+}
+
+async function retryDataCiteSyncFailures(failures: DataCiteSyncFailure[]): Promise<void> {
+    const outcomes = await Promise.all(
+        failures.map(async (failure) => {
+            try {
+                const { data } = await axios.post<{ success: boolean; message: string }>(failure.retry_url);
+
+                return {
+                    failure,
+                    success: data.success,
+                    message: data.message,
+                    rejected: false,
+                };
+            } catch (error: unknown) {
+                return {
+                    failure,
+                    success: false,
+                    message:
+                        axios.isAxiosError(error) && typeof error.response?.data?.message === 'string'
+                            ? error.response.data.message
+                            : 'DataCite synchronization retry failed.',
+                    rejected: true,
+                };
+            }
+        }),
+    );
+
+    if (outcomes.length === 1) {
+        const outcome = outcomes[0];
+
+        if (outcome.success) toast.success(outcome.message);
+        else if (outcome.rejected) toast.error(outcome.message, { action: dataCiteSyncRetryAction([outcome.failure]) });
+        else toast.warning(outcome.message, { action: dataCiteSyncRetryAction([outcome.failure]) });
+
+        return;
+    }
+
+    const failed = outcomes.filter((outcome) => !outcome.success);
+
+    if (failed.length === 0) {
+        toast.success(`${outcomes.length} DataCite synchronizations completed.`);
+
+        return;
+    }
+
+    toast.error(`${failed.length} of ${outcomes.length} DataCite synchronizations failed.`, {
+        description: failed.map((outcome) => `${dataCiteSyncFailureLabel(outcome.failure)}: ${outcome.message}`).join('\n'),
+        action: dataCiteSyncRetryAction(failed.map((outcome) => outcome.failure)),
+    });
+}
+
 function initialReviewView(): 'all' | 'assistant' {
     if (typeof window === 'undefined') return 'all';
 
@@ -393,28 +464,12 @@ export function ResourceReview({
             });
             const details = data.results.map((result) => `${result.assistant_name}: ${result.label} — ${result.message}`).join('\n');
 
-            const syncFailure = data.datacite_sync_failures?.[0];
+            const syncFailures = data.datacite_sync_failures ?? [];
 
-            if (syncFailure) {
+            if (syncFailures.length > 0) {
                 toast.warning(data.message, {
-                    description: `${details}\nDataCite: ${syncFailure.message ?? 'Unknown synchronization error'}`,
-                    action: {
-                        label: 'Retry sync',
-                        onClick: () => {
-                            void axios
-                                .post<{ success: boolean; message: string }>(syncFailure.retry_url)
-                                .then(({ data: retryResult }) =>
-                                    retryResult.success ? toast.success(retryResult.message) : toast.warning(retryResult.message),
-                                )
-                                .catch((error: unknown) => {
-                                    const message =
-                                        axios.isAxiosError(error) && typeof error.response?.data?.message === 'string'
-                                            ? error.response.data.message
-                                            : 'DataCite synchronization retry failed.';
-                                    toast.error(message);
-                                });
-                        },
-                    },
+                    description: `${details}\n${dataCiteSyncFailureDetails(syncFailures)}`,
+                    action: dataCiteSyncRetryAction(syncFailures),
                 });
             } else if (data.failure_count === 0) toast.success(data.message, { description: details });
             else toast.warning(data.message, { description: details });

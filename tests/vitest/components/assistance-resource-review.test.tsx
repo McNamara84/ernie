@@ -700,7 +700,95 @@ describe('resource-oriented assistance review', () => {
 
         await waitFor(() => {
             expect(axios.post).toHaveBeenNthCalledWith(2, '/assistance/resources/10/datacite-sync/retry');
-            expect(toast.error).toHaveBeenCalledWith('DataCite is temporarily unavailable for this DOI.');
+            expect(toast.error).toHaveBeenCalledWith('DataCite is temporarily unavailable for this DOI.', {
+                action: expect.objectContaining({ label: 'Retry sync' }),
+            });
+        });
+    });
+
+    it('shows and retries every DataCite synchronization failure in a batch', async () => {
+        const user = userEvent.setup();
+        vi.mocked(axios.isAxiosError).mockImplementation(
+            (value: unknown) => typeof value === 'object' && value !== null && (value as { isAxiosError?: boolean }).isAxiosError === true,
+        );
+        vi.mocked(axios.post)
+            .mockResolvedValueOnce({
+                data: {
+                    success: false,
+                    action: 'accept',
+                    resource_id: 10,
+                    resource_label: '10.1234/test',
+                    processed_count: 1,
+                    success_count: 1,
+                    failure_count: 0,
+                    message: 'Accepted locally, but DataCite synchronization failed.',
+                    synced_dois: [],
+                    datacite_sync_failures: [
+                        {
+                            resource_id: 10,
+                            doi: '10.1234/test',
+                            message: 'First synchronization failed.',
+                            retry_url: '/assistance/resources/10/datacite-sync/retry',
+                        },
+                        {
+                            resource_id: 11,
+                            doi: '10.1234/affected',
+                            message: 'Second synchronization failed.',
+                            retry_url: '/assistance/resources/11/datacite-sync/retry',
+                        },
+                    ],
+                    follow_ups: [],
+                    results: [
+                        {
+                            assistant_id: manifest.id,
+                            assistant_name: manifest.name,
+                            suggestion_id: 1,
+                            label: 'Normal candidate',
+                            success: true,
+                            message: 'Accepted.',
+                            synced_dois: [],
+                        },
+                    ],
+                },
+            })
+            .mockResolvedValueOnce({ data: { success: true, message: 'First synchronization completed.' } })
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: {
+                    status: 502,
+                    data: { message: 'Second retry is still unavailable.' },
+                },
+            })
+            .mockResolvedValueOnce({ data: { success: true, message: 'Second synchronization completed.' } });
+        renderReview([suggestion(1, 'Normal candidate')]);
+
+        await user.click(screen.getByRole('checkbox', { name: 'Select Test assistant: Normal candidate' }));
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+        await waitFor(() => expect(toast.warning).toHaveBeenCalled());
+
+        const warningOptions = vi.mocked(toast.warning).mock.calls[0][1];
+        expect(warningOptions?.description).toContain('DataCite 10.1234/test: First synchronization failed.');
+        expect(warningOptions?.description).toContain('DataCite 10.1234/affected: Second synchronization failed.');
+        expect(warningOptions?.action).toMatchObject({ label: 'Retry all syncs' });
+
+        const retryAction = warningOptions?.action as unknown as { onClick: () => void };
+        retryAction.onClick();
+
+        await waitFor(() => {
+            expect(axios.post).toHaveBeenCalledWith('/assistance/resources/10/datacite-sync/retry');
+            expect(axios.post).toHaveBeenCalledWith('/assistance/resources/11/datacite-sync/retry');
+            expect(toast.error).toHaveBeenCalledWith('1 of 2 DataCite synchronizations failed.', {
+                description: 'DataCite 10.1234/affected: Second retry is still unavailable.',
+                action: expect.objectContaining({ label: 'Retry sync' }),
+            });
+        });
+
+        const retryFailedAction = vi.mocked(toast.error).mock.calls[0][1]?.action as unknown as { onClick: () => void };
+        retryFailedAction.onClick();
+
+        await waitFor(() => {
+            expect(axios.post).toHaveBeenNthCalledWith(4, '/assistance/resources/11/datacite-sync/retry');
+            expect(toast.success).toHaveBeenCalledWith('Second synchronization completed.');
         });
     });
 
