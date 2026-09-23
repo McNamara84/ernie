@@ -28,7 +28,7 @@ final readonly class ResourcePartySearchMatchService
      */
     public function resolve(Collection $resources, ?string $query): array
     {
-        return $this->resolveMatches($resources, $query, includeEmailMatches: true);
+        return $this->resolveMatches($resources, $query, includeEmailMatches: true, allowWildcard: false);
     }
 
     /**
@@ -37,10 +37,10 @@ final readonly class ResourcePartySearchMatchService
      * @param  Collection<int, Resource>  $resources
      * @return array<int, list<array{display_value:string, matched_field:'name', roles:list<string>}>>
      */
-    public function resolveNames(Collection $resources, ?string $query): array
+    public function resolveNames(Collection $resources, ?string $query, bool $allowWildcard = false): array
     {
         /** @var array<int, list<array{display_value:string, matched_field:'name', roles:list<string>}>> $matches */
-        $matches = $this->resolveMatches($resources, $query, includeEmailMatches: false);
+        $matches = $this->resolveMatches($resources, $query, includeEmailMatches: false, allowWildcard: $allowWildcard);
 
         return $matches;
     }
@@ -49,8 +49,12 @@ final readonly class ResourcePartySearchMatchService
      * @param  Collection<int, Resource>  $resources
      * @return array<int, list<array{display_value:string, matched_field:'name'|'email', roles:list<string>}>>
      */
-    private function resolveMatches(Collection $resources, ?string $query, bool $includeEmailMatches): array
-    {
+    private function resolveMatches(
+        Collection $resources,
+        ?string $query,
+        bool $includeEmailMatches,
+        bool $allowWildcard,
+    ): array {
         $query = trim((string) $query);
         if ($query === '' || $resources->isEmpty()) {
             return [];
@@ -68,14 +72,14 @@ final readonly class ResourcePartySearchMatchService
 
         $matches = [];
         foreach ($resources as $resource) {
-            $matches[$resource->id] = $this->resourceMatches($resource, $query, $includeEmailMatches);
+            $matches[$resource->id] = $this->resourceMatches($resource, $query, $includeEmailMatches, $allowWildcard);
         }
 
         return $matches;
     }
 
     /** @return list<array{display_value:string, matched_field:'name'|'email', roles:list<string>}> */
-    private function resourceMatches(Resource $resource, string $query, bool $includeEmailMatches): array
+    private function resourceMatches(Resource $resource, string $query, bool $includeEmailMatches, bool $allowWildcard): array
     {
         $identityGroups = $this->identityResolver->resolve($resource);
 
@@ -105,9 +109,9 @@ final readonly class ResourcePartySearchMatchService
             if ($party !== null) {
                 if ($party instanceof Person) {
                     $resolvedName = $this->creatorNameResolver->resolve($creator, $party);
-                    $this->addResolvedPersonMatch($groups[$groupKey], $resolvedName, $query);
+                    $this->addResolvedPersonMatch($groups[$groupKey], $resolvedName, $query, $allowWildcard);
                 } else {
-                    $this->addPartyMatch($groups[$groupKey], $party, $query);
+                    $this->addPartyMatch($groups[$groupKey], $party, $query, $allowWildcard);
                 }
             }
             if ($includeEmailMatches) {
@@ -136,7 +140,7 @@ final readonly class ResourcePartySearchMatchService
             }
 
             if ($party !== null) {
-                $this->addPartyMatch($groups[$groupKey], $party, $query);
+                $this->addPartyMatch($groups[$groupKey], $party, $query, $allowWildcard);
             }
             if ($includeEmailMatches) {
                 $this->addEmailMatch($groups[$groupKey], $contributor->email, $query);
@@ -194,14 +198,14 @@ final readonly class ResourcePartySearchMatchService
     /**
      * @param  array{display_value:string, name_matched:bool, matched_email:?string, roles:array<string, bool>, sort:list<int>}  $group
      */
-    private function addPartyMatch(array &$group, Person|Institution $party, string $query): void
+    private function addPartyMatch(array &$group, Person|Institution $party, string $query, bool $allowWildcard): void
     {
         $displayName = $party instanceof Person ? $party->full_name : $party->name;
         if ($group['display_value'] === '') {
             $group['display_value'] = $displayName;
         }
 
-        if (! $group['name_matched'] && $this->normalizer->partyMatches($party, $query)) {
+        if (! $group['name_matched'] && $this->normalizer->partyMatches($party, $query, $allowWildcard)) {
             $group['name_matched'] = true;
             $group['display_value'] = $displayName;
         }
@@ -211,7 +215,7 @@ final readonly class ResourcePartySearchMatchService
      * @param  array{display_value:string, name_matched:bool, matched_email:?string, roles:array<string, bool>, sort:list<int>}  $group
      * @param  array{name:string, given_name:string|null, family_name:string|null, source:'snapshot'|'person'}  $resolvedName
      */
-    private function addResolvedPersonMatch(array &$group, array $resolvedName, string $query): void
+    private function addResolvedPersonMatch(array &$group, array $resolvedName, string $query, bool $allowWildcard): void
     {
         if ($group['display_value'] === '') {
             $group['display_value'] = $resolvedName['name'];
@@ -222,6 +226,7 @@ final readonly class ResourcePartySearchMatchService
             $resolvedName['family_name'],
             $resolvedName['name'],
             $query,
+            $allowWildcard,
         )) {
             $group['name_matched'] = true;
             $group['display_value'] = $resolvedName['name'];

@@ -24,6 +24,7 @@ use App\Services\Resources\ResourceListingProjectionRefreshService;
 use App\Services\Resources\ResourcePartySearchNormalizerService;
 use App\Support\LegacyMslScheme;
 use App\Support\PortalCacheNamespace;
+use App\Support\PortalIgsnSearchPattern;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
 use Closure;
@@ -47,6 +48,8 @@ class PortalSearchService
     private readonly ResourceCreatorNameResolverService $creatorNameResolver;
 
     private ?bool $hasPartyNameSearchColumn = null;
+
+    private ?bool $hasPartyNameTermsTable = null;
 
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
@@ -286,7 +289,13 @@ class PortalSearchService
         if ($includePartyNameSearch) {
             $this->projectionRefreshScheduler->flushPending();
         }
-        $this->applySearchQuery($query, $searchQuery, $includePartyNameSearch);
+        if ($scope === PortalScope::IGSN
+            && is_string($searchQuery)
+            && trim($searchQuery) !== ''
+            && $this->partyNameTermsTableAvailable()) {
+            $this->projectionRefreshScheduler->flushPending();
+        }
+        $this->applySearchQuery($query, $searchQuery, $includePartyNameSearch, $scope === PortalScope::IGSN);
         if ($scope !== PortalScope::IGSN) {
             $this->applyScienceTopicFilter($query, $filters['topic'] ?? null);
         }
@@ -566,12 +575,19 @@ class PortalSearchService
         Builder $query,
         ?string $searchQuery,
         bool $includePartyNameSearch = false,
+        bool $isIgsn = false,
     ): void {
         if ($searchQuery === null || trim($searchQuery) === '') {
             return;
         }
 
         $trimmedQuery = trim($searchQuery);
+        if ($isIgsn) {
+            $this->applyIgsnSearchQuery($query, $trimmedQuery);
+
+            return;
+        }
+
         $searchTerm = '%'.$trimmedQuery.'%';
         $identifierVariants = $this->identifierSearchVariants($trimmedQuery);
         $partyQueryTerms = $includePartyNameSearch
@@ -669,6 +685,72 @@ class PortalSearchService
                     });
             }
         });
+    }
+
+    /** @param Builder<Resource> $query */
+    private function applyIgsnSearchQuery(Builder $query, string $searchQuery): void
+    {
+        $searchPattern = new PortalIgsnSearchPattern($searchQuery);
+        if ($searchPattern->isMatchAll()) {
+            return;
+        }
+
+        $pattern = $searchPattern->likePattern();
+        $namePatterns = array_values(array_unique(array_map(
+            static fn (string $term): string => (new PortalIgsnSearchPattern($term))->likePattern(),
+            $this->partySearchNormalizer->queryTerms($searchQuery),
+        )));
+        $identifierPatterns = array_values(array_unique(array_map(
+            static fn (string $term): string => (new PortalIgsnSearchPattern($term))->likePattern(),
+            $this->identifierSearchVariants($searchQuery),
+        )));
+
+        $query->where(function (Builder $resourceQuery) use ($pattern, $namePatterns, $identifierPatterns): void {
+            $resourceQuery->whereRaw("LOWER(resources.doi) LIKE ? ESCAPE '!'", [$pattern])
+                ->orWhereHas('titles', static fn (Builder $titleQuery): Builder => $titleQuery
+                    ->whereRaw("LOWER(value) LIKE ? ESCAPE '!'", [$pattern]))
+                ->orWhereHas('descriptions', static fn (Builder $descriptionQuery): Builder => $descriptionQuery
+                    ->whereRaw("LOWER(value) LIKE ? ESCAPE '!'", [$pattern]))
+                ->orWhereHas('subjects', static fn (Builder $subjectQuery): Builder => $subjectQuery
+                    ->whereRaw("LOWER(value) LIKE ? ESCAPE '!'", [$pattern]));
+
+            if ($namePatterns !== [] && $this->partyNameTermsTableAvailable()) {
+                $resourceQuery->orWhereExists(static function (QueryBuilder $termsQuery) use ($namePatterns): void {
+                    $termsQuery->selectRaw('1')
+                        ->from('resource_party_name_terms as party_terms')
+                        ->whereColumn('party_terms.resource_id', 'resources.id')
+                        ->where(static function (QueryBuilder $nameQuery) use ($namePatterns): void {
+                            foreach ($namePatterns as $namePattern) {
+                                $nameQuery->orWhereRaw("party_terms.term LIKE ? ESCAPE '!'", [$namePattern]);
+                            }
+                        });
+                });
+            }
+
+            if ($identifierPatterns !== []) {
+                $resourceQuery->orWhereHas('alternateIdentifiers', static function (Builder $alternateQuery) use ($identifierPatterns): void {
+                    $alternateQuery->where(static function (Builder $identifierQuery) use ($identifierPatterns): void {
+                        foreach ($identifierPatterns as $identifierPattern) {
+                            $identifierQuery->orWhereRaw("LOWER(value) LIKE ? ESCAPE '!'", [$identifierPattern]);
+                        }
+                    });
+                })->orWhereHas('relatedIdentifiers', static function (Builder $relatedQuery) use ($identifierPatterns): void {
+                    $relatedQuery
+                        ->whereHas('relationType', static fn (Builder $relationQuery): Builder => $relationQuery
+                            ->where('slug', 'IsIdenticalTo'))
+                        ->where(static function (Builder $identifierQuery) use ($identifierPatterns): void {
+                            foreach ($identifierPatterns as $identifierPattern) {
+                                $identifierQuery->orWhereRaw("LOWER(identifier) LIKE ? ESCAPE '!'", [$identifierPattern]);
+                            }
+                        });
+                });
+            }
+        });
+    }
+
+    private function partyNameTermsTableAvailable(): bool
+    {
+        return $this->hasPartyNameTermsTable ??= Schema::hasTable('resource_party_name_terms');
     }
 
     private function partyNameSearchProjectionAvailable(): bool

@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Enums\PortalCacheArea;
+use App\Models\AlternateIdentifier;
+use App\Models\Description;
 use App\Models\GeoLocation;
 use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
+use App\Models\RelatedIdentifier;
 use App\Models\ResourceContributor;
 use App\Models\ResourceContributorTypePivot;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\Title;
 use App\Services\PortalCacheInvalidationService;
 use Illuminate\Database\Eloquent\Model;
 
@@ -90,7 +94,11 @@ final class PortalResourceDependencyObserver
                 PortalCacheArea::MAP_EXTENT,
             ],
             $model instanceof ResourceCreator,
-            $model instanceof ResourceContributor => [
+            $model instanceof ResourceContributor,
+            $model instanceof AlternateIdentifier,
+            $model instanceof RelatedIdentifier,
+            $model instanceof Title,
+            $model instanceof Description => [
                 PortalCacheArea::PAGE,
                 PortalCacheArea::COUNT,
                 PortalCacheArea::IGSN_FACETS,

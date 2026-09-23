@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use App\Enums\PortalCacheArea;
+use App\Models\AlternateIdentifier;
+use App\Models\Description;
 use App\Models\GeoLocation;
 use App\Models\IgsnClassification;
 use App\Models\IgsnMetadata;
+use App\Models\RelatedIdentifier;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
@@ -20,17 +23,20 @@ beforeEach(function (): void {
     $this->observer = new PortalResourceDependencyObserver($this->invalidation); // @phpstan-ignore variable.undefined
 });
 
-it('invalidates result and count caches for result-card dependencies', function (): void {
-    $title = new Title(['resource_id' => 42]);
+it('invalidates result and map caches for searchable text and identifiers', function (string $modelClass): void {
+    /** @var class-string<Title|Description|AlternateIdentifier|RelatedIdentifier> $modelClass */
+    $model = new $modelClass(['resource_id' => 42]);
 
     $this->invalidation->shouldReceive('scheduleForResourceId')->once()->with(42, [
         PortalCacheArea::PAGE,
         PortalCacheArea::COUNT,
         PortalCacheArea::IGSN_FACETS,
+        PortalCacheArea::MAP_PAYLOAD,
+        PortalCacheArea::MAP_EXTENT,
     ]);
 
-    $this->observer->saved($title);
-});
+    $this->observer->saved($model);
+})->with([Title::class, Description::class, AlternateIdentifier::class, RelatedIdentifier::class]);
 
 it('invalidates map result and extent caches when a resource party changes', function (string $partyClass): void {
     /** @var class-string<ResourceCreator|ResourceContributor> $partyClass */
