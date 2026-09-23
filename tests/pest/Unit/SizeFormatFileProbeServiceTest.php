@@ -530,6 +530,9 @@ it('infers high confidence size and format suggestions from HEAD headers', funct
     $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/data.csv');
 
     expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['probe_complete'])->toBeTrue()
+        ->and($result['format_complete'])->toBeTrue()
+        ->and($result['size_complete'])->toBeTrue()
         ->and($result['suggestions'])->toHaveCount(2)
         ->and($result['suggestions'][0])->toMatchArray([
             'type' => 'format',
@@ -543,6 +546,42 @@ it('infers high confidence size and format suggestions from HEAD headers', funct
             'probe_method' => 'CONTENT_LENGTH_HEADER',
             'confidence' => 'high',
         ]);
+});
+
+it('tracks format and size completeness independently for partial HEAD evidence', function () {
+    $url = 'https://datapub.gfz.de/download/data.csv';
+
+    Http::fake([
+        $url => Http::response('', 200, ['Content-Type' => 'text/csv']),
+    ]);
+
+    $result = app(SizeFormatFileProbeService::class)->inferMetadataFromFileUrl($url);
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['probe_complete'])->toBeFalse()
+        ->and($result['format_complete'])->toBeTrue()
+        ->and($result['size_complete'])->toBeFalse()
+        ->and(array_column($result['suggestions'], 'type'))->toBe(['format']);
+});
+
+it('tracks format and size completeness independently for partial ranged evidence', function () {
+    $url = 'https://datapub.gfz.de/download/data.bin';
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200);
+        }
+
+        return Http::response('', 206, ['Content-Range' => 'bytes 0-1023/4096']);
+    });
+
+    $result = app(SizeFormatFileProbeService::class)->inferMetadataFromFileUrl($url);
+
+    expect($result['probe_method'])->toBe('RANGED_GET')
+        ->and($result['probe_complete'])->toBeFalse()
+        ->and($result['format_complete'])->toBeFalse()
+        ->and($result['size_complete'])->toBeTrue()
+        ->and(array_column($result['suggestions'], 'type'))->toBe(['size']);
 });
 
 it('reads direct ZIP contents for contained formats and uncompressed size', function () {

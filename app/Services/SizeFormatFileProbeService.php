@@ -188,6 +188,10 @@ class SizeFormatFileProbeService
             ];
 
             $result['suggestions'] = $this->buildSuggestions([$result]);
+            $result['format_complete'] = $result['probe_complete'] === true
+                && $this->hasSuggestionType($result['suggestions'], 'format');
+            $result['size_complete'] = $result['probe_complete'] === true
+                && $this->hasSuggestionType($result['suggestions'], 'size');
 
             return $result;
 
@@ -237,6 +241,8 @@ class SizeFormatFileProbeService
 
                 if ($headResult !== null) {
                     $headResult['probe_complete'] = false;
+                    $headResult['format_complete'] = false;
+                    $headResult['size_complete'] = false;
                     $headResult['incomplete_reason'] = $zipResult['skip_reason'] ?? 'zip_inspection_failed';
                     $headResult['size_semantics'] = 'compressed_container';
                 }
@@ -490,9 +496,15 @@ class SizeFormatFileProbeService
             }
 
             if (! empty($suggestions)) {
+                $formatComplete = $this->hasSuggestionType($suggestions, 'format');
+                $sizeComplete = $this->hasSuggestionType($suggestions, 'size');
+
                 return [
                     'source_url' => $fileUrl,
                     'probe_method' => 'RANGED_GET',
+                    'probe_complete' => $formatComplete && $sizeComplete,
+                    'format_complete' => $formatComplete,
+                    'size_complete' => $sizeComplete,
                     'http_status' => $status,
                     'raw_evidence' => [
                         'headers' => [
@@ -531,6 +543,8 @@ class SizeFormatFileProbeService
             'source_url' => $fileUrl,
             'probe_method' => 'FILENAME_EXTENSION_FALLBACK',
             'probe_complete' => false,
+            'format_complete' => false,
+            'size_complete' => false,
             'http_status' => null,
             'raw_evidence' => [
                 'filename' => $filename,
@@ -1221,10 +1235,14 @@ class SizeFormatFileProbeService
             ];
         }
 
+        $probeComplete = $parsedSizeCount === $eligibleEntryCount;
+
         return [
             'source_url' => $sourceUrl,
             'probe_method' => 'ZIP_CONTENT_LISTING',
-            'probe_complete' => $parsedSizeCount === $eligibleEntryCount,
+            'probe_complete' => $probeComplete,
+            'format_complete' => $probeComplete && $this->hasSuggestionType($suggestions, 'format'),
+            'size_complete' => $probeComplete && $this->hasSuggestionType($suggestions, 'size'),
             'http_status' => $httpStatus,
             'raw_evidence' => [
                 'archive_filename' => $archiveFilename,
@@ -1528,9 +1546,15 @@ class SizeFormatFileProbeService
             return null;
         }
 
+        $formatComplete = $this->hasSuggestionType($suggestions, 'format');
+        $sizeComplete = $this->hasSuggestionType($suggestions, 'size');
+
         return [
             'source_url' => $fileUrl,
             'probe_method' => 'HTTP_HEAD',
+            'probe_complete' => $formatComplete && $sizeComplete,
+            'format_complete' => $formatComplete,
+            'size_complete' => $sizeComplete,
             'http_status' => $response->status(),
             'raw_evidence' => [
                 'headers' => [
@@ -1591,6 +1615,18 @@ class SizeFormatFileProbeService
         return $unique;
     }
 
+    /** @param array<int, array<string, mixed>> $suggestions */
+    private function hasSuggestionType(array $suggestions, string $type): bool
+    {
+        foreach ($suggestions as $suggestion) {
+            if (($suggestion['type'] ?? null) === $type) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * @param  array<string, mixed>  $metadata
      * @return array<string, mixed>
@@ -1600,6 +1636,9 @@ class SizeFormatFileProbeService
         return [
             'source_url' => trim($url),
             'probe_method' => 'SKIP',
+            'probe_complete' => false,
+            'format_complete' => false,
+            'size_complete' => false,
             'skip_reason' => $reason,
             'error' => $error,
             'raw_evidence' => [],

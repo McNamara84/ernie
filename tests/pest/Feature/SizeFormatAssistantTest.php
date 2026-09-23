@@ -13,6 +13,7 @@ use App\Models\Size;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\SizeFormat\SizeFormatSuggestionDiscoveryService;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Modules\Assistants\SizeFormatSuggestion\Assistant;
@@ -422,6 +423,99 @@ it('removes stale suggestions after a complete probe and preserves them after a 
     app(Assistant::class)->runDiscovery(fn (): null => null);
 
     expect(AssistantSuggestion::find($preserved->id))->not->toBeNull();
+});
+
+it('reconciles formats but preserves sizes when HEAD evidence has no size', function (): void {
+    $resource = Resource::factory()->create();
+    LandingPage::factory()->for($resource)->create([
+        'ftp_url' => 'https://datapub.gfz.de/download/data.csv',
+        'template' => 'default_gfz',
+        'downloads_unavailable' => false,
+    ]);
+    $staleFormat = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'format',
+        'target_id' => $resource->id,
+        'suggested_value' => 'application/pdf',
+        'suggested_label' => 'FORMAT: application/pdf',
+        'metadata' => [],
+        'discovered_at' => now()->subDay(),
+    ]);
+    $staleSize = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'size',
+        'target_id' => $resource->id,
+        'suggested_value' => '1024 Primary Data Size [bytes]',
+        'suggested_label' => 'SIZE: 1024 Primary Data Size [bytes]',
+        'metadata' => [],
+        'discovered_at' => now()->subDay(),
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/data.csv' => Http::response('', 200, [
+            'Content-Type' => 'text/csv',
+        ]),
+    ]);
+
+    app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    expect(AssistantSuggestion::find($staleFormat->id))->toBeNull()
+        ->and(AssistantSuggestion::find($staleSize->id))->not->toBeNull()
+        ->and(AssistantSuggestion::query()
+            ->where('resource_id', $resource->id)
+            ->where('target_type', 'format')
+            ->where('suggested_value', 'text/csv')
+            ->exists())->toBeTrue();
+});
+
+it('reconciles sizes but preserves formats when ranged evidence has no format', function (): void {
+    $resource = Resource::factory()->create();
+    $url = 'https://datapub.gfz.de/download/data.bin';
+    LandingPage::factory()->for($resource)->create([
+        'ftp_url' => $url,
+        'template' => 'default_gfz',
+        'downloads_unavailable' => false,
+    ]);
+    $staleFormat = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'format',
+        'target_id' => $resource->id,
+        'suggested_value' => 'application/pdf',
+        'suggested_label' => 'FORMAT: application/pdf',
+        'metadata' => [],
+        'discovered_at' => now()->subDay(),
+    ]);
+    $staleSize = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'size',
+        'target_id' => $resource->id,
+        'suggested_value' => '1024 Primary Data Size [bytes]',
+        'suggested_label' => 'SIZE: 1024 Primary Data Size [bytes]',
+        'metadata' => [],
+        'discovered_at' => now()->subDay(),
+    ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200);
+        }
+
+        return Http::response('', 206, ['Content-Range' => 'bytes 0-1023/4096']);
+    });
+
+    app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    expect(AssistantSuggestion::find($staleFormat->id))->not->toBeNull()
+        ->and(AssistantSuggestion::find($staleSize->id))->toBeNull()
+        ->and(AssistantSuggestion::query()
+            ->where('resource_id', $resource->id)
+            ->where('target_type', 'size')
+            ->where('suggested_value', '4096 Primary Data Size [bytes]')
+            ->exists())->toBeTrue();
 });
 
 it('keeps stale suggestions when only filename fallback evidence is available', function (): void {

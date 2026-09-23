@@ -109,7 +109,8 @@ final class SizeFormatSuggestionDiscoveryService
         $sources = $this->sourceResolver->resolve($resource);
         $formatCandidates = [];
         $sizeCandidates = [];
-        $allProbesComplete = true;
+        $formatProbesComplete = true;
+        $sizeProbesComplete = true;
         $primarySourceCount = 0;
 
         foreach ($sources as $source) {
@@ -126,16 +127,15 @@ final class SizeFormatSuggestionDiscoveryService
             $probeResult = $this->probeService->probeDownloadUrl($source['url']);
 
             if (($probeResult['probe_method'] ?? null) === 'SKIP') {
-                $allProbesComplete = false;
+                $formatProbesComplete = false;
+                $sizeProbesComplete = false;
 
                 continue;
             }
 
-            if (($probeResult['probe_complete'] ?? true) === false) {
-                $allProbesComplete = false;
-            }
-
             $suggestions = $this->probeService->buildSuggestions([$probeResult]);
+            $hasUsableFormatEvidence = false;
+            $hasUsableSizeEvidence = false;
 
             foreach ($suggestions as $suggestion) {
                 $type = (string) ($suggestion['type'] ?? '');
@@ -156,12 +156,13 @@ final class SizeFormatSuggestionDiscoveryService
                     if ($normalized !== '') {
                         $metadata['inferred_value'] = $normalized;
                         $formatCandidates[$normalized] = $metadata;
+                        $hasUsableFormatEvidence = true;
                     }
 
                     continue;
                 }
 
-                if ($type !== 'size' || ($probeResult['probe_complete'] ?? true) === false) {
+                if ($type !== 'size' || ($probeResult['size_complete'] ?? false) !== true) {
                     continue;
                 }
 
@@ -195,7 +196,15 @@ final class SizeFormatSuggestionDiscoveryService
                     'type' => $typeLabel,
                 ];
                 $sizeCandidates[$value] = $metadata;
+                $hasUsableSizeEvidence = true;
             }
+
+            $formatProbesComplete = $formatProbesComplete
+                && ($probeResult['format_complete'] ?? false) === true
+                && $hasUsableFormatEvidence;
+            $sizeProbesComplete = $sizeProbesComplete
+                && ($probeResult['size_complete'] ?? false) === true
+                && $hasUsableSizeEvidence;
         }
 
         $existingFormats = [];
@@ -229,10 +238,12 @@ final class SizeFormatSuggestionDiscoveryService
             ) ? 1 : 0;
         }
 
-        $sizeComplete = $allProbesComplete;
+        $formatComplete = $formatProbesComplete;
+        $sizeComplete = $sizeProbesComplete;
 
         if ($primarySourceCount > 1) {
             $sizeCandidates = [];
+            $sizeComplete = false;
         }
 
         if (count($sizeCandidates) > 1) {
@@ -266,7 +277,7 @@ final class SizeFormatSuggestionDiscoveryService
 
         $staleRemoved = 0;
 
-        if ($allProbesComplete) {
+        if ($formatComplete) {
             $staleRemoved += $this->reconcile($assistantId, $resource->id, 'format', $desired['format']);
         }
 
@@ -283,7 +294,7 @@ final class SizeFormatSuggestionDiscoveryService
             'created' => $created,
             'stale_removed' => $staleRemoved,
             'pending' => $pending,
-            'complete' => $allProbesComplete && $sizeComplete,
+            'complete' => $formatComplete && $sizeComplete,
         ];
     }
 
