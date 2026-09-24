@@ -1414,7 +1414,12 @@ export default function DataCiteForm({
                 date.endDate &&
                 !startValidation?.error &&
                 !endValidation?.error &&
-                isEditorDateRangeReversed(date.startDate, date.endDate, editorDateLocale)
+                isEditorDateRangeReversed(date.startDate, date.endDate, editorDateLocale, {
+                    startTime: date.startTime,
+                    endTime: date.endTime,
+                    startTimezone: date.startTimezone,
+                    endTimezone: date.endTimezone,
+                })
             ) {
                 issues.push(`Date ${dateIndex}: End date must be after start date`);
             }

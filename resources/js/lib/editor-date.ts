@@ -1,3 +1,5 @@
+import { buildDateTime } from '@/lib/date-utils';
+
 /** Calendar dates in the editor use ISO values, even when an input is localized. */
 export type EditorDateLocale = 'de' | 'iso';
 export type EditorDatePrecision = 'year' | 'month' | 'day';
@@ -97,10 +99,25 @@ export function editorDateToCalendarDate(value: string | null, locale: EditorDat
     return new Date(year, month - 1, day);
 }
 
-export function isEditorDateRangeReversed(start: string, end: string, locale: EditorDateLocale): boolean {
+export function isEditorDateRangeReversed(
+    start: string,
+    end: string,
+    locale: EditorDateLocale,
+    times?: { startTime?: string | null; endTime?: string | null; startTimezone?: string | null; endTimezone?: string | null },
+): boolean {
     const parsedStart = parseEditorDate(start, locale);
     const parsedEnd = parseEditorDate(end, locale);
-    return Boolean(parsedStart && parsedEnd && parsedStart.earliest > parsedEnd.latest);
+    if (!parsedStart || !parsedEnd) return false;
+
+    if (parsedStart.precision === 'day' && parsedEnd.precision === 'day' && times?.startTime?.trim() && times.endTime?.trim()) {
+        // PHP uses the application timezone (UTC) when an endpoint has no explicit offset.
+        const startInstant = Date.parse(buildDateTime(parsedStart.iso, times.startTime, times.startTimezone?.trim() || 'Z'));
+        const endInstant = Date.parse(buildDateTime(parsedEnd.iso, times.endTime, times.endTimezone?.trim() || 'Z'));
+        if (Number.isFinite(startInstant) && Number.isFinite(endInstant)) return startInstant > endInstant;
+    }
+
+    // If either endpoint has no time, match the server's conservative calendar bounds.
+    return parsedStart.earliest > parsedEnd.latest;
 }
 
 /** Keep localized or invalid raw text out of every API payload. */

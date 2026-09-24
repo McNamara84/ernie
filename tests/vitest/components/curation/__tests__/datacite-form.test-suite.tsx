@@ -7050,6 +7050,35 @@ describe('DataCiteForm', () => {
             expect(screen.queryByText('Please complete the date period before saving your draft.')).not.toBeInTheDocument();
         });
 
+        it('blocks a reversed timed period and saves it after its end time is corrected', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Timed Dataset', titleType: 'main-title' }],
+                initialDates: [
+                    {
+                        dateType: 'collected',
+                        dateMode: 'range',
+                        startDate: '2020-09-24T16:00:00Z',
+                        endDate: '2020-09-24T09:00:00Z',
+                    },
+                ],
+            });
+            await ensureDatesOpen(user);
+
+            await user.click(screen.getByTestId('save-draft-button'));
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(screen.getAllByText('Date 1: End date must be after start date').length).toBeGreaterThan(0);
+
+            fireEvent.change(screen.getByLabelText('End Time (optional)'), { target: { value: '17:00:00' } });
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            expect(mockedAxios.post.mock.calls[0][1].dates).toMatchObject([{ startDate: '2020-09-24T16:00:00Z', endDate: '2020-09-24T17:00:00Z' }]);
+        });
+
         it('saves German typed dates as ISO without changing their precision', { timeout: 60000 }, async () => {
             vi.spyOn(window.navigator, 'language', 'get').mockReturnValue('de-DE');
             const user = userEvent.setup({ pointerEventsCheck: 0 });

@@ -58,6 +58,40 @@ describe('editor dates', () => {
         expect(isEditorDateRangeReversed('2025', '2024', 'iso')).toBe(true);
     });
 
+    it('compares two timed endpoints as UTC instants, including timezone offsets', () => {
+        expect(isEditorDateRangeReversed('2020-09-24', '2020-09-24', 'iso', { startTime: '16:00', endTime: '09:00' })).toBe(true);
+        expect(
+            isEditorDateRangeReversed('2020-09-24', '2020-09-24', 'iso', {
+                startTime: '09:30',
+                endTime: '08:00',
+                startTimezone: '+02:00',
+                endTimezone: 'Z',
+            }),
+        ).toBe(false);
+        expect(
+            isEditorDateRangeReversed('2020-09-24', '2020-09-24', 'iso', {
+                startTime: '09:30',
+                endTime: '08:00',
+                startTimezone: 'Z',
+                endTimezone: '+02:00',
+            }),
+        ).toBe(true);
+        expect(
+            isEditorDateRangeReversed('2020-09-24', '2020-09-23', 'iso', {
+                startTime: '00:15',
+                endTime: '23:30',
+                startTimezone: '+02:00',
+                endTimezone: 'Z',
+            }),
+        ).toBe(false);
+    });
+
+    it('uses calendar bounds when only one endpoint has a time', () => {
+        expect(isEditorDateRangeReversed('2020', '2020-01-01', 'iso', { endTime: '00:01', endTimezone: 'Z' })).toBe(false);
+        expect(isEditorDateRangeReversed('2020-09-24', '2020-09-24', 'iso', { startTime: '16:00' })).toBe(false);
+        expect(isEditorDateRangeReversed('2020-09-25', '2020-09-24', 'iso', { startTime: '00:01', endTime: null })).toBe(true);
+    });
+
     it('converts calendar dates without UTC timezone shifts', () => {
         const date = editorDateToCalendarDate('2020-09-24', 'iso');
         expect(date?.getFullYear()).toBe(2020);
