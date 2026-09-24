@@ -175,10 +175,23 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
                 // before ERNIE persisted success. On a resumed attempt, reconcile
                 // that remote identifier with a metadata update instead of sending
                 // a second create request.
-                $resource->publication_year = (int) date('Y');
-                $response = $service->updateMetadata($resource);
+                $resource->publication_year = now(config('app.timezone'))->year;
+                if (app(\App\Services\EmbargoService::class)->isEmbargoed($resource)) {
+                    // Verify the remote URL, Findable state, and Open access right
+                    // before completing a release interrupted after DataCite POST.
+                    if ($resource->embargo_registration_started_at === null) {
+                        app(\App\Services\EmbargoService::class)->claimRegistration(
+                            $resource,
+                            explode('/', (string) $resource->doi, 2)[0],
+                        );
+                    }
+                    $response = $service->registerIgsn($resource);
+                } else {
+                    $response = $service->updateMetadata($resource);
+                }
             } else {
-                $resource->publication_year = (int) date('Y');
+                $resource->publication_year = now(config('app.timezone'))->year;
+                app(\App\Services\EmbargoService::class)->assertCanRegister($resource);
                 $response = $service->registerIgsn($resource);
             }
 
@@ -187,8 +200,25 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
                 $resource->doi = $doi;
             }
 
-            $resource->save();
-            $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
+            $wasEmbargoed = $operation === 'register'
+                && app(\App\Services\EmbargoService::class)->isEmbargoed($resource);
+            DB::transaction(function () use ($resource, $metadata, $operation, $wasEmbargoed): void {
+                $resource->save();
+                if ($operation === 'register' && $wasEmbargoed) {
+                    app(\App\Services\EmbargoService::class)->completeRelease($resource);
+                }
+                $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
+            });
+            if ($wasEmbargoed && $resource->doi !== null) {
+                try {
+                    $service->updateLandingPageUrl($resource->doi, $resource->landingPage?->fresh()->public_url ?? url("/datasets/{$resource->id}"));
+                } catch (Throwable $exception) {
+                    Log::warning('IGSN URL update failed; stable dataset alias remains available.', [
+                        'resource_id' => $resource->id,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
 
             $status = $operation === 'update'
                 ? IgsnRegistrationItemStatus::UPDATED

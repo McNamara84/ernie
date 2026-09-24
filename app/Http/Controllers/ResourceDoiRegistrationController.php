@@ -15,6 +15,7 @@ use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ResourceDoiRegistrationController extends Controller
@@ -88,6 +89,8 @@ class ResourceDoiRegistrationController extends Controller
                 ]);
             }
 
+            app(\App\Services\EmbargoService::class)->assertCanRegister($resource);
+
             // Register a new DOI.
             $validated = $request->validated();
             $prefix = $validated['prefix'];
@@ -113,9 +116,26 @@ class ResourceDoiRegistrationController extends Controller
                 ], 500);
             }
 
-            $resource->doi = $doi;
-            $resource->save();
-            app(ResourceStorageService::class)->ensureSystemDate($resource, 'Issued');
+            $wasEmbargoed = app(\App\Services\EmbargoService::class)->isEmbargoed($resource);
+            DB::transaction(function () use ($resource, $doi, $wasEmbargoed): void {
+                $resource->doi = $doi;
+                $resource->save();
+                app(ResourceStorageService::class)->ensureSystemDate($resource, 'Issued');
+                if ($wasEmbargoed) {
+                    app(\App\Services\EmbargoService::class)->completeRelease($resource);
+                }
+            });
+            if ($wasEmbargoed) {
+                try {
+                    $service->updateLandingPageUrl($doi, $resource->landingPage?->fresh()->public_url ?? url("/datasets/{$resource->id}"));
+                } catch (\Throwable $exception) {
+                    Log::warning('Embargo DOI URL update failed; stable dataset alias remains available.', [
+                        'resource_id' => $resource->id,
+                        'doi' => $doi,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
 
             Log::info('DOI saved to resource', [
                 'resource_id' => $resource->id,

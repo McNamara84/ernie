@@ -49,6 +49,7 @@ describe('editor dates', () => {
         expect(validateEditorDate('2026', 'iso', today).error).toBeNull();
         expect(validateEditorDate('2026-10', 'iso', today).error).toContain('future');
         expect(validateEditorDate('2026-09-25', 'iso', today).error).toContain('future');
+        expect(validateEditorDate('2027-01-01', 'iso', today, true).error).toBeNull();
     });
 
     it('compares uncertain range endpoints by their possible calendar bounds', () => {
@@ -103,6 +104,7 @@ describe('editor dates', () => {
     it('normalizes the API value and rejects a localized value in the wrong locale', () => {
         expect(requireEditorDateIso('24.09.2020', 'de')).toBe('2020-09-24');
         expect(requireEditorDateIso('2020-09', 'de')).toBe('2020-09');
+        expect(requireEditorDateIso('2027-01-01', 'iso', true)).toBe('2027-01-01');
         expect(requireEditorDateIso('', 'iso')).toBe('');
         expect(() => requireEditorDateIso('24.09.2020', 'iso')).toThrow();
     });

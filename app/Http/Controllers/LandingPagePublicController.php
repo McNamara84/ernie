@@ -221,7 +221,7 @@ class LandingPagePublicController extends Controller
     ): RedirectResponse {
         $landingPage = LandingPage::where('resource_id', $resourceId)->first();
 
-        abort_if($landingPage === null, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+        abort_if($landingPage === null || ! $landingPage->isPublished(), HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
 
         // Redirect to new URL format
         return redirect()->to($landingPage->public_url, HttpResponse::HTTP_MOVED_PERMANENTLY);
@@ -302,6 +302,10 @@ class LandingPagePublicController extends Controller
             }
         }
         $isPreview = ! $isPublished;
+
+        if ($isPreview && app(\App\Services\EmbargoService::class)->isEmbargoed($landingPage->resource)) {
+            abort_if($landingPage->isExternal(), HttpResponse::HTTP_NOT_FOUND, 'Embargo preview requires an internal landing page');
+        }
 
         // External landing pages: 301 redirect to the configured external URL
         if ($landingPage->isExternal()) {
@@ -391,6 +395,16 @@ class LandingPagePublicController extends Controller
                 LandingPageController::serializeLandingPagePayload($resource, $landingPage)
             );
 
+            $embargoPending = $isPreview && app(\App\Services\EmbargoService::class)->isEmbargoed($resource);
+            $embargoDate = $embargoPending
+                ? app(\App\Services\EmbargoService::class)->availableDate($resource)
+                : null;
+            if ($embargoPending) {
+                $landingPageData = $this->applyDownloadsUnavailableDisplayPolicy(
+                    array_replace($landingPageData, ['downloads_unavailable' => true]),
+                );
+            }
+
             if (! $isPreview) {
                 $landingPageData = $this->attachTrackedDownloadUrls($landingPageData, $landingPage);
             }
@@ -405,6 +419,9 @@ class LandingPagePublicController extends Controller
                     'metadataLinks' => $machineMetadata['metadataLinks'] ?? [],
                     'supportsIso19115' => $isoProfile->supports($resource),
                     'isPreview' => $isPreview,
+                    'embargoDate' => $embargoDate,
+                    'embargoPending' => $embargoPending,
+                    'embargoDue' => $embargoDate !== null && $embargoDate <= now(config('app.timezone'))->toDateString(),
                     'sectionOrder' => $sectionOrder,
                     'customLogoUrl' => $customLogoUrl,
                     'landingPageTemplateSource' => $resolvedTemplate['source'],

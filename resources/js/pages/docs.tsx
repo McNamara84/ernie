@@ -1859,7 +1859,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Valid:</strong> Time period for which the data is valid
                             </li>
                             <li>
-                                <strong>Available:</strong> When the resource became publicly available
+                                <strong>Available:</strong> When the resource becomes publicly available. For Embargoed access, enter exactly one full
+                                calendar date (YYYY-MM-DD); DataCite uses Available as the embargo end date.
                             </li>
                             <li>
                                 <strong>Submitted:</strong> When the resource was submitted

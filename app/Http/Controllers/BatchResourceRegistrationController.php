@@ -12,6 +12,7 @@ use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -132,6 +133,7 @@ class BatchResourceRegistrationController extends Controller
                     $response = $service->updateMetadata($resource);
                 } else {
                     /** @var string $prefix */
+                    app(\App\Services\EmbargoService::class)->assertCanRegister($resource);
                     $response = $service->registerDoi($resource, $prefix);
                 }
 
@@ -139,9 +141,26 @@ class BatchResourceRegistrationController extends Controller
 
                 // Persist the freshly-minted DOI for new registrations.
                 if (! $wasAlreadyRegistered && $doi !== null && $doi !== $resource->doi) {
-                    $resource->doi = $doi;
-                    $resource->save();
-                    $resourceStorageService->ensureSystemDate($resource, 'Issued');
+                    $wasEmbargoed = app(\App\Services\EmbargoService::class)->isEmbargoed($resource);
+                    DB::transaction(function () use ($resource, $doi, $resourceStorageService, $wasEmbargoed): void {
+                        $resource->doi = $doi;
+                        $resource->save();
+                        $resourceStorageService->ensureSystemDate($resource, 'Issued');
+                        if ($wasEmbargoed) {
+                            app(\App\Services\EmbargoService::class)->completeRelease($resource);
+                        }
+                    });
+                    if ($wasEmbargoed) {
+                        try {
+                            $service->updateLandingPageUrl($doi, $resource->landingPage?->fresh()->public_url ?? url("/datasets/{$resource->id}"));
+                        } catch (\Throwable $exception) {
+                            Log::warning('Embargo DOI URL update failed; stable dataset alias remains available.', [
+                                'resource_id' => $resource->id,
+                                'doi' => $doi,
+                                'error' => $exception->getMessage(),
+                            ]);
+                        }
+                    }
                 }
 
                 $results['success'][] = [

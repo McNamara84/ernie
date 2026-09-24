@@ -8,3 +8,6 @@
 
 CHANGELOG.md export-ignore
 README.md export-ignore
+
+# Keep the official DataCite schema snapshot byte-for-byte.
+resources/data/scheme/datacite-4.7/** -whitespace

@@ -51,8 +51,35 @@ final class DashboardController extends Controller
             ])
             ->all();
 
+        $embargoService = app(\App\Services\EmbargoService::class);
+        $dueEmbargos = Resource::query()
+            ->with(['dates.dateType', 'landingPage', 'titles.titleType'])
+            ->where('access_level', \App\Enums\AccessLevel::EMBARGOED->value)
+            ->whereHas('dates', fn ($query) => $query
+                ->whereHas('dateType', fn ($type) => $type->where('slug', 'Available'))
+                ->where(function ($dateQuery): void {
+                    $today = now(config('app.timezone'))->toDateString();
+                    $dateQuery->where('date_value', '<=', $today)
+                        ->orWhere('start_date', '<=', $today);
+                }))
+            ->where(function ($query): void {
+                $query->whereDoesntHave('landingPage')
+                    ->orWhereHas('landingPage', fn ($page) => $page->where('is_published', false));
+            })
+            ->get()
+            ->filter(fn (Resource $resource): bool => $embargoService->isDue($resource))
+            ->sortBy(fn (Resource $resource): string => (string) $embargoService->availableDate($resource))
+            ->map(fn (Resource $resource): array => [
+                'id' => $resource->id,
+                'title' => $resource->titles->filter(fn ($title): bool => $title->isMainTitle())->pluck('value')->first() ?? 'Untitled Resource',
+                'availableDate' => $embargoService->availableDate($resource),
+            ])
+            ->values();
+
         return Inertia::render('dashboard', [
             'recentResources' => $recentResources,
+            'dueEmbargos' => $dueEmbargos->take(10)->all(),
+            'dueEmbargoCount' => $dueEmbargos->count(),
             'phpVersion' => PHP_VERSION,
             'laravelVersion' => app()->version(),
             'guidedTour' => $guidedTour,

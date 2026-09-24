@@ -63,6 +63,25 @@ describe('DefaultGfzTemplate', () => {
         document.title = '';
     });
 
+    it('shows an embargo date without a data request or file action in preview', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: mockResource,
+                landingPage: { ...mockLandingPage, status: 'draft', downloads_unavailable: true },
+                isPreview: true,
+                embargoDate: '2027-01-01',
+                embargoPending: true,
+                embargoDue: false,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+
+        render(<DefaultGfzTemplate />);
+
+        expect(screen.getByText('Under embargo until 2027-01-01.')).toBeInTheDocument();
+        expect(screen.getByText('Embargo')).toBeInTheDocument();
+        expect(screen.queryByTestId('files-section')).not.toBeInTheDocument();
+    });
+
     it('renders the main layout structure', () => {
         mockUsePage.mockReturnValue({
             props: {

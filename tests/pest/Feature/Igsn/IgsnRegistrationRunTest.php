@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Enums\IgsnRegistrationItemStatus;
 use App\Enums\IgsnRegistrationRunStatus;
 use App\Jobs\ProcessIgsnRegistrationRunJob;
+use App\Models\DateType;
 use App\Models\IgsnMetadata;
 use App\Models\IgsnRegistrationItem;
 use App\Models\IgsnRegistrationRun;
@@ -579,4 +581,40 @@ test('failed job pauses the run and releases a processing item for resume', func
     expect($run->fresh()->status)->toBe(IgsnRegistrationRunStatus::PAUSED)
         ->and($item->fresh()->status)->toBe(IgsnRegistrationItemStatus::PENDING)
         ->and($run->fresh()->last_error)->toBe('worker stopped');
+});
+
+test('a queued IGSN rechecks Available immediately before its DataCite POST', function (): void {
+    $resource = createQueuedIgsn(['access_level' => AccessLevel::EMBARGOED]);
+    $available = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
+    $resource->dates()->create(['date_type_id' => $available->id, 'date_value' => '2099-01-01']);
+    $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
+    Http::fake();
+
+    runQueuedIgsnRegistrationStep($run->id);
+
+    expect($run->fresh()->failed)->toBe(1)
+        ->and($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED);
+    Http::assertNotSent(fn (Request $request): bool => $request->method() === 'POST');
+});
+
+test('a due queued IGSN releases its embargo after a confirmed DataCite create', function (): void {
+    config(['app.timezone' => 'Europe/Berlin']);
+    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $resource = createQueuedIgsn(['access_level' => AccessLevel::EMBARGOED]);
+    $resource->landingPage->update(['is_published' => false, 'published_at' => null]);
+    $available = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);
+    $resource->dates()->create(['date_type_id' => $available->id, 'date_value' => '2027-01-01']);
+    $run = app(IgsnRegistrationRunService::class)->start([$resource->id], $this->curator);
+    Http::fake(fn (Request $request) => Http::response([
+        'data' => ['id' => $resource->doi, 'type' => 'dois'],
+    ], $request->method() === 'POST' ? 201 : 200));
+
+    runQueuedIgsnRegistrationStep($run->id);
+
+    expect($run->fresh()->registered)->toBe(1)
+        ->and($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
+        ->and($resource->fresh()->embargo_registration_started_at)->toBeNull()
+        ->and($resource->landingPage->fresh()->is_published)->toBeTrue();
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+        && $request->data()['data']['attributes']['url'] === url('/datasets/'.$resource->id));
 });

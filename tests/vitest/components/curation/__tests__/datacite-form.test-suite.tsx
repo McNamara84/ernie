@@ -6038,7 +6038,7 @@ describe('DataCiteForm', () => {
 
             renderDataCiteForm({
                 initialTitles: [{ title: 'Invalid Preview Date Dataset', titleType: 'main-title' }],
-                initialDates: [{ dateType: 'available', dateMode: 'single', startDate: '2999-01-01', endDate: '' }],
+                initialDates: [{ dateType: 'collected', dateMode: 'single', startDate: '2999-01-01', endDate: '' }],
             });
 
             const previewButton = screen.getByTestId('show-lp-preview-button');
@@ -7038,7 +7038,7 @@ describe('DataCiteForm', () => {
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialTitles={[{ title: 'Draft Dataset', titleType: 'main-title' }]}
-                    initialDates={[{ dateType: 'available', dateMode: 'single', startDate: '2999-01-01', endDate: '' }]}
+                    initialDates={[{ dateType: 'collected', dateMode: 'single', startDate: '2999-01-01', endDate: '' }]}
                 />,
             );
 

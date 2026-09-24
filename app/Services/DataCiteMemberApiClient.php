@@ -113,14 +113,34 @@ class DataCiteMemberApiClient
         );
     }
 
-    /** @param array<string, mixed> $payload */
-    public function createDoi(array $payload): Response
+    /** Find a previously accepted create by its resource-specific stable target. */
+    public function findDoisByUrl(string $targetUrl, string $prefix): Response
     {
+        $query = http_build_query([
+            'query' => 'url:"'.str_replace('"', '\\"', $targetUrl).'"',
+            'prefix' => $prefix,
+            'page' => ['size' => 10],
+            'disable-facets' => 'true',
+        ], encoding_type: PHP_QUERY_RFC3986);
+
+        return $this->send(
+            'GET',
+            "{$this->endpoint}/dois?{$query}",
+            maxAttempts: $this->transientAttempts(),
+            credentialIdentifier: $prefix,
+        );
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function createDoi(array $payload, bool $allowRetry = true): Response
+    {
+        // An embargo create uses a durable reconciliation marker. A timed-out
+        // create may already have minted a DOI, so that path gets one POST.
         return $this->send(
             'POST',
             "{$this->endpoint}/dois",
             $payload,
-            $this->transientAttempts(),
+            $allowRetry ? $this->transientAttempts() : 1,
             credentialIdentifier: $this->payloadIdentifier($payload),
         );
     }
