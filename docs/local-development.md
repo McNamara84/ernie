@@ -78,22 +78,30 @@ If the repository stays under `D:\` or another NTFS path:
 
     This installs the local `node_modules` required by Oxlint, Oxfmt, TypeScript, Vitest, OpenAPI linting, and Playwright.
 
-4. Start Fast Mode.
+4. Install the repository's Git pre-commit hook for this checkout.
+
+    ```bash
+    npm run hooks:install
+    ```
+
+    The hook checks staged whitespace, PHP style with Pint, frontend lint and formatting, and OpenAPI changes when applicable. PHP checks start the Docker backend. It rejects partially staged files that need checking because the tools read the worktree. Full tests remain in the validation commands and CI.
+
+5. Start Fast Mode.
 
     ```bash
     npm run docker:dev:up
     ```
 
-5. Trust `docker\traefik\certs\localhost.crt` on Windows if your browser warns about the local TLS certificate.
+6. Trust `docker\traefik\certs\localhost.crt` on Windows if your browser warns about the local TLS certificate.
 
-6. Open the application.
+7. Open the application.
 
     - Main URL: `https://ernie.localhost:3333`
     - Localhost fallback after switching `ERNIE_DEV_HOST` and `ERNIE_DEV_SESSION_DOMAIN`: `https://localhost:3333`
 
     If `ernie.localhost` does not resolve, add `127.0.0.1 ernie.localhost` to your hosts file.
 
-7. Create the first administrator account.
+8. Create the first administrator account.
 
     ```bash
     npm run artisan -- add-user "Admin Name" admin@example.com SecurePassword

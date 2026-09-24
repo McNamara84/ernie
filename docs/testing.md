@@ -22,6 +22,7 @@ Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm in
 
 | Check                      | Where to run it            | Command                                     | Notes                                                          |
 | -------------------------- | -------------------------- | ------------------------------------------- | -------------------------------------------------------------- |
+| Git pre-commit checks      | Host shell                 | `npm run precommit:check`                   | Checks staged files after `npm run hooks:install`              |
 | Pest complete suite        | Host shell via npm wrapper | `npm run test:php`                          | Linux-native workspace; serial/Arch split; parallel remainder  |
 | Pest TIA                   | Host shell via npm wrapper | `npm run test:php:tia`                      | Local-only affected-test loop; records a baseline on first use |
 | Pest deprecation details   | Host shell via npm wrapper | `npm run test:php:deprecations`             | Use this instead of forwarding `--display-*` flags through npm |
