@@ -465,12 +465,40 @@ it('rejects reversed partial periods and non-ISO editor dates', function (string
         ->and($invalidTime->errors()->has('dates.0.startDate'))->toBeTrue();
 })->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
 
+it('enforces the editor date bounds in draft and final requests', function (string $requestClass): void {
+    $today = now()->toDateString();
+    $futureDay = now()->addDay()->toDateString();
+    $futureMonth = now()->startOfMonth()->addMonth()->format('Y-m');
+    $futureYear = (string) (now()->year + 1);
+
+    foreach (['1900', '1900-01', '1900-01-01', substr($today, 0, 4), substr($today, 0, 7), $today, $today.'T23:59:59Z'] as $value) {
+        $validator = validateDraftDatePayload([
+            ['dateType' => 'created', 'dateMode' => 'single', 'startDate' => $value, 'endDate' => null],
+        ], $requestClass);
+
+        expect($validator->errors()->has('dates.0.startDate'))->toBeFalse();
+    }
+
+    foreach (['1899', '1899-12', '1899-12-31', $futureYear, $futureMonth, $futureDay, $futureDay.'T00:00Z'] as $value) {
+        $validator = validateDraftDatePayload([
+            ['dateType' => 'created', 'dateMode' => 'single', 'startDate' => $value, 'endDate' => null],
+        ], $requestClass);
+
+        expect($validator->errors()->has('dates.0.startDate'))->toBeTrue();
+    }
+})->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
+
 it('rejects normalized or out-of-range editor times in draft and final requests', function (string $requestClass): void {
     foreach ([
         '2020-09-24T24:00:00Z',
         '2020-09-24T23:59:60Z',
         '2020-09-24T12:30+14:01',
         '2020-09-24T12:30-23:00',
+        '2020-09-24 09:35:20Z',
+        '2020-09-24T09:35:20z',
+        '2020-09-24T09:35+0200',
+        '2020-09-24T09:35:20,5Z',
+        '2020-09-24T09:35.5Z',
     ] as $value) {
         $validator = validateDraftDatePayload([
             ['dateType' => 'created', 'dateMode' => 'single', 'startDate' => $value, 'endDate' => null],
@@ -482,7 +510,7 @@ it('rejects normalized or out-of-range editor times in draft and final requests'
     foreach ([
         '2020-09-24T23:59:59Z',
         '2020-09-24T12:30+14:00',
-        '2020-09-24 09:35:20Z',
+        '2020-09-24T09:35:20.123+02:00',
         '2020-09-24T09:35',
     ] as $value) {
         $validator = validateDraftDatePayload([
@@ -493,13 +521,16 @@ it('rejects normalized or out-of-range editor times in draft and final requests'
     }
 })->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
 
-it('rejects unsupported draft date periods', function (): void {
-    $validator = validateDraftDatePayload([
-        ['dateType' => 'available', 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
-    ]);
+it('targets the visible date type for unsupported periods in draft and final requests', function (string $requestClass): void {
+    foreach (['2024-01-31', null] as $endDate) {
+        $validator = validateDraftDatePayload([
+            ['dateType' => 'available', 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => $endDate],
+        ], $requestClass);
 
-    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
-});
+        expect($validator->errors()->has('dates.0.dateType'))->toBeTrue()
+            ->and($validator->errors()->has('dates.0.endDate'))->toBeFalse();
+    }
+})->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
 
 it('rejects draft end dates without start dates', function (): void {
     $validator = validateDraftDatePayload([
@@ -532,13 +563,16 @@ it('rejects unknown draft date modes', function (): void {
     expect($validator->errors()->has('dates.0.dateMode'))->toBeTrue();
 });
 
-it('rejects draft single date mode with an end date', function (): void {
-    $validator = validateDraftDatePayload([
-        ['dateType' => 'valid', 'dateMode' => 'single', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
-    ]);
+it('targets visible controls when single date mode includes an end date', function (string $requestClass): void {
+    foreach (['valid' => 'dateMode', 'available' => 'dateType'] as $dateType => $errorField) {
+        $validator = validateDraftDatePayload([
+            ['dateType' => $dateType, 'dateMode' => 'single', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+        ], $requestClass);
 
-    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
-});
+        expect($validator->errors()->has('dates.0.'.$errorField))->toBeTrue()
+            ->and($validator->errors()->has('dates.0.endDate'))->toBeFalse();
+    }
+})->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
 
 it('keeps date mode validation aligned between draft and final resource requests', function (): void {
     $draftRequest = new StoreDraftResourceRequest;

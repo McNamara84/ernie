@@ -47,9 +47,21 @@ trait ValidatesEditorDates
             }
 
             if ($dateMode === 'single' && $endDate !== null) {
+                $field = in_array($dateType, self::EDITOR_PERIOD_DATE_TYPES, true) ? 'dateMode' : 'dateType';
                 $validator->errors()->add(
-                    "dates.$index.endDate",
+                    "dates.$index.$field",
                     '[Dates] Date #'.($index + 1).' is set to single-date mode and must not include an end date.',
+                );
+
+                continue;
+            }
+
+            $hasPeriodIntent = $dateMode === 'range' || ($dateMode === null && $endDate !== null);
+
+            if ($hasPeriodIntent && ! in_array($dateType, self::EDITOR_PERIOD_DATE_TYPES, true)) {
+                $validator->errors()->add(
+                    "dates.$index.dateType",
+                    '[Dates] Date #'.($index + 1).' can only use a period for Created, Collected, Valid, or Other.',
                 );
 
                 continue;
@@ -74,18 +86,7 @@ trait ValidatesEditorDates
                 );
             }
 
-            $hasPeriodIntent = $dateMode === 'range' || ($dateMode === null && $endDate !== null);
-
             if (! $hasPeriodIntent || $startDate === null || $endDate === null) {
-                continue;
-            }
-
-            if (! in_array($dateType, self::EDITOR_PERIOD_DATE_TYPES, true)) {
-                $validator->errors()->add(
-                    "dates.$index.endDate",
-                    '[Dates] Date #'.($index + 1).' can only use a period for Created, Collected, Valid, or Other.',
-                );
-
                 continue;
             }
 

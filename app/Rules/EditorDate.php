@@ -21,10 +21,16 @@ final class EditorDate implements ValidationRule
             return;
         }
 
-        if (str_contains($value, 'T') || str_contains($value, ' ')) {
+        if (strlen($value) > 10) {
+            if ($value[10] !== 'T') {
+                $fail('[Dates] The :attribute must use an ISO year, year-month, date, or date-time.');
+
+                return;
+            }
+
             $time = substr($value, 11);
             preg_match(
-                '/^(?<hour>[0-9]{2}):(?<minute>[0-9]{2})(?::(?<second>[0-9]{2}))?(?:[.,][0-9]+)?(?:[Zz]|[+-](?<offsetHour>[0-9]{2}):?(?<offsetMinute>[0-9]{2}))?$/',
+                '/^(?<hour>[0-9]{2}):(?<minute>[0-9]{2})(?::(?<second>[0-9]{2})(?:\.[0-9]+)?)?(?:Z|[+-](?<offsetHour>[0-9]{2}):(?<offsetMinute>[0-9]{2}))?$/',
                 $time,
                 $matches,
             );
@@ -49,7 +55,16 @@ final class EditorDate implements ValidationRule
                 new DateTimeImmutable($value);
             } catch (Throwable) {
                 $fail('[Dates] The :attribute must contain a valid time.');
+
+                return;
             }
+        }
+
+        $calendarDate = substr($value, 0, 10);
+        if (strcmp($calendarDate, '1900') < 0) {
+            $fail('[Dates] The :attribute must be on or after 1900-01-01.');
+        } elseif (strcmp($calendarDate, now()->toDateString()) > 0) {
+            $fail('[Dates] The :attribute cannot be in the future.');
         }
     }
 }
