@@ -797,10 +797,14 @@ class PortalSearchService
             : '[A-Za-z0-9][A-Za-z0-9._-]*';
 
         if (preg_match('#^10273/('.$suffixPattern.')$#i', $identifier, $matches) === 1) {
-            $variants[] = $matches[1];
+            if (str_replace('*', '', $matches[1]) !== '') {
+                $variants[] = $matches[1];
+            }
             $variants[] = '10.60510/'.$matches[1];
         } elseif (preg_match('#^10\.60510/('.$suffixPattern.')$#i', $identifier, $matches) === 1) {
-            $variants[] = $matches[1];
+            if (str_replace('*', '', $matches[1]) !== '') {
+                $variants[] = $matches[1];
+            }
             $variants[] = '10273/'.$matches[1];
         } elseif (preg_match('/^(?=[A-Za-z0-9._-]*\d)[A-Za-z0-9][A-Za-z0-9._-]{4,}$/', $identifier) === 1) {
             $variants[] = '10273/'.$identifier;

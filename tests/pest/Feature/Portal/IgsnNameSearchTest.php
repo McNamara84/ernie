@@ -250,6 +250,43 @@ it('expands wildcarded identity suffixes across the 10273 and 10.60510 aliases',
         ->and(igsnNameSearchIds('10273/ICDP*9002'))->toBe([$modern->id]);
 });
 
+it('keeps wildcard-only identity suffixes within the requested namespace aliases', function (): void {
+    $identifierType = IdentifierType::query()->create(['slug' => 'IGSN', 'name' => 'IGSN']);
+    $identical = RelationType::query()->create(['slug' => 'IsIdenticalTo', 'name' => 'Is Identical To']);
+    $references = RelationType::query()->create(['slug' => 'References', 'name' => 'References']);
+    $legacy = createIgsnNameSearchResource($this->igsnType, $this->mainTitleType);
+    $modern = createIgsnNameSearchResource($this->igsnType, $this->mainTitleType);
+    $otherIdentity = createIgsnNameSearchResource($this->igsnType, $this->mainTitleType);
+    $otherAlternate = createIgsnNameSearchResource($this->igsnType, $this->mainTitleType);
+    $nonIdentical = createIgsnNameSearchResource($this->igsnType, $this->mainTitleType);
+
+    foreach ([
+        [$legacy, '10273/LEGACY123', $identical],
+        [$modern, '10.60510/MODERN456', $identical],
+        [$otherIdentity, '10.99999/FOREIGN789', $identical],
+        [$nonIdentical, '10273/REFERENCED111', $references],
+    ] as [$resource, $identifier, $relationType]) {
+        RelatedIdentifier::query()->create([
+            'resource_id' => $resource->id,
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationType->id,
+            'identifier' => $identifier,
+        ]);
+    }
+    AlternateIdentifier::query()->create([
+        'resource_id' => $otherAlternate->id,
+        'type' => 'Local sample name',
+        'value' => 'Foreign sample identifier',
+        'position' => 0,
+    ]);
+
+    $expected = [$legacy->id, $modern->id];
+    sort($expected);
+
+    expect(collect(igsnNameSearchIds('10273/*'))->sort()->values()->all())->toBe($expected)
+        ->and(collect(igsnNameSearchIds('10.60510/**'))->sort()->values()->all())->toBe($expected);
+});
+
 it('refreshes and removes separate name terms when resource parties change', function (): void {
     $resource = createIgsnNameSearchResource($this->igsnType, $this->mainTitleType);
     $contributor = ResourceContributor::factory()->forPerson(Person::factory()->create([
