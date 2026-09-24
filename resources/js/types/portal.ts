@@ -71,6 +71,7 @@ export interface PortalResource {
     title: string;
     creators: PortalCreator[];
     searchMatches: PartySearchMatch[];
+    sampleNameMatches?: PortalSampleNameMatch[];
     year: number | null;
     resourceType: string;
     resourceTypeSlug: string | null;
@@ -79,6 +80,11 @@ export interface PortalResource {
     igsn?: PortalMapIgsnSummary | null;
     geoLocations: PortalGeoLocation[];
     landingPageUrl: string | null;
+}
+
+export interface PortalSampleNameMatch {
+    label: 'Local accession number' | 'Local sample name';
+    display_value: string;
 }
 
 /** On-demand citation and abstract shown from a portal result row. */

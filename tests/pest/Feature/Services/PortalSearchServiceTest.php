@@ -382,7 +382,7 @@ describe('full-text search', function () {
         expect($results->total())->toBe(0);
     })->with(['hidden-person', 'hidden-person@example.test', 'Hnas']);
 
-    it('does not add contributor-name search to the IGSN portal', function (): void {
+    it('finds contributor names in the IGSN portal', function (): void {
         $physicalObjectType = ResourceType::factory()->create([
             'name' => 'Physical Object',
             'slug' => PortalScope::PHYSICAL_SAMPLE_RESOURCE_TYPE,
@@ -396,7 +396,8 @@ describe('full-text search', function () {
             'query' => 'Iggy Contributor',
         ]);
 
-        expect($results->total())->toBe(0);
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($resource->id);
     });
 
     it('finds resources by subject value', function () {

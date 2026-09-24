@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { usePortalResourcePreview } from '@/hooks/use-portal-resource-preview';
 import { cn } from '@/lib/utils';
 import type { PartySearchMatch, PartySearchRole } from '@/types/party-search';
-import type { PortalBasePath, PortalCreator, PortalResource } from '@/types/portal';
+import type { PortalBasePath, PortalCreator, PortalResource, PortalSampleNameMatch } from '@/types/portal';
 
 interface PortalResultCardProps {
     resource: PortalResource;
@@ -81,6 +81,26 @@ function PortalPartySearchMatches({ matches }: { matches: PartySearchMatch[] }) 
     );
 }
 
+function PortalSampleNameMatches({ matches }: { matches: PortalSampleNameMatch[] }) {
+    if (matches.length === 0) return null;
+
+    return (
+        <div className="min-w-0 space-y-0.5" data-testid="portal-sample-name-matches">
+            {matches.map((match, index) => (
+                <div
+                    key={`${match.label}-${match.display_value}-${index}`}
+                    className="flex min-w-0 items-baseline gap-1 text-xs text-muted-foreground"
+                >
+                    <span className="shrink-0 font-semibold text-foreground">{match.label}:</span>
+                    <span className="min-w-0 truncate" title={match.display_value}>
+                        {match.display_value}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 /** A compact portal result with explicitly requested citation and abstract details. */
 export function PortalResultCard({ resource, basePath }: PortalResultCardProps) {
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -92,7 +112,11 @@ export function PortalResultCard({ resource, basePath }: PortalResultCardProps) 
     const landingPageUrl = resource.landingPageUrl;
     const hasLandingPage = landingPageUrl !== null;
     const searchMatches = resource.searchMatches ?? [];
-    const searchMatchLabel = searchMatches.map(formatPartyMatch).join('. ');
+    const sampleNameMatches = resource.sampleNameMatches ?? [];
+    const searchMatchLabel = [
+        ...searchMatches.map(formatPartyMatch),
+        ...sampleNameMatches.map((match) => `${match.label}: ${match.display_value}`),
+    ].join('. ');
 
     const clearCopyTimeout = useCallback(() => {
         if (copyTimeoutRef.current !== null) {
@@ -167,6 +191,7 @@ export function PortalResultCard({ resource, basePath }: PortalResultCardProps) 
                 </div>
 
                 <PortalPartySearchMatches matches={searchMatches} />
+                <PortalSampleNameMatches matches={sampleNameMatches} />
             </div>
         </>
     );

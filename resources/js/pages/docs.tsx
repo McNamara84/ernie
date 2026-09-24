@@ -2228,18 +2228,24 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             combined, and each chip can be removed independently.
                         </p>
                         <p>
-                            In the DOI Data Portal, normal text search also finds Authors and Contributors by person or institution name. Name
-                            matching is case-insensitive and accepts partial names, given-name/family-name order in either direction, and compact
-                            forms without spaces or punctuation. For example, <code>Hans Peter</code>, <code>Peter Hans</code>, and{' '}
-                            <code>HansPeter</code> can find the same person. Spelling mistakes are not corrected, and stored contact email addresses
-                            are not part of the public search.
+                            In both the DOI Data Portal and the IGSN Portal, normal text search also finds Authors, Contributors, and Contact Persons
+                            by person or institution name. Name matching is case-insensitive and accepts partial names, given-name/family-name order
+                            in either direction, and compact forms without spaces or punctuation. For example, <code>Hans Peter</code>,{' '}
+                            <code>Peter Hans</code>, and <code>HansPeter</code> can find the same person. Spelling mistakes are not corrected, and
+                            stored contact email addresses are not part of the public search.
                         </p>
                         <p>
                             When a name matches, the result row identifies the matching party with the full labels <strong>Contact Person</strong>,{' '}
                             <strong>Author</strong>, and <strong>Contributor</strong>. Several roles for the same identity are combined, while several
-                            matching identities appear separately. Results found only through another metadata field do not show a party label. This
-                            additional Contributor search applies to <code>/doi-search</code>; the IGSN Portal and free-keyword suggestions remain
-                            unchanged.
+                            matching identities appear separately. Results found only through another metadata field do not show a party label.
+                        </p>
+                        <p>
+                            The IGSN Portal also searches <strong>Local accession number</strong> and <strong>Local sample name</strong> values. When
+                            either matches, the result row shows its field label and the matching value. Enter <code>*</code> anywhere in an IGSN text
+                            query to replace any number of characters, including none; multiple asterisks are allowed. For example,{' '}
+                            <code>Geo*12</code> can match <code>Geo-Access-12</code>, and <code>Han*Peter</code> can match a person name. Without an
+                            asterisk, the IGSN Portal keeps its usual partial-text search. An asterisk alone shows all published IGSNs allowed by the
+                            active filters. Free-keyword suggestions and exact keyword chips work as before.
                         </p>
 
                         <h4>DOI Thesaurus Keywords</h4>

@@ -148,6 +148,36 @@ describe('PortalResultCard', () => {
             expect(within(matches).getByText('<script>window.hacked = true</script>')).toBeInTheDocument();
             expect(matches.querySelector('script')).toBeNull();
         });
+
+        it('shows each matching sample-name type and value in the accessible result link', () => {
+            renderCard(
+                createMockResource({
+                    isIgsn: true,
+                    sampleNameMatches: [
+                        { label: 'Local accession number', display_value: 'Geo-12' },
+                        { label: 'Local sample name', display_value: 'Basalt Sample 12' },
+                    ],
+                }),
+                '/igsn-search',
+            );
+
+            const matches = screen.getByTestId('portal-sample-name-matches');
+            expect(within(matches).getByText('Local accession number:')).toBeInTheDocument();
+            expect(within(matches).getByText('Geo-12')).toHaveAttribute('title', 'Geo-12');
+            expect(within(matches).getByText('Local sample name:')).toBeInTheDocument();
+            expect(within(matches).getByText('Basalt Sample 12')).toBeInTheDocument();
+            expect(screen.getByRole('link')).toHaveAccessibleName(/Local accession number: Geo-12\. Local sample name: Basalt Sample 12/);
+        });
+
+        it('renders matching sample names as text', () => {
+            renderCard(createMockResource({
+                sampleNameMatches: [{ label: 'Local sample name', display_value: '<script>unsafe()</script>' }],
+            }));
+
+            const matches = screen.getByTestId('portal-sample-name-matches');
+            expect(within(matches).getByText('<script>unsafe()</script>')).toBeInTheDocument();
+            expect(matches.querySelector('script')).toBeNull();
+        });
     });
 
     describe('separate interactions', () => {
