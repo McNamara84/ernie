@@ -702,7 +702,7 @@ class PortalSearchService
         )));
         $identifierPatterns = array_values(array_unique(array_map(
             static fn (string $term): string => (new PortalIgsnSearchPattern($term))->likePattern(),
-            $this->identifierSearchVariants($searchQuery),
+            $this->identifierSearchVariants($searchQuery, allowWildcard: true),
         )));
 
         $query->where(function (Builder $resourceQuery) use ($pattern, $namePatterns, $identifierPatterns): void {
@@ -762,11 +762,11 @@ class PortalSearchService
     }
 
     /**
-     * Produce exact identity aliases for common IGSN representations.
+     * Produce identity aliases for common IGSN representations.
      *
-     * @return list<string> Lower-case variants suitable for exact comparisons.
+     * @return list<string> Lower-case variants suitable for exact or wildcard comparisons.
      */
-    private function identifierSearchVariants(string $query): array
+    private function identifierSearchVariants(string $query, bool $allowWildcard = false): array
     {
         $identifier = preg_replace(
             '#^https?://(?:(?:www\.)?igsn\.org|hdl\.handle\.net|(?:dx\.)?doi\.org)/?#i',
@@ -792,10 +792,14 @@ class PortalSearchService
             return array_map(strtolower(...), $variants);
         }
 
-        if (preg_match('#^10273/([A-Za-z0-9][A-Za-z0-9._-]*)$#i', $identifier, $matches) === 1) {
+        $suffixPattern = $allowWildcard
+            ? '[A-Za-z0-9*][A-Za-z0-9._*-]*'
+            : '[A-Za-z0-9][A-Za-z0-9._-]*';
+
+        if (preg_match('#^10273/('.$suffixPattern.')$#i', $identifier, $matches) === 1) {
             $variants[] = $matches[1];
             $variants[] = '10.60510/'.$matches[1];
-        } elseif (preg_match('#^10\.60510/([A-Za-z0-9][A-Za-z0-9._-]*)$#i', $identifier, $matches) === 1) {
+        } elseif (preg_match('#^10\.60510/('.$suffixPattern.')$#i', $identifier, $matches) === 1) {
             $variants[] = $matches[1];
             $variants[] = '10273/'.$matches[1];
         } elseif (preg_match('/^(?=[A-Za-z0-9._-]*\d)[A-Za-z0-9][A-Za-z0-9._-]{4,}$/', $identifier) === 1) {

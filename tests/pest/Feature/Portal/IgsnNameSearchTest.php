@@ -227,6 +227,29 @@ it('preserves title, description, subject and identity-identifier search with wi
         ->and(igsnNameSearchIds('CITED*2001'))->toBe([]);
 });
 
+it('expands wildcarded identity suffixes across the 10273 and 10.60510 aliases', function (): void {
+    $identifierType = IdentifierType::query()->create(['slug' => 'IGSN', 'name' => 'IGSN']);
+    $identical = RelationType::query()->create(['slug' => 'IsIdenticalTo', 'name' => 'Is Identical To']);
+    $legacy = createIgsnNameSearchResource($this->igsnType, $this->mainTitleType);
+    $modern = createIgsnNameSearchResource($this->igsnType, $this->mainTitleType);
+
+    foreach ([
+        [$legacy, '10273/GFBNO7002EXZ3001'],
+        [$modern, '10.60510/ICDP1234ABC9002'],
+    ] as [$resource, $identifier]) {
+        RelatedIdentifier::query()->create([
+            'resource_id' => $resource->id,
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $identical->id,
+            'identifier' => $identifier,
+        ]);
+    }
+
+    expect(igsnNameSearchIds('10.60510/GFBNO*3001'))->toBe([$legacy->id])
+        ->and(igsnNameSearchIds('https://doi.org/10.60510/GFBNO*3001'))->toBe([$legacy->id])
+        ->and(igsnNameSearchIds('10273/ICDP*9002'))->toBe([$modern->id]);
+});
+
 it('refreshes and removes separate name terms when resource parties change', function (): void {
     $resource = createIgsnNameSearchResource($this->igsnType, $this->mainTitleType);
     $contributor = ResourceContributor::factory()->forPerson(Person::factory()->create([
