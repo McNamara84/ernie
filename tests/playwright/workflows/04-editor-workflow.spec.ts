@@ -548,3 +548,48 @@ test.describe('Editor Form', () => {
         }
     });
 });
+
+test.describe('Localized editor dates', () => {
+    test.use({ locale: 'de-DE' });
+
+    test('accepts a German date, offers years from 1900, and reloads the saved ISO value', async ({ page }) => {
+        await gotoWithLocalTlsRetry(page, '/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+
+        await gotoWithLocalTlsRetry(page, '/editor');
+        await expect(page.getByTestId('resource-info-section')).toBeVisible({ timeout: 30_000 });
+        await page.getByRole('textbox', { name: /Title/ }).first().fill(`Issue 1351 localized date ${Date.now()}`);
+
+        const datesTrigger = page.locator('[data-slot="accordion-trigger"]', { hasText: 'Dates' });
+        if ((await datesTrigger.getAttribute('aria-expanded')) !== 'true') await datesTrigger.click();
+        await page.getByRole('button', { name: 'Add Date' }).click();
+
+        const dateInput = page.locator('input[id$="-date"]').first();
+        await dateInput.fill('24.09.2020');
+        await dateInput.blur();
+        await expect(dateInput).toHaveValue('24.09.2020');
+
+        await page.getByRole('button', { name: 'Choose date' }).first().click();
+        const yearSelect = page.locator('select:has(option[value="1900"])');
+        await expect(yearSelect).toBeVisible();
+        await yearSelect.selectOption('1900');
+        await expect(yearSelect).toHaveValue('1900');
+        await page.keyboard.press('Escape');
+
+        const saveResponsePromise = page.waitForResponse(
+            (response) => response.url().endsWith('/editor/resources/draft') && response.request().method() === 'POST',
+        );
+        await page.getByTestId('save-draft-button').click();
+        const saveResponse = await saveResponsePromise;
+        expect(saveResponse.ok()).toBeTruthy();
+        expect(saveResponse.request().postDataJSON().dates[0].startDate).toBe('2020-09-24');
+        const saved = (await saveResponse.json()) as { resource: { id: number } };
+
+        await gotoWithLocalTlsRetry(page, `/editor?resourceId=${saved.resource.id}`);
+        if ((await datesTrigger.getAttribute('aria-expanded')) !== 'true') await datesTrigger.click();
+        await expect(page.locator('input[id$="-date"]').first()).toHaveValue('24.09.2020', { timeout: 60_000 });
+    });
+});

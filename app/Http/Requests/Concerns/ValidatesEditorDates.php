@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Concerns;
 
+use App\Support\DataCiteDateNormalizer;
 use DateTimeImmutable;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Validator;
@@ -46,9 +47,21 @@ trait ValidatesEditorDates
             }
 
             if ($dateMode === 'single' && $endDate !== null) {
+                $field = in_array($dateType, self::EDITOR_PERIOD_DATE_TYPES, true) ? 'dateMode' : 'dateType';
                 $validator->errors()->add(
-                    "dates.$index.endDate",
+                    "dates.$index.$field",
                     '[Dates] Date #'.($index + 1).' is set to single-date mode and must not include an end date.',
+                );
+
+                continue;
+            }
+
+            $hasPeriodIntent = $dateMode === 'range' || ($dateMode === null && $endDate !== null);
+
+            if ($hasPeriodIntent && ! in_array($dateType, self::EDITOR_PERIOD_DATE_TYPES, true)) {
+                $validator->errors()->add(
+                    "dates.$index.dateType",
+                    '[Dates] Date #'.($index + 1).' can only use a period for Created, Collected, Valid, or Other.',
                 );
 
                 continue;
@@ -73,25 +86,20 @@ trait ValidatesEditorDates
                 );
             }
 
-            $hasPeriodIntent = $dateMode === 'range' || ($dateMode === null && $endDate !== null);
-
             if (! $hasPeriodIntent || $startDate === null || $endDate === null) {
                 continue;
             }
 
-            if (! in_array($dateType, self::EDITOR_PERIOD_DATE_TYPES, true)) {
-                $validator->errors()->add(
-                    "dates.$index.endDate",
-                    '[Dates] Date #'.($index + 1).' can only use a period for Created, Collected, Valid, or Other.',
-                );
-
-                continue;
+            if (DataCiteDateNormalizer::isDateOnly($startDate) || DataCiteDateNormalizer::isDateOnly($endDate)) {
+                $startCalendarDate = DataCiteDateNormalizer::normalize($startDate);
+                $endCalendarDate = DataCiteDateNormalizer::normalize($endDate);
+                $reversed = $startCalendarDate !== null && $endCalendarDate !== null
+                    && DataCiteDateNormalizer::isRangeReversed($startCalendarDate, $endCalendarDate);
+            } else {
+                $reversed = $this->isDateTimeRangeReversed($startDate, $endDate);
             }
 
-            $start = $this->parseComparableDate($startDate);
-            $end = $this->parseComparableDate($endDate);
-
-            if ($start !== null && $end !== null && $end < $start) {
+            if ($reversed) {
                 $validator->errors()->add(
                     "dates.$index.endDate",
                     '[Dates] Date #'.($index + 1).' end date must not be before the start date.',
@@ -120,6 +128,14 @@ trait ValidatesEditorDates
         $trimmed = trim((string) $value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    private function isDateTimeRangeReversed(string $startValue, string $endValue): bool
+    {
+        $start = $this->parseComparableDate($startValue);
+        $end = $this->parseComparableDate($endValue);
+
+        return $start !== null && $end !== null && $end < $start;
     }
 
     private function parseComparableDate(?string $value): ?DateTimeImmutable
