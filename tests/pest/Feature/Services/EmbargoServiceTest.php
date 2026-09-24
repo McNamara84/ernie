@@ -140,6 +140,56 @@ test('a definitive DataCite rejection clears the pending attempt', function (): 
         ->and($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED);
 });
 
+test('a stale embargo model cannot claim registration after release has completed', function (): void {
+    $resource = embargoResource('2027-01-01');
+    $staleResource = $resource->fresh();
+    $policy = app(EmbargoService::class);
+
+    expect($policy->claimRegistration($resource, '10.83279'))->toBeTrue();
+    $resource->doi = '10.83279/released';
+    $resource->save();
+    $policy->completeRelease($resource);
+
+    expect($policy->claimRegistration($staleResource, '10.83279'))->toBeFalse()
+        ->and($resource->fresh()->access_level)->toBe(AccessLevel::OPEN)
+        ->and($resource->fresh()->embargo_registration_started_at)->toBeNull();
+});
+
+test('a partial dates relation cannot turn an Available range into an embargo day', function (): void {
+    $resource = embargoResource('2027-01-01');
+    $resource->dates->firstOrFail()->update([
+        'date_value' => null,
+        'start_date' => '2027-01-01',
+        'end_date' => '2027-01-31',
+    ]);
+    $resource = $resource->fresh(['landingPage']);
+    $resource->load(['dates' => fn ($query) => $query
+        ->select(['id', 'resource_id', 'date_type_id', 'date_value', 'start_date'])
+        ->with('dateType:id,slug')]);
+
+    expect(array_key_exists('end_date', $resource->dates->firstOrFail()->getAttributes()))->toBeFalse()
+        ->and(app(EmbargoService::class)->availableDate($resource))->toBeNull()
+        ->and($resource->publicStatus())->not->toBe('embargo');
+});
+
+test('a DataCite rate limit clears the embargo claim for another attempt', function (bool $isIgsn): void {
+    $resource = embargoResource('2027-01-01');
+    if ($isIgsn) {
+        $resource->doi = '10.83279/IGSN-RATE-LIMIT';
+        $resource->save();
+    }
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    Http::fake(['*datacite.org/*' => Http::response(['errors' => [['title' => 'Rate limited']]], 429)]);
+    $service = app(DataCiteRegistrationService::class);
+
+    expect(fn () => $isIgsn ? $service->registerIgsn($resource) : $service->registerDoi($resource, '10.83279'))
+        ->toThrow(RequestException::class);
+    Http::assertSentCount(1);
+    expect($resource->fresh()->embargo_registration_started_at)->toBeNull()
+        ->and($resource->fresh()->access_level)->toBe(AccessLevel::EMBARGOED)
+        ->and(app(EmbargoService::class)->claimRegistration($resource->fresh(), '10.83279'))->toBeTrue();
+})->with(['DOI' => false, 'IGSN' => true]);
+
 test('pending embargo registration blocks editor writes until reconciliation', function (): void {
     $resource = embargoResource('2027-01-01');
     expect(app(EmbargoService::class)->claimRegistration($resource, '10.83279'))->toBeTrue();

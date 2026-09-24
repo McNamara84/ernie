@@ -219,7 +219,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
             /** @phpstan-ignore notIdentical.alwaysTrue */
             $responseJson = $response !== null ? $response->json() : null;
 
-            if ($claimedAttempt && in_array($statusCode, [400, 401, 403, 422], true)) {
+            if ($claimedAttempt && in_array($statusCode, [400, 401, 403, 422, 429], true)) {
                 app(EmbargoService::class)->clearRejectedRegistration($resource);
             }
 
@@ -388,7 +388,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
             /** @phpstan-ignore notIdentical.alwaysTrue */
             $responseJson = $response !== null ? $response->json() : null;
 
-            if ($claimedAttempt && in_array($statusCode, [400, 401, 403, 422], true)) {
+            if ($claimedAttempt && in_array($statusCode, [400, 401, 403, 422, 429], true)) {
                 app(EmbargoService::class)->clearRejectedRegistration($resource);
             }
 

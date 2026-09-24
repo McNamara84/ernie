@@ -249,6 +249,8 @@ erDiagram
         timestamp legacy_description_breaks_normalized_at "nullable"
         boolean force_review_status "default false"
         varchar workflow_status_override "20, nullable, indexed"
+        timestamp embargo_registration_started_at "nullable"
+        varchar embargo_registration_prefix "64, nullable"
         timestamp created_at
         timestamp updated_at
     }

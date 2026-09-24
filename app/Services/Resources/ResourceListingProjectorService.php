@@ -129,7 +129,7 @@ final class ResourceListingProjectorService
                 ->select(['id', 'resource_id', 'value', 'description_type_id'])
                 ->with('descriptionType:id,slug'),
             'dates' => fn ($query) => $query
-                ->select(['id', 'resource_id', 'date_type_id', 'date_value', 'start_date'])
+                ->select(['id', 'resource_id', 'date_type_id', 'date_value', 'start_date', 'end_date'])
                 ->with('dateType:id,slug'),
             'creators' => fn ($query) => $query->with('creatorable')->orderBy('position')->orderBy('id'),
             'contributors' => fn ($query) => $query

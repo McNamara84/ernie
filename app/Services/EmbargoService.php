@@ -19,6 +19,14 @@ final class EmbargoService
 
     public function availableDate(Resource $resource): ?string
     {
+        // A caller may have eager-loaded only the columns needed for a list.
+        // Missing end_date must not make an Available range look like a single day.
+        if ($resource->relationLoaded('dates') && $resource->dates->contains(
+            static fn (ResourceDate $date): bool => ! array_key_exists('end_date', $date->getAttributes()),
+        )) {
+            $resource->unsetRelation('dates');
+        }
+
         $resource->loadMissing('dates.dateType');
         $dates = $resource->dates->filter(
             static fn (ResourceDate $date): bool => strcasecmp($date->dateType->slug, 'available') === 0,
@@ -85,6 +93,7 @@ final class EmbargoService
         $startedAt = now();
         $claimed = DB::table('resources')
             ->where('id', $resource->id)
+            ->where('access_level', AccessLevel::EMBARGOED->value)
             ->whereNull('embargo_registration_started_at')
             ->update([
                 'embargo_registration_started_at' => $startedAt,
