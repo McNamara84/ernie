@@ -18,7 +18,7 @@ import {
 interface EditorDateInputProps {
     id: string;
     value: string | null;
-    onChange: (value: string) => void;
+    onChange: (value: string, committed?: boolean) => void;
     onEditingChange?: (id: string, editing: boolean) => void;
     locale: EditorDateLocale;
     calendarLabel: string;
@@ -43,11 +43,11 @@ export function EditorDateInput({ id, value, onChange, onEditingChange, locale, 
         setTouched(true);
         onEditingChange?.(id, false);
         if (!draft.trim()) {
-            onChange('');
+            onChange('', true);
             return;
         }
         const result = validateEditorDate(draft, locale);
-        if (!result.error && result.parsed) onChange(result.parsed.iso);
+        if (!result.error && result.parsed) onChange(result.parsed.iso, true);
     };
 
     const handleOpenChange = (nextOpen: boolean) => {
@@ -64,7 +64,7 @@ export function EditorDateInput({ id, value, onChange, onEditingChange, locale, 
                     inputMode="numeric"
                     autoComplete="off"
                     value={focused ? draft : formatEditorDate(value, locale)}
-                    placeholder={locale === 'de' ? 'TT.MM.JJJJ oder JJJJ-MM-TT' : 'YYYY-MM-DD'}
+                    placeholder={locale === 'de' ? 'DD.MM.YYYY or YYYY-MM-DD' : 'YYYY-MM-DD'}
                     aria-invalid={Boolean(error)}
                     aria-describedby={error ? errorId : undefined}
                     title={locale === 'de' ? 'Also accepts YYYY, YYYY-MM and YYYY-MM-DD' : 'Also accepts YYYY and YYYY-MM'}
@@ -86,7 +86,14 @@ export function EditorDateInput({ id, value, onChange, onEditingChange, locale, 
                     onBlur={handleBlur}
                 />
                 {value && (
-                    <Button type="button" variant="outline" size="icon" className="shrink-0" aria-label={clearLabel} onClick={() => onChange('')}>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0"
+                        aria-label={clearLabel}
+                        onClick={() => onChange('', true)}
+                    >
                         <X className="size-4" />
                     </Button>
                 )}
@@ -103,7 +110,7 @@ export function EditorDateInput({ id, value, onChange, onEditingChange, locale, 
                             onMonthChange={setMonth}
                             selected={selected}
                             onSelect={(date) => {
-                                onChange(date ? todayLocalIso(date) : '');
+                                onChange(date ? todayLocalIso(date) : '', true);
                                 setTouched(false);
                                 setOpen(false);
                             }}

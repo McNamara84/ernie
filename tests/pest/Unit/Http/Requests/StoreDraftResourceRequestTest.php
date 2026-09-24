@@ -420,6 +420,31 @@ it('accepts ISO year and year-month dates in draft and final requests', function
         ->and($period->errors()->has('dates.0.endDate'))->toBeFalse();
 })->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
 
+it('compares mixed-precision periods using calendar bounds in draft and final requests', function (string $requestClass): void {
+    foreach ([
+        ['2020', '2020-01-01T00:00:00Z', false],
+        ['2020-12-31T23:00:00Z', '2020', false],
+        ['2020-06', '2020-06-01T01:00:00+02:00', false],
+        ['2020-07', '2020-06-30T23:59:59Z', true],
+        ['2020-07-01T00:00:00Z', '2020-06', true],
+    ] as [$startDate, $endDate, $expectedReversed]) {
+        $validator = validateDraftDatePayload([
+            ['dateType' => 'collected', 'dateMode' => 'range', 'startDate' => $startDate, 'endDate' => $endDate],
+        ], $requestClass);
+
+        expect($validator->errors()->has('dates.0.endDate'))->toBe($expectedReversed)
+            ->and($validator->errors()->has('dates.0.startDate'))->toBeFalse();
+    }
+})->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
+
+it('compares two date-times as instants in draft and final requests', function (string $requestClass): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'collected', 'dateMode' => 'range', 'startDate' => '2020-01-01T01:00:00Z', 'endDate' => '2020-01-01T01:30:00+02:00'],
+    ], $requestClass);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+})->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
+
 it('rejects reversed partial periods and non-ISO editor dates', function (string $requestClass): void {
     $reversed = validateDraftDatePayload([
         ['dateType' => 'collected', 'dateMode' => 'range', 'startDate' => '2020-07', 'endDate' => '2020-06-30'],

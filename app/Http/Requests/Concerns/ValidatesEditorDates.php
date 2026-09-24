@@ -89,9 +89,14 @@ trait ValidatesEditorDates
                 continue;
             }
 
-            $reversed = DataCiteDateNormalizer::isDateOnly($startDate) && DataCiteDateNormalizer::isDateOnly($endDate)
-                ? DataCiteDateNormalizer::isRangeReversed($startDate, $endDate)
-                : $this->isDateTimeRangeReversed($startDate, $endDate);
+            if (DataCiteDateNormalizer::isDateOnly($startDate) || DataCiteDateNormalizer::isDateOnly($endDate)) {
+                $startCalendarDate = DataCiteDateNormalizer::normalize($startDate);
+                $endCalendarDate = DataCiteDateNormalizer::normalize($endDate);
+                $reversed = $startCalendarDate !== null && $endCalendarDate !== null
+                    && DataCiteDateNormalizer::isRangeReversed($startCalendarDate, $endCalendarDate);
+            } else {
+                $reversed = $this->isDateTimeRangeReversed($startDate, $endDate);
+            }
 
             if ($reversed) {
                 $validator->errors()->add(

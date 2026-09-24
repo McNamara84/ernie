@@ -209,7 +209,7 @@ describe('DateField', () => {
         await user.clear(input);
         await user.type(input, '2020');
         await user.tab();
-        expect(mockOnStartDateChange).toHaveBeenLastCalledWith('2020');
+        expect(mockOnStartDateChange).toHaveBeenLastCalledWith('2020', true);
     });
 
     it('displays date type description when provided', () => {

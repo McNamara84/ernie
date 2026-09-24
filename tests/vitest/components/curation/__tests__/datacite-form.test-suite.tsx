@@ -7042,6 +7042,51 @@ describe('DataCiteForm', () => {
             ]);
         });
 
+        it('clears only the edited endpoint time when a date is committed with reduced precision', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Timed Dataset', titleType: 'main-title' }],
+                initialDates: [
+                    {
+                        dateType: 'collected',
+                        dateMode: 'range',
+                        startDate: '2020-06-15T09:30:00Z',
+                        endDate: '2020-06-20T16:45:00+02:00',
+                    },
+                ],
+            });
+            await ensureDatesOpen(user);
+
+            const start = screen.getByRole('textbox', { name: 'Start Date' });
+            const end = screen.getByRole('textbox', { name: 'End Date' });
+            expect(screen.getByLabelText('Start Time (optional)')).toHaveValue('09:30:00');
+            expect(screen.getByLabelText('End Time (optional)')).toHaveValue('16:45:00');
+
+            await user.clear(start);
+            await user.type(start, '2020');
+            await user.tab();
+
+            expect(screen.getByLabelText('Start Time (optional)')).toHaveValue('');
+            expect(screen.getByLabelText('End Time (optional)')).toHaveValue('16:45:00');
+            expect(screen.getAllByRole('combobox').find((element) => element.id.includes('startTimezone'))).toHaveTextContent('No timezone');
+
+            await user.clear(end);
+            await user.type(end, '2020-06');
+            await user.tab();
+
+            expect(screen.queryByLabelText('Start Time (optional)')).not.toBeInTheDocument();
+            expect(screen.queryByLabelText('End Time (optional)')).not.toBeInTheDocument();
+
+            await user.click(screen.getByTestId('save-draft-button'));
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            expect(mockedAxios.post.mock.calls[0][1].dates).toMatchObject([
+                { dateType: 'collected', dateMode: 'range', startDate: '2020', endDate: '2020-06' },
+            ]);
+        });
+
         it('blocks draft save instead of sending the previous date when typed input is invalid', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };

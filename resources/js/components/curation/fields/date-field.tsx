@@ -35,10 +35,10 @@ interface DateFieldProps {
     endTimezone: string | null;
     options: Option[];
     dateTypeDescription?: string;
-    onStartDateChange: (value: string) => void;
+    onStartDateChange: (value: string, committed?: boolean) => void;
     onEditingChange?: (id: string, editing: boolean) => void;
     locale?: EditorDateLocale;
-    onEndDateChange: (value: string) => void;
+    onEndDateChange: (value: string, committed?: boolean) => void;
     onStartTimeChange: (value: string) => void;
     onEndTimeChange: (value: string) => void;
     onStartTimezoneChange: (value: string) => void;

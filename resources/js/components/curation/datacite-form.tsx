@@ -39,6 +39,7 @@ import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-util
 import {
     type EditorDateLocale,
     isEditorDateRangeReversed,
+    parseEditorDate,
     requireEditorDateIso,
     resolveEditorDateLocale,
     validateEditorDate,
@@ -1957,7 +1958,7 @@ export default function DataCiteForm({
         });
     };
 
-    const handleDateChange = (index: number, field: keyof Omit<DateEntry, 'id'>, value: string) => {
+    const handleDateChange = (index: number, field: keyof Omit<DateEntry, 'id'>, value: string, committed = false) => {
         setDates((prev) => {
             const current = prev[index];
             if (!current) return prev;
@@ -1987,6 +1988,15 @@ export default function DataCiteForm({
                 updated = { ...updated, [field]: value === 'none' ? null : value };
             } else {
                 updated = { ...updated, [field]: value };
+                if (committed && (field === 'startDate' || field === 'endDate') && parseEditorDate(value, editorDateLocale)?.precision !== 'day') {
+                    if (field === 'startDate') {
+                        updated.startTime = null;
+                        updated.startTimezone = null;
+                    } else {
+                        updated.endTime = null;
+                        updated.endTimezone = null;
+                    }
+                }
             }
 
             next[index] = updated;
@@ -3800,10 +3810,10 @@ export default function DataCiteForm({
                                             endTimezone={entry.endTimezone}
                                             dateTypeDescription={selectedDateType?.description}
                                             options={dateTypeOptions}
-                                            onStartDateChange={(val) => handleDateChange(index, 'startDate', val)}
+                                            onStartDateChange={(val, committed) => handleDateChange(index, 'startDate', val, committed)}
                                             onEditingChange={handleDateInputEditingChange}
                                             locale={editorDateLocale}
-                                            onEndDateChange={(val) => handleDateChange(index, 'endDate', val)}
+                                            onEndDateChange={(val, committed) => handleDateChange(index, 'endDate', val, committed)}
                                             onStartTimeChange={(val) => handleDateChange(index, 'startTime', val)}
                                             onEndTimeChange={(val) => handleDateChange(index, 'endTime', val)}
                                             onStartTimezoneChange={(val) => handleDateChange(index, 'startTimezone', val)}

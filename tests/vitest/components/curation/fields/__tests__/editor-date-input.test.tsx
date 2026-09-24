@@ -13,7 +13,7 @@ function DateInputHarness({
 }: {
     initial: string;
     locale?: EditorDateLocale;
-    onValueChange?: (value: string) => void;
+    onValueChange?: (value: string, committed?: boolean) => void;
 }) {
     const [value, setValue] = useState(initial);
     return (
@@ -25,9 +25,9 @@ function DateInputHarness({
                 locale={locale}
                 calendarLabel="Choose date"
                 clearLabel="Clear date"
-                onChange={(next) => {
+                onChange={(next, committed) => {
                     setValue(next);
-                    onValueChange(next);
+                    onValueChange(next, committed);
                 }}
             />
         </>
@@ -46,7 +46,7 @@ describe('EditorDateInput', () => {
         await user.type(input, '25.09.2020');
         await user.tab();
 
-        expect(onValueChange).toHaveBeenLastCalledWith('2020-09-25');
+        expect(onValueChange).toHaveBeenLastCalledWith('2020-09-25', true);
         expect(input).toHaveValue('25.09.2020');
     });
 
@@ -59,7 +59,7 @@ describe('EditorDateInput', () => {
         await user.clear(input);
         await user.type(input, '25.09.2020{Enter}');
 
-        expect(onValueChange).toHaveBeenLastCalledWith('2020-09-25');
+        expect(onValueChange).toHaveBeenLastCalledWith('2020-09-25', true);
         expect(input).toHaveValue('25.09.2020');
     });
 
@@ -102,7 +102,7 @@ describe('EditorDateInput', () => {
         expect(dayButton).toBeTruthy();
         await user.click(dayButton!);
 
-        expect(onValueChange).toHaveBeenLastCalledWith('1900-02-02');
+        expect(onValueChange).toHaveBeenLastCalledWith('1900-02-02', true);
         expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue('1900-02-02');
     });
 
