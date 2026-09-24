@@ -214,7 +214,8 @@ describe('date period validation', function () {
             ->postJson('/editor/resources', $data);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['dates.0.endDate']);
+            ->assertJsonValidationErrors(['dates.0.dateType'])
+            ->assertJsonMissingValidationErrors(['dates.0.endDate']);
     });
 
     it('rejects end dates without start dates', function () {

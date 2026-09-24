@@ -239,6 +239,43 @@ describe('mapBackendErrors', () => {
         expect(mapped[0].sectionId).toBe('dates');
     });
 
+    it('targets indexed date controls using the submitted date row IDs', () => {
+        const errors: Record<string, string[]> = {
+            'dates.0.startDate': ['[Dates] Invalid single date.'],
+            'dates.1.startDate': ['[Dates] Invalid start date.'],
+            'dates.1.endDate': ['[Dates] Invalid end date.'],
+            'dates.1.dateType': ['[Dates] Invalid date type.'],
+            'dates.1.dateMode': ['[Dates] Invalid date mode.'],
+        };
+        const mapped = mapBackendErrors(errors, {
+            dateEntries: [
+                { id: '1first-row', isRange: false },
+                { id: 'second-row', isRange: true },
+            ],
+        });
+
+        expect(mapped.map((error) => error.fieldSelector)).toEqual([
+            '[id="1first-row-date"]',
+            '[id="second-row-startDate"]',
+            '[id="second-row-endDate"]',
+            '[id="second-row-dateType"]',
+            '[id="second-row-dateMode"] [data-slot="toggle-group-item"]',
+        ]);
+        expect(mapped.every((error) => error.sectionId === 'dates')).toBe(true);
+    });
+
+    it('falls back to the Dates section when an indexed date has no matching control', () => {
+        const mapped = mapBackendErrors(
+            {
+                'dates.0.endDate': ['[Dates] A single date must not have an end date.'],
+                'dates.1.startDate': ['[Dates] Date row is no longer present.'],
+            },
+            { dateEntries: [{ id: 'single-row', isRange: false }] },
+        );
+
+        expect(mapped.map((error) => error.fieldSelector)).toEqual([null, null]);
+    });
+
     it('handles multiple messages for same key', () => {
         const errors: Record<string, string[]> = {
             year: [

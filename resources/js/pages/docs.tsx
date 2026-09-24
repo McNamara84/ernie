@@ -1866,22 +1866,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                         </ul>
 
-                        <h4>Date Formats</h4>
-                        <p>ERNIE supports various date formats following ISO 8601:</p>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>
-                                <code>YYYY</code> – Year only (e.g., 2024)
-                            </li>
-                            <li>
-                                <code>YYYY-MM</code> – Year and month (e.g., 2024-06)
-                            </li>
-                            <li>
-                                <code>YYYY-MM-DD</code> – Full date (e.g., 2024-06-15)
-                            </li>
-                            <li>
-                                <code>YYYY-MM-DD/YYYY-MM-DD</code> – Date range (e.g., 2020-01-01/2024-12-31)
-                            </li>
-                        </ul>
+                        <h4>Entering Dates in the Editor</h4>
+                        <p>
+                            In the <strong>Dates</strong> section, type a year (<code>YYYY</code>), year and month (<code>YYYY-MM</code>), or full
+                            date (<code>YYYY-MM-DD</code>) directly into the date field. Year-only and year-month values remain editable without
+                            adding a day. With a German browser language, you can also enter a full date as <code>DD.MM.YYYY</code>; ERNIE displays
+                            full dates in that order and saves them in ISO format.
+                        </p>
+                        <p>
+                            Use the calendar button to choose a day. Its month and year menus reach back to 1900. For Created, Collected, Valid, or
+                            Other dates, select <strong>Period</strong> and enter the start and end dates in separate fields; do not type a
+                            slash-delimited range into one field. Time and timezone apply only to full dates and are cleared when you change that date
+                            to a year or year-month. Invalid dates show a field error and must be corrected before saving.
+                        </p>
                     </>
                 ),
             },

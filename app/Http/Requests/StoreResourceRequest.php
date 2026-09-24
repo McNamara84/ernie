@@ -14,6 +14,7 @@ use App\Models\RelatedItem;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\TitleType;
+use App\Rules\EditorDate;
 use App\Rules\HasMainTitle;
 use App\Rules\SafeUrl;
 use App\Rules\TemporalCoverageDate;
@@ -135,8 +136,8 @@ class StoreResourceRequest extends FormRequest
                 Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
             'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
-            'dates.*.startDate' => ['nullable', 'date'],
-            'dates.*.endDate' => ['nullable', 'date'],
+            'dates.*.startDate' => ['nullable', app(EditorDate::class)],
+            'dates.*.endDate' => ['nullable', app(EditorDate::class)],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
             'freeKeywords' => ['nullable', 'array'],
             'freeKeywords.*' => ['string', 'max:255'],
