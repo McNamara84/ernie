@@ -281,6 +281,12 @@ erDiagram
         timestamp updated_at
     }
 
+    resource_party_name_terms {
+        bigint id PK
+        bigint resource_id FK "indexed, cascade delete"
+        text term "normalized public party name"
+    }
+
     %% =========================================================================
     %% RESOURCE RELATIONSHIP TABLES
     %% =========================================================================
@@ -1332,6 +1338,7 @@ erDiagram
 
     %% Resource core relationships
     resources ||--o| resource_listing_projections : "has listing projection"
+    resources ||--o{ resource_party_name_terms : "has searchable party names"
     resources ||--o{ titles : "has"
     resources ||--o{ resource_creators : "has"
     resources ||--o{ resource_contributors : "has"

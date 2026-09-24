@@ -1444,7 +1444,7 @@ describe('Docs page', () => {
 
         expect(screen.getByRole('heading', { name: 'Text Search and Free Keyword Suggestions', level: 4 })).toBeInTheDocument();
         expect(screen.getByText(/Choose a suggestion to add it as an exact keyword chip/i)).toBeInTheDocument();
-        expect(screen.getByText(/normal text search also finds Authors and Contributors by person or institution name/i)).toBeInTheDocument();
+        expect(screen.getByText(/normal text search also finds Authors, Contributors, and Contact Persons by person or institution name/i)).toBeInTheDocument();
         expect(screen.getByText(/stored contact email addresses are not part of the public search/i)).toBeInTheDocument();
         const partyLabelsHelp = screen.getByText((_, element) => {
             if (element?.tagName !== 'P') return false;
@@ -1453,10 +1453,24 @@ describe('Docs page', () => {
 
             return (
                 text.includes('full labels Contact Person, Author, and Contributor') &&
-                text.includes('additional Contributor search applies to /doi-search')
+                text.includes('Results found only through another metadata field do not show a party label')
             );
         });
         expect(partyLabelsHelp).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') return false;
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('The IGSN Portal also searches Local accession number and Local sample name values') &&
+                    text.includes('result row shows its field label and the matching value') &&
+                    text.includes('Geo*12') &&
+                    text.includes('An asterisk alone shows all published IGSNs')
+                );
+            }),
+        ).toBeInTheDocument();
         expect(screen.getByText(/All controlled vocabularies share one hierarchy/i)).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Filter Order and Active Selections', level: 4 })).toBeInTheDocument();
         expect(

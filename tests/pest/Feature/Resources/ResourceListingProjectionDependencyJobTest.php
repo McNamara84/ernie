@@ -105,6 +105,46 @@ it('invalidates DOI portal caches only after refreshing a contributor-only perso
     }
 });
 
+it('refreshes IGSN party-name terms before invalidating public search caches', function (): void {
+    $type = ResourceType::factory()->create(['name' => 'Physical Object', 'slug' => 'physical-object']);
+    $resource = Resource::factory()->create(['resource_type_id' => $type->id]);
+    LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+    $person = Person::factory()->create(['given_name' => 'Before', 'family_name' => 'Researcher']);
+    ResourceContributor::factory()->forPerson($person)->create(['resource_id' => $resource->id]);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+
+    Cache::flush();
+    Queue::fake();
+    app()->forgetInstance(PortalCacheInvalidationService::class);
+    $versions = app(PortalCacheVersionService::class);
+    $keys = [
+        CacheKey::PORTAL_PAGE_PAYLOAD,
+        CacheKey::PORTAL_LISTING_COUNT,
+        CacheKey::PORTAL_IGSN_FACETS,
+        CacheKey::PORTAL_MAP_PAYLOAD,
+        CacheKey::PORTAL_MAP_EXTENT,
+    ];
+    foreach ($keys as $key) {
+        $versions->current($key, PortalScope::IGSN);
+    }
+
+    $person->wasRecentlyCreated = false;
+    $person->update(['given_name' => 'After']);
+    $job = Queue::pushed(RefreshResourceListingProjectionsForDependencyJob::class)
+        ->first(fn (RefreshResourceListingProjectionsForDependencyJob $queuedJob): bool => $queuedJob->dependencyType === Person::class);
+
+    expect($job)->not->toBeNull();
+    runResourceListingProjectionDependencyJob($job);
+    app(ResourceListingProjectionRefreshService::class)->flushPending();
+    app(PortalCacheInvalidationService::class)->flushPending();
+
+    $terms = DB::table('resource_party_name_terms')->where('resource_id', $resource->id)->pluck('term')->implode(' ');
+    expect($terms)->toContain('after researcher')->not->toContain('before researcher');
+    foreach ($keys as $key) {
+        expect($versions->current($key, PortalScope::IGSN))->toBe(2);
+    }
+});
+
 it('invalidates DOI portal caches only after removing a deleted contributor from the projection', function (): void {
     $resource = Resource::factory()->create();
     LandingPage::factory()->published()->create(['resource_id' => $resource->id]);

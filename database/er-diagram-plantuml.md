@@ -312,6 +312,13 @@ entity "resource_listing_projections" as resource_listing_projections {
     updated_at : TIMESTAMP
 }
 
+entity "resource_party_name_terms" as resource_party_name_terms {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>> //indexed, cascade delete//
+    * term : TEXT //normalized public party name//
+}
+
 ' ==========================================================================
 ' RESOURCE RELATIONSHIP TABLES
 ' ==========================================================================
@@ -1433,6 +1440,7 @@ resources |o--o{ assessment_run_items
 
 ' Resource core relationships
 resources ||--o| resource_listing_projections
+resources ||--o{ resource_party_name_terms
 resources ||--o{ titles
 resources ||--o{ resource_creators
 resources ||--o{ resource_contributors

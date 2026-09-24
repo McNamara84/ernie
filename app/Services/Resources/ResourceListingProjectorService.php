@@ -53,6 +53,7 @@ final class ResourceListingProjectorService
             ['resource_id' => $resourceId],
             $this->valuesForCurrentSchema($resource),
         );
+        $this->syncPartyNameTerms(new Collection([$resource]));
         $this->metricsCacheInvalidationService->scheduleAfterCommit();
     }
 
@@ -83,6 +84,9 @@ final class ResourceListingProjectorService
                 ->all();
             if ($missingIds !== []) {
                 ResourceListingProjection::query()->whereKey($missingIds)->delete();
+                if (Schema::hasTable('resource_party_name_terms')) {
+                    DB::table('resource_party_name_terms')->whereIn('resource_id', $missingIds)->delete();
+                }
             }
         });
     }
@@ -91,6 +95,9 @@ final class ResourceListingProjectorService
     {
         if ($this->tableExists()) {
             ResourceListingProjection::query()->whereKey($resourceId)->delete();
+            if (Schema::hasTable('resource_party_name_terms')) {
+                DB::table('resource_party_name_terms')->where('resource_id', $resourceId)->delete();
+            }
         }
     }
 
@@ -157,7 +164,35 @@ final class ResourceListingProjectorService
             ['resource_id'],
             array_keys($this->valuesForSchema($firstResource, $hasPartySearchColumn, $hasPartyNameSearchColumn)),
         );
+        $this->syncPartyNameTerms($resources);
         $this->metricsCacheInvalidationService->scheduleAfterCommit();
+    }
+
+    /**
+     * Keep each normalized name in its own row so * cannot cross party boundaries.
+     *
+     * @param  Collection<int, Resource>  $resources
+     */
+    private function syncPartyNameTerms(Collection $resources): void
+    {
+        if (! Schema::hasTable('resource_party_name_terms') || $resources->isEmpty()) {
+            return;
+        }
+
+        $resourceIds = array_map(static fn (Resource $resource): int => $resource->id, $resources->all());
+        $rows = [];
+        foreach ($resources as $resource) {
+            foreach ($this->partySearchTerms($resource)['names'] as $term) {
+                $rows[] = ['resource_id' => $resource->id, 'term' => $term];
+            }
+        }
+
+        DB::transaction(static function () use ($resourceIds, $rows): void {
+            DB::table('resource_party_name_terms')->whereIn('resource_id', $resourceIds)->delete();
+            foreach (array_chunk($rows, 200) as $chunk) {
+                DB::table('resource_party_name_terms')->insert($chunk);
+            }
+        });
     }
 
     /** @return array<string, mixed> */
