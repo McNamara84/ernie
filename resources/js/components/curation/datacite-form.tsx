@@ -36,6 +36,13 @@ import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { CURATION_ACCORDION_ITEM_VALUES, DEFAULT_OPEN_ACCORDION_ITEMS, isCurationAccordionItemValue } from '@/lib/curation-accordion';
 import { type DoiRegistrationResponse, isOrcidPreflightPayload, type OrcidPreflightIssue } from '@/lib/datacite-registration';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
+import {
+    type EditorDateLocale,
+    isEditorDateRangeReversed,
+    requireEditorDateIso,
+    resolveEditorDateLocale,
+    validateEditorDate,
+} from '@/lib/editor-date';
 import { feedback } from '@/lib/feedback';
 import { resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
@@ -44,7 +51,6 @@ import type { LandingPageConfig } from '@/types/landing-page';
 import type { SelectedKeyword, VocabularyKeyword } from '@/types/vocabulary';
 import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 import {
-    validateDate,
     validateDOIFormat,
     validateRequired,
     validateTextLength,
@@ -1337,6 +1343,16 @@ export default function DataCiteForm({
     const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
     const [validationAlertHeader, setValidationAlertHeader] = useState<string | undefined>(undefined);
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+    const [editorDateLocale, setEditorDateLocale] = useState<EditorDateLocale>('iso');
+    const [activeDateInputId, setActiveDateInputId] = useState<string | null>(null);
+
+    useEffect(() => {
+        setEditorDateLocale(resolveEditorDateLocale(navigator.language));
+    }, []);
+
+    const handleDateInputEditingChange = useCallback((id: string, editing: boolean) => {
+        setActiveDateInputId((current) => (editing ? id : current === id ? null : current));
+    }, []);
 
     // Compute author validation issues
     const authorValidationIssues = useMemo(() => {
@@ -1386,43 +1402,25 @@ export default function DataCiteForm({
                 }
             }
 
-            // Validate start date if provided
-            if (date.startDate && date.startDate.trim() !== '') {
-                const startDateValidation = validateDate(date.startDate, {
-                    allowFuture: false,
-                    minDate: new Date('1900-01-01'),
-                });
+            const startValidation = date.startDate?.trim() ? validateEditorDate(date.startDate, editorDateLocale) : null;
+            const endValidation = date.endDate?.trim() ? validateEditorDate(date.endDate, editorDateLocale) : null;
 
-                if (!startDateValidation.isValid) {
-                    issues.push(`Date ${dateIndex} (Start): ${startDateValidation.error}`);
-                }
-            }
+            if (startValidation?.error) issues.push(`Date ${dateIndex} (Start): ${startValidation.error}`);
+            if (endValidation?.error) issues.push(`Date ${dateIndex} (End): ${endValidation.error}`);
 
-            // Validate end date if provided
-            if (date.endDate && date.endDate.trim() !== '') {
-                const endDateValidation = validateDate(date.endDate, {
-                    allowFuture: false,
-                    minDate: new Date('1900-01-01'),
-                });
-
-                if (!endDateValidation.isValid) {
-                    issues.push(`Date ${dateIndex} (End): ${endDateValidation.error}`);
-                }
-            }
-
-            // Validate that end date is after start date (if both provided)
-            if (date.startDate && date.endDate && date.startDate.trim() !== '' && date.endDate.trim() !== '') {
-                const start = new Date(date.startDate);
-                const end = new Date(date.endDate);
-
-                if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end < start) {
-                    issues.push(`Date ${dateIndex}: End date must be after start date`);
-                }
+            if (
+                date.startDate &&
+                date.endDate &&
+                !startValidation?.error &&
+                !endValidation?.error &&
+                isEditorDateRangeReversed(date.startDate, date.endDate, editorDateLocale)
+            ) {
+                issues.push(`Date ${dateIndex}: End date must be after start date`);
             }
         });
 
         return issues;
-    }, [dates]);
+    }, [dates, editorDateLocale]);
 
     // Draft save only requires a Main Title (Issue #548)
     const isDraftSaveable = useMemo(() => {
@@ -2296,8 +2294,11 @@ export default function DataCiteForm({
             dates: dates.filter(hasValidDateValue).map((date) => ({
                 dateType: date.dateType,
                 dateMode: date.dateMode,
-                startDate: buildDateTime(date.startDate ?? '', date.startTime, date.startTimezone) || null,
-                endDate: date.dateMode === 'range' ? buildDateTime(date.endDate ?? '', date.endTime, date.endTimezone) || null : null,
+                startDate: buildDateTime(requireEditorDateIso(date.startDate ?? '', editorDateLocale), date.startTime, date.startTimezone) || null,
+                endDate:
+                    date.dateMode === 'range'
+                        ? buildDateTime(requireEditorDateIso(date.endDate ?? '', editorDateLocale), date.endTime, date.endTimezone) || null
+                        : null,
                 ...(date.dateInformation ? { dateInformation: date.dateInformation } : {}),
             })),
             freeKeywords: freeKeywords.map((kw) => kw.value.trim()).filter((kw) => kw.length > 0),
@@ -2371,6 +2372,7 @@ export default function DataCiteForm({
         authors,
         contributors,
         dates,
+        editorDateLocale,
         submittedDescriptions,
         form.doi,
         form.accessLevel,
@@ -2429,7 +2431,7 @@ export default function DataCiteForm({
     );
 
     useEffect(() => {
-        if (resolvedResourceId === null || lastDraftAutosaveSignatureRef.current !== null) {
+        if (resolvedResourceId === null || lastDraftAutosaveSignatureRef.current !== null || dateValidationIssues.length > 0) {
             return;
         }
 
@@ -2439,12 +2441,13 @@ export default function DataCiteForm({
             console.error('Failed to initialize draft autosave signature', error);
             lastDraftAutosaveSignatureRef.current = null;
         }
-    }, [buildPayload, resolvedResourceId]);
+    }, [buildPayload, dateValidationIssues.length, resolvedResourceId]);
 
     const saveDraftSilently = useCallback(async () => {
         if (
             !isDraftSaveable ||
             dateValidationIssues.length > 0 ||
+            activeDateInputId !== null ||
             isSaving ||
             isSavingDraft ||
             isPreparingLandingPagePreview ||
@@ -2509,6 +2512,7 @@ export default function DataCiteForm({
             draftAutosaveInFlightRef.current = false;
         }
     }, [
+        activeDateInputId,
         buildPayload,
         dateValidationIssues.length,
         draftSaveUrl,
@@ -3797,6 +3801,8 @@ export default function DataCiteForm({
                                             dateTypeDescription={selectedDateType?.description}
                                             options={dateTypeOptions}
                                             onStartDateChange={(val) => handleDateChange(index, 'startDate', val)}
+                                            onEditingChange={handleDateInputEditingChange}
+                                            locale={editorDateLocale}
                                             onEndDateChange={(val) => handleDateChange(index, 'endDate', val)}
                                             onStartTimeChange={(val) => handleDateChange(index, 'startTime', val)}
                                             onEndTimeChange={(val) => handleDateChange(index, 'endTime', val)}

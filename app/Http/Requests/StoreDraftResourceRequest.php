@@ -12,6 +12,7 @@ use App\Http\Requests\Concerns\ValidatesTemporalCoverages;
 use App\Models\RelatedIdentifier;
 use App\Models\ResourceCreator;
 use App\Models\TitleType;
+use App\Rules\EditorDate;
 use App\Rules\SafeUrl;
 use App\Rules\TemporalCoverageDate;
 use App\Rules\TemporalCoverageTimezone;
@@ -145,8 +146,8 @@ class StoreDraftResourceRequest extends FormRequest
                 Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
             'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
-            'dates.*.startDate' => ['nullable', 'date'],
-            'dates.*.endDate' => ['nullable', 'date'],
+            'dates.*.startDate' => ['nullable', app(EditorDate::class)],
+            'dates.*.endDate' => ['nullable', app(EditorDate::class)],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
             'freeKeywords' => ['nullable', 'array'],
             'freeKeywords.*' => ['string', 'max:255'],

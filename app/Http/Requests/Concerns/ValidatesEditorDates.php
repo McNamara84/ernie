@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Concerns;
 
+use App\Support\DataCiteDateNormalizer;
 use DateTimeImmutable;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Validator;
@@ -88,10 +89,11 @@ trait ValidatesEditorDates
                 continue;
             }
 
-            $start = $this->parseComparableDate($startDate);
-            $end = $this->parseComparableDate($endDate);
+            $reversed = DataCiteDateNormalizer::isDateOnly($startDate) && DataCiteDateNormalizer::isDateOnly($endDate)
+                ? DataCiteDateNormalizer::isRangeReversed($startDate, $endDate)
+                : $this->isDateTimeRangeReversed($startDate, $endDate);
 
-            if ($start !== null && $end !== null && $end < $start) {
+            if ($reversed) {
                 $validator->errors()->add(
                     "dates.$index.endDate",
                     '[Dates] Date #'.($index + 1).' end date must not be before the start date.',
@@ -120,6 +122,14 @@ trait ValidatesEditorDates
         $trimmed = trim((string) $value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    private function isDateTimeRangeReversed(string $startValue, string $endValue): bool
+    {
+        $start = $this->parseComparableDate($startValue);
+        $end = $this->parseComparableDate($endValue);
+
+        return $start !== null && $end !== null && $end < $start;
     }
 
     private function parseComparableDate(?string $value): ?DateTimeImmutable

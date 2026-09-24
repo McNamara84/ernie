@@ -53,11 +53,11 @@ describe('DateField', () => {
         vi.clearAllMocks();
     });
 
-    it('renders date picker component', () => {
+    it('renders an editable date input and a calendar button', () => {
         render(<DateField {...defaultProps} />);
 
-        const comboboxes = screen.getAllByRole('combobox');
-        expect(comboboxes.length).toBeGreaterThanOrEqual(1);
+        expect(screen.getByRole('textbox', { name: 'Date' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Choose date' })).toBeInTheDocument();
     });
 
     it('shows Date label for single-date mode', () => {
@@ -108,13 +108,13 @@ describe('DateField', () => {
     it('displays prefilled start date in button text', () => {
         render(<DateField {...defaultProps} startDate="2024-06-15" />);
 
-        expect(screen.getByText(/2024-06-15/)).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'Date' })).toHaveValue('2024-06-15');
     });
 
     it('displays prefilled end date in period mode', () => {
         render(<DateField {...defaultProps} dateType="valid" dateMode="range" endDate="2024-12-31" />);
 
-        expect(screen.getByText(/2024-12-31/)).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'End Date' })).toHaveValue('2024-12-31');
     });
 
     it('does not mark created dates as required', () => {
@@ -183,24 +183,33 @@ describe('DateField', () => {
         expect(mockOnTypeChange).toHaveBeenCalledWith('valid');
     });
 
-    it('shows two date pickers for period mode', () => {
+    it('shows editable start and end inputs for period mode', () => {
         render(<DateField {...defaultProps} dateType="valid" dateMode="range" />);
 
-        const comboboxes = screen.getAllByRole('combobox');
-        const datePickerComboboxes = comboboxes.filter(
-            (cb) => cb.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(cb.textContent || ''),
-        );
-        expect(datePickerComboboxes.length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByRole('textbox', { name: 'Start Date' })).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'End Date' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Choose start date' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Choose end date' })).toBeInTheDocument();
     });
 
-    it('shows one date picker for single-date mode', () => {
+    it('shows one editable date input for single-date mode', () => {
         render(<DateField {...defaultProps} dateType="valid" dateMode="single" />);
 
-        const comboboxes = screen.getAllByRole('combobox');
-        const datePickerComboboxes = comboboxes.filter(
-            (cb) => cb.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(cb.textContent || ''),
-        );
-        expect(datePickerComboboxes.length).toBe(1);
+        expect(screen.getByRole('textbox', { name: 'Date' })).toBeInTheDocument();
+        expect(screen.queryByRole('textbox', { name: 'End Date' })).not.toBeInTheDocument();
+    });
+
+    it('allows editing existing reduced-precision dates', async () => {
+        const user = userEvent.setup();
+        render(<DateField {...defaultProps} startDate="2020-06" />);
+        const input = screen.getByRole('textbox', { name: 'Date' });
+
+        expect(input).toHaveValue('2020-06');
+        expect(input).not.toHaveAttribute('readonly');
+        await user.clear(input);
+        await user.type(input, '2020');
+        await user.tab();
+        expect(mockOnStartDateChange).toHaveBeenLastCalledWith('2020');
     });
 
     it('displays date type description when provided', () => {

@@ -4,6 +4,17 @@
         "date": "2026-09-24",
         "features": [
             {
+                "title": "Direct Date Entry in the Editor",
+                "description": "Dates in the editor can now be typed directly or chosen from a calendar with month and year selection back to 1900. German browser settings also accept and display day-month-year dates, while saved values remain in ISO format. Year-only and year-month dates can be edited without losing their precision, and invalid entries are highlighted before a draft or resource is saved.",
+                "references": [
+                    {
+                        "type": "issue",
+                        "number": 1351,
+                        "url": "https://github.com/McNamara84/ernie/issues/1351"
+                    }
+                ]
+            },
+            {
                 "title": "People and Sample Name Search in the IGSN Portal",
                 "description": "The public IGSN Portal now finds published samples by partial names of authors, contributors, contact persons, and institutions, as well as Local accession numbers and Local sample names. An asterisk can replace any number of characters anywhere in a search term; searches without an asterisk retain substring matching. Result cards show matching party roles and sample name values. Search results, counts, facets, and maps stay in sync after metadata changes, while email addresses remain excluded from public search.",
                 "references": [

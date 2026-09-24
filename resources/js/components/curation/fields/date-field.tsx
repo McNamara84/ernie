@@ -1,25 +1,20 @@
-import { format, parseISO } from 'date-fns';
 import { Minus, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { normalizeTimeForInput, TIMEZONE_OPTIONS } from '@/lib/date-utils';
+import { type EditorDateLocale, parseEditorDate } from '@/lib/editor-date';
 import { cn } from '@/lib/utils';
 
 import { type DateMode, isDateRangeCapable } from '../utils/date-rules';
+import { EditorDateInput } from './editor-date-input';
 import { SelectField } from './select-field';
 
-/**
- * Check if a date string is partial-precision (YYYY or YYYY-MM).
- * These cannot be reliably rendered in a calendar DatePicker without data loss.
- */
-function isPartialDate(date: string | null): boolean {
-    if (!date) return false;
-    return /^\d{4}$/.test(date) || /^\d{4}-\d{2}$/.test(date);
+function isFullDate(date: string | null, locale: EditorDateLocale): boolean {
+    return Boolean(date && parseEditorDate(date, locale)?.precision === 'day');
 }
 
 interface Option {
@@ -41,6 +36,8 @@ interface DateFieldProps {
     options: Option[];
     dateTypeDescription?: string;
     onStartDateChange: (value: string) => void;
+    onEditingChange?: (id: string, editing: boolean) => void;
+    locale?: EditorDateLocale;
     onEndDateChange: (value: string) => void;
     onStartTimeChange: (value: string) => void;
     onEndTimeChange: (value: string) => void;
@@ -68,6 +65,8 @@ export function DateField({
     options,
     dateTypeDescription,
     onStartDateChange,
+    onEditingChange,
+    locale = 'iso',
     onEndDateChange,
     onStartTimeChange,
     onEndTimeChange,
@@ -104,68 +103,28 @@ export function DateField({
             <div className={cn('grid gap-4', modeGridClass)}>
                 <div className="space-y-2">
                     {isFirst && <Label htmlFor={`${id}-${isDateRange ? 'startDate' : 'date'}`}>{isDateRange ? 'Start Date' : 'Date'}</Label>}
-                    {isPartialDate(startDate) ? (
-                        <div className="flex gap-2">
-                            <Input
-                                id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
-                                value={startDate ?? ''}
-                                readOnly
-                                className="h-9 bg-muted"
-                                title="Partial-precision date (year or year-month)"
-                            />
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 shrink-0"
-                                aria-label="Clear date"
-                                onClick={() => onStartDateChange('')}
-                            >
-                                <Minus className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    ) : (
-                        <DatePicker
-                            id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
-                            value={startDate ? parseISO(startDate) : undefined}
-                            onChange={(date) => onStartDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
-                            placeholder="Select date"
-                            dateFormat="yyyy-MM-dd"
-                        />
-                    )}
+                    <EditorDateInput
+                        id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
+                        value={startDate}
+                        onChange={onStartDateChange}
+                        onEditingChange={onEditingChange}
+                        locale={locale}
+                        calendarLabel={isDateRange ? 'Choose start date' : 'Choose date'}
+                        clearLabel={isDateRange ? 'Clear start date' : 'Clear date'}
+                    />
                 </div>
                 {isDateRange && (
                     <div className="space-y-2">
                         {isFirst && <Label htmlFor={`${id}-endDate`}>End Date</Label>}
-                        {isPartialDate(endDate) ? (
-                            <div className="flex gap-2">
-                                <Input
-                                    id={`${id}-endDate`}
-                                    value={endDate ?? ''}
-                                    readOnly
-                                    className="h-9 bg-muted"
-                                    title="Partial-precision date (year or year-month)"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-9 w-9 shrink-0"
-                                    aria-label="Clear end date"
-                                    onClick={() => onEndDateChange('')}
-                                >
-                                    <Minus className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ) : (
-                            <DatePicker
-                                id={`${id}-endDate`}
-                                value={endDate ? parseISO(endDate) : undefined}
-                                onChange={(date) => onEndDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
-                                placeholder="Select date"
-                                dateFormat="yyyy-MM-dd"
-                            />
-                        )}
+                        <EditorDateInput
+                            id={`${id}-endDate`}
+                            value={endDate}
+                            onChange={onEndDateChange}
+                            onEditingChange={onEditingChange}
+                            locale={locale}
+                            calendarLabel="Choose end date"
+                            clearLabel="Clear end date"
+                        />
                     </div>
                 )}
                 <div>
@@ -216,7 +175,7 @@ export function DateField({
             </div>
 
             {/* Time/Timezone row: shown when a full-precision date is set (not partial YYYY or YYYY-MM) */}
-            {((startDate && !isPartialDate(startDate)) || (endDate && !isPartialDate(endDate)) || hasTimeInfo) && (
+            {(isFullDate(startDate, locale) || isFullDate(endDate, locale) || hasTimeInfo) && (
                 <div className="grid grid-cols-1 gap-4 border-l-2 border-muted pl-4 md:grid-cols-[1fr_1fr]">
                     <div className="space-y-2">
                         <Label htmlFor={`${id}-startTime`} className="text-xs text-muted-foreground">

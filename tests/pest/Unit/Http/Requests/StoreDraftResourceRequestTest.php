@@ -365,10 +365,12 @@ it('validates and normalizes title language tags for draft and final resource re
 
 /**
  * @param  list<array<string, mixed>>  $dates
+ * @param  class-string<StoreDraftResourceRequest|StoreResourceRequest>  $requestClass
  */
-function validateDraftDatePayload(array $dates): Illuminate\Validation\Validator
+function validateDraftDatePayload(array $dates, string $requestClass = StoreDraftResourceRequest::class): Illuminate\Validation\Validator
 {
-    $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+    $uri = $requestClass === StoreDraftResourceRequest::class ? '/editor/resources/draft' : '/editor/resources';
+    $request = $requestClass::create($uri, 'POST', [
         'titles' => [
             ['title' => 'Draft Resource', 'titleType' => 'main-title'],
         ],
@@ -404,6 +406,39 @@ it('allows closed draft periods for collected, valid, and other dates', function
     expect($validator->errors()->has('dates.0.endDate'))->toBeFalse()
         ->and($validator->errors()->has('dates.0.startDate'))->toBeFalse();
 })->with(['collected', 'valid', 'other']);
+
+it('accepts ISO year and year-month dates in draft and final requests', function (string $requestClass): void {
+    $single = validateDraftDatePayload([
+        ['dateType' => 'created', 'dateMode' => 'single', 'startDate' => '2020', 'endDate' => null],
+    ], $requestClass);
+    $period = validateDraftDatePayload([
+        ['dateType' => 'collected', 'dateMode' => 'range', 'startDate' => '2020-06', 'endDate' => '2020-06-01'],
+    ], $requestClass);
+
+    expect($single->errors()->has('dates.0.startDate'))->toBeFalse()
+        ->and($period->errors()->has('dates.0.startDate'))->toBeFalse()
+        ->and($period->errors()->has('dates.0.endDate'))->toBeFalse();
+})->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
+
+it('rejects reversed partial periods and non-ISO editor dates', function (string $requestClass): void {
+    $reversed = validateDraftDatePayload([
+        ['dateType' => 'collected', 'dateMode' => 'range', 'startDate' => '2020-07', 'endDate' => '2020-06-30'],
+    ], $requestClass);
+    $localized = validateDraftDatePayload([
+        ['dateType' => 'created', 'dateMode' => 'single', 'startDate' => '24.09.2020', 'endDate' => null],
+    ], $requestClass);
+    $impossible = validateDraftDatePayload([
+        ['dateType' => 'created', 'dateMode' => 'single', 'startDate' => '2020-02-30', 'endDate' => null],
+    ], $requestClass);
+    $invalidTime = validateDraftDatePayload([
+        ['dateType' => 'created', 'dateMode' => 'single', 'startDate' => '2020-09-24T99:99:00Z', 'endDate' => null],
+    ], $requestClass);
+
+    expect($reversed->errors()->has('dates.0.endDate'))->toBeTrue()
+        ->and($localized->errors()->has('dates.0.startDate'))->toBeTrue()
+        ->and($impossible->errors()->has('dates.0.startDate'))->toBeTrue()
+        ->and($invalidTime->errors()->has('dates.0.startDate'))->toBeTrue();
+})->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
 
 it('rejects unsupported draft date periods', function (): void {
     $validator = validateDraftDatePayload([

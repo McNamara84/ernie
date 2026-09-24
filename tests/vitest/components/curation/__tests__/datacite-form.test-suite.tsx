@@ -5126,6 +5126,9 @@ describe('DataCiteForm', () => {
     });
 
     describe('Dates Form Group', () => {
+        const getEditorDateInputs = () =>
+            Array.from(document.querySelectorAll<HTMLInputElement>('input[id$="-date"], input[id$="-startDate"], input[id$="-endDate"]'));
+
         it('renders the Dates accordion section', async () => {
             render(
                 <DataCiteForm
@@ -5189,13 +5192,9 @@ describe('DataCiteForm', () => {
             const addButton = screen.getByRole('button', { name: 'Add Date' });
             await user.click(addButton);
 
-            // After adding a new date: the DatePicker uses combobox role
-            // Find all comboboxes - one is the date picker, one is the date type select
+            // The new row has a text input; the date type still uses a select.
             const allComboboxes = screen.getAllByRole('combobox');
-            // DatePicker comboboxes contain "Select date" text
-            const datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            const datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes.length).toBeGreaterThanOrEqual(1);
 
             // Verify system-managed date types are not available, while Created is editable.
@@ -5235,21 +5234,15 @@ describe('DataCiteForm', () => {
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            // Should have 2 date picker comboboxes from initialDates
-            let allComboboxes = screen.getAllByRole('combobox');
-            let datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            // Should have 2 date text inputs from initialDates
+            let datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(2);
 
             // Remove button should be on the second date entry (first shows "Add")
             const removeButton = screen.getByRole('button', { name: 'Remove date' });
             await user.click(removeButton);
 
-            allComboboxes = screen.getAllByRole('combobox');
-            datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(1);
         });
 
@@ -5339,18 +5332,12 @@ describe('DataCiteForm', () => {
             expect(screen.getByText('Single date')).toBeInTheDocument();
             expect(screen.getByText('Period')).toBeInTheDocument();
 
-            let allComboboxes = screen.getAllByRole('combobox');
-            let datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            let datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(1);
 
             await user.click(screen.getByText('Period'));
 
-            allComboboxes = screen.getAllByRole('combobox');
-            datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(2);
         });
 
@@ -5372,17 +5359,14 @@ describe('DataCiteForm', () => {
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            // Initially, "valid" type should have both date pickers with values displayed
-            let allComboboxes = screen.getAllByRole('combobox');
-            let datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            // Initially, the valid period shows both dates.
+            let datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(2);
-            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
-            expect(datePickerComboboxes[1]).toHaveTextContent('2024-12-31');
+            expect(datePickerComboboxes[0]).toHaveValue('2024-01-01');
+            expect(datePickerComboboxes[1]).toHaveValue('2024-12-31');
 
             // Open the date type selector and change to "available" (a single-date-only type).
-            const dateTypeTrigger = allComboboxes.find((el) => el.getAttribute('id')?.includes('dateType'));
+            const dateTypeTrigger = screen.getAllByRole('combobox').find((el) => el.getAttribute('id')?.includes('dateType'));
             expect(dateTypeTrigger).toBeDefined();
             if (dateTypeTrigger) {
                 await user.click(dateTypeTrigger);
@@ -5391,13 +5375,10 @@ describe('DataCiteForm', () => {
             }
 
             // After changing to "available", should only have 1 date picker
-            allComboboxes = screen.getAllByRole('combobox');
-            datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(1);
             // startDate should be preserved
-            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
+            expect(datePickerComboboxes[0]).toHaveValue('2024-01-01');
         });
 
         it('hydrates space-separated datetime values into date, time, and timezone controls', () => {
@@ -5418,14 +5399,12 @@ describe('DataCiteForm', () => {
             );
 
             const allComboboxes = screen.getAllByRole('combobox');
-            const datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            const datePickerComboboxes = getEditorDateInputs();
             const timeInput = screen.getByLabelText('Time (optional)') as HTMLInputElement;
             const timezoneTrigger = allComboboxes.find((el) => el.getAttribute('id')?.includes('startTimezone'));
 
             expect(datePickerComboboxes).toHaveLength(1);
-            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-15');
+            expect(datePickerComboboxes[0]).toHaveValue('2024-01-15');
             expect(timeInput).toHaveValue('09:35:20');
             expect(timezoneTrigger).toHaveTextContent('UTC');
         });
@@ -5454,13 +5433,10 @@ describe('DataCiteForm', () => {
             );
 
             // Only 'created' should be shown; Accepted/Issued/Updated are system-managed and Coverage is edited elsewhere.
-            // DatePicker uses combobox role
-            const allComboboxes = screen.getAllByRole('combobox');
-            const datePickerComboboxes = allComboboxes.filter(
-                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
-            );
+            // Editor dates use text inputs.
+            const datePickerComboboxes = getEditorDateInputs();
             expect(datePickerComboboxes).toHaveLength(1);
-            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
+            expect(datePickerComboboxes[0]).toHaveValue('2024-01-01');
         });
     });
 
@@ -7038,6 +7014,52 @@ describe('DataCiteForm', () => {
             expect(mockedAxios.post).not.toHaveBeenCalled();
             expect(screen.getByText('Please resolve the date validation issues before saving your draft.')).toBeInTheDocument();
             expect(screen.queryByText('Please complete the date period before saving your draft.')).not.toBeInTheDocument();
+        });
+
+        it('saves German typed dates as ISO without changing their precision', { timeout: 60000 }, async () => {
+            vi.spyOn(window.navigator, 'language', 'get').mockReturnValue('de-DE');
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockResolvedValue({ data: { message: 'Draft saved.', resource: { id: 42 } }, status: 200 });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Historic Dataset', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'collected', dateMode: 'range', startDate: '2020-06', endDate: '2020-09-24' }],
+            });
+            await ensureDatesOpen(user);
+            const start = screen.getByRole('textbox', { name: 'Start Date' });
+            const end = screen.getByRole('textbox', { name: 'End Date' });
+            expect(start).toHaveValue('2020-06');
+            expect(end).toHaveValue('24.09.2020');
+
+            await user.clear(end);
+            await user.type(end, '25.09.2020');
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            await waitFor(() => expect(mockedAxios.post).toHaveBeenCalledTimes(1));
+            expect(mockedAxios.post.mock.calls[0][1].dates).toMatchObject([
+                { dateType: 'collected', dateMode: 'range', startDate: '2020-06', endDate: '2020-09-25' },
+            ]);
+        });
+
+        it('blocks draft save instead of sending the previous date when typed input is invalid', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn();
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Historic Dataset', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'available', startDate: '2020-09-24', endDate: '' }],
+            });
+            await ensureDatesOpen(user);
+            const date = screen.getByRole('textbox', { name: 'Date' });
+            await user.clear(date);
+            await user.type(date, '2020-02-30');
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(date).toHaveValue('2020-02-30');
+            expect(screen.getByText('Please resolve the date validation issues before saving your draft.')).toBeInTheDocument();
         });
 
         it('redirects to resources after draft save (Issue #624)', { timeout: 60000 }, async () => {
