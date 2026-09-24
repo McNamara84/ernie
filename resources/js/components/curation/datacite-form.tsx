@@ -2549,6 +2549,10 @@ export default function DataCiteForm({
         (errors: Record<string, string[]>, headerMessage: string, descriptionIds = descriptionEntryIds) => {
             const mapped = mapBackendErrors(errors, {
                 descriptionIds,
+                dateEntries: dates.filter(hasValidDateValue).map((entry) => ({
+                    id: entry.id,
+                    isRange: isDateRangeCapable(entry.dateType) && entry.dateMode === 'range',
+                })),
             });
             setMappedValidationErrors(mapped);
             setValidationAlertHeader(headerMessage);
@@ -2576,7 +2580,7 @@ export default function DataCiteForm({
 
             setErrorMessage(headerMessage);
         },
-        [descriptionEntryIds, setFieldErrors, updateOpenAccordionItems],
+        [dates, descriptionEntryIds, setFieldErrors, updateOpenAccordionItems],
     );
 
     const datacenterErrorMessage = useMemo(() => {

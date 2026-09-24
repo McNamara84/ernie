@@ -17,6 +17,7 @@ import {
 
 interface EditorDateInputProps {
     id: string;
+    inputLabel: string;
     value: string | null;
     onChange: (value: string, committed?: boolean) => void;
     onEditingChange?: (id: string, editing: boolean) => void;
@@ -26,7 +27,7 @@ interface EditorDateInputProps {
 }
 
 /** Text and calendar controls for one ISO or reduced-precision editor date. */
-export function EditorDateInput({ id, value, onChange, onEditingChange, locale, calendarLabel, clearLabel }: EditorDateInputProps) {
+export function EditorDateInput({ id, inputLabel, value, onChange, onEditingChange, locale, calendarLabel, clearLabel }: EditorDateInputProps) {
     const [focused, setFocused] = useState(false);
     const [draft, setDraft] = useState('');
     const [touched, setTouched] = useState(false);
@@ -60,6 +61,7 @@ export function EditorDateInput({ id, value, onChange, onEditingChange, locale, 
             <div className="flex min-w-0 gap-1">
                 <Input
                     id={id}
+                    aria-label={inputLabel}
                     type="text"
                     inputMode="numeric"
                     autoComplete="off"

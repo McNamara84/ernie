@@ -35,6 +35,8 @@ interface SectionMapping {
 export interface ErrorFieldMappingContext {
     /** Stable client-side IDs for inline-capable fields, in submitted description order. */
     descriptionIds?: readonly string[];
+    /** Date rows in submitted order; empty editor rows are omitted from the payload. */
+    dateEntries?: readonly { id: string; isRange: boolean }[];
 }
 
 /**
@@ -199,12 +201,30 @@ function resolveFieldSelector(backendKey: string, context: ErrorFieldMappingCont
                     return `[data-testid="custom-license-uri-${index}"]`;
                 }
                 return null;
+            case 'dates': {
+                const entry = context.dateEntries?.[Number(index)];
+                if (!entry) return null;
+
+                if (subfield === 'dateMode') {
+                    return `[id="${entry.id}-dateMode"] [data-slot="toggle-group-item"]`;
+                }
+
+                let fieldName: string | null = null;
+                if (subfield === 'startDate' || subfield === undefined) {
+                    fieldName = entry.isRange ? 'startDate' : 'date';
+                } else if (subfield === 'endDate' && entry.isRange) {
+                    fieldName = 'endDate';
+                } else if (subfield === 'dateType') {
+                    fieldName = 'dateType';
+                }
+
+                return fieldName ? `[id="${entry.id}-${fieldName}"]` : null;
+            }
             // The following field components do not have stable data-testid attributes yet.
             // Return null to fall back to opening the correct accordion section.
             case 'fundingReferences':
             case 'relatedIdentifiers':
             case 'spatialTemporalCoverages':
-            case 'dates':
             case 'instruments':
                 return null;
             default:

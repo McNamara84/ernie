@@ -105,6 +105,7 @@ export function DateField({
                     {isFirst && <Label htmlFor={`${id}-${isDateRange ? 'startDate' : 'date'}`}>{isDateRange ? 'Start Date' : 'Date'}</Label>}
                     <EditorDateInput
                         id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
+                        inputLabel={isDateRange ? 'Start Date' : 'Date'}
                         value={startDate}
                         onChange={onStartDateChange}
                         onEditingChange={onEditingChange}
@@ -118,6 +119,7 @@ export function DateField({
                         {isFirst && <Label htmlFor={`${id}-endDate`}>End Date</Label>}
                         <EditorDateInput
                             id={`${id}-endDate`}
+                            inputLabel="End Date"
                             value={endDate}
                             onChange={onEndDateChange}
                             onEditingChange={onEditingChange}

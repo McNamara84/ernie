@@ -21,6 +21,7 @@ function DateInputHarness({
             <label htmlFor="date-input">Date</label>
             <EditorDateInput
                 id="date-input"
+                inputLabel="Date"
                 value={value}
                 locale={locale}
                 calendarLabel="Choose date"

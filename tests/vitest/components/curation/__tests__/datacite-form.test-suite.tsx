@@ -6950,6 +6950,40 @@ describe('DataCiteForm', () => {
             });
         });
 
+        it('focuses the submitted date row named by a backend error after empty rows are omitted', { timeout: 60000 }, async () => {
+            vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+                callback(performance.now());
+                return 1;
+            });
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post.mockRejectedValue({
+                response: {
+                    status: 422,
+                    data: { errors: { 'dates.0.startDate': ['[Dates] The submitted date is invalid.'] } },
+                },
+                isAxiosError: true,
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Dated Dataset', titleType: 'main-title' }],
+                initialDates: [
+                    { dateType: 'available', startDate: '', endDate: '' },
+                    { dateType: 'available', startDate: '2020-09-24', endDate: '' },
+                ],
+            });
+            await ensureDatesOpen(user);
+            const dateInputs = screen.getAllByRole('textbox', { name: 'Date' });
+            expect(dateInputs).toHaveLength(2);
+
+            await user.click(screen.getByTestId('save-draft-button'));
+            const errorLink = await screen.findByTestId('error-link-dates.0.startDate-0');
+            await user.click(errorLink);
+
+            await waitFor(() => expect(dateInputs[1]).toHaveFocus());
+            expect(dateInputs[0]).not.toHaveFocus();
+        });
+
         it('blocks draft save when a selected date period is incomplete', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 

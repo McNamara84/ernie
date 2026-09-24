@@ -131,6 +131,20 @@ describe('DateField', () => {
         expect(screen.queryByText('Date')).not.toBeInTheDocument();
     });
 
+    it('names date inputs in additional rows without repeating visual labels', () => {
+        const { rerender } = render(<DateField {...defaultProps} id="second-date" isFirst={false} />);
+
+        expect(screen.queryByText('Date')).not.toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'Date' })).toBeInTheDocument();
+
+        rerender(<DateField {...defaultProps} id="second-date" dateType="collected" dateMode="range" isFirst={false} />);
+
+        expect(screen.queryByText('Start Date')).not.toBeInTheDocument();
+        expect(screen.queryByText('End Date')).not.toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'Start Date' })).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'End Date' })).toBeInTheDocument();
+    });
+
     it('renders add button when isFirst is true', () => {
         render(<DateField {...defaultProps} isFirst={true} />);
 

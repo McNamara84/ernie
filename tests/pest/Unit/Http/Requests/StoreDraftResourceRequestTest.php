@@ -465,6 +465,34 @@ it('rejects reversed partial periods and non-ISO editor dates', function (string
         ->and($invalidTime->errors()->has('dates.0.startDate'))->toBeTrue();
 })->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
 
+it('rejects normalized or out-of-range editor times in draft and final requests', function (string $requestClass): void {
+    foreach ([
+        '2020-09-24T24:00:00Z',
+        '2020-09-24T23:59:60Z',
+        '2020-09-24T12:30+14:01',
+        '2020-09-24T12:30-23:00',
+    ] as $value) {
+        $validator = validateDraftDatePayload([
+            ['dateType' => 'created', 'dateMode' => 'single', 'startDate' => $value, 'endDate' => null],
+        ], $requestClass);
+
+        expect($validator->errors()->has('dates.0.startDate'))->toBeTrue();
+    }
+
+    foreach ([
+        '2020-09-24T23:59:59Z',
+        '2020-09-24T12:30+14:00',
+        '2020-09-24 09:35:20Z',
+        '2020-09-24T09:35',
+    ] as $value) {
+        $validator = validateDraftDatePayload([
+            ['dateType' => 'created', 'dateMode' => 'single', 'startDate' => $value, 'endDate' => null],
+        ], $requestClass);
+
+        expect($validator->errors()->has('dates.0.startDate'))->toBeFalse();
+    }
+})->with([StoreDraftResourceRequest::class, StoreResourceRequest::class]);
+
 it('rejects unsupported draft date periods', function (): void {
     $validator = validateDraftDatePayload([
         ['dateType' => 'available', 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
