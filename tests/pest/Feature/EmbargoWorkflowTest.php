@@ -10,8 +10,9 @@ use App\Models\Resource;
 use App\Models\Title;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
@@ -87,12 +88,12 @@ test('due embargo notifications reach unassigned curators and change at midnight
     LandingPage::factory()->draft()->create(['resource_id' => $resource->id]);
     $user = User::factory()->curator()->create();
 
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2026-12-31 23:59:59', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2026-12-31 23:59:59', 'Europe/Berlin'));
     config(['app.timezone' => 'Europe/Berlin']);
     $this->actingAs($user)->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page->where('dueEmbargoCount', 0));
 
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     $this->actingAs($user)->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page
             ->where('dueEmbargoCount', 1)
@@ -163,7 +164,7 @@ test('manual DOI registration on the Available day publishes with Open access an
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.prefixes' => ['10.83279'],
     ]);
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     $user = User::factory()->curator()->create();
     $resource = workflowEmbargo('2027-01-01');
     $landingPage = LandingPage::factory()->draft()->create([
@@ -191,7 +192,6 @@ test('manual DOI registration on the Available day publishes with Open access an
         && $request->data()['data']['attributes']['url'] === $landingPage->fresh()->public_url);
 });
 
-
 test('batch DOI registration releases a due embargo only after DataCite accepts it', function (): void {
     config([
         'app.timezone' => 'Europe/Berlin',
@@ -201,7 +201,7 @@ test('batch DOI registration releases a due embargo only after DataCite accepts 
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.prefixes' => ['10.83279'],
     ]);
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     $resource = workflowEmbargo('2027-01-01');
     $landingPage = LandingPage::factory()->draft()->create(['resource_id' => $resource->id, 'doi_prefix' => null]);
     $user = User::factory()->curator()->create();
@@ -230,7 +230,7 @@ test('manual IGSN registration releases a due embargo with Open access', functio
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.prefixes' => ['10.83279'],
     ]);
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     $resource = workflowEmbargo('2027-01-01');
     $resource->doi = '10.83279/IGSN-RELEASED';
     $resource->save();
@@ -265,7 +265,7 @@ test('a timed-out embargo DOI create is reconciled without a second POST', funct
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.prefixes' => ['10.83279'],
     ]);
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     $resource = workflowEmbargo('2027-01-01');
     $landingPage = LandingPage::factory()->draft()->create(['resource_id' => $resource->id, 'doi_prefix' => null]);
     $user = User::factory()->curator()->create();
@@ -318,7 +318,7 @@ test('an unresolved embargo DOI create stays private and is never posted twice',
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.prefixes' => ['10.83279'],
     ]);
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     $resource = workflowEmbargo('2027-01-01');
     LandingPage::factory()->draft()->create(['resource_id' => $resource->id, 'doi_prefix' => null]);
     $user = User::factory()->curator()->create();
@@ -356,7 +356,7 @@ test('a timed-out embargo IGSN create is reconciled by identifier', function ():
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
         'datacite.test.prefixes' => ['10.83279'],
     ]);
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     $resource = workflowEmbargo('2027-01-01');
     $resource->doi = '10.83279/RECOVERED-IGSN';
     $resource->save();

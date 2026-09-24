@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Batch\RegisterResourcesRequest;
 use App\Models\Resource;
 use App\Services\DataCiteRegistrationService;
+use App\Services\EmbargoService;
 use App\Services\Orcid\OrcidPreflightResult;
 use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\ResourceStorageService;
@@ -133,7 +134,7 @@ class BatchResourceRegistrationController extends Controller
                     $response = $service->updateMetadata($resource);
                 } else {
                     /** @var string $prefix */
-                    app(\App\Services\EmbargoService::class)->assertCanRegister($resource);
+                    app(EmbargoService::class)->assertCanRegister($resource);
                     $response = $service->registerDoi($resource, $prefix);
                 }
 
@@ -141,13 +142,13 @@ class BatchResourceRegistrationController extends Controller
 
                 // Persist the freshly-minted DOI for new registrations.
                 if (! $wasAlreadyRegistered && $doi !== null && $doi !== $resource->doi) {
-                    $wasEmbargoed = app(\App\Services\EmbargoService::class)->isEmbargoed($resource);
+                    $wasEmbargoed = app(EmbargoService::class)->isEmbargoed($resource);
                     DB::transaction(function () use ($resource, $doi, $resourceStorageService, $wasEmbargoed): void {
                         $resource->doi = $doi;
                         $resource->save();
                         $resourceStorageService->ensureSystemDate($resource, 'Issued');
                         if ($wasEmbargoed) {
-                            app(\App\Services\EmbargoService::class)->completeRelease($resource);
+                            app(EmbargoService::class)->completeRelease($resource);
                         }
                     });
                     if ($wasEmbargoed) {

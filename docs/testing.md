@@ -26,6 +26,7 @@ Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm in
 | Pest TIA                   | Host shell via npm wrapper | `npm run test:php:tia`                      | Local-only affected-test loop; records a baseline on first use |
 | Pest deprecation details   | Host shell via npm wrapper | `npm run test:php:deprecations`             | Use this instead of forwarding `--display-*` flags through npm |
 | Pest Agent probe           | Host shell via npm wrapper | `npm run test:php:agent -- '<PHP snippet>'` | One-off verification; not a replacement for a regression test  |
+| Laravel Pint               | Host shell via npm wrapper | `npm run pint:check`                        | Matches the CI PHP style check                                  |
 | PHPStan                    | Host shell via npm wrapper | `npm run phpstan:check`                     | Required before finishing PHP changes                          |
 | Pest type coverage         | Host shell via npm wrapper | `npm run test:php:type-coverage`            | Enforces the measured 92% minimum; expensive on a cold cache   |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive`          | Uses isolated `ernie_test` schema                              |
@@ -39,7 +40,7 @@ Run `npm ci` after cloning and whenever `package-lock.json` changes. Use `npm in
 | TypeScript                 | Host shell                 | `npm run types`                             | Runs app and test TS checks                                    |
 | Playwright dev stack       | Host shell                 | `npm run test:e2e:devstack`                 | Requires the Docker dev stack                                  |
 | Playwright stage           | Host shell                 | `npm run test:e2e:stage`                    | Use only for stage-specific bug reproduction                   |
-| Backend umbrella check     | Host shell                 | `npm run check:backend`                     | Pest plus PHPStan                                              |
+| Backend umbrella check     | Host shell                 | `npm run check:backend`                     | Pint, Pest, and PHPStan                                        |
 | Frontend umbrella check    | Host shell                 | `npm run check:frontend`                    | Oxlint plus OpenAPI lint plus TypeScript plus one-shot Vitest  |
 | Parity umbrella check      | Host shell                 | `npm run check:parity`                      | Parity profile plus MySQL slice plus Playwright                |
 

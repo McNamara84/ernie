@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\AccessLevel;
 use App\Models\Resource;
 use App\Models\User;
+use App\Services\EmbargoService;
 use App\Services\GuidedTours\GuidedTourAssignmentService;
 use App\Services\Resources\ResourceListingProjectionRefreshService;
 use Illuminate\Http\Request;
@@ -51,10 +53,10 @@ final class DashboardController extends Controller
             ])
             ->all();
 
-        $embargoService = app(\App\Services\EmbargoService::class);
+        $embargoService = app(EmbargoService::class);
         $dueEmbargos = Resource::query()
             ->with(['dates.dateType', 'landingPage', 'titles.titleType'])
-            ->where('access_level', \App\Enums\AccessLevel::EMBARGOED->value)
+            ->where('access_level', AccessLevel::EMBARGOED->value)
             ->whereHas('dates', fn ($query) => $query
                 ->whereHas('dateType', fn ($type) => $type->where('slug', 'Available'))
                 ->where(function ($dateQuery): void {

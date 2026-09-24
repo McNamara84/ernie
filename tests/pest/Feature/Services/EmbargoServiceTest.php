@@ -15,8 +15,11 @@ use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteXmlExporter;
 use App\Services\EmbargoService;
 use App\Services\JsonSchemaValidator;
+use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
 
 function embargoResource(string $date, bool $withPage = true): Resource
 {
@@ -49,11 +52,11 @@ test('embargo remains a workflow state across midnight and becomes due at the lo
     $resource = embargoResource('2027-01-01');
     $policy = app(EmbargoService::class);
 
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2026-12-31 23:59:59', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2026-12-31 23:59:59', 'Europe/Berlin'));
     expect($resource->publicStatus())->toBe('embargo')
         ->and($policy->isDue($resource))->toBeFalse();
 
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     expect($resource->publicStatus())->toBe('embargo')
         ->and($policy->isDue($resource))->toBeTrue();
     $policy->assertCanRegister($resource);
@@ -64,9 +67,9 @@ test('a leap-day Available date becomes due at local midnight', function (): voi
     $policy = app(EmbargoService::class);
     expect($policy->availableDate($resource))->toBe('2028-02-29');
 
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2028-02-28 23:59:59', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2028-02-28 23:59:59', 'Europe/Berlin'));
     expect($policy->isDue($resource))->toBeFalse();
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2028-02-29 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2028-02-29 00:00:00', 'Europe/Berlin'));
     expect($policy->isDue($resource))->toBeTrue();
 });
 
@@ -74,7 +77,7 @@ test('Available without Embargoed access is not an embargo workflow', function (
     $resource = embargoResource('2027-01-01');
     $resource->access_level = AccessLevel::OPEN;
     $resource->save();
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
 
     expect(app(EmbargoService::class)->isDue($resource))->toBeFalse()
         ->and($resource->publicStatus())->not->toBe('embargo');
@@ -86,7 +89,7 @@ test('invalid and ambiguous Available dates fail closed', function (string $date
     expect($policy->availableDate($resource))->toBeNull()
         ->and($resource->isComplete())->toBeFalse();
     expect(fn () => $policy->assertCanRegister($resource))
-        ->toThrow(\InvalidArgumentException::class, 'exactly one valid day-precision Available date');
+        ->toThrow(InvalidArgumentException::class, 'exactly one valid day-precision Available date');
 })->with(['2027', '2027-02', '2027-02-29', '2027-01-01T00:00:00']);
 
 test('multiple Available dates fail closed', function (): void {
@@ -102,17 +105,17 @@ test('multiple Available dates fail closed', function (): void {
 
 test('no DataCite POST is made before Available', function (): void {
     $resource = embargoResource('2027-01-01');
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2026-12-31 23:59:59', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2026-12-31 23:59:59', 'Europe/Berlin'));
     Http::fake();
 
     expect(fn () => app(DataCiteRegistrationService::class)->registerDoi($resource, '10.83279'))
-        ->toThrow(\InvalidArgumentException::class, 'before 2027-01-01');
+        ->toThrow(InvalidArgumentException::class, 'before 2027-01-01');
     Http::assertNothingSent();
 });
 
 test('an ambiguous DataCite create response does not automatically send a second POST', function (): void {
     $resource = embargoResource('2027-01-01');
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     config(['datacite.transport_transient_attempts' => 3]);
     Http::fakeSequence()
         ->push(['errors' => [['title' => 'Temporary failure']]], 500)
@@ -128,7 +131,7 @@ test('an ambiguous DataCite create response does not automatically send a second
 
 test('a definitive DataCite rejection clears the pending attempt', function (): void {
     $resource = embargoResource('2027-01-01');
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     Http::fake(['*datacite.org/*' => Http::response(['errors' => [['title' => 'Invalid metadata']]], 422)]);
 
     expect(fn () => app(DataCiteRegistrationService::class)->registerDoi($resource, '10.83279'))
@@ -141,14 +144,14 @@ test('pending embargo registration blocks editor writes until reconciliation', f
     $resource = embargoResource('2027-01-01');
     expect(app(EmbargoService::class)->claimRegistration($resource, '10.83279'))->toBeTrue();
 
-    expect(fn () => app(\App\Services\ResourceStorageService::class)->store(['resourceId' => $resource->id]))
-        ->toThrow(\Illuminate\Validation\ValidationException::class);
+    expect(fn () => app(ResourceStorageService::class)->store(['resourceId' => $resource->id]))
+        ->toThrow(ValidationException::class);
     expect($resource->fresh()->embargo_registration_started_at)->not->toBeNull();
 });
 
 test('due registration exports DataCite Available and Open access and uses a stable URL', function (): void {
     $resource = embargoResource('2027-01-01');
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     Http::fake(['*datacite.org/*' => Http::response(['data' => ['id' => '10.83279/embargo']], 201)]);
 
     $response = app(DataCiteRegistrationService::class)->registerDoi($resource, '10.83279');

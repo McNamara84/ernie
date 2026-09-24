@@ -20,6 +20,7 @@ use App\Services\IgsnRegistrationRunService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -599,7 +600,7 @@ test('a queued IGSN rechecks Available immediately before its DataCite POST', fu
 
 test('a due queued IGSN releases its embargo after a confirmed DataCite create', function (): void {
     config(['app.timezone' => 'Europe/Berlin']);
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
+    $this->travelTo(Carbon::parse('2027-01-01 00:00:00', 'Europe/Berlin'));
     $resource = createQueuedIgsn(['access_level' => AccessLevel::EMBARGOED]);
     $resource->landingPage->update(['is_published' => false, 'published_at' => null]);
     $available = DateType::firstOrCreate(['slug' => 'Available'], ['name' => 'Available', 'is_active' => true]);

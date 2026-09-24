@@ -13,6 +13,7 @@ use App\Services\BotProtection\LandingPageViewCounterService;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataPublicationTeamRecipientService;
+use App\Services\EmbargoService;
 use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\LandingPageDocumentMetadataService;
 use App\Services\LandingPageMachineMetadataService;
@@ -303,7 +304,7 @@ class LandingPagePublicController extends Controller
         }
         $isPreview = ! $isPublished;
 
-        if ($isPreview && app(\App\Services\EmbargoService::class)->isEmbargoed($landingPage->resource)) {
+        if ($isPreview && app(EmbargoService::class)->isEmbargoed($landingPage->resource)) {
             abort_if($landingPage->isExternal(), HttpResponse::HTTP_NOT_FOUND, 'Embargo preview requires an internal landing page');
         }
 
@@ -395,9 +396,9 @@ class LandingPagePublicController extends Controller
                 LandingPageController::serializeLandingPagePayload($resource, $landingPage)
             );
 
-            $embargoPending = $isPreview && app(\App\Services\EmbargoService::class)->isEmbargoed($resource);
+            $embargoPending = $isPreview && app(EmbargoService::class)->isEmbargoed($resource);
             $embargoDate = $embargoPending
-                ? app(\App\Services\EmbargoService::class)->availableDate($resource)
+                ? app(EmbargoService::class)->availableDate($resource)
                 : null;
             if ($embargoPending) {
                 $landingPageData = $this->applyDownloadsUnavailableDisplayPolicy(

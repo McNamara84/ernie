@@ -12,6 +12,7 @@ use App\Models\IgsnRegistrationRun;
 use App\Models\Resource;
 use App\Services\DataCiteModeResolverService;
 use App\Services\DataCiteRegistrationFactoryService;
+use App\Services\EmbargoService;
 use App\Services\IgsnRegistrationExclusionService;
 use App\Services\IgsnRegistrationRunService;
 use Illuminate\Bus\Queueable;
@@ -176,11 +177,11 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
                 // that remote identifier with a metadata update instead of sending
                 // a second create request.
                 $resource->publication_year = now(config('app.timezone'))->year;
-                if (app(\App\Services\EmbargoService::class)->isEmbargoed($resource)) {
+                if (app(EmbargoService::class)->isEmbargoed($resource)) {
                     // Verify the remote URL, Findable state, and Open access right
                     // before completing a release interrupted after DataCite POST.
                     if ($resource->embargo_registration_started_at === null) {
-                        app(\App\Services\EmbargoService::class)->claimRegistration(
+                        app(EmbargoService::class)->claimRegistration(
                             $resource,
                             explode('/', (string) $resource->doi, 2)[0],
                         );
@@ -191,7 +192,7 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
                 }
             } else {
                 $resource->publication_year = now(config('app.timezone'))->year;
-                app(\App\Services\EmbargoService::class)->assertCanRegister($resource);
+                app(EmbargoService::class)->assertCanRegister($resource);
                 $response = $service->registerIgsn($resource);
             }
 
@@ -201,11 +202,11 @@ class ProcessIgsnRegistrationRunJob implements ShouldQueue
             }
 
             $wasEmbargoed = $operation === 'register'
-                && app(\App\Services\EmbargoService::class)->isEmbargoed($resource);
+                && app(EmbargoService::class)->isEmbargoed($resource);
             DB::transaction(function () use ($resource, $metadata, $operation, $wasEmbargoed): void {
                 $resource->save();
                 if ($operation === 'register' && $wasEmbargoed) {
-                    app(\App\Services\EmbargoService::class)->completeRelease($resource);
+                    app(EmbargoService::class)->completeRelease($resource);
                 }
                 $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
             });

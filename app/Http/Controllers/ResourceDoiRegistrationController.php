@@ -9,6 +9,7 @@ use App\Http\Resources\DataCitePrefixResource;
 use App\Models\Resource;
 use App\Services\DataCiteModeResolverService;
 use App\Services\DataCiteRegistrationService;
+use App\Services\EmbargoService;
 use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\ResourceCacheService;
 use App\Services\ResourceStorageService;
@@ -89,7 +90,7 @@ class ResourceDoiRegistrationController extends Controller
                 ]);
             }
 
-            app(\App\Services\EmbargoService::class)->assertCanRegister($resource);
+            app(EmbargoService::class)->assertCanRegister($resource);
 
             // Register a new DOI.
             $validated = $request->validated();
@@ -116,13 +117,13 @@ class ResourceDoiRegistrationController extends Controller
                 ], 500);
             }
 
-            $wasEmbargoed = app(\App\Services\EmbargoService::class)->isEmbargoed($resource);
+            $wasEmbargoed = app(EmbargoService::class)->isEmbargoed($resource);
             DB::transaction(function () use ($resource, $doi, $wasEmbargoed): void {
                 $resource->doi = $doi;
                 $resource->save();
                 app(ResourceStorageService::class)->ensureSystemDate($resource, 'Issued');
                 if ($wasEmbargoed) {
-                    app(\App\Services\EmbargoService::class)->completeRelease($resource);
+                    app(EmbargoService::class)->completeRelease($resource);
                 }
             });
             if ($wasEmbargoed) {

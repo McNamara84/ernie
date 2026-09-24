@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AccessLevel;
 use App\Models\Resource;
 use App\Support\DataCiteSchemaVersion;
 use Illuminate\Http\Client\RequestException;
@@ -121,14 +122,14 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
             return $this->reconcileEmbargoDoi($resource, $prefix);
         }
         if ($releaseEmbargo) {
-            $resource->access_level = \App\Enums\AccessLevel::OPEN;
+            $resource->access_level = AccessLevel::OPEN;
         }
 
         // Generate DataCite metadata using the existing exporter
         $jsonExporter = new DataCiteJsonExporter;
         $dataCiteData = $jsonExporter->export($resource);
         if ($releaseEmbargo) {
-            $resource->access_level = \App\Enums\AccessLevel::EMBARGOED;
+            $resource->access_level = AccessLevel::EMBARGOED;
         }
 
         // Build the registration payload
@@ -296,14 +297,14 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
             return $this->reconcileEmbargoIgsn($resource, $prefix);
         }
         if ($releaseEmbargo) {
-            $resource->access_level = \App\Enums\AccessLevel::OPEN;
+            $resource->access_level = AccessLevel::OPEN;
         }
 
         // Generate DataCite metadata using the existing exporter
         $jsonExporter = new DataCiteJsonExporter;
         $dataCiteData = $jsonExporter->export($resource);
         if ($releaseEmbargo) {
-            $resource->access_level = \App\Enums\AccessLevel::EMBARGOED;
+            $resource->access_level = AccessLevel::EMBARGOED;
         }
 
         // Build the registration payload – KEEP the DOI (unlike registerDoi which unsets it)
@@ -572,7 +573,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         }
 
         foreach ($rights as $right) {
-            if (is_array($right) && ($right['rightsIdentifier'] ?? null) === \App\Enums\AccessLevel::OPEN->coarIdentifier()) {
+            if (is_array($right) && ($right['rightsIdentifier'] ?? null) === AccessLevel::OPEN->coarIdentifier()) {
                 return true;
             }
         }

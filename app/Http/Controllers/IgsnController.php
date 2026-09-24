@@ -26,6 +26,7 @@ use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteUrlUpdateRunPresenter;
+use App\Services\EmbargoService;
 use App\Services\IgsnRegistrationExclusionService;
 use App\Services\IgsnRegistrationRunPresenterService;
 use App\Services\JsonSchemaValidator;
@@ -512,7 +513,7 @@ class IgsnController extends Controller
             }
 
             // New registration
-            app(\App\Services\EmbargoService::class)->assertCanRegister($resource);
+            app(EmbargoService::class)->assertCanRegister($resource);
             $response = $service->registerIgsn($resource);
             $doi = $response['data']['id'] ?? $resource->doi;
 
@@ -522,11 +523,11 @@ class IgsnController extends Controller
             }
 
             // Keep local identifier, access right, page, and registration state atomic.
-            $wasEmbargoed = app(\App\Services\EmbargoService::class)->isEmbargoed($resource);
+            $wasEmbargoed = app(EmbargoService::class)->isEmbargoed($resource);
             DB::transaction(function () use ($resource, $metadata, $wasEmbargoed): void {
                 $resource->save();
                 if ($wasEmbargoed) {
-                    app(\App\Services\EmbargoService::class)->completeRelease($resource);
+                    app(EmbargoService::class)->completeRelease($resource);
                 }
                 $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
             });

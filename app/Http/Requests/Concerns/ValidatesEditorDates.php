@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Concerns;
 
+use App\Enums\AccessLevel;
 use App\Support\DataCiteDateNormalizer;
 use DateTimeImmutable;
 use Illuminate\Support\Str;
@@ -44,10 +45,9 @@ trait ValidatesEditorDates
 
             if ($dateType === 'available' && $startDate !== null
                 && strcmp(substr($startDate, 0, 10), now(config('app.timezone'))->toDateString()) > 0
-                && $this->input('accessLevel') !== \App\Enums\AccessLevel::EMBARGOED->value) {
+                && $this->input('accessLevel') !== AccessLevel::EMBARGOED->value) {
                 $validator->errors()->add("dates.$index.startDate", '[Dates] A future Available date requires Embargoed access.');
             }
-
 
             if ($dateMode !== null && ! in_array($dateMode, ['single', 'range'], true)) {
                 $validator->errors()->add(
